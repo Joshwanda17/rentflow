@@ -16,8 +16,10 @@ export default function Dashboard() {
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
+    } else if (!loading && user && roles.length === 0) {
+      navigate('/select-role');
     }
-  }, [user, loading, navigate]);
+  }, [user, loading, roles, navigate]);
 
   if (loading) {
     return (
