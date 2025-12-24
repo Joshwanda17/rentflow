@@ -4,12 +4,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Home, LogOut, Banknote, Building, CheckCircle } from 'lucide-react';
+import { LogOut, Banknote, Building, CheckCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
+import WelileLogo from '@/components/WelileLogo';
 
 interface LandlordDashboardProps {
   user: User;
@@ -55,10 +56,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
     <div className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Home className="h-6 w-6 text-primary" />
-            <span className="font-bold text-lg">RentAccess</span>
-            <RoleSwitcher 
+          <div className="flex items-center gap-4">
+            <WelileLogo showText={false} />
+            <RoleSwitcher
               currentRole={currentRole} 
               availableRoles={availableRoles} 
               onRoleChange={onRoleChange} 

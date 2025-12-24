@@ -13,6 +13,7 @@ import {
   Clock,
   Banknote
 } from 'lucide-react';
+import WelileLogo from '@/components/WelileLogo';
 
 const userTypes = [
   {
@@ -62,12 +63,7 @@ export default function Index() {
       {/* Navigation */}
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <div className="p-2 rounded-lg bg-primary/10">
-              <Home className="h-6 w-6 text-primary" />
-            </div>
-            <span className="text-xl font-bold">RentAccess</span>
-          </div>
+          <WelileLogo />
           <div className="flex items-center gap-3">
             <Link to="/auth">
               <Button variant="ghost">Sign In</Button>
@@ -258,14 +254,9 @@ export default function Index() {
       <footer className="border-t border-border py-12">
         <div className="container mx-auto px-4">
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Home className="h-5 w-5 text-primary" />
-              </div>
-              <span className="font-bold">RentAccess</span>
-            </div>
+            <WelileLogo />
             <p className="text-sm text-muted-foreground text-center">
-              RentAccess Platform • Technology Marketplace • Not a Financial Institution
+              © {new Date().getFullYear()} Welile Technologies Limited • welile.com
             </p>
             <div className="flex gap-4">
               <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">
