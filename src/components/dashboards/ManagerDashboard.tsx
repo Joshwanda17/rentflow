@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Home, LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send } from 'lucide-react';
+import { Home, LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -45,9 +45,21 @@ interface UserProfile {
   user_roles: { role: string }[];
 }
 
+interface PlatformTransaction {
+  id: string;
+  rent_request_id: string | null;
+  user_id: string | null;
+  transaction_type: string;
+  amount: number;
+  direction: string;
+  description: string | null;
+  created_at: string;
+}
+
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [transactions, setTransactions] = useState<PlatformTransaction[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -58,19 +70,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const fetchData = async () => {
     setLoading(true);
     
-    const { data: requestsData } = await supabase
-      .from('rent_requests')
-      .select(`
-        id, tenant_id, agent_id, landlord_id, supporter_id, rent_amount, duration_days, 
-        access_fee, request_fee, total_repayment, status, created_at,
-        landlords (id, name, phone)
-      `)
-      .order('created_at', { ascending: false });
+    const [requestsResult, usersResult, transactionsResult] = await Promise.all([
+      supabase
+        .from('rent_requests')
+        .select(`
+          id, tenant_id, agent_id, landlord_id, supporter_id, rent_amount, duration_days, 
+          access_fee, request_fee, total_repayment, status, created_at,
+          landlords (id, name, phone)
+        `)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('profiles')
+        .select('id, full_name, email, phone')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('platform_transactions')
+        .select('*')
+        .order('created_at', { ascending: false })
+    ]);
     
-    const { data: usersData } = await supabase
-      .from('profiles')
-      .select('id, full_name, email, phone')
-      .order('created_at', { ascending: false });
+    const requestsData = requestsResult.data;
+    const usersData = usersResult.data;
     
     // Fetch roles separately
     const userIds = usersData?.map(u => u.id) || [];
@@ -86,6 +106,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     
     setRequests(requestsData || []);
     setUsers(usersWithRoles);
+    setTransactions(transactionsResult.data || []);
     setLoading(false);
   };
 
@@ -303,6 +324,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               Funded ({fundedRequests.length})
             </TabsTrigger>
             <TabsTrigger value="all">All Requests</TabsTrigger>
+            <TabsTrigger value="transactions">
+              <Receipt className="h-4 w-4 mr-1" />
+              Payments
+            </TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
 
@@ -446,6 +471,58 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     </div>
                   ))}
                 </div>
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="transactions">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Receipt className="h-5 w-5" />
+                  Payment History
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-muted-foreground">Loading...</p>
+                ) : transactions.length === 0 ? (
+                  <p className="text-muted-foreground">No transactions recorded yet</p>
+                ) : (
+                  <div className="space-y-3">
+                    {transactions.map((tx) => (
+                      <div 
+                        key={tx.id} 
+                        className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50"
+                      >
+                        <div className={`p-2 rounded-lg ${tx.direction === 'in' ? 'bg-success/10' : 'bg-destructive/10'}`}>
+                          {tx.direction === 'in' ? (
+                            <ArrowDownLeft className="h-4 w-4 text-success" />
+                          ) : (
+                            <ArrowUpRight className="h-4 w-4 text-destructive" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium capitalize">{tx.transaction_type.replace(/_/g, ' ')}</p>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {tx.description || 'No description'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            {new Date(tx.created_at).toLocaleString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className={`font-mono font-semibold ${tx.direction === 'in' ? 'text-success' : 'text-destructive'}`}>
+                            {tx.direction === 'in' ? '+' : '-'}{formatUGX(Number(tx.amount))}
+                          </p>
+                          <Badge variant="outline" className="text-xs">
+                            {tx.direction === 'in' ? 'Inflow' : 'Outflow'}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>
