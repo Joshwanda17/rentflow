@@ -4,28 +4,28 @@
 
 @layer base {
   :root {
-    /* Modern Light Theme - Clean & Professional */
-    --background: 220 20% 97%;
-    --foreground: 222 47% 11%;
+    /* Light Purple Theme - Clean & Modern */
+    --background: 270 30% 98%;
+    --foreground: 270 50% 10%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222 47% 11%;
+    --card-foreground: 270 50% 10%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222 47% 11%;
+    --popover-foreground: 270 50% 10%;
 
-    /* Sophisticated Teal/Emerald Primary */
-    --primary: 162 72% 38%;
+    /* Vibrant Purple Primary */
+    --primary: 270 70% 55%;
     --primary-foreground: 0 0% 100%;
 
-    --secondary: 220 14% 96%;
-    --secondary-foreground: 222 47% 20%;
+    --secondary: 270 25% 95%;
+    --secondary-foreground: 270 50% 20%;
 
-    --muted: 220 14% 94%;
-    --muted-foreground: 220 9% 46%;
+    --muted: 270 20% 94%;
+    --muted-foreground: 270 10% 45%;
 
-    --accent: 162 55% 92%;
-    --accent-foreground: 162 72% 25%;
+    --accent: 270 60% 94%;
+    --accent-foreground: 270 70% 40%;
 
     --destructive: 0 84% 60%;
     --destructive-foreground: 0 0% 100%;
@@ -36,99 +36,99 @@
     --warning: 38 92% 50%;
     --warning-foreground: 38 92% 10%;
 
-    --border: 220 13% 91%;
-    --input: 220 13% 91%;
-    --ring: 162 72% 38%;
+    --border: 270 20% 90%;
+    --input: 270 20% 90%;
+    --ring: 270 70% 55%;
 
     --radius: 0.625rem;
 
-    /* Chart Colors - Harmonious Palette */
-    --chart-1: 162 72% 38%;
-    --chart-2: 142 76% 36%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 84% 60%;
-    --chart-5: 262 83% 58%;
+    /* Chart Colors - Purple Harmonious Palette */
+    --chart-1: 270 70% 55%;
+    --chart-2: 290 65% 50%;
+    --chart-3: 250 65% 55%;
+    --chart-4: 320 70% 55%;
+    --chart-5: 230 70% 55%;
 
     /* Glass Effects */
     --glass: 0 0% 100% / 0.85;
-    --glass-border: 220 13% 80% / 0.4;
+    --glass-border: 270 20% 80% / 0.4;
 
     /* Sidebar */
     --sidebar-background: 0 0% 100%;
-    --sidebar-foreground: 222 47% 11%;
-    --sidebar-primary: 162 72% 38%;
+    --sidebar-foreground: 270 50% 10%;
+    --sidebar-primary: 270 70% 55%;
     --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 162 55% 96%;
-    --sidebar-accent-foreground: 162 72% 25%;
-    --sidebar-border: 220 13% 91%;
-    --sidebar-ring: 162 72% 38%;
+    --sidebar-accent: 270 60% 96%;
+    --sidebar-accent-foreground: 270 70% 40%;
+    --sidebar-border: 270 20% 90%;
+    --sidebar-ring: 270 70% 55%;
 
     /* Gradients */
-    --gradient-start: 162 72% 38%;
-    --gradient-end: 142 76% 36%;
+    --gradient-start: 270 70% 55%;
+    --gradient-end: 290 65% 50%;
   }
 
   .dark {
-    /* Modern Dark Theme - Sophisticated & Premium */
-    --background: 222 47% 6%;
-    --foreground: 210 40% 98%;
+    /* Dark Purple Theme - Sophisticated & Premium */
+    --background: 270 30% 6%;
+    --foreground: 270 20% 98%;
 
-    --card: 222 47% 8%;
-    --card-foreground: 210 40% 98%;
+    --card: 270 30% 9%;
+    --card-foreground: 270 20% 98%;
 
-    --popover: 222 47% 8%;
-    --popover-foreground: 210 40% 98%;
+    --popover: 270 30% 9%;
+    --popover-foreground: 270 20% 98%;
 
-    /* Vibrant Teal/Emerald for Dark Mode */
-    --primary: 162 83% 44%;
-    --primary-foreground: 222 47% 6%;
+    /* Vibrant Purple for Dark Mode */
+    --primary: 270 75% 60%;
+    --primary-foreground: 270 30% 6%;
 
-    --secondary: 217 33% 12%;
-    --secondary-foreground: 210 40% 98%;
+    --secondary: 270 25% 14%;
+    --secondary-foreground: 270 20% 98%;
 
-    --muted: 217 33% 14%;
-    --muted-foreground: 215 20% 55%;
+    --muted: 270 25% 16%;
+    --muted-foreground: 270 15% 55%;
 
-    --accent: 162 50% 15%;
-    --accent-foreground: 162 83% 50%;
+    --accent: 270 40% 18%;
+    --accent-foreground: 270 75% 70%;
 
     --destructive: 0 72% 51%;
-    --destructive-foreground: 210 40% 98%;
+    --destructive-foreground: 270 20% 98%;
 
     --success: 142 76% 46%;
-    --success-foreground: 222 47% 6%;
+    --success-foreground: 270 30% 6%;
 
     --warning: 38 92% 50%;
-    --warning-foreground: 222 47% 6%;
+    --warning-foreground: 270 30% 6%;
 
-    --border: 217 33% 16%;
-    --input: 217 33% 14%;
-    --ring: 162 83% 44%;
+    --border: 270 25% 18%;
+    --input: 270 25% 16%;
+    --ring: 270 75% 60%;
 
-    /* Chart Colors - Vibrant for Dark */
-    --chart-1: 162 83% 44%;
-    --chart-2: 142 76% 46%;
-    --chart-3: 38 92% 50%;
-    --chart-4: 0 72% 51%;
-    --chart-5: 262 83% 58%;
+    /* Chart Colors - Vibrant Purple for Dark */
+    --chart-1: 270 75% 60%;
+    --chart-2: 290 70% 55%;
+    --chart-3: 250 70% 60%;
+    --chart-4: 320 75% 60%;
+    --chart-5: 230 75% 60%;
 
     /* Glass Effects */
-    --glass: 222 47% 10% / 0.85;
-    --glass-border: 217 33% 24% / 0.4;
+    --glass: 270 30% 10% / 0.85;
+    --glass-border: 270 25% 24% / 0.4;
 
     /* Sidebar */
-    --sidebar-background: 222 47% 6%;
-    --sidebar-foreground: 210 40% 98%;
-    --sidebar-primary: 162 83% 44%;
-    --sidebar-primary-foreground: 222 47% 6%;
-    --sidebar-accent: 217 33% 12%;
-    --sidebar-accent-foreground: 210 40% 98%;
-    --sidebar-border: 217 33% 16%;
-    --sidebar-ring: 162 83% 44%;
+    --sidebar-background: 270 30% 6%;
+    --sidebar-foreground: 270 20% 98%;
+    --sidebar-primary: 270 75% 60%;
+    --sidebar-primary-foreground: 270 30% 6%;
+    --sidebar-accent: 270 25% 14%;
+    --sidebar-accent-foreground: 270 20% 98%;
+    --sidebar-border: 270 25% 18%;
+    --sidebar-ring: 270 75% 60%;
 
     /* Gradients */
-    --gradient-start: 162 83% 44%;
-    --gradient-end: 142 76% 46%;
+    --gradient-start: 270 75% 60%;
+    --gradient-end: 290 70% 55%;
   }
 }
 
