@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
+import { FinancialOverview } from '@/components/manager/FinancialOverview';
 
 interface ManagerDashboardProps {
   user: User;
@@ -351,6 +352,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <TabsTrigger value="funded" className="text-xs md:text-sm">
                 Funded ({fundedRequests.length})
               </TabsTrigger>
+              <TabsTrigger value="financials" className="text-xs md:text-sm">
+                <TrendingUp className="h-4 w-4 mr-1 hidden md:inline" />
+                Financials
+              </TabsTrigger>
               <TabsTrigger value="agents" className="text-xs md:text-sm">
                 <UserCheck className="h-4 w-4 mr-1 hidden md:inline" />
                 Agents
@@ -359,7 +364,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <Receipt className="h-4 w-4 mr-1 hidden md:inline" />
                 Payments
               </TabsTrigger>
-              <TabsTrigger value="all" className="text-xs md:text-sm">All</TabsTrigger>
               <TabsTrigger value="users" className="text-xs md:text-sm">Users</TabsTrigger>
             </TabsList>
           </div>
@@ -478,6 +482,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="financials">
+            <FinancialOverview />
           </TabsContent>
 
           <TabsContent value="agents">
