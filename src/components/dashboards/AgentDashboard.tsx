@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -83,61 +83,97 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case 'pending': return 'bg-warning/20 text-warning';
-      case 'approved': return 'bg-primary/20 text-primary';
-      case 'funded': return 'bg-success/20 text-success';
-      case 'disbursed': return 'bg-success/20 text-success';
-      case 'completed': return 'bg-muted text-muted-foreground';
-      case 'rejected': return 'bg-destructive/20 text-destructive';
-      default: return 'bg-muted text-muted-foreground';
+      case 'pending': return 'warning';
+      case 'approved': return 'default';
+      case 'funded': return 'success';
+      case 'disbursed': return 'success';
+      case 'completed': return 'secondary';
+      case 'rejected': return 'destructive';
+      default: return 'secondary';
     }
   };
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-            <WelileLogo showText={false} />
-            <RoleSwitcher
-              currentRole={currentRole} 
-              availableRoles={availableRoles} 
-              onRoleChange={onRoleChange} 
-            />
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <NotificationBell />
-            <ThemeToggle />
-            {addRoleComponent}
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-          <div className="md:hidden flex items-center gap-1">
-            <NotificationBell />
-            <ThemeToggle />
+      {/* Modern Header */}
+      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
+              </div>
+              <div className="hidden sm:block">
+                <WelileLogo showText={false} />
+              </div>
+              <RoleSwitcher
+                currentRole={currentRole} 
+                availableRoles={availableRoles} 
+                onRoleChange={onRoleChange} 
+              />
+            </div>
+            
+            <div className="hidden md:flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+              {addRoleComponent}
+              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="md:hidden flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
         <AppBreadcrumb />
         
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Manage your customers and track your earnings
+            </p>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+          </div>
+        </div>
+        
         {/* Agent Actions */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button onClick={() => setDepositOpen(true)} className="h-14" variant="default">
-            <ArrowDownCircle className="h-5 w-5 mr-2" />
-            Customer Deposit
+        <div className="grid grid-cols-2 gap-4">
+          <Button 
+            onClick={() => setDepositOpen(true)} 
+            className="h-16 text-base gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-glow"
+            size="lg"
+          >
+            <div className="p-2 rounded-lg bg-white/20">
+              <ArrowDownCircle className="h-5 w-5" />
+            </div>
+            <span>Customer Deposit</span>
           </Button>
-          <Button onClick={() => setWithdrawalOpen(true)} className="h-14" variant="outline">
-            <ArrowUpCircle className="h-5 w-5 mr-2" />
-            Customer Withdrawal
+          <Button 
+            onClick={() => setWithdrawalOpen(true)} 
+            className="h-16 text-base gap-3" 
+            variant="outline"
+            size="lg"
+          >
+            <div className="p-2 rounded-lg bg-primary/10">
+              <ArrowUpCircle className="h-5 w-5 text-primary" />
+            </div>
+            <span>Customer Withdrawal</span>
           </Button>
         </div>
 
@@ -145,23 +181,34 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <WalletCard />
 
         {/* Referral Link */}
-        <Card className="glass-card glow-primary">
-          <CardHeader>
-            <CardTitle className="text-lg flex items-center gap-2">
-              <Link2 className="h-5 w-5" />
-              Your Referral Link
-            </CardTitle>
+        <Card className="elevated-card border-primary/20 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
+          <CardHeader className="relative">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Link2 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
+                <p className="text-sm text-muted-foreground mt-0.5">
+                  Earn UGX 5,000 per approval + 5% of repayments
+                </p>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent>
-            <p className="text-sm text-muted-foreground mb-3">
-              Share this link with tenants. You earn UGX 5,000 for each approved request + 5% of all repayments.
-            </p>
+          <CardContent className="relative">
             <div className="flex gap-2">
-              <code className="flex-1 p-3 bg-secondary rounded-lg text-sm truncate">
+              <code className="flex-1 p-3 bg-secondary/50 rounded-xl text-sm truncate font-mono border border-border/50">
                 {referralLink}
               </code>
-              <Button onClick={copyReferralLink} variant="outline">
+              <Button 
+                onClick={copyReferralLink} 
+                variant={copied ? "success" : "outline"}
+                size="lg"
+                className="shrink-0 gap-2"
+              >
                 {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                {copied ? 'Copied!' : 'Copy'}
               </Button>
             </div>
           </CardContent>
@@ -169,43 +216,44 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="glass-card">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-primary/10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
                   <Users className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Tenants Registered</p>
-                  <p className="text-xl font-mono font-semibold">{rentRequests.length}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Tenants Registered</p>
+                  <p className="metric-value text-2xl">{rentRequests.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-success/10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
                   <Check className="h-5 w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Approved Requests</p>
-                  <p className="text-xl font-mono font-semibold">{approvedCount}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Approved Requests</p>
+                  <p className="metric-value text-2xl">{approvedCount}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-warning/10">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
+            <CardContent className="pt-6 relative">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
                   <Coins className="h-5 w-5 text-warning" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Earnings</p>
-                  <p className="text-xl font-mono font-semibold text-success">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Total Earnings</p>
+                  <p className="metric-value text-2xl text-success truncate">
                     {formatUGX(totalEarnings)}
                   </p>
                 </div>
@@ -215,14 +263,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </div>
 
         {/* Earnings Breakdown */}
-        <Card className="glass-card">
-          <CardHeader className="flex flex-row items-center justify-between">
-            <CardTitle className="text-lg">Earnings Breakdown</CardTitle>
+        <Card className="elevated-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10">
+                <Zap className="h-4 w-4 text-success" />
+              </div>
+              <CardTitle className="text-lg font-semibold">Earnings Breakdown</CardTitle>
+            </div>
             <Button 
               variant="outline" 
               size="sm" 
               onClick={() => navigate('/earnings')}
-              className="gap-1"
+              className="gap-2"
             >
               <TrendingUp className="h-4 w-4" />
               View All
@@ -230,46 +283,65 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">
-              <div className="p-4 rounded-lg bg-secondary/50">
-                <p className="text-sm text-muted-foreground">Approval Bonuses</p>
-                <p className="text-lg font-mono font-semibold">{formatUGX(bonusTotal)}</p>
-                <p className="text-xs text-muted-foreground">{approvedCount} × UGX 5,000</p>
+              <div className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-primary" />
+                  <p className="text-sm text-muted-foreground font-medium">Approval Bonuses</p>
+                </div>
+                <p className="metric-value text-xl">{formatUGX(bonusTotal)}</p>
+                <p className="text-xs text-muted-foreground mt-1">{approvedCount} × UGX 5,000</p>
               </div>
-              <div className="p-4 rounded-lg bg-secondary/50">
-                <p className="text-sm text-muted-foreground">Repayment Commissions</p>
-                <p className="text-lg font-mono font-semibold">{formatUGX(commissionTotal)}</p>
-                <p className="text-xs text-muted-foreground">5% of tenant repayments</p>
+              <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="w-2 h-2 rounded-full bg-success" />
+                  <p className="text-sm text-muted-foreground font-medium">Repayment Commissions</p>
+                </div>
+                <p className="metric-value text-xl text-success">{formatUGX(commissionTotal)}</p>
+                <p className="text-xs text-muted-foreground mt-1">5% of tenant repayments</p>
               </div>
             </div>
           </CardContent>
         </Card>
 
         {/* Registered Tenants */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Registered Tenants</CardTitle>
+        <Card className="elevated-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Users className="h-4 w-4 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-semibold">Registered Tenants</CardTitle>
+            </div>
+            <Badge variant="outline" className="font-mono">
+              {rentRequests.length} total
+            </Badge>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
             ) : rentRequests.length === 0 ? (
-              <p className="text-muted-foreground">
-                No tenants registered yet. Share your referral link to get started.
-              </p>
+              <div className="text-center py-8">
+                <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-muted-foreground">No tenants registered yet.</p>
+                <p className="text-sm text-muted-foreground/70">Share your referral link to get started.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {rentRequests.map((request) => (
+                {rentRequests.map((request, index) => (
                   <div 
                     key={request.id} 
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
+                    className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div>
-                      <p className="font-medium">{formatUGX(Number(request.rent_amount))}</p>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
                       <p className="text-sm text-muted-foreground">
                         {new Date(request.created_at).toLocaleDateString()}
                       </p>
                     </div>
-                    <Badge className={getStatusColor(request.status)}>
+                    <Badge variant={getStatusColor(request.status)}>
                       {request.status}
                     </Badge>
                   </div>
