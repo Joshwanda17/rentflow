@@ -22,6 +22,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface TenantDashboardProps {
   user: User;
@@ -103,6 +104,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       default: return 'secondary';
     }
   };
+
+  if (loading) {
+    return <TenantDashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">

@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -14,6 +15,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
+import { SkeletonWallet } from '@/components/ui/skeleton';
 
 export function WalletCard() {
   const navigate = useNavigate();
@@ -71,16 +73,7 @@ export function WalletCard() {
   };
 
   if (loading) {
-    return (
-      <Card className="bg-card border-border">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-8 bg-muted rounded w-1/3"></div>
-            <div className="h-12 bg-muted rounded w-1/2"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
+    return <SkeletonWallet />;
   }
 
   return (
