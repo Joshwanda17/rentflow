@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Banknote, Building, CheckCircle } from 'lucide-react';
+import { LogOut, Banknote, Building, CheckCircle, Settings } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
@@ -32,6 +33,7 @@ interface Payment {
 }
 
 export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
+  const navigate = useNavigate();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -70,6 +72,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
           <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </Button>
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
