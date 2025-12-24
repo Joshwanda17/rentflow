@@ -49,7 +49,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const { toast } = useToast();
-  const { toast } = useToast();
 
   const referralLink = `${window.location.origin}/auth?ref=${user.id}`;
 
