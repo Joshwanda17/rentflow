@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -7,7 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Home, UserPlus, LogIn } from 'lucide-react';
+import { Home, UserPlus, LogIn, Users } from 'lucide-react';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -26,17 +26,27 @@ const signInSchema = z.object({
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter';
 
 export default function Auth() {
-  const [isSignUp, setIsSignUp] = useState(false);
+  const [searchParams] = useSearchParams();
+  const referralId = searchParams.get('ref');
+  
+  const [isSignUp, setIsSignUp] = useState(!!referralId);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<AppRole>('tenant');
+  const [role, setRole] = useState<AppRole>(referralId ? 'tenant' : 'tenant');
   const [isLoading, setIsLoading] = useState(false);
   
   const { signUp, signIn, user } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Store referral ID in localStorage for later use when creating rent requests
+  useEffect(() => {
+    if (referralId) {
+      localStorage.setItem('referral_agent_id', referralId);
+    }
+  }, [referralId]);
 
   useEffect(() => {
     if (user) {
@@ -123,6 +133,18 @@ export default function Auth() {
           </div>
           <p className="text-muted-foreground">Rent Facilitation Platform</p>
         </div>
+
+        {referralId && (
+          <div className="mb-4 p-3 rounded-lg bg-success/10 border border-success/20 text-center">
+            <div className="flex items-center justify-center gap-2 text-success">
+              <Users className="h-4 w-4" />
+              <span className="text-sm font-medium">Referred by an Agent</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Sign up as a tenant to get started with rent facilitation
+            </p>
+          </div>
+        )}
 
         <Card className="glass-card">
           <CardHeader>
