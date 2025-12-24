@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { ParticleBackground } from '@/components/ParticleBackground';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -127,6 +128,9 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center">
+        {/* Purple particle effects */}
+        <ParticleBackground />
+        
         {/* Purple gradient overlays */}
         <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/5" />
         <div className="absolute inset-0 bg-gradient-to-tl from-accent/10 via-transparent to-primary/8" />
