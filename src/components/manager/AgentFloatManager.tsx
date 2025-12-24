@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
-import { Users, Send, Wallet, RefreshCw } from 'lucide-react';
+import { Users, Send, Wallet, RefreshCw, Eye } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import { AgentDetailsDialog } from './AgentDetailsDialog';
 
 interface Agent {
   id: string;
@@ -22,6 +23,7 @@ export function AgentFloatManager() {
   const [agents, setAgents] = useState<Agent[]>([]);
   const [loading, setLoading] = useState(true);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
   const [amount, setAmount] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -90,6 +92,11 @@ export function AgentFloatManager() {
     setSelectedAgent(agent);
     setAmount('');
     setTransferOpen(true);
+  };
+
+  const handleViewDetails = (agent: Agent) => {
+    setSelectedAgent(agent);
+    setDetailsOpen(true);
   };
 
   const handleTransfer = async () => {
@@ -178,6 +185,15 @@ export function AgentFloatManager() {
                     </div>
                     <Button 
                       size="sm" 
+                      variant="outline"
+                      onClick={() => handleViewDetails(agent)}
+                      className="whitespace-nowrap"
+                    >
+                      <Eye className="h-4 w-4 mr-1" />
+                      Details
+                    </Button>
+                    <Button 
+                      size="sm" 
                       onClick={() => handleTransferClick(agent)}
                       className="whitespace-nowrap"
                     >
@@ -247,6 +263,12 @@ export function AgentFloatManager() {
           </div>
         </DialogContent>
       </Dialog>
+
+      <AgentDetailsDialog
+        open={detailsOpen}
+        onOpenChange={setDetailsOpen}
+        agent={selectedAgent}
+      />
     </>
   );
 }
