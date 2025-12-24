@@ -13,6 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
+import AppBreadcrumb from '@/components/AppBreadcrumb';
 
 interface TenantDashboardProps {
   user: User;
@@ -118,6 +119,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        <AppBreadcrumb />
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="glass-card">
