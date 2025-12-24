@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -216,8 +216,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Earnings Breakdown */}
         <Card className="glass-card">
-          <CardHeader>
+          <CardHeader className="flex flex-row items-center justify-between">
             <CardTitle className="text-lg">Earnings Breakdown</CardTitle>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => navigate('/earnings')}
+              className="gap-1"
+            >
+              <TrendingUp className="h-4 w-4" />
+              View All
+            </Button>
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-4">

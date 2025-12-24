@@ -11,6 +11,7 @@ import Dashboard from "./pages/Dashboard";
 import SelectRole from "./pages/SelectRole";
 import TransactionHistory from "./pages/TransactionHistory";
 import Settings from "./pages/Settings";
+import AgentEarnings from "./pages/AgentEarnings";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -30,6 +31,7 @@ const App = () => (
               <Route path="/select-role" element={<SelectRole />} />
               <Route path="/transactions" element={<TransactionHistory />} />
               <Route path="/settings" element={<Settings />} />
+              <Route path="/earnings" element={<AgentEarnings />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
