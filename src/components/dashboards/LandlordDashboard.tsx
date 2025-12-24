@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Banknote, Building, CheckCircle, Settings } from 'lucide-react';
+import { LogOut, Banknote, Building, CheckCircle, Settings, Sparkles, History, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
@@ -63,54 +63,78 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-            <WelileLogo showText={false} />
-            <RoleSwitcher
-              currentRole={currentRole} 
-              availableRoles={availableRoles} 
-              onRoleChange={onRoleChange} 
-            />
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <NotificationBell />
-            <ThemeToggle />
-            {addRoleComponent}
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-          <div className="md:hidden flex items-center gap-1">
-            <NotificationBell />
-            <ThemeToggle />
+      {/* Modern Header */}
+      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
+              </div>
+              <div className="hidden sm:block">
+                <WelileLogo showText={false} />
+              </div>
+              <RoleSwitcher
+                currentRole={currentRole} 
+                availableRoles={availableRoles} 
+                onRoleChange={onRoleChange} 
+              />
+            </div>
+            
+            <div className="hidden md:flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+              {addRoleComponent}
+              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="md:hidden flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
         <AppBreadcrumb />
+        
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Track your rent payments and property income
+            </p>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+          </div>
+        </div>
         
         {/* Wallet */}
         <WalletCard />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-success/10">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
+            <CardContent className="pt-6 relative">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
                   <Banknote className="h-5 w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Rent Received</p>
-                  <p className="text-xl font-mono font-semibold text-success">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Total Rent Received</p>
+                  <p className="metric-value text-2xl text-success truncate">
                     {formatUGX(totalReceived)}
                   </p>
                 </div>
@@ -118,29 +142,32 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-primary/10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
                   <Building className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Payments Received</p>
-                  <p className="text-xl font-mono font-semibold">{payments.length}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Payments Received</p>
+                  <p className="metric-value text-2xl">{payments.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
         </div>
 
-        {/* Info */}
-        <Card className="glass-card border-success/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <CheckCircle className="h-5 w-5 text-success mt-1" />
+        {/* Info Card */}
+        <Card className="elevated-card border-success/20 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-success/5 via-transparent to-primary/5" />
+          <CardContent className="pt-6 relative">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5">
+                <CheckCircle className="h-5 w-5 text-success" />
+              </div>
               <div>
-                <p className="font-medium">Rent Payments</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">Rent Payments</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   You receive rent payments directly from the platform when a tenant's request is funded by a supporter.
                 </p>
               </div>
@@ -149,31 +176,49 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         </Card>
 
         {/* Payment History */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Payment History</CardTitle>
+        <Card className="elevated-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <History className="h-4 w-4 text-primary" />
+              </div>
+              <CardTitle className="text-lg font-semibold">Payment History</CardTitle>
+            </div>
+            <Badge variant="outline" className="font-mono">
+              {payments.length} total
+            </Badge>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
             ) : payments.length === 0 ? (
-              <p className="text-muted-foreground">
-                No payments received yet. Payments will appear here when tenants have their rent facilitated.
-              </p>
+              <div className="text-center py-8">
+                <Banknote className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-muted-foreground">No payments received yet.</p>
+                <p className="text-sm text-muted-foreground/70">Payments will appear here when tenants have their rent facilitated.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {payments.map((payment) => (
+                {payments.map((payment, index) => (
                   <div 
                     key={payment.id} 
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
+                    className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-success/30 transition-all duration-200"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div>
-                      <p className="font-medium text-success">{formatUGX(Number(payment.amount))}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {payment.description || 'Rent payment'}
-                      </p>
+                    <div className="flex items-center gap-4">
+                      <div className="p-2 rounded-lg bg-success/10 group-hover:scale-110 transition-transform duration-200">
+                        <TrendingUp className="h-4 w-4 text-success" />
+                      </div>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-success">{formatUGX(Number(payment.amount))}</p>
+                        <p className="text-sm text-muted-foreground">
+                          {payment.description || 'Rent payment'}
+                        </p>
+                      </div>
                     </div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-muted-foreground font-medium">
                       {new Date(payment.created_at).toLocaleDateString()}
                     </p>
                   </div>
