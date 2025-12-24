@@ -127,51 +127,55 @@ export default function Index() {
 
       {/* Hero Section */}
       <section className="relative min-h-[90vh] flex items-center">
+        {/* Purple gradient overlays */}
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/8 via-transparent to-primary/5" />
+        <div className="absolute inset-0 bg-gradient-to-tl from-accent/10 via-transparent to-primary/8" />
+        
         {/* Animated background */}
         <div className="absolute inset-0 overflow-hidden">
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.6, scale: 1 }}
+            animate={{ opacity: 0.5, scale: 1 }}
             transition={{ duration: 1.5 }}
-            className="absolute top-1/4 -left-32 w-96 h-96 bg-primary/20 rounded-full blur-3xl"
+            className="absolute top-1/4 -left-32 w-96 h-96 bg-gradient-to-br from-primary/30 to-primary/10 rounded-full blur-3xl"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 0.4, scale: 1 }}
             transition={{ duration: 1.5, delay: 0.3 }}
-            className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-success/15 rounded-full blur-3xl"
+            className="absolute bottom-1/4 -right-32 w-[500px] h-[500px] bg-gradient-to-tl from-primary/25 via-accent/20 to-primary/10 rounded-full blur-3xl"
           />
           <motion.div
             initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 0.3, scale: 1 }}
+            animate={{ opacity: 0.35, scale: 1 }}
             transition={{ duration: 1.5, delay: 0.6 }}
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/10 to-transparent rounded-full"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-gradient-radial from-primary/15 via-accent/8 to-transparent rounded-full"
           />
           
           {/* Floating elements */}
           <motion.div
             animate={floatAnimation}
-            className="absolute top-20 right-20 w-20 h-20 bg-primary/10 rounded-2xl backdrop-blur-sm border border-primary/20 hidden lg:flex items-center justify-center"
+            className="absolute top-20 right-20 w-20 h-20 bg-gradient-to-br from-primary/15 to-primary/5 rounded-2xl backdrop-blur-sm border border-primary/25 hidden lg:flex items-center justify-center shadow-lg shadow-primary/10"
           >
-            <Home className="h-8 w-8 text-primary/60" />
+            <Home className="h-8 w-8 text-primary/70" />
           </motion.div>
           <motion.div
             animate={{
               y: [-10, 10, -10],
               transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' as const, delay: 1 }
             }}
-            className="absolute bottom-32 left-20 w-16 h-16 bg-success/10 rounded-xl backdrop-blur-sm border border-success/20 hidden lg:flex items-center justify-center"
+            className="absolute bottom-32 left-20 w-16 h-16 bg-gradient-to-br from-accent/20 to-primary/10 rounded-xl backdrop-blur-sm border border-primary/20 hidden lg:flex items-center justify-center shadow-lg shadow-primary/10"
           >
-            <Wallet className="h-6 w-6 text-success/60" />
+            <Wallet className="h-6 w-6 text-primary/60" />
           </motion.div>
           <motion.div
             animate={{
               y: [-10, 10, -10],
               transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' as const, delay: 2 }
             }}
-            className="absolute top-40 left-1/4 w-12 h-12 bg-warning/10 rounded-lg backdrop-blur-sm border border-warning/20 hidden lg:flex items-center justify-center"
+            className="absolute top-40 left-1/4 w-12 h-12 bg-gradient-to-br from-primary/20 to-accent/10 rounded-lg backdrop-blur-sm border border-primary/20 hidden lg:flex items-center justify-center shadow-md shadow-primary/10"
           >
-            <Users className="h-5 w-5 text-warning/60" />
+            <Users className="h-5 w-5 text-primary/60" />
           </motion.div>
         </div>
 
@@ -251,7 +255,8 @@ export default function Index() {
 
       {/* Stats Section */}
       <section className="relative border-y border-border/50 bg-card/50 backdrop-blur-sm">
-        <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/10 via-accent/5 to-primary/10" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/3 to-transparent" />
         <div className="container mx-auto px-4 py-16 relative">
           <motion.div 
             variants={containerVariants}
@@ -284,7 +289,8 @@ export default function Index() {
 
       {/* User Types Section */}
       <section className="py-24 relative">
-        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/5 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-b from-transparent via-primary/8 to-transparent" />
+        <div className="absolute inset-0 bg-gradient-to-r from-accent/5 via-transparent to-accent/5" />
         <div className="container mx-auto px-4 relative">
           <motion.div 
             variants={containerVariants}
@@ -325,10 +331,12 @@ export default function Index() {
             {userTypes.map((type, i) => (
               <motion.div key={i} variants={itemVariants}>
                 <Card 
-                  className="h-full glass-card border-border/50 hover:border-primary/50 transition-all duration-500 group overflow-hidden"
+                  className="h-full glass-card border-border/50 hover:border-primary/50 transition-all duration-500 group overflow-hidden relative"
                 >
+                  {/* Subtle purple gradient overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-60" />
                   <div className={`absolute inset-0 bg-gradient-to-br ${type.gradient} opacity-0 group-hover:opacity-100 transition-opacity duration-500`} />
-                  <CardContent className="pt-6 relative">
+                  <CardContent className="pt-6 relative z-10">
                     <motion.div 
                       whileHover={{ scale: 1.1, rotate: 5 }}
                       className={`p-3 rounded-xl ${type.iconBg} w-fit mb-4`}
@@ -374,8 +382,9 @@ export default function Index() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-24 bg-card/30 relative">
-        <div className="absolute inset-0 bg-gradient-to-r from-success/5 via-transparent to-primary/5" />
+      <section className="py-24 bg-card/30 relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-r from-primary/8 via-accent/5 to-primary/8" />
+        <div className="absolute inset-0 bg-gradient-to-b from-primary/3 via-transparent to-primary/3" />
         <div className="container mx-auto px-4 relative">
           <motion.div 
             variants={containerVariants}
@@ -461,15 +470,17 @@ export default function Index() {
                 key={i}
                 variants={itemVariants}
                 whileHover={{ y: -5 }}
-                className="flex items-start gap-4 p-6 rounded-2xl bg-card/50 border border-border/50 backdrop-blur-sm hover:border-primary/30 transition-all"
+                className="relative flex items-start gap-4 p-6 rounded-2xl bg-card/50 border border-border/50 backdrop-blur-sm hover:border-primary/30 transition-all overflow-hidden group"
               >
+                {/* Subtle purple gradient overlay */}
+                <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 opacity-50 group-hover:opacity-80 transition-opacity" />
                 <motion.div 
                   whileHover={{ scale: 1.1, rotate: 5 }}
-                  className={`p-3 rounded-xl bg-${feature.color}/10 shrink-0`}
+                  className={`p-3 rounded-xl bg-${feature.color}/10 shrink-0 relative z-10`}
                 >
                   <feature.icon className={`h-6 w-6 text-${feature.color}`} />
                 </motion.div>
-                <div>
+                <div className="relative z-10">
                   <h3 className="font-semibold text-lg mb-2">{feature.title}</h3>
                   <p className="text-sm text-muted-foreground">{feature.desc}</p>
                 </div>
@@ -481,12 +492,20 @@ export default function Index() {
 
       {/* CTA Section */}
       <section className="py-24 relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-primary/10 via-primary/5 to-success/10" />
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/15 via-accent/8 to-primary/12" />
+        <div className="absolute inset-0 bg-gradient-to-tl from-primary/10 via-transparent to-accent/10" />
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
-          whileInView={{ opacity: 0.5, scale: 1 }}
+          whileInView={{ opacity: 0.6, scale: 1 }}
           viewport={{ once: true }}
-          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-3xl"
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-br from-primary/25 to-accent/15 rounded-full blur-3xl"
+        />
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8 }}
+          whileInView={{ opacity: 0.3, scale: 1 }}
+          viewport={{ once: true }}
+          transition={{ delay: 0.2 }}
+          className="absolute top-1/4 right-1/4 w-[300px] h-[300px] bg-gradient-to-br from-accent/20 to-primary/10 rounded-full blur-3xl"
         />
         
         <div className="container mx-auto px-4 text-center relative">
@@ -530,7 +549,8 @@ export default function Index() {
       </section>
 
       {/* Footer */}
-      <footer className="border-t border-border/50 py-12 bg-card/30">
+      <footer className="border-t border-border/50 py-12 bg-card/30 relative">
+        <div className="absolute inset-0 bg-gradient-to-t from-primary/5 via-transparent to-transparent" />
         <div className="container mx-auto px-4">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
