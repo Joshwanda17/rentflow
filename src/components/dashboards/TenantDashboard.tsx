@@ -16,6 +16,7 @@ import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface TenantDashboardProps {
@@ -126,6 +127,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
+        
+        {/* Wallet */}
+        <WalletCard />
+
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
           <Card className="glass-card">

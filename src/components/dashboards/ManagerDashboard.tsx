@@ -14,6 +14,7 @@ import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface ManagerDashboardProps {
@@ -264,6 +265,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
+        
+        {/* Wallet */}
+        <WalletCard />
+
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 md:gap-4">
           <Card className="glass-card">
