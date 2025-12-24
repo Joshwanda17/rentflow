@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Wallet, TrendingUp, HandCoins, Settings } from 'lucide-react';
+import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -120,70 +120,103 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     .filter(r => r.status !== 'completed')
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
 
+  const getStatusVariant = (status: string) => {
+    switch (status) {
+      case 'completed': return 'success';
+      case 'funded': return 'default';
+      case 'disbursed': return 'success';
+      default: return 'secondary';
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-            <WelileLogo showText={false} />
-            <RoleSwitcher
-              currentRole={currentRole} 
-              availableRoles={availableRoles} 
-              onRoleChange={onRoleChange} 
-            />
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <NotificationBell />
-            <ThemeToggle />
-            {addRoleComponent}
-            <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
-              <Settings className="h-4 w-4 mr-2" />
-              Settings
-            </Button>
-            <Button variant="ghost" size="sm" onClick={signOut}>
-              <LogOut className="h-4 w-4 mr-2" />
-              Sign Out
-            </Button>
-          </div>
-          <div className="md:hidden flex items-center gap-1">
-            <NotificationBell />
-            <ThemeToggle />
+      {/* Modern Header */}
+      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
+        <div className="container mx-auto px-4 py-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="relative">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
+              </div>
+              <div className="hidden sm:block">
+                <WelileLogo showText={false} />
+              </div>
+              <RoleSwitcher
+                currentRole={currentRole} 
+                availableRoles={availableRoles} 
+                onRoleChange={onRoleChange} 
+              />
+            </div>
+            
+            <div className="hidden md:flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+              {addRoleComponent}
+              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
+                <LogOut className="h-4 w-4" />
+              </Button>
+            </div>
+            
+            <div className="md:hidden flex items-center gap-1">
+              <NotificationBell />
+              <ThemeToggle />
+            </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
         <AppBreadcrumb />
+        
+        {/* Welcome Section */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">
+              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            </h1>
+            <p className="text-muted-foreground text-sm mt-1">
+              Fund rent requests and earn 15% returns
+            </p>
+          </div>
+          <div className="hidden md:flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
+          </div>
+        </div>
         
         {/* Wallet */}
         <WalletCard />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="glass-card">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-primary/10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
                   <Wallet className="h-5 w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Total Funded</p>
-                  <p className="text-xl font-mono font-semibold">{formatUGX(totalFunded)}</p>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Total Funded</p>
+                  <p className="metric-value text-xl truncate">{formatUGX(totalFunded)}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-success/10">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
+            <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
+            <CardContent className="pt-6 relative">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
                   <TrendingUp className="h-5 w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Expected Rewards</p>
-                  <p className="text-xl font-mono font-semibold text-success">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Expected Rewards</p>
+                  <p className="metric-value text-xl text-success truncate">
                     {formatUGX(expectedRewards)}
                   </p>
                 </div>
@@ -191,15 +224,15 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
             </CardContent>
           </Card>
 
-          <Card className="glass-card">
+          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
             <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-warning/10">
+              <div className="flex items-center gap-4">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
                   <HandCoins className="h-5 w-5 text-warning" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Active Fundings</p>
-                  <p className="text-xl font-mono font-semibold">
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm text-muted-foreground font-medium">Active Fundings</p>
+                  <p className="metric-value text-2xl">
                     {fundedRequests.filter(r => r.status !== 'completed').length}
                   </p>
                 </div>
@@ -209,13 +242,16 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         </div>
 
         {/* Info Card */}
-        <Card className="glass-card border-primary/20">
-          <CardContent className="pt-6">
-            <div className="flex items-start gap-3">
-              <TrendingUp className="h-5 w-5 text-primary mt-1" />
+        <Card className="elevated-card border-primary/20 overflow-hidden">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
+          <CardContent className="pt-6 relative">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5">
+                <Zap className="h-5 w-5 text-success" />
+              </div>
               <div>
-                <p className="font-medium">Earn 15% Returns</p>
-                <p className="text-sm text-muted-foreground">
+                <p className="font-semibold text-foreground">Earn 15% Returns</p>
+                <p className="text-sm text-muted-foreground mt-1">
                   Fund approved rent requests and earn 15% reward when the tenant completes repayment.
                 </p>
               </div>
@@ -224,37 +260,52 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         </Card>
 
         {/* Available Requests */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg">Available Rent Requests</CardTitle>
+        <Card className="elevated-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10">
+                <Clock className="h-4 w-4 text-warning" />
+              </div>
+              <CardTitle className="text-lg font-semibold">Available Rent Requests</CardTitle>
+            </div>
+            <Badge variant="outline" className="font-mono">
+              {availableRequests.length} available
+            </Badge>
           </CardHeader>
           <CardContent>
             {loading ? (
-              <p className="text-muted-foreground">Loading...</p>
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+              </div>
             ) : availableRequests.length === 0 ? (
-              <p className="text-muted-foreground">
-                No approved requests available for funding at the moment.
-              </p>
+              <div className="text-center py-8">
+                <HandCoins className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-muted-foreground">No approved requests available for funding.</p>
+                <p className="text-sm text-muted-foreground/70">Check back later for new opportunities.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {availableRequests.map((request) => {
+                {availableRequests.map((request, index) => {
                   const reward = calculateSupporterReward(Number(request.rent_amount));
                   return (
                     <div 
                       key={request.id} 
-                      className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
+                      className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
+                      style={{ animationDelay: `${index * 50}ms` }}
                     >
-                      <div>
-                        <p className="font-medium">{formatUGX(Number(request.rent_amount))}</p>
+                      <div className="space-y-1">
+                        <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
                         <p className="text-sm text-muted-foreground">
-                          {request.duration_days} days • Reward: {formatUGX(reward)}
+                          {request.duration_days} days • Reward: <span className="text-success font-medium">{formatUGX(reward)}</span>
                         </p>
                       </div>
                       <Button 
                         size="sm"
                         onClick={() => fundRequest(request.id, Number(request.rent_amount))}
+                        className="gap-2"
                       >
-                        Fund Request
+                        Fund
+                        <ArrowRight className="h-4 w-4" />
                       </Button>
                     </div>
                   );
@@ -265,31 +316,40 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         </Card>
 
         {/* Funded Requests */}
-        <Card className="glass-card">
-          <CardHeader>
-            <CardTitle className="text-lg">My Funded Requests</CardTitle>
+        <Card className="elevated-card">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10">
+                <TrendingUp className="h-4 w-4 text-success" />
+              </div>
+              <CardTitle className="text-lg font-semibold">My Funded Requests</CardTitle>
+            </div>
+            <Badge variant="outline" className="font-mono">
+              {fundedRequests.length} total
+            </Badge>
           </CardHeader>
           <CardContent>
             {fundedRequests.length === 0 ? (
-              <p className="text-muted-foreground">You haven't funded any requests yet.</p>
+              <div className="text-center py-8">
+                <Wallet className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                <p className="text-muted-foreground">You haven't funded any requests yet.</p>
+                <p className="text-sm text-muted-foreground/70">Start funding to earn rewards.</p>
+              </div>
             ) : (
               <div className="space-y-3">
-                {fundedRequests.map((request) => (
+                {fundedRequests.map((request, index) => (
                   <div 
                     key={request.id} 
-                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
+                    className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-success/30 transition-all duration-200"
+                    style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div>
-                      <p className="font-medium">{formatUGX(Number(request.rent_amount))}</p>
+                    <div className="space-y-1">
+                      <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
                       <p className="text-sm text-muted-foreground">
-                        Reward: {formatUGX(calculateSupporterReward(Number(request.rent_amount)))}
+                        Reward: <span className="text-success font-medium">{formatUGX(calculateSupporterReward(Number(request.rent_amount)))}</span>
                       </p>
                     </div>
-                    <Badge className={
-                      request.status === 'completed' 
-                        ? 'bg-success/20 text-success' 
-                        : 'bg-primary/20 text-primary'
-                    }>
+                    <Badge variant={getStatusVariant(request.status)}>
                       {request.status}
                     </Badge>
                   </div>
