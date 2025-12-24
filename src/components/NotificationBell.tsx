@@ -18,6 +18,8 @@ export function NotificationBell() {
       case 'earning': return '💰';
       case 'success': return '✅';
       case 'request': return '📨';
+      case 'alert': return '⚠️';
+      case 'warning': return '🔔';
       default: return 'ℹ️';
     }
   };

@@ -16,6 +16,7 @@ import { cn } from '@/lib/utils';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
 import { FinancialCharts } from './FinancialCharts';
 import { PeriodComparison } from './PeriodComparison';
+import { FinancialAlerts } from './FinancialAlerts';
 interface FinancialMetrics {
   totalWalletBalances: number;
   totalDeposits: number;
@@ -521,6 +522,9 @@ export function FinancialOverview() {
 
       {/* Period Comparison */}
       <PeriodComparison />
+
+      {/* Financial Alerts */}
+      <FinancialAlerts />
     </div>
   );
 }

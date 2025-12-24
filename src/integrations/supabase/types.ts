@@ -47,6 +47,83 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_alerts: {
+        Row: {
+          acknowledged: boolean
+          acknowledged_at: string | null
+          acknowledged_by: string | null
+          current_value: number
+          id: string
+          metric_name: string
+          threshold_id: string | null
+          threshold_value: number
+          triggered_at: string
+        }
+        Insert: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          current_value: number
+          id?: string
+          metric_name: string
+          threshold_id?: string | null
+          threshold_value: number
+          triggered_at?: string
+        }
+        Update: {
+          acknowledged?: boolean
+          acknowledged_at?: string | null
+          acknowledged_by?: string | null
+          current_value?: number
+          id?: string
+          metric_name?: string
+          threshold_id?: string | null
+          threshold_value?: number
+          triggered_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "financial_alerts_threshold_id_fkey"
+            columns: ["threshold_id"]
+            isOneToOne: false
+            referencedRelation: "financial_thresholds"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      financial_thresholds: {
+        Row: {
+          comparison_type: string
+          created_at: string
+          enabled: boolean
+          id: string
+          metric_name: string
+          notification_message: string | null
+          threshold_value: number
+          updated_at: string
+        }
+        Insert: {
+          comparison_type?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric_name: string
+          notification_message?: string | null
+          threshold_value: number
+          updated_at?: string
+        }
+        Update: {
+          comparison_type?: string
+          created_at?: string
+          enabled?: boolean
+          id?: string
+          metric_name?: string
+          notification_message?: string | null
+          threshold_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       landlords: {
         Row: {
           account_number: string | null
