@@ -11,6 +11,7 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string, role: AppRole) => Promise<{ error: Error | null }>;
+  signUpWithoutRole: (email: string, password: string, fullName: string, phone: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
   switchRole: (role: AppRole) => void;
@@ -68,6 +69,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (!role || !userRoles.includes(role)) {
         setRole(userRoles[0]);
       }
+    } else {
+      setRoles([]);
+      setRole(null);
     }
   };
 
@@ -86,7 +90,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .insert({ user_id: user.id, role: newRole });
 
     if (!error) {
-      setRoles([...roles, newRole]);
+      const newRoles = [...roles, newRole];
+      setRoles(newRoles);
+      if (!role) {
+        setRole(newRole);
+      }
     }
     return { error: error as Error | null };
   };
@@ -103,6 +111,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           full_name: fullName,
           phone: phone,
           role: role
+        }
+      }
+    });
+    
+    return { error: error as Error | null };
+  };
+
+  const signUpWithoutRole = async (email: string, password: string, fullName: string, phone: string) => {
+    const redirectUrl = `${window.location.origin}/`;
+    
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        emailRedirectTo: redirectUrl,
+        data: {
+          full_name: fullName,
+          phone: phone
         }
       }
     });
@@ -127,7 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   return (
-    <AuthContext.Provider value={{ user, session, role, roles, loading, signUp, signIn, signOut, switchRole, addRole }}>
+    <AuthContext.Provider value={{ user, session, role, roles, loading, signUp, signUpWithoutRole, signIn, signOut, switchRole, addRole }}>
       {children}
     </AuthContext.Provider>
   );

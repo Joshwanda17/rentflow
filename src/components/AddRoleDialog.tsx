@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import {
   Dialog,
   DialogContent,
@@ -9,26 +10,30 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { Plus, Home, Users, Wallet, Building2 } from 'lucide-react';
+import { Plus, Home, Users, Wallet, Building2, Shield, Check } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
+
+const MANAGER_ACCESS_CODE = 'MYPART@WELILE';
 
 interface AddRoleDialogProps {
   availableRoles: AppRole[];
   onAddRole: (role: AppRole) => Promise<{ error: Error | null }>;
 }
 
-const allRoles: { value: AppRole; label: string; description: string; icon: React.ReactNode }[] = [
-  { value: 'tenant', label: 'Tenant', description: 'Request rent facilitation', icon: <Home className="h-4 w-4" /> },
-  { value: 'agent', label: 'Agent', description: 'Connect tenants to the platform', icon: <Users className="h-4 w-4" /> },
-  { value: 'landlord', label: 'Landlord', description: 'Receive rent payments', icon: <Building2 className="h-4 w-4" /> },
-  { value: 'supporter', label: 'Supporter', description: 'Fund rent requests', icon: <Wallet className="h-4 w-4" /> },
+const allRoles: { value: AppRole; label: string; description: string; icon: React.ReactNode; requiresCode: boolean }[] = [
+  { value: 'tenant', label: 'Tenant', description: 'Request rent facilitation', icon: <Home className="h-4 w-4" />, requiresCode: false },
+  { value: 'agent', label: 'Agent', description: 'Connect tenants to the platform', icon: <Users className="h-4 w-4" />, requiresCode: false },
+  { value: 'landlord', label: 'Landlord', description: 'Receive rent payments', icon: <Building2 className="h-4 w-4" />, requiresCode: false },
+  { value: 'supporter', label: 'Supporter', description: 'Fund rent requests', icon: <Wallet className="h-4 w-4" />, requiresCode: false },
+  { value: 'manager', label: 'Manager', description: 'Manage platform operations', icon: <Shield className="h-4 w-4" />, requiresCode: true },
 ];
 
 export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDialogProps) {
   const [open, setOpen] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<AppRole | ''>('');
+  const [selectedRole, setSelectedRole] = useState<AppRole | null>(null);
+  const [accessCode, setAccessCode] = useState('');
+  const [showCodeInput, setShowCodeInput] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const { toast } = useToast();
 
@@ -38,11 +43,19 @@ export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDial
     return null;
   }
 
-  const handleAddRole = async () => {
-    if (!selectedRole) return;
-    
+  const handleRoleSelect = (role: AppRole) => {
+    const roleConfig = allRoles.find(r => r.value === role);
+    if (roleConfig?.requiresCode) {
+      setSelectedRole(role);
+      setShowCodeInput(true);
+    } else {
+      addRoleDirectly(role);
+    }
+  };
+
+  const addRoleDirectly = async (role: AppRole) => {
     setIsLoading(true);
-    const { error } = await onAddRole(selectedRole);
+    const { error } = await onAddRole(role);
     setIsLoading(false);
 
     if (error) {
@@ -54,58 +67,109 @@ export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDial
     } else {
       toast({
         title: 'Role Added',
-        description: `You now have access to the ${selectedRole} dashboard`
+        description: `You now have access to the ${role} dashboard`
       });
       setOpen(false);
-      setSelectedRole('');
+      setSelectedRole(null);
+      setAccessCode('');
+      setShowCodeInput(false);
+    }
+  };
+
+  const confirmManagerAccess = async () => {
+    if (accessCode !== MANAGER_ACCESS_CODE) {
+      toast({
+        title: 'Invalid Code',
+        description: 'The access code is incorrect',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (selectedRole) {
+      await addRoleDirectly(selectedRole);
+    }
+  };
+
+  const handleOpenChange = (newOpen: boolean) => {
+    setOpen(newOpen);
+    if (!newOpen) {
+      setSelectedRole(null);
+      setAccessCode('');
+      setShowCodeInput(false);
     }
   };
 
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Plus className="h-4 w-4" />
           Add Role
         </Button>
       </DialogTrigger>
-      <DialogContent>
+      <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle>Add Another Role</DialogTitle>
           <DialogDescription>
             Expand your capabilities by adding another role to your account.
           </DialogDescription>
         </DialogHeader>
-        <div className="space-y-4 pt-4">
-          <div className="space-y-2">
-            <Label>Select Role</Label>
-            <Select value={selectedRole} onValueChange={(v) => setSelectedRole(v as AppRole)}>
-              <SelectTrigger>
-                <SelectValue placeholder="Choose a role" />
-              </SelectTrigger>
-              <SelectContent>
-                {missingRoles.map((opt) => (
-                  <SelectItem key={opt.value} value={opt.value}>
-                    <div className="flex items-center gap-2">
-                      {opt.icon}
-                      <div className="flex flex-col">
-                        <span className="font-medium">{opt.label}</span>
-                        <span className="text-xs text-muted-foreground">{opt.description}</span>
-                      </div>
-                    </div>
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        
+        {showCodeInput ? (
+          <div className="space-y-4 pt-4">
+            <div className="flex items-center gap-2 text-warning">
+              <Shield className="h-5 w-5" />
+              <span className="font-medium">Manager Access Required</span>
+            </div>
+            <p className="text-sm text-muted-foreground">
+              Enter the manager access code to unlock this role.
+            </p>
+            <div className="space-y-2">
+              <Label>Access Code</Label>
+              <Input
+                type="password"
+                placeholder="Enter access code"
+                value={accessCode}
+                onChange={(e) => setAccessCode(e.target.value)}
+              />
+            </div>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setShowCodeInput(false)}>
+                Back
+              </Button>
+              <Button onClick={confirmManagerAccess} disabled={isLoading} className="flex-1">
+                {isLoading ? 'Adding...' : 'Verify & Add Role'}
+              </Button>
+            </div>
           </div>
-          <Button 
-            onClick={handleAddRole} 
-            className="w-full" 
-            disabled={!selectedRole || isLoading}
-          >
-            {isLoading ? 'Adding...' : 'Add Role'}
-          </Button>
-        </div>
+        ) : (
+          <div className="space-y-3 pt-4">
+            {missingRoles.map((role) => (
+              <button
+                key={role.value}
+                onClick={() => handleRoleSelect(role.value)}
+                disabled={isLoading}
+                className="w-full flex items-center gap-3 p-3 rounded-lg border border-border hover:border-primary hover:bg-primary/5 transition-all text-left"
+              >
+                <div className="p-2 rounded-lg bg-secondary">
+                  {role.icon}
+                </div>
+                <div className="flex-1">
+                  <div className="flex items-center gap-2">
+                    <span className="font-medium">{role.label}</span>
+                    {role.requiresCode && (
+                      <span className="text-xs px-2 py-0.5 rounded bg-warning/10 text-warning">
+                        Code Required
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-xs text-muted-foreground">{role.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
       </DialogContent>
     </Dialog>
   );

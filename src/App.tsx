@@ -7,7 +7,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import Index from "./pages/Index";
 import Auth from "./pages/Auth";
 import Dashboard from "./pages/Dashboard";
-import ManagerAccess from "./pages/ManagerAccess";
+import SelectRole from "./pages/SelectRole";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -23,7 +23,7 @@ const App = () => (
             <Route path="/" element={<Index />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/manager-access" element={<ManagerAccess />} />
+            <Route path="/select-role" element={<SelectRole />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>

@@ -5,7 +5,6 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { Home, UserPlus, LogIn, Users } from 'lucide-react';
 import { z } from 'zod';
@@ -15,15 +14,12 @@ const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Full name is required'),
   phone: z.string().min(10, 'Please enter a valid phone number'),
-  role: z.enum(['tenant', 'agent', 'landlord', 'supporter'])
 });
 
 const signInSchema = z.object({
   email: z.string().email('Please enter a valid email'),
   password: z.string().min(1, 'Password is required')
 });
-
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter';
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -34,10 +30,9 @@ export default function Auth() {
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [role, setRole] = useState<AppRole>(referralId ? 'tenant' : 'tenant');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signUp, signIn, user } = useAuth();
+  const { signUpWithoutRole, signIn, user, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -50,9 +45,13 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      navigate('/dashboard');
+      if (roles.length === 0) {
+        navigate('/select-role');
+      } else {
+        navigate('/dashboard');
+      }
     }
-  }, [user, navigate]);
+  }, [user, roles, navigate]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -60,7 +59,7 @@ export default function Auth() {
 
     try {
       if (isSignUp) {
-        const validation = signUpSchema.safeParse({ email, password, fullName, phone, role });
+        const validation = signUpSchema.safeParse({ email, password, fullName, phone });
         if (!validation.success) {
           toast({
             title: 'Validation Error',
@@ -71,7 +70,7 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signUp(email, password, fullName, phone, role);
+        const { error } = await signUpWithoutRole(email, password, fullName, phone);
         if (error) {
           toast({
             title: 'Sign Up Failed',
@@ -116,13 +115,6 @@ export default function Auth() {
     }
   };
 
-  const roleOptions = [
-    { value: 'tenant', label: 'Tenant', description: 'Request rent facilitation' },
-    { value: 'agent', label: 'Agent', description: 'Connect tenants to the platform' },
-    { value: 'landlord', label: 'Landlord', description: 'Receive rent payments' },
-    { value: 'supporter', label: 'Supporter', description: 'Fund rent requests' }
-  ];
-
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
@@ -141,7 +133,7 @@ export default function Auth() {
               <span className="text-sm font-medium">Referred by an Agent</span>
             </div>
             <p className="text-xs text-muted-foreground mt-1">
-              Sign up as a tenant to get started with rent facilitation
+              Sign up to get started with rent facilitation
             </p>
           </div>
         )}
@@ -182,25 +174,6 @@ export default function Auth() {
                       placeholder="e.g., 0700123456"
                       required
                     />
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="role">I am a</Label>
-                    <Select value={role} onValueChange={(v) => setRole(v as AppRole)}>
-                      <SelectTrigger>
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {roleOptions.map((opt) => (
-                          <SelectItem key={opt.value} value={opt.value}>
-                            <div className="flex flex-col">
-                              <span className="font-medium">{opt.label}</span>
-                              <span className="text-xs text-muted-foreground">{opt.description}</span>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
                   </div>
                 </>
               )}
