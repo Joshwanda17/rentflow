@@ -15,6 +15,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { cn } from '@/lib/utils';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
 import { FinancialCharts } from './FinancialCharts';
+import { PeriodComparison } from './PeriodComparison';
 interface FinancialMetrics {
   totalWalletBalances: number;
   totalDeposits: number;
@@ -517,6 +518,9 @@ export function FinancialOverview() {
 
       {/* Financial Charts */}
       <FinancialCharts startDate={startDate} endDate={endDate} />
+
+      {/* Period Comparison */}
+      <PeriodComparison />
     </div>
   );
 }
