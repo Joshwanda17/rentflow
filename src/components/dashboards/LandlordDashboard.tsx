@@ -18,6 +18,7 @@ import { WalletCard } from '@/components/wallet/WalletCard';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface LandlordDashboardProps {
   user: User;
@@ -60,6 +61,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   };
 
   const totalReceived = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  if (loading) {
+    return <LandlordDashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">

@@ -22,6 +22,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
+import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface AgentDashboardProps {
   user: User;
@@ -92,6 +93,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       default: return 'secondary';
     }
   };
+
+  if (loading) {
+    return <AgentDashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">

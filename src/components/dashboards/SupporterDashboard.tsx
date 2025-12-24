@@ -19,6 +19,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
+import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface SupporterDashboardProps {
   user: User;
@@ -128,6 +129,10 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
       default: return 'secondary';
     }
   };
+
+  if (loading) {
+    return <SupporterDashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">

@@ -22,6 +22,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
+import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface ManagerDashboardProps {
   user: User;
@@ -244,6 +245,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     };
     return colors[role] || 'bg-muted text-muted-foreground';
   };
+
+  if (loading) {
+    return <ManagerDashboardSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
