@@ -6,7 +6,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Home, UserPlus, LogIn, Users } from 'lucide-react';
+import { Home, UserPlus, LogIn, Users, ArrowLeft } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -118,6 +119,14 @@ export default function Auth() {
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
       <div className="w-full max-w-md">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Home
+        </Link>
+
         <div className="text-center mb-8">
           <div className="flex items-center justify-center gap-2 mb-4">
             <Home className="h-8 w-8 text-primary" />
