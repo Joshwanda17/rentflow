@@ -71,6 +71,39 @@ export type Database = {
         }
         Relationships: []
       }
+      money_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          id: string
+          recipient_id: string
+          requester_id: string
+          responded_at: string | null
+          status: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          recipient_id: string
+          requester_id: string
+          responded_at?: string | null
+          status?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          recipient_id?: string
+          requester_id?: string
+          responded_at?: string | null
+          status?: string
+        }
+        Relationships: []
+      }
       platform_transactions: {
         Row: {
           amount: number
