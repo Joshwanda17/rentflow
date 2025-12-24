@@ -14,6 +14,7 @@ import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface ManagerDashboardProps {
   user: User;
@@ -236,7 +237,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -247,7 +248,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               onRoleChange={onRoleChange} 
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             {addRoleComponent}
             <Button variant="ghost" size="sm" onClick={signOut}>
@@ -255,64 +256,67 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               Sign Out
             </Button>
           </div>
+          <div className="md:hidden">
+            <ThemeToggle />
+          </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
         {/* Stats */}
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 gap-3 md:gap-4">
           <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-warning/10">
-                  <Clock className="h-5 w-5 text-warning" />
+            <CardContent className="p-4 md:pt-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-3 rounded-lg bg-warning/10">
+                  <Clock className="h-4 w-4 md:h-5 md:w-5 text-warning" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Pending</p>
-                  <p className="text-xl font-mono font-semibold">{pendingRequests.length}</p>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">Pending</p>
+                  <p className="text-lg md:text-xl font-mono font-semibold">{pendingRequests.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-primary/10">
-                  <CheckCircle className="h-5 w-5 text-primary" />
+            <CardContent className="p-4 md:pt-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-3 rounded-lg bg-primary/10">
+                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Approved</p>
-                  <p className="text-xl font-mono font-semibold">{approvedRequests.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-success/10">
-                  <Banknote className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Facilitated</p>
-                  <p className="text-xl font-mono font-semibold">{formatUGX(totalFacilitated)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">Approved</p>
+                  <p className="text-lg md:text-xl font-mono font-semibold">{approvedRequests.length}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
 
           <Card className="glass-card">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-lg bg-chart-5/10">
-                  <Users className="h-5 w-5 text-chart-5" />
+            <CardContent className="p-4 md:pt-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-3 rounded-lg bg-success/10">
+                  <Banknote className="h-4 w-4 md:h-5 md:w-5 text-success" />
                 </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Platform Revenue</p>
-                  <p className="text-xl font-mono font-semibold">{formatUGX(totalPlatformRevenue)}</p>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">Facilitated</p>
+                  <p className="text-base md:text-xl font-mono font-semibold truncate">{formatUGX(totalFacilitated)}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardContent className="p-4 md:pt-6">
+              <div className="flex items-center gap-2 md:gap-3">
+                <div className="p-2 md:p-3 rounded-lg bg-chart-5/10">
+                  <Users className="h-4 w-4 md:h-5 md:w-5 text-chart-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs md:text-sm text-muted-foreground">Revenue</p>
+                  <p className="text-base md:text-xl font-mono font-semibold truncate">{formatUGX(totalPlatformRevenue)}</p>
                 </div>
               </div>
             </CardContent>
@@ -320,20 +324,22 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </div>
 
         <Tabs defaultValue="pending" className="space-y-4">
-          <TabsList className="bg-secondary">
-            <TabsTrigger value="pending">
-              Pending ({pendingRequests.length})
-            </TabsTrigger>
-            <TabsTrigger value="funded">
-              Funded ({fundedRequests.length})
-            </TabsTrigger>
-            <TabsTrigger value="all">All Requests</TabsTrigger>
-            <TabsTrigger value="transactions">
-              <Receipt className="h-4 w-4 mr-1" />
-              Payments
-            </TabsTrigger>
-            <TabsTrigger value="users">Users</TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4">
+            <TabsList className="bg-secondary w-max min-w-full md:w-auto">
+              <TabsTrigger value="pending" className="text-xs md:text-sm">
+                Pending ({pendingRequests.length})
+              </TabsTrigger>
+              <TabsTrigger value="funded" className="text-xs md:text-sm">
+                Funded ({fundedRequests.length})
+              </TabsTrigger>
+              <TabsTrigger value="all" className="text-xs md:text-sm">All</TabsTrigger>
+              <TabsTrigger value="transactions" className="text-xs md:text-sm">
+                <Receipt className="h-4 w-4 mr-1 hidden md:inline" />
+                Payments
+              </TabsTrigger>
+              <TabsTrigger value="users" className="text-xs md:text-sm">Users</TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="pending">
             <Card className="glass-card">
@@ -567,6 +573,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </TabsContent>
         </Tabs>
       </main>
+      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
   );
 }

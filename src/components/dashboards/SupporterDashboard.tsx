@@ -13,6 +13,7 @@ import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface SupporterDashboardProps {
   user: User;
@@ -113,7 +114,7 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -124,13 +125,16 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
               onRoleChange={onRoleChange} 
             />
           </div>
-          <div className="flex items-center gap-2">
+          <div className="hidden md:flex items-center gap-2">
             <ThemeToggle />
             {addRoleComponent}
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
               Sign Out
             </Button>
+          </div>
+          <div className="md:hidden">
+            <ThemeToggle />
           </div>
         </div>
       </header>
@@ -277,6 +281,7 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
           </CardContent>
         </Card>
       </main>
+      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
   );
 }
