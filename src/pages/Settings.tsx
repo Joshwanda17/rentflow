@@ -4,12 +4,14 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera } from 'lucide-react';
-import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Plus, Check } from 'lucide-react';
+import { useAuth, AppRole } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import AddRoleDialog from '@/components/AddRoleDialog';
 
 interface Profile {
   id: string;
@@ -21,7 +23,7 @@ interface Profile {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, loading: authLoading } = useAuth();
+  const { user, roles, addRole, loading: authLoading } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -160,6 +162,14 @@ export default function Settings() {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const roleConfig: Record<AppRole, { label: string; icon: React.ReactNode; color: string }> = {
+    tenant: { label: 'Tenant', icon: <Home className="h-4 w-4" />, color: 'bg-primary/20 text-primary' },
+    agent: { label: 'Agent', icon: <Users className="h-4 w-4" />, color: 'bg-warning/20 text-warning' },
+    supporter: { label: 'Supporter', icon: <Wallet className="h-4 w-4" />, color: 'bg-success/20 text-success' },
+    landlord: { label: 'Landlord', icon: <Building2 className="h-4 w-4" />, color: 'bg-accent/20 text-accent' },
+    manager: { label: 'Manager', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive' },
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -290,6 +300,51 @@ export default function Settings() {
               )}
               Save Changes
             </Button>
+          </CardContent>
+        </Card>
+
+        {/* Roles Card */}
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Shield className="h-5 w-5" />
+              My Roles
+            </CardTitle>
+            <CardDescription>
+              Manage your account roles
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-3">
+              <Label>Current Roles</Label>
+              <div className="flex flex-wrap gap-2">
+                {roles.map((role) => {
+                  const config = roleConfig[role];
+                  return (
+                    <Badge key={role} className={`${config.color} flex items-center gap-1.5 px-3 py-1.5`}>
+                      {config.icon}
+                      {config.label}
+                      <Check className="h-3 w-3 ml-1" />
+                    </Badge>
+                  );
+                })}
+              </div>
+              {roles.length === 0 && (
+                <p className="text-sm text-muted-foreground">No roles assigned</p>
+              )}
+            </div>
+            
+            <div className="pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Add Another Role</p>
+                  <p className="text-sm text-muted-foreground">
+                    Expand your capabilities on the platform
+                  </p>
+                </div>
+                <AddRoleDialog availableRoles={roles} onAddRole={addRole} />
+              </div>
+            </div>
           </CardContent>
         </Card>
 
