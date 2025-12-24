@@ -6,10 +6,14 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   TrendingUp, TrendingDown, Wallet, Users, Banknote, 
   ArrowDownLeft, ArrowUpRight, RefreshCw, PiggyBank,
-  Building2, Percent, Gift
+  Building2, Percent, Gift, CalendarIcon
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Button } from '@/components/ui/button';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { cn } from '@/lib/utils';
+import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
 
 interface FinancialMetrics {
   totalWalletBalances: number;
@@ -28,16 +32,87 @@ interface FinancialMetrics {
   supporterCount: number;
 }
 
+type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year' | 'custom';
+
 export function FinancialOverview() {
   const [metrics, setMetrics] = useState<FinancialMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     fetchMetrics();
-  }, []);
+  }, [startDate, endDate]);
+
+  const handlePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    const now = new Date();
+    
+    switch (preset) {
+      case 'all':
+        setStartDate(undefined);
+        setEndDate(undefined);
+        break;
+      case 'today':
+        setStartDate(startOfDay(now));
+        setEndDate(endOfDay(now));
+        break;
+      case '7days':
+        setStartDate(startOfDay(subDays(now, 7)));
+        setEndDate(endOfDay(now));
+        break;
+      case '30days':
+        setStartDate(startOfDay(subDays(now, 30)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'month':
+        setStartDate(startOfMonth(now));
+        setEndDate(endOfDay(now));
+        break;
+      case 'year':
+        setStartDate(startOfYear(now));
+        setEndDate(endOfDay(now));
+        break;
+      case 'custom':
+        // Keep current dates for custom
+        break;
+    }
+  };
 
   const fetchMetrics = async () => {
     setLoading(true);
+
+    // Build date filter
+    const buildDateFilter = (query: any, dateColumn: string = 'created_at') => {
+      if (startDate) {
+        query = query.gte(dateColumn, startDate.toISOString());
+      }
+      if (endDate) {
+        query = query.lte(dateColumn, endDate.toISOString());
+      }
+      return query;
+    };
+
+    // Wallets don't have date filter (current balances)
+    const walletsQuery = supabase.from('wallets').select('balance');
+    
+    // Apply date filters to transactional data
+    let depositsQuery = supabase.from('wallet_deposits').select('amount, created_at');
+    let withdrawalsQuery = supabase.from('wallet_withdrawals').select('amount, created_at');
+    let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
+    let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
+    let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
+    let platformTxQuery = supabase.from('platform_transactions').select('amount, direction, transaction_type, created_at');
+    
+    if (startDate || endDate) {
+      depositsQuery = buildDateFilter(depositsQuery);
+      withdrawalsQuery = buildDateFilter(withdrawalsQuery);
+      transfersQuery = buildDateFilter(transfersQuery);
+      earningsQuery = buildDateFilter(earningsQuery);
+      requestsQuery = buildDateFilter(requestsQuery);
+      platformTxQuery = buildDateFilter(platformTxQuery);
+    }
 
     const [
       walletsRes,
@@ -49,13 +124,13 @@ export function FinancialOverview() {
       platformTxRes,
       rolesRes
     ] = await Promise.all([
-      supabase.from('wallets').select('balance'),
-      supabase.from('wallet_deposits').select('amount'),
-      supabase.from('wallet_withdrawals').select('amount'),
-      supabase.from('wallet_transactions').select('amount'),
-      supabase.from('agent_earnings').select('amount, earning_type'),
-      supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status'),
-      supabase.from('platform_transactions').select('amount, direction, transaction_type'),
+      walletsQuery,
+      depositsQuery,
+      withdrawalsQuery,
+      transfersQuery,
+      earningsQuery,
+      requestsQuery,
+      platformTxQuery,
       supabase.from('user_roles').select('role')
     ]);
 
@@ -109,7 +184,17 @@ export function FinancialOverview() {
     setLoading(false);
   };
 
-  if (loading) {
+  const getDateRangeLabel = () => {
+    if (!startDate && !endDate) return 'All Time';
+    if (startDate && endDate) {
+      return `${format(startDate, 'MMM d, yyyy')} - ${format(endDate, 'MMM d, yyyy')}`;
+    }
+    if (startDate) return `From ${format(startDate, 'MMM d, yyyy')}`;
+    if (endDate) return `Until ${format(endDate, 'MMM d, yyyy')}`;
+    return 'All Time';
+  };
+
+  if (loading && !metrics) {
     return (
       <Card className="glass-card">
         <CardContent className="py-8 text-center text-muted-foreground">
@@ -123,14 +208,120 @@ export function FinancialOverview() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between">
+      {/* Header with Date Filters */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <h2 className="text-lg font-semibold flex items-center gap-2">
           <TrendingUp className="h-5 w-5" />
           Financial Overview
+          {loading && <RefreshCw className="h-4 w-4 animate-spin text-muted-foreground" />}
         </h2>
-        <Button variant="ghost" size="sm" onClick={fetchMetrics}>
-          <RefreshCw className="h-4 w-4" />
-        </Button>
+        
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Preset Buttons */}
+          <div className="flex flex-wrap gap-1">
+            {[
+              { value: 'all', label: 'All' },
+              { value: 'today', label: 'Today' },
+              { value: '7days', label: '7 Days' },
+              { value: '30days', label: '30 Days' },
+              { value: 'month', label: 'This Month' },
+              { value: 'year', label: 'This Year' },
+            ].map((preset) => (
+              <Button
+                key={preset.value}
+                variant={datePreset === preset.value ? 'default' : 'outline'}
+                size="sm"
+                className="text-xs h-8"
+                onClick={() => handlePresetChange(preset.value as DatePreset)}
+              >
+                {preset.label}
+              </Button>
+            ))}
+          </div>
+
+          {/* Custom Date Pickers */}
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-xs justify-start",
+                    !startDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  {startDate ? format(startDate, "MMM d") : "From"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={startDate}
+                  onSelect={(date) => {
+                    setStartDate(date);
+                    setDatePreset('custom');
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+            
+            <span className="text-muted-foreground text-xs">to</span>
+            
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "h-8 text-xs justify-start",
+                    !endDate && "text-muted-foreground"
+                  )}
+                >
+                  <CalendarIcon className="h-3 w-3 mr-1" />
+                  {endDate ? format(endDate, "MMM d") : "To"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="end">
+                <Calendar
+                  mode="single"
+                  selected={endDate}
+                  onSelect={(date) => {
+                    setEndDate(date ? endOfDay(date) : undefined);
+                    setDatePreset('custom');
+                  }}
+                  initialFocus
+                  className={cn("p-3 pointer-events-auto")}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <Button variant="ghost" size="sm" onClick={fetchMetrics} className="h-8">
+              <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* Date Range Badge */}
+      <div className="flex items-center gap-2">
+        <Badge variant="outline" className="text-xs">
+          <CalendarIcon className="h-3 w-3 mr-1" />
+          {getDateRangeLabel()}
+        </Badge>
+        {datePreset !== 'all' && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 text-xs text-muted-foreground"
+            onClick={() => handlePresetChange('all')}
+          >
+            Clear filter
+          </Button>
+        )}
       </div>
 
       {/* Key Metrics */}
