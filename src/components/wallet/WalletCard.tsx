@@ -85,17 +85,19 @@ export function WalletCard() {
 
   return (
     <>
-      <Card className="bg-gradient-to-br from-primary/20 to-primary/5 border-primary/30">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg">
-              <Wallet className="h-5 w-5 text-primary" />
-              Welile Wallet
-            </CardTitle>
+      <Card className="overflow-hidden border-0 shadow-elevated">
+        <div className="gradient-primary p-5 text-primary-foreground">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
+                <Wallet className="h-5 w-5" />
+              </div>
+              <span className="font-semibold">Welile Wallet</span>
+            </div>
             <Button 
               variant="ghost" 
               size="sm" 
-              className="relative"
+              className="relative text-primary-foreground hover:bg-white/20"
               onClick={() => setPendingOpen(true)}
             >
               <Bell className="h-4 w-4" />
@@ -106,22 +108,24 @@ export function WalletCard() {
               )}
             </Button>
           </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center gap-3">
+          
+          <div className="flex items-center gap-4">
             <UserAvatar 
               avatarUrl={profile?.avatar_url} 
               fullName={profile?.full_name} 
               size="lg" 
             />
             <div>
-              <p className="font-medium text-foreground">{profile?.full_name || 'User'}</p>
-              <p className="text-sm text-muted-foreground">Available Balance</p>
-              <p className="text-2xl md:text-3xl font-bold text-foreground">
+              <p className="text-sm opacity-90">{profile?.full_name || 'User'}</p>
+              <p className="text-xs opacity-70 mb-1">Available Balance</p>
+              <p className="text-3xl font-bold tracking-tight">
                 {formatCurrency(wallet?.balance || 0)}
               </p>
             </div>
           </div>
+        </div>
+        
+        <CardContent className="p-5 space-y-4">
 
           <div className="grid grid-cols-3 gap-2">
             <Button 
