@@ -7,10 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Home, LogOut, Users, Coins, Link2, Copy, Check } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { AppRole } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface AgentDashboardProps {
   user: User;
   signOut: () => Promise<void>;
+  currentRole: AppRole;
+  availableRoles: AppRole[];
+  onRoleChange: (role: AppRole) => void;
+  addRoleComponent: ReactNode;
 }
 
 interface RentRequest {
@@ -20,7 +27,7 @@ interface RentRequest {
   created_at: string;
 }
 
-export default function AgentDashboard({ user, signOut }: AgentDashboardProps) {
+export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [transactions, setTransactions] = useState<{ amount: number; transaction_type: string }[]>([]);
   const [loading, setLoading] = useState(true);
@@ -87,12 +94,19 @@ export default function AgentDashboard({ user, signOut }: AgentDashboardProps) {
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">RentAccess</span>
-            <Badge variant="secondary" className="ml-2">Agent</Badge>
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

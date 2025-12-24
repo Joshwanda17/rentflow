@@ -7,10 +7,17 @@ import { Badge } from '@/components/ui/badge';
 import { Home, LogOut, Wallet, TrendingUp, HandCoins } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { AppRole } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface SupporterDashboardProps {
   user: User;
   signOut: () => Promise<void>;
+  currentRole: AppRole;
+  availableRoles: AppRole[];
+  onRoleChange: (role: AppRole) => void;
+  addRoleComponent: ReactNode;
 }
 
 interface AvailableRequest {
@@ -29,7 +36,7 @@ interface FundedRequest {
   funded_at: string;
 }
 
-export default function SupporterDashboard({ user, signOut }: SupporterDashboardProps) {
+export default function SupporterDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: SupporterDashboardProps) {
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,12 +116,19 @@ export default function SupporterDashboard({ user, signOut }: SupporterDashboard
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">RentAccess</span>
-            <Badge variant="secondary" className="ml-2">Supporter</Badge>
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

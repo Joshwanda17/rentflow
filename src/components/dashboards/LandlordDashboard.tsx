@@ -6,10 +6,17 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Home, LogOut, Banknote, Building, CheckCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { AppRole } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface LandlordDashboardProps {
   user: User;
   signOut: () => Promise<void>;
+  currentRole: AppRole;
+  availableRoles: AppRole[];
+  onRoleChange: (role: AppRole) => void;
+  addRoleComponent: ReactNode;
 }
 
 interface Payment {
@@ -19,7 +26,7 @@ interface Payment {
   description: string;
 }
 
-export default function LandlordDashboard({ user, signOut }: LandlordDashboardProps) {
+export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -50,12 +57,19 @@ export default function LandlordDashboard({ user, signOut }: LandlordDashboardPr
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">RentAccess</span>
-            <Badge variant="secondary" className="ml-2">Landlord</Badge>
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
