@@ -247,8 +247,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+      <header className="sticky top-0 z-50 border-b border-border bg-card/95 backdrop-blur-xl">
+        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
             <WelileLogo showText={false} />
@@ -286,101 +286,105 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Stats */}
         <div className="grid grid-cols-2 gap-3 md:gap-4">
-          <Card className="glass-card">
-            <CardContent className="p-4 md:pt-6">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-3 rounded-lg bg-warning/10">
-                  <Clock className="h-4 w-4 md:h-5 md:w-5 text-warning" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-muted-foreground">Pending</p>
-                  <p className="text-lg md:text-xl font-mono font-semibold">{pendingRequests.length}</p>
-                </div>
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-warning/10">
+                <Clock className="h-5 w-5 text-warning" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pending</p>
+                <p className="text-2xl font-semibold font-mono tabular-nums">{pendingRequests.length}</p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="glass-card">
-            <CardContent className="p-4 md:pt-6">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-3 rounded-lg bg-primary/10">
-                  <CheckCircle className="h-4 w-4 md:h-5 md:w-5 text-primary" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-muted-foreground">Approved</p>
-                  <p className="text-lg md:text-xl font-mono font-semibold">{approvedRequests.length}</p>
-                </div>
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <CheckCircle className="h-5 w-5 text-primary" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Approved</p>
+                <p className="text-2xl font-semibold font-mono tabular-nums">{approvedRequests.length}</p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="glass-card">
-            <CardContent className="p-4 md:pt-6">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-3 rounded-lg bg-success/10">
-                  <Banknote className="h-4 w-4 md:h-5 md:w-5 text-success" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-muted-foreground">Facilitated</p>
-                  <p className="text-base md:text-xl font-mono font-semibold truncate">{formatUGX(totalFacilitated)}</p>
-                </div>
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-success/10">
+                <Banknote className="h-5 w-5 text-success" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Facilitated</p>
+                <p className="text-xl font-semibold font-mono tabular-nums truncate">{formatUGX(totalFacilitated)}</p>
+              </div>
+            </div>
+          </div>
 
-          <Card className="glass-card">
-            <CardContent className="p-4 md:pt-6">
-              <div className="flex items-center gap-2 md:gap-3">
-                <div className="p-2 md:p-3 rounded-lg bg-chart-5/10">
-                  <Users className="h-4 w-4 md:h-5 md:w-5 text-chart-5" />
-                </div>
-                <div className="min-w-0">
-                  <p className="text-xs md:text-sm text-muted-foreground">Revenue</p>
-                  <p className="text-base md:text-xl font-mono font-semibold truncate">{formatUGX(totalPlatformRevenue)}</p>
-                </div>
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-chart-5/10">
+                <Users className="h-5 w-5 text-chart-5" />
               </div>
-            </CardContent>
-          </Card>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Revenue</p>
+                <p className="text-xl font-semibold font-mono tabular-nums truncate">{formatUGX(totalPlatformRevenue)}</p>
+              </div>
+            </div>
+          </div>
         </div>
 
         <Tabs defaultValue="pending" className="space-y-4">
-          <div className="overflow-x-auto -mx-4 px-4">
-            <TabsList className="bg-secondary w-max min-w-full md:w-auto">
-              <TabsTrigger value="pending" className="text-xs md:text-sm">
+          <div className="overflow-x-auto -mx-4 px-4 pb-1">
+            <TabsList className="w-max min-w-full md:w-auto bg-muted/50">
+              <TabsTrigger value="pending" className="text-xs md:text-sm gap-1.5">
+                <Clock className="h-3.5 w-3.5" />
                 Pending ({pendingRequests.length})
               </TabsTrigger>
-              <TabsTrigger value="funded" className="text-xs md:text-sm">
+              <TabsTrigger value="funded" className="text-xs md:text-sm gap-1.5">
+                <Banknote className="h-3.5 w-3.5" />
                 Funded ({fundedRequests.length})
               </TabsTrigger>
-              <TabsTrigger value="financials" className="text-xs md:text-sm">
-                <TrendingUp className="h-4 w-4 mr-1 hidden md:inline" />
+              <TabsTrigger value="financials" className="text-xs md:text-sm gap-1.5">
+                <TrendingUp className="h-3.5 w-3.5" />
                 Financials
               </TabsTrigger>
-              <TabsTrigger value="agents" className="text-xs md:text-sm">
-                <UserCheck className="h-4 w-4 mr-1 hidden md:inline" />
+              <TabsTrigger value="agents" className="text-xs md:text-sm gap-1.5">
+                <UserCheck className="h-3.5 w-3.5" />
                 Agents
               </TabsTrigger>
-              <TabsTrigger value="transactions" className="text-xs md:text-sm">
-                <Receipt className="h-4 w-4 mr-1 hidden md:inline" />
+              <TabsTrigger value="transactions" className="text-xs md:text-sm gap-1.5">
+                <Receipt className="h-3.5 w-3.5" />
                 Payments
               </TabsTrigger>
-              <TabsTrigger value="users" className="text-xs md:text-sm">Users</TabsTrigger>
+              <TabsTrigger value="users" className="text-xs md:text-sm gap-1.5">
+                <Users className="h-3.5 w-3.5" />
+                Users
+              </TabsTrigger>
             </TabsList>
           </div>
 
           <TabsContent value="pending">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <FileText className="h-5 w-5" />
+            <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
+              <div className="p-5 border-b border-border bg-muted/30">
+                <h3 className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-warning/10">
+                    <FileText className="h-4 w-4 text-warning" />
+                  </div>
                   Pending Approval
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </h3>
+              </div>
+              <div className="p-5">
                 {loading ? (
-                  <p className="text-muted-foreground">Loading...</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
                 ) : pendingRequests.length === 0 ? (
-                  <p className="text-muted-foreground">No pending requests</p>
+                  <div className="text-center py-8">
+                    <Clock className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No pending requests</p>
+                  </div>
                 ) : (
                   <div className="space-y-4">
                     {pendingRequests.map((request) => (
@@ -425,33 +429,40 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="funded">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Banknote className="h-5 w-5" />
+            <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
+              <div className="p-5 border-b border-border bg-muted/30">
+                <h3 className="text-base font-semibold flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-success/10">
+                    <Banknote className="h-4 w-4 text-success" />
+                  </div>
                   Ready for Disbursement
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
+                </h3>
+              </div>
+              <div className="p-5">
                 {loading ? (
-                  <p className="text-muted-foreground">Loading...</p>
+                  <div className="flex items-center justify-center py-8">
+                    <div className="h-6 w-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  </div>
                 ) : fundedRequests.length === 0 ? (
-                  <p className="text-muted-foreground">No funded requests awaiting disbursement</p>
+                  <div className="text-center py-8">
+                    <Banknote className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No funded requests awaiting disbursement</p>
+                  </div>
                 ) : (
-                  <div className="space-y-4">
+                  <div className="space-y-3">
                     {fundedRequests.map((request) => (
                       <div 
                         key={request.id} 
-                        className="p-4 rounded-lg bg-secondary/50 space-y-3"
+                        className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-3 transition-all hover:border-border"
                       >
                         <div className="flex items-start justify-between">
                           <div>
-                            <p className="font-medium text-lg">{formatUGX(Number(request.rent_amount))}</p>
+                            <p className="font-semibold text-lg">{formatUGX(Number(request.rent_amount))}</p>
                             <p className="text-sm text-muted-foreground">
                               {request.duration_days} days • Daily: {formatUGX(Number(request.total_repayment) / request.duration_days)}
                             </p>
@@ -460,18 +471,19 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                                 Landlord: {request.landlords.name} ({request.landlords.phone})
                               </p>
                             )}
-                            <p className="text-xs text-success mt-1">
-                              Funded by supporter • Ready to disburse to landlord
+                            <p className="text-xs text-success mt-1 flex items-center gap-1">
+                              <CheckCircle className="h-3 w-3" />
+                              Funded by supporter • Ready to disburse
                             </p>
                           </div>
-                          <Badge className={getStatusColor(request.status)}>
+                          <Badge variant="success">
                             {request.status}
                           </Badge>
                         </div>
                         <Button 
                           size="sm" 
+                          variant="success"
                           onClick={() => handleDisburse(request)}
-                          className="bg-success hover:bg-success/90"
                         >
                           <Send className="h-4 w-4 mr-1" />
                           Disburse to Landlord
@@ -480,8 +492,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     ))}
                   </div>
                 )}
-              </CardContent>
-            </Card>
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="financials">

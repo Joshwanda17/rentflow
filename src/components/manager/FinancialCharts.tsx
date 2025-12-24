@@ -177,18 +177,22 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
       return (
-        <div className="bg-popover border rounded-lg p-3 shadow-lg">
-          <p className="font-medium text-sm mb-2">{label}</p>
-          {payload.map((entry: any, index: number) => (
-            <div key={index} className="flex items-center gap-2 text-xs">
-              <div 
-                className="w-2 h-2 rounded-full" 
-                style={{ backgroundColor: entry.color }} 
-              />
-              <span className="text-muted-foreground">{entry.name}:</span>
-              <span className="font-mono font-medium">UGX {entry.value.toLocaleString()}</span>
-            </div>
-          ))}
+        <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-4 shadow-elevated animate-scale-in">
+          <p className="font-semibold text-sm mb-3 pb-2 border-b border-border">{label}</p>
+          <div className="space-y-2">
+            {payload.map((entry: any, index: number) => (
+              <div key={index} className="flex items-center justify-between gap-4 text-xs">
+                <div className="flex items-center gap-2">
+                  <div 
+                    className="w-2.5 h-2.5 rounded-full" 
+                    style={{ backgroundColor: entry.color }} 
+                  />
+                  <span className="text-muted-foreground">{entry.name}</span>
+                </div>
+                <span className="font-mono font-semibold">UGX {entry.value.toLocaleString()}</span>
+              </div>
+            ))}
+          </div>
         </div>
       );
     }
@@ -197,44 +201,50 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
 
   if (loading) {
     return (
-      <Card className="glass-card">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Loading charts...
-        </CardContent>
-      </Card>
+      <div className="rounded-xl border bg-card p-8 shadow-soft">
+        <div className="flex flex-col items-center justify-center gap-3 text-muted-foreground">
+          <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm">Loading charts...</span>
+        </div>
+      </div>
     );
   }
 
   return (
-    <Card className="glass-card">
-      <CardHeader className="pb-2">
-        <CardTitle className="text-base flex items-center gap-2">
-          <BarChart3 className="h-5 w-5" />
+    <div className="rounded-xl border bg-card shadow-soft overflow-hidden">
+      <div className="p-5 border-b border-border bg-muted/30">
+        <h3 className="text-base font-semibold flex items-center gap-2">
+          <div className="p-2 rounded-lg bg-primary/10">
+            <BarChart3 className="h-4 w-4 text-primary" />
+          </div>
           Financial Trends
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        <Tabs defaultValue="trends" className="space-y-4">
-          <TabsList className="w-full">
-            <TabsTrigger value="trends" className="flex-1">
-              <TrendingUp className="h-4 w-4 mr-1" />
-              Trends
+        </h3>
+      </div>
+      <div className="p-5">
+        <Tabs defaultValue="trends" className="space-y-5">
+          <TabsList className="w-full bg-muted/50">
+            <TabsTrigger value="trends" className="flex-1 gap-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">Trends</span>
             </TabsTrigger>
-            <TabsTrigger value="comparison" className="flex-1">
-              <BarChart3 className="h-4 w-4 mr-1" />
-              Comparison
+            <TabsTrigger value="comparison" className="flex-1 gap-2">
+              <BarChart3 className="h-4 w-4" />
+              <span className="hidden sm:inline">Comparison</span>
             </TabsTrigger>
-            <TabsTrigger value="distribution" className="flex-1">
-              <PieChartIcon className="h-4 w-4 mr-1" />
-              Distribution
+            <TabsTrigger value="distribution" className="flex-1 gap-2">
+              <PieChartIcon className="h-4 w-4" />
+              <span className="hidden sm:inline">Distribution</span>
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="trends" className="space-y-4">
+          <TabsContent value="trends" className="space-y-6">
             {/* Money Flow Area Chart */}
-            <div className="space-y-2">
-              <h4 className="text-sm font-medium text-muted-foreground">Money Flow Over Time</h4>
-              <div className="h-[300px]">
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-primary" />
+                Money Flow Over Time
+              </h4>
+              <div className="h-[300px] rounded-lg bg-muted/20 p-4">
                 <ResponsiveContainer width="100%" height="100%">
                   <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                     <defs>
@@ -427,7 +437,7 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
             </div>
           </TabsContent>
         </Tabs>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
   );
 }
