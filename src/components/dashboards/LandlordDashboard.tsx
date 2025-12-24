@@ -15,6 +15,8 @@ import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { WalletCard } from '@/components/wallet/WalletCard';
+import { useProfile } from '@/hooks/useProfile';
+import { UserAvatar } from '@/components/UserAvatar';
 
 interface LandlordDashboardProps {
   user: User;
@@ -34,6 +36,7 @@ interface Payment {
 
 export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -61,7 +64,8 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
             <WelileLogo showText={false} />
             <RoleSwitcher
               currentRole={currentRole} 

@@ -11,12 +11,15 @@ import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { useAuth } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
+import { UserAvatar } from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
 
 export function WalletCard() {
   const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [sendOpen, setSendOpen] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
@@ -105,11 +108,19 @@ export function WalletCard() {
           </div>
         </CardHeader>
         <CardContent className="space-y-4">
-          <div>
-            <p className="text-sm text-muted-foreground">Available Balance</p>
-            <p className="text-2xl md:text-3xl font-bold text-foreground">
-              {formatCurrency(wallet?.balance || 0)}
-            </p>
+          <div className="flex items-center gap-3">
+            <UserAvatar 
+              avatarUrl={profile?.avatar_url} 
+              fullName={profile?.full_name} 
+              size="lg" 
+            />
+            <div>
+              <p className="font-medium text-foreground">{profile?.full_name || 'User'}</p>
+              <p className="text-sm text-muted-foreground">Available Balance</p>
+              <p className="text-2xl md:text-3xl font-bold text-foreground">
+                {formatCurrency(wallet?.balance || 0)}
+              </p>
+            </div>
           </div>
 
           <div className="grid grid-cols-3 gap-2">

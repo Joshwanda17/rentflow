@@ -16,6 +16,8 @@ import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { useProfile } from '@/hooks/useProfile';
+import { UserAvatar } from '@/components/UserAvatar';
 
 interface SupporterDashboardProps {
   user: User;
@@ -44,6 +46,7 @@ interface FundedRequest {
 
 export default function SupporterDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: SupporterDashboardProps) {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
   const [loading, setLoading] = useState(true);
@@ -120,7 +123,8 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
             <WelileLogo showText={false} />
             <RoleSwitcher
               currentRole={currentRole} 
