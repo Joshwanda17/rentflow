@@ -1,20 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2 } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 interface Profile {
   id: string;
   full_name: string;
   email: string;
   phone: string;
+  avatar_url: string | null;
 }
 
 export default function Settings() {
@@ -23,8 +25,10 @@ export default function Settings() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -54,11 +58,69 @@ export default function Settings() {
     }
 
     if (data) {
-      setProfile(data);
+      setProfile(data as Profile);
       setFullName(data.full_name);
       setPhone(data.phone);
     }
     setLoading(false);
+  };
+
+  const handleAvatarUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please upload an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setUploadingAvatar(true);
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const filePath = `${user.id}/avatar.${fileExt}`;
+
+      // Delete existing avatar if any
+      await supabase.storage.from('avatars').remove([filePath]);
+
+      // Upload new avatar
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('avatars')
+        .getPublicUrl(filePath);
+
+      // Add cache buster to force refresh
+      const avatarUrl = `${publicUrl}?t=${Date.now()}`;
+
+      // Update profile with new avatar URL
+      const { error: updateError } = await supabase
+        .from('profiles')
+        .update({ avatar_url: avatarUrl })
+        .eq('id', user.id);
+
+      if (updateError) throw updateError;
+
+      setProfile(prev => prev ? { ...prev, avatar_url: avatarUrl } : null);
+      toast.success('Profile photo updated!');
+    } catch (error) {
+      console.error('Error uploading avatar:', error);
+      toast.error('Failed to upload photo');
+    } finally {
+      setUploadingAvatar(false);
+    }
   };
 
   const handleSave = async () => {
@@ -92,6 +154,10 @@ export default function Settings() {
 
     toast.success('Profile updated successfully');
     setProfile({ ...profile, full_name: fullName.trim(), phone: phone.trim() });
+  };
+
+  const getInitials = (name: string) => {
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
   if (authLoading || loading) {
@@ -134,6 +200,40 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+            {/* Avatar Upload */}
+            <div className="flex flex-col items-center gap-4 pb-4 border-b">
+              <div className="relative">
+                <Avatar className="h-24 w-24 border-2 border-border">
+                  <AvatarImage src={profile?.avatar_url || undefined} alt={fullName} />
+                  <AvatarFallback className="text-xl bg-primary/10 text-primary">
+                    {getInitials(fullName || 'U')}
+                  </AvatarFallback>
+                </Avatar>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="absolute bottom-0 right-0 h-8 w-8 rounded-full shadow-md"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={uploadingAvatar}
+                >
+                  {uploadingAvatar ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Camera className="h-4 w-4" />
+                  )}
+                </Button>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept="image/*"
+                  className="hidden"
+                  onChange={handleAvatarUpload}
+                />
+              </div>
+              <p className="text-sm text-muted-foreground">
+                Click the camera icon to upload a photo
+              </p>
+            </div>
             <div className="space-y-2">
               <Label htmlFor="fullName">Full Name</Label>
               <div className="relative">
