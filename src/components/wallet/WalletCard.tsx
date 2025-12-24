@@ -2,12 +2,13 @@ import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell } from 'lucide-react';
+import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Receipt } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
+import { TransactionReceipt } from './TransactionReceipt';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -19,6 +20,8 @@ export function WalletCard() {
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
+  const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
+  const [receiptOpen, setReceiptOpen] = useState(false);
 
   const fetchPendingCount = useCallback(async () => {
     if (!user) return;
@@ -143,9 +146,13 @@ export function WalletCard() {
                 {transactions.slice(0, 5).map((tx) => {
                   const isSent = tx.sender_id === user?.id;
                   return (
-                    <div 
+                    <button 
                       key={tx.id} 
-                      className="flex items-center justify-between p-2 rounded-lg bg-background/50"
+                      onClick={() => {
+                        setSelectedTransaction(tx);
+                        setReceiptOpen(true);
+                      }}
+                      className="flex items-center justify-between p-2 rounded-lg bg-background/50 w-full hover:bg-background/80 transition-colors group"
                     >
                       <div className="flex items-center gap-2">
                         <div className={`p-1.5 rounded-full ${isSent ? 'bg-destructive/20' : 'bg-green-500/20'}`}>
@@ -155,7 +162,7 @@ export function WalletCard() {
                             <ArrowDownLeft className="h-3 w-3 text-green-500" />
                           )}
                         </div>
-                        <div>
+                        <div className="text-left">
                           <p className="text-sm font-medium">
                             {isSent ? tx.recipient_name : tx.sender_name}
                           </p>
@@ -164,10 +171,13 @@ export function WalletCard() {
                           </p>
                         </div>
                       </div>
-                      <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-green-500'}`}>
-                        {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
-                      </p>
-                    </div>
+                      <div className="flex items-center gap-2">
+                        <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-green-500'}`}>
+                          {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
+                        </p>
+                        <Receipt className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
+                    </button>
                   );
                 })}
               </div>
@@ -184,6 +194,12 @@ export function WalletCard() {
         onSuccess={fetchPendingCount}
       />
       <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
+      <TransactionReceipt 
+        open={receiptOpen} 
+        onOpenChange={setReceiptOpen} 
+        transaction={selectedTransaction}
+        currentUserId={user?.id || ''}
+      />
     </>
   );
 }
