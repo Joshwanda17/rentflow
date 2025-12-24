@@ -8,10 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Home, LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import RoleSwitcher from '@/components/RoleSwitcher';
+import { AppRole } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface ManagerDashboardProps {
   user: User;
   signOut: () => Promise<void>;
+  currentRole: AppRole;
+  availableRoles: AppRole[];
+  onRoleChange: (role: AppRole) => void;
+  addRoleComponent: ReactNode;
 }
 
 interface RentRequest {
@@ -36,7 +43,7 @@ interface UserProfile {
   user_roles: { role: string }[];
 }
 
-export default function ManagerDashboard({ user, signOut }: ManagerDashboardProps) {
+export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
@@ -165,12 +172,19 @@ export default function ManagerDashboard({ user, signOut }: ManagerDashboardProp
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">RentAccess</span>
-            <Badge className="ml-2 bg-destructive/20 text-destructive">Manager</Badge>
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 

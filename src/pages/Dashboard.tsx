@@ -1,15 +1,16 @@
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuth, AppRole } from '@/hooks/useAuth';
 import TenantDashboard from '@/components/dashboards/TenantDashboard';
 import AgentDashboard from '@/components/dashboards/AgentDashboard';
 import SupporterDashboard from '@/components/dashboards/SupporterDashboard';
 import LandlordDashboard from '@/components/dashboards/LandlordDashboard';
 import ManagerDashboard from '@/components/dashboards/ManagerDashboard';
+import AddRoleDialog from '@/components/AddRoleDialog';
 import { Loader2 } from 'lucide-react';
 
 export default function Dashboard() {
-  const { user, role, loading, signOut } = useAuth();
+  const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -30,7 +31,14 @@ export default function Dashboard() {
     return null;
   }
 
-  const dashboardProps = { user, signOut };
+  const dashboardProps = { 
+    user, 
+    signOut, 
+    currentRole: role, 
+    availableRoles: roles, 
+    onRoleChange: switchRole,
+    addRoleComponent: <AddRoleDialog availableRoles={roles} onAddRole={addRole} />
+  };
 
   switch (role) {
     case 'tenant':

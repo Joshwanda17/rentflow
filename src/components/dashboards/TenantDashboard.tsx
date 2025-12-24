@@ -8,12 +8,19 @@ import { Home, LogOut, Plus, Calculator, CreditCard, Clock } from 'lucide-react'
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
+import RoleSwitcher from '@/components/RoleSwitcher';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
+import { AppRole } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface TenantDashboardProps {
   user: User;
   signOut: () => Promise<void>;
+  currentRole: AppRole;
+  availableRoles: AppRole[];
+  onRoleChange: (role: AppRole) => void;
+  addRoleComponent: ReactNode;
 }
 
 interface RentRequest {
@@ -35,7 +42,7 @@ interface Repayment {
   rent_request_id: string;
 }
 
-export default function TenantDashboard({ user, signOut }: TenantDashboardProps) {
+export default function TenantDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: TenantDashboardProps) {
   const [showCalculator, setShowCalculator] = useState(true);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
@@ -94,12 +101,19 @@ export default function TenantDashboard({ user, signOut }: TenantDashboardProps)
           <div className="flex items-center gap-2">
             <Home className="h-6 w-6 text-primary" />
             <span className="font-bold text-lg">RentAccess</span>
-            <Badge variant="secondary" className="ml-2">Tenant</Badge>
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+            />
           </div>
-          <Button variant="ghost" size="sm" onClick={signOut}>
-            <LogOut className="h-4 w-4 mr-2" />
-            Sign Out
-          </Button>
+          <div className="flex items-center gap-2">
+            {addRoleComponent}
+            <Button variant="ghost" size="sm" onClick={signOut}>
+              <LogOut className="h-4 w-4 mr-2" />
+              Sign Out
+            </Button>
+          </div>
         </div>
       </header>
 
