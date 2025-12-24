@@ -8,10 +8,14 @@ import LandlordDashboard from '@/components/dashboards/LandlordDashboard';
 import ManagerDashboard from '@/components/dashboards/ManagerDashboard';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import { Loader2 } from 'lucide-react';
+import { useNotifications } from '@/hooks/useNotifications';
 
 export default function Dashboard() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
+  
+  // Enable real-time notifications for money transfers and requests
+  useNotifications();
 
   useEffect(() => {
     if (!loading && !user) {
