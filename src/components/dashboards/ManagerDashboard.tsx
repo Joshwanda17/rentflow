@@ -5,7 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Home, LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote } from 'lucide-react';
+import { Home, LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -25,6 +25,8 @@ interface RentRequest {
   id: string;
   tenant_id: string;
   agent_id: string | null;
+  landlord_id: string;
+  supporter_id: string | null;
   rent_amount: number;
   duration_days: number;
   access_fee: number;
@@ -32,7 +34,7 @@ interface RentRequest {
   total_repayment: number;
   status: string;
   created_at: string;
-  landlords?: { name: string; phone: string };
+  landlords?: { id: string; name: string; phone: string };
 }
 
 interface UserProfile {
@@ -59,9 +61,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const { data: requestsData } = await supabase
       .from('rent_requests')
       .select(`
-        id, tenant_id, agent_id, rent_amount, duration_days, 
+        id, tenant_id, agent_id, landlord_id, supporter_id, rent_amount, duration_days, 
         access_fee, request_fee, total_repayment, status, created_at,
-        landlords (name, phone)
+        landlords (id, name, phone)
       `)
       .order('created_at', { ascending: false });
     
@@ -133,11 +135,55 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     fetchData();
   };
 
+  const handleDisburse = async (request: RentRequest) => {
+    // Update request status to disbursed
+    const { error: updateError } = await supabase
+      .from('rent_requests')
+      .update({
+        status: 'disbursed',
+        disbursed_at: new Date().toISOString()
+      })
+      .eq('id', request.id);
+
+    if (updateError) {
+      toast({ title: 'Error', description: updateError.message, variant: 'destructive' });
+      return;
+    }
+
+    // Create landlord payout transaction
+    // Note: We need to find landlord's user account or use a system record
+    await supabase.from('platform_transactions').insert({
+      rent_request_id: request.id,
+      user_id: request.landlord_id, // Using landlord_id from rent_requests
+      transaction_type: 'landlord_payout',
+      amount: Number(request.rent_amount),
+      direction: 'out',
+      description: `Rent payout for request`
+    });
+
+    // Record platform revenue (access fee + request fee)
+    await supabase.from('platform_transactions').insert({
+      rent_request_id: request.id,
+      user_id: null,
+      transaction_type: 'platform_fee',
+      amount: Number(request.access_fee) + Number(request.request_fee),
+      direction: 'in',
+      description: 'Platform fees from rent facilitation'
+    });
+
+    toast({ 
+      title: 'Disbursement Complete', 
+      description: `${formatUGX(Number(request.rent_amount))} has been marked as paid to landlord`
+    });
+    fetchData();
+  };
+
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const approvedRequests = requests.filter(r => r.status === 'approved');
-  const fundedRequests = requests.filter(r => ['funded', 'disbursed', 'completed'].includes(r.status));
+  const fundedRequests = requests.filter(r => r.status === 'funded');
+  const disbursedRequests = requests.filter(r => ['disbursed', 'completed'].includes(r.status));
   
-  const totalFacilitated = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
+  const totalFacilitated = [...fundedRequests, ...disbursedRequests].reduce((sum, r) => sum + Number(r.rent_amount), 0);
   const totalPlatformRevenue = requests
     .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
     .reduce((sum, r) => sum + Number(r.access_fee) + Number(r.request_fee), 0);
@@ -253,6 +299,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             <TabsTrigger value="pending">
               Pending ({pendingRequests.length})
             </TabsTrigger>
+            <TabsTrigger value="funded">
+              Funded ({fundedRequests.length})
+            </TabsTrigger>
             <TabsTrigger value="all">All Requests</TabsTrigger>
             <TabsTrigger value="users">Users</TabsTrigger>
           </TabsList>
@@ -310,6 +359,61 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                             Reject
                           </Button>
                         </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="funded">
+            <Card className="glass-card">
+              <CardHeader>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Banknote className="h-5 w-5" />
+                  Ready for Disbursement
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <p className="text-muted-foreground">Loading...</p>
+                ) : fundedRequests.length === 0 ? (
+                  <p className="text-muted-foreground">No funded requests awaiting disbursement</p>
+                ) : (
+                  <div className="space-y-4">
+                    {fundedRequests.map((request) => (
+                      <div 
+                        key={request.id} 
+                        className="p-4 rounded-lg bg-secondary/50 space-y-3"
+                      >
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <p className="font-medium text-lg">{formatUGX(Number(request.rent_amount))}</p>
+                            <p className="text-sm text-muted-foreground">
+                              {request.duration_days} days • Daily: {formatUGX(Number(request.total_repayment) / request.duration_days)}
+                            </p>
+                            {request.landlords && (
+                              <p className="text-sm text-muted-foreground">
+                                Landlord: {request.landlords.name} ({request.landlords.phone})
+                              </p>
+                            )}
+                            <p className="text-xs text-success mt-1">
+                              Funded by supporter • Ready to disburse to landlord
+                            </p>
+                          </div>
+                          <Badge className={getStatusColor(request.status)}>
+                            {request.status}
+                          </Badge>
+                        </div>
+                        <Button 
+                          size="sm" 
+                          onClick={() => handleDisburse(request)}
+                          className="bg-success hover:bg-success/90"
+                        >
+                          <Send className="h-4 w-4 mr-1" />
+                          Disburse to Landlord
+                        </Button>
                       </div>
                     ))}
                   </div>
