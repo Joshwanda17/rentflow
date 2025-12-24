@@ -1,1 +1,4 @@
 project_id = "wirntoujqoyjobfhyelc"
+
+[functions.wallet-transfer]
+verify_jwt = true

@@ -13,6 +13,7 @@ import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 
 interface AgentDashboardProps {
@@ -119,6 +120,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
+        
+        {/* Wallet */}
+        <WalletCard />
+
         {/* Referral Link */}
         <Card className="glass-card glow-primary">
           <CardHeader>

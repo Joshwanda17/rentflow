@@ -13,6 +13,7 @@ import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { WalletCard } from '@/components/wallet/WalletCard';
 
 interface LandlordDashboardProps {
   user: User;
@@ -82,6 +83,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
+        
+        {/* Wallet */}
+        <WalletCard />
+
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="glass-card">
