@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Home, LogOut, Plus, Calculator, CreditCard, Clock } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
+import RepaymentSection from '@/components/tenant/RepaymentSection';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 
@@ -23,12 +24,15 @@ interface RentRequest {
   daily_repayment: number;
   status: string;
   created_at: string;
+  disbursed_at: string | null;
 }
 
 interface Repayment {
   id: string;
   amount: number;
   payment_date: string;
+  created_at: string;
+  rent_request_id: string;
 }
 
 export default function TenantDashboard({ user, signOut }: TenantDashboardProps) {
@@ -63,8 +67,11 @@ export default function TenantDashboard({ user, signOut }: TenantDashboardProps)
     setLoading(false);
   };
 
-  const activeRequest = rentRequests.find(r => ['approved', 'funded', 'disbursed'].includes(r.status));
-  const totalRepaid = repayments.reduce((sum, r) => sum + Number(r.amount), 0);
+  const activeRequest = rentRequests.find(r => ['approved', 'funded', 'disbursed'].includes(r.status || ''));
+  const activeRepayments = activeRequest 
+    ? repayments.filter(r => r.rent_request_id === activeRequest.id)
+    : [];
+  const totalRepaid = activeRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
   const remainingBalance = activeRequest ? Number(activeRequest.total_repayment) - totalRepaid : 0;
 
   const getStatusColor = (status: string) => {
@@ -181,11 +188,21 @@ export default function TenantDashboard({ user, signOut }: TenantDashboardProps)
         {!showCalculator && !showRequestForm && (
           <Button 
             onClick={() => setShowCalculator(true)}
-            className="w-full md:w-auto"
+            className="w-full md:w-auto mb-4"
           >
             <Plus className="h-4 w-4 mr-2" />
             New Rent Request
           </Button>
+        )}
+
+        {/* Repayment Section */}
+        {!showCalculator && !showRequestForm && (
+          <RepaymentSection
+            userId={user.id}
+            activeRequest={activeRequest}
+            repayments={repayments}
+            onRepaymentSuccess={fetchData}
+          />
         )}
 
         {/* Rent Requests History */}
