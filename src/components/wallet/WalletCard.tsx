@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Receipt } from 'lucide-react';
+import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Receipt, History } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
@@ -13,6 +14,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 export function WalletCard() {
+  const navigate = useNavigate();
   const { wallet, transactions, loading, refreshWallet, refreshTransactions } = useWallet();
   const { user } = useAuth();
   const [sendOpen, setSendOpen] = useState(false);
@@ -141,7 +143,18 @@ export function WalletCard() {
 
           {transactions.length > 0 && (
             <div className="pt-4 border-t border-border">
-              <p className="text-sm font-medium mb-3">Recent Transactions</p>
+              <div className="flex items-center justify-between mb-3">
+                <p className="text-sm font-medium">Recent Transactions</p>
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  onClick={() => navigate('/transactions')}
+                  className="gap-1 h-auto py-1 text-xs text-muted-foreground hover:text-foreground"
+                >
+                  <History className="h-3 w-3" />
+                  View All
+                </Button>
+              </div>
               <div className="space-y-2 max-h-48 overflow-y-auto">
                 {transactions.slice(0, 5).map((tx) => {
                   const isSent = tx.sender_id === user?.id;
