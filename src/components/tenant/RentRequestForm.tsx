@@ -60,9 +60,13 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       return;
     }
 
+    // Get referral agent ID from localStorage
+    const agentId = localStorage.getItem('referral_agent_id');
+
     // Create rent request
     const { error: requestError } = await supabase.from('rent_requests').insert({
       tenant_id: userId,
+      agent_id: agentId || null,
       landlord_id: landlord.id,
       lc1_id: lc1.id,
       rent_amount: calc.rentAmount,
