@@ -17,6 +17,8 @@ import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { useProfile } from '@/hooks/useProfile';
+import { UserAvatar } from '@/components/UserAvatar';
 
 interface ManagerDashboardProps {
   user: User;
@@ -64,6 +66,7 @@ interface PlatformTransaction {
 
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
+  const { profile } = useProfile();
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<PlatformTransaction[]>([]);
@@ -243,7 +246,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     <div className="min-h-screen bg-background pb-20 md:pb-0">
       <header className="sticky top-0 z-50 border-b border-gray-200 bg-white text-gray-900">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
+            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
             <WelileLogo showText={false} />
             <RoleSwitcher
               currentRole={currentRole} 
