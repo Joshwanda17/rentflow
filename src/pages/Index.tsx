@@ -1,168 +1,281 @@
-import { useState } from 'react';
-import { useFinancialEngine } from '@/hooks/useFinancialEngine';
-import { MetricCard } from '@/components/MetricCard';
-import { TransactionForm } from '@/components/TransactionForm';
-import { TransactionList } from '@/components/TransactionList';
-import { IncomeStatementView } from '@/components/IncomeStatementView';
-import { CashFlowView } from '@/components/CashFlowView';
-import { BalanceSheetView } from '@/components/BalanceSheetView';
-import { FacilitatedVolumeView } from '@/components/FacilitatedVolumeView';
-import { RevenueChart } from '@/components/RevenueChart';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Link } from 'react-router-dom';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent } from '@/components/ui/card';
 import { 
-  Building2, 
-  Wallet, 
+  Home, 
   Users, 
-  UserCheck, 
-  TrendingUp, 
-  CircleDollarSign,
-  LayoutDashboard,
-  FileText,
-  PieChart,
-  Activity
+  Wallet, 
+  Building2, 
+  ArrowRight, 
+  CheckCircle,
+  TrendingUp,
+  Shield,
+  Clock,
+  Banknote
 } from 'lucide-react';
 
-export default function Index() {
-  const {
-    transactions,
-    addTransaction,
-    cashBalance,
-    incomeStatement,
-    cashFlowStatement,
-    balanceSheet,
-    facilitatedVolumeStatement,
-    dashboardMetrics,
-  } = useFinancialEngine();
+const userTypes = [
+  {
+    title: 'Tenant',
+    description: 'Need rent money now? Get up to 90 days rent upfront and pay back daily.',
+    icon: Home,
+    color: 'primary',
+    benefits: ['Get rent paid to your landlord instantly', 'Pay back in small daily amounts', 'No bank account required'],
+    cta: 'Request Rent Now'
+  },
+  {
+    title: 'Agent',
+    description: 'Earn money by connecting tenants to our platform. Share your link and earn commissions.',
+    icon: Users,
+    color: 'warning',
+    benefits: ['Earn UGX 5,000 per approved tenant', 'Get 5% of all tenant repayments', 'Simple referral link system'],
+    cta: 'Start Earning'
+  },
+  {
+    title: 'Supporter',
+    description: 'Invest in rent facilitation and earn guaranteed returns on your capital.',
+    icon: Wallet,
+    color: 'success',
+    benefits: ['Earn 15% returns on investments', 'Fund verified rent requests', 'Low-risk, high-impact lending'],
+    cta: 'Start Investing'
+  },
+  {
+    title: 'Landlord',
+    description: 'Receive your rent on time, every time. No more chasing tenants for payments.',
+    icon: Building2,
+    color: 'accent',
+    benefits: ['Get paid directly by the platform', 'Never miss a rent payment', 'Simple registration process'],
+    cta: 'Get Paid On Time'
+  },
+];
 
+const stats = [
+  { value: 'UGX 500M+', label: 'Rent Facilitated' },
+  { value: '2,000+', label: 'Happy Tenants' },
+  { value: '500+', label: 'Active Agents' },
+  { value: '15%', label: 'Supporter Returns' },
+];
+
+export default function Index() {
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b border-border bg-card/50 backdrop-blur-xl sticky top-0 z-50">
+      {/* Navigation */}
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
             <div className="p-2 rounded-lg bg-primary/10">
-              <Building2 className="h-6 w-6 text-primary" />
+              <Home className="h-6 w-6 text-primary" />
             </div>
-            <div>
-              <h1 className="text-xl font-bold">RentAccess Platform</h1>
-              <p className="text-xs text-muted-foreground">Real-Time Financial Engine</p>
-            </div>
+            <span className="text-xl font-bold">RentAccess</span>
           </div>
-          <div className="flex items-center gap-4">
-            <div className="text-right mr-4">
-              <p className="text-xs text-muted-foreground">Cash Balance</p>
-              <p className="font-mono font-bold text-lg text-primary">
-                {new Intl.NumberFormat('en-UG', {
-                  style: 'currency',
-                  currency: 'UGX',
-                  minimumFractionDigits: 0,
-                }).format(cashBalance)}
-              </p>
-            </div>
-            <TransactionForm onSubmit={addTransaction} />
+          <div className="flex items-center gap-3">
+            <Link to="/auth">
+              <Button variant="ghost">Sign In</Button>
+            </Link>
+            <Link to="/auth">
+              <Button>Get Started</Button>
+            </Link>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-8">
-        {/* Dashboard Metrics */}
-        <section className="mb-8">
-          <h2 className="text-sm font-medium text-muted-foreground uppercase tracking-wider mb-4">
-            Live Platform Metrics
-          </h2>
-          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
-            <MetricCard
-              label="Facilitated Rent Volume"
-              value={dashboardMetrics.facilitatedRentVolume}
-              icon={Building2}
-              trend={dashboardMetrics.facilitatedRentVolume > 0 ? 'up' : 'neutral'}
-            />
-            <MetricCard
-              label="Utilized Capital"
-              value={dashboardMetrics.utilizedCapital}
-              icon={Wallet}
-              trend={dashboardMetrics.utilizedCapital > 0 ? 'up' : 'neutral'}
-            />
-            <MetricCard
-              label="Active Tenants"
-              value={dashboardMetrics.activeTenants}
-              icon={Users}
-            />
-            <MetricCard
-              label="Active Agents"
-              value={dashboardMetrics.activeAgents}
-              icon={UserCheck}
-            />
-            <MetricCard
-              label="Platform Revenue"
-              value={dashboardMetrics.platformRevenue}
-              icon={TrendingUp}
-              trend={dashboardMetrics.platformRevenue > 0 ? 'up' : 'neutral'}
-            />
-            <MetricCard
-              label="Net Operating Income"
-              value={dashboardMetrics.netOperatingIncome}
-              icon={CircleDollarSign}
-              trend={dashboardMetrics.netOperatingIncome > 0 ? 'up' : dashboardMetrics.netOperatingIncome < 0 ? 'down' : 'neutral'}
-            />
-          </div>
-        </section>
-
-        {/* Main Content */}
-        <div className="grid lg:grid-cols-3 gap-8">
-          {/* Left Column - Transactions */}
-          <div className="lg:col-span-1 space-y-6">
-            <TransactionList transactions={transactions} />
-            <RevenueChart transactions={transactions} />
-          </div>
-
-          {/* Right Column - Financial Statements */}
-          <div className="lg:col-span-2">
-            <Tabs defaultValue="income" className="w-full">
-              <TabsList className="grid grid-cols-4 mb-6 bg-secondary">
-                <TabsTrigger value="income" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <FileText className="h-4 w-4" />
-                  <span className="hidden sm:inline">Income</span>
-                </TabsTrigger>
-                <TabsTrigger value="cashflow" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <Activity className="h-4 w-4" />
-                  <span className="hidden sm:inline">Cash Flow</span>
-                </TabsTrigger>
-                <TabsTrigger value="balance" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <PieChart className="h-4 w-4" />
-                  <span className="hidden sm:inline">Balance</span>
-                </TabsTrigger>
-                <TabsTrigger value="volume" className="gap-2 data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">
-                  <LayoutDashboard className="h-4 w-4" />
-                  <span className="hidden sm:inline">Volume</span>
-                </TabsTrigger>
-              </TabsList>
-
-              <TabsContent value="income" className="animate-slide-up">
-                <IncomeStatementView data={incomeStatement} />
-              </TabsContent>
-
-              <TabsContent value="cashflow" className="animate-slide-up">
-                <CashFlowView data={cashFlowStatement} />
-              </TabsContent>
-
-              <TabsContent value="balance" className="animate-slide-up">
-                <BalanceSheetView data={balanceSheet} />
-              </TabsContent>
-
-              <TabsContent value="volume" className="animate-slide-up">
-                <FacilitatedVolumeView data={facilitatedVolumeStatement} />
-              </TabsContent>
-            </Tabs>
+      {/* Hero Section */}
+      <section className="relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-success/5" />
+        <div className="container mx-auto px-4 py-20 md:py-32 relative">
+          <div className="max-w-3xl mx-auto text-center">
+            <h1 className="text-4xl md:text-6xl font-bold mb-6 animate-fade-in">
+              Rent Facilitation
+              <span className="text-primary"> Made Simple</span>
+            </h1>
+            <p className="text-lg md:text-xl text-muted-foreground mb-8 animate-fade-in">
+              We connect tenants who need rent money with supporters who want to earn returns. 
+              Landlords get paid on time, agents earn commissions. Everyone wins.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4 justify-center animate-fade-in">
+              <Link to="/auth">
+                <Button size="lg" className="gap-2 w-full sm:w-auto">
+                  Get Started Free
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
+              </Link>
+              <Button variant="outline" size="lg" className="gap-2">
+                Learn How It Works
+              </Button>
+            </div>
           </div>
         </div>
-      </main>
+      </section>
+
+      {/* Stats Section */}
+      <section className="border-y border-border bg-secondary/30">
+        <div className="container mx-auto px-4 py-12">
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
+            {stats.map((stat, i) => (
+              <div key={i} className="text-center">
+                <p className="text-3xl md:text-4xl font-bold font-mono text-primary">{stat.value}</p>
+                <p className="text-sm text-muted-foreground mt-1">{stat.label}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* User Types Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">Choose Your Role</h2>
+            <p className="text-muted-foreground max-w-2xl mx-auto">
+              Whether you're looking for rent money, want to earn commissions, invest for returns, 
+              or receive guaranteed payments - we've got you covered.
+            </p>
+          </div>
+
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
+            {userTypes.map((type, i) => (
+              <Card 
+                key={i} 
+                className="glass-card hover:border-primary/50 transition-all duration-300 hover:-translate-y-1 group"
+              >
+                <CardContent className="pt-6">
+                  <div className={`p-3 rounded-lg bg-${type.color}/10 w-fit mb-4`}>
+                    <type.icon className={`h-6 w-6 text-${type.color}`} />
+                  </div>
+                  <h3 className="text-xl font-semibold mb-2">{type.title}</h3>
+                  <p className="text-sm text-muted-foreground mb-4">{type.description}</p>
+                  
+                  <ul className="space-y-2 mb-6">
+                    {type.benefits.map((benefit, j) => (
+                      <li key={j} className="flex items-start gap-2 text-sm">
+                        <CheckCircle className="h-4 w-4 text-success mt-0.5 shrink-0" />
+                        <span>{benefit}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link to="/auth">
+                    <Button 
+                      variant="outline" 
+                      className="w-full group-hover:bg-primary group-hover:text-primary-foreground transition-colors"
+                    >
+                      {type.cta}
+                      <ArrowRight className="h-4 w-4 ml-2" />
+                    </Button>
+                  </Link>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* How It Works Section */}
+      <section className="py-20 bg-secondary/30">
+        <div className="container mx-auto px-4">
+          <div className="text-center mb-12">
+            <h2 className="text-3xl md:text-4xl font-bold mb-4">How It Works</h2>
+            <p className="text-muted-foreground">Simple steps to get started</p>
+          </div>
+
+          <div className="grid md:grid-cols-4 gap-8 max-w-4xl mx-auto">
+            {[
+              { step: '1', title: 'Sign Up', desc: 'Create your free account and choose your role', icon: Users },
+              { step: '2', title: 'Submit Request', desc: 'Tenants submit rent requests with landlord details', icon: Banknote },
+              { step: '3', title: 'Get Funded', desc: 'Supporters fund approved requests', icon: Wallet },
+              { step: '4', title: 'Daily Repayment', desc: 'Tenants pay back in small daily amounts', icon: Clock },
+            ].map((item, i) => (
+              <div key={i} className="text-center">
+                <div className="w-12 h-12 rounded-full bg-primary text-primary-foreground flex items-center justify-center text-xl font-bold mx-auto mb-4">
+                  {item.step}
+                </div>
+                <h3 className="font-semibold mb-2">{item.title}</h3>
+                <p className="text-sm text-muted-foreground">{item.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Features Section */}
+      <section className="py-20">
+        <div className="container mx-auto px-4">
+          <div className="grid md:grid-cols-3 gap-8">
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-lg bg-primary/10 shrink-0">
+                <Shield className="h-6 w-6 text-primary" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Secure & Trusted</h3>
+                <p className="text-sm text-muted-foreground">
+                  All transactions are verified and secure. Your money is always safe with us.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-lg bg-success/10 shrink-0">
+                <TrendingUp className="h-6 w-6 text-success" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Guaranteed Returns</h3>
+                <p className="text-sm text-muted-foreground">
+                  Supporters earn 15% returns on funded rent requests. Low risk, high reward.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-start gap-4">
+              <div className="p-3 rounded-lg bg-warning/10 shrink-0">
+                <Clock className="h-6 w-6 text-warning" />
+              </div>
+              <div>
+                <h3 className="font-semibold mb-2">Quick Approval</h3>
+                <p className="text-sm text-muted-foreground">
+                  Most rent requests are approved within 24 hours. Fast funding, quick disbursement.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* CTA Section */}
+      <section className="py-20 bg-primary/5">
+        <div className="container mx-auto px-4 text-center">
+          <h2 className="text-3xl md:text-4xl font-bold mb-4">Ready to Get Started?</h2>
+          <p className="text-muted-foreground mb-8 max-w-xl mx-auto">
+            Join thousands of users who are already benefiting from the RentAccess platform.
+          </p>
+          <Link to="/auth">
+            <Button size="lg" className="gap-2">
+              Create Free Account
+              <ArrowRight className="h-4 w-4" />
+            </Button>
+          </Link>
+        </div>
+      </section>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-16 py-6">
-        <div className="container mx-auto px-4 text-center text-sm text-muted-foreground">
-          <p>RentAccess Platform • Technology Marketplace • Not a Financial Institution</p>
-          <p className="mt-1 text-xs">All statements use regulator-safe, platform-services terminology</p>
+      <footer className="border-t border-border py-12">
+        <div className="container mx-auto px-4">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-2">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Home className="h-5 w-5 text-primary" />
+              </div>
+              <span className="font-bold">RentAccess</span>
+            </div>
+            <p className="text-sm text-muted-foreground text-center">
+              RentAccess Platform • Technology Marketplace • Not a Financial Institution
+            </p>
+            <div className="flex gap-4">
+              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">
+                Sign In
+              </Link>
+              <Link to="/auth" className="text-sm text-muted-foreground hover:text-foreground">
+                Sign Up
+              </Link>
+            </div>
+          </div>
         </div>
       </footer>
     </div>
