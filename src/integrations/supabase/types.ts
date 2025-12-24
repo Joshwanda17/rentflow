@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_earnings: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          description: string | null
+          earning_type: string
+          id: string
+          rent_request_id: string | null
+          source_user_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          description?: string | null
+          earning_type: string
+          id?: string
+          rent_request_id?: string | null
+          source_user_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          description?: string | null
+          earning_type?: string
+          id?: string
+          rent_request_id?: string | null
+          source_user_id?: string | null
+        }
+        Relationships: []
+      }
       landlords: {
         Row: {
           account_number: string | null
@@ -101,6 +134,39 @@ export type Database = {
           requester_id?: string
           responded_at?: string | null
           status?: string
+        }
+        Relationships: []
+      }
+      notifications: {
+        Row: {
+          created_at: string
+          id: string
+          message: string
+          metadata: Json | null
+          read: boolean
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          message: string
+          metadata?: Json | null
+          read?: boolean
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          message?: string
+          metadata?: Json | null
+          read?: boolean
+          title?: string
+          type?: string
+          user_id?: string
         }
         Relationships: []
       }
@@ -312,6 +378,33 @@ export type Database = {
         }
         Relationships: []
       }
+      wallet_deposits: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          deposit_type: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          deposit_type?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          deposit_type?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       wallet_transactions: {
         Row: {
           amount: number
@@ -336,6 +429,30 @@ export type Database = {
           id?: string
           recipient_id?: string
           sender_id?: string
+        }
+        Relationships: []
+      }
+      wallet_withdrawals: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          user_id?: string
         }
         Relationships: []
       }
