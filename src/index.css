@@ -195,4 +195,12 @@
     50% { transform: scale(1.05); }
     100% { transform: scale(1); }
   }
+
+  .safe-area-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0);
+  }
+
+  .safe-area-top {
+    padding-top: env(safe-area-inset-top, 0);
+  }
 }
