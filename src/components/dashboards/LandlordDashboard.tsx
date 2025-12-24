@@ -1,0 +1,148 @@
+import { useState, useEffect } from 'react';
+import { User } from '@supabase/supabase-js';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Home, LogOut, Banknote, Building, CheckCircle } from 'lucide-react';
+import { formatUGX } from '@/lib/rentCalculations';
+
+interface LandlordDashboardProps {
+  user: User;
+  signOut: () => Promise<void>;
+}
+
+interface Payment {
+  id: string;
+  amount: number;
+  created_at: string;
+  description: string;
+}
+
+export default function LandlordDashboard({ user, signOut }: LandlordDashboardProps) {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+    
+    const { data } = await supabase
+      .from('platform_transactions')
+      .select('id, amount, created_at, description')
+      .eq('user_id', user.id)
+      .eq('transaction_type', 'landlord_payout')
+      .order('created_at', { ascending: false });
+    
+    setPayments(data || []);
+    setLoading(false);
+  };
+
+  const totalReceived = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+
+  return (
+    <div className="min-h-screen bg-background">
+      <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Home className="h-6 w-6 text-primary" />
+            <span className="font-bold text-lg">RentAccess</span>
+            <Badge variant="secondary" className="ml-2">Landlord</Badge>
+          </div>
+          <Button variant="ghost" size="sm" onClick={signOut}>
+            <LogOut className="h-4 w-4 mr-2" />
+            Sign Out
+          </Button>
+        </div>
+      </header>
+
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-success/10">
+                  <Banknote className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Rent Received</p>
+                  <p className="text-xl font-mono font-semibold text-success">
+                    {formatUGX(totalReceived)}
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="glass-card">
+            <CardContent className="pt-6">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-lg bg-primary/10">
+                  <Building className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Payments Received</p>
+                  <p className="text-xl font-mono font-semibold">{payments.length}</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* Info */}
+        <Card className="glass-card border-success/20">
+          <CardContent className="pt-6">
+            <div className="flex items-start gap-3">
+              <CheckCircle className="h-5 w-5 text-success mt-1" />
+              <div>
+                <p className="font-medium">Rent Payments</p>
+                <p className="text-sm text-muted-foreground">
+                  You receive rent payments directly from the platform when a tenant's request is funded by a supporter.
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Payment History */}
+        <Card className="glass-card">
+          <CardHeader>
+            <CardTitle className="text-lg">Payment History</CardTitle>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <p className="text-muted-foreground">Loading...</p>
+            ) : payments.length === 0 ? (
+              <p className="text-muted-foreground">
+                No payments received yet. Payments will appear here when tenants have their rent facilitated.
+              </p>
+            ) : (
+              <div className="space-y-3">
+                {payments.map((payment) => (
+                  <div 
+                    key={payment.id} 
+                    className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
+                  >
+                    <div>
+                      <p className="font-medium text-success">{formatUGX(Number(payment.amount))}</p>
+                      <p className="text-sm text-muted-foreground">
+                        {payment.description || 'Rent payment'}
+                      </p>
+                    </div>
+                    <p className="text-sm text-muted-foreground">
+                      {new Date(payment.created_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </main>
+    </div>
+  );
+}

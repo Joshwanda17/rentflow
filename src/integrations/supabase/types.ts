@@ -14,16 +14,287 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      landlords: {
+        Row: {
+          account_number: string | null
+          bank_name: string | null
+          created_at: string
+          id: string
+          mobile_money_number: string | null
+          name: string
+          phone: string
+          property_address: string
+        }
+        Insert: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          mobile_money_number?: string | null
+          name: string
+          phone: string
+          property_address: string
+        }
+        Update: {
+          account_number?: string | null
+          bank_name?: string | null
+          created_at?: string
+          id?: string
+          mobile_money_number?: string | null
+          name?: string
+          phone?: string
+          property_address?: string
+        }
+        Relationships: []
+      }
+      lc1_chairpersons: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          phone: string
+          village: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          phone: string
+          village: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          phone?: string
+          village?: string
+        }
+        Relationships: []
+      }
+      platform_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          rent_request_id: string | null
+          transaction_type: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          description?: string | null
+          direction: string
+          id?: string
+          rent_request_id?: string | null
+          transaction_type: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          rent_request_id?: string | null
+          transaction_type?: string
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "platform_transactions_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      profiles: {
+        Row: {
+          created_at: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      rent_requests: {
+        Row: {
+          access_fee: number
+          agent_id: string | null
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          daily_repayment: number
+          disbursed_at: string | null
+          duration_days: number
+          funded_at: string | null
+          id: string
+          landlord_id: string
+          lc1_id: string
+          rent_amount: number
+          request_fee: number
+          status: string | null
+          supporter_id: string | null
+          tenant_id: string
+          total_repayment: number
+          updated_at: string
+        }
+        Insert: {
+          access_fee: number
+          agent_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          daily_repayment: number
+          disbursed_at?: string | null
+          duration_days: number
+          funded_at?: string | null
+          id?: string
+          landlord_id: string
+          lc1_id: string
+          rent_amount: number
+          request_fee: number
+          status?: string | null
+          supporter_id?: string | null
+          tenant_id: string
+          total_repayment: number
+          updated_at?: string
+        }
+        Update: {
+          access_fee?: number
+          agent_id?: string | null
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          daily_repayment?: number
+          disbursed_at?: string | null
+          duration_days?: number
+          funded_at?: string | null
+          id?: string
+          landlord_id?: string
+          lc1_id?: string
+          rent_amount?: number
+          request_fee?: number
+          status?: string | null
+          supporter_id?: string | null
+          tenant_id?: string
+          total_repayment?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "rent_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_lc1_id_fkey"
+            columns: ["lc1_id"]
+            isOneToOne: false
+            referencedRelation: "lc1_chairpersons"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      repayments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          payment_date: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          payment_date?: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          payment_date?: string
+          rent_request_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      user_roles: {
+        Row: {
+          created_at: string
+          id: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          role: Database["public"]["Enums"]["app_role"]
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          role?: Database["public"]["Enums"]["app_role"]
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_user_role: {
+        Args: { _user_id: string }
+        Returns: Database["public"]["Enums"]["app_role"]
+      }
+      has_role: {
+        Args: {
+          _role: Database["public"]["Enums"]["app_role"]
+          _user_id: string
+        }
+        Returns: boolean
+      }
     }
     Enums: {
-      [_ in never]: never
+      app_role: "tenant" | "agent" | "landlord" | "supporter" | "manager"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -150,6 +421,8 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      app_role: ["tenant", "agent", "landlord", "supporter", "manager"],
+    },
   },
 } as const
