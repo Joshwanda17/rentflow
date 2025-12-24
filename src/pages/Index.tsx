@@ -14,6 +14,7 @@ import {
   Banknote
 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 const userTypes = [
   {
@@ -64,7 +65,8 @@ export default function Index() {
       <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
           <WelileLogo />
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
             <Link to="/auth">
               <Button variant="ghost">Sign In</Button>
             </Link>

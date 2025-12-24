@@ -13,6 +13,7 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
+import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface ManagerDashboardProps {
   user: User;
@@ -247,6 +248,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             />
           </div>
           <div className="flex items-center gap-2">
+            <ThemeToggle />
             {addRoleComponent}
             <Button variant="ghost" size="sm" onClick={signOut}>
               <LogOut className="h-4 w-4 mr-2" />
