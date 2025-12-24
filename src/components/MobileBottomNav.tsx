@@ -33,6 +33,12 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       active: location.pathname === '/dashboard'
     },
     { 
+      href: '/settings', 
+      icon: <Settings className="h-5 w-5" />, 
+      label: 'Settings',
+      active: location.pathname === '/settings'
+    },
+    { 
       href: '#signout', 
       icon: <LogOut className="h-5 w-5" />, 
       label: 'Sign Out',
