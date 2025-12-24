@@ -19,6 +19,7 @@ import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { NotificationBell } from '@/components/NotificationBell';
 
 interface ManagerDashboardProps {
   user: User;
@@ -256,6 +257,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             />
           </div>
           <div className="hidden md:flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
             {addRoleComponent}
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
@@ -267,7 +269,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               Sign Out
             </Button>
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-1">
+            <NotificationBell />
             <ThemeToggle />
           </div>
         </div>
