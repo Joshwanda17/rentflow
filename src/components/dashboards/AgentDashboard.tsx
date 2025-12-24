@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -18,6 +18,10 @@ import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
+import { NotificationBell } from '@/components/NotificationBell';
+import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
+import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
+import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 
 interface AgentDashboardProps {
   user: User;
@@ -38,10 +42,13 @@ interface RentRequest {
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { totalEarnings, commissionTotal, bonusTotal } = useAgentEarnings();
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
-  const [transactions, setTransactions] = useState<{ amount: number; transaction_type: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
+  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
+  const { toast } = useToast();
   const { toast } = useToast();
 
   const referralLink = `${window.location.origin}/auth?ref=${user.id}`;
@@ -59,14 +66,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       .eq('agent_id', user.id)
       .order('created_at', { ascending: false });
     
-    const { data: txns } = await supabase
-      .from('platform_transactions')
-      .select('amount, transaction_type')
-      .eq('user_id', user.id)
-      .in('transaction_type', ['agent_approval_bonus', 'agent_commission']);
-    
     setRentRequests(requests || []);
-    setTransactions(txns || []);
     setLoading(false);
   };
 
@@ -81,9 +81,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const approvedCount = rentRequests.filter(r => r.status !== 'pending' && r.status !== 'rejected').length;
-  const totalEarnings = transactions.reduce((sum, t) => sum + Number(t.amount), 0);
-  const approvalBonuses = transactions.filter(t => t.transaction_type === 'agent_approval_bonus').length * AGENT_APPROVAL_BONUS;
-  const commissions = totalEarnings - approvalBonuses;
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -111,6 +108,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             />
           </div>
           <div className="hidden md:flex items-center gap-2">
+            <NotificationBell />
             <ThemeToggle />
             {addRoleComponent}
             <Button variant="ghost" size="sm" onClick={() => navigate('/settings')}>
@@ -122,7 +120,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               Sign Out
             </Button>
           </div>
-          <div className="md:hidden">
+          <div className="md:hidden flex items-center gap-1">
+            <NotificationBell />
             <ThemeToggle />
           </div>
         </div>
@@ -131,6 +130,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <main className="container mx-auto px-4 py-6 space-y-6">
         <AppBreadcrumb />
         
+        {/* Agent Actions */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button onClick={() => setDepositOpen(true)} className="h-14" variant="default">
+            <ArrowDownCircle className="h-5 w-5 mr-2" />
+            Customer Deposit
+          </Button>
+          <Button onClick={() => setWithdrawalOpen(true)} className="h-14" variant="outline">
+            <ArrowUpCircle className="h-5 w-5 mr-2" />
+            Customer Withdrawal
+          </Button>
+        </div>
+
         {/* Wallet */}
         <WalletCard />
 
@@ -213,12 +224,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <div className="grid grid-cols-2 gap-4">
               <div className="p-4 rounded-lg bg-secondary/50">
                 <p className="text-sm text-muted-foreground">Approval Bonuses</p>
-                <p className="text-lg font-mono font-semibold">{formatUGX(approvalBonuses)}</p>
+                <p className="text-lg font-mono font-semibold">{formatUGX(bonusTotal)}</p>
                 <p className="text-xs text-muted-foreground">{approvedCount} × UGX 5,000</p>
               </div>
               <div className="p-4 rounded-lg bg-secondary/50">
                 <p className="text-sm text-muted-foreground">Repayment Commissions</p>
-                <p className="text-lg font-mono font-semibold">{formatUGX(commissions)}</p>
+                <p className="text-lg font-mono font-semibold">{formatUGX(commissionTotal)}</p>
                 <p className="text-xs text-muted-foreground">5% of tenant repayments</p>
               </div>
             </div>
@@ -261,6 +272,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </Card>
       </main>
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      
+      <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+      <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
     </div>
   );
 }

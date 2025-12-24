@@ -2,3 +2,12 @@ project_id = "wirntoujqoyjobfhyelc"
 
 [functions.wallet-transfer]
 verify_jwt = true
+
+[functions.agent-deposit]
+verify_jwt = true
+
+[functions.agent-withdrawal]
+verify_jwt = true
+
+[functions.approve-rent-request]
+verify_jwt = true
