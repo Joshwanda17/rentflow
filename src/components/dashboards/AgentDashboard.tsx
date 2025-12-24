@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
+import AppBreadcrumb from '@/components/AppBreadcrumb';
 
 interface AgentDashboardProps {
   user: User;
@@ -111,6 +112,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        <AppBreadcrumb />
         {/* Referral Link */}
         <Card className="glass-card glow-primary">
           <CardHeader>

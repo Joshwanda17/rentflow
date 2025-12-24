@@ -9,6 +9,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
+import AppBreadcrumb from '@/components/AppBreadcrumb';
 
 interface LandlordDashboardProps {
   user: User;
@@ -74,6 +75,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        <AppBreadcrumb />
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <Card className="glass-card">
