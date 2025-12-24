@@ -6,8 +6,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Home, UserPlus, LogIn, Users, ArrowLeft } from 'lucide-react';
+import { UserPlus, LogIn, Users, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import WelileLogo from '@/components/WelileLogo';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
@@ -128,9 +129,8 @@ export default function Auth() {
         </Link>
 
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Home className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">RentAccess</h1>
+          <div className="flex items-center justify-center mb-4">
+            <WelileLogo linkToHome={false} />
           </div>
           <p className="text-muted-foreground">Rent Facilitation Platform</p>
         </div>

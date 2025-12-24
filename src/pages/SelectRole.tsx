@@ -8,6 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import WelileLogo from '@/components/WelileLogo';
 
 const MANAGER_ACCESS_CODE = 'MYPART@WELILE';
 
@@ -160,9 +161,8 @@ export default function SelectRole() {
         </Link>
 
         <div className="text-center mb-8">
-          <div className="flex items-center justify-center gap-2 mb-4">
-            <Home className="h-8 w-8 text-primary" />
-            <h1 className="text-2xl font-bold">RentAccess</h1>
+          <div className="flex items-center justify-center mb-4">
+            <WelileLogo linkToHome={false} />
           </div>
           <p className="text-muted-foreground">Choose your role(s) on the platform</p>
         </div>

@@ -1,5 +1,4 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home } from 'lucide-react';
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -8,6 +7,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
+import welileLogo from '@/assets/welile-logo.png';
 
 interface BreadcrumbConfig {
   label: string;
@@ -53,7 +53,7 @@ export default function AppBreadcrumb() {
               {index === 0 ? (
                 <BreadcrumbLink asChild>
                   <Link to="/" className="flex items-center gap-1">
-                    <Home className="h-4 w-4" />
+                    <img src={welileLogo} alt="Welile" className="h-5 w-auto" />
                     <span className="sr-only md:not-sr-only">Home</span>
                   </Link>
                 </BreadcrumbLink>
