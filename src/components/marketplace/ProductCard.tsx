@@ -2,11 +2,12 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Package, Loader2, Star, Eye, Heart } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/hooks/useCart';
 
 interface Product {
   id: string;
@@ -35,7 +36,9 @@ export function ProductCard({
   onWishlistChange
 }: ProductCardProps) {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [purchasing, setPurchasing] = useState(false);
+  const [addingToCart, setAddingToCart] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
@@ -218,9 +221,28 @@ export function ProductCard({
             </span>
           </div>
         </CardContent>
-        <CardFooter className="p-4 pt-0">
+        <CardFooter className="p-4 pt-0 gap-2">
+          {!isOwnProduct && product.stock > 0 && (
+            <Button 
+              variant="outline"
+              size="icon"
+              onClick={async (e) => {
+                e.stopPropagation();
+                setAddingToCart(true);
+                await addToCart(product.id);
+                setAddingToCart(false);
+              }}
+              disabled={addingToCart}
+            >
+              {addingToCart ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Plus className="h-4 w-4" />
+              )}
+            </Button>
+          )}
           <Button 
-            className="w-full" 
+            className="flex-1" 
             onClick={handlePurchase}
             disabled={purchasing || product.stock === 0 || isOwnProduct}
           >
@@ -231,6 +253,8 @@ export function ProductCard({
               </>
             ) : isOwnProduct ? (
               'Your Product'
+            ) : product.stock === 0 ? (
+              'Out of Stock'
             ) : (
               <>
                 <ShoppingCart className="mr-2 h-4 w-4" />

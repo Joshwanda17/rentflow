@@ -15,6 +15,7 @@ import {
 import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
+import { CartDrawer } from './CartDrawer';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Product {
@@ -226,6 +227,7 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
           Marketplace
         </CardTitle>
         <div className="flex items-center gap-2">
+          {user && <CartDrawer />}
           {user && (
             <Button variant="outline" size="sm" onClick={() => navigate('/wishlist')} className="gap-2">
               <Heart className="h-4 w-4" />

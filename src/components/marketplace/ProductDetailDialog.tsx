@@ -25,6 +25,7 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
+import { useCart } from '@/hooks/useCart';
 
 interface Product {
   id: string;
@@ -65,6 +66,7 @@ export function ProductDetailDialog({
   onWishlistChange
 }: ProductDetailDialogProps) {
   const { user } = useAuth();
+  const { addToCart } = useCart();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
@@ -77,6 +79,7 @@ export function ProductDetailDialog({
   const [hoverRating, setHoverRating] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
   const [quantity, setQuantity] = useState(1);
+  const [addingToCart, setAddingToCart] = useState(false);
 
   useEffect(() => {
     if (product && open) {
@@ -394,25 +397,50 @@ export function ProductDetailDialog({
                     </span>
                   </div>
 
-                  {/* Buy Button */}
-                  <Button 
-                    className="w-full" 
-                    size="lg"
-                    onClick={handlePurchase}
-                    disabled={purchasing}
-                  >
-                    {purchasing ? (
-                      <>
-                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <ShoppingCart className="mr-2 h-4 w-4" />
-                        Buy {quantity > 1 ? `${quantity} items` : 'Now'}
-                      </>
-                    )}
-                  </Button>
+                  {/* Action Buttons */}
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline"
+                      className="flex-1" 
+                      size="lg"
+                      onClick={async () => {
+                        setAddingToCart(true);
+                        await addToCart(product.id, quantity);
+                        setAddingToCart(false);
+                      }}
+                      disabled={addingToCart}
+                    >
+                      {addingToCart ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Adding...
+                        </>
+                      ) : (
+                        <>
+                          <Plus className="mr-2 h-4 w-4" />
+                          Add to Cart
+                        </>
+                      )}
+                    </Button>
+                    <Button 
+                      className="flex-1" 
+                      size="lg"
+                      onClick={handlePurchase}
+                      disabled={purchasing}
+                    >
+                      {purchasing ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Processing...
+                        </>
+                      ) : (
+                        <>
+                          <ShoppingCart className="mr-2 h-4 w-4" />
+                          Buy Now
+                        </>
+                      )}
+                    </Button>
+                  </div>
                 </div>
               )}
 
