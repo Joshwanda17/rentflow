@@ -1,9 +1,18 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Store, Package, Loader2, ShoppingBag } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { useAuth } from '@/hooks/useAuth';
@@ -24,12 +33,18 @@ interface MarketplaceSectionProps {
   showAllProducts?: boolean;
 }
 
+type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'name_az' | 'name_za';
+
 export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectionProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState('all');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [showInStock, setShowInStock] = useState(false);
+  const [showFilters, setShowFilters] = useState(false);
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -52,7 +67,6 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
   useEffect(() => {
     fetchProducts();
 
-    // Subscribe to product changes
     const channel = supabase
       .channel('marketplace-products')
       .on(
@@ -73,11 +87,70 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
     };
   }, []);
 
-  const categories = ['all', ...new Set(products.map(p => p.category))];
-  
-  const filteredProducts = activeCategory === 'all' 
-    ? products 
-    : products.filter(p => p.category === activeCategory);
+  const categories = useMemo(() => 
+    ['all', ...new Set(products.map(p => p.category))],
+    [products]
+  );
+
+  const filteredAndSortedProducts = useMemo(() => {
+    let result = [...products];
+
+    // Filter by category
+    if (activeCategory !== 'all') {
+      result = result.filter(p => p.category === activeCategory);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      result = result.filter(p => 
+        p.name.toLowerCase().includes(query) ||
+        (p.description?.toLowerCase().includes(query))
+      );
+    }
+
+    // Filter by stock
+    if (showInStock) {
+      result = result.filter(p => p.stock > 0);
+    }
+
+    // Sort
+    switch (sortBy) {
+      case 'newest':
+        result.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+        break;
+      case 'oldest':
+        result.sort((a, b) => new Date(a.created_at).getTime() - new Date(b.created_at).getTime());
+        break;
+      case 'price_low':
+        result.sort((a, b) => a.price - b.price);
+        break;
+      case 'price_high':
+        result.sort((a, b) => b.price - a.price);
+        break;
+      case 'name_az':
+        result.sort((a, b) => a.name.localeCompare(b.name));
+        break;
+      case 'name_za':
+        result.sort((a, b) => b.name.localeCompare(a.name));
+        break;
+    }
+
+    return result;
+  }, [products, activeCategory, searchQuery, sortBy, showInStock]);
+
+  const activeFiltersCount = [
+    activeCategory !== 'all',
+    showInStock,
+    sortBy !== 'newest'
+  ].filter(Boolean).length;
+
+  const clearFilters = () => {
+    setActiveCategory('all');
+    setSearchQuery('');
+    setSortBy('newest');
+    setShowInStock(false);
+  };
 
   if (loading) {
     return (
@@ -129,9 +202,90 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
           My Orders
         </Button>
       </CardHeader>
-      <CardContent>
+      <CardContent className="space-y-4">
+        {/* Search Bar */}
+        <div className="flex gap-2">
+          <div className="relative flex-1">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search products..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-9"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          <Button
+            variant={showFilters ? "secondary" : "outline"}
+            size="icon"
+            onClick={() => setShowFilters(!showFilters)}
+            className="relative"
+          >
+            <SlidersHorizontal className="h-4 w-4" />
+            {activeFiltersCount > 0 && (
+              <span className="absolute -top-1 -right-1 h-4 w-4 rounded-full bg-primary text-[10px] font-medium text-primary-foreground flex items-center justify-center">
+                {activeFiltersCount}
+              </span>
+            )}
+          </Button>
+        </div>
+
+        {/* Filter Options */}
+        {showFilters && (
+          <div className="flex flex-wrap gap-3 p-4 rounded-lg bg-secondary/30 border border-border/50 animate-fade-in">
+            <div className="flex-1 min-w-[140px]">
+              <label className="text-xs font-medium text-muted-foreground mb-1.5 block">Sort By</label>
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="h-9">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="newest">Newest First</SelectItem>
+                  <SelectItem value="oldest">Oldest First</SelectItem>
+                  <SelectItem value="price_low">Price: Low to High</SelectItem>
+                  <SelectItem value="price_high">Price: High to Low</SelectItem>
+                  <SelectItem value="name_az">Name: A to Z</SelectItem>
+                  <SelectItem value="name_za">Name: Z to A</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="flex items-end gap-2">
+              <Button
+                variant={showInStock ? "default" : "outline"}
+                size="sm"
+                onClick={() => setShowInStock(!showInStock)}
+                className="h-9"
+              >
+                In Stock Only
+              </Button>
+
+              {activeFiltersCount > 0 && (
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={clearFilters}
+                  className="h-9 text-muted-foreground"
+                >
+                  Clear All
+                </Button>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* Category Tabs */}
         <Tabs value={activeCategory} onValueChange={setActiveCategory}>
-          <TabsList className="mb-4 flex-wrap h-auto">
+          <TabsList className="flex-wrap h-auto">
             {categories.map((cat) => (
               <TabsTrigger key={cat} value={cat} className="capitalize">
                 {cat}
@@ -139,17 +293,43 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
             ))}
           </TabsList>
           
-          <TabsContent value={activeCategory} className="mt-0">
-            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {filteredProducts.map((product) => (
-                <ProductCard 
-                  key={product.id} 
-                  product={product} 
-                  onPurchaseComplete={fetchProducts}
-                  isOwnProduct={product.agent_id === user?.id}
-                />
-              ))}
+          <TabsContent value={activeCategory} className="mt-4">
+            {/* Results count */}
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-muted-foreground">
+                {filteredAndSortedProducts.length} product{filteredAndSortedProducts.length !== 1 ? 's' : ''} found
+              </p>
+              {searchQuery && (
+                <Badge variant="secondary" className="gap-1">
+                  Searching: "{searchQuery}"
+                  <button onClick={() => setSearchQuery('')} className="ml-1 hover:text-foreground">
+                    <X className="h-3 w-3" />
+                  </button>
+                </Badge>
+              )}
             </div>
+
+            {filteredAndSortedProducts.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Search className="h-12 w-12 text-muted-foreground mb-4" />
+                <p className="text-muted-foreground">No products match your search</p>
+                <p className="text-sm text-muted-foreground mb-4">Try adjusting your filters</p>
+                <Button variant="outline" onClick={clearFilters}>
+                  Clear Filters
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {filteredAndSortedProducts.map((product) => (
+                  <ProductCard 
+                    key={product.id} 
+                    product={product} 
+                    onPurchaseComplete={fetchProducts}
+                    isOwnProduct={product.agent_id === user?.id}
+                  />
+                ))}
+              </div>
+            )}
           </TabsContent>
         </Tabs>
       </CardContent>
