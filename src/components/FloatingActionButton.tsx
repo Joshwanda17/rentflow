@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Plus, X, LucideIcon, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { hapticTap, hapticImpact, hapticSuccess, hapticSelection } from '@/lib/haptics';
 import {
   Drawer,
   DrawerContent,
@@ -32,6 +33,8 @@ interface SwipeableActionProps {
 
 function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
   const x = useMotionValue(0);
+  const hasTriggeredHaptic = useRef(false);
+  
   const background = useTransform(
     x,
     [-100, 0, 100],
@@ -48,11 +51,28 @@ function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
     [1.2, 1, 1.2]
   );
 
+  // Trigger haptic when crossing threshold during drag
+  x.on('change', (latest) => {
+    const threshold = 60;
+    if (Math.abs(latest) > threshold && !hasTriggeredHaptic.current) {
+      hapticSelection();
+      hasTriggeredHaptic.current = true;
+    } else if (Math.abs(latest) < threshold) {
+      hasTriggeredHaptic.current = false;
+    }
+  });
+
   const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
     const threshold = 80;
     if (Math.abs(info.offset.x) > threshold) {
+      hapticSuccess();
       onAction();
     }
+  };
+
+  const handleTap = () => {
+    hapticTap();
+    onAction();
   };
 
   return (
@@ -93,7 +113,7 @@ function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
         dragElastic={0.3}
         onDragEnd={handleDragEnd}
         whileTap={{ scale: 0.98 }}
-        onClick={onAction}
+        onClick={handleTap}
         className={cn(
           "relative w-full flex items-center gap-4 p-4 rounded-2xl",
           "bg-secondary/80 hover:bg-secondary",
@@ -206,8 +226,19 @@ export function FloatingActionButton({
   };
 
   const handleActionClick = (action: FABAction) => {
+    hapticSuccess();
     action.onClick();
     setIsOpen(false);
+  };
+
+  const handleFabClick = () => {
+    hapticImpact();
+    setIsOpen(true);
+  };
+
+  const handleFabToggle = () => {
+    hapticImpact();
+    setIsOpen(!isOpen);
   };
 
   // Mobile: Use bottom sheet drawer with swipeable actions
@@ -229,7 +260,7 @@ export function FloatingActionButton({
                 "bg-primary hover:bg-primary/90",
                 isOpen && "bg-destructive hover:bg-destructive/90"
               )}
-              onClick={() => setIsOpen(true)}
+              onClick={handleFabClick}
             >
               <Plus className="h-6 w-6" />
             </Button>
@@ -317,7 +348,7 @@ export function FloatingActionButton({
             "bg-primary hover:bg-primary/90",
             isOpen && "bg-destructive hover:bg-destructive/90"
           )}
-          onClick={() => setIsOpen(!isOpen)}
+          onClick={handleFabToggle}
         >
           <motion.div
             animate={{ rotate: isOpen ? 45 : 0 }}
