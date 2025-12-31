@@ -2,14 +2,17 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart } from 'lucide-react';
+import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart, ShoppingCart } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { useAuth } from '@/hooks/useAuth';
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { CartDrawer } from '@/components/marketplace/CartDrawer';
+import { useCart } from '@/hooks/useCart';
 
 export default function Marketplace() {
+  const { itemCount } = useCart();
   const { user, signOut, role } = useAuth();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || undefined;
@@ -118,6 +121,31 @@ export default function Marketplace() {
           <MarketplaceSection initialCategory={initialCategory} />
         </motion.div>
       </main>
+
+      {/* Floating Cart Button - Mobile */}
+      {user && (
+        <div className="fixed bottom-24 right-4 z-50 md:hidden">
+          <CartDrawer>
+            <motion.div
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              className="relative"
+            >
+              <Button 
+                size="lg" 
+                className="h-14 w-14 rounded-full shadow-lg bg-primary hover:bg-primary/90"
+              >
+                <ShoppingCart className="h-6 w-6" />
+              </Button>
+              {itemCount > 0 && (
+                <span className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-destructive text-destructive-foreground text-xs font-bold flex items-center justify-center">
+                  {itemCount > 99 ? '99+' : itemCount}
+                </span>
+              )}
+            </motion.div>
+          </CartDrawer>
+        </div>
+      )}
 
       {/* Mobile Bottom Navigation */}
       {user && role && (
