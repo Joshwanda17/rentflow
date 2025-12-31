@@ -120,7 +120,11 @@ export default function Auth() {
           return;
         }
 
-        const { error } = await signUpWithoutRole(email, password, fullName, phone);
+        const storedReferrerId = localStorage.getItem('referral_agent_id');
+        const { error } = await signUpWithoutRole(email, password, fullName, phone, storedReferrerId || undefined);
+        if (!error) {
+          localStorage.removeItem('referral_agent_id');
+        }
         if (error) {
           toast({
             title: 'Sign Up Failed',

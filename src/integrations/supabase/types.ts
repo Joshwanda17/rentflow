@@ -536,6 +536,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+          referrer_id: string | null
           updated_at: string
           verified: boolean
         }
@@ -546,6 +547,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+          referrer_id?: string | null
           updated_at?: string
           verified?: boolean
         }
@@ -556,8 +558,39 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string
+          referrer_id?: string | null
           updated_at?: string
           verified?: boolean
+        }
+        Relationships: []
+      }
+      referrals: {
+        Row: {
+          bonus_amount: number
+          created_at: string
+          credited: boolean
+          credited_at: string | null
+          id: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          bonus_amount?: number
+          created_at?: string
+          credited?: boolean
+          credited_at?: string | null
+          id?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          bonus_amount?: number
+          created_at?: string
+          credited?: boolean
+          credited_at?: string | null
+          id?: string
+          referred_id?: string
+          referrer_id?: string
         }
         Relationships: []
       }

@@ -11,7 +11,7 @@ interface AuthContextType {
   roles: AppRole[];
   loading: boolean;
   signUp: (email: string, password: string, fullName: string, phone: string, role: AppRole) => Promise<{ error: Error | null }>;
-  signUpWithoutRole: (email: string, password: string, fullName: string, phone: string) => Promise<{ error: Error | null }>;
+  signUpWithoutRole: (email: string, password: string, fullName: string, phone: string, referrerId?: string) => Promise<{ error: Error | null }>;
   signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
   signInWithGoogle: () => Promise<{ error: Error | null }>;
   signOut: () => Promise<void>;
@@ -120,7 +120,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     return { error: error as Error | null };
   };
 
-  const signUpWithoutRole = async (email: string, password: string, fullName: string, phone: string) => {
+  const signUpWithoutRole = async (email: string, password: string, fullName: string, phone: string, referrerId?: string) => {
     const redirectUrl = `${window.location.origin}/`;
     
     const { error } = await supabase.auth.signUp({
@@ -130,7 +130,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         emailRedirectTo: redirectUrl,
         data: {
           full_name: fullName,
-          phone: phone
+          phone: phone,
+          referrer_id: referrerId || null
         }
       }
     });

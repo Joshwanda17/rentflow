@@ -47,6 +47,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { profile } = useProfile();
   const { totalEarnings, commissionTotal, bonusTotal } = useAgentEarnings();
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralEarnings, setReferralEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
@@ -62,13 +64,24 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const fetchData = async () => {
     setLoading(true);
     
-    const { data: requests } = await supabase
-      .from('rent_requests')
-      .select('id, rent_amount, status, created_at')
-      .eq('agent_id', user.id)
-      .order('created_at', { ascending: false });
+    const [requestsRes, referralsRes] = await Promise.all([
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, status, created_at')
+        .eq('agent_id', user.id)
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('referrals')
+        .select('id, bonus_amount, credited')
+        .eq('referrer_id', user.id)
+    ]);
     
-    setRentRequests(requests || []);
+    setRentRequests(requestsRes.data || []);
+    
+    const referrals = referralsRes.data || [];
+    setReferralCount(referrals.length);
+    setReferralEarnings(referrals.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0));
+    
     setLoading(false);
   };
 
@@ -205,19 +218,25 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <Card className="elevated-card border-primary/20 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
               <CardHeader className="relative">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Link2 className="h-5 w-5 text-primary" />
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <Link2 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
+                      <p className="text-sm text-muted-foreground mt-0.5">
+                        Earn UGX 100 per new member signup
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
-                    <p className="text-sm text-muted-foreground mt-0.5">
-                      Earn UGX 5,000 per approval + 5% of repayments
-                    </p>
+                  <div className="text-right hidden sm:block">
+                    <p className="text-xs text-muted-foreground">Members Referred</p>
+                    <p className="text-xl font-bold text-success">{referralCount}</p>
                   </div>
                 </div>
               </CardHeader>
-              <CardContent className="relative">
+              <CardContent className="relative space-y-4">
                 <div className="flex gap-2">
                   <code className="flex-1 p-3 bg-secondary/50 rounded-xl text-sm truncate font-mono border border-border/50">
                     {referralLink}
@@ -232,6 +251,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     {copied ? 'Copied!' : 'Copy'}
                   </Button>
                 </div>
+                {referralCount > 0 && (
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="h-4 w-4 text-success" />
+                      <span className="text-sm font-medium">Referral Earnings</span>
+                    </div>
+                    <span className="font-bold text-success">{formatUGX(referralEarnings)}</span>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
