@@ -1,8 +1,8 @@
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Store, ArrowLeft, Zap } from 'lucide-react';
+import { Store, ArrowLeft, Zap, Grid3X3 } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { useAuth } from '@/hooks/useAuth';
@@ -10,6 +10,8 @@ import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection'
 
 export default function Marketplace() {
   const { user } = useAuth();
+  const [searchParams] = useSearchParams();
+  const initialCategory = searchParams.get('category') || undefined;
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,13 +33,24 @@ export default function Marketplace() {
               <Store className="h-3 w-3" />
               Marketplace
             </Badge>
+            {initialCategory && (
+              <Badge className="capitalize">{initialCategory}</Badge>
+            )}
           </div>
           <div className="flex items-center gap-2">
+            <Link to="/categories">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button variant="outline" size="sm" className="gap-2">
+                  <Grid3X3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Categories</span>
+                </Button>
+              </motion.div>
+            </Link>
             <Link to="/flash-sales">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button variant="outline" size="sm" className="gap-2 border-amber-500/50 text-amber-600 dark:text-amber-400 hover:bg-amber-500/10">
                   <Zap className="h-4 w-4 fill-current" />
-                  Flash Sales
+                  <span className="hidden sm:inline">Flash Sales</span>
                 </Button>
               </motion.div>
             </Link>
@@ -61,7 +74,7 @@ export default function Marketplace() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <MarketplaceSection />
+          <MarketplaceSection initialCategory={initialCategory} />
         </motion.div>
       </main>
     </div>

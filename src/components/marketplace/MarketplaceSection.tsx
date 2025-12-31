@@ -32,16 +32,17 @@ interface Product {
 
 interface MarketplaceSectionProps {
   showAllProducts?: boolean;
+  initialCategory?: string;
 }
 
 type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'name_az' | 'name_za';
 
-export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectionProps) {
+export function MarketplaceSection({ showAllProducts = true, initialCategory }: MarketplaceSectionProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [activeCategory, setActiveCategory] = useState('all');
+  const [activeCategory, setActiveCategory] = useState(initialCategory || 'all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showInStock, setShowInStock] = useState(false);
