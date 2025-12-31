@@ -225,10 +225,23 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
           <Store className="h-5 w-5" />
           Marketplace
         </CardTitle>
-        <Button variant="outline" size="sm" onClick={() => navigate('/orders')} className="gap-2">
-          <ShoppingBag className="h-4 w-4" />
-          My Orders
-        </Button>
+        <div className="flex items-center gap-2">
+          {user && (
+            <Button variant="outline" size="sm" onClick={() => navigate('/wishlist')} className="gap-2">
+              <Heart className="h-4 w-4" />
+              Wishlist
+              {wishlistIds.size > 0 && (
+                <Badge variant="secondary" className="ml-1">
+                  {wishlistIds.size}
+                </Badge>
+              )}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={() => navigate('/orders')} className="gap-2">
+            <ShoppingBag className="h-4 w-4" />
+            My Orders
+          </Button>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Search Bar */}
