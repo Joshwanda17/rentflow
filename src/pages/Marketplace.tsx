@@ -1,8 +1,10 @@
+import { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart, ShoppingCart, Menu } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart, ShoppingCart, Menu, Search, X } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,6 +25,7 @@ export default function Marketplace() {
   const { user, signOut, role } = useAuth();
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || undefined;
+  const [headerSearch, setHeaderSearch] = useState('');
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -31,26 +34,49 @@ export default function Marketplace() {
         initial={{ y: -100 }}
         animate={{ y: 0 }}
         transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-        className="sticky top-0 z-50 border-b border-border/50 bg-background/80 backdrop-blur-xl"
+        className="sticky top-0 z-50 border-b border-border/50 bg-background/95 backdrop-blur-xl"
       >
         <div className="container mx-auto px-3 py-3 sm:px-4 sm:py-4">
-          <div className="flex items-center justify-between gap-2">
+          {/* Top Row - Logo and Actions */}
+          <div className="flex items-center justify-between gap-3">
             {/* Left - Logo */}
-            <div className="flex items-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 shrink-0">
               <Link to="/">
                 <motion.div whileHover={{ scale: 1.05 }} transition={{ type: 'spring', stiffness: 400, damping: 17 }}>
                   <WelileLogo />
                 </motion.div>
               </Link>
-              <Badge variant="outline" className="bg-primary/10 border-primary/30 text-primary gap-1 text-xs">
+              <Badge variant="outline" className="hidden sm:flex bg-primary/10 border-primary/30 text-primary gap-1 text-xs">
                 <Store className="h-3 w-3" />
-                <span className="hidden sm:inline">Marketplace</span>
+                Marketplace
               </Badge>
             </div>
 
-            {/* Right - Simplified Actions */}
-            <div className="flex items-center gap-1.5 sm:gap-2">
-              {/* Cart - Always visible for logged in users */}
+            {/* Center - Search Bar (Desktop) */}
+            <div className="hidden md:flex flex-1 max-w-xl mx-4">
+              <div className="relative w-full">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="text"
+                  placeholder="Search products, categories..."
+                  value={headerSearch}
+                  onChange={(e) => setHeaderSearch(e.target.value)}
+                  className="w-full pl-10 pr-10 h-11 bg-secondary/50 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 text-base"
+                />
+                {headerSearch && (
+                  <button
+                    onClick={() => setHeaderSearch('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Right - Actions */}
+            <div className="flex items-center gap-1.5 sm:gap-2 shrink-0">
+              {/* Cart */}
               {user && (
                 <CartDrawer>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="relative">
@@ -78,7 +104,7 @@ export default function Marketplace() {
                     </Button>
                   </motion.div>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-48 bg-popover border border-border shadow-lg z-50">
                   <DropdownMenuItem asChild>
                     <Link to="/categories" className="flex items-center gap-2 cursor-pointer">
                       <Grid3X3 className="h-4 w-4" />
@@ -122,6 +148,28 @@ export default function Marketplace() {
             </div>
           </div>
 
+          {/* Mobile Search Bar */}
+          <div className="md:hidden mt-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                type="text"
+                placeholder="Search products..."
+                value={headerSearch}
+                onChange={(e) => setHeaderSearch(e.target.value)}
+                className="w-full pl-10 pr-10 h-10 bg-secondary/50 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20"
+              />
+              {headerSearch && (
+                <button
+                  onClick={() => setHeaderSearch('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              )}
+            </div>
+          </div>
+
           {/* Category badge if filtered */}
           {initialCategory && (
             <div className="mt-2">
@@ -138,7 +186,7 @@ export default function Marketplace() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <MarketplaceSection initialCategory={initialCategory} />
+          <MarketplaceSection initialCategory={initialCategory} externalSearchQuery={headerSearch} />
         </motion.div>
       </main>
 
