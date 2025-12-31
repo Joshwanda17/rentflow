@@ -20,6 +20,7 @@ import {
 import { Loader2, Upload, X, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -49,7 +50,13 @@ interface EditProductDialogProps {
   onProductUpdated?: () => void;
 }
 
-const CATEGORIES = [
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
+const DEFAULT_CATEGORIES = [
   { value: 'food', label: 'Food' },
   { value: 'drinks', label: 'Drinks' },
   { value: 'groceries', label: 'Groceries' },
@@ -57,12 +64,14 @@ const CATEGORIES = [
 ];
 
 export function EditProductDialog({ product, open, onOpenChange, onProductUpdated }: EditProductDialogProps) {
+  const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -87,6 +96,33 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
       setRemoveCurrentImage(false);
     }
   }, [product]);
+
+  useEffect(() => {
+    if (open && user) {
+      fetchCustomCategories();
+    }
+  }, [open, user]);
+
+  const fetchCustomCategories = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('product_categories')
+        .select('*')
+        .eq('agent_id', user.id)
+        .order('name');
+
+      if (error) throw error;
+      setCustomCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching custom categories:', error);
+    }
+  };
+
+  const allCategories = [
+    ...DEFAULT_CATEGORIES,
+    ...customCategories.map(c => ({ value: c.name, label: c.name.charAt(0).toUpperCase() + c.name.slice(1) }))
+  ];
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -369,7 +405,7 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
                   <SelectValue placeholder="Select category" />
                 </SelectTrigger>
                 <SelectContent>
-                  {CATEGORIES.map((cat) => (
+                  {allCategories.map((cat) => (
                     <SelectItem key={cat.value} value={cat.value}>
                       {cat.label}
                     </SelectItem>

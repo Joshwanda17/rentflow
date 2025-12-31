@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,15 +18,22 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
+import { Plus, Loader2, Upload, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddProductDialogProps {
   onProductAdded?: () => void;
 }
 
-const CATEGORIES = [
+interface Category {
+  id: string;
+  name: string;
+  color: string;
+}
+
+const DEFAULT_CATEGORIES = [
   { value: 'food', label: 'Food' },
   { value: 'drinks', label: 'Drinks' },
   { value: 'groceries', label: 'Groceries' },
@@ -34,11 +41,13 @@ const CATEGORIES = [
 ];
 
 export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const [customCategories, setCustomCategories] = useState<Category[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -48,6 +57,33 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
     category: 'general',
     stock: '',
   });
+
+  useEffect(() => {
+    if (open && user) {
+      fetchCustomCategories();
+    }
+  }, [open, user]);
+
+  const fetchCustomCategories = async () => {
+    if (!user) return;
+    try {
+      const { data, error } = await supabase
+        .from('product_categories')
+        .select('*')
+        .eq('agent_id', user.id)
+        .order('name');
+
+      if (error) throw error;
+      setCustomCategories(data || []);
+    } catch (error) {
+      console.error('Error fetching custom categories:', error);
+    }
+  };
+
+  const allCategories = [
+    ...DEFAULT_CATEGORIES,
+    ...customCategories.map(c => ({ value: c.name, label: c.name.charAt(0).toUpperCase() + c.name.slice(1) }))
+  ];
 
   const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -308,15 +344,19 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
                 <SelectValue placeholder="Select category" />
               </SelectTrigger>
               <SelectContent>
-                {CATEGORIES.map((cat) => (
+                {allCategories.map((cat) => (
                   <SelectItem key={cat.value} value={cat.value}>
                     {cat.label}
                   </SelectItem>
                 ))}
               </SelectContent>
             </Select>
+            {customCategories.length === 0 && (
+              <p className="text-xs text-muted-foreground">
+                Tip: Create custom categories from "Manage Categories"
+              </p>
+            )}
           </div>
-
           <Button type="submit" className="w-full" disabled={loading || uploading}>
             {loading || uploading ? (
               <>

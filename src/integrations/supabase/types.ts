@@ -323,6 +323,30 @@ export type Database = {
           },
         ]
       }
+      product_categories: {
+        Row: {
+          agent_id: string
+          color: string | null
+          created_at: string
+          id: string
+          name: string
+        }
+        Insert: {
+          agent_id: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name: string
+        }
+        Update: {
+          agent_id?: string
+          color?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+        }
+        Relationships: []
+      }
       product_orders: {
         Row: {
           agent_commission: number

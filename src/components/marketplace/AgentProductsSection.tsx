@@ -16,6 +16,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AddProductDialog } from './AddProductDialog';
 import { EditProductDialog } from './EditProductDialog';
+import { CategoryManager } from './CategoryManager';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Product {
@@ -164,7 +165,10 @@ export function AgentProductsSection() {
             <Package className="h-5 w-5" />
             My Products
           </CardTitle>
-          <AddProductDialog onProductAdded={fetchProducts} />
+          <div className="flex items-center gap-2">
+            <CategoryManager />
+            <AddProductDialog onProductAdded={fetchProducts} />
+          </div>
         </CardHeader>
         <CardContent>
           {products.length === 0 ? (
