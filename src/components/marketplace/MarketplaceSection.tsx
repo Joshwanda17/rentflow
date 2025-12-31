@@ -220,13 +220,18 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
   }
 
   return (
-    <Card>
+    <Card className="cursor-pointer group" onClick={() => navigate('/marketplace')}>
       <CardHeader className="flex flex-row items-center justify-between">
-        <CardTitle className="flex items-center gap-2">
+        <CardTitle 
+          className="flex items-center gap-2 group-hover:text-primary transition-colors"
+        >
           <Store className="h-5 w-5" />
           Marketplace
+          <Badge variant="outline" className="ml-2 text-xs">
+            {products.length} products
+          </Badge>
         </CardTitle>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
           {user && <CartDrawer />}
           {user && (
             <Button variant="outline" size="sm" onClick={() => navigate('/wishlist')} className="gap-2">
@@ -245,7 +250,7 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
           </Button>
         </div>
       </CardHeader>
-      <CardContent className="space-y-4">
+      <CardContent className="space-y-4" onClick={(e) => e.stopPropagation()}>
         {/* Search Bar */}
         <div className="flex gap-2">
           <div className="relative flex-1">
