@@ -49,13 +49,14 @@ export default function Auth() {
   const referralId = searchParams.get('ref');
   
   const [isSignUp, setIsSignUp] = useState(!!referralId);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   
-  const { signUpWithoutRole, signIn, signInWithGoogle, user, roles } = useAuth();
+  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -81,7 +82,33 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      if (isSignUp) {
+      if (isForgotPassword) {
+        const emailValidation = z.string().email('Please enter a valid email').safeParse(email);
+        if (!emailValidation.success) {
+          toast({
+            title: 'Validation Error',
+            description: emailValidation.error.errors[0].message,
+            variant: 'destructive'
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const { error } = await resetPassword(email);
+        if (error) {
+          toast({
+            title: 'Reset Failed',
+            description: error.message,
+            variant: 'destructive'
+          });
+        } else {
+          toast({
+            title: 'Check Your Email',
+            description: 'We sent you a password reset link'
+          });
+          setIsForgotPassword(false);
+        }
+      } else if (isSignUp) {
         const validation = signUpSchema.safeParse({ email, password, fullName, phone });
         if (!validation.success) {
           toast({
@@ -242,7 +269,7 @@ export default function Auth() {
             
             <CardHeader className="relative">
               <motion.div
-                key={isSignUp ? 'signup' : 'signin'}
+                key={isForgotPassword ? 'forgot' : isSignUp ? 'signup' : 'signin'}
                 initial={{ opacity: 0, x: isSignUp ? 20 : -20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 25 }}
@@ -253,14 +280,16 @@ export default function Auth() {
                     whileHover={{ scale: 1.1, rotate: 5 }}
                     transition={{ type: 'spring', stiffness: 400, damping: 17 }}
                   >
-                    {isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
+                    {isForgotPassword ? <Mail className="h-5 w-5 text-primary" /> : isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
                   </motion.div>
-                  {isSignUp ? 'Create Account' : 'Welcome Back'}
+                  {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
                 </CardTitle>
                 <CardDescription>
-                  {isSignUp 
-                    ? 'Join Welile Platform to get started' 
-                    : 'Sign in to continue to your dashboard'}
+                  {isForgotPassword 
+                    ? 'Enter your email to receive a reset link'
+                    : isSignUp 
+                      ? 'Join Welile Platform to get started' 
+                      : 'Sign in to continue to your dashboard'}
                 </CardDescription>
               </motion.div>
             </CardHeader>
@@ -268,7 +297,7 @@ export default function Auth() {
             <CardContent className="relative">
               <form onSubmit={handleSubmit} className="space-y-4">
                 <AnimatePresence mode="wait">
-                  {isSignUp && (
+                  {isSignUp && !isForgotPassword && (
                     <motion.div
                       key="signup-fields"
                       initial={{ opacity: 0, height: 0 }}
@@ -330,25 +359,44 @@ export default function Auth() {
                   </div>
                 </motion.div>
 
-                <motion.div 
-                  className="space-y-2"
-                  layout
-                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                >
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
-                      required
-                    />
-                  </div>
-                </motion.div>
+                <AnimatePresence mode="wait">
+                  {!isForgotPassword && (
+                    <motion.div 
+                      key="password-field"
+                      className="space-y-2"
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="pl-10 bg-background/50 border-border/50 focus:border-primary/50 transition-colors"
+                          required
+                        />
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+
+                {!isSignUp && !isForgotPassword && (
+                  <motion.button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-sm text-primary hover:text-primary/80 transition-colors"
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    Forgot your password?
+                  </motion.button>
+                )}
 
                 <motion.div
                   whileHover={{ scale: 1.01 }}
@@ -367,8 +415,8 @@ export default function Auth() {
                       />
                     ) : (
                       <>
-                        {isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
-                        {isSignUp ? 'Create Account' : 'Sign In'}
+                        {isForgotPassword ? <Mail className="h-4 w-4" /> : isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                        {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Create Account' : 'Sign In'}
                       </>
                     )}
                   </Button>
@@ -428,12 +476,20 @@ export default function Auth() {
               <div className="mt-6 pt-4 border-t border-border/50 text-center">
                 <motion.button
                   type="button"
-                  onClick={() => setIsSignUp(!isSignUp)}
+                  onClick={() => {
+                    if (isForgotPassword) {
+                      setIsForgotPassword(false);
+                    } else {
+                      setIsSignUp(!isSignUp);
+                    }
+                  }}
                   className="text-sm text-muted-foreground hover:text-primary transition-colors"
                   whileHover={{ scale: 1.02 }}
                   whileTap={{ scale: 0.98 }}
                 >
-                  {isSignUp ? (
+                  {isForgotPassword ? (
+                    <>Remember your password? <span className="text-primary font-medium">Sign In</span></>
+                  ) : isSignUp ? (
                     <>Already have an account? <span className="text-primary font-medium">Sign In</span></>
                   ) : (
                     <>Don't have an account? <span className="text-primary font-medium">Sign Up</span></>
