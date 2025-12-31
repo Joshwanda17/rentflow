@@ -140,6 +140,7 @@ export function ProductDetailDialog({
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
   const [reviewSortBy, setReviewSortBy] = useState<'newest' | 'highest' | 'lowest' | 'helpful'>('newest');
+  const [showPhotoReviewsOnly, setShowPhotoReviewsOnly] = useState(false);
 
   useEffect(() => {
     if (product && open) {
@@ -423,23 +424,29 @@ export function ProductDetailDialog({
   // Count reviews with photos
   const photoReviewCount = reviews.filter(r => r.images && r.images.length > 0).length;
 
-  // Sort reviews based on selected option
-  const sortedReviews = [...reviews].sort((a, b) => {
-    switch (reviewSortBy) {
-      case 'newest':
-        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
-      case 'highest':
-        return b.rating - a.rating;
-      case 'lowest':
-        return a.rating - b.rating;
-      case 'helpful':
-        const aScore = (a.votes?.upvotes || 0) - (a.votes?.downvotes || 0);
-        const bScore = (b.votes?.upvotes || 0) - (b.votes?.downvotes || 0);
-        return bScore - aScore;
-      default:
-        return 0;
-    }
-  });
+  // Filter and sort reviews
+  const sortedReviews = [...reviews]
+    .filter(review => !showPhotoReviewsOnly || (review.images && review.images.length > 0))
+    .sort((a, b) => {
+      // If showing photo reviews only or if sorting is "newest", prioritize reviews with photos
+      const aHasPhotos = a.images && a.images.length > 0;
+      const bHasPhotos = b.images && b.images.length > 0;
+      
+      switch (reviewSortBy) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'highest':
+          return b.rating - a.rating;
+        case 'lowest':
+          return a.rating - b.rating;
+        case 'helpful':
+          const aScore = (a.votes?.upvotes || 0) - (a.votes?.downvotes || 0);
+          const bScore = (b.votes?.upvotes || 0) - (b.votes?.downvotes || 0);
+          return bScore - aScore;
+        default:
+          return 0;
+      }
+    });
 
   if (!product) return null;
 
@@ -692,10 +699,23 @@ export function ProductDetailDialog({
                     <MessageSquare className="h-4 w-4" />
                     Reviews ({reviews.length})
                   </h3>
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 flex-wrap">
+                    {/* Photo Filter Toggle */}
+                    {photoReviewCount > 0 && (
+                      <Button
+                        variant={showPhotoReviewsOnly ? "default" : "outline"}
+                        size="sm"
+                        onClick={() => setShowPhotoReviewsOnly(!showPhotoReviewsOnly)}
+                        className="h-8 text-xs gap-1.5"
+                      >
+                        <Camera className="h-3.5 w-3.5" />
+                        Photos ({photoReviewCount})
+                      </Button>
+                    )}
+                    
                     {reviews.length > 1 && (
                       <Select value={reviewSortBy} onValueChange={(v) => setReviewSortBy(v as typeof reviewSortBy)}>
-                        <SelectTrigger className="h-8 w-[140px] text-xs">
+                        <SelectTrigger className="h-8 w-[130px] text-xs">
                           <ArrowUpDown className="h-3 w-3 mr-1" />
                           <SelectValue placeholder="Sort by" />
                         </SelectTrigger>
@@ -718,6 +738,21 @@ export function ProductDetailDialog({
                     )}
                   </div>
                 </div>
+
+                {/* Active Filter Indicator */}
+                {showPhotoReviewsOnly && (
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>Showing {sortedReviews.length} review{sortedReviews.length !== 1 ? 's' : ''} with photos</span>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setShowPhotoReviewsOnly(false)}
+                      className="h-6 px-2 text-xs"
+                    >
+                      Show all
+                    </Button>
+                  </div>
+                )}
 
                 {/* Review Form */}
                 {showReviewForm && user && (
