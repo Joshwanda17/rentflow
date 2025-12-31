@@ -1,6 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, User, Settings, LogOut } from 'lucide-react';
+import { Home, User, Settings, LogOut, Store } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +39,12 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       active: location.pathname === '/dashboard'
     },
     { 
+      href: '/marketplace', 
+      icon: <Store className="h-5 w-5" />, 
+      label: 'Shop',
+      active: location.pathname === '/marketplace'
+    },
+    { 
       href: '/settings', 
       icon: <Settings className="h-5 w-5" />, 
       label: 'Settings',
@@ -47,7 +53,7 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
     { 
       href: '#signout', 
       icon: <LogOut className="h-5 w-5" />, 
-      label: 'Sign Out',
+      label: 'Exit',
       onClick: onSignOut,
       active: false
     },
