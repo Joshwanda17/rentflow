@@ -11,10 +11,11 @@ import {
   TableRow 
 } from '@/components/ui/table';
 import { Switch } from '@/components/ui/switch';
-import { Package, Loader2, TrendingUp } from 'lucide-react';
+import { Package, Loader2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { AddProductDialog } from './AddProductDialog';
+import { EditProductDialog } from './EditProductDialog';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Product {
@@ -23,6 +24,7 @@ interface Product {
   description: string | null;
   price: number;
   category: string;
+  image_url: string | null;
   stock: number;
   active: boolean;
   created_at: string;
@@ -39,6 +41,8 @@ export function AgentProductsSection() {
   const [products, setProducts] = useState<Product[]>([]);
   const [stats, setStats] = useState<SalesStats>({ totalSales: 0, totalCommission: 0, orderCount: 0 });
   const [loading, setLoading] = useState(true);
+  const [editProduct, setEditProduct] = useState<Product | null>(null);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const fetchProducts = async () => {
     if (!user) return;
@@ -51,10 +55,15 @@ export function AgentProductsSection() {
         .order('created_at', { ascending: false });
 
       if (error) throw error;
-      setProducts(data || []);
+      setProducts((data || []) as Product[]);
     } catch (error) {
       console.error('Error fetching products:', error);
     }
+  };
+
+  const handleEditClick = (product: Product) => {
+    setEditProduct(product);
+    setEditDialogOpen(true);
   };
 
   const fetchStats = async () => {
@@ -173,6 +182,7 @@ export function AgentProductsSection() {
                   <TableHead>Stock</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Active</TableHead>
+                  <TableHead className="w-[60px]"></TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
@@ -192,6 +202,15 @@ export function AgentProductsSection() {
                         onCheckedChange={() => toggleProductActive(product.id, product.active)}
                       />
                     </TableCell>
+                    <TableCell>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={() => handleEditClick(product)}
+                      >
+                        <Pencil className="h-4 w-4" />
+                      </Button>
+                    </TableCell>
                   </TableRow>
                 ))}
               </TableBody>
@@ -199,6 +218,16 @@ export function AgentProductsSection() {
           )}
         </CardContent>
       </Card>
+
+      <EditProductDialog
+        product={editProduct}
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        onProductUpdated={() => {
+          fetchProducts();
+          fetchStats();
+        }}
+      />
     </div>
   );
 }
