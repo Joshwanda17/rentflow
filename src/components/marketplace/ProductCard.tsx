@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent, Scale } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
@@ -10,6 +10,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { FlashSaleCountdown } from './FlashSaleCountdown';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
+import { useProductComparison } from '@/hooks/useProductComparison';
 
 interface Product {
   id: string;
@@ -53,12 +54,30 @@ export function ProductCard({
   const { user } = useAuth();
   const { addToCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
+  const { addToComparison, removeFromComparison, isInComparison } = useProductComparison();
   const [purchasing, setPurchasing] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  
+  const inComparison = isInComparison(product.id);
+
+  const handleCompareToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (inComparison) {
+      removeFromComparison(product.id);
+      toast.success('Removed from comparison');
+    } else {
+      const added = addToComparison(product);
+      if (added) {
+        toast.success('Added to comparison');
+      } else {
+        toast.error('Maximum 4 products can be compared');
+      }
+    }
+  };
 
   const handleOpenDetail = () => {
     addToRecentlyViewed(product.id);
@@ -190,22 +209,34 @@ export function ProductCard({
               )}
             </div>
           )}
-          {/* Wishlist Button */}
-          {user && (
+          {/* Wishlist & Compare Buttons */}
+          <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
+            {user && (
+              <button
+                onClick={handleWishlistToggle}
+                disabled={wishlistLoading}
+                className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
+              >
+                <Heart 
+                  className={`h-5 w-5 transition-colors ${
+                    isInWishlist 
+                      ? 'fill-destructive text-destructive' 
+                      : 'text-muted-foreground hover:text-destructive'
+                  }`}
+                />
+              </button>
+            )}
             <button
-              onClick={handleWishlistToggle}
-              disabled={wishlistLoading}
-              className="absolute top-2 right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+              onClick={handleCompareToggle}
+              className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
+                inComparison 
+                  ? 'bg-primary text-primary-foreground' 
+                  : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-primary'
+              }`}
             >
-              <Heart 
-                className={`h-5 w-5 transition-colors ${
-                  isInWishlist 
-                    ? 'fill-destructive text-destructive' 
-                    : 'text-muted-foreground hover:text-destructive'
-                }`}
-              />
+              <Scale className="h-5 w-5" />
             </button>
-          )}
+          </div>
           {/* View Details Overlay */}
           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
             <div className="flex items-center gap-2 text-white text-sm font-medium">
