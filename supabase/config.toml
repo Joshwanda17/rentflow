@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.approve-rent-request]
 verify_jwt = true
+
+[functions.product-purchase]
+verify_jwt = true

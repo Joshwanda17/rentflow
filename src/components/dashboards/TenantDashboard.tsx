@@ -23,6 +23,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
 
 interface TenantDashboardProps {
   user: User;
@@ -277,6 +278,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             onRepaymentSuccess={fetchData}
           />
         )}
+
+        {/* Marketplace */}
+        <MarketplaceSection />
 
         {/* Rent Requests History */}
         <Card className="elevated-card">

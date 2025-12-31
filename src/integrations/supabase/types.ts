@@ -288,6 +288,95 @@ export type Database = {
           },
         ]
       }
+      product_orders: {
+        Row: {
+          agent_commission: number
+          agent_id: string
+          buyer_id: string
+          created_at: string
+          id: string
+          product_id: string
+          quantity: number
+          status: string
+          total_price: number
+          unit_price: number
+        }
+        Insert: {
+          agent_commission: number
+          agent_id: string
+          buyer_id: string
+          created_at?: string
+          id?: string
+          product_id: string
+          quantity?: number
+          status?: string
+          total_price: number
+          unit_price: number
+        }
+        Update: {
+          agent_commission?: number
+          agent_id?: string
+          buyer_id?: string
+          created_at?: string
+          id?: string
+          product_id?: string
+          quantity?: number
+          status?: string
+          total_price?: number
+          unit_price?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "product_orders_product_id_fkey"
+            columns: ["product_id"]
+            isOneToOne: false
+            referencedRelation: "products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      products: {
+        Row: {
+          active: boolean
+          agent_id: string
+          category: string
+          created_at: string
+          description: string | null
+          id: string
+          image_url: string | null
+          name: string
+          price: number
+          stock: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agent_id: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name: string
+          price: number
+          stock?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agent_id?: string
+          category?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          image_url?: string | null
+          name?: string
+          price?: number
+          stock?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           avatar_url: string | null
