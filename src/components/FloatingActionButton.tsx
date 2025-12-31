@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
-import { Plus, X, LucideIcon } from 'lucide-react';
+import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
+import { Plus, X, LucideIcon, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -22,6 +22,108 @@ interface FloatingActionButtonProps {
   actions: FABAction[];
   position?: 'bottom-right' | 'bottom-left' | 'bottom-center';
   className?: string;
+}
+
+interface SwipeableActionProps {
+  action: FABAction;
+  index: number;
+  onAction: () => void;
+}
+
+function SwipeableAction({ action, index, onAction }: SwipeableActionProps) {
+  const x = useMotionValue(0);
+  const background = useTransform(
+    x,
+    [-100, 0, 100],
+    ['hsl(var(--destructive))', 'transparent', 'hsl(var(--primary))']
+  );
+  const opacity = useTransform(
+    x,
+    [-100, -50, 0, 50, 100],
+    [1, 0.5, 0, 0.5, 1]
+  );
+  const iconScale = useTransform(
+    x,
+    [-100, 0, 100],
+    [1.2, 1, 1.2]
+  );
+
+  const handleDragEnd = (_: MouseEvent | TouchEvent | PointerEvent, info: PanInfo) => {
+    const threshold = 80;
+    if (Math.abs(info.offset.x) > threshold) {
+      onAction();
+    }
+  };
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ 
+        opacity: 1, 
+        y: 0,
+        transition: {
+          type: 'spring',
+          stiffness: 400,
+          damping: 25,
+          delay: index * 0.05,
+        },
+      }}
+      className="relative overflow-hidden rounded-2xl"
+    >
+      {/* Swipe indicator background */}
+      <motion.div 
+        style={{ background }}
+        className="absolute inset-0 rounded-2xl flex items-center justify-between px-4"
+      >
+        <motion.div style={{ opacity }} className="flex items-center gap-2 text-destructive-foreground">
+          <X className="h-5 w-5" />
+          <span className="text-sm font-medium">Cancel</span>
+        </motion.div>
+        <motion.div style={{ opacity }} className="flex items-center gap-2 text-primary-foreground">
+          <span className="text-sm font-medium">Run</span>
+          <ChevronRight className="h-5 w-5" />
+        </motion.div>
+      </motion.div>
+
+      {/* Draggable action card */}
+      <motion.button
+        style={{ x }}
+        drag="x"
+        dragConstraints={{ left: 0, right: 0 }}
+        dragElastic={0.3}
+        onDragEnd={handleDragEnd}
+        whileTap={{ scale: 0.98 }}
+        onClick={onAction}
+        className={cn(
+          "relative w-full flex items-center gap-4 p-4 rounded-2xl",
+          "bg-secondary/80 hover:bg-secondary",
+          "border border-border/50 hover:border-primary/30",
+          "transition-colors duration-200 cursor-grab active:cursor-grabbing"
+        )}
+      >
+        <motion.div 
+          style={{ scale: iconScale }}
+          className={cn(
+            "p-3 rounded-xl shrink-0",
+            action.variant === 'destructive' 
+              ? "bg-destructive/10 text-destructive"
+              : "bg-primary/10 text-primary"
+          )}
+        >
+          <action.icon className="h-5 w-5" />
+        </motion.div>
+        <div className="flex-1 text-left">
+          <span className="text-sm font-medium text-foreground">
+            {action.label}
+          </span>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            Tap or swipe right to activate
+          </p>
+        </div>
+        <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+      </motion.button>
+    </motion.div>
+  );
 }
 
 export function FloatingActionButton({ 
@@ -108,7 +210,7 @@ export function FloatingActionButton({
     setIsOpen(false);
   };
 
-  // Mobile: Use bottom sheet drawer
+  // Mobile: Use bottom sheet drawer with swipeable actions
   if (isMobile) {
     return (
       <>
@@ -138,57 +240,19 @@ export function FloatingActionButton({
           <DrawerContent className="pb-8">
             <DrawerHeader className="pb-2">
               <DrawerTitle className="text-center">Quick Actions</DrawerTitle>
+              <p className="text-xs text-muted-foreground text-center mt-1">
+                Swipe right on any action to activate
+              </p>
             </DrawerHeader>
-            <div className="px-4 pb-4">
-              <motion.div
-                initial="hidden"
-                animate="visible"
-                variants={{
-                  hidden: { opacity: 0 },
-                  visible: {
-                    opacity: 1,
-                    transition: { staggerChildren: 0.05 },
-                  },
-                }}
-                className="grid grid-cols-2 gap-3"
-              >
-                {actions.map((action, index) => (
-                  <motion.button
-                    key={index}
-                    variants={{
-                      hidden: { opacity: 0, y: 20 },
-                      visible: { 
-                        opacity: 1, 
-                        y: 0,
-                        transition: {
-                          type: 'spring',
-                          stiffness: 400,
-                          damping: 25,
-                        },
-                      },
-                    }}
-                    onClick={() => handleActionClick(action)}
-                    className={cn(
-                      "flex flex-col items-center gap-3 p-4 rounded-2xl",
-                      "bg-secondary/50 hover:bg-secondary",
-                      "border border-border/50 hover:border-primary/30",
-                      "transition-all duration-200 active:scale-95"
-                    )}
-                  >
-                    <div className={cn(
-                      "p-3 rounded-xl",
-                      action.variant === 'destructive' 
-                        ? "bg-destructive/10 text-destructive"
-                        : "bg-primary/10 text-primary"
-                    )}>
-                      <action.icon className="h-6 w-6" />
-                    </div>
-                    <span className="text-sm font-medium text-foreground">
-                      {action.label}
-                    </span>
-                  </motion.button>
-                ))}
-              </motion.div>
+            <div className="px-4 pb-4 space-y-2">
+              {actions.map((action, index) => (
+                <SwipeableAction
+                  key={index}
+                  action={action}
+                  index={index}
+                  onAction={() => handleActionClick(action)}
+                />
+              ))}
             </div>
           </DrawerContent>
         </Drawer>
