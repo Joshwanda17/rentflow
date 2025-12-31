@@ -2,14 +2,21 @@ import { useState } from 'react';
 import { ChevronLeft, ChevronRight, Package } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { ImageZoom } from './ImageZoom';
 
 interface ProductImageGalleryProps {
   mainImage: string | null;
   galleryImages: { id: string; image_url: string }[];
   productName: string;
+  enableZoom?: boolean;
 }
 
-export function ProductImageGallery({ mainImage, galleryImages, productName }: ProductImageGalleryProps) {
+export function ProductImageGallery({ 
+  mainImage, 
+  galleryImages, 
+  productName,
+  enableZoom = true 
+}: ProductImageGalleryProps) {
   // Combine main image with gallery images
   const allImages = [
     ...(mainImage ? [{ id: 'main', image_url: mainImage }] : []),
@@ -38,11 +45,20 @@ export function ProductImageGallery({ mainImage, galleryImages, productName }: P
     <div className="space-y-2">
       {/* Main Image */}
       <div className="relative aspect-video rounded-lg bg-muted overflow-hidden group">
-        <img
-          src={allImages[currentIndex].image_url}
-          alt={`${productName} - Image ${currentIndex + 1}`}
-          className="w-full h-full object-cover"
-        />
+        {enableZoom ? (
+          <ImageZoom
+            src={allImages[currentIndex].image_url}
+            alt={`${productName} - Image ${currentIndex + 1}`}
+            className="w-full h-full"
+            zoomScale={2.5}
+          />
+        ) : (
+          <img
+            src={allImages[currentIndex].image_url}
+            alt={`${productName} - Image ${currentIndex + 1}`}
+            className="w-full h-full object-cover"
+          />
+        )}
 
         {/* Navigation Arrows */}
         {allImages.length > 1 && (
@@ -50,22 +66,22 @@ export function ProductImageGallery({ mainImage, galleryImages, productName }: P
             <Button
               variant="secondary"
               size="icon"
-              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={goToPrevious}
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              onClick={(e) => { e.stopPropagation(); goToPrevious(); }}
             >
               <ChevronLeft className="h-4 w-4" />
             </Button>
             <Button
               variant="secondary"
               size="icon"
-              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
-              onClick={goToNext}
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity z-10"
+              onClick={(e) => { e.stopPropagation(); goToNext(); }}
             >
               <ChevronRight className="h-4 w-4" />
             </Button>
 
             {/* Image Counter */}
-            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-xs px-2 py-1 rounded-md">
+            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-xs px-2 py-1 rounded-md z-10">
               {currentIndex + 1} / {allImages.length}
             </div>
           </>
