@@ -290,6 +290,40 @@ export function FloatingActionButton({
     setIsOpen(!isOpen);
   };
 
+  // Keyboard shortcuts for desktop (1-9 to trigger actions, Escape to close)
+  useEffect(() => {
+    if (isMobile) return;
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Escape key closes the FAB
+      if (e.key === 'Escape' && isOpen) {
+        setIsOpen(false);
+        return;
+      }
+
+      // Number keys trigger actions when FAB is open
+      if (isOpen && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        const keyNum = parseInt(e.key);
+        if (keyNum >= 1 && keyNum <= actions.length) {
+          e.preventDefault();
+          handleActionClick(actions[keyNum - 1]);
+        }
+      }
+
+      // Space or Enter opens FAB when it's focused
+      if ((e.key === ' ' || e.key === 'Enter') && !isOpen) {
+        const activeElement = document.activeElement;
+        if (activeElement?.closest('[data-fab-trigger]')) {
+          e.preventDefault();
+          setIsOpen(true);
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isMobile, actions]);
+
   // Preview tooltip component for long-press
   const PreviewTooltip = () => (
     <AnimatePresence>
@@ -421,14 +455,17 @@ export function FloatingActionButton({
                   animate={{ opacity: 1, x: 0 }}
                   exit={{ opacity: 0, x: 10 }}
                   transition={{ delay: 0.1 + index * 0.05 }}
-                  className="px-3 py-1.5 bg-background/95 backdrop-blur-sm border border-border rounded-lg text-sm font-medium shadow-lg whitespace-nowrap"
+                  className="px-3 py-1.5 bg-background/95 backdrop-blur-sm border border-border rounded-lg text-sm font-medium shadow-lg whitespace-nowrap flex items-center gap-2"
                 >
                   {action.label}
+                  <kbd className="hidden md:inline-flex items-center justify-center h-5 w-5 text-[10px] font-mono bg-muted rounded border border-border/50">
+                    {index + 1}
+                  </kbd>
                 </motion.span>
                 <Button
                   size="icon"
                   variant={action.variant || 'secondary'}
-                  className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow"
+                  className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow relative"
                   onClick={() => handleActionClick(action)}
                 >
                   <action.icon className="h-5 w-5" />
@@ -449,6 +486,7 @@ export function FloatingActionButton({
       >
         <Button
           size="icon"
+          data-fab-trigger
           className={cn(
             "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300",
             "bg-primary hover:bg-primary/90",
@@ -459,6 +497,8 @@ export function FloatingActionButton({
           onPointerUp={endLongPress}
           onPointerLeave={endLongPress}
           onPointerCancel={endLongPress}
+          aria-label={isOpen ? "Close quick actions" : "Open quick actions"}
+          aria-expanded={isOpen}
         >
           <motion.div
             animate={{ rotate: isOpen ? 45 : 0 }}
