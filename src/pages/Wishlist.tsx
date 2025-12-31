@@ -1,0 +1,165 @@
+import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { Heart, ArrowLeft, Loader2, Package, Trash2 } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { ProductCard } from '@/components/marketplace/ProductCard';
+
+interface Product {
+  id: string;
+  name: string;
+  description: string | null;
+  price: number;
+  category: string;
+  image_url: string | null;
+  stock: number;
+  agent_id: string;
+}
+
+interface WishlistItem {
+  id: string;
+  product_id: string;
+  product: Product;
+}
+
+export default function Wishlist() {
+  const navigate = useNavigate();
+  const { user, loading: authLoading } = useAuth();
+  const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate('/auth');
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      fetchWishlist();
+    }
+  }, [user]);
+
+  const fetchWishlist = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('wishlists')
+        .select('id, product_id, products(*)')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      const items = (data || [])
+        .filter(item => item.products)
+        .map(item => ({
+          id: item.id,
+          product_id: item.product_id,
+          product: item.products as unknown as Product
+        }));
+
+      setWishlistItems(items);
+      setWishlistIds(new Set(items.map(item => item.product_id)));
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const clearWishlist = async () => {
+    if (!user) return;
+    
+    try {
+      const { error } = await supabase
+        .from('wishlists')
+        .delete()
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setWishlistItems([]);
+      setWishlistIds(new Set());
+    } catch (error) {
+      console.error('Error clearing wishlist:', error);
+    }
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="container max-w-6xl mx-auto px-4 py-6">
+        {/* Header */}
+        <div className="flex items-center justify-between mb-6">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-2xl font-bold flex items-center gap-2">
+                <Heart className="h-6 w-6 text-destructive fill-destructive" />
+                My Wishlist
+              </h1>
+              <p className="text-sm text-muted-foreground">
+                {wishlistItems.length} saved product{wishlistItems.length !== 1 ? 's' : ''}
+              </p>
+            </div>
+          </div>
+          {wishlistItems.length > 0 && (
+            <Button variant="outline" size="sm" onClick={clearWishlist} className="gap-2">
+              <Trash2 className="h-4 w-4" />
+              Clear All
+            </Button>
+          )}
+        </div>
+
+        {/* Content */}
+        <Card>
+          <CardContent className="p-6">
+            {loading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : wishlistItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Heart className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">Your wishlist is empty</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  Save products you like by clicking the heart icon
+                </p>
+                <Button onClick={() => navigate('/dashboard')}>
+                  Browse Products
+                </Button>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+                {wishlistItems.map((item) => (
+                  <ProductCard
+                    key={item.id}
+                    product={item.product}
+                    onPurchaseComplete={fetchWishlist}
+                    isOwnProduct={item.product.agent_id === user?.id}
+                    isInWishlist={wishlistIds.has(item.product_id)}
+                    onWishlistChange={fetchWishlist}
+                  />
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+    </div>
+  );
+}
