@@ -30,11 +30,23 @@ createRoot(document.getElementById("root")!).render(
   </StrictMode>
 );
 
-// Register service worker for offline support (if available)
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {
-      // Service worker registration failed - app still works
-    });
+// Register service worker for offline support
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', async () => {
+    try {
+      const registration = await navigator.serviceWorker.register('/sw.js', {
+        scope: '/',
+      });
+      
+      console.debug('[SW] Service Worker registered:', registration.scope);
+      
+      // Check for updates periodically (every 5 minutes)
+      setInterval(() => {
+        registration.update();
+      }, 5 * 60 * 1000);
+      
+    } catch (error) {
+      console.debug('[SW] Service Worker registration failed:', error);
+    }
   });
 }
