@@ -18,6 +18,7 @@ import { ProductCard } from './ProductCard';
 import { CartDrawer } from './CartDrawer';
 import { RecentlyViewedProducts } from './RecentlyViewedProducts';
 import { ProductRecommendations } from './ProductRecommendations';
+import { ComparisonDrawer } from './ComparisonDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 
@@ -411,6 +412,9 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
           </TabsContent>
         </Tabs>
       </CardContent>
+      
+      {/* Comparison Drawer */}
+      <ComparisonDrawer />
     </Card>
   );
 }

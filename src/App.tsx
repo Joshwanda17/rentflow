@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CartProvider } from "@/hooks/useCart";
+import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { lazy, Suspense, memo } from "react";
 // Lazy load routes for better initial load performance at scale
@@ -119,14 +120,16 @@ const App = () => (
       <LanguageProvider>
         <AuthProvider>
           <CartProvider>
-            <TooltipProvider delayDuration={300}>
-              <ConnectionStatus />
-              <Toaster />
-              <Sonner />
-              <BrowserRouter>
-                <AnimatedRoutes />
-              </BrowserRouter>
-            </TooltipProvider>
+            <ComparisonProvider>
+              <TooltipProvider delayDuration={300}>
+                <ConnectionStatus />
+                <Toaster />
+                <Sonner />
+                <BrowserRouter>
+                  <AnimatedRoutes />
+                </BrowserRouter>
+              </TooltipProvider>
+            </ComparisonProvider>
           </CartProvider>
         </AuthProvider>
       </LanguageProvider>
