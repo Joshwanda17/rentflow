@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
+import { FlashSaleCountdown } from './FlashSaleCountdown';
 
 interface Product {
   id: string;
@@ -172,11 +173,14 @@ export function ProductCard({
           )}
           {/* Discount Badge */}
           {hasDiscount && (
-            <div className="absolute top-2 left-2 z-10">
+            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
               <Badge className="bg-destructive text-destructive-foreground gap-1">
                 <Percent className="h-3 w-3" />
                 {product.discount_percentage}% OFF
               </Badge>
+              {product.discount_ends_at && (
+                <FlashSaleCountdown endDate={product.discount_ends_at} compact />
+              )}
             </div>
           )}
           {/* Wishlist Button */}
