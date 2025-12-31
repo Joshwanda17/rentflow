@@ -10,6 +10,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
+import { Input } from '@/components/ui/input';
 import { 
   Star, 
   Package, 
@@ -17,7 +18,9 @@ import {
   ShoppingCart,
   MessageSquare,
   User,
-  Heart
+  Heart,
+  Plus,
+  Minus
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -73,11 +76,13 @@ export function ProductDetailDialog({
   const [comment, setComment] = useState('');
   const [hoverRating, setHoverRating] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+  const [quantity, setQuantity] = useState(1);
 
   useEffect(() => {
     if (product && open) {
       fetchReviews();
       checkCanReview();
+      setQuantity(1); // Reset quantity when opening
     }
   }, [product, open]);
 
@@ -151,19 +156,38 @@ export function ProductDetailDialog({
     setPurchasing(true);
     try {
       const { data, error } = await supabase.functions.invoke('product-purchase', {
-        body: { productId: product.id, quantity: 1 }
+        body: { productId: product.id, quantity }
       });
 
       if (error) throw error;
       if (!data.success) throw new Error(data.error);
 
-      toast.success('Purchase successful!');
+      toast.success('Purchase successful!', {
+        description: `You bought ${quantity}x ${product.name} for UGX ${(product.price * quantity).toLocaleString()}`
+      });
       onPurchaseComplete?.();
       setCanReview(true);
+      setQuantity(1);
     } catch (error: any) {
       toast.error('Purchase failed', { description: error.message });
     } finally {
       setPurchasing(false);
+    }
+  };
+
+  const handleQuantityChange = (delta: number) => {
+    const newQuantity = quantity + delta;
+    if (newQuantity >= 1 && newQuantity <= product!.stock) {
+      setQuantity(newQuantity);
+    }
+  };
+
+  const handleQuantityInput = (value: string) => {
+    const num = parseInt(value, 10);
+    if (!isNaN(num) && num >= 1 && num <= product!.stock) {
+      setQuantity(num);
+    } else if (value === '') {
+      setQuantity(1);
     }
   };
 
@@ -326,25 +350,75 @@ export function ProductDetailDialog({
                 </div>
               )}
 
-              {/* Buy Button */}
-              {!isOwnProduct && (
-                <Button 
-                  className="w-full" 
-                  size="lg"
-                  onClick={handlePurchase}
-                  disabled={purchasing || product.stock === 0}
-                >
-                  {purchasing ? (
-                    <>
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                      Processing...
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingCart className="mr-2 h-4 w-4" />
-                      Buy Now
-                    </>
-                  )}
+              {/* Buy Section */}
+              {!isOwnProduct && product.stock > 0 && (
+                <div className="space-y-3">
+                  {/* Quantity Selector */}
+                  <div className="flex items-center justify-between">
+                    <label className="text-sm font-medium">Quantity</label>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleQuantityChange(-1)}
+                        disabled={quantity <= 1}
+                      >
+                        <Minus className="h-4 w-4" />
+                      </Button>
+                      <Input
+                        type="number"
+                        min={1}
+                        max={product.stock}
+                        value={quantity}
+                        onChange={(e) => handleQuantityInput(e.target.value)}
+                        className="w-16 h-8 text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                      />
+                      <Button
+                        variant="outline"
+                        size="icon"
+                        className="h-8 w-8"
+                        onClick={() => handleQuantityChange(1)}
+                        disabled={quantity >= product.stock}
+                      >
+                        <Plus className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+
+                  {/* Total Price */}
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-muted-foreground">Total</span>
+                    <span className="font-bold text-lg text-primary">
+                      UGX {(product.price * quantity).toLocaleString()}
+                    </span>
+                  </div>
+
+                  {/* Buy Button */}
+                  <Button 
+                    className="w-full" 
+                    size="lg"
+                    onClick={handlePurchase}
+                    disabled={purchasing}
+                  >
+                    {purchasing ? (
+                      <>
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingCart className="mr-2 h-4 w-4" />
+                        Buy {quantity > 1 ? `${quantity} items` : 'Now'}
+                      </>
+                    )}
+                  </Button>
+                </div>
+              )}
+
+              {!isOwnProduct && product.stock === 0 && (
+                <Button className="w-full" size="lg" disabled>
+                  Out of Stock
                 </Button>
               )}
             </div>
