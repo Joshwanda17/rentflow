@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { motion, useScroll, useTransform } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
@@ -34,10 +34,10 @@ import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useState, useRef } from 'react';
 
 const WHATSAPP_NUMBER = '256708257899';
 const WHATSAPP_MESSAGE = 'Hello! I need help with Welile.';
-import { useState } from 'react';
 
 const fadeInUp = {
   hidden: { opacity: 0, y: 20 },
@@ -51,6 +51,30 @@ const stagger = {
 export default function Index() {
   const { t } = useLanguage();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  
+  // Parallax scroll refs and transforms
+  const heroRef = useRef(null);
+  const { scrollYProgress: heroProgress } = useScroll({
+    target: heroRef,
+    offset: ["start start", "end start"]
+  });
+  const heroY = useTransform(heroProgress, [0, 1], ["0%", "30%"]);
+  const heroOpacity = useTransform(heroProgress, [0, 0.5], [1, 0]);
+  const heroScale = useTransform(heroProgress, [0, 1], [1, 0.95]);
+  
+  const stepsRef = useRef(null);
+  const { scrollYProgress: stepsProgress } = useScroll({
+    target: stepsRef,
+    offset: ["start end", "end start"]
+  });
+  const stepsY = useTransform(stepsProgress, [0, 1], ["5%", "-5%"]);
+  
+  const userTypesRef = useRef(null);
+  const { scrollYProgress: userTypesProgress } = useScroll({
+    target: userTypesRef,
+    offset: ["start end", "end start"]
+  });
+  const userTypesY = useTransform(userTypesProgress, [0, 1], ["8%", "-8%"]);
 
   const userTypes = [
     {
@@ -242,10 +266,10 @@ export default function Index() {
         </div>
       </header>
 
-      {/* Hero Section - Professional & Modern */}
-      <section className="relative overflow-hidden min-h-[90vh] flex items-center">
-        {/* Animated Background */}
-        <div className="absolute inset-0">
+      {/* Hero Section - Professional & Modern with Parallax */}
+      <section ref={heroRef} className="relative overflow-hidden min-h-[90vh] flex items-center">
+        {/* Animated Background with Parallax */}
+        <motion.div className="absolute inset-0" style={{ y: heroY }}>
           {/* Primary gradient */}
           <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/10" />
           
@@ -285,11 +309,13 @@ export default function Index() {
             }}
           />
           
-          {/* Bottom fade */}
           <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
-        </div>
+        </motion.div>
         
-        <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
+        <motion.div 
+          className="container mx-auto px-4 py-12 md:py-20 relative z-10"
+          style={{ opacity: heroOpacity, scale: heroScale }}
+        >
           <motion.div 
             initial="hidden"
             animate="visible"
@@ -408,12 +434,12 @@ export default function Index() {
               </motion.div>
             </motion.a>
           </motion.div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* How It Works - Super Simple */}
-      <section id="how-it-works" className="py-16 md:py-24 bg-muted/30">
-        <div className="container mx-auto px-4">
+      {/* How It Works - With Parallax */}
+      <section ref={stepsRef} id="how-it-works" className="py-16 md:py-24 bg-muted/30 relative overflow-hidden">
+        <motion.div className="container mx-auto px-4" style={{ y: stepsY }}>
           <motion.div 
             initial="hidden"
             whileInView="visible"
@@ -472,12 +498,12 @@ export default function Index() {
               </motion.div>
             ))}
           </motion.div>
-        </div>
+        </motion.div>
       </section>
 
-      {/* For You Section - User Types */}
-      <section id="for-you" className="py-16 md:py-24">
-        <div className="container mx-auto px-4">
+      {/* For You Section - With Parallax */}
+      <section ref={userTypesRef} id="for-you" className="py-16 md:py-24 relative overflow-hidden">
+        <motion.div className="container mx-auto px-4" style={{ y: userTypesY }}>
           <motion.div 
             initial="hidden"
             whileInView="visible"
@@ -545,7 +571,7 @@ export default function Index() {
               </motion.div>
             ))}
           </motion.div>
-        </div>
+        </motion.div>
       </section>
 
       {/* Testimonials - Social Proof */}
