@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -23,6 +23,14 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@/components/ui/dropdown-menu';
 
 interface ManagerDashboardProps {
   user: User;
@@ -258,6 +266,39 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       description: `${formatUGX(Number(request.rent_amount))} has been marked as paid to landlord`
     });
     fetchData();
+  };
+
+  const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    const { error } = await supabase
+      .from('product_orders')
+      .update({
+        status: newStatus,
+        status_updated_at: new Date().toISOString()
+      })
+      .eq('id', orderId);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+      return;
+    }
+
+    toast({ 
+      title: 'Status Updated', 
+      description: `Order status changed to ${newStatus}` 
+    });
+    fetchData();
+  };
+
+  const getNextStatusOptions = (currentStatus: string) => {
+    const statusFlow: Record<string, string[]> = {
+      'pending': ['processing', 'cancelled'],
+      'processing': ['shipped', 'cancelled'],
+      'shipped': ['delivered'],
+      'delivered': ['completed'],
+      'completed': [],
+      'cancelled': []
+    };
+    return statusFlow[currentStatus] || [];
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -616,36 +657,68 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {orders.map((order) => (
-                      <div 
-                        key={order.id} 
-                        className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50"
-                      >
-                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
-                          {order.product?.image_url ? (
-                            <img src={order.product.image_url} alt={order.product?.name} className="w-full h-full object-cover" />
-                          ) : (
-                            <Package className="h-6 w-6 text-muted-foreground" />
-                          )}
+                    {orders.map((order) => {
+                      const nextStatuses = getNextStatusOptions(order.status);
+                      return (
+                        <div 
+                          key={order.id} 
+                          className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50"
+                        >
+                          <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                            {order.product?.image_url ? (
+                              <img src={order.product.image_url} alt={order.product?.name} className="w-full h-full object-cover" />
+                            ) : (
+                              <Package className="h-6 w-6 text-muted-foreground" />
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium truncate">{order.product?.name || 'Unknown Product'}</p>
+                            <p className="text-sm text-muted-foreground">
+                              Qty: {order.quantity} • {order.buyer?.full_name || 'Unknown Buyer'}
+                            </p>
+                            <p className="text-xs text-muted-foreground">
+                              Agent: {order.agent?.full_name || 'Unknown'} • {new Date(order.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                          <div className="text-right flex items-center gap-3">
+                            <div>
+                              <p className="font-mono font-semibold">{formatUGX(Number(order.total_price))}</p>
+                              <p className="text-xs text-success">+{formatUGX(Number(order.agent_commission))} comm.</p>
+                              <Badge className={getStatusColor(order.status)}>
+                                {order.status}
+                              </Badge>
+                            </div>
+                            {nextStatuses.length > 0 && (
+                              <DropdownMenu>
+                                <DropdownMenuTrigger asChild>
+                                  <Button variant="ghost" size="icon" className="h-8 w-8">
+                                    <MoreVertical className="h-4 w-4" />
+                                  </Button>
+                                </DropdownMenuTrigger>
+                                <DropdownMenuContent align="end">
+                                  <DropdownMenuLabel>Update Status</DropdownMenuLabel>
+                                  <DropdownMenuSeparator />
+                                  {nextStatuses.map((status) => (
+                                    <DropdownMenuItem
+                                      key={status}
+                                      onClick={() => handleUpdateOrderStatus(order.id, status)}
+                                      className="gap-2"
+                                    >
+                                      {status === 'processing' && <Clock className="h-4 w-4 text-primary" />}
+                                      {status === 'shipped' && <Truck className="h-4 w-4 text-chart-5" />}
+                                      {status === 'delivered' && <PackageCheck className="h-4 w-4 text-success" />}
+                                      {status === 'completed' && <CheckCircle className="h-4 w-4 text-success" />}
+                                      {status === 'cancelled' && <XCircle className="h-4 w-4 text-destructive" />}
+                                      <span className="capitalize">{status}</span>
+                                    </DropdownMenuItem>
+                                  ))}
+                                </DropdownMenuContent>
+                              </DropdownMenu>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="font-medium truncate">{order.product?.name || 'Unknown Product'}</p>
-                          <p className="text-sm text-muted-foreground">
-                            Qty: {order.quantity} • {order.buyer?.full_name || 'Unknown Buyer'}
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Agent: {order.agent?.full_name || 'Unknown'} • {new Date(order.created_at).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <div className="text-right">
-                          <p className="font-mono font-semibold">{formatUGX(Number(order.total_price))}</p>
-                          <p className="text-xs text-success">+{formatUGX(Number(order.agent_commission))} comm.</p>
-                          <Badge className={getStatusColor(order.status)}>
-                            {order.status}
-                          </Badge>
-                        </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 )}
               </CardContent>
