@@ -386,6 +386,7 @@ export type Database = {
           buyer_id: string
           created_at: string
           delivery_notes: string | null
+          estimated_delivery_date: string | null
           id: string
           product_id: string
           quantity: number
@@ -400,6 +401,7 @@ export type Database = {
           buyer_id: string
           created_at?: string
           delivery_notes?: string | null
+          estimated_delivery_date?: string | null
           id?: string
           product_id: string
           quantity?: number
@@ -414,6 +416,7 @@ export type Database = {
           buyer_id?: string
           created_at?: string
           delivery_notes?: string | null
+          estimated_delivery_date?: string | null
           id?: string
           product_id?: string
           quantity?: number

@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { addDays, format } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical, Calendar } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -89,6 +90,7 @@ interface ProductOrder {
   delivery_notes: string | null;
   created_at: string;
   status_updated_at: string | null;
+  estimated_delivery_date: string | null;
   product?: { name: string; image_url: string | null };
   buyer?: { full_name: string };
   agent?: { full_name: string };
@@ -269,12 +271,29 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   const handleUpdateOrderStatus = async (orderId: string, newStatus: string) => {
+    // Calculate estimated delivery date based on status
+    let estimatedDeliveryDate: string | null = null;
+    
+    if (newStatus === 'processing') {
+      // Estimate 5 days from now for processing
+      estimatedDeliveryDate = format(addDays(new Date(), 5), 'yyyy-MM-dd');
+    } else if (newStatus === 'shipped') {
+      // Estimate 2 days from now for shipped
+      estimatedDeliveryDate = format(addDays(new Date(), 2), 'yyyy-MM-dd');
+    }
+    
+    const updateData: Record<string, unknown> = {
+      status: newStatus,
+      status_updated_at: new Date().toISOString()
+    };
+    
+    if (estimatedDeliveryDate) {
+      updateData.estimated_delivery_date = estimatedDeliveryDate;
+    }
+    
     const { error } = await supabase
       .from('product_orders')
-      .update({
-        status: newStatus,
-        status_updated_at: new Date().toISOString()
-      })
+      .update(updateData)
       .eq('id', orderId);
 
     if (error) {
@@ -282,9 +301,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       return;
     }
 
+    const message = estimatedDeliveryDate 
+      ? `Order status changed to ${newStatus}. Estimated delivery: ${format(new Date(estimatedDeliveryDate), 'MMM d, yyyy')}`
+      : `Order status changed to ${newStatus}`;
+
     toast({ 
       title: 'Status Updated', 
-      description: `Order status changed to ${newStatus}` 
+      description: message
     });
     fetchData();
   };
@@ -679,6 +702,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                             <p className="text-xs text-muted-foreground">
                               Agent: {order.agent?.full_name || 'Unknown'} • {new Date(order.created_at).toLocaleDateString()}
                             </p>
+                            {order.estimated_delivery_date && (
+                              <div className="flex items-center gap-1 mt-1">
+                                <Calendar className="h-3 w-3 text-primary" />
+                                <span className="text-xs text-primary font-medium">
+                                  Est. delivery: {format(new Date(order.estimated_delivery_date), 'MMM d, yyyy')}
+                                </span>
+                              </div>
+                            )}
                           </div>
                           <div className="text-right flex items-center gap-3">
                             <div>
