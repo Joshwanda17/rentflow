@@ -296,15 +296,61 @@
 
   /* Interactive Elements */
   .interactive {
-    @apply transition-all duration-200 ease-out;
+    @apply transition-all duration-300 ease-out;
   }
 
   .interactive:hover {
-    @apply scale-[1.02];
+    @apply -translate-y-0.5;
   }
 
   .interactive:active {
-    @apply scale-[0.98];
+    @apply scale-[0.98] translate-y-0;
+  }
+
+  /* Hover lift effect for cards */
+  .hover-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+
+  .hover-lift:hover {
+    @apply -translate-y-1 shadow-card;
+  }
+
+  /* Icon hover effects */
+  .icon-hover {
+    @apply transition-all duration-200 ease-out;
+  }
+
+  .icon-hover:hover {
+    @apply scale-110;
+  }
+
+  /* Link underline animation */
+  .link-underline {
+    @apply relative;
+  }
+
+  .link-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-full h-0.5 bg-primary scale-x-0 origin-right transition-transform duration-300 ease-out;
+  }
+
+  .link-underline:hover::after {
+    @apply scale-x-100 origin-left;
+  }
+
+  /* Ripple effect base */
+  .ripple {
+    @apply relative overflow-hidden;
+  }
+
+  .ripple::before {
+    content: '';
+    @apply absolute inset-0 bg-foreground/5 scale-0 rounded-full transition-transform duration-500 ease-out;
+  }
+
+  .ripple:active::before {
+    @apply scale-150 opacity-0;
   }
 
   /* Section Heading */
@@ -499,5 +545,78 @@
   /* Text balance */
   .text-balance {
     text-wrap: balance;
+  }
+
+  /* Micro-interaction utilities */
+  .hover-glow {
+    @apply transition-shadow duration-300;
+  }
+
+  .hover-glow:hover {
+    box-shadow: 0 0 20px -5px hsl(var(--primary) / 0.25);
+  }
+
+  .hover-border-glow {
+    @apply transition-all duration-300;
+  }
+
+  .hover-border-glow:hover {
+    @apply border-primary/40;
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.08);
+  }
+
+  /* Press effect */
+  .press-effect {
+    @apply transition-transform duration-150 ease-out;
+  }
+
+  .press-effect:active {
+    @apply scale-[0.97];
+  }
+
+  /* Bounce on click */
+  .click-bounce {
+    @apply transition-transform duration-200;
+  }
+
+  .click-bounce:active {
+    animation: bounce-click 0.3s ease-out;
+  }
+
+  @keyframes bounce-click {
+    0%, 100% { transform: scale(1); }
+    50% { transform: scale(0.95); }
+    75% { transform: scale(1.02); }
+  }
+
+  /* Smooth focus ring */
+  .focus-ring {
+    @apply transition-shadow duration-200;
+  }
+
+  .focus-ring:focus-visible {
+    @apply outline-none ring-2 ring-primary/30 ring-offset-2 ring-offset-background;
+  }
+
+  /* Shimmer loading effect */
+  .shimmer-loading {
+    @apply relative overflow-hidden;
+  }
+
+  .shimmer-loading::after {
+    content: '';
+    @apply absolute inset-0;
+    background: linear-gradient(
+      90deg,
+      transparent 0%,
+      hsl(var(--foreground) / 0.04) 50%,
+      transparent 100%
+    );
+    animation: shimmer-slide 1.5s infinite;
+  }
+
+  @keyframes shimmer-slide {
+    0% { transform: translateX(-100%); }
+    100% { transform: translateX(100%); }
   }
 }
