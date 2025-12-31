@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3 } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package } from 'lucide-react';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -427,6 +428,32 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </TabsContent>
         </Tabs>
       </main>
+      
+      <FloatingActionButton
+        actions={[
+          {
+            icon: ArrowDownCircle,
+            label: 'Customer Deposit',
+            onClick: () => setDepositOpen(true),
+          },
+          {
+            icon: ArrowUpCircle,
+            label: 'Customer Withdrawal',
+            onClick: () => setWithdrawalOpen(true),
+          },
+          {
+            icon: History,
+            label: 'View Earnings',
+            onClick: () => navigate('/earnings'),
+          },
+          {
+            icon: Package,
+            label: 'Add Product',
+            onClick: () => {}, // This will be handled by the marketplace tab
+          },
+        ]}
+      />
+      
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
       
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
