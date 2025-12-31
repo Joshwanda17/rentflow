@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -18,7 +18,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Plus, Loader2 } from 'lucide-react';
+import { Plus, Loader2, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -36,14 +36,83 @@ const CATEGORIES = [
 export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  
   const [formData, setFormData] = useState({
     name: '',
     description: '',
     price: '',
     category: 'general',
     stock: '',
-    image_url: '',
   });
+
+  const handleImageSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      toast.error('Please select an image file');
+      return;
+    }
+
+    // Validate file size (max 5MB)
+    if (file.size > 5 * 1024 * 1024) {
+      toast.error('Image must be less than 5MB');
+      return;
+    }
+
+    setImageFile(file);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const removeImage = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const uploadImage = async (userId: string): Promise<string | null> => {
+    if (!imageFile) return null;
+
+    setUploading(true);
+    try {
+      const fileExt = imageFile.name.split('.').pop();
+      const fileName = `${userId}/${Date.now()}.${fileExt}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('products')
+        .upload(fileName, imageFile, {
+          cacheControl: '3600',
+          upsert: false,
+        });
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('products')
+        .getPublicUrl(fileName);
+
+      return publicUrl;
+    } catch (error: any) {
+      console.error('Error uploading image:', error);
+      toast.error('Failed to upload image');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -71,6 +140,12 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
+      // Upload image if selected
+      let imageUrl: string | null = null;
+      if (imageFile) {
+        imageUrl = await uploadImage(user.id);
+      }
+
       const { error } = await supabase
         .from('products')
         .insert({
@@ -80,7 +155,7 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
           price,
           category: formData.category,
           stock,
-          image_url: formData.image_url || null,
+          image_url: imageUrl,
           active: true,
         });
 
@@ -90,14 +165,15 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
         description: 'Your product is now visible to all users'
       });
       
+      // Reset form
       setFormData({
         name: '',
         description: '',
         price: '',
         category: 'general',
         stock: '',
-        image_url: '',
       });
+      removeImage();
       setOpen(false);
       onProductAdded?.();
     } catch (error: any) {
@@ -126,6 +202,52 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
+          {/* Image Upload */}
+          <div className="space-y-2">
+            <Label>Product Image</Label>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleImageSelect}
+              className="hidden"
+            />
+            
+            {imagePreview ? (
+              <div className="relative aspect-video rounded-lg overflow-hidden border border-border">
+                <img 
+                  src={imagePreview} 
+                  alt="Preview" 
+                  className="w-full h-full object-cover"
+                />
+                <Button
+                  type="button"
+                  variant="destructive"
+                  size="icon"
+                  className="absolute top-2 right-2 h-8 w-8"
+                  onClick={removeImage}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              </div>
+            ) : (
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full h-32 border-dashed flex flex-col gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Upload className="h-8 w-8 text-muted-foreground" />
+                <span className="text-sm text-muted-foreground">
+                  Click to upload image
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  Max 5MB • JPG, PNG, WebP
+                </span>
+              </Button>
+            )}
+          </div>
+
           <div className="space-y-2">
             <Label htmlFor="name">Product Name *</Label>
             <Input
@@ -195,22 +317,11 @@ export function AddProductDialog({ onProductAdded }: AddProductDialogProps) {
             </Select>
           </div>
 
-          <div className="space-y-2">
-            <Label htmlFor="image_url">Image URL (optional)</Label>
-            <Input
-              id="image_url"
-              type="url"
-              placeholder="https://example.com/image.jpg"
-              value={formData.image_url}
-              onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
-            />
-          </div>
-
-          <Button type="submit" className="w-full" disabled={loading}>
-            {loading ? (
+          <Button type="submit" className="w-full" disabled={loading || uploading}>
+            {loading || uploading ? (
               <>
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Adding Product...
+                {uploading ? 'Uploading Image...' : 'Adding Product...'}
               </>
             ) : (
               'Add Product'
