@@ -17,7 +17,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { CartDrawer } from './CartDrawer';
 import { RecentlyViewedProducts } from './RecentlyViewedProducts';
+import { ProductRecommendations } from './ProductRecommendations';
 import { useAuth } from '@/hooks/useAuth';
+import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 
 interface Product {
   id: string;
@@ -41,6 +43,7 @@ type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'name_az' |
 export function MarketplaceSection({ showAllProducts = true, initialCategory }: MarketplaceSectionProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { recentIds } = useRecentlyViewed();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'all');
@@ -346,6 +349,14 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
               )}
             </div>
           </div>
+        )}
+
+        {/* Product Recommendations */}
+        {recentIds.length > 0 && (
+          <ProductRecommendations 
+            onProductPurchase={fetchProducts}
+            excludeIds={recentIds}
+          />
         )}
 
         {/* Category Tabs */}
