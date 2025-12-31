@@ -92,9 +92,9 @@ export default function Index() {
   ];
 
   const stats = [
-    { value: 'UGX 500M+', label: t.rentFacilitated, icon: Banknote },
-    { value: '2,000+', label: t.activeUsers, icon: Users },
-    { value: '500+', label: t.agent + 's', icon: Star },
+    { value: 'UGX 2B+', label: t.rentFacilitated, icon: Banknote },
+    { value: '140K+', label: t.activeUsers, icon: Users },
+    { value: '2,500+', label: t.agent + 's', icon: Star },
     { value: '15%', label: t.dailyRepaymentRate, icon: TrendingUp },
   ];
   return (
@@ -197,7 +197,7 @@ export default function Index() {
             <motion.div variants={itemVariants} className="mb-6">
               <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm text-primary font-medium">
                 <Zap className="h-4 w-4" />
-                Trusted by 2,000+ users across Uganda
+                Trusted by 140,000+ users across Uganda
               </span>
             </motion.div>
             
