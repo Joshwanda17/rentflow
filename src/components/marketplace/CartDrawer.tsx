@@ -24,7 +24,11 @@ import { useCart } from '@/hooks/useCart';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
-export function CartDrawer() {
+interface CartDrawerProps {
+  children?: React.ReactNode;
+}
+
+export function CartDrawer({ children }: CartDrawerProps) {
   const { items, loading, itemCount, totalAmount, updateQuantity, removeFromCart, clearCart, refreshCart } = useCart();
   const [checkingOut, setCheckingOut] = useState(false);
   const [open, setOpen] = useState(false);
@@ -59,18 +63,22 @@ export function CartDrawer() {
     }
   };
 
+  const defaultTrigger = (
+    <Button variant="outline" size="sm" className="relative gap-2">
+      <ShoppingCart className="h-4 w-4" />
+      Cart
+      {itemCount > 0 && (
+        <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
+          {itemCount}
+        </Badge>
+      )}
+    </Button>
+  );
+
   return (
     <Sheet open={open} onOpenChange={setOpen}>
       <SheetTrigger asChild>
-        <Button variant="outline" size="sm" className="relative gap-2">
-          <ShoppingCart className="h-4 w-4" />
-          Cart
-          {itemCount > 0 && (
-            <Badge className="absolute -top-2 -right-2 h-5 w-5 p-0 flex items-center justify-center text-xs">
-              {itemCount}
-            </Badge>
-          )}
-        </Button>
+        {children || defaultTrigger}
       </SheetTrigger>
       <SheetContent className="flex flex-col w-full sm:max-w-md">
         <SheetHeader>
