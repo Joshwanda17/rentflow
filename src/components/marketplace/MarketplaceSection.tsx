@@ -40,12 +40,13 @@ interface Product {
 interface MarketplaceSectionProps {
   showAllProducts?: boolean;
   initialCategory?: string;
+  externalSearchQuery?: string;
 }
 
 type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'name_az' | 'name_za';
 type GridSize = '2' | '3' | '4';
 
-export function MarketplaceSection({ showAllProducts = true, initialCategory }: MarketplaceSectionProps) {
+export function MarketplaceSection({ showAllProducts = true, initialCategory, externalSearchQuery = '' }: MarketplaceSectionProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { recentIds } = useRecentlyViewed();
@@ -53,6 +54,9 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
   const [loading, setLoading] = useState(true);
   const [activeCategory, setActiveCategory] = useState(initialCategory || 'all');
   const [searchQuery, setSearchQuery] = useState('');
+  
+  // Combine internal and external search queries
+  const effectiveSearchQuery = externalSearchQuery || searchQuery;
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showInStock, setShowInStock] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
@@ -138,11 +142,12 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
       result = result.filter(p => p.category === activeCategory);
     }
 
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase();
+    if (effectiveSearchQuery.trim()) {
+      const query = effectiveSearchQuery.toLowerCase();
       result = result.filter(p => 
         p.name.toLowerCase().includes(query) ||
-        (p.description?.toLowerCase().includes(query))
+        (p.description?.toLowerCase().includes(query)) ||
+        p.category.toLowerCase().includes(query)
       );
     }
 
@@ -176,13 +181,14 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
     }
 
     return result;
-  }, [products, activeCategory, searchQuery, sortBy, showInStock, showWishlistOnly, wishlistIds]);
+  }, [products, activeCategory, effectiveSearchQuery, sortBy, showInStock, showWishlistOnly, wishlistIds]);
 
   const activeFiltersCount = [
     activeCategory !== 'all',
     showInStock,
     showWishlistOnly,
-    sortBy !== 'newest'
+    sortBy !== 'newest',
+    effectiveSearchQuery.trim().length > 0
   ].filter(Boolean).length;
 
   const clearFilters = () => {
