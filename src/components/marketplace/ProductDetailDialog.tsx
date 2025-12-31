@@ -86,6 +86,13 @@ interface ReviewVote {
   userVote: 'upvote' | 'downvote' | null;
 }
 
+interface SellerResponse {
+  id: string;
+  response_text: string;
+  created_at: string;
+  updated_at: string;
+}
+
 interface Review {
   id: string;
   product_id: string;
@@ -98,6 +105,7 @@ interface Review {
   is_verified_purchase?: boolean;
   images?: ReviewImage[];
   votes?: ReviewVote;
+  seller_response?: SellerResponse | null;
 }
 
 interface ProductDetailDialogProps {
@@ -199,7 +207,7 @@ export function ProductDetailDialog({
 
       if (error) throw error;
 
-      // Enrich with buyer names, avatars, images, and votes
+      // Enrich with buyer names, avatars, images, votes, and seller responses
       const enrichedReviews = await Promise.all(
         (data || []).map(async (review) => {
           // Get profile
@@ -222,6 +230,13 @@ export function ProductDetailDialog({
             .select('vote_type, user_id')
             .eq('review_id', review.id);
 
+          // Get seller response
+          const { data: sellerResponse } = await supabase
+            .from('review_responses')
+            .select('id, response_text, created_at, updated_at')
+            .eq('review_id', review.id)
+            .maybeSingle();
+
           const upvotes = votes?.filter(v => v.vote_type === 'upvote').length || 0;
           const downvotes = votes?.filter(v => v.vote_type === 'downvote').length || 0;
           const userVote = user ? votes?.find(v => v.user_id === user.id)?.vote_type as 'upvote' | 'downvote' | null : null;
@@ -233,6 +248,7 @@ export function ProductDetailDialog({
             is_verified_purchase: true, // All reviews require purchase
             images: images || [],
             votes: { upvotes, downvotes, userVote },
+            seller_response: sellerResponse || null,
           };
         })
       );
@@ -849,6 +865,8 @@ export function ProductDetailDialog({
                         review={review}
                         onImageClick={openReviewImageLightbox}
                         onVoteChange={fetchReviews}
+                        isProductOwner={user?.id === product?.agent_id}
+                        onResponseChange={fetchReviews}
                       />
                     ))}
                   </div>

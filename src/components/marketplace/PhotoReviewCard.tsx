@@ -1,9 +1,10 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, CheckCircle2, Camera, ChevronLeft, ChevronRight, X, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { Star, CheckCircle2, Camera, ChevronLeft, ChevronRight, X, ThumbsUp, ThumbsDown, MessageCircle, Store, Edit2, Trash2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -20,6 +21,14 @@ interface ReviewVote {
   userVote: 'upvote' | 'downvote' | null;
 }
 
+interface SellerResponse {
+  id: string;
+  response_text: string;
+  created_at: string;
+  updated_at: string;
+  agent_name?: string;
+}
+
 interface Review {
   id: string;
   product_id: string;
@@ -32,17 +41,24 @@ interface Review {
   is_verified_purchase?: boolean;
   images?: ReviewImage[];
   votes?: ReviewVote;
+  seller_response?: SellerResponse | null;
 }
 
 interface PhotoReviewCardProps {
   review: Review;
   onImageClick?: (images: ReviewImage[], startIndex: number) => void;
   onVoteChange?: () => void;
+  isProductOwner?: boolean;
+  onResponseChange?: () => void;
 }
 
-export function PhotoReviewCard({ review, onImageClick, onVoteChange }: PhotoReviewCardProps) {
+export function PhotoReviewCard({ review, onImageClick, onVoteChange, isProductOwner, onResponseChange }: PhotoReviewCardProps) {
   const { user } = useAuth();
   const [voting, setVoting] = useState(false);
+  const [showResponseForm, setShowResponseForm] = useState(false);
+  const [responseText, setResponseText] = useState(review.seller_response?.response_text || '');
+  const [submittingResponse, setSubmittingResponse] = useState(false);
+  const [editingResponse, setEditingResponse] = useState(false);
   const hasImages = review.images && review.images.length > 0;
 
   const handleVote = async (voteType: 'upvote' | 'downvote') => {
@@ -100,6 +116,62 @@ export function PhotoReviewCard({ review, onImageClick, onVoteChange }: PhotoRev
   };
 
   const helpfulScore = (review.votes?.upvotes || 0) - (review.votes?.downvotes || 0);
+
+  const handleSubmitResponse = async () => {
+    if (!user || !responseText.trim()) return;
+
+    setSubmittingResponse(true);
+    try {
+      if (review.seller_response && editingResponse) {
+        // Update existing response
+        const { error } = await supabase
+          .from('review_responses')
+          .update({ response_text: responseText.trim() })
+          .eq('id', review.seller_response.id);
+
+        if (error) throw error;
+        toast.success('Response updated');
+      } else {
+        // Create new response
+        const { error } = await supabase
+          .from('review_responses')
+          .insert({
+            review_id: review.id,
+            agent_id: user.id,
+            response_text: responseText.trim(),
+          });
+
+        if (error) throw error;
+        toast.success('Response posted');
+      }
+
+      setShowResponseForm(false);
+      setEditingResponse(false);
+      onResponseChange?.();
+    } catch (error: any) {
+      toast.error('Failed to submit response', { description: error.message });
+    } finally {
+      setSubmittingResponse(false);
+    }
+  };
+
+  const handleDeleteResponse = async () => {
+    if (!review.seller_response) return;
+
+    try {
+      const { error } = await supabase
+        .from('review_responses')
+        .delete()
+        .eq('id', review.seller_response.id);
+
+      if (error) throw error;
+      toast.success('Response deleted');
+      setResponseText('');
+      onResponseChange?.();
+    } catch (error: any) {
+      toast.error('Failed to delete response', { description: error.message });
+    }
+  };
 
   return (
     <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
@@ -177,6 +249,99 @@ export function PhotoReviewCard({ review, onImageClick, onVoteChange }: PhotoRev
         </div>
       )}
 
+      {/* Seller Response Display */}
+      {review.seller_response && !editingResponse && (
+        <div className="mt-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="flex items-start gap-2">
+            <div className="p-1.5 rounded-full bg-primary/10">
+              <Store className="h-3.5 w-3.5 text-primary" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs font-medium text-primary">Seller Response</span>
+                <span className="text-[10px] text-muted-foreground">
+                  {format(new Date(review.seller_response.updated_at || review.seller_response.created_at), 'MMM d, yyyy')}
+                </span>
+                {isProductOwner && (
+                  <div className="flex items-center gap-1 ml-auto">
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => {
+                        setEditingResponse(true);
+                        setShowResponseForm(true);
+                        setResponseText(review.seller_response?.response_text || '');
+                      }}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-primary"
+                    >
+                      <Edit2 className="h-3 w-3" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={handleDeleteResponse}
+                      className="h-6 w-6 p-0 text-muted-foreground hover:text-destructive"
+                    >
+                      <Trash2 className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <p className="text-sm text-muted-foreground mt-1">
+                {review.seller_response.response_text}
+              </p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Response Form */}
+      {showResponseForm && isProductOwner && (
+        <div className="mt-3 p-3 rounded-lg bg-muted/50 border border-border space-y-2">
+          <div className="flex items-center gap-2">
+            <Store className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium">
+              {editingResponse ? 'Edit your response' : 'Reply to this review'}
+            </span>
+          </div>
+          <Textarea
+            value={responseText}
+            onChange={(e) => setResponseText(e.target.value)}
+            placeholder="Write your response to this customer review..."
+            className="min-h-[80px] text-sm resize-none"
+            maxLength={1000}
+          />
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-muted-foreground">
+              {responseText.length}/1000
+            </span>
+            <div className="flex gap-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setShowResponseForm(false);
+                  setEditingResponse(false);
+                  setResponseText(review.seller_response?.response_text || '');
+                }}
+                className="h-7 text-xs"
+              >
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={handleSubmitResponse}
+                disabled={!responseText.trim() || submittingResponse}
+                className="h-7 text-xs gap-1"
+              >
+                <Send className="h-3 w-3" />
+                {submittingResponse ? 'Posting...' : editingResponse ? 'Update' : 'Post Response'}
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Voting Section */}
       <div className="flex items-center gap-3 pt-2 border-t border-border/50">
         <span className="text-xs text-muted-foreground">Helpful?</span>
@@ -214,6 +379,19 @@ export function PhotoReviewCard({ review, onImageClick, onVoteChange }: PhotoRev
           <span className="text-xs text-success ml-auto">
             {helpfulScore} found this helpful
           </span>
+        )}
+        
+        {/* Reply Button for Product Owner */}
+        {isProductOwner && !review.seller_response && !showResponseForm && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setShowResponseForm(true)}
+            className="h-7 px-2 gap-1 text-primary hover:text-primary hover:bg-primary/10 ml-auto"
+          >
+            <MessageCircle className="h-3.5 w-3.5" />
+            <span className="text-xs">Reply</span>
+          </Button>
         )}
       </div>
     </div>
