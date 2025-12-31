@@ -103,6 +103,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<PlatformTransaction[]>([]);
   const [orders, setOrders] = useState<ProductOrder[]>([]);
+  const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -339,6 +340,22 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
   const pendingOrders = orders.filter(o => ['pending', 'processing'].includes(o.status));
   const completedOrders = orders.filter(o => o.status === 'delivered' || o.status === 'completed');
+  
+  // Filtered orders based on status filter
+  const filteredOrders = orderStatusFilter === 'all' 
+    ? orders 
+    : orders.filter(o => o.status === orderStatusFilter);
+  
+  // Order counts by status
+  const orderCountsByStatus = {
+    all: orders.length,
+    pending: orders.filter(o => o.status === 'pending').length,
+    processing: orders.filter(o => o.status === 'processing').length,
+    shipped: orders.filter(o => o.status === 'shipped').length,
+    delivered: orders.filter(o => o.status === 'delivered').length,
+    completed: orders.filter(o => o.status === 'completed').length,
+    cancelled: orders.filter(o => o.status === 'cancelled').length,
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -671,16 +688,44 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     <span className="font-mono font-semibold">{pendingOrders.length}</span>
                   </div>
                 </div>
+                
+                {/* Status Filter Buttons */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  {[
+                    { key: 'all', label: 'All', icon: Package },
+                    { key: 'pending', label: 'Pending', icon: Clock },
+                    { key: 'processing', label: 'Processing', icon: Clock },
+                    { key: 'shipped', label: 'Shipped', icon: Truck },
+                    { key: 'delivered', label: 'Delivered', icon: PackageCheck },
+                    { key: 'completed', label: 'Completed', icon: CheckCircle },
+                  ].map(({ key, label, icon: Icon }) => (
+                    <Button
+                      key={key}
+                      variant={orderStatusFilter === key ? 'default' : 'outline'}
+                      size="sm"
+                      onClick={() => setOrderStatusFilter(key)}
+                      className="gap-1.5"
+                    >
+                      <Icon className="h-3.5 w-3.5" />
+                      {label}
+                      <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                        {orderCountsByStatus[key as keyof typeof orderCountsByStatus]}
+                      </Badge>
+                    </Button>
+                  ))}
+                </div>
               </CardHeader>
               <CardContent>
-                {orders.length === 0 ? (
+                {filteredOrders.length === 0 ? (
                   <div className="text-center py-8">
                     <Package className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
-                    <p className="text-sm text-muted-foreground">No marketplace orders yet</p>
+                    <p className="text-sm text-muted-foreground">
+                      {orders.length === 0 ? 'No marketplace orders yet' : `No ${orderStatusFilter} orders`}
+                    </p>
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {orders.map((order) => {
+                    {filteredOrders.map((order) => {
                       const nextStatuses = getNextStatusOptions(order.status);
                       return (
                         <div 
