@@ -17,7 +17,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Loader2, Upload, X, Trash2 } from 'lucide-react';
+import { Loader2, Upload, X, Trash2, Percent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -42,6 +42,8 @@ interface Product {
   image_url: string | null;
   stock: number;
   active: boolean;
+  discount_percentage?: number | null;
+  discount_ends_at?: string | null;
 }
 
 interface EditProductDialogProps {
@@ -82,6 +84,8 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
     price: '',
     category: 'general',
     stock: '',
+    discount_percentage: '',
+    discount_ends_at: '',
   });
 
   const fetchGalleryImages = async (productId: string) => {
@@ -107,6 +111,8 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
         price: product.price.toString(),
         category: product.category,
         stock: product.stock.toString(),
+        discount_percentage: product.discount_percentage?.toString() || '',
+        discount_ends_at: product.discount_ends_at ? product.discount_ends_at.slice(0, 16) : '',
       });
       setImagePreview(product.image_url);
       setImageFile(null);
@@ -242,6 +248,9 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
         imageUrl = null;
       }
 
+      const discountPercentage = formData.discount_percentage ? parseInt(formData.discount_percentage) : null;
+      const discountEndsAt = formData.discount_ends_at ? new Date(formData.discount_ends_at).toISOString() : null;
+
       const { error } = await supabase
         .from('products')
         .update({
@@ -251,6 +260,8 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
           category: formData.category,
           stock,
           image_url: imageUrl,
+          discount_percentage: discountPercentage,
+          discount_ends_at: discountEndsAt,
         })
         .eq('id', product.id);
 
@@ -464,6 +475,49 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+
+            {/* Discount Section */}
+            <div className="p-4 rounded-lg bg-destructive/5 border border-destructive/20 space-y-4">
+              <div className="flex items-center gap-2">
+                <Percent className="h-4 w-4 text-destructive" />
+                <Label className="font-semibold">Promotional Discount</Label>
+              </div>
+              
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-discount">Discount %</Label>
+                  <Input
+                    id="edit-discount"
+                    type="number"
+                    placeholder="0"
+                    value={formData.discount_percentage}
+                    onChange={(e) => setFormData({ ...formData, discount_percentage: e.target.value })}
+                    min="0"
+                    max="100"
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <Label htmlFor="edit-discount-end">Ends At</Label>
+                  <Input
+                    id="edit-discount-end"
+                    type="datetime-local"
+                    value={formData.discount_ends_at}
+                    onChange={(e) => setFormData({ ...formData, discount_ends_at: e.target.value })}
+                  />
+                </div>
+              </div>
+
+              {formData.discount_percentage && parseInt(formData.discount_percentage) > 0 && (
+                <div className="text-sm text-muted-foreground">
+                  <span className="font-medium text-foreground">Sale price: </span>
+                  UGX {Math.round(parseFloat(formData.price || '0') * (1 - parseInt(formData.discount_percentage) / 100)).toLocaleString()}
+                  {!formData.discount_ends_at && (
+                    <span className="text-warning"> (No end date - discount runs indefinitely)</span>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Gallery Images */}

@@ -58,11 +58,20 @@ Deno.serve(async (req) => {
       throw new Error('Insufficient stock');
     }
 
+    // Check if discount is active
+    let effectivePrice = product.price;
+    if (product.discount_percentage && product.discount_percentage > 0) {
+      const discountActive = !product.discount_ends_at || new Date(product.discount_ends_at) > new Date();
+      if (discountActive) {
+        effectivePrice = Math.round(product.price * (1 - product.discount_percentage / 100));
+      }
+    }
+
     // Calculate prices
-    const totalPrice = product.price * quantity;
+    const totalPrice = effectivePrice * quantity;
     const agentCommission = Math.round(totalPrice * 0.01); // 1% commission
 
-    console.log(`Total price: ${totalPrice}, Agent commission: ${agentCommission}`);
+    console.log(`Effective price: ${effectivePrice}, Total price: ${totalPrice}, Agent commission: ${agentCommission}`);
 
     // Get buyer's wallet
     const { data: buyerWallet, error: buyerWalletError } = await supabaseAdmin
@@ -135,7 +144,7 @@ Deno.serve(async (req) => {
         buyer_id: user.id,
         agent_id: product.agent_id,
         quantity,
-        unit_price: product.price,
+        unit_price: effectivePrice,
         total_price: totalPrice,
         agent_commission: agentCommission,
         status: 'completed'

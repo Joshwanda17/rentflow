@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
@@ -18,7 +18,20 @@ interface Product {
   image_url: string | null;
   stock: number;
   agent_id: string;
+  discount_percentage?: number | null;
+  discount_ends_at?: string | null;
 }
+
+const isDiscountActive = (product: Product): boolean => {
+  if (!product.discount_percentage || product.discount_percentage <= 0) return false;
+  if (!product.discount_ends_at) return true;
+  return new Date(product.discount_ends_at) > new Date();
+};
+
+const getDiscountedPrice = (product: Product): number => {
+  if (!isDiscountActive(product)) return product.price;
+  return Math.round(product.price * (1 - (product.discount_percentage || 0) / 100));
+};
 
 interface ProductCardProps {
   product: Product;
@@ -131,6 +144,9 @@ export function ProductCard({
     general: 'bg-gray-500/10 text-gray-500',
   };
 
+  const hasDiscount = isDiscountActive(product);
+  const discountedPrice = getDiscountedPrice(product);
+
   return (
     <>
       <Card 
@@ -152,6 +168,15 @@ export function ProductCard({
           {product.stock === 0 && (
             <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
               <Badge variant="destructive">Out of Stock</Badge>
+            </div>
+          )}
+          {/* Discount Badge */}
+          {hasDiscount && (
+            <div className="absolute top-2 left-2 z-10">
+              <Badge className="bg-destructive text-destructive-foreground gap-1">
+                <Percent className="h-3 w-3" />
+                {product.discount_percentage}% OFF
+              </Badge>
             </div>
           )}
           {/* Wishlist Button */}
@@ -213,9 +238,16 @@ export function ProductCard({
             </p>
           )}
           <div className="mt-3 flex items-center justify-between">
-            <span className="text-lg font-bold text-primary">
-              UGX {product.price.toLocaleString()}
-            </span>
+            <div className="flex items-center gap-2">
+              <span className="text-lg font-bold text-primary">
+                UGX {discountedPrice.toLocaleString()}
+              </span>
+              {hasDiscount && (
+                <span className="text-sm text-muted-foreground line-through">
+                  UGX {product.price.toLocaleString()}
+                </span>
+              )}
+            </div>
             <span className="text-xs text-muted-foreground">
               {product.stock} in stock
             </span>
