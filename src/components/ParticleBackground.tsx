@@ -1,5 +1,5 @@
 import { motion } from 'framer-motion';
-import { useMemo, useEffect, useState, memo } from 'react';
+import React, { useMemo, useEffect, useState, memo } from 'react';
 
 interface Particle {
   id: number;
@@ -11,9 +11,77 @@ interface Particle {
   opacity: number;
 }
 
-// Detect if device is low-powered (mobile, low memory, or prefers reduced motion)
-function useOptimizedParticleCount(): number {
-  const [count, setCount] = useState(15); // Start conservative
+interface ParticleItemProps {
+  particle: Particle;
+}
+
+interface GlowOrbProps {
+  index: number;
+}
+
+// Particle item component
+function ParticleItemComponent({ particle }: ParticleItemProps) {
+  return (
+    <motion.div
+      className="absolute rounded-full bg-primary will-change-transform"
+      style={{
+        left: `${particle.x}%`,
+        top: `${particle.y}%`,
+        width: particle.size,
+        height: particle.size,
+        opacity: particle.opacity,
+        transform: 'translateZ(0)',
+      }}
+      animate={{
+        y: [0, -80, 0],
+        opacity: [particle.opacity, particle.opacity * 1.3, particle.opacity],
+      }}
+      transition={{
+        duration: particle.duration,
+        delay: particle.delay,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      }}
+    />
+  );
+}
+
+const ParticleItem = memo(ParticleItemComponent);
+ParticleItem.displayName = 'ParticleItem';
+
+// Glow orb component
+function GlowOrbComponent({ index }: GlowOrbProps) {
+  return (
+    <motion.div
+      className="absolute rounded-full will-change-transform"
+      style={{
+        left: `${15 + index * 18}%`,
+        top: `${25 + (index % 2) * 30}%`,
+        width: 10 + index * 2,
+        height: 10 + index * 2,
+        background: `radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0) 70%)`,
+        transform: 'translateZ(0)',
+      }}
+      animate={{
+        y: [0, -40, 0],
+        scale: [1, 1.2, 1],
+      }}
+      transition={{
+        duration: 15 + index * 3,
+        delay: index * 1.2,
+        repeat: Infinity,
+        ease: 'easeInOut',
+      }}
+    />
+  );
+}
+
+const GlowOrb = memo(GlowOrbComponent);
+GlowOrb.displayName = 'GlowOrb';
+
+// Main particle background component
+function ParticleBackgroundComponent() {
+  const [particleCount, setParticleCount] = useState(15);
 
   useEffect(() => {
     const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -23,77 +91,17 @@ function useOptimizedParticleCount(): number {
       ((navigator as any).connection?.effectiveType === '2g' || (navigator as any).connection?.effectiveType === 'slow-2g');
 
     if (prefersReducedMotion) {
-      setCount(0); // Respect user preference
+      setParticleCount(0);
     } else if (isMobile || hasLowMemory || hasSlowConnection) {
-      setCount(12); // Minimal for low-end devices
+      setParticleCount(12);
     } else {
-      setCount(25); // Reduced from 50 for better performance at scale
+      setParticleCount(25);
     }
   }, []);
-
-  return count;
-}
-
-// Use CSS transforms instead of layout properties for GPU acceleration
-const ParticleItem = memo(({ particle }: { particle: Particle }) => (
-  <motion.div
-    className="absolute rounded-full bg-primary will-change-transform"
-    style={{
-      left: `${particle.x}%`,
-      top: `${particle.y}%`,
-      width: particle.size,
-      height: particle.size,
-      opacity: particle.opacity,
-      transform: 'translateZ(0)', // Force GPU layer
-    }}
-    animate={{
-      y: [0, -80, 0],
-      opacity: [particle.opacity, particle.opacity * 1.3, particle.opacity],
-    }}
-    transition={{
-      duration: particle.duration,
-      delay: particle.delay,
-      repeat: Infinity,
-      ease: 'easeInOut',
-    }}
-  />
-));
-
-ParticleItem.displayName = 'ParticleItem';
-
-const GlowOrb = memo(({ index }: { index: number }) => (
-  <motion.div
-    className="absolute rounded-full will-change-transform"
-    style={{
-      left: `${15 + index * 18}%`,
-      top: `${25 + (index % 2) * 30}%`,
-      width: 10 + index * 2,
-      height: 10 + index * 2,
-      background: `radial-gradient(circle, hsl(var(--primary) / 0.3) 0%, hsl(var(--primary) / 0) 70%)`,
-      transform: 'translateZ(0)',
-    }}
-    animate={{
-      y: [0, -40, 0],
-      scale: [1, 1.2, 1],
-    }}
-    transition={{
-      duration: 15 + index * 3,
-      delay: index * 1.2,
-      repeat: Infinity,
-      ease: 'easeInOut',
-    }}
-  />
-));
-
-GlowOrb.displayName = 'GlowOrb';
-
-export const ParticleBackground = memo(function ParticleBackground() {
-  const particleCount = useOptimizedParticleCount();
   
   const particles = useMemo<Particle[]>(() => {
     if (particleCount === 0) return [];
     
-    // Use seeded randomness for consistent server/client rendering
     return Array.from({ length: particleCount }, (_, i) => ({
       id: i,
       x: ((i * 37) % 100),
@@ -108,7 +116,6 @@ export const ParticleBackground = memo(function ParticleBackground() {
   const orbCount = useMemo(() => Math.min(4, Math.floor(particleCount / 4)), [particleCount]);
 
   if (particleCount === 0) {
-    // Static fallback for reduced motion preference
     return (
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary/3" />
@@ -122,10 +129,11 @@ export const ParticleBackground = memo(function ParticleBackground() {
         <ParticleItem key={particle.id} particle={particle} />
       ))}
       
-      {/* Reduced glowing orbs */}
       {Array.from({ length: orbCount }, (_, i) => (
         <GlowOrb key={`orb-${i}`} index={i} />
       ))}
     </div>
   );
-});
+}
+
+export const ParticleBackground = memo(ParticleBackgroundComponent);
