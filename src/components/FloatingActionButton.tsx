@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { motion, AnimatePresence, useMotionValue, useTransform, PanInfo } from 'framer-motion';
 import { Plus, X, LucideIcon, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -11,6 +11,12 @@ import {
   DrawerHeader,
   DrawerTitle,
 } from '@/components/ui/drawer';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 
 interface FABAction {
   icon: LucideIcon;
@@ -152,7 +158,40 @@ export function FloatingActionButton({
   className 
 }: FloatingActionButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const isLongPress = useRef(false);
   const isMobile = useIsMobile();
+
+  const LONG_PRESS_DURATION = 500; // ms
+
+  const startLongPress = useCallback(() => {
+    isLongPress.current = false;
+    longPressTimer.current = setTimeout(() => {
+      isLongPress.current = true;
+      hapticSelection();
+      setShowPreview(true);
+    }, LONG_PRESS_DURATION);
+  }, []);
+
+  const endLongPress = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (showPreview) {
+      setShowPreview(false);
+    }
+  }, [showPreview]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (longPressTimer.current) {
+        clearTimeout(longPressTimer.current);
+      }
+    };
+  }, []);
 
   const positionClasses = {
     'bottom-right': 'right-6 bottom-24 md:bottom-6',
@@ -232,20 +271,81 @@ export function FloatingActionButton({
   };
 
   const handleFabClick = () => {
+    // Don't open if this was a long press
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
     hapticImpact();
     setIsOpen(true);
   };
 
   const handleFabToggle = () => {
+    // Don't toggle if this was a long press
+    if (isLongPress.current) {
+      isLongPress.current = false;
+      return;
+    }
     hapticImpact();
     setIsOpen(!isOpen);
   };
+
+  // Preview tooltip component for long-press
+  const PreviewTooltip = () => (
+    <AnimatePresence>
+      {showPreview && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.8, y: 10 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.8, y: 10 }}
+          transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+          className="absolute bottom-full right-0 mb-3 pointer-events-none"
+        >
+          <div className="bg-background/95 backdrop-blur-md border border-border rounded-2xl shadow-2xl p-3 min-w-[200px]">
+            <p className="text-xs text-muted-foreground mb-2 text-center font-medium">
+              Quick Actions Preview
+            </p>
+            <div className="flex flex-wrap gap-2 justify-center">
+              {actions.map((action, index) => (
+                <motion.div
+                  key={index}
+                  initial={{ opacity: 0, scale: 0 }}
+                  animate={{ 
+                    opacity: 1, 
+                    scale: 1,
+                    transition: { delay: index * 0.05 }
+                  }}
+                  className="flex flex-col items-center gap-1"
+                >
+                  <div className={cn(
+                    "p-2.5 rounded-xl",
+                    action.variant === 'destructive'
+                      ? "bg-destructive/10 text-destructive"
+                      : "bg-primary/10 text-primary"
+                  )}>
+                    <action.icon className="h-4 w-4" />
+                  </div>
+                  <span className="text-[10px] text-muted-foreground max-w-[60px] text-center truncate">
+                    {action.label}
+                  </span>
+                </motion.div>
+              ))}
+            </div>
+            <p className="text-[10px] text-muted-foreground/70 mt-2 text-center">
+              Release to dismiss • Tap to open
+            </p>
+          </div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  );
 
   // Mobile: Use bottom sheet drawer with swipeable actions
   if (isMobile) {
     return (
       <>
         <div className={cn('fixed z-50', positionClasses[position], className)}>
+          <PreviewTooltip />
           <motion.div
             variants={mainButtonVariants}
             initial="initial"
@@ -261,6 +361,10 @@ export function FloatingActionButton({
                 isOpen && "bg-destructive hover:bg-destructive/90"
               )}
               onClick={handleFabClick}
+              onPointerDown={startLongPress}
+              onPointerUp={endLongPress}
+              onPointerLeave={endLongPress}
+              onPointerCancel={endLongPress}
             >
               <Plus className="h-6 w-6" />
             </Button>
@@ -294,6 +398,8 @@ export function FloatingActionButton({
   // Desktop: Use expanding menu
   return (
     <div className={cn('fixed z-50', positionClasses[position], className)}>
+      {/* Long-press preview tooltip */}
+      <PreviewTooltip />
       {/* Action buttons */}
       <AnimatePresence>
         {isOpen && (
@@ -349,6 +455,10 @@ export function FloatingActionButton({
             isOpen && "bg-destructive hover:bg-destructive/90"
           )}
           onClick={handleFabToggle}
+          onPointerDown={startLongPress}
+          onPointerUp={endLongPress}
+          onPointerLeave={endLongPress}
+          onPointerCancel={endLongPress}
         >
           <motion.div
             animate={{ rotate: isOpen ? 45 : 0 }}
