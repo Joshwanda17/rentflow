@@ -3,15 +3,30 @@ import { motion } from "framer-motion";
 
 interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
   className?: string;
+  shimmer?: boolean;
 }
 
-function Skeleton({ className }: SkeletonProps) {
+function Skeleton({ className, shimmer = true }: SkeletonProps) {
+  return (
+    <div className={cn("relative rounded-md bg-muted/60 overflow-hidden", className)}>
+      {shimmer && (
+        <motion.div
+          className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-foreground/5 to-transparent"
+          animate={{ translateX: ["100%", "-100%"] }}
+          transition={{ duration: 1.5, repeat: Infinity, ease: "linear", repeatDelay: 0.5 }}
+        />
+      )}
+    </div>
+  );
+}
+
+// Enhanced shimmer skeleton with pulse
+function SkeletonPulse({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0.5 }}
+      className={cn("rounded-md bg-muted/60", className)}
       animate={{ opacity: [0.5, 0.8, 0.5] }}
       transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-      className={cn("rounded-md bg-muted/60", className)}
     />
   );
 }
@@ -172,12 +187,126 @@ function SkeletonTable({ rows = 5, className }: { rows?: number; className?: str
   );
 }
 
+// Product card skeleton for marketplace
+function SkeletonProductCard({ className }: { className?: string }) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className={cn("rounded-xl border border-border/50 bg-card overflow-hidden", className)}
+    >
+      {/* Image placeholder */}
+      <Skeleton className="aspect-square w-full rounded-none" />
+      
+      {/* Content */}
+      <div className="p-4 space-y-3">
+        <div className="flex items-start justify-between gap-2">
+          <Skeleton className="h-5 w-3/4" />
+          <Skeleton className="h-5 w-16 rounded-full" />
+        </div>
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+        <div className="flex items-center justify-between pt-2">
+          <Skeleton className="h-6 w-24" />
+          <Skeleton className="h-4 w-16" />
+        </div>
+        <div className="flex gap-2 pt-2">
+          <Skeleton className="h-9 w-9 rounded-lg" />
+          <Skeleton className="h-9 flex-1 rounded-lg" />
+        </div>
+      </div>
+    </motion.div>
+  );
+}
+
+// Product grid skeleton
+function SkeletonProductGrid({ count = 8, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cn("grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4", className)}>
+      {[...Array(count)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: i * 0.05 }}
+        >
+          <SkeletonProductCard />
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// Transaction list skeleton
+function SkeletonTransactionList({ count = 5, className }: { count?: number; className?: string }) {
+  return (
+    <div className={cn("space-y-3", className)}>
+      {[...Array(count)].map((_, i) => (
+        <motion.div
+          key={i}
+          initial={{ opacity: 0, x: -10 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: i * 0.08 }}
+          className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border/50"
+        >
+          <Skeleton className="h-12 w-12 rounded-full" />
+          <div className="flex-1 space-y-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-1/3" />
+          </div>
+          <div className="text-right space-y-2">
+            <Skeleton className="h-5 w-20 ml-auto" />
+            <Skeleton className="h-3 w-16 ml-auto" />
+          </div>
+        </motion.div>
+      ))}
+    </div>
+  );
+}
+
+// Inline text skeleton for loading text content
+function SkeletonText({ lines = 3, className }: { lines?: number; className?: string }) {
+  return (
+    <div className={cn("space-y-2", className)}>
+      {[...Array(lines)].map((_, i) => (
+        <Skeleton 
+          key={i} 
+          className={cn("h-4", i === lines - 1 ? "w-2/3" : "w-full")} 
+        />
+      ))}
+    </div>
+  );
+}
+
+// Avatar skeleton
+function SkeletonAvatar({ size = "md", className }: { size?: "sm" | "md" | "lg"; className?: string }) {
+  const sizeClasses = {
+    sm: "h-8 w-8",
+    md: "h-10 w-10",
+    lg: "h-14 w-14"
+  };
+  
+  return <Skeleton className={cn("rounded-full", sizeClasses[size], className)} />;
+}
+
+// Button skeleton
+function SkeletonButton({ className }: { className?: string }) {
+  return <Skeleton className={cn("h-10 w-24 rounded-lg", className)} />;
+}
+
 export { 
-  Skeleton, 
+  Skeleton,
+  SkeletonPulse,
   SkeletonCard, 
   SkeletonMetricCard, 
   SkeletonListItem, 
   SkeletonWallet, 
   SkeletonChart,
-  SkeletonTable 
+  SkeletonTable,
+  SkeletonProductCard,
+  SkeletonProductGrid,
+  SkeletonTransactionList,
+  SkeletonText,
+  SkeletonAvatar,
+  SkeletonButton
 };
