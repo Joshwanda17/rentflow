@@ -9,6 +9,7 @@ import { ProductDetailDialog } from './ProductDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { FlashSaleCountdown } from './FlashSaleCountdown';
+import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 
 interface Product {
   id: string;
@@ -51,12 +52,18 @@ export function ProductCard({
 }: ProductCardProps) {
   const { user } = useAuth();
   const { addToCart } = useCart();
+  const { addToRecentlyViewed } = useRecentlyViewed();
   const [purchasing, setPurchasing] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
+
+  const handleOpenDetail = () => {
+    addToRecentlyViewed(product.id);
+    setShowDetail(true);
+  };
 
   useEffect(() => {
     fetchRating();
@@ -152,7 +159,7 @@ export function ProductCard({
     <>
       <Card 
         className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer group"
-        onClick={() => setShowDetail(true)}
+        onClick={handleOpenDetail}
       >
         <div className="aspect-square bg-muted relative overflow-hidden">
           {product.image_url ? (
