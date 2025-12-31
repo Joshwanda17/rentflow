@@ -390,7 +390,7 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
                 </Button>
               </div>
             ) : (
-              <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              <div id="products-section" className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                 {filteredAndSortedProducts.map((product) => (
                   <ProductCard 
                     key={product.id} 
