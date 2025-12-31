@@ -6,11 +6,13 @@ import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent, Scale 
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
+import { ProductQuickView } from './ProductQuickView';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { FlashSaleCountdown } from './FlashSaleCountdown';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { useProductComparison } from '@/hooks/useProductComparison';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface Product {
   id: string;
@@ -55,9 +57,11 @@ export function ProductCard({
   const { addToCart } = useCart();
   const { addToRecentlyViewed } = useRecentlyViewed();
   const { addToComparison, removeFromComparison, isInComparison } = useProductComparison();
+  const isMobile = useIsMobile();
   const [purchasing, setPurchasing] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
+  const [showQuickView, setShowQuickView] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
   const [wishlistLoading, setWishlistLoading] = useState(false);
@@ -79,7 +83,17 @@ export function ProductCard({
     }
   };
 
-  const handleOpenDetail = () => {
+  const handleCardClick = () => {
+    addToRecentlyViewed(product.id);
+    // Show quick view on mobile, full dialog on desktop
+    if (isMobile) {
+      setShowQuickView(true);
+    } else {
+      setShowDetail(true);
+    }
+  };
+
+  const handleOpenFullDetail = () => {
     addToRecentlyViewed(product.id);
     setShowDetail(true);
   };
@@ -178,7 +192,7 @@ export function ProductCard({
     <>
       <Card 
         className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer group"
-        onClick={handleOpenDetail}
+        onClick={handleCardClick}
       >
         <div className="aspect-square bg-muted relative overflow-hidden">
           {product.image_url ? (
@@ -339,6 +353,21 @@ export function ProductCard({
         </CardFooter>
       </Card>
 
+      {/* Quick View for Mobile */}
+      <ProductQuickView
+        product={product}
+        open={showQuickView}
+        onClose={() => setShowQuickView(false)}
+        onViewFull={handleOpenFullDetail}
+        onPurchaseComplete={() => {
+          onPurchaseComplete?.();
+          fetchRating();
+        }}
+        averageRating={averageRating}
+        reviewCount={reviewCount}
+      />
+
+      {/* Full Detail Dialog */}
       <ProductDetailDialog
         product={product}
         open={showDetail}
