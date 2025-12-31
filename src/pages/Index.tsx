@@ -242,94 +242,171 @@ export default function Index() {
         </div>
       </header>
 
-      {/* Hero Section - Mobile Optimized */}
-      <section className="relative overflow-hidden">
-        {/* Background */}
-        <div className="absolute inset-0 bg-gradient-to-b from-primary/5 via-primary/10 to-background" />
-        <div className="absolute top-0 left-0 right-0 h-64 bg-gradient-to-br from-primary/20 to-transparent" />
+      {/* Hero Section - Professional & Modern */}
+      <section className="relative overflow-hidden min-h-[90vh] flex items-center">
+        {/* Animated Background */}
+        <div className="absolute inset-0">
+          {/* Primary gradient */}
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-background to-accent/10" />
+          
+          {/* Animated gradient orbs */}
+          <motion.div 
+            className="absolute top-[-20%] right-[-10%] w-[600px] h-[600px] rounded-full bg-gradient-to-br from-primary/20 to-primary/5 blur-3xl"
+            animate={{ 
+              scale: [1, 1.1, 1],
+              opacity: [0.3, 0.5, 0.3],
+            }}
+            transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          />
+          <motion.div 
+            className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] rounded-full bg-gradient-to-tr from-success/15 to-success/5 blur-3xl"
+            animate={{ 
+              scale: [1, 1.2, 1],
+              opacity: [0.2, 0.4, 0.2],
+            }}
+            transition={{ duration: 10, repeat: Infinity, ease: "easeInOut", delay: 1 }}
+          />
+          <motion.div 
+            className="absolute top-[30%] left-[20%] w-[300px] h-[300px] rounded-full bg-gradient-to-r from-warning/10 to-warning/5 blur-3xl"
+            animate={{ 
+              x: [0, 50, 0],
+              y: [0, -30, 0],
+              opacity: [0.2, 0.35, 0.2],
+            }}
+            transition={{ duration: 12, repeat: Infinity, ease: "easeInOut", delay: 2 }}
+          />
+          
+          {/* Grid pattern overlay */}
+          <div 
+            className="absolute inset-0 opacity-[0.02]"
+            style={{
+              backgroundImage: `radial-gradient(circle at 1px 1px, currentColor 1px, transparent 0)`,
+              backgroundSize: '40px 40px'
+            }}
+          />
+          
+          {/* Bottom fade */}
+          <div className="absolute bottom-0 left-0 right-0 h-32 bg-gradient-to-t from-background to-transparent" />
+        </div>
         
-        <div className="container mx-auto px-4 pt-8 pb-16 md:pt-16 md:pb-24 relative">
+        <div className="container mx-auto px-4 py-12 md:py-20 relative z-10">
           <motion.div 
             initial="hidden"
             animate="visible"
             variants={stagger}
-            className="max-w-3xl mx-auto text-center"
+            className="max-w-4xl mx-auto text-center"
           >
             {/* Trust Badge */}
-            <motion.div variants={fadeInUp} className="mb-6">
-              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 text-sm font-medium text-success">
-                <Shield className="h-4 w-4" />
-                Trusted by 140,000+ Ugandans
-              </span>
+            <motion.div variants={fadeInUp} className="mb-8">
+              <motion.span 
+                className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-card border border-border shadow-soft text-sm font-medium"
+                whileHover={{ scale: 1.02 }}
+              >
+                <span className="flex items-center justify-center w-6 h-6 rounded-full bg-success/10">
+                  <Shield className="h-3.5 w-3.5 text-success" />
+                </span>
+                <span className="text-foreground">Trusted by <span className="font-bold text-primary">140,000+</span> Ugandans</span>
+              </motion.span>
             </motion.div>
 
             {/* Main Headline */}
             <motion.h1 
               variants={fadeInUp}
-              className="text-3xl sm:text-4xl md:text-5xl lg:text-6xl font-bold leading-tight mb-4 md:mb-6"
+              className="text-4xl sm:text-5xl md:text-6xl lg:text-7xl font-bold leading-[1.1] mb-6 tracking-tight"
             >
-              Rent Help When
-              <span className="block text-primary">You Need It Most</span>
+              <span className="inline-block">Rent Help When</span>
+              <br />
+              <span className="inline-block bg-gradient-to-r from-primary via-primary to-chart-3 bg-clip-text text-transparent">
+                You Need It Most
+              </span>
             </motion.h1>
 
             {/* Simple Description */}
             <motion.p 
               variants={fadeInUp}
-              className="text-base sm:text-lg md:text-xl text-muted-foreground mb-8 max-w-xl mx-auto px-4"
+              className="text-lg sm:text-xl md:text-2xl text-muted-foreground mb-10 max-w-2xl mx-auto leading-relaxed"
             >
               Can't pay rent this month? We pay your landlord today. 
-              You pay us back in small daily amounts.
+              <span className="hidden sm:inline"><br /></span>
+              <span className="text-foreground font-medium"> You pay us back in small daily amounts.</span>
             </motion.p>
 
             {/* CTA Buttons */}
             <motion.div 
               variants={fadeInUp}
-              className="flex flex-col sm:flex-row gap-3 justify-center px-4"
+              className="flex flex-col sm:flex-row gap-4 justify-center"
             >
               <Link to="/auth" className="w-full sm:w-auto">
-                <Button size="lg" className="w-full sm:w-auto h-14 px-8 text-lg gap-2 shadow-lg shadow-primary/25">
-                  Get Rent Help Now
-                  <ArrowRight className="h-5 w-5" />
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button size="xl" className="w-full sm:w-auto h-14 px-10 text-lg gap-3 shadow-lg shadow-primary/20 bg-primary hover:bg-primary/90">
+                    Get Rent Help Now
+                    <motion.div
+                      animate={{ x: [0, 4, 0] }}
+                      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+                    >
+                      <ArrowRight className="h-5 w-5" />
+                    </motion.div>
+                  </Button>
+                </motion.div>
               </Link>
               <a href="#how-it-works" className="w-full sm:w-auto">
-                <Button variant="outline" size="lg" className="w-full sm:w-auto h-14 px-8 text-lg gap-2">
-                  <Play className="h-5 w-5" />
-                  See How It Works
-                </Button>
+                <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
+                  <Button variant="outline" size="xl" className="w-full sm:w-auto h-14 px-10 text-lg gap-3 bg-card/50 backdrop-blur-sm border-border/80 hover:bg-card hover:border-primary/30">
+                    <Play className="h-5 w-5" />
+                    See How It Works
+                  </Button>
+                </motion.div>
               </a>
             </motion.div>
 
-            {/* Quick Stats - Mobile Friendly */}
+            {/* Quick Stats - Modern Cards */}
             <motion.div 
               variants={fadeInUp}
-              className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-12 pt-8 border-t border-border/50"
+              className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4 mt-16"
             >
               {[
-                { value: 'UGX 2B+', label: 'Rent Paid' },
-                { value: '140K+', label: 'Happy Users' },
-                { value: '24hrs', label: 'Fast Approval' },
-                { value: '15%', label: 'Investor Returns' },
+                { value: 'UGX 2B+', label: 'Rent Paid', icon: Banknote },
+                { value: '140K+', label: 'Happy Users', icon: Users },
+                { value: '24hrs', label: 'Fast Approval', icon: Clock },
+                { value: '15%', label: 'Investor Returns', icon: TrendingUp },
               ].map((stat, i) => (
-                <div key={i} className="text-center py-2">
-                  <p className="text-xl sm:text-2xl md:text-3xl font-bold text-primary">{stat.value}</p>
-                  <p className="text-xs sm:text-sm text-muted-foreground">{stat.label}</p>
-                </div>
+                <motion.div 
+                  key={i} 
+                  className="group relative p-4 md:p-6 rounded-2xl bg-card/60 backdrop-blur-sm border border-border/50 hover:border-primary/30 hover:shadow-card transition-all duration-300"
+                  whileHover={{ y: -2 }}
+                >
+                  <div className="flex flex-col items-center gap-2">
+                    <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center mb-1 group-hover:bg-primary/20 transition-colors">
+                      <stat.icon className="h-5 w-5 text-primary" />
+                    </div>
+                    <p className="text-2xl sm:text-3xl font-bold text-foreground">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  </div>
+                </motion.div>
               ))}
             </motion.div>
           </motion.div>
 
           {/* Scroll Indicator */}
           <motion.div 
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={{ delay: 1 }}
-            className="hidden md:flex justify-center mt-12"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 1.5 }}
+            className="hidden md:flex justify-center mt-16"
           >
-            <a href="#how-it-works" className="flex flex-col items-center gap-2 text-muted-foreground hover:text-primary transition-colors">
-              <span className="text-sm">Scroll to learn more</span>
-              <ChevronDown className="h-5 w-5 animate-bounce" />
-            </a>
+            <motion.a 
+              href="#how-it-works" 
+              className="flex flex-col items-center gap-3 text-muted-foreground hover:text-primary transition-colors group"
+              whileHover={{ y: 2 }}
+            >
+              <span className="text-sm font-medium">Scroll to learn more</span>
+              <motion.div
+                animate={{ y: [0, 6, 0] }}
+                transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+              >
+                <ChevronDown className="h-5 w-5" />
+              </motion.div>
+            </motion.a>
           </motion.div>
         </div>
       </section>
