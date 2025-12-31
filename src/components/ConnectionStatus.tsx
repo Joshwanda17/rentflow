@@ -1,10 +1,12 @@
 import { memo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Wifi, WifiOff, Zap } from 'lucide-react';
+import { WifiOff, Zap } from 'lucide-react';
 import { useOfflineStatus } from '@/hooks/useOfflineStatus';
+import { useLanguage } from '@/hooks/useLanguage';
 
 export const ConnectionStatus = memo(function ConnectionStatus() {
   const { isOnline, isSlowConnection, connectionType } = useOfflineStatus();
+  const { t } = useLanguage();
 
   return (
     <AnimatePresence>
@@ -17,7 +19,7 @@ export const ConnectionStatus = memo(function ConnectionStatus() {
         >
           <div className="container mx-auto flex items-center justify-center gap-2 text-sm font-medium">
             <WifiOff className="w-4 h-4" />
-            <span>You're offline. Some features may be limited.</span>
+            <span>{t.offline}</span>
           </div>
         </motion.div>
       )}
@@ -31,7 +33,7 @@ export const ConnectionStatus = memo(function ConnectionStatus() {
         >
           <div className="container mx-auto flex items-center justify-center gap-2 text-sm font-medium">
             <Zap className="w-4 h-4" />
-            <span>Slow connection detected ({connectionType}). Using data-saving mode.</span>
+            <span>{t.slowConnection} ({connectionType})</span>
           </div>
         </motion.div>
       )}
