@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import {
   Select,
@@ -12,13 +11,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X, Heart } from 'lucide-react';
+import { Store, Package, Loader2, ShoppingBag, SlidersHorizontal, Heart, Search, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { CartDrawer } from './CartDrawer';
 import { RecentlyViewedProducts } from './RecentlyViewedProducts';
 import { ProductRecommendations } from './ProductRecommendations';
 import { ComparisonDrawer } from './ComparisonDrawer';
+import { SearchSuggestions } from './SearchSuggestions';
+import { ProductDetailDialog } from './ProductDetailDialog';
 import { useAuth } from '@/hooks/useAuth';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 
@@ -54,6 +55,12 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
   const [showFilters, setShowFilters] = useState(false);
   const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+
+  const selectedProduct = useMemo(() => 
+    products.find(p => p.id === selectedProductId) || null,
+    [products, selectedProductId]
+  );
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -260,27 +267,14 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
         {/* Recently Viewed */}
         <RecentlyViewedProducts onProductPurchase={fetchProducts} />
         
-        {/* Search Bar */}
+        {/* Search Bar with Autocomplete */}
         <div className="flex gap-2">
-          <div className="relative flex-1">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search products..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => setSearchQuery('')}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-          </div>
+          <SearchSuggestions 
+            query={searchQuery}
+            onQueryChange={setSearchQuery}
+            onSelectProduct={setSelectedProductId}
+            className="flex-1"
+          />
           <Button
             variant={showFilters ? "secondary" : "outline"}
             size="icon"
@@ -415,6 +409,16 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
       
       {/* Comparison Drawer */}
       <ComparisonDrawer />
+
+      {/* Product Detail Dialog from Search */}
+      {selectedProduct && (
+        <ProductDetailDialog
+          product={selectedProduct}
+          open={!!selectedProductId}
+          onOpenChange={(open) => !open && setSelectedProductId(null)}
+          onPurchaseComplete={fetchProducts}
+        />
+      )}
     </Card>
   );
 }
