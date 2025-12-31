@@ -7,7 +7,8 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical, Calendar, Trophy, Award, Medal } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical, Calendar, Trophy, Award, Medal, History, ChartBar } from 'lucide-react';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -1035,6 +1036,32 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </TabsContent>
         </Tabs>
       </main>
+      
+      <FloatingActionButton
+        actions={[
+          {
+            icon: FileText,
+            label: 'Pending Requests',
+            onClick: () => document.querySelector('[value="requests"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+          },
+          {
+            icon: ShoppingCart,
+            label: 'Orders',
+            onClick: () => document.querySelector('[value="orders"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+          },
+          {
+            icon: Users,
+            label: 'View Users',
+            onClick: () => document.querySelector('[value="users"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+          },
+          {
+            icon: TrendingUp,
+            label: 'Financial Overview',
+            onClick: () => document.querySelector('[value="finances"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
+          },
+        ]}
+      />
+      
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
   );

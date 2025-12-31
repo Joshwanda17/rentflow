@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight } from 'lucide-react';
+import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History } from 'lucide-react';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -364,6 +365,22 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
           </CardContent>
         </Card>
       </main>
+      
+      <FloatingActionButton
+        actions={[
+          {
+            icon: Coins,
+            label: 'Available Requests',
+            onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+          },
+          {
+            icon: History,
+            label: 'My Fundings',
+            onClick: () => document.getElementById('funded-requests')?.scrollIntoView({ behavior: 'smooth' }),
+          },
+        ]}
+      />
+      
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
   );

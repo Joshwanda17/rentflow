@@ -5,7 +5,8 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet } from 'lucide-react';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
@@ -335,6 +336,27 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </CardContent>
         </Card>
       </main>
+      
+      <FloatingActionButton
+        actions={[
+          {
+            icon: Calculator,
+            label: 'Rent Calculator',
+            onClick: () => setShowCalculator(!showCalculator),
+          },
+          {
+            icon: FileText,
+            label: 'New Request',
+            onClick: () => setShowRequestForm(true),
+          },
+          {
+            icon: History,
+            label: 'Transaction History',
+            onClick: () => navigate('/transactions'),
+          },
+        ]}
+      />
+      
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
   );
