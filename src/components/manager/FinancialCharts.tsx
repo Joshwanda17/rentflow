@@ -7,7 +7,7 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
 } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval, parseISO } from 'date-fns';
-import { TrendingUp, BarChart3, PieChartIcon } from 'lucide-react';
+import { TrendingUp, BarChart3, PieChartIcon, ShoppingCart } from 'lucide-react';
 
 interface ChartData {
   date: string;
@@ -16,6 +16,9 @@ interface ChartData {
   transfers: number;
   rentRequests: number;
   earnings: number;
+  marketplaceRevenue: number;
+  orderCount: number;
+  agentCommissions: number;
 }
 
 interface FinancialChartsProps {
@@ -29,6 +32,9 @@ const CHART_COLORS = {
   transfers: 'hsl(var(--primary))',
   rentRequests: 'hsl(var(--warning))',
   earnings: 'hsl(var(--chart-5))',
+  marketplaceRevenue: 'hsl(160, 84%, 39%)',
+  orderCount: 'hsl(262, 83%, 58%)',
+  agentCommissions: 'hsl(25, 95%, 53%)',
 };
 
 const PIE_COLORS = [
@@ -37,6 +43,7 @@ const PIE_COLORS = [
   'hsl(var(--warning))',
   'hsl(var(--destructive))',
   'hsl(var(--chart-5))',
+  'hsl(160, 84%, 39%)',
 ];
 
 export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
@@ -61,8 +68,8 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
       end: startOfDay(effectiveEndDate)
     });
 
-    // Fetch all data
-    const [depositsRes, withdrawalsRes, transfersRes, requestsRes, earningsRes, rolesRes] = await Promise.all([
+    // Fetch all data including marketplace orders
+    const [depositsRes, withdrawalsRes, transfersRes, requestsRes, earningsRes, rolesRes, ordersRes] = await Promise.all([
       supabase
         .from('wallet_deposits')
         .select('amount, created_at')
@@ -88,7 +95,12 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
         .select('amount, created_at')
         .gte('created_at', effectiveStartDate.toISOString())
         .lte('created_at', effectiveEndDate.toISOString()),
-      supabase.from('user_roles').select('role')
+      supabase.from('user_roles').select('role'),
+      supabase
+        .from('product_orders')
+        .select('total_price, agent_commission, created_at')
+        .gte('created_at', effectiveStartDate.toISOString())
+        .lte('created_at', effectiveEndDate.toISOString())
     ]);
 
     const deposits = depositsRes.data || [];
@@ -97,6 +109,7 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
     const requests = requestsRes.data || [];
     const earnings = earningsRes.data || [];
     const roles = rolesRes.data || [];
+    const orders = ordersRes.data || [];
 
     // Aggregate by date
     const dataByDate = dateRange.map(date => {
@@ -123,13 +136,21 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
         .filter(e => format(parseISO(e.created_at), 'yyyy-MM-dd') === dateStr)
         .reduce((sum, e) => sum + Number(e.amount), 0);
 
+      const dayOrders = orders.filter(o => format(parseISO(o.created_at), 'yyyy-MM-dd') === dateStr);
+      const dayMarketplaceRevenue = dayOrders.reduce((sum, o) => sum + Number(o.total_price), 0);
+      const dayOrderCount = dayOrders.length;
+      const dayAgentCommissions = dayOrders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
+
       return {
         date: displayDate,
         deposits: dayDeposits,
         withdrawals: dayWithdrawals,
         transfers: dayTransfers,
         rentRequests: dayRequests,
-        earnings: dayEarnings
+        earnings: dayEarnings,
+        marketplaceRevenue: dayMarketplaceRevenue,
+        orderCount: dayOrderCount,
+        agentCommissions: dayAgentCommissions
       };
     });
 
@@ -142,12 +163,15 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
     const totalRent = requests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
     const totalEarnings = earnings.reduce((sum, e) => sum + Number(e.amount), 0);
 
+    const totalMarketplaceRevenue = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
+
     setDistributionData([
       { name: 'Deposits', value: totalDeposits },
       { name: 'Withdrawals', value: totalWithdrawals },
       { name: 'Transfers', value: totalTransfers },
       { name: 'Rent Requests', value: totalRent },
-      { name: 'Agent Earnings', value: totalEarnings }
+      { name: 'Agent Earnings', value: totalEarnings },
+      { name: 'Marketplace Sales', value: totalMarketplaceRevenue }
     ].filter(d => d.value > 0));
 
     // User distribution
@@ -226,6 +250,10 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
             <TabsTrigger value="trends" className="flex-1 gap-2">
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">Trends</span>
+            </TabsTrigger>
+            <TabsTrigger value="marketplace" className="flex-1 gap-2">
+              <ShoppingCart className="h-4 w-4" />
+              <span className="hidden sm:inline">Marketplace</span>
             </TabsTrigger>
             <TabsTrigger value="comparison" className="flex-1 gap-2">
               <BarChart3 className="h-4 w-4" />
@@ -343,6 +371,116 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
                       strokeWidth={2}
                     />
                   </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="marketplace" className="space-y-6">
+            {/* Marketplace Revenue Area Chart */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-success" />
+                Marketplace Revenue Over Time
+              </h4>
+              <div className="h-[300px] rounded-lg bg-muted/20 p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <AreaChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <defs>
+                      <linearGradient id="colorMarketplace" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.marketplaceRevenue} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_COLORS.marketplaceRevenue} stopOpacity={0} />
+                      </linearGradient>
+                      <linearGradient id="colorCommissions" x1="0" y1="0" x2="0" y2="1">
+                        <stop offset="5%" stopColor={CHART_COLORS.agentCommissions} stopOpacity={0.3} />
+                        <stop offset="95%" stopColor={CHART_COLORS.agentCommissions} stopOpacity={0} />
+                      </linearGradient>
+                    </defs>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }} 
+                      tickFormatter={formatCurrency}
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                    />
+                    <Tooltip content={<CustomTooltip />} />
+                    <Legend />
+                    <Area 
+                      type="monotone" 
+                      dataKey="marketplaceRevenue" 
+                      name="Sales Revenue"
+                      stroke={CHART_COLORS.marketplaceRevenue} 
+                      fill="url(#colorMarketplace)"
+                      strokeWidth={2}
+                    />
+                    <Area 
+                      type="monotone" 
+                      dataKey="agentCommissions" 
+                      name="Agent Commissions"
+                      stroke={CHART_COLORS.agentCommissions} 
+                      fill="url(#colorCommissions)"
+                      strokeWidth={2}
+                    />
+                  </AreaChart>
+                </ResponsiveContainer>
+              </div>
+            </div>
+
+            {/* Order Volume Bar Chart */}
+            <div className="space-y-3">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                <div className="w-1 h-4 rounded-full bg-primary" />
+                Daily Order Volume
+              </h4>
+              <div className="h-[250px] rounded-lg bg-muted/20 p-4">
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={chartData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                    <CartesianGrid strokeDasharray="3 3" className="stroke-muted/30" />
+                    <XAxis 
+                      dataKey="date" 
+                      tick={{ fontSize: 11 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                    />
+                    <YAxis 
+                      tick={{ fontSize: 11 }} 
+                      tickLine={false}
+                      axisLine={false}
+                      className="text-muted-foreground"
+                      allowDecimals={false}
+                    />
+                    <Tooltip 
+                      content={({ active, payload, label }) => {
+                        if (active && payload && payload.length) {
+                          return (
+                            <div className="bg-popover/95 backdrop-blur-sm border border-border rounded-xl p-4 shadow-elevated">
+                              <p className="font-semibold text-sm mb-2">{label}</p>
+                              <p className="text-sm">
+                                <span className="text-muted-foreground">Orders: </span>
+                                <span className="font-mono font-semibold">{payload[0].value}</span>
+                              </p>
+                            </div>
+                          );
+                        }
+                        return null;
+                      }}
+                    />
+                    <Bar 
+                      dataKey="orderCount" 
+                      name="Orders" 
+                      fill={CHART_COLORS.orderCount} 
+                      radius={[4, 4, 0, 0]} 
+                    />
+                  </BarChart>
                 </ResponsiveContainer>
               </div>
             </div>
