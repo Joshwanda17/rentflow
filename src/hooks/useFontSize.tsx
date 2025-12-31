@@ -32,7 +32,7 @@ export function FontSizeProvider({ children }: { children: ReactNode }) {
         return saved as FontSize;
       }
     }
-    return 'medium'; // Default to medium (16px - Gmail size)
+    return 'large'; // Default to large (18px) for better readability
   });
 
   const setFontSize = (size: FontSize) => {
@@ -69,7 +69,7 @@ export function useFontSize() {
 
 export const fontSizeOptions: { value: FontSize; label: string; description: string }[] = [
   { value: 'small', label: 'Small', description: '14px' },
-  { value: 'medium', label: 'Medium', description: '16px (Default)' },
-  { value: 'large', label: 'Large', description: '18px' },
+  { value: 'medium', label: 'Medium', description: '16px' },
+  { value: 'large', label: 'Large', description: '18px (Default)' },
   { value: 'extra-large', label: 'Extra Large', description: '20px' },
 ];

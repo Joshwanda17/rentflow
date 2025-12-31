@@ -116,7 +116,7 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
 });
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
+  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <QueryClientProvider client={queryClient}>
       <FontSizeProvider>
         <LanguageProvider>
