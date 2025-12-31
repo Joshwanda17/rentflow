@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -23,6 +23,8 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { AgentProductsSection } from '@/components/marketplace/AgentProductsSection';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface AgentDashboardProps {
   user: User;
@@ -185,176 +187,196 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet */}
         <WalletCard />
 
-        {/* Referral Link */}
-        <Card className="elevated-card border-primary/20 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
-          <CardHeader className="relative">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Link2 className="h-5 w-5 text-primary" />
-              </div>
-              <div>
-                <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
-                <p className="text-sm text-muted-foreground mt-0.5">
-                  Earn UGX 5,000 per approval + 5% of repayments
-                </p>
-              </div>
-            </div>
-          </CardHeader>
-          <CardContent className="relative">
-            <div className="flex gap-2">
-              <code className="flex-1 p-3 bg-secondary/50 rounded-xl text-sm truncate font-mono border border-border/50">
-                {referralLink}
-              </code>
-              <Button 
-                onClick={copyReferralLink} 
-                variant={copied ? "success" : "outline"}
-                size="lg"
-                className="shrink-0 gap-2"
-              >
-                {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                {copied ? 'Copied!' : 'Copy'}
-              </Button>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Tabs for Dashboard and Marketplace */}
+        <Tabs defaultValue="dashboard" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="dashboard" className="gap-2">
+              <Users className="h-4 w-4" />
+              Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="marketplace" className="gap-2">
+              <Store className="h-4 w-4" />
+              My Shop
+            </TabsTrigger>
+          </TabsList>
 
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
-                  <Users className="h-5 w-5 text-primary" />
+          <TabsContent value="dashboard" className="space-y-6">
+            {/* Referral Link */}
+            <Card className="elevated-card border-primary/20 overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
+              <CardHeader className="relative">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Link2 className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
+                    <p className="text-sm text-muted-foreground mt-0.5">
+                      Earn UGX 5,000 per approval + 5% of repayments
+                    </p>
+                  </div>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Tenants Registered</p>
-                  <p className="metric-value text-2xl">{rentRequests.length}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
-                  <Check className="h-5 w-5 text-success" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Approved Requests</p>
-                  <p className="metric-value text-2xl">{approvedCount}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
-            <CardContent className="pt-6 relative">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
-                  <Coins className="h-5 w-5 text-warning" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Total Earnings</p>
-                  <p className="metric-value text-2xl text-success truncate">
-                    {formatUGX(totalEarnings)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Earnings Breakdown */}
-        <Card className="elevated-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <Zap className="h-4 w-4 text-success" />
-              </div>
-              <CardTitle className="text-lg font-semibold">Earnings Breakdown</CardTitle>
-            </div>
-            <Button 
-              variant="outline" 
-              size="sm" 
-              onClick={() => navigate('/earnings')}
-              className="gap-2"
-            >
-              <TrendingUp className="h-4 w-4" />
-              View All
-            </Button>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-2 gap-4">
-              <div className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-primary" />
-                  <p className="text-sm text-muted-foreground font-medium">Approval Bonuses</p>
-                </div>
-                <p className="metric-value text-xl">{formatUGX(bonusTotal)}</p>
-                <p className="text-xs text-muted-foreground mt-1">{approvedCount} × UGX 5,000</p>
-              </div>
-              <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="w-2 h-2 rounded-full bg-success" />
-                  <p className="text-sm text-muted-foreground font-medium">Repayment Commissions</p>
-                </div>
-                <p className="metric-value text-xl text-success">{formatUGX(commissionTotal)}</p>
-                <p className="text-xs text-muted-foreground mt-1">5% of tenant repayments</p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Registered Tenants */}
-        <Card className="elevated-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Users className="h-4 w-4 text-primary" />
-              </div>
-              <CardTitle className="text-lg font-semibold">Registered Tenants</CardTitle>
-            </div>
-            <Badge variant="outline" className="font-mono">
-              {rentRequests.length} total
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : rentRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">No tenants registered yet.</p>
-                <p className="text-sm text-muted-foreground/70">Share your referral link to get started.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {rentRequests.map((request, index) => (
-                  <div 
-                    key={request.id} 
-                    className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
-                    style={{ animationDelay: `${index * 50}ms` }}
+              </CardHeader>
+              <CardContent className="relative">
+                <div className="flex gap-2">
+                  <code className="flex-1 p-3 bg-secondary/50 rounded-xl text-sm truncate font-mono border border-border/50">
+                    {referralLink}
+                  </code>
+                  <Button 
+                    onClick={copyReferralLink} 
+                    variant={copied ? "success" : "outline"}
+                    size="lg"
+                    className="shrink-0 gap-2"
                   >
-                    <div className="space-y-1">
-                      <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {new Date(request.created_at).toLocaleDateString()}
+                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
+                    {copied ? 'Copied!' : 'Copy'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Stats */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
+                      <Users className="h-5 w-5 text-primary" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground font-medium">Tenants Registered</p>
+                      <p className="metric-value text-2xl">{rentRequests.length}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
+                <CardContent className="pt-6">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
+                      <Check className="h-5 w-5 text-success" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground font-medium">Approved Requests</p>
+                      <p className="metric-value text-2xl">{approvedCount}</p>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
+                <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
+                <CardContent className="pt-6 relative">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
+                      <Coins className="h-5 w-5 text-warning" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-muted-foreground font-medium">Total Earnings</p>
+                      <p className="metric-value text-2xl text-success truncate">
+                        {formatUGX(totalEarnings)}
                       </p>
                     </div>
-                    <Badge variant={getStatusColor(request.status)}>
-                      {request.status}
-                    </Badge>
                   </div>
-                ))}
-              </div>
-            )}
-          </CardContent>
-        </Card>
+                </CardContent>
+              </Card>
+            </div>
+
+            {/* Earnings Breakdown */}
+            <Card className="elevated-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-success/10">
+                    <Zap className="h-4 w-4 text-success" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold">Earnings Breakdown</CardTitle>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => navigate('/earnings')}
+                  className="gap-2"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  View All
+                </Button>
+              </CardHeader>
+              <CardContent>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-primary" />
+                      <p className="text-sm text-muted-foreground font-medium">Approval Bonuses</p>
+                    </div>
+                    <p className="metric-value text-xl">{formatUGX(bonusTotal)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{approvedCount} × UGX 5,000</p>
+                  </div>
+                  <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
+                    <div className="flex items-center gap-2 mb-2">
+                      <div className="w-2 h-2 rounded-full bg-success" />
+                      <p className="text-sm text-muted-foreground font-medium">Repayment Commissions</p>
+                    </div>
+                    <p className="metric-value text-xl text-success">{formatUGX(commissionTotal)}</p>
+                    <p className="text-xs text-muted-foreground mt-1">5% of tenant repayments</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Registered Tenants */}
+            <Card className="elevated-card">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/10">
+                    <Users className="h-4 w-4 text-primary" />
+                  </div>
+                  <CardTitle className="text-lg font-semibold">Registered Tenants</CardTitle>
+                </div>
+                <Badge variant="outline" className="font-mono">
+                  {rentRequests.length} total
+                </Badge>
+              </CardHeader>
+              <CardContent>
+                {loading ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                  </div>
+                ) : rentRequests.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
+                    <p className="text-muted-foreground">No tenants registered yet.</p>
+                    <p className="text-sm text-muted-foreground/70">Share your referral link to get started.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {rentRequests.map((request, index) => (
+                      <div 
+                        key={request.id} 
+                        className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
+                        style={{ animationDelay: `${index * 50}ms` }}
+                      >
+                        <div className="space-y-1">
+                          <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {new Date(request.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <Badge variant={getStatusColor(request.status)}>
+                          {request.status}
+                        </Badge>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          <TabsContent value="marketplace">
+            <AgentProductsSection />
+          </TabsContent>
+        </Tabs>
       </main>
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
       
