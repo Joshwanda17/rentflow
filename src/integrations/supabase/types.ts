@@ -329,10 +329,12 @@ export type Database = {
           agent_id: string
           buyer_id: string
           created_at: string
+          delivery_notes: string | null
           id: string
           product_id: string
           quantity: number
           status: string
+          status_updated_at: string | null
           total_price: number
           unit_price: number
         }
@@ -341,10 +343,12 @@ export type Database = {
           agent_id: string
           buyer_id: string
           created_at?: string
+          delivery_notes?: string | null
           id?: string
           product_id: string
           quantity?: number
           status?: string
+          status_updated_at?: string | null
           total_price: number
           unit_price: number
         }
@@ -353,10 +357,12 @@ export type Database = {
           agent_id?: string
           buyer_id?: string
           created_at?: string
+          delivery_notes?: string | null
           id?: string
           product_id?: string
           quantity?: number
           status?: string
+          status_updated_at?: string | null
           total_price?: number
           unit_price?: number
         }
