@@ -10,6 +10,7 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { CartProvider } from "@/hooks/useCart";
 import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { FontSizeProvider } from "@/hooks/useFontSize";
+import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { lazy, Suspense, memo } from "react";
 // Lazy load routes for better initial load performance at scale
@@ -119,22 +120,24 @@ const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
     <QueryClientProvider client={queryClient}>
       <FontSizeProvider>
-        <LanguageProvider>
-          <AuthProvider>
-            <CartProvider>
-              <ComparisonProvider>
-                <TooltipProvider delayDuration={300}>
-                  <ConnectionStatus />
-                  <Toaster />
-                  <Sonner />
-                  <BrowserRouter>
-                    <AnimatedRoutes />
-                  </BrowserRouter>
-                </TooltipProvider>
-              </ComparisonProvider>
-            </CartProvider>
-          </AuthProvider>
-        </LanguageProvider>
+        <HapticSettingsProvider>
+          <LanguageProvider>
+            <AuthProvider>
+              <CartProvider>
+                <ComparisonProvider>
+                  <TooltipProvider delayDuration={300}>
+                    <ConnectionStatus />
+                    <Toaster />
+                    <Sonner />
+                    <BrowserRouter>
+                      <AnimatedRoutes />
+                    </BrowserRouter>
+                  </TooltipProvider>
+                </ComparisonProvider>
+              </CartProvider>
+            </AuthProvider>
+          </LanguageProvider>
+        </HapticSettingsProvider>
       </FontSizeProvider>
     </QueryClientProvider>
   </ThemeProvider>

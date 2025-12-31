@@ -1,11 +1,14 @@
 /**
  * Haptic feedback utilities for mobile devices
  * Uses the Vibration API when available
+ * Respects user's haptic intensity preferences
  */
+
+import { getStoredHapticIntensity, getIntensityMultiplier } from '@/hooks/useHapticSettings';
 
 type HapticPattern = 'light' | 'medium' | 'heavy' | 'success' | 'warning' | 'error' | 'selection';
 
-const patterns: Record<HapticPattern, number | number[]> = {
+const basePatterns: Record<HapticPattern, number | number[]> = {
   light: 10,
   medium: 25,
   heavy: 50,
@@ -16,6 +19,19 @@ const patterns: Record<HapticPattern, number | number[]> = {
 };
 
 /**
+ * Apply intensity multiplier to a pattern
+ */
+function applyIntensity(pattern: number | number[], multiplier: number): number | number[] {
+  if (multiplier === 0) return 0;
+  
+  if (typeof pattern === 'number') {
+    return Math.round(pattern * multiplier);
+  }
+  
+  return pattern.map(v => Math.round(v * multiplier));
+}
+
+/**
  * Check if haptic feedback is supported
  */
 export function isHapticSupported(): boolean {
@@ -23,14 +39,28 @@ export function isHapticSupported(): boolean {
 }
 
 /**
- * Trigger haptic feedback
+ * Check if haptic feedback is enabled
+ */
+export function isHapticEnabled(): boolean {
+  const intensity = getStoredHapticIntensity();
+  return intensity !== 'off';
+}
+
+/**
+ * Trigger haptic feedback with intensity adjustment
  * @param pattern - The type of haptic feedback to trigger
  */
 export function haptic(pattern: HapticPattern = 'light'): void {
   if (!isHapticSupported()) return;
   
+  const intensity = getStoredHapticIntensity();
+  if (intensity === 'off') return;
+  
+  const multiplier = getIntensityMultiplier(intensity);
+  const adjustedPattern = applyIntensity(basePatterns[pattern], multiplier);
+  
   try {
-    navigator.vibrate(patterns[pattern]);
+    navigator.vibrate(adjustedPattern);
   } catch {
     // Silently fail if vibration is not allowed
   }
@@ -62,6 +92,20 @@ export function hapticHeavy(): void {
  */
 export function hapticSuccess(): void {
   haptic('success');
+}
+
+/**
+ * Trigger a warning feedback pattern
+ */
+export function hapticWarning(): void {
+  haptic('warning');
+}
+
+/**
+ * Trigger an error feedback pattern
+ */
+export function hapticError(): void {
+  haptic('error');
 }
 
 /**
