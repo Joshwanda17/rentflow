@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -68,12 +68,31 @@ interface PlatformTransaction {
   created_at: string;
 }
 
+interface ProductOrder {
+  id: string;
+  product_id: string;
+  buyer_id: string;
+  agent_id: string;
+  quantity: number;
+  unit_price: number;
+  total_price: number;
+  agent_commission: number;
+  status: string;
+  delivery_notes: string | null;
+  created_at: string;
+  status_updated_at: string | null;
+  product?: { name: string; image_url: string | null };
+  buyer?: { full_name: string };
+  agent?: { full_name: string };
+}
+
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [transactions, setTransactions] = useState<PlatformTransaction[]>([]);
+  const [orders, setOrders] = useState<ProductOrder[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -84,7 +103,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const fetchData = async () => {
     setLoading(true);
     
-    const [requestsResult, usersResult, transactionsResult] = await Promise.all([
+    const [requestsResult, usersResult, transactionsResult, ordersResult] = await Promise.all([
       supabase
         .from('rent_requests')
         .select(`
@@ -100,11 +119,17 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       supabase
         .from('platform_transactions')
         .select('*')
+        .order('created_at', { ascending: false }),
+      supabase
+        .from('product_orders')
+        .select('*')
         .order('created_at', { ascending: false })
+        .limit(100)
     ]);
     
     const requestsData = requestsResult.data;
     const usersData = usersResult.data;
+    const ordersData = ordersResult.data || [];
     
     // Fetch roles separately
     const userIds = usersData?.map(u => u.id) || [];
@@ -112,6 +137,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       .from('user_roles')
       .select('user_id, role')
       .in('user_id', userIds);
+    
+    // Fetch product names for orders
+    const productIds = [...new Set(ordersData.map(o => o.product_id))];
+    const { data: productsData } = productIds.length > 0 ? await supabase
+      .from('products')
+      .select('id, name, image_url')
+      .in('id', productIds) : { data: [] };
+    
+    // Fetch buyer and agent profiles for orders
+    const orderUserIds = [...new Set([...ordersData.map(o => o.buyer_id), ...ordersData.map(o => o.agent_id)])];
+    const { data: orderProfilesData } = orderUserIds.length > 0 ? await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', orderUserIds) : { data: [] };
+    
+    const ordersWithDetails = ordersData.map(o => ({
+      ...o,
+      product: productsData?.find(p => p.id === o.product_id),
+      buyer: orderProfilesData?.find(p => p.id === o.buyer_id),
+      agent: orderProfilesData?.find(p => p.id === o.agent_id)
+    }));
     
     const usersWithRoles = usersData?.map(u => ({
       ...u,
@@ -121,6 +167,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setRequests(requestsData || []);
     setUsers(usersWithRoles);
     setTransactions(transactionsResult.data || []);
+    setOrders(ordersWithDetails);
     setLoading(false);
   };
 
@@ -222,6 +269,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const totalPlatformRevenue = requests
     .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
     .reduce((sum, r) => sum + Number(r.access_fee) + Number(r.request_fee), 0);
+  
+  // Marketplace metrics
+  const totalMarketplaceSales = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
+  const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
+  const pendingOrders = orders.filter(o => ['pending', 'processing'].includes(o.status));
+  const completedOrders = orders.filter(o => o.status === 'delivered' || o.status === 'completed');
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -231,6 +284,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       case 'disbursed': return 'bg-success/20 text-success';
       case 'completed': return 'bg-muted text-muted-foreground';
       case 'rejected': return 'bg-destructive/20 text-destructive';
+      case 'processing': return 'bg-primary/20 text-primary';
+      case 'shipped': return 'bg-chart-5/20 text-chart-5';
+      case 'delivered': return 'bg-success/20 text-success';
+      case 'cancelled': return 'bg-destructive/20 text-destructive';
       default: return 'bg-muted text-muted-foreground';
     }
   };
@@ -290,7 +347,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         <WalletCard />
 
         {/* Stats */}
-        <div className="grid grid-cols-2 gap-3 md:gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">
           <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-warning/10">
@@ -299,18 +356,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Pending</p>
                 <p className="text-2xl font-semibold font-mono tabular-nums">{pendingRequests.length}</p>
-              </div>
-            </div>
-          </div>
-
-          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-primary/10">
-                <CheckCircle className="h-5 w-5 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Approved</p>
-                <p className="text-2xl font-semibold font-mono tabular-nums">{approvedRequests.length}</p>
               </div>
             </div>
           </div>
@@ -330,11 +375,47 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
             <div className="flex items-center gap-3">
               <div className="p-2.5 rounded-xl bg-chart-5/10">
-                <Users className="h-5 w-5 text-chart-5" />
+                <TrendingUp className="h-5 w-5 text-chart-5" />
               </div>
               <div className="min-w-0">
                 <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Revenue</p>
                 <p className="text-xl font-semibold font-mono tabular-nums truncate">{formatUGX(totalPlatformRevenue)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Marketplace Sales</p>
+                <p className="text-xl font-semibold font-mono tabular-nums truncate">{formatUGX(totalMarketplaceSales)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-warning/10">
+                <Package className="h-5 w-5 text-warning" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Orders</p>
+                <p className="text-2xl font-semibold font-mono tabular-nums">{orders.length}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border bg-card p-4 shadow-soft transition-all duration-200 hover:shadow-elevated hover:-translate-y-0.5">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-success/10">
+                <Users className="h-5 w-5 text-success" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs font-medium uppercase tracking-wider text-muted-foreground">Agent Commissions</p>
+                <p className="text-xl font-semibold font-mono tabular-nums truncate">{formatUGX(totalMarketplaceCommissions)}</p>
               </div>
             </div>
           </div>
@@ -350,6 +431,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <TabsTrigger value="funded" className="text-xs md:text-sm gap-1.5">
                 <Banknote className="h-3.5 w-3.5" />
                 Funded ({fundedRequests.length})
+              </TabsTrigger>
+              <TabsTrigger value="marketplace" className="text-xs md:text-sm gap-1.5">
+                <ShoppingCart className="h-3.5 w-3.5" />
+                Marketplace ({orders.length})
               </TabsTrigger>
               <TabsTrigger value="financials" className="text-xs md:text-sm gap-1.5">
                 <TrendingUp className="h-3.5 w-3.5" />
@@ -499,6 +584,72 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="marketplace">
+            <Card className="glass-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <ShoppingCart className="h-5 w-5" />
+                  Marketplace Orders
+                </CardTitle>
+                <div className="flex flex-wrap gap-4 text-sm mt-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Total Sales:</span>
+                    <span className="font-mono font-semibold text-success">{formatUGX(totalMarketplaceSales)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Agent Commissions:</span>
+                    <span className="font-mono font-semibold text-warning">{formatUGX(totalMarketplaceCommissions)}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-muted-foreground">Pending Orders:</span>
+                    <span className="font-mono font-semibold">{pendingOrders.length}</span>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent>
+                {orders.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Package className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No marketplace orders yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {orders.map((order) => (
+                      <div 
+                        key={order.id} 
+                        className="flex items-center gap-4 p-4 rounded-lg bg-secondary/50"
+                      >
+                        <div className="w-12 h-12 rounded-lg bg-muted flex items-center justify-center overflow-hidden">
+                          {order.product?.image_url ? (
+                            <img src={order.product.image_url} alt={order.product?.name} className="w-full h-full object-cover" />
+                          ) : (
+                            <Package className="h-6 w-6 text-muted-foreground" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{order.product?.name || 'Unknown Product'}</p>
+                          <p className="text-sm text-muted-foreground">
+                            Qty: {order.quantity} • {order.buyer?.full_name || 'Unknown Buyer'}
+                          </p>
+                          <p className="text-xs text-muted-foreground">
+                            Agent: {order.agent?.full_name || 'Unknown'} • {new Date(order.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold">{formatUGX(Number(order.total_price))}</p>
+                          <p className="text-xs text-success">+{formatUGX(Number(order.agent_commission))} comm.</p>
+                          <Badge className={getStatusColor(order.status)}>
+                            {order.status}
+                          </Badge>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="financials">

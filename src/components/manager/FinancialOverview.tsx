@@ -32,6 +32,11 @@ interface FinancialMetrics {
   agentCount: number;
   tenantCount: number;
   supporterCount: number;
+  // Marketplace metrics
+  totalMarketplaceSales: number;
+  totalMarketplaceCommissions: number;
+  marketplaceOrderCount: number;
+  marketplaceProductCount: number;
 }
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year' | 'custom';
@@ -106,6 +111,8 @@ export function FinancialOverview() {
     let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
     let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
     let platformTxQuery = supabase.from('platform_transactions').select('amount, direction, transaction_type, created_at');
+    let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
+    let productsQuery = supabase.from('products').select('id');
     
     if (startDate || endDate) {
       depositsQuery = buildDateFilter(depositsQuery);
@@ -114,6 +121,7 @@ export function FinancialOverview() {
       earningsQuery = buildDateFilter(earningsQuery);
       requestsQuery = buildDateFilter(requestsQuery);
       platformTxQuery = buildDateFilter(platformTxQuery);
+      ordersQuery = buildDateFilter(ordersQuery);
     }
 
     const [
@@ -124,7 +132,9 @@ export function FinancialOverview() {
       earningsRes,
       requestsRes,
       platformTxRes,
-      rolesRes
+      rolesRes,
+      ordersRes,
+      productsRes
     ] = await Promise.all([
       walletsQuery,
       depositsQuery,
@@ -133,7 +143,9 @@ export function FinancialOverview() {
       earningsQuery,
       requestsQuery,
       platformTxQuery,
-      supabase.from('user_roles').select('role')
+      supabase.from('user_roles').select('role'),
+      ordersQuery,
+      productsQuery
     ]);
 
     const wallets = walletsRes.data || [];
@@ -144,6 +156,8 @@ export function FinancialOverview() {
     const requests = requestsRes.data || [];
     const platformTx = platformTxRes.data || [];
     const roles = rolesRes.data || [];
+    const orders = ordersRes.data || [];
+    const products = productsRes.data || [];
 
     const totalWalletBalances = wallets.reduce((sum, w) => sum + Number(w.balance), 0);
     const totalDeposits = deposits.reduce((sum, d) => sum + Number(d.amount), 0);
@@ -160,6 +174,12 @@ export function FinancialOverview() {
     
     const activeRequests = requests.filter(r => ['funded', 'disbursed'].includes(r.status));
     const pendingRepayments = activeRequests.reduce((sum, r) => sum + Number(r.total_repayment), 0);
+
+    // Marketplace metrics
+    const totalMarketplaceSales = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
+    const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
+    const marketplaceOrderCount = orders.length;
+    const marketplaceProductCount = products.length;
 
     const userCount = new Set(roles.map(r => r.role)).size > 0 ? roles.length : 0;
     const agentCount = roles.filter(r => r.role === 'agent').length;
@@ -180,7 +200,11 @@ export function FinancialOverview() {
       userCount,
       agentCount,
       tenantCount,
-      supporterCount
+      supporterCount,
+      totalMarketplaceSales,
+      totalMarketplaceCommissions,
+      marketplaceOrderCount,
+      marketplaceProductCount
     });
 
     setLoading(false);
@@ -327,7 +351,7 @@ export function FinancialOverview() {
       </div>
 
       {/* Key Metrics */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
         <Card className="glass-card">
           <CardContent className="p-4">
             <div className="flex items-center gap-3">
@@ -335,7 +359,7 @@ export function FinancialOverview() {
                 <Wallet className="h-5 w-5 text-primary" />
               </div>
               <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Total Wallet Balances</p>
+                <p className="text-xs text-muted-foreground">Wallet Balances</p>
                 <p className="font-mono font-bold truncate">{formatUGX(metrics.totalWalletBalances)}</p>
               </div>
             </div>
@@ -379,6 +403,34 @@ export function FinancialOverview() {
               <div className="min-w-0">
                 <p className="text-xs text-muted-foreground">Pending Repayments</p>
                 <p className="font-mono font-bold truncate">{formatUGX(metrics.pendingRepayments)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-primary/10">
+                <TrendingUp className="h-5 w-5 text-primary" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Marketplace Sales</p>
+                <p className="font-mono font-bold text-primary truncate">{formatUGX(metrics.totalMarketplaceSales)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="glass-card">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-success/10">
+                <Percent className="h-5 w-5 text-success" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-xs text-muted-foreground">Market Commissions</p>
+                <p className="font-mono font-bold text-success truncate">{formatUGX(metrics.totalMarketplaceCommissions)}</p>
               </div>
             </div>
           </CardContent>
