@@ -31,6 +31,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { GalleryImageUploader, type GalleryImage } from './GalleryImageUploader';
 
 interface Product {
   id: string;
@@ -72,6 +73,7 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
   const [imageFile, setImageFile] = useState<File | null>(null);
   const [removeCurrentImage, setRemoveCurrentImage] = useState(false);
   const [customCategories, setCustomCategories] = useState<Category[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [formData, setFormData] = useState({
@@ -81,6 +83,21 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
     category: 'general',
     stock: '',
   });
+
+  const fetchGalleryImages = async (productId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('product_images')
+        .select('id, image_url, display_order')
+        .eq('product_id', productId)
+        .order('display_order');
+
+      if (error) throw error;
+      setGalleryImages(data || []);
+    } catch (error) {
+      console.error('Error fetching gallery images:', error);
+    }
+  };
 
   useEffect(() => {
     if (product) {
@@ -94,6 +111,7 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
       setImagePreview(product.image_url);
       setImageFile(null);
       setRemoveCurrentImage(false);
+      fetchGalleryImages(product.id);
     }
   }, [product]);
 
@@ -238,6 +256,39 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
 
       if (error) throw error;
 
+      // Upload new gallery images
+      const newGalleryImages = galleryImages.filter(img => img.isNew && img.file);
+      for (const image of newGalleryImages) {
+        if (!image.file) continue;
+
+        const fileExt = image.file.name.split('.').pop();
+        const fileName = `${user.id}/${product.id}/${Date.now()}-${Math.random()}.${fileExt}`;
+
+        const { error: uploadError } = await supabase.storage
+          .from('products')
+          .upload(fileName, image.file, {
+            cacheControl: '3600',
+            upsert: false,
+          });
+
+        if (uploadError) {
+          console.error('Error uploading gallery image:', uploadError);
+          continue;
+        }
+
+        const { data: { publicUrl } } = supabase.storage
+          .from('products')
+          .getPublicUrl(fileName);
+
+        await supabase
+          .from('product_images')
+          .insert({
+            product_id: product.id,
+            image_url: publicUrl,
+            display_order: image.display_order,
+          });
+      }
+
       toast.success('Product updated successfully!');
       onOpenChange(false);
       onProductUpdated?.();
@@ -250,6 +301,7 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
       setLoading(false);
     }
   };
+
 
   const handleDelete = async () => {
     if (!product) return;
@@ -414,6 +466,13 @@ export function EditProductDialog({ product, open, onOpenChange, onProductUpdate
               </Select>
             </div>
 
+            {/* Gallery Images */}
+            <GalleryImageUploader
+              productId={product?.id}
+              images={galleryImages}
+              onChange={setGalleryImages}
+              maxImages={5}
+            />
             <div className="flex gap-2">
               <Button 
                 type="button" 
