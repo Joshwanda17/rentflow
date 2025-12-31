@@ -16,7 +16,8 @@ import {
   Sparkles,
   Zap,
   Star,
-  Store
+  Store,
+  Grid3X3
 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -117,6 +118,14 @@ export default function Index() {
                 <Button variant="ghost" className="gap-2">
                   <Store className="h-4 w-4" />
                   <span className="hidden sm:inline">Marketplace</span>
+                </Button>
+              </motion.div>
+            </Link>
+            <Link to="/categories">
+              <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                <Button variant="ghost" className="gap-2">
+                  <Grid3X3 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Categories</span>
                 </Button>
               </motion.div>
             </Link>
