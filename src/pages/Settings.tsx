@@ -6,7 +6,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate } from 'lucide-react';
+import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
+import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -49,6 +51,7 @@ export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, addRole, loading: authLoading } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
+  const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -516,6 +519,65 @@ export default function Settings() {
                   <p className="text-muted-foreground text-xs mb-2">Preview:</p>
                   <p className="leading-relaxed">
                     This is how your text will look. Easy to read and comfortable for everyday use.
+                  </p>
+                </div>
+              </div>
+
+              {/* Haptic Feedback Selector */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <Vibrate className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Haptic Feedback</p>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust vibration intensity for touch interactions
+                    </p>
+                  </div>
+                </div>
+                
+                <RadioGroup 
+                  value={hapticIntensity} 
+                  onValueChange={(value) => {
+                    setHapticIntensity(value as typeof hapticIntensity);
+                    // Give a sample vibration when changing intensity
+                    if (value !== 'off') {
+                      setTimeout(() => hapticSelection(), 100);
+                    }
+                  }}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {hapticIntensityOptions.map((option) => (
+                    <motion.div
+                      key={option.value}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Label
+                        htmlFor={`haptic-${option.value}`}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                          hapticIntensity === option.value 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                      >
+                        <RadioGroupItem value={option.value} id={`haptic-${option.value}`} />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{option.label}</p>
+                          <p className="text-xs text-muted-foreground">{option.description}</p>
+                        </div>
+                      </Label>
+                    </motion.div>
+                  ))}
+                </RadioGroup>
+
+                {/* Haptic Preview */}
+                <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/30">
+                  <p className="text-muted-foreground text-xs mb-2">Note:</p>
+                  <p className="text-sm">
+                    {hapticIntensity === 'off' 
+                      ? 'Vibration feedback is disabled. You won\'t feel any haptic responses.'
+                      : `Vibration is set to ${hapticIntensity}. Tap buttons and swipe actions to feel the feedback.`
+                    }
                   </p>
                 </div>
               </div>
