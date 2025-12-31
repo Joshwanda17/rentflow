@@ -2,6 +2,12 @@ import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { 
   Home, 
   Users, 
@@ -21,7 +27,8 @@ import {
   MessageCircle,
   Zap,
   ChevronDown,
-  MessageSquare
+  MessageSquare,
+  HelpCircle
 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -583,6 +590,137 @@ export default function Index() {
         </div>
       </section>
 
+      {/* FAQ Section */}
+      <section id="faq" className="py-16 md:py-24 bg-muted/30">
+        <div className="container mx-auto px-4">
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={stagger}
+            className="text-center mb-12"
+          >
+            <motion.span 
+              variants={fadeInUp}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-primary/10 border border-primary/20 text-sm font-medium text-primary mb-4"
+            >
+              <HelpCircle className="h-4 w-4" />
+              Common Questions
+            </motion.span>
+            <motion.h2 
+              variants={fadeInUp}
+              className="text-2xl sm:text-3xl md:text-4xl font-bold mb-4"
+            >
+              Frequently Asked Questions
+            </motion.h2>
+            <motion.p 
+              variants={fadeInUp}
+              className="text-muted-foreground max-w-md mx-auto"
+            >
+              Got questions? We have answers. Here are the most common ones.
+            </motion.p>
+          </motion.div>
+
+          <motion.div 
+            initial="hidden"
+            whileInView="visible"
+            viewport={{ once: true, margin: "-50px" }}
+            variants={fadeInUp}
+            className="max-w-3xl mx-auto"
+          >
+            <Accordion type="single" collapsible className="space-y-4">
+              <AccordionItem value="item-1" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  How does rent help work?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  When you need rent money, we pay your landlord directly on your behalf. You then pay us back in small, 
+                  manageable daily amounts over 30-60 days. For example, if you borrow UGX 500,000, you might pay back 
+                  around UGX 20,000 per day. This makes it much easier than paying a big lump sum at once.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-2" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  What do I need to apply for rent help?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  You need a valid phone number, your National ID, your landlord&apos;s details (name, phone, and bank/mobile money), 
+                  and confirmation from your LC1 chairperson. No bank account is required - you can receive and pay through 
+                  mobile money.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-3" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  How long does approval take?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  Most rent requests are reviewed and approved within 24 hours. Once approved and funded by a supporter, 
+                  the money is sent directly to your landlord within the same day. You can track your application status 
+                  in your dashboard.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-4" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  How do investors (supporters) earn returns?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  When you fund a rent request as a supporter, you earn 15% returns on your investment. For example, 
+                  if you fund UGX 500,000, you receive UGX 575,000 back when the tenant completes their repayments. 
+                  Returns are paid as the tenant makes their daily payments.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-5" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  Is my investment safe?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  We verify every tenant through their LC1 chairperson and landlord before approving any request. 
+                  All tenants are required to have a referral from a verified agent. While all investments carry some risk, 
+                  our verification process helps minimize defaults.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-6" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  How do agents earn money?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  Agents earn UGX 5,000 for every tenant they refer who gets approved. Plus, you earn 5% of every 
+                  repayment your referred tenants make - forever! This means passive income as long as your 
+                  referred tenants continue using Welile.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-7" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  What happens if I miss a payment?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  We understand that life happens. If you miss a payment, we will send you a reminder. However, 
+                  consistently missing payments may affect your ability to get future rent help. If you are having 
+                  difficulties, contact us through WhatsApp and we will try to find a solution together.
+                </AccordionContent>
+              </AccordionItem>
+
+              <AccordionItem value="item-8" className="bg-card border border-border/50 rounded-xl px-6">
+                <AccordionTrigger className="text-left font-semibold hover:no-underline py-5">
+                  How do landlords receive payments?
+                </AccordionTrigger>
+                <AccordionContent className="text-muted-foreground pb-5">
+                  Landlords register their bank account or mobile money number with us. When a tenant&apos;s rent request 
+                  is approved and funded, we send the full rent amount directly to the landlord. No more chasing 
+                  tenants for rent - we handle everything!
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+          </motion.div>
+        </div>
+      </section>
+
       {/* Final CTA */}
       <section className="py-16 md:py-24 relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-b from-primary/10 via-primary/5 to-background" />
@@ -612,7 +750,7 @@ export default function Index() {
               variants={fadeInUp}
               className="text-muted-foreground mb-8 max-w-md mx-auto"
             >
-              Join over 140,000 Ugandans already using Welile. It's free to sign up.
+              Join over 140,000 Ugandans already using Welile. It is free to sign up.
             </motion.p>
             <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4 justify-center px-4">
               <Link to="/auth" className="w-full sm:w-auto">
