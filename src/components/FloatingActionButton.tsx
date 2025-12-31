@@ -3,6 +3,13 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, X, LucideIcon } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
+import { useIsMobile } from '@/hooks/use-mobile';
+import {
+  Drawer,
+  DrawerContent,
+  DrawerHeader,
+  DrawerTitle,
+} from '@/components/ui/drawer';
 
 interface FABAction {
   icon: LucideIcon;
@@ -23,6 +30,7 @@ export function FloatingActionButton({
   className 
 }: FloatingActionButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const isMobile = useIsMobile();
 
   const positionClasses = {
     'bottom-right': 'right-6 bottom-24 md:bottom-6',
@@ -95,6 +103,100 @@ export function FloatingActionButton({
     hover: { scale: 1.05 },
   };
 
+  const handleActionClick = (action: FABAction) => {
+    action.onClick();
+    setIsOpen(false);
+  };
+
+  // Mobile: Use bottom sheet drawer
+  if (isMobile) {
+    return (
+      <>
+        <div className={cn('fixed z-50', positionClasses[position], className)}>
+          <motion.div
+            variants={mainButtonVariants}
+            initial="initial"
+            animate="animate"
+            whileTap="tap"
+            whileHover="hover"
+          >
+            <Button
+              size="icon"
+              className={cn(
+                "h-14 w-14 rounded-full shadow-xl hover:shadow-2xl transition-all duration-300",
+                "bg-primary hover:bg-primary/90",
+                isOpen && "bg-destructive hover:bg-destructive/90"
+              )}
+              onClick={() => setIsOpen(true)}
+            >
+              <Plus className="h-6 w-6" />
+            </Button>
+          </motion.div>
+        </div>
+
+        <Drawer open={isOpen} onOpenChange={setIsOpen}>
+          <DrawerContent className="pb-8">
+            <DrawerHeader className="pb-2">
+              <DrawerTitle className="text-center">Quick Actions</DrawerTitle>
+            </DrawerHeader>
+            <div className="px-4 pb-4">
+              <motion.div
+                initial="hidden"
+                animate="visible"
+                variants={{
+                  hidden: { opacity: 0 },
+                  visible: {
+                    opacity: 1,
+                    transition: { staggerChildren: 0.05 },
+                  },
+                }}
+                className="grid grid-cols-2 gap-3"
+              >
+                {actions.map((action, index) => (
+                  <motion.button
+                    key={index}
+                    variants={{
+                      hidden: { opacity: 0, y: 20 },
+                      visible: { 
+                        opacity: 1, 
+                        y: 0,
+                        transition: {
+                          type: 'spring',
+                          stiffness: 400,
+                          damping: 25,
+                        },
+                      },
+                    }}
+                    onClick={() => handleActionClick(action)}
+                    className={cn(
+                      "flex flex-col items-center gap-3 p-4 rounded-2xl",
+                      "bg-secondary/50 hover:bg-secondary",
+                      "border border-border/50 hover:border-primary/30",
+                      "transition-all duration-200 active:scale-95"
+                    )}
+                  >
+                    <div className={cn(
+                      "p-3 rounded-xl",
+                      action.variant === 'destructive' 
+                        ? "bg-destructive/10 text-destructive"
+                        : "bg-primary/10 text-primary"
+                    )}>
+                      <action.icon className="h-6 w-6" />
+                    </div>
+                    <span className="text-sm font-medium text-foreground">
+                      {action.label}
+                    </span>
+                  </motion.button>
+                ))}
+              </motion.div>
+            </div>
+          </DrawerContent>
+        </Drawer>
+      </>
+    );
+  }
+
+  // Desktop: Use expanding menu
   return (
     <div className={cn('fixed z-50', positionClasses[position], className)}>
       {/* Action buttons */}
@@ -126,10 +228,7 @@ export function FloatingActionButton({
                   size="icon"
                   variant={action.variant || 'secondary'}
                   className="h-12 w-12 rounded-full shadow-lg hover:shadow-xl transition-shadow"
-                  onClick={() => {
-                    action.onClick();
-                    setIsOpen(false);
-                  }}
+                  onClick={() => handleActionClick(action)}
                 >
                   <action.icon className="h-5 w-5" />
                 </Button>
