@@ -19,7 +19,9 @@ import {
 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 import { ParticleBackground } from '@/components/ParticleBackground';
+import { useLanguage } from '@/hooks/useLanguage';
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -43,57 +45,58 @@ const floatAnimation = {
   transition: { duration: 4, repeat: Infinity, ease: 'easeInOut' as const }
 };
 
-const userTypes = [
-  {
-    title: 'Tenant',
-    description: 'Need rent money now? Get up to 90 days rent upfront and pay back daily.',
-    icon: Home,
-    gradient: 'from-primary/20 to-primary/5',
-    iconBg: 'bg-primary/20',
-    iconColor: 'text-primary',
-    benefits: ['Get rent paid to your landlord instantly', 'Pay back in small daily amounts', 'No bank account required'],
-    cta: 'Request Rent Now'
-  },
-  {
-    title: 'Agent',
-    description: 'Earn money by connecting tenants to our platform. Share your link and earn commissions.',
-    icon: Users,
-    gradient: 'from-warning/20 to-warning/5',
-    iconBg: 'bg-warning/20',
-    iconColor: 'text-warning',
-    benefits: ['Earn UGX 5,000 per approved tenant', 'Get 5% of all tenant repayments', 'Simple referral link system'],
-    cta: 'Start Earning'
-  },
-  {
-    title: 'Supporter',
-    description: 'Invest in rent facilitation and earn guaranteed returns on your capital.',
-    icon: Wallet,
-    gradient: 'from-success/20 to-success/5',
-    iconBg: 'bg-success/20',
-    iconColor: 'text-success',
-    benefits: ['Earn 15% returns on investments', 'Fund verified rent requests', 'Low-risk, high-impact lending'],
-    cta: 'Start Investing'
-  },
-  {
-    title: 'Landlord',
-    description: 'Receive your rent on time, every time. No more chasing tenants for payments.',
-    icon: Building2,
-    gradient: 'from-accent/20 to-accent/5',
-    iconBg: 'bg-accent/20',
-    iconColor: 'text-accent',
-    benefits: ['Get paid directly by the platform', 'Never miss a rent payment', 'Simple registration process'],
-    cta: 'Get Paid On Time'
-  },
-];
-
-const stats = [
-  { value: 'UGX 500M+', label: 'Rent Facilitated', icon: Banknote },
-  { value: '2,000+', label: 'Happy Tenants', icon: Users },
-  { value: '500+', label: 'Active Agents', icon: Star },
-  { value: '15%', label: 'Supporter Returns', icon: TrendingUp },
-];
-
 export default function Index() {
+  const { t } = useLanguage();
+
+  const userTypes = [
+    {
+      title: t.tenant,
+      description: t.tenantDesc,
+      icon: Home,
+      gradient: 'from-primary/20 to-primary/5',
+      iconBg: 'bg-primary/20',
+      iconColor: 'text-primary',
+      benefits: ['Get rent paid to your landlord instantly', 'Pay back in small daily amounts', 'No bank account required'],
+      cta: t.requestRent
+    },
+    {
+      title: t.agent,
+      description: t.agentDesc,
+      icon: Users,
+      gradient: 'from-warning/20 to-warning/5',
+      iconBg: 'bg-warning/20',
+      iconColor: 'text-warning',
+      benefits: ['Earn UGX 5,000 per approved tenant', 'Get 5% of all tenant repayments', 'Simple referral link system'],
+      cta: t.getStarted
+    },
+    {
+      title: t.supporter,
+      description: t.supporterDesc,
+      icon: Wallet,
+      gradient: 'from-success/20 to-success/5',
+      iconBg: 'bg-success/20',
+      iconColor: 'text-success',
+      benefits: ['Earn 15% returns on investments', 'Fund verified rent requests', 'Low-risk, high-impact lending'],
+      cta: t.getStarted
+    },
+    {
+      title: t.landlord,
+      description: t.landlordDesc,
+      icon: Building2,
+      gradient: 'from-accent/20 to-accent/5',
+      iconBg: 'bg-accent/20',
+      iconColor: 'text-accent',
+      benefits: ['Get paid directly by the platform', 'Never miss a rent payment', 'Simple registration process'],
+      cta: t.getStarted
+    },
+  ];
+
+  const stats = [
+    { value: 'UGX 500M+', label: t.rentFacilitated, icon: Banknote },
+    { value: '2,000+', label: t.activeUsers, icon: Users },
+    { value: '500+', label: t.agent + 's', icon: Star },
+    { value: '15%', label: t.dailyRepaymentRate, icon: TrendingUp },
+  ];
   return (
     <div className="min-h-screen bg-background overflow-hidden">
       {/* Navigation */}
@@ -108,16 +111,17 @@ export default function Index() {
             <WelileLogo />
           </motion.div>
           <div className="flex items-center gap-2">
+            <LanguageSwitcher variant="compact" />
             <ThemeToggle />
             <Link to="/auth">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="ghost">Sign In</Button>
+                <Button variant="ghost">{t.signIn}</Button>
               </motion.div>
             </Link>
             <Link to="/auth">
               <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                 <Button className="gap-2">
-                  Get Started
+                  {t.getStarted}
                   <Sparkles className="h-4 w-4" />
                 </Button>
               </motion.div>
@@ -201,9 +205,9 @@ export default function Index() {
               variants={itemVariants}
               className="text-5xl md:text-7xl font-bold mb-6 leading-tight"
             >
-              Rent Facilitation
+              {t.heroTitle}
               <span className="block bg-gradient-to-r from-primary via-primary to-success bg-clip-text text-transparent">
-                Made Simple
+                {t.heroSubtitle}
               </span>
             </motion.h1>
             
@@ -211,8 +215,7 @@ export default function Index() {
               variants={itemVariants}
               className="text-lg md:text-xl text-muted-foreground mb-10 max-w-2xl mx-auto"
             >
-              We connect tenants who need rent money with supporters who want to earn returns. 
-              Landlords get paid on time, agents earn commissions. Everyone wins.
+              {t.heroDescription}
             </motion.p>
             
             <motion.div 
@@ -222,7 +225,7 @@ export default function Index() {
               <Link to="/auth">
                 <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
                   <Button size="lg" className="gap-2 h-14 px-8 text-lg shadow-lg shadow-primary/25">
-                    Get Started Free
+                    {t.getStarted}
                     <ArrowRight className="h-5 w-5" />
                   </Button>
                 </motion.div>
@@ -408,13 +411,13 @@ export default function Index() {
               variants={itemVariants}
               className="text-4xl md:text-5xl font-bold mb-4"
             >
-              How It Works
+              {t.howItWorks}
             </motion.h2>
             <motion.p 
               variants={itemVariants}
               className="text-muted-foreground text-lg"
             >
-              Get started in just 4 simple steps
+              {t.step1Desc}
             </motion.p>
           </motion.div>
 
@@ -426,10 +429,10 @@ export default function Index() {
             className="grid md:grid-cols-4 gap-8 max-w-5xl mx-auto"
           >
             {[
-              { step: '1', title: 'Sign Up', desc: 'Create your free account and choose your role', icon: Users },
-              { step: '2', title: 'Submit Request', desc: 'Tenants submit rent requests with landlord details', icon: Banknote },
-              { step: '3', title: 'Get Funded', desc: 'Supporters fund approved requests', icon: Wallet },
-              { step: '4', title: 'Daily Repayment', desc: 'Tenants pay back in small daily amounts', icon: Clock },
+              { step: '1', title: t.step1Title, desc: t.step1Desc, icon: Users },
+              { step: '2', title: t.step2Title, desc: t.step2Desc, icon: Banknote },
+              { step: '3', title: t.step3Title, desc: t.step3Desc, icon: Wallet },
+              { step: '4', title: t.step4Title, desc: t.step4Desc, icon: Clock },
             ].map((item, i) => (
               <motion.div 
                 key={i} 
@@ -564,14 +567,12 @@ export default function Index() {
           >
             <WelileLogo />
             <p className="text-sm text-muted-foreground text-center">
-              © {new Date().getFullYear()} Welile Technologies Limited • welile.com
+              © {new Date().getFullYear()} Welile Technologies Limited • {t.allRightsReserved}
             </p>
-            <div className="flex gap-6">
+            <div className="flex items-center gap-4">
+              <LanguageSwitcher />
               <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Sign In
-              </Link>
-              <Link to="/auth" className="text-sm text-muted-foreground hover:text-primary transition-colors">
-                Sign Up
+                {t.signIn}
               </Link>
             </div>
           </motion.div>
