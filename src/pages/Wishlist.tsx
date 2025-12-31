@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Heart, ArrowLeft, Loader2, Package, Trash2 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { Heart, ArrowLeft, Loader2, Trash2, Percent, Tag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { ProductCard } from '@/components/marketplace/ProductCard';
@@ -16,6 +17,8 @@ interface Product {
   image_url: string | null;
   stock: number;
   agent_id: string;
+  discount_percentage?: number | null;
+  discount_ends_at?: string | null;
 }
 
 interface WishlistItem {
@@ -24,12 +27,32 @@ interface WishlistItem {
   product: Product;
 }
 
+type FilterType = 'all' | 'on_sale';
+
 export default function Wishlist() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const [wishlistItems, setWishlistItems] = useState<WishlistItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
+  const [filter, setFilter] = useState<FilterType>('all');
+
+  const isDiscountActive = (product: Product): boolean => {
+    if (!product.discount_percentage || product.discount_percentage <= 0) return false;
+    if (!product.discount_ends_at) return true;
+    return new Date(product.discount_ends_at) > new Date();
+  };
+
+  const filteredItems = useMemo(() => {
+    if (filter === 'on_sale') {
+      return wishlistItems.filter(item => isDiscountActive(item.product));
+    }
+    return wishlistItems;
+  }, [wishlistItems, filter]);
+
+  const onSaleCount = useMemo(() => {
+    return wishlistItems.filter(item => isDiscountActive(item.product)).length;
+  }, [wishlistItems]);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -114,6 +137,9 @@ export default function Wishlist() {
               </h1>
               <p className="text-sm text-muted-foreground">
                 {wishlistItems.length} saved product{wishlistItems.length !== 1 ? 's' : ''}
+                {onSaleCount > 0 && (
+                  <span className="text-success ml-1">• {onSaleCount} on sale!</span>
+                )}
               </p>
             </div>
           </div>
@@ -124,6 +150,36 @@ export default function Wishlist() {
             </Button>
           )}
         </div>
+
+        {/* Filter Tabs */}
+        {wishlistItems.length > 0 && (
+          <div className="flex gap-2 mb-4">
+            <Button
+              variant={filter === 'all' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter('all')}
+              className="gap-2"
+            >
+              <Tag className="h-4 w-4" />
+              All ({wishlistItems.length})
+            </Button>
+            <Button
+              variant={filter === 'on_sale' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setFilter('on_sale')}
+              className="gap-2"
+              disabled={onSaleCount === 0}
+            >
+              <Percent className="h-4 w-4" />
+              On Sale ({onSaleCount})
+              {onSaleCount > 0 && (
+                <Badge variant="destructive" className="ml-1 h-5 px-1.5 text-xs">
+                  🔥
+                </Badge>
+              )}
+            </Button>
+          </div>
+        )}
 
         {/* Content */}
         <Card>
@@ -143,9 +199,20 @@ export default function Wishlist() {
                   Browse Products
                 </Button>
               </div>
+            ) : filteredItems.length === 0 ? (
+              <div className="flex flex-col items-center justify-center py-12 text-center">
+                <Percent className="h-16 w-16 text-muted-foreground mb-4" />
+                <h3 className="text-lg font-medium mb-2">No items on sale</h3>
+                <p className="text-sm text-muted-foreground mb-6">
+                  None of your wishlist items are currently discounted
+                </p>
+                <Button variant="outline" onClick={() => setFilter('all')}>
+                  View All Items
+                </Button>
+              </div>
             ) : (
               <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-                {wishlistItems.map((item) => (
+                {filteredItems.map((item) => (
                   <ProductCard
                     key={item.id}
                     product={item.product}
