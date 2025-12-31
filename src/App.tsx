@@ -25,6 +25,7 @@ const AgentAnalytics = lazy(() => import("./pages/AgentAnalytics"));
 const FlashSales = lazy(() => import("./pages/FlashSales"));
 const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
+const SellerProfile = lazy(() => import("./pages/SellerProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
 
 // Optimized QueryClient for 40M+ users scale
@@ -103,6 +104,7 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
             <Route path="/flash-sales" element={<FlashSales />} />
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/categories" element={<Categories />} />
+            <Route path="/seller/:sellerId" element={<SellerProfile />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

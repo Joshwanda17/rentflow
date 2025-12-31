@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Dialog,
   DialogContent,
@@ -11,6 +12,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { 
   Star, 
   Loader2, 
@@ -20,7 +22,9 @@ import {
   Heart,
   Plus,
   Minus,
-  Percent
+  Percent,
+  Store,
+  ExternalLink
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -85,10 +89,12 @@ export function ProductDetailDialog({
   isInWishlist = false,
   onWishlistChange
 }: ProductDetailDialogProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
+  const [sellerInfo, setSellerInfo] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -106,10 +112,27 @@ export function ProductDetailDialog({
     if (product && open) {
       fetchReviews();
       fetchGalleryImages();
+      fetchSellerInfo();
       checkCanReview();
       setQuantity(1); // Reset quantity when opening
     }
   }, [product, open]);
+
+  const fetchSellerInfo = async () => {
+    if (!product) return;
+    
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('full_name, avatar_url')
+        .eq('id', product.agent_id)
+        .maybeSingle();
+      
+      setSellerInfo(data);
+    } catch (error) {
+      console.error('Error fetching seller info:', error);
+    }
+  };
 
   const fetchGalleryImages = async () => {
     if (!product) return;
@@ -352,6 +375,34 @@ export function ProductDetailDialog({
                   <Badge className="capitalize shrink-0">{product.category}</Badge>
                 </div>
               </div>
+
+              {/* Seller Info */}
+              {sellerInfo && (
+                <button
+                  onClick={() => {
+                    onOpenChange(false);
+                    navigate(`/seller/${product.agent_id}`);
+                  }}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-secondary/50 hover:bg-secondary transition-colors w-full text-left group"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={sellerInfo.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary">
+                      {sellerInfo.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                      {sellerInfo.full_name}
+                    </p>
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Store className="h-3 w-3" />
+                      View seller profile
+                    </p>
+                  </div>
+                  <ExternalLink className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                </button>
+              )}
 
               {product.description && (
                 <p className="text-muted-foreground">{product.description}</p>
