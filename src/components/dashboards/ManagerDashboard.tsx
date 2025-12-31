@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical, Calendar } from 'lucide-react';
+import { LogOut, Users, FileText, CheckCircle, XCircle, Clock, Banknote, Send, Receipt, ArrowDownLeft, ArrowUpRight, Settings, UserCheck, TrendingUp, ShoppingCart, Package, Truck, PackageCheck, MoreVertical, Calendar, Trophy, Award, Medal } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -96,6 +96,13 @@ interface ProductOrder {
   agent?: { full_name: string };
 }
 
+interface ReferralLeaderboardEntry {
+  agent_id: string;
+  agent_name: string;
+  referral_count: number;
+  total_earnings: number;
+}
+
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
@@ -104,6 +111,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [transactions, setTransactions] = useState<PlatformTransaction[]>([]);
   const [orders, setOrders] = useState<ProductOrder[]>([]);
   const [orderStatusFilter, setOrderStatusFilter] = useState<string>('all');
+  const [referralLeaderboard, setReferralLeaderboard] = useState<ReferralLeaderboardEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const { toast } = useToast();
 
@@ -175,10 +183,48 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       user_roles: rolesData?.filter(r => r.user_id === u.id).map(r => ({ role: r.role })) || []
     })) || [];
     
+    // Fetch referral leaderboard data
+    const { data: referralsData } = await supabase
+      .from('referrals')
+      .select('referrer_id, bonus_amount, credited');
+    
+    // Aggregate referrals by agent
+    const referralsByAgent = new Map<string, { count: number; earnings: number }>();
+    (referralsData || []).forEach(r => {
+      const current = referralsByAgent.get(r.referrer_id) || { count: 0, earnings: 0 };
+      referralsByAgent.set(r.referrer_id, {
+        count: current.count + 1,
+        earnings: current.earnings + (r.credited ? Number(r.bonus_amount) : 0)
+      });
+    });
+    
+    // Get agent profiles for leaderboard
+    const agentIds = Array.from(referralsByAgent.keys());
+    const { data: agentProfiles } = agentIds.length > 0 ? await supabase
+      .from('profiles')
+      .select('id, full_name')
+      .in('id', agentIds) : { data: [] };
+    
+    // Build leaderboard
+    const leaderboard: ReferralLeaderboardEntry[] = agentIds
+      .map(agentId => {
+        const stats = referralsByAgent.get(agentId)!;
+        const agentProfile = agentProfiles?.find(p => p.id === agentId);
+        return {
+          agent_id: agentId,
+          agent_name: agentProfile?.full_name || 'Unknown Agent',
+          referral_count: stats.count,
+          total_earnings: stats.earnings
+        };
+      })
+      .sort((a, b) => b.referral_count - a.referral_count)
+      .slice(0, 10); // Top 10
+    
     setRequests(requestsData || []);
     setUsers(usersWithRoles);
     setTransactions(transactionsResult.data || []);
     setOrders(ordersWithDetails);
+    setReferralLeaderboard(leaderboard);
     setLoading(false);
   };
 
@@ -521,6 +567,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <TrendingUp className="h-3.5 w-3.5" />
                 Financials
               </TabsTrigger>
+              <TabsTrigger value="leaderboard" className="text-xs md:text-sm gap-1.5">
+                <Trophy className="h-3.5 w-3.5" />
+                Leaderboard
+              </TabsTrigger>
               <TabsTrigger value="agents" className="text-xs md:text-sm gap-1.5">
                 <UserCheck className="h-3.5 w-3.5" />
                 Agents
@@ -803,6 +853,66 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
           <TabsContent value="financials">
             <FinancialOverview />
+          </TabsContent>
+
+          <TabsContent value="leaderboard">
+            <Card className="glass-card">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Trophy className="h-5 w-5 text-warning" />
+                  Referral Leaderboard
+                </CardTitle>
+                <p className="text-sm text-muted-foreground mt-1">
+                  Top agents by member referrals
+                </p>
+              </CardHeader>
+              <CardContent>
+                {referralLeaderboard.length === 0 ? (
+                  <div className="text-center py-8">
+                    <Trophy className="h-10 w-10 text-muted-foreground/30 mx-auto mb-3" />
+                    <p className="text-sm text-muted-foreground">No referrals yet</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {referralLeaderboard.map((entry, index) => (
+                      <div 
+                        key={entry.agent_id} 
+                        className={`flex items-center gap-4 p-4 rounded-lg transition-all ${
+                          index === 0 ? 'bg-gradient-to-r from-warning/20 to-warning/5 border border-warning/30' :
+                          index === 1 ? 'bg-gradient-to-r from-muted/50 to-muted/20 border border-border' :
+                          index === 2 ? 'bg-gradient-to-r from-orange-500/10 to-orange-500/5 border border-orange-500/20' :
+                          'bg-secondary/50'
+                        }`}
+                      >
+                        <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
+                          index === 0 ? 'bg-warning text-warning-foreground' :
+                          index === 1 ? 'bg-muted-foreground/20 text-muted-foreground' :
+                          index === 2 ? 'bg-orange-500/20 text-orange-600' :
+                          'bg-muted text-muted-foreground'
+                        }`}>
+                          {index === 0 ? <Trophy className="h-5 w-5" /> :
+                           index === 1 ? <Award className="h-5 w-5" /> :
+                           index === 2 ? <Medal className="h-5 w-5" /> :
+                           <span>{index + 1}</span>}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate">{entry.agent_name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {entry.referral_count} {entry.referral_count === 1 ? 'referral' : 'referrals'}
+                          </p>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-mono font-semibold text-success">
+                            {formatUGX(entry.total_earnings)}
+                          </p>
+                          <p className="text-xs text-muted-foreground">earned</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
           </TabsContent>
 
           <TabsContent value="agents">
