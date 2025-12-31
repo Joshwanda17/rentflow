@@ -19,7 +19,8 @@ import {
   User,
   Heart,
   Plus,
-  Minus
+  Minus,
+  Percent
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -36,7 +37,20 @@ interface Product {
   image_url: string | null;
   stock: number;
   agent_id: string;
+  discount_percentage?: number | null;
+  discount_ends_at?: string | null;
 }
+
+const isDiscountActive = (product: Product): boolean => {
+  if (!product.discount_percentage || product.discount_percentage <= 0) return false;
+  if (!product.discount_ends_at) return true;
+  return new Date(product.discount_ends_at) > new Date();
+};
+
+const getDiscountedPrice = (product: Product): number => {
+  if (!isDiscountActive(product)) return product.price;
+  return Math.round(product.price * (1 - (product.discount_percentage || 0) / 100));
+};
 
 interface GalleryImage {
   id: string;
@@ -289,6 +303,8 @@ export function ProductDetailDialog({
   };
 
   const isOwnProduct = product?.agent_id === user?.id;
+  const hasDiscount = product ? isDiscountActive(product) : false;
+  const discountedPrice = product ? getDiscountedPrice(product) : 0;
 
   if (!product) return null;
 
@@ -340,10 +356,30 @@ export function ProductDetailDialog({
                 <p className="text-muted-foreground">{product.description}</p>
               )}
 
+              {/* Discount Badge */}
+              {hasDiscount && (
+                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                  <Percent className="h-5 w-5 text-destructive" />
+                  <span className="font-semibold text-destructive">{product.discount_percentage}% OFF</span>
+                  {product.discount_ends_at && (
+                    <span className="text-sm text-muted-foreground ml-auto">
+                      Ends {new Date(product.discount_ends_at).toLocaleDateString()}
+                    </span>
+                  )}
+                </div>
+              )}
+
               <div className="flex items-center justify-between">
-                <span className="text-2xl font-bold text-primary">
-                  UGX {product.price.toLocaleString()}
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="text-2xl font-bold text-primary">
+                    UGX {discountedPrice.toLocaleString()}
+                  </span>
+                  {hasDiscount && (
+                    <span className="text-lg text-muted-foreground line-through">
+                      UGX {product.price.toLocaleString()}
+                    </span>
+                  )}
+                </div>
                 <span className="text-sm text-muted-foreground">
                   {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
                 </span>
@@ -410,9 +446,16 @@ export function ProductDetailDialog({
                   {/* Total Price */}
                   <div className="flex items-center justify-between text-sm">
                     <span className="text-muted-foreground">Total</span>
-                    <span className="font-bold text-lg text-primary">
-                      UGX {(product.price * quantity).toLocaleString()}
-                    </span>
+                    <div className="text-right">
+                      <span className="font-bold text-lg text-primary">
+                        UGX {(discountedPrice * quantity).toLocaleString()}
+                      </span>
+                      {hasDiscount && (
+                        <span className="block text-xs text-muted-foreground line-through">
+                          UGX {(product.price * quantity).toLocaleString()}
+                        </span>
+                      )}
+                    </div>
                   </div>
 
                   {/* Action Buttons */}

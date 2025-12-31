@@ -487,6 +487,8 @@ export type Database = {
           category: string
           created_at: string
           description: string | null
+          discount_ends_at: string | null
+          discount_percentage: number | null
           id: string
           image_url: string | null
           name: string
@@ -500,6 +502,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_ends_at?: string | null
+          discount_percentage?: number | null
           id?: string
           image_url?: string | null
           name: string
@@ -513,6 +517,8 @@ export type Database = {
           category?: string
           created_at?: string
           description?: string | null
+          discount_ends_at?: string | null
+          discount_percentage?: number | null
           id?: string
           image_url?: string | null
           name?: string
