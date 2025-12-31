@@ -1,7 +1,9 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Store, Package, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Store, Package, Loader2, ShoppingBag } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { useAuth } from '@/hooks/useAuth';
@@ -23,6 +25,7 @@ interface MarketplaceSectionProps {
 }
 
 export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectionProps) {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
@@ -116,11 +119,15 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
 
   return (
     <Card>
-      <CardHeader>
+      <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle className="flex items-center gap-2">
           <Store className="h-5 w-5" />
           Marketplace
         </CardTitle>
+        <Button variant="outline" size="sm" onClick={() => navigate('/orders')} className="gap-2">
+          <ShoppingBag className="h-4 w-4" />
+          My Orders
+        </Button>
       </CardHeader>
       <CardContent>
         <Tabs value={activeCategory} onValueChange={setActiveCategory}>
