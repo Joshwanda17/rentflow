@@ -16,7 +16,8 @@ import {
   Loader2, 
   ShoppingCart,
   MessageSquare,
-  User
+  User,
+  Heart
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -48,13 +49,17 @@ interface ProductDetailDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPurchaseComplete?: () => void;
+  isInWishlist?: boolean;
+  onWishlistChange?: () => void;
 }
 
 export function ProductDetailDialog({ 
   product, 
   open, 
   onOpenChange,
-  onPurchaseComplete 
+  onPurchaseComplete,
+  isInWishlist = false,
+  onWishlistChange
 }: ProductDetailDialogProps) {
   const { user } = useAuth();
   const [reviews, setReviews] = useState<Review[]>([]);
@@ -67,6 +72,7 @@ export function ProductDetailDialog({
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState('');
   const [hoverRating, setHoverRating] = useState(0);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   useEffect(() => {
     if (product && open) {
@@ -203,6 +209,34 @@ export function ProductDetailDialog({
     ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
     : 0;
 
+  const handleWishlistToggle = async () => {
+    if (!product || !user) return;
+
+    setWishlistLoading(true);
+    try {
+      if (isInWishlist) {
+        const { error } = await supabase
+          .from('wishlists')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('product_id', product.id);
+        if (error) throw error;
+        toast.success('Removed from wishlist');
+      } else {
+        const { error } = await supabase
+          .from('wishlists')
+          .insert({ user_id: user.id, product_id: product.id });
+        if (error) throw error;
+        toast.success('Added to wishlist');
+      }
+      onWishlistChange?.();
+    } catch (error: any) {
+      toast.error('Failed to update wishlist');
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   const isOwnProduct = product?.agent_id === user?.id;
 
   if (!product) return null;
@@ -235,7 +269,26 @@ export function ProductDetailDialog({
             <div className="space-y-3">
               <div className="flex items-start justify-between gap-2">
                 <h2 className="text-xl font-bold">{product.name}</h2>
-                <Badge className="capitalize shrink-0">{product.category}</Badge>
+                <div className="flex items-center gap-2">
+                  {user && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      onClick={handleWishlistToggle}
+                      disabled={wishlistLoading}
+                      className="h-8 w-8"
+                    >
+                      <Heart 
+                        className={`h-5 w-5 ${
+                          isInWishlist 
+                            ? 'fill-destructive text-destructive' 
+                            : 'text-muted-foreground hover:text-destructive'
+                        }`}
+                      />
+                    </Button>
+                  )}
+                  <Badge className="capitalize shrink-0">{product.category}</Badge>
+                </div>
               </div>
 
               {product.description && (

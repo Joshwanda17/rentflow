@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X } from 'lucide-react';
+import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { useAuth } from '@/hooks/useAuth';
@@ -45,6 +45,8 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showInStock, setShowInStock] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [showWishlistOnly, setShowWishlistOnly] = useState(false);
+  const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
 
   const fetchProducts = async () => {
     setLoading(true);
@@ -64,8 +66,27 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
     }
   };
 
+  const fetchWishlist = async () => {
+    if (!user) {
+      setWishlistIds(new Set());
+      return;
+    }
+    try {
+      const { data, error } = await supabase
+        .from('wishlists')
+        .select('product_id')
+        .eq('user_id', user.id);
+
+      if (error) throw error;
+      setWishlistIds(new Set(data?.map(w => w.product_id) || []));
+    } catch (error) {
+      console.error('Error fetching wishlist:', error);
+    }
+  };
+
   useEffect(() => {
     fetchProducts();
+    fetchWishlist();
 
     const channel = supabase
       .channel('marketplace-products')
@@ -85,7 +106,7 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
     return () => {
       supabase.removeChannel(channel);
     };
-  }, []);
+  }, [user]);
 
   const categories = useMemo(() => 
     ['all', ...new Set(products.map(p => p.category))],
@@ -114,6 +135,11 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
       result = result.filter(p => p.stock > 0);
     }
 
+    // Filter by wishlist
+    if (showWishlistOnly) {
+      result = result.filter(p => wishlistIds.has(p.id));
+    }
+
     // Sort
     switch (sortBy) {
       case 'newest':
@@ -137,11 +163,12 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
     }
 
     return result;
-  }, [products, activeCategory, searchQuery, sortBy, showInStock]);
+  }, [products, activeCategory, searchQuery, sortBy, showInStock, showWishlistOnly, wishlistIds]);
 
   const activeFiltersCount = [
     activeCategory !== 'all',
     showInStock,
+    showWishlistOnly,
     sortBy !== 'newest'
   ].filter(Boolean).length;
 
@@ -150,6 +177,7 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
     setSearchQuery('');
     setSortBy('newest');
     setShowInStock(false);
+    setShowWishlistOnly(false);
   };
 
   if (loading) {
@@ -269,6 +297,18 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
                 In Stock Only
               </Button>
 
+              {user && (
+                <Button
+                  variant={showWishlistOnly ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setShowWishlistOnly(!showWishlistOnly)}
+                  className="h-9 gap-1"
+                >
+                  <Heart className={`h-4 w-4 ${showWishlistOnly ? 'fill-current' : ''}`} />
+                  Wishlist
+                </Button>
+              )}
+
               {activeFiltersCount > 0 && (
                 <Button
                   variant="ghost"
@@ -326,6 +366,8 @@ export function MarketplaceSection({ showAllProducts = true }: MarketplaceSectio
                     product={product} 
                     onPurchaseComplete={fetchProducts}
                     isOwnProduct={product.agent_id === user?.id}
+                    isInWishlist={wishlistIds.has(product.id)}
+                    onWishlistChange={fetchWishlist}
                   />
                 ))}
               </div>

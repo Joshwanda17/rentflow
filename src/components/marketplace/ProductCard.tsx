@@ -2,10 +2,11 @@ import { useState, useEffect } from 'react';
 import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Package, Loader2, Star, Eye } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, Star, Eye, Heart } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
+import { useAuth } from '@/hooks/useAuth';
 
 interface Product {
   id: string;
@@ -22,13 +23,23 @@ interface ProductCardProps {
   product: Product;
   onPurchaseComplete?: () => void;
   isOwnProduct?: boolean;
+  isInWishlist?: boolean;
+  onWishlistChange?: () => void;
 }
 
-export function ProductCard({ product, onPurchaseComplete, isOwnProduct = false }: ProductCardProps) {
+export function ProductCard({ 
+  product, 
+  onPurchaseComplete, 
+  isOwnProduct = false,
+  isInWishlist = false,
+  onWishlistChange
+}: ProductCardProps) {
+  const { user } = useAuth();
   const [purchasing, setPurchasing] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
   const [reviewCount, setReviewCount] = useState(0);
+  const [wishlistLoading, setWishlistLoading] = useState(false);
 
   useEffect(() => {
     fetchRating();
@@ -78,6 +89,38 @@ export function ProductCard({ product, onPurchaseComplete, isOwnProduct = false 
     }
   };
 
+  const handleWishlistToggle = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!user) {
+      toast.error('Please sign in to add to wishlist');
+      return;
+    }
+
+    setWishlistLoading(true);
+    try {
+      if (isInWishlist) {
+        const { error } = await supabase
+          .from('wishlists')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('product_id', product.id);
+        if (error) throw error;
+        toast.success('Removed from wishlist');
+      } else {
+        const { error } = await supabase
+          .from('wishlists')
+          .insert({ user_id: user.id, product_id: product.id });
+        if (error) throw error;
+        toast.success('Added to wishlist');
+      }
+      onWishlistChange?.();
+    } catch (error: any) {
+      toast.error('Failed to update wishlist');
+    } finally {
+      setWishlistLoading(false);
+    }
+  };
+
   const categoryColors: Record<string, string> = {
     food: 'bg-green-500/10 text-green-500',
     drinks: 'bg-blue-500/10 text-blue-500',
@@ -108,8 +151,24 @@ export function ProductCard({ product, onPurchaseComplete, isOwnProduct = false 
               <Badge variant="destructive">Out of Stock</Badge>
             </div>
           )}
+          {/* Wishlist Button */}
+          {user && (
+            <button
+              onClick={handleWishlistToggle}
+              disabled={wishlistLoading}
+              className="absolute top-2 right-2 p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors z-10"
+            >
+              <Heart 
+                className={`h-5 w-5 transition-colors ${
+                  isInWishlist 
+                    ? 'fill-destructive text-destructive' 
+                    : 'text-muted-foreground hover:text-destructive'
+                }`}
+              />
+            </button>
+          )}
           {/* View Details Overlay */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
             <div className="flex items-center gap-2 text-white text-sm font-medium">
               <Eye className="h-4 w-4" />
               View Details
@@ -190,6 +249,8 @@ export function ProductCard({ product, onPurchaseComplete, isOwnProduct = false 
           onPurchaseComplete?.();
           fetchRating();
         }}
+        isInWishlist={isInWishlist}
+        onWishlistChange={onWishlistChange}
       />
     </>
   );
