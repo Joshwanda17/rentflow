@@ -13,7 +13,6 @@ import { Separator } from '@/components/ui/separator';
 import { Input } from '@/components/ui/input';
 import { 
   Star, 
-  Package, 
   Loader2, 
   ShoppingCart,
   MessageSquare,
@@ -26,6 +25,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
+import { ProductImageGallery } from './ProductImageGallery';
 
 interface Product {
   id: string;
@@ -36,6 +36,11 @@ interface Product {
   image_url: string | null;
   stock: number;
   agent_id: string;
+}
+
+interface GalleryImage {
+  id: string;
+  image_url: string;
 }
 
 interface Review {
@@ -68,6 +73,7 @@ export function ProductDetailDialog({
   const { user } = useAuth();
   const { addToCart } = useCart();
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -84,10 +90,28 @@ export function ProductDetailDialog({
   useEffect(() => {
     if (product && open) {
       fetchReviews();
+      fetchGalleryImages();
       checkCanReview();
       setQuantity(1); // Reset quantity when opening
     }
   }, [product, open]);
+
+  const fetchGalleryImages = async () => {
+    if (!product) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('product_images')
+        .select('id, image_url')
+        .eq('product_id', product.id)
+        .order('display_order');
+
+      if (error) throw error;
+      setGalleryImages(data || []);
+    } catch (error) {
+      console.error('Error fetching gallery images:', error);
+    }
+  };
 
   const fetchReviews = async () => {
     if (!product) return;
@@ -277,19 +301,13 @@ export function ProductDetailDialog({
               <DialogTitle className="sr-only">{product.name}</DialogTitle>
             </DialogHeader>
 
-            {/* Product Image */}
-            <div className="aspect-video rounded-lg bg-muted overflow-hidden mb-4">
-              {product.image_url ? (
-                <img 
-                  src={product.image_url} 
-                  alt={product.name}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full flex items-center justify-center">
-                  <Package className="h-16 w-16 text-muted-foreground" />
-                </div>
-              )}
+            {/* Product Image Gallery */}
+            <div className="mb-4">
+              <ProductImageGallery
+                mainImage={product.image_url}
+                galleryImages={galleryImages}
+                productName={product.name}
+              />
             </div>
 
             {/* Product Info */}

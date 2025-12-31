@@ -1,0 +1,100 @@
+import { useState } from 'react';
+import { ChevronLeft, ChevronRight, Package } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
+
+interface ProductImageGalleryProps {
+  mainImage: string | null;
+  galleryImages: { id: string; image_url: string }[];
+  productName: string;
+}
+
+export function ProductImageGallery({ mainImage, galleryImages, productName }: ProductImageGalleryProps) {
+  // Combine main image with gallery images
+  const allImages = [
+    ...(mainImage ? [{ id: 'main', image_url: mainImage }] : []),
+    ...galleryImages,
+  ];
+
+  const [currentIndex, setCurrentIndex] = useState(0);
+
+  if (allImages.length === 0) {
+    return (
+      <div className="aspect-video rounded-lg bg-muted overflow-hidden flex items-center justify-center">
+        <Package className="h-16 w-16 text-muted-foreground" />
+      </div>
+    );
+  }
+
+  const goToPrevious = () => {
+    setCurrentIndex((prev) => (prev === 0 ? allImages.length - 1 : prev - 1));
+  };
+
+  const goToNext = () => {
+    setCurrentIndex((prev) => (prev === allImages.length - 1 ? 0 : prev + 1));
+  };
+
+  return (
+    <div className="space-y-2">
+      {/* Main Image */}
+      <div className="relative aspect-video rounded-lg bg-muted overflow-hidden group">
+        <img
+          src={allImages[currentIndex].image_url}
+          alt={`${productName} - Image ${currentIndex + 1}`}
+          className="w-full h-full object-cover"
+        />
+
+        {/* Navigation Arrows */}
+        {allImages.length > 1 && (
+          <>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute left-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={goToPrevious}
+            >
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="icon"
+              className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8 opacity-0 group-hover:opacity-100 transition-opacity"
+              onClick={goToNext}
+            >
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+
+            {/* Image Counter */}
+            <div className="absolute bottom-2 right-2 bg-background/80 backdrop-blur-sm text-xs px-2 py-1 rounded-md">
+              {currentIndex + 1} / {allImages.length}
+            </div>
+          </>
+        )}
+      </div>
+
+      {/* Thumbnails */}
+      {allImages.length > 1 && (
+        <div className="flex gap-2 overflow-x-auto pb-1">
+          {allImages.map((image, index) => (
+            <button
+              key={image.id}
+              onClick={() => setCurrentIndex(index)}
+              className={cn(
+                "flex-shrink-0 w-14 h-14 rounded-md overflow-hidden border-2 transition-colors",
+                index === currentIndex
+                  ? "border-primary"
+                  : "border-transparent hover:border-muted-foreground/50"
+              )}
+            >
+              <img
+                src={image.image_url}
+                alt={`${productName} - Thumbnail ${index + 1}`}
+                className="w-full h-full object-cover"
+              />
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
