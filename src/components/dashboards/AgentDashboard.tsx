@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3 } from 'lucide-react';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -373,7 +373,28 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </Card>
           </TabsContent>
 
-          <TabsContent value="marketplace">
+          <TabsContent value="marketplace" className="space-y-4">
+            {/* Analytics Link */}
+            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
+              <CardContent className="py-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-primary/10">
+                      <BarChart3 className="h-5 w-5 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">Sales Analytics</p>
+                      <p className="text-sm text-muted-foreground">Track your product performance</p>
+                    </div>
+                  </div>
+                  <Button variant="outline" onClick={() => navigate('/analytics')} className="gap-2">
+                    <TrendingUp className="h-4 w-4" />
+                    View Analytics
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+            
             <AgentProductsSection />
           </TabsContent>
         </Tabs>
