@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardFooter } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent, Scale } from 'lucide-react';
+import { ShoppingCart, Package, Loader2, Star, Eye, Heart, Plus, Percent, Scale, Check } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ProductDetailDialog } from './ProductDetailDialog';
@@ -13,6 +13,7 @@ import { FlashSaleCountdown } from './FlashSaleCountdown';
 import { useRecentlyViewed } from '@/hooks/useRecentlyViewed';
 import { useProductComparison } from '@/hooks/useProductComparison';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { motion } from 'framer-motion';
 
 interface Product {
   id: string;
@@ -60,6 +61,7 @@ export function ProductCard({
   const isMobile = useIsMobile();
   const [purchasing, setPurchasing] = useState(false);
   const [addingToCart, setAddingToCart] = useState(false);
+  const [addedToCart, setAddedToCart] = useState(false);
   const [showDetail, setShowDetail] = useState(false);
   const [showQuickView, setShowQuickView] = useState(false);
   const [averageRating, setAverageRating] = useState(0);
@@ -85,7 +87,6 @@ export function ProductCard({
 
   const handleCardClick = () => {
     addToRecentlyViewed(product.id);
-    // Show quick view on mobile, full dialog on desktop
     if (isMobile) {
       setShowQuickView(true);
     } else {
@@ -146,6 +147,15 @@ export function ProductCard({
     }
   };
 
+  const handleAddToCart = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAddingToCart(true);
+    await addToCart(product.id);
+    setAddingToCart(false);
+    setAddedToCart(true);
+    setTimeout(() => setAddedToCart(false), 2000);
+  };
+
   const handleWishlistToggle = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!user) {
@@ -178,180 +188,202 @@ export function ProductCard({
     }
   };
 
-  const categoryColors: Record<string, string> = {
-    food: 'bg-green-500/10 text-green-500',
-    drinks: 'bg-blue-500/10 text-blue-500',
-    groceries: 'bg-orange-500/10 text-orange-500',
-    general: 'bg-gray-500/10 text-gray-500',
-  };
-
   const hasDiscount = isDiscountActive(product);
   const discountedPrice = getDiscountedPrice(product);
+  const savings = product.price - discountedPrice;
 
   return (
     <>
-      <Card 
-        className="overflow-hidden hover:shadow-lg transition-shadow duration-300 cursor-pointer group"
-        onClick={handleCardClick}
+      <motion.div
+        whileHover={{ y: -4 }}
+        transition={{ type: "spring", stiffness: 300, damping: 20 }}
       >
-        <div className="aspect-square bg-muted relative overflow-hidden">
-          {product.image_url ? (
-            <img 
-              src={product.image_url} 
-              alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-            />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center">
-              <Package className="h-12 w-12 text-muted-foreground" />
-            </div>
-          )}
-          {product.stock === 0 && (
-            <div className="absolute inset-0 bg-background/80 flex items-center justify-center">
-              <Badge variant="destructive">Out of Stock</Badge>
-            </div>
-          )}
-          {/* Discount Badge */}
-          {hasDiscount && (
-            <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
-              <Badge className="bg-destructive text-destructive-foreground gap-1">
-                <Percent className="h-3 w-3" />
-                {product.discount_percentage}% OFF
-              </Badge>
-              {product.discount_ends_at && (
-                <FlashSaleCountdown endDate={product.discount_ends_at} compact />
-              )}
-            </div>
-          )}
-          {/* Wishlist & Compare Buttons */}
-          <div className="absolute top-2 right-2 flex flex-col gap-1 z-10">
-            {user && (
-              <button
-                onClick={handleWishlistToggle}
-                disabled={wishlistLoading}
-                className="p-2 rounded-full bg-background/80 backdrop-blur-sm hover:bg-background transition-colors"
-              >
-                <Heart 
-                  className={`h-5 w-5 transition-colors ${
-                    isInWishlist 
-                      ? 'fill-destructive text-destructive' 
-                      : 'text-muted-foreground hover:text-destructive'
-                  }`}
-                />
-              </button>
-            )}
-            <button
-              onClick={handleCompareToggle}
-              className={`p-2 rounded-full backdrop-blur-sm transition-colors ${
-                inComparison 
-                  ? 'bg-primary text-primary-foreground' 
-                  : 'bg-background/80 hover:bg-background text-muted-foreground hover:text-primary'
-              }`}
-            >
-              <Scale className="h-5 w-5" />
-            </button>
-          </div>
-          {/* View Details Overlay */}
-          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center pointer-events-none">
-            <div className="flex items-center gap-2 text-white text-sm font-medium">
-              <Eye className="h-4 w-4" />
-              View Details
-            </div>
-          </div>
-        </div>
-        <CardContent className="p-4">
-          <div className="flex items-start justify-between gap-2">
-            <h3 className="font-semibold line-clamp-1">{product.name}</h3>
-            <Badge className={categoryColors[product.category] || categoryColors.general}>
-              {product.category}
-            </Badge>
-          </div>
-          
-          {/* Rating Display */}
-          {reviewCount > 0 && (
-            <div className="flex items-center gap-1 mt-2">
-              <div className="flex">
-                {[1, 2, 3, 4, 5].map((star) => (
-                  <Star
-                    key={star}
-                    className={`h-3 w-3 ${
-                      star <= Math.round(averageRating)
-                        ? 'fill-warning text-warning'
-                        : 'text-muted-foreground'
-                    }`}
-                  />
-                ))}
-              </div>
-              <span className="text-xs text-muted-foreground">
-                ({reviewCount})
-              </span>
-            </div>
-          )}
-
-          {product.description && (
-            <p className="text-sm text-muted-foreground mt-1 line-clamp-2">
-              {product.description}
-            </p>
-          )}
-          <div className="mt-3 flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <span className="text-lg font-bold text-primary">
-                UGX {discountedPrice.toLocaleString()}
-              </span>
-              {hasDiscount && (
-                <span className="text-sm text-muted-foreground line-through">
-                  UGX {product.price.toLocaleString()}
-                </span>
-              )}
-            </div>
-            <span className="text-xs text-muted-foreground">
-              {product.stock} in stock
-            </span>
-          </div>
-        </CardContent>
-        <CardFooter className="p-4 pt-0 gap-2">
-          {!isOwnProduct && product.stock > 0 && (
-            <Button 
-              variant="outline"
-              size="icon"
-              onClick={async (e) => {
-                e.stopPropagation();
-                setAddingToCart(true);
-                await addToCart(product.id);
-                setAddingToCart(false);
-              }}
-              disabled={addingToCart}
-            >
-              {addingToCart ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <Plus className="h-4 w-4" />
-              )}
-            </Button>
-          )}
-          <Button 
-            className="flex-1" 
-            onClick={handlePurchase}
-            disabled={purchasing || product.stock === 0 || isOwnProduct}
-          >
-            {purchasing ? (
-              <>
-                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                Processing...
-              </>
-            ) : isOwnProduct ? (
-              'Your Product'
-            ) : product.stock === 0 ? (
-              'Out of Stock'
+        <Card 
+          className="overflow-hidden border-border/50 hover:border-primary/30 hover:shadow-xl transition-all duration-300 cursor-pointer group bg-card"
+          onClick={handleCardClick}
+        >
+          {/* Image Container */}
+          <div className="aspect-square bg-muted relative overflow-hidden">
+            {product.image_url ? (
+              <img 
+                src={product.image_url} 
+                alt={product.name}
+                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"
+                loading="lazy"
+              />
             ) : (
-              <>
-                <ShoppingCart className="mr-2 h-4 w-4" />
-                Buy Now
-              </>
+              <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-muted to-muted/50">
+                <Package className="h-16 w-16 text-muted-foreground/40" />
+              </div>
             )}
-          </Button>
-        </CardFooter>
-      </Card>
+            
+            {/* Out of Stock Overlay */}
+            {product.stock === 0 && (
+              <div className="absolute inset-0 bg-background/90 backdrop-blur-sm flex items-center justify-center">
+                <Badge variant="destructive" className="text-sm px-4 py-1.5">
+                  Sold Out
+                </Badge>
+              </div>
+            )}
+            
+            {/* Discount Badge - Top Left */}
+            {hasDiscount && (
+              <div className="absolute top-2 left-2 z-10 flex flex-col gap-1">
+                <Badge className="bg-destructive text-destructive-foreground font-bold text-xs px-2 py-1 shadow-lg">
+                  -{product.discount_percentage}%
+                </Badge>
+              </div>
+            )}
+
+            {/* Flash Sale Timer */}
+            {hasDiscount && product.discount_ends_at && (
+              <div className="absolute bottom-2 left-2 z-10">
+                <FlashSaleCountdown endDate={product.discount_ends_at} compact />
+              </div>
+            )}
+            
+            {/* Action Buttons - Top Right */}
+            <div className="absolute top-2 right-2 flex flex-col gap-1.5 z-10 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+              {user && (
+                <motion.button
+                  whileHover={{ scale: 1.1 }}
+                  whileTap={{ scale: 0.9 }}
+                  onClick={handleWishlistToggle}
+                  disabled={wishlistLoading}
+                  className={`p-2 rounded-full shadow-lg transition-colors ${
+                    isInWishlist 
+                      ? 'bg-destructive text-white' 
+                      : 'bg-white/95 dark:bg-card/95 backdrop-blur-sm hover:bg-white dark:hover:bg-card'
+                  }`}
+                >
+                  <Heart 
+                    className={`h-4 w-4 ${isInWishlist ? 'fill-current' : 'text-gray-600 dark:text-gray-300'}`}
+                  />
+                </motion.button>
+              )}
+              <motion.button
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleCompareToggle}
+                className={`p-2 rounded-full shadow-lg transition-colors ${
+                  inComparison 
+                    ? 'bg-primary text-primary-foreground' 
+                    : 'bg-white/95 dark:bg-card/95 backdrop-blur-sm hover:bg-white dark:hover:bg-card text-gray-600 dark:text-gray-300'
+                }`}
+              >
+                <Scale className="h-4 w-4" />
+              </motion.button>
+            </div>
+
+            {/* Quick View Overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end justify-center pb-4 pointer-events-none">
+              <div className="flex items-center gap-2 text-white text-sm font-medium bg-black/30 backdrop-blur-sm px-4 py-2 rounded-full">
+                <Eye className="h-4 w-4" />
+                Quick View
+              </div>
+            </div>
+          </div>
+
+          <CardContent className="p-3 sm:p-4">
+            {/* Product Name */}
+            <h3 className="font-semibold text-sm sm:text-base line-clamp-2 mb-1 group-hover:text-primary transition-colors min-h-[2.5rem]">
+              {product.name}
+            </h3>
+            
+            {/* Rating */}
+            {reviewCount > 0 && (
+              <div className="flex items-center gap-1.5 mb-2">
+                <div className="flex items-center">
+                  {[1, 2, 3, 4, 5].map((star) => (
+                    <Star
+                      key={star}
+                      className={`h-3 w-3 ${
+                        star <= Math.round(averageRating)
+                          ? 'fill-amber-400 text-amber-400'
+                          : 'text-gray-300'
+                      }`}
+                    />
+                  ))}
+                </div>
+                <span className="text-xs text-muted-foreground">
+                  ({reviewCount})
+                </span>
+              </div>
+            )}
+
+            {/* Price Section */}
+            <div className="space-y-1 mb-3">
+              <div className="flex items-baseline gap-2 flex-wrap">
+                <span className="text-lg sm:text-xl font-bold text-primary">
+                  UGX {discountedPrice.toLocaleString()}
+                </span>
+                {hasDiscount && (
+                  <span className="text-xs sm:text-sm text-muted-foreground line-through">
+                    UGX {product.price.toLocaleString()}
+                  </span>
+                )}
+              </div>
+              {hasDiscount && (
+                <p className="text-xs text-success font-medium">
+                  You save UGX {savings.toLocaleString()}
+                </p>
+              )}
+            </div>
+
+            {/* Stock Info */}
+            <div className="flex items-center justify-between mb-3 text-xs">
+              <span className={`font-medium ${product.stock > 0 ? 'text-success' : 'text-destructive'}`}>
+                {product.stock > 0 ? `${product.stock} in stock` : 'Out of stock'}
+              </span>
+              {product.stock > 0 && product.stock <= 5 && (
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-orange-600 border-orange-300 bg-orange-50 dark:bg-orange-900/20">
+                  Few left!
+                </Badge>
+              )}
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2">
+              {!isOwnProduct && product.stock > 0 && (
+                <Button 
+                  variant="outline"
+                  size="sm"
+                  onClick={handleAddToCart}
+                  disabled={addingToCart}
+                  className={`transition-all ${addedToCart ? 'bg-success text-success-foreground border-success' : ''}`}
+                >
+                  {addingToCart ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : addedToCart ? (
+                    <Check className="h-4 w-4" />
+                  ) : (
+                    <Plus className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
+              <Button 
+                className="flex-1 text-xs sm:text-sm font-semibold" 
+                size="sm"
+                onClick={handlePurchase}
+                disabled={purchasing || product.stock === 0 || isOwnProduct}
+              >
+                {purchasing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : isOwnProduct ? (
+                  'Your Product'
+                ) : product.stock === 0 ? (
+                  'Sold Out'
+                ) : (
+                  <>
+                    <ShoppingCart className="mr-1.5 h-4 w-4" />
+                    Buy Now
+                  </>
+                )}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Quick View for Mobile */}
       <ProductQuickView
