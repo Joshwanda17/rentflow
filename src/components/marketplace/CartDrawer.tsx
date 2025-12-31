@@ -99,9 +99,18 @@ export function CartDrawer({ children }: CartDrawerProps) {
           <div className="flex-1 flex flex-col items-center justify-center text-center">
             <ShoppingCart className="h-16 w-16 text-muted-foreground mb-4" />
             <h3 className="font-medium mb-2">Your cart is empty</h3>
-            <p className="text-sm text-muted-foreground">
+            <p className="text-sm text-muted-foreground mb-4">
               Add products to your cart to checkout
             </p>
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setOpen(false);
+                document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+              }}
+            >
+              Continue Shopping
+            </Button>
           </div>
         ) : (
           <>
@@ -208,6 +217,17 @@ export function CartDrawer({ children }: CartDrawerProps) {
                     Checkout - UGX {totalAmount.toLocaleString()}
                   </>
                 )}
+              </Button>
+
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => {
+                  setOpen(false);
+                  document.getElementById('products-section')?.scrollIntoView({ behavior: 'smooth' });
+                }}
+              >
+                Continue Shopping
               </Button>
 
               <Button 
