@@ -537,6 +537,7 @@ export type Database = {
           id: string
           phone: string
           updated_at: string
+          verified: boolean
         }
         Insert: {
           avatar_url?: string | null
@@ -546,6 +547,7 @@ export type Database = {
           id: string
           phone: string
           updated_at?: string
+          verified?: boolean
         }
         Update: {
           avatar_url?: string | null
@@ -555,6 +557,7 @@ export type Database = {
           id?: string
           phone?: string
           updated_at?: string
+          verified?: boolean
         }
         Relationships: []
       }
