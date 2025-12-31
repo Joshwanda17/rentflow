@@ -1,14 +1,23 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Star, CheckCircle2, Camera, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Star, CheckCircle2, Camera, ChevronLeft, ChevronRight, X, ThumbsUp, ThumbsDown } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { format } from 'date-fns';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface ReviewImage {
   id: string;
   image_url: string;
+}
+
+interface ReviewVote {
+  upvotes: number;
+  downvotes: number;
+  userVote: 'upvote' | 'downvote' | null;
 }
 
 interface Review {
@@ -22,15 +31,75 @@ interface Review {
   buyer_avatar?: string | null;
   is_verified_purchase?: boolean;
   images?: ReviewImage[];
+  votes?: ReviewVote;
 }
 
 interface PhotoReviewCardProps {
   review: Review;
   onImageClick?: (images: ReviewImage[], startIndex: number) => void;
+  onVoteChange?: () => void;
 }
 
-export function PhotoReviewCard({ review, onImageClick }: PhotoReviewCardProps) {
+export function PhotoReviewCard({ review, onImageClick, onVoteChange }: PhotoReviewCardProps) {
+  const { user } = useAuth();
+  const [voting, setVoting] = useState(false);
   const hasImages = review.images && review.images.length > 0;
+
+  const handleVote = async (voteType: 'upvote' | 'downvote') => {
+    if (!user) {
+      toast.error('Please sign in to vote');
+      return;
+    }
+
+    if (user.id === review.buyer_id) {
+      toast.error("You can't vote on your own review");
+      return;
+    }
+
+    setVoting(true);
+    try {
+      const currentVote = review.votes?.userVote;
+
+      if (currentVote === voteType) {
+        // Remove vote
+        const { error } = await supabase
+          .from('review_votes')
+          .delete()
+          .eq('review_id', review.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else if (currentVote) {
+        // Update vote
+        const { error } = await supabase
+          .from('review_votes')
+          .update({ vote_type: voteType })
+          .eq('review_id', review.id)
+          .eq('user_id', user.id);
+
+        if (error) throw error;
+      } else {
+        // Insert new vote
+        const { error } = await supabase
+          .from('review_votes')
+          .insert({
+            review_id: review.id,
+            user_id: user.id,
+            vote_type: voteType,
+          });
+
+        if (error) throw error;
+      }
+
+      onVoteChange?.();
+    } catch (error: any) {
+      toast.error('Failed to vote', { description: error.message });
+    } finally {
+      setVoting(false);
+    }
+  };
+
+  const helpfulScore = (review.votes?.upvotes || 0) - (review.votes?.downvotes || 0);
 
   return (
     <div className="p-4 rounded-xl bg-card border border-border/50 space-y-3">
@@ -107,6 +176,46 @@ export function PhotoReviewCard({ review, onImageClick }: PhotoReviewCardProps) 
           )}
         </div>
       )}
+
+      {/* Voting Section */}
+      <div className="flex items-center gap-3 pt-2 border-t border-border/50">
+        <span className="text-xs text-muted-foreground">Helpful?</span>
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleVote('upvote')}
+            disabled={voting}
+            className={`h-7 px-2 gap-1 ${
+              review.votes?.userVote === 'upvote'
+                ? 'text-success bg-success/10 hover:bg-success/20'
+                : 'text-muted-foreground hover:text-success'
+            }`}
+          >
+            <ThumbsUp className="h-3.5 w-3.5" />
+            <span className="text-xs">{review.votes?.upvotes || 0}</span>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => handleVote('downvote')}
+            disabled={voting}
+            className={`h-7 px-2 gap-1 ${
+              review.votes?.userVote === 'downvote'
+                ? 'text-destructive bg-destructive/10 hover:bg-destructive/20'
+                : 'text-muted-foreground hover:text-destructive'
+            }`}
+          >
+            <ThumbsDown className="h-3.5 w-3.5" />
+            <span className="text-xs">{review.votes?.downvotes || 0}</span>
+          </Button>
+        </div>
+        {helpfulScore > 0 && (
+          <span className="text-xs text-success ml-auto">
+            {helpfulScore} found this helpful
+          </span>
+        )}
+      </div>
     </div>
   );
 }
