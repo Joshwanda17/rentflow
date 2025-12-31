@@ -18,6 +18,7 @@ import {
   Mail,
   TrendingUp
 } from 'lucide-react';
+import { VerifiedBadge } from '@/components/marketplace/VerifiedBadge';
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from '@/components/marketplace/ProductCard';
 import { ThemeToggle } from '@/components/ThemeToggle';
@@ -45,6 +46,7 @@ interface SellerProfile {
   phone: string;
   avatar_url: string | null;
   created_at: string;
+  verified: boolean;
 }
 
 interface SellerStats {
@@ -279,7 +281,10 @@ export default function SellerProfile() {
                 <div className="flex-1 pt-4 md:pt-8">
                   <div className="flex flex-col md:flex-row md:items-start md:justify-between gap-4">
                     <div>
-                      <h1 className="text-2xl font-bold">{seller.full_name}</h1>
+                      <h1 className="text-2xl font-bold flex items-center gap-2">
+                        {seller.full_name}
+                        {seller.verified && <VerifiedBadge size="lg" />}
+                      </h1>
                       <div className="flex items-center gap-4 mt-2 text-sm text-muted-foreground">
                         <span className="flex items-center gap-1">
                           <Calendar className="h-4 w-4" />

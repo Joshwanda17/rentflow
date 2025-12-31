@@ -32,6 +32,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { ProductImageGallery } from './ProductImageGallery';
 import { FlashSaleCountdown } from './FlashSaleCountdown';
+import { VerifiedBadge } from './VerifiedBadge';
 
 interface Product {
   id: string;
@@ -94,7 +95,7 @@ export function ProductDetailDialog({
   const { addToCart } = useCart();
   const [reviews, setReviews] = useState<Review[]>([]);
   const [galleryImages, setGalleryImages] = useState<GalleryImage[]>([]);
-  const [sellerInfo, setSellerInfo] = useState<{ full_name: string; avatar_url: string | null } | null>(null);
+  const [sellerInfo, setSellerInfo] = useState<{ full_name: string; avatar_url: string | null; verified: boolean } | null>(null);
   const [loading, setLoading] = useState(false);
   const [purchasing, setPurchasing] = useState(false);
   const [submittingReview, setSubmittingReview] = useState(false);
@@ -124,7 +125,7 @@ export function ProductDetailDialog({
     try {
       const { data } = await supabase
         .from('profiles')
-        .select('full_name, avatar_url')
+        .select('full_name, avatar_url, verified')
         .eq('id', product.agent_id)
         .maybeSingle();
       
@@ -392,8 +393,9 @@ export function ProductDetailDialog({
                     </AvatarFallback>
                   </Avatar>
                   <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors">
+                    <p className="text-sm font-medium truncate group-hover:text-primary transition-colors flex items-center gap-1">
                       {sellerInfo.full_name}
+                      {sellerInfo.verified && <VerifiedBadge size="sm" />}
                     </p>
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Store className="h-3 w-3" />
