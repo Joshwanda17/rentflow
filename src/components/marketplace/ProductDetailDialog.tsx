@@ -25,8 +25,16 @@ import {
   Store,
   ExternalLink,
   CheckCircle2,
-  Camera
+  Camera,
+  ArrowUpDown
 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
@@ -72,6 +80,12 @@ interface ReviewImage {
   image_url: string;
 }
 
+interface ReviewVote {
+  upvotes: number;
+  downvotes: number;
+  userVote: 'upvote' | 'downvote' | null;
+}
+
 interface Review {
   id: string;
   product_id: string;
@@ -83,6 +97,7 @@ interface Review {
   buyer_avatar?: string | null;
   is_verified_purchase?: boolean;
   images?: ReviewImage[];
+  votes?: ReviewVote;
 }
 
 interface ProductDetailDialogProps {
@@ -124,6 +139,7 @@ export function ProductDetailDialog({
   const [lightboxImages, setLightboxImages] = useState<ReviewImage[]>([]);
   const [lightboxIndex, setLightboxIndex] = useState(0);
   const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [reviewSortBy, setReviewSortBy] = useState<'newest' | 'highest' | 'lowest' | 'helpful'>('newest');
 
   useEffect(() => {
     if (product && open) {
@@ -182,7 +198,7 @@ export function ProductDetailDialog({
 
       if (error) throw error;
 
-      // Enrich with buyer names, avatars, and images
+      // Enrich with buyer names, avatars, images, and votes
       const enrichedReviews = await Promise.all(
         (data || []).map(async (review) => {
           // Get profile
@@ -199,12 +215,23 @@ export function ProductDetailDialog({
             .eq('review_id', review.id)
             .order('display_order');
 
+          // Get vote counts
+          const { data: votes } = await supabase
+            .from('review_votes')
+            .select('vote_type, user_id')
+            .eq('review_id', review.id);
+
+          const upvotes = votes?.filter(v => v.vote_type === 'upvote').length || 0;
+          const downvotes = votes?.filter(v => v.vote_type === 'downvote').length || 0;
+          const userVote = user ? votes?.find(v => v.user_id === user.id)?.vote_type as 'upvote' | 'downvote' | null : null;
+
           return {
             ...review,
             buyer_name: profile?.full_name || 'Anonymous',
             buyer_avatar: profile?.avatar_url,
             is_verified_purchase: true, // All reviews require purchase
             images: images || [],
+            votes: { upvotes, downvotes, userVote },
           };
         })
       );
@@ -395,6 +422,24 @@ export function ProductDetailDialog({
 
   // Count reviews with photos
   const photoReviewCount = reviews.filter(r => r.images && r.images.length > 0).length;
+
+  // Sort reviews based on selected option
+  const sortedReviews = [...reviews].sort((a, b) => {
+    switch (reviewSortBy) {
+      case 'newest':
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case 'highest':
+        return b.rating - a.rating;
+      case 'lowest':
+        return a.rating - b.rating;
+      case 'helpful':
+        const aScore = (a.votes?.upvotes || 0) - (a.votes?.downvotes || 0);
+        const bScore = (b.votes?.upvotes || 0) - (b.votes?.downvotes || 0);
+        return bScore - aScore;
+      default:
+        return 0;
+    }
+  });
 
   if (!product) return null;
 
@@ -642,20 +687,36 @@ export function ProductDetailDialog({
 
               {/* Reviews Section */}
               <div className="space-y-4">
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between flex-wrap gap-2">
                   <h3 className="font-semibold flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
                     Reviews ({reviews.length})
                   </h3>
-                  {canReview && !showReviewForm && (
-                    <Button 
-                      variant="outline" 
-                      size="sm"
-                      onClick={() => setShowReviewForm(true)}
-                    >
-                      {userReview ? 'Edit Review' : 'Write Review'}
-                    </Button>
-                  )}
+                  <div className="flex items-center gap-2">
+                    {reviews.length > 1 && (
+                      <Select value={reviewSortBy} onValueChange={(v) => setReviewSortBy(v as typeof reviewSortBy)}>
+                        <SelectTrigger className="h-8 w-[140px] text-xs">
+                          <ArrowUpDown className="h-3 w-3 mr-1" />
+                          <SelectValue placeholder="Sort by" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="newest">Newest</SelectItem>
+                          <SelectItem value="helpful">Most Helpful</SelectItem>
+                          <SelectItem value="highest">Highest Rated</SelectItem>
+                          <SelectItem value="lowest">Lowest Rated</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    )}
+                    {canReview && !showReviewForm && (
+                      <Button 
+                        variant="outline" 
+                        size="sm"
+                        onClick={() => setShowReviewForm(true)}
+                      >
+                        {userReview ? 'Edit Review' : 'Write Review'}
+                      </Button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Review Form */}
@@ -747,11 +808,12 @@ export function ProductDetailDialog({
                   </div>
                 ) : (
                   <div className="space-y-3">
-                    {reviews.map((review) => (
+                    {sortedReviews.map((review) => (
                       <PhotoReviewCard
                         key={review.id}
                         review={review}
                         onImageClick={openReviewImageLightbox}
+                        onVoteChange={fetchReviews}
                       />
                     ))}
                   </div>
