@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type } from 'lucide-react';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
@@ -14,6 +14,8 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
 interface Profile {
   id: string;
@@ -46,6 +48,7 @@ const itemVariants = {
 export default function Settings() {
   const navigate = useNavigate();
   const { user, roles, addRole, loading: authLoading } = useAuth();
+  const { fontSize, setFontSize } = useFontSize();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -455,7 +458,8 @@ export default function Settings() {
               </CardDescription>
             </CardHeader>
             
-            <CardContent className="relative">
+            <CardContent className="space-y-6 relative">
+              {/* Theme Toggle */}
               <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
                 <div>
                   <p className="font-medium">Theme</p>
@@ -464,6 +468,56 @@ export default function Settings() {
                   </p>
                 </div>
                 <ThemeToggle />
+              </div>
+
+              {/* Font Size Selector */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center gap-2 mb-4">
+                  <Type className="h-5 w-5 text-primary" />
+                  <div>
+                    <p className="font-medium">Font Size</p>
+                    <p className="text-sm text-muted-foreground">
+                      Adjust text size for better readability
+                    </p>
+                  </div>
+                </div>
+                
+                <RadioGroup 
+                  value={fontSize} 
+                  onValueChange={(value) => setFontSize(value as typeof fontSize)}
+                  className="grid grid-cols-2 gap-3"
+                >
+                  {fontSizeOptions.map((option) => (
+                    <motion.div
+                      key={option.value}
+                      whileHover={{ scale: 1.02 }}
+                      whileTap={{ scale: 0.98 }}
+                    >
+                      <Label
+                        htmlFor={option.value}
+                        className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-all ${
+                          fontSize === option.value 
+                            ? 'border-primary bg-primary/10' 
+                            : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                        }`}
+                      >
+                        <RadioGroupItem value={option.value} id={option.value} />
+                        <div className="flex-1">
+                          <p className="font-medium text-sm">{option.label}</p>
+                          <p className="text-xs text-muted-foreground">{option.description}</p>
+                        </div>
+                      </Label>
+                    </motion.div>
+                  ))}
+                </RadioGroup>
+
+                {/* Font Size Preview */}
+                <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/30">
+                  <p className="text-muted-foreground text-xs mb-2">Preview:</p>
+                  <p className="leading-relaxed">
+                    This is how your text will look. Easy to read and comfortable for everyday use.
+                  </p>
+                </div>
               </div>
             </CardContent>
           </Card>

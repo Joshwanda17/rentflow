@@ -9,6 +9,7 @@ import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CartProvider } from "@/hooks/useCart";
 import { ComparisonProvider } from "@/hooks/useProductComparison";
+import { FontSizeProvider } from "@/hooks/useFontSize";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import { lazy, Suspense, memo } from "react";
 // Lazy load routes for better initial load performance at scale
@@ -117,22 +118,24 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="dark" enableSystem>
     <QueryClientProvider client={queryClient}>
-      <LanguageProvider>
-        <AuthProvider>
-          <CartProvider>
-            <ComparisonProvider>
-              <TooltipProvider delayDuration={300}>
-                <ConnectionStatus />
-                <Toaster />
-                <Sonner />
-                <BrowserRouter>
-                  <AnimatedRoutes />
-                </BrowserRouter>
-              </TooltipProvider>
-            </ComparisonProvider>
-          </CartProvider>
-        </AuthProvider>
-      </LanguageProvider>
+      <FontSizeProvider>
+        <LanguageProvider>
+          <AuthProvider>
+            <CartProvider>
+              <ComparisonProvider>
+                <TooltipProvider delayDuration={300}>
+                  <ConnectionStatus />
+                  <Toaster />
+                  <Sonner />
+                  <BrowserRouter>
+                    <AnimatedRoutes />
+                  </BrowserRouter>
+                </TooltipProvider>
+              </ComparisonProvider>
+            </CartProvider>
+          </AuthProvider>
+        </LanguageProvider>
+      </FontSizeProvider>
     </QueryClientProvider>
   </ThemeProvider>
 );
