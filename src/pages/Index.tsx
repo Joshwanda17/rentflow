@@ -230,15 +230,14 @@ export default function Index() {
                   </Button>
                 </motion.div>
               </Link>
-              <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
-                <Button variant="outline" size="lg" className="gap-2 h-14 px-8 text-lg border-border/50 bg-background/50 backdrop-blur-sm">
-                  <span className="relative flex h-3 w-3 mr-1">
-                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                    <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
-                  </span>
-                  Watch Demo
-                </Button>
-              </motion.div>
+              <Link to="/flash-sales">
+                <motion.div whileHover={{ scale: 1.05, y: -2 }} whileTap={{ scale: 0.95 }}>
+                  <Button variant="outline" size="lg" className="gap-2 h-14 px-8 text-lg border-amber-500/50 bg-gradient-to-r from-amber-500/10 to-orange-500/10 hover:from-amber-500/20 hover:to-orange-500/20 text-amber-600 dark:text-amber-400">
+                    <Zap className="h-5 w-5 fill-current" />
+                    Flash Sales
+                  </Button>
+                </motion.div>
+              </Link>
             </motion.div>
           </motion.div>
         </div>
