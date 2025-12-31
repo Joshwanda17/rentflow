@@ -139,13 +139,33 @@
 
   html {
     @apply scroll-smooth;
+    font-size: 16px; /* Gmail-like default - larger for readability */
   }
 
   body {
     @apply bg-background text-foreground antialiased;
-    font-family: 'Inter', 'DM Sans', system-ui, sans-serif;
+    font-family: 'Roboto', 'Inter', 'DM Sans', system-ui, sans-serif;
+    font-size: 1rem; /* Inherits from html root */
+    line-height: 1.6;
     font-feature-settings: "cv11", "ss01";
     font-variation-settings: "opsz" 32;
+  }
+
+  /* Font size scaling classes */
+  html[data-font-size="small"] {
+    font-size: 14px;
+  }
+
+  html[data-font-size="medium"] {
+    font-size: 16px;
+  }
+
+  html[data-font-size="large"] {
+    font-size: 18px;
+  }
+
+  html[data-font-size="extra-large"] {
+    font-size: 20px;
   }
 
   .font-mono {
