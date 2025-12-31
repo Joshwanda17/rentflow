@@ -572,13 +572,29 @@ export default function Settings() {
 
                 {/* Haptic Preview */}
                 <div className="mt-4 p-4 rounded-lg bg-muted/30 border border-border/30">
-                  <p className="text-muted-foreground text-xs mb-2">Note:</p>
-                  <p className="text-sm">
-                    {hapticIntensity === 'off' 
-                      ? 'Vibration feedback is disabled. You won\'t feel any haptic responses.'
-                      : `Vibration is set to ${hapticIntensity}. Tap buttons and swipe actions to feel the feedback.`
-                    }
-                  </p>
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <p className="text-muted-foreground text-xs mb-1">Preview</p>
+                      <p className="text-sm">
+                        {hapticIntensity === 'off' 
+                          ? 'Vibration feedback is disabled.'
+                          : `Tap the button to feel ${hapticIntensity} vibration.`
+                        }
+                      </p>
+                    </div>
+                    <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        disabled={hapticIntensity === 'off'}
+                        onClick={() => hapticSelection()}
+                        className="gap-2"
+                      >
+                        <Vibrate className="h-4 w-4" />
+                        Test
+                      </Button>
+                    </motion.div>
+                  </div>
                 </div>
               </div>
             </CardContent>
