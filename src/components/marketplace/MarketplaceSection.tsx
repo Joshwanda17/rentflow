@@ -41,12 +41,20 @@ interface MarketplaceSectionProps {
   showAllProducts?: boolean;
   initialCategory?: string;
   externalSearchQuery?: string;
+  selectedProductId?: string | null;
+  onProductDialogClose?: () => void;
 }
 
 type SortOption = 'newest' | 'oldest' | 'price_low' | 'price_high' | 'name_az' | 'name_za';
 type GridSize = '2' | '3' | '4';
 
-export function MarketplaceSection({ showAllProducts = true, initialCategory, externalSearchQuery = '' }: MarketplaceSectionProps) {
+export function MarketplaceSection({ 
+  showAllProducts = true, 
+  initialCategory, 
+  externalSearchQuery = '',
+  selectedProductId: externalSelectedProductId,
+  onProductDialogClose
+}: MarketplaceSectionProps) {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { recentIds } = useRecentlyViewed();
@@ -62,8 +70,17 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory, ex
   const [showFilters, setShowFilters] = useState(false);
   const [showWishlistOnly, setShowWishlistOnly] = useState(false);
   const [wishlistIds, setWishlistIds] = useState<Set<string>>(new Set());
-  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [internalSelectedProductId, setInternalSelectedProductId] = useState<string | null>(null);
   const [gridSize, setGridSize] = useState<GridSize>('2');
+
+  // Use external or internal selected product
+  const selectedProductId = externalSelectedProductId ?? internalSelectedProductId;
+  const setSelectedProductId = (id: string | null) => {
+    setInternalSelectedProductId(id);
+    if (id === null && onProductDialogClose) {
+      onProductDialogClose();
+    }
+  };
 
   const selectedProduct = useMemo(() => 
     products.find(p => p.id === selectedProductId) || null,

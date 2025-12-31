@@ -3,8 +3,7 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart, ShoppingCart, Menu, Search, X } from 'lucide-react';
+import { Store, ArrowLeft, Zap, Grid3X3, ShoppingBag, Heart, ShoppingCart, Menu } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import WelileLogo from '@/components/WelileLogo';
 import { useAuth } from '@/hooks/useAuth';
@@ -12,6 +11,7 @@ import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection'
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { CartDrawer } from '@/components/marketplace/CartDrawer';
 import { useCart } from '@/hooks/useCart';
+import { SearchSuggestions } from '@/components/marketplace/SearchSuggestions';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -26,6 +26,7 @@ export default function Marketplace() {
   const [searchParams] = useSearchParams();
   const initialCategory = searchParams.get('category') || undefined;
   const [headerSearch, setHeaderSearch] = useState('');
+  const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
 
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
@@ -54,24 +55,12 @@ export default function Marketplace() {
 
             {/* Center - Search Bar (Desktop) */}
             <div className="hidden md:flex flex-1 max-w-xl mx-4">
-              <div className="relative w-full">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="text"
-                  placeholder="Search products, categories..."
-                  value={headerSearch}
-                  onChange={(e) => setHeaderSearch(e.target.value)}
-                  className="w-full pl-10 pr-10 h-11 bg-secondary/50 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20 text-base"
-                />
-                {headerSearch && (
-                  <button
-                    onClick={() => setHeaderSearch('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
+              <SearchSuggestions
+                query={headerSearch}
+                onQueryChange={setHeaderSearch}
+                onSelectProduct={setSelectedProductId}
+                className="w-full"
+              />
             </div>
 
             {/* Right - Actions */}
@@ -150,24 +139,12 @@ export default function Marketplace() {
 
           {/* Mobile Search Bar */}
           <div className="md:hidden mt-3">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                type="text"
-                placeholder="Search products..."
-                value={headerSearch}
-                onChange={(e) => setHeaderSearch(e.target.value)}
-                className="w-full pl-10 pr-10 h-10 bg-secondary/50 border-primary/20 focus:border-primary focus:ring-2 focus:ring-primary/20"
-              />
-              {headerSearch && (
-                <button
-                  onClick={() => setHeaderSearch('')}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              )}
-            </div>
+            <SearchSuggestions
+              query={headerSearch}
+              onQueryChange={setHeaderSearch}
+              onSelectProduct={setSelectedProductId}
+              className="w-full"
+            />
           </div>
 
           {/* Category badge if filtered */}
@@ -186,7 +163,12 @@ export default function Marketplace() {
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.3 }}
         >
-          <MarketplaceSection initialCategory={initialCategory} externalSearchQuery={headerSearch} />
+          <MarketplaceSection 
+            initialCategory={initialCategory} 
+            externalSearchQuery={headerSearch}
+            selectedProductId={selectedProductId}
+            onProductDialogClose={() => setSelectedProductId(null)}
+          />
         </motion.div>
       </main>
 
