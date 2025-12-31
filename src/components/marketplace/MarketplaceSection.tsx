@@ -16,6 +16,7 @@ import { Store, Package, Loader2, ShoppingBag, Search, SlidersHorizontal, X, Hea
 import { supabase } from '@/integrations/supabase/client';
 import { ProductCard } from './ProductCard';
 import { CartDrawer } from './CartDrawer';
+import { RecentlyViewedProducts } from './RecentlyViewedProducts';
 import { useAuth } from '@/hooks/useAuth';
 
 interface Product {
@@ -252,6 +253,9 @@ export function MarketplaceSection({ showAllProducts = true, initialCategory }: 
         </div>
       </CardHeader>
       <CardContent className="space-y-4" onClick={(e) => e.stopPropagation()}>
+        {/* Recently Viewed */}
+        <RecentlyViewedProducts onProductPurchase={fetchProducts} />
+        
         {/* Search Bar */}
         <div className="flex gap-2">
           <div className="relative flex-1">
