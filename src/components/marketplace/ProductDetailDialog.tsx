@@ -27,6 +27,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { useCart } from '@/hooks/useCart';
 import { ProductImageGallery } from './ProductImageGallery';
+import { FlashSaleCountdown } from './FlashSaleCountdown';
 
 interface Product {
   id: string;
@@ -358,13 +359,13 @@ export function ProductDetailDialog({
 
               {/* Discount Badge */}
               {hasDiscount && (
-                <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                  <Percent className="h-5 w-5 text-destructive" />
-                  <span className="font-semibold text-destructive">{product.discount_percentage}% OFF</span>
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <Percent className="h-5 w-5 text-destructive" />
+                    <span className="font-semibold text-destructive">{product.discount_percentage}% OFF</span>
+                  </div>
                   {product.discount_ends_at && (
-                    <span className="text-sm text-muted-foreground ml-auto">
-                      Ends {new Date(product.discount_ends_at).toLocaleDateString()}
-                    </span>
+                    <FlashSaleCountdown endDate={product.discount_ends_at} />
                   )}
                 </div>
               )}
