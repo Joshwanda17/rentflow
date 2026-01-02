@@ -17,6 +17,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { playCoinSound, playUrgencySound } from '@/lib/notificationSound';
+import RegisterLandlordDialog from '@/components/tenant/RegisterLandlordDialog';
 
 // Limited time offer component with countdown and spots remaining
 function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
@@ -396,6 +397,25 @@ export default function Benefits() {
   const { user } = useAuth();
   const [referralCount, setReferralCount] = useState(0);
   const [referralEarnings, setReferralEarnings] = useState(0);
+  const [showLandlordDialog, setShowLandlordDialog] = useState(false);
+  const [hasRegisteredLandlord, setHasRegisteredLandlord] = useState(false);
+
+  // Check if user has registered a landlord
+  useEffect(() => {
+    if (!user) return;
+    
+    const checkLandlord = async () => {
+      const { data } = await supabase
+        .from('landlords')
+        .select('id')
+        .eq('tenant_id', user.id)
+        .limit(1);
+      
+      setHasRegisteredLandlord(data && data.length > 0);
+    };
+    
+    checkLandlord();
+  }, [user]);
 
   // Generate share URL with user's referral code if logged in
   const shareUrl = user 
@@ -611,6 +631,92 @@ Trust me, you'll thank me later! 🙏`;
           </motion.div>
         )}
 
+        {/* Rent Discount Registration CTA - For logged in users who haven't registered */}
+        {user && !hasRegisteredLandlord && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.25 }}
+            className="mb-8"
+          >
+            <Card className="border-2 border-emerald-500/50 bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-green-500/10 overflow-hidden relative">
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent animate-[shimmer_2s_infinite]" />
+              <CardContent className="p-4 relative">
+                <div className="flex flex-col sm:flex-row items-center gap-4">
+                  <motion.div
+                    animate={{ scale: [1, 1.1, 1], rotate: [0, 5, -5, 0] }}
+                    transition={{ repeat: Infinity, duration: 3 }}
+                    className="shrink-0"
+                  >
+                    <div className="p-4 rounded-full bg-gradient-to-br from-emerald-500 to-teal-500 shadow-lg">
+                      <Home className="h-8 w-8 text-white" />
+                    </div>
+                  </motion.div>
+                  
+                  <div className="flex-1 text-center sm:text-left">
+                    <Badge className="bg-emerald-500 text-white mb-2">
+                      🏠 UNLOCK 70% RENT DISCOUNT
+                    </Badge>
+                    <h3 className="font-bold text-lg mb-1">
+                      Register Your Landlord to Start Saving!
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                      Submit your landlord's details and unlock massive rent discounts. Every receipt you collect earns you 1% back on rent!
+                    </p>
+                    <div className="flex items-center justify-center sm:justify-start gap-3 mt-3 text-xs text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        Free to register
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <CheckCircle2 className="h-3 w-3 text-emerald-500" />
+                        Takes 1 minute
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }} className="shrink-0">
+                    <Button 
+                      onClick={() => setShowLandlordDialog(true)}
+                      className="bg-gradient-to-r from-emerald-500 to-teal-500 hover:from-emerald-600 hover:to-teal-600 text-white font-bold"
+                    >
+                      <Percent className="h-4 w-4 mr-2" />
+                      Register Now
+                    </Button>
+                  </motion.div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Already registered landlord badge */}
+        {user && hasRegisteredLandlord && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.25 }}
+            className="mb-6"
+          >
+            <Card className="border-emerald-500/30 bg-emerald-500/5">
+              <CardContent className="p-3 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-emerald-500/10">
+                    <CheckCircle2 className="h-5 w-5 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="font-medium text-sm">Landlord Registered ✓</p>
+                    <p className="text-xs text-muted-foreground">Upload receipts to earn rent discounts!</p>
+                  </div>
+                </div>
+                <Button size="sm" variant="outline" onClick={() => navigate('/my-receipts')}>
+                  Add Receipts
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Referral Leaderboard */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -782,6 +888,13 @@ Trust me, you'll thank me later! 🙏`;
           </div>
         </div>
       </motion.div>
+
+      {/* Landlord Registration Dialog */}
+      <RegisterLandlordDialog 
+        open={showLandlordDialog} 
+        onOpenChange={setShowLandlordDialog}
+        onSuccess={() => setHasRegisteredLandlord(true)}
+      />
     </div>
   );
 }

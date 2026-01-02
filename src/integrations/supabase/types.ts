@@ -205,9 +205,11 @@ export type Database = {
           created_at: string
           id: string
           mobile_money_number: string | null
+          monthly_rent: number | null
           name: string
           phone: string
           property_address: string
+          tenant_id: string | null
         }
         Insert: {
           account_number?: string | null
@@ -215,9 +217,11 @@ export type Database = {
           created_at?: string
           id?: string
           mobile_money_number?: string | null
+          monthly_rent?: number | null
           name: string
           phone: string
           property_address: string
+          tenant_id?: string | null
         }
         Update: {
           account_number?: string | null
@@ -225,9 +229,11 @@ export type Database = {
           created_at?: string
           id?: string
           mobile_money_number?: string | null
+          monthly_rent?: number | null
           name?: string
           phone?: string
           property_address?: string
+          tenant_id?: string | null
         }
         Relationships: []
       }
