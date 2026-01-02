@@ -28,6 +28,7 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
 import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
+import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 
 interface TenantDashboardProps {
   user: User;
@@ -175,6 +176,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Loan Limit Promo */}
+        <LoanLimitPromoCard userId={user.id} />
 
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />
