@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone } from 'lucide-react';
+import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone, Search, X } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface QuickReceiptFormProps {
@@ -47,6 +47,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const [showVendors, setShowVendors] = useState(false);
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
+  const [vendorSearch, setVendorSearch] = useState('');
 
   useEffect(() => {
     fetchLoanLimit();
@@ -359,6 +360,31 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                 </p>
               </div>
               
+              {/* Search Input */}
+              {vendors.length > 0 && (
+                <div className="p-2 border-b border-border/50">
+                  <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Input
+                      placeholder="Search by name or location..."
+                      value={vendorSearch}
+                      onChange={(e) => setVendorSearch(e.target.value)}
+                      className="h-8 pl-8 pr-8 text-xs"
+                    />
+                    {vendorSearch && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                        onClick={() => setVendorSearch('')}
+                      >
+                        <X className="h-3 w-3" />
+                      </Button>
+                    )}
+                  </div>
+                </div>
+              )}
+              
               {loadingVendors ? (
                 <div className="flex items-center justify-center gap-2 p-6">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
@@ -370,33 +396,71 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                   <p className="text-xs text-muted-foreground">No partner vendors available yet.</p>
                 </div>
               ) : (
-                <ScrollArea className="h-[200px]">
-                  <div className="divide-y divide-border/50">
-                    {vendors.map((vendor) => (
-                      <div key={vendor.id} className="p-2.5 hover:bg-muted/80 transition-colors">
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium truncate">{vendor.name}</p>
-                            {vendor.location && (
-                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                <MapPin className="h-3 w-3 shrink-0" />
-                                <span className="truncate">{vendor.location}</span>
-                              </p>
-                            )}
-                          </div>
-                          {vendor.phone && (
-                            <a 
-                              href={`tel:${vendor.phone}`}
-                              className="shrink-0 p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
-                            >
-                              <Phone className="h-3.5 w-3.5 text-primary" />
-                            </a>
-                          )}
+                <>
+                  {(() => {
+                    const filteredVendors = vendors.filter((vendor) => {
+                      const searchLower = vendorSearch.toLowerCase();
+                      return (
+                        vendor.name.toLowerCase().includes(searchLower) ||
+                        (vendor.location && vendor.location.toLowerCase().includes(searchLower))
+                      );
+                    });
+                    
+                    if (filteredVendors.length === 0) {
+                      return (
+                        <div className="p-6 text-center">
+                          <Search className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                          <p className="text-xs text-muted-foreground">No vendors match "{vendorSearch}"</p>
+                          <Button
+                            variant="link"
+                            size="sm"
+                            className="text-xs mt-1 h-auto p-0"
+                            onClick={() => setVendorSearch('')}
+                          >
+                            Clear search
+                          </Button>
                         </div>
-                      </div>
-                    ))}
-                  </div>
-                </ScrollArea>
+                      );
+                    }
+                    
+                    return (
+                      <ScrollArea className="h-[200px]">
+                        <div className="divide-y divide-border/50">
+                          {filteredVendors.map((vendor) => (
+                            <div key={vendor.id} className="p-2.5 hover:bg-muted/80 transition-colors">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <p className="text-sm font-medium truncate">{vendor.name}</p>
+                                  {vendor.location && (
+                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                      <MapPin className="h-3 w-3 shrink-0" />
+                                      <span className="truncate">{vendor.location}</span>
+                                    </p>
+                                  )}
+                                </div>
+                                {vendor.phone && (
+                                  <a 
+                                    href={`tel:${vendor.phone}`}
+                                    className="shrink-0 p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
+                                  >
+                                    <Phone className="h-3.5 w-3.5 text-primary" />
+                                  </a>
+                                )}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                        {vendorSearch && (
+                          <div className="p-2 text-center border-t border-border/50">
+                            <p className="text-xs text-muted-foreground">
+                              Showing {filteredVendors.length} of {vendors.length} vendors
+                            </p>
+                          </div>
+                        )}
+                      </ScrollArea>
+                    );
+                  })()}
+                </>
               )}
             </div>
           </CollapsibleContent>
