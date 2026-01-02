@@ -30,6 +30,7 @@ import { AgentLoanProducts } from '@/components/loans/AgentLoanProducts';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
+import { StatusIndicator } from '@/components/StatusIndicator';
 
 interface AgentDashboardProps {
   user: User;
@@ -404,15 +405,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                         className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
                         style={{ animationDelay: `${index * 50}ms` }}
                       >
-                        <div className="space-y-1">
-                          <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {new Date(request.created_at).toLocaleDateString()}
-                          </p>
+                        <div className="flex items-center gap-3">
+                          <StatusIndicator status={request.status} size="md" />
+                          <div>
+                            <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(request.created_at).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <Badge variant={getStatusColor(request.status)}>
-                          {request.status}
-                        </Badge>
                       </div>
                     ))}
                   </div>

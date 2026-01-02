@@ -30,6 +30,7 @@ import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
+import { StatusIndicator } from '@/components/StatusIndicator';
 
 interface TenantDashboardProps {
   user: User;
@@ -349,27 +350,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </div>
             ) : (
               <div className="space-y-2">
-                {rentRequests.slice(0, 5).map((request, index) => (
+                {rentRequests.slice(0, 5).map((request) => (
                   <button 
                     key={request.id} 
                     onClick={() => navigate('/transactions')}
                     className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 active:scale-[0.98] transition-all"
                   >
                     <div className="flex items-center gap-3">
-                      <div className={`w-2 h-2 rounded-full ${
-                        request.status === 'disbursed' || request.status === 'funded' ? 'bg-success' :
-                        request.status === 'pending' ? 'bg-warning' :
-                        request.status === 'rejected' ? 'bg-destructive' : 'bg-muted-foreground'
-                      }`} />
+                      <StatusIndicator status={request.status} size="md" />
                       <div className="text-left">
                         <p className="font-bold text-sm">{formatUGX(Number(request.rent_amount))}</p>
                         <p className="text-[11px] text-muted-foreground">{request.duration_days}d</p>
                       </div>
-                    </div>
-                    <div className="text-right">
-                      <Badge variant={getStatusColor(request.status)} size="sm">
-                        {request.status}
-                      </Badge>
                     </div>
                   </button>
                 ))}

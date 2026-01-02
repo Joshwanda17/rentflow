@@ -24,6 +24,7 @@ import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkel
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
+import { StatusIndicator } from '@/components/StatusIndicator';
 
 interface SupporterDashboardProps {
   user: User;
@@ -388,15 +389,15 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
                     className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-success/30 transition-all duration-200"
                     style={{ animationDelay: `${index * 50}ms` }}
                   >
-                    <div className="space-y-1">
-                      <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                      <p className="text-sm text-muted-foreground">
-                        Reward: <span className="text-success font-medium">{formatUGX(calculateSupporterReward(Number(request.rent_amount)))}</span>
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <StatusIndicator status={request.status} size="md" />
+                      <div>
+                        <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
+                        <p className="text-xs text-muted-foreground">
+                          +{formatUGX(calculateSupporterReward(Number(request.rent_amount)))}
+                        </p>
+                      </div>
                     </div>
-                    <Badge variant={getStatusVariant(request.status)}>
-                      {request.status}
-                    </Badge>
                   </div>
                 ))}
               </div>
