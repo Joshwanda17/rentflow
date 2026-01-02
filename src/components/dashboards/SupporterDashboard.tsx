@@ -21,6 +21,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 
 interface SupporterDashboardProps {
   user: User;
@@ -196,6 +197,9 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Quick Receipt Form */}
+        <QuickReceiptForm userId={user.id} />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

@@ -20,6 +20,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 
 interface LandlordDashboardProps {
   user: User;
@@ -128,6 +129,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Quick Receipt Form */}
+        <QuickReceiptForm userId={user.id} />
 
         {/* Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

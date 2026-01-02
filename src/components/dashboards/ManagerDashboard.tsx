@@ -26,6 +26,7 @@ import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
+import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
 import {
   DropdownMenu,
@@ -475,6 +476,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Quick Receipt Form */}
+        <QuickReceiptForm userId={user.id} />
 
         {/* Stats */}
         <div className="grid grid-cols-2 md:grid-cols-3 gap-3 md:gap-4">

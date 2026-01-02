@@ -27,6 +27,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
 import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
+import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 
 interface TenantDashboardProps {
   user: User;
@@ -174,6 +175,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Quick Receipt Form */}
+        <QuickReceiptForm userId={user.id} />
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4">

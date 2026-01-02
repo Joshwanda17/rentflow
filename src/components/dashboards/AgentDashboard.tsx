@@ -28,6 +28,7 @@ import { AgentProductsSection } from '@/components/marketplace/AgentProductsSect
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Banknote } from 'lucide-react';
 import { AgentLoanProducts } from '@/components/loans/AgentLoanProducts';
+import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 
 interface AgentDashboardProps {
   user: User;
@@ -202,6 +203,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet */}
         <WalletCard />
+
+        {/* Quick Receipt Form */}
+        <QuickReceiptForm userId={user.id} />
 
         {/* Tabs for Dashboard and Marketplace */}
         <Tabs defaultValue="dashboard" className="space-y-6">
