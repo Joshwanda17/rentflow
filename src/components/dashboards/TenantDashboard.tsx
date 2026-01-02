@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode, Home } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode, Home, Share2 } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -199,9 +199,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               color: 'warning',
             },
             {
-              icon: Banknote,
-              label: 'My Loans',
-              onClick: () => navigate('/my-loans'),
+              icon: Share2,
+              label: 'Share',
+              onClick: () => navigate('/benefits'),
               color: 'primary',
             },
             {

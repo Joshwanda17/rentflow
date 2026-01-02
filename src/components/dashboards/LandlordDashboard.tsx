@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Banknote, Building, CheckCircle, Settings, Sparkles, History, TrendingUp, Wallet, Receipt, QrCode, Send } from 'lucide-react';
+import { LogOut, Banknote, Building, CheckCircle, Settings, Sparkles, History, TrendingUp, Wallet, Receipt, QrCode, Send, Share2 } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -150,16 +150,16 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               color: 'success',
             },
             {
-              icon: Wallet,
-              label: 'Wallet',
-              onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-              color: 'warning',
+              icon: Share2,
+              label: 'Share',
+              onClick: () => navigate('/benefits'),
+              color: 'primary',
             },
             {
               icon: Settings,
               label: 'Settings',
               onClick: () => navigate('/settings'),
-              color: 'primary',
+              color: 'warning',
             },
           ]}
         />

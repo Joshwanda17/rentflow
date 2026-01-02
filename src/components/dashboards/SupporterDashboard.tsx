@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History, Receipt, Send } from 'lucide-react';
+import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History, Receipt, Send, Share2 } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -221,16 +221,16 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
               color: 'success',
             },
             {
+              icon: Share2,
+              label: 'Share',
+              onClick: () => navigate('/benefits'),
+              color: 'primary',
+            },
+            {
               icon: Receipt,
               label: 'Receipts',
               onClick: () => navigate('/my-receipts'),
               color: 'warning',
-            },
-            {
-              icon: History,
-              label: 'History',
-              onClick: () => navigate('/transactions'),
-              color: 'primary',
             },
           ]}
         />

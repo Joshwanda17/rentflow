@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt, Banknote } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt, Banknote, Share2 } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -201,9 +201,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               color: 'warning',
             },
             {
-              icon: Store,
-              label: 'My Shop',
-              onClick: () => navigate('/agent-analytics'),
+              icon: Share2,
+              label: 'Share',
+              onClick: () => navigate('/benefits'),
               color: 'primary',
             },
             {
