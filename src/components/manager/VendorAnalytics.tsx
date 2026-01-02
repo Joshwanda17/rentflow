@@ -1,11 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { formatUGX } from '@/lib/rentCalculations';
-import { TrendingUp, Award, Receipt, CheckCircle, Store, Loader2 } from 'lucide-react';
+import { exportToCSV, exportToPDF, formatNumberForExport } from '@/lib/exportUtils';
+import { TrendingUp, Award, Receipt, CheckCircle, Store, Loader2, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { toast } from 'sonner';
 
 interface VendorStats {
   id: string;
@@ -24,6 +27,8 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))', 'hsl(var(--chart-3
 export function VendorAnalytics() {
   const [vendorStats, setVendorStats] = useState<VendorStats[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const analyticsRef = useRef<HTMLDivElement>(null);
   const [totals, setTotals] = useState({
     totalVendors: 0,
     totalReceipts: 0,
@@ -137,8 +142,53 @@ export function VendorAnalytics() {
     color: COLORS[index % COLORS.length]
   })).filter(d => d.value > 0);
 
+  const handleExportCSV = () => {
+    const headers = ['Rank', 'Vendor Name', 'Location', 'Total Receipts', 'Available', 'Marked', 'Verified', 'Verified Amount (UGX)', 'Verification Rate (%)'];
+    const rows = vendorStats.map((v, index) => [
+      index + 1,
+      v.name,
+      v.location || 'N/A',
+      v.totalReceipts,
+      v.availableReceipts,
+      v.markedReceipts,
+      v.usedReceipts,
+      v.totalVerifiedAmount,
+      v.verificationRate.toFixed(1)
+    ]);
+
+    exportToCSV({ headers, rows }, 'vendor_analytics');
+    toast.success('CSV exported successfully!');
+  };
+
+  const handleExportPDF = async () => {
+    if (!analyticsRef.current) return;
+    
+    setExporting(true);
+    try {
+      await exportToPDF(analyticsRef.current, 'vendor_analytics', 'Welile Vendor Analytics Report');
+      toast.success('PDF exported successfully!');
+    } catch (error) {
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
+      {/* Export Buttons */}
+      <div className="flex justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={handleExportCSV} className="gap-2">
+          <FileSpreadsheet className="h-4 w-4" />
+          Export CSV
+        </Button>
+        <Button variant="outline" size="sm" onClick={handleExportPDF} disabled={exporting} className="gap-2">
+          {exporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileText className="h-4 w-4" />}
+          Export PDF
+        </Button>
+      </div>
+
+      <div ref={analyticsRef} className="space-y-6 bg-background p-1">
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <Card>
@@ -333,6 +383,7 @@ export function VendorAnalytics() {
           )}
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
