@@ -9,8 +9,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp } from 'lucide-react';
 import { PrintableReceiptSheet } from './PrintableReceiptSheet';
+import { VendorAnalytics } from './VendorAnalytics';
 import {
   Dialog,
   DialogContent,
@@ -518,18 +519,22 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
       {/* Tabs for different views */}
       <Tabs defaultValue="user-receipts" className="space-y-4">
-        <TabsList className="grid w-full grid-cols-3">
-          <TabsTrigger value="user-receipts" className="gap-2">
+        <TabsList className="grid w-full grid-cols-4">
+          <TabsTrigger value="user-receipts" className="gap-1 text-xs sm:text-sm">
             <Users className="h-4 w-4" />
-            User Receipts
+            <span className="hidden sm:inline">User</span> Receipts
           </TabsTrigger>
-          <TabsTrigger value="receipt-numbers" className="gap-2">
+          <TabsTrigger value="receipt-numbers" className="gap-1 text-xs sm:text-sm">
             <Receipt className="h-4 w-4" />
-            Receipt Numbers
+            <span className="hidden sm:inline">Receipt</span> Numbers
           </TabsTrigger>
-          <TabsTrigger value="vendors" className="gap-2">
+          <TabsTrigger value="vendors" className="gap-1 text-xs sm:text-sm">
             <Store className="h-4 w-4" />
             Vendors
+          </TabsTrigger>
+          <TabsTrigger value="analytics" className="gap-1 text-xs sm:text-sm">
+            <TrendingUp className="h-4 w-4" />
+            Analytics
           </TabsTrigger>
         </TabsList>
 
@@ -666,6 +671,10 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+
+        <TabsContent value="analytics">
+          <VendorAnalytics />
         </TabsContent>
       </Tabs>
     </div>
