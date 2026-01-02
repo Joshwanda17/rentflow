@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -450,6 +450,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             icon: ArrowUpCircle,
             label: 'Customer Withdrawal',
             onClick: () => setWithdrawalOpen(true),
+          },
+          {
+            icon: Receipt,
+            label: 'My Receipts',
+            onClick: () => navigate('/my-receipts'),
           },
           {
             icon: History,
