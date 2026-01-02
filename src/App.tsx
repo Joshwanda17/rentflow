@@ -1,5 +1,6 @@
 import { Toaster } from "@/components/ui/toaster";
 const MyReceipts = lazy(() => import('./pages/MyReceipts'));
+const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -110,6 +111,7 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
             <Route path="/categories" element={<Categories />} />
             <Route path="/seller/:sellerId" element={<SellerProfile />} />
             <Route path="/my-receipts" element={<MyReceipts />} />
+            <Route path="/vendor-portal" element={<VendorPortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

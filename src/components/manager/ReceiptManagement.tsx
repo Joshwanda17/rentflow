@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +23,7 @@ interface Vendor {
   name: string;
   location: string | null;
   phone: string | null;
+  pin: string | null;
   active: boolean;
   created_at: string;
 }
@@ -65,6 +66,87 @@ interface UserReceipt {
 
 interface ReceiptManagementProps {
   userId: string;
+}
+
+// Vendor Card with PIN management
+function VendorCard({ vendor, onPinSet }: { vendor: Vendor; onPinSet: () => void }) {
+  const { toast } = useToast();
+  const [showPinInput, setShowPinInput] = useState(false);
+  const [newPin, setNewPin] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleSetPin = async () => {
+    if (newPin.length !== 4 || !/^\d{4}$/.test(newPin)) {
+      toast({ title: 'Invalid PIN', description: 'PIN must be exactly 4 digits', variant: 'destructive' });
+      return;
+    }
+
+    setSaving(true);
+    const { error } = await supabase
+      .from('vendors')
+      .update({ pin: newPin })
+      .eq('id', vendor.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'PIN Set', description: `PIN set for ${vendor.name}` });
+      setShowPinInput(false);
+      setNewPin('');
+      onPinSet();
+    }
+    setSaving(false);
+  };
+
+  return (
+    <div className="p-4 rounded-xl bg-secondary/30 border border-border/50">
+      <div className="flex items-center justify-between">
+        <div>
+          <p className="font-semibold">{vendor.name}</p>
+          {vendor.location && <p className="text-sm text-muted-foreground">{vendor.location}</p>}
+          {vendor.phone && <p className="text-sm text-muted-foreground">{vendor.phone}</p>}
+        </div>
+        <div className="flex items-center gap-2">
+          <Badge variant={vendor.pin ? 'success' : 'outline'} className="gap-1">
+            <Key className="h-3 w-3" />
+            {vendor.pin ? 'PIN Set' : 'No PIN'}
+          </Badge>
+          <Badge variant={vendor.active ? 'success' : 'secondary'}>
+            {vendor.active ? 'Active' : 'Inactive'}
+          </Badge>
+        </div>
+      </div>
+      
+      {showPinInput ? (
+        <div className="mt-3 flex gap-2">
+          <Input
+            type="text"
+            placeholder="4-digit PIN"
+            maxLength={4}
+            value={newPin}
+            onChange={(e) => setNewPin(e.target.value.replace(/\D/g, ''))}
+            className="w-32 font-mono"
+          />
+          <Button size="sm" onClick={handleSetPin} disabled={saving}>
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Save'}
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => { setShowPinInput(false); setNewPin(''); }}>
+            Cancel
+          </Button>
+        </div>
+      ) : (
+        <Button 
+          size="sm" 
+          variant="outline" 
+          className="mt-3 gap-1"
+          onClick={() => setShowPinInput(true)}
+        >
+          <Key className="h-3 w-3" />
+          {vendor.pin ? 'Change PIN' : 'Set PIN'}
+        </Button>
+      )}
+    </div>
+  );
 }
 
 export function ReceiptManagement({ userId }: ReceiptManagementProps) {
@@ -537,7 +619,17 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
         <TabsContent value="vendors" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle className="text-lg">Registered Vendors</CardTitle>
+              <CardTitle className="text-lg flex items-center justify-between">
+                <span>Registered Vendors</span>
+                <a 
+                  href="/vendor-portal" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="text-sm font-normal text-primary hover:underline flex items-center gap-1"
+                >
+                  Vendor Portal <ExternalLink className="h-3 w-3" />
+                </a>
+              </CardTitle>
             </CardHeader>
             <CardContent>
               {vendors.length === 0 ? (
@@ -545,19 +637,11 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
               ) : (
                 <div className="space-y-3">
                   {vendors.map((vendor) => (
-                    <div 
+                    <VendorCard 
                       key={vendor.id} 
-                      className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/50"
-                    >
-                      <div>
-                        <p className="font-semibold">{vendor.name}</p>
-                        {vendor.location && <p className="text-sm text-muted-foreground">{vendor.location}</p>}
-                        {vendor.phone && <p className="text-sm text-muted-foreground">{vendor.phone}</p>}
-                      </div>
-                      <Badge variant={vendor.active ? 'success' : 'secondary'}>
-                        {vendor.active ? 'Active' : 'Inactive'}
-                      </Badge>
-                    </div>
+                      vendor={vendor} 
+                      onPinSet={fetchData}
+                    />
                   ))}
                 </div>
               )}

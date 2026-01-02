@@ -14,3 +14,9 @@ verify_jwt = true
 
 [functions.product-purchase]
 verify_jwt = true
+
+[functions.vendor-login]
+verify_jwt = false
+
+[functions.vendor-mark-receipt]
+verify_jwt = false
