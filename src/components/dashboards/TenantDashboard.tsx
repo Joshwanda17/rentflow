@@ -26,6 +26,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
+import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
 
 interface TenantDashboardProps {
   user: User;
@@ -283,6 +284,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Loan Progress Widget */}
         <LoanProgressWidget userId={user.id} />
+
+        {/* Available Loans */}
+        <LoanProductsSection />
 
         {/* Marketplace */}
         <MarketplaceSection />

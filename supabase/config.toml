@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.vendor-mark-receipt]
 verify_jwt = false
+
+[functions.approve-loan-application]
+verify_jwt = true
