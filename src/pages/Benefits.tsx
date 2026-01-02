@@ -16,6 +16,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { playCoinSound, playUrgencySound } from '@/lib/notificationSound';
 
 // Limited time offer component with countdown and spots remaining
 function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
@@ -67,6 +68,7 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
   }, [endTime]);
 
   // Randomly decrease spots remaining to create urgency
+  // Randomly decrease spots remaining to create urgency
   useEffect(() => {
     const decreaseSpots = () => {
       setSpotsRemaining(prev => {
@@ -79,6 +81,15 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
         if (decrease > 0) {
           setJustClaimed(true);
           setClaimedToday(prev => prev + 1);
+          
+          // Play notification sound when someone claims
+          playCoinSound();
+          
+          // Play urgency sound if spots are critically low
+          if (newValue <= 10) {
+            setTimeout(() => playUrgencySound(), 300);
+          }
+          
           setTimeout(() => setJustClaimed(false), 2000);
         }
         
