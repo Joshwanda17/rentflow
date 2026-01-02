@@ -17,6 +17,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import { Skeleton } from '@/components/ui/skeleton';
 import MyLandlordsSection from '@/components/tenant/MyLandlordsSection';
+import MyTenantsSection from '@/components/landlord/MyTenantsSection';
+import RentDiscountToggle from '@/components/tenant/RentDiscountToggle';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
@@ -450,10 +452,26 @@ export default function Settings() {
           </Card>
         </motion.div>
 
-        {/* My Landlords Section */}
-        <motion.div variants={itemVariants} className="mb-6">
-          <MyLandlordsSection />
-        </motion.div>
+        {/* Rent Discount Toggle for Tenants */}
+        {roles.includes('tenant') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <RentDiscountToggle />
+          </motion.div>
+        )}
+
+        {/* My Landlords Section for Tenants */}
+        {roles.includes('tenant') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <MyLandlordsSection />
+          </motion.div>
+        )}
+
+        {/* My Tenants Section for Landlords */}
+        {roles.includes('landlord') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <MyTenantsSection />
+          </motion.div>
+        )}
 
         {/* Appearance Card */}
         <motion.div variants={itemVariants}>
