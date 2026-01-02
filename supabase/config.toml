@@ -23,3 +23,6 @@ verify_jwt = false
 
 [functions.approve-loan-application]
 verify_jwt = true
+
+[functions.loan-reminders]
+verify_jwt = false
