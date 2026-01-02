@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone, Search, X, Camera, Upload, Sparkles } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useConfetti } from '@/components/Confetti';
 
 interface QuickReceiptFormProps {
   userId: string;
@@ -36,6 +37,7 @@ const MAX_LOAN_LIMIT = 30000000; // UGX 30,000,000
 export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const navigate = useNavigate();
   const { toast } = useToast();
+  const { fireSuccess } = useConfetti();
   const [submitting, setSubmitting] = useState(false);
   const [receiptCode, setReceiptCode] = useState('');
   const [itemsDescription, setItemsDescription] = useState('');
@@ -229,9 +231,12 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         variant: 'destructive'
       });
     } else {
+      // Fire confetti celebration!
+      fireSuccess();
+      
       toast({
-        title: 'Receipt Submitted',
-        description: 'Your receipt has been submitted for verification'
+        title: '🎉 Receipt Submitted!',
+        description: 'Your receipt has been submitted for verification. Keep shopping to grow your limit!'
       });
       setReceiptCode('');
       setItemsDescription('');
