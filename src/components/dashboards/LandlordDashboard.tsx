@@ -23,6 +23,7 @@ import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkele
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
+import { PullToRefresh } from '@/components/PullToRefresh';
 
 interface LandlordDashboardProps {
   user: User;
@@ -70,8 +71,12 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
     return <LandlordDashboardSkeleton />;
   }
 
+  const handleRefresh = async () => {
+    await fetchData();
+  };
+
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
       {/* Modern Header */}
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-3">
@@ -295,6 +300,6 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       />
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
-    </div>
+    </PullToRefresh>
   );
 }

@@ -27,6 +27,7 @@ import { QuickActions } from '@/components/QuickActions';
 import { StatusIndicator } from '@/components/StatusIndicator';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
+import { PullToRefresh } from '@/components/PullToRefresh';
 
 interface SupporterDashboardProps {
   user: User;
@@ -141,8 +142,12 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     return <SupporterDashboardSkeleton />;
   }
 
+  const handleRefresh = async () => {
+    await fetchData();
+  };
+
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
       {/* Modern Header */}
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-3">
@@ -440,6 +445,6 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
       />
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
-    </div>
+    </PullToRefresh>
   );
 }
