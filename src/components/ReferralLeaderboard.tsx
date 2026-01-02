@@ -2,8 +2,9 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Trophy, Medal, Award, Crown, Users } from 'lucide-react';
+import { Trophy, Medal, Award, Crown, Users, Gift } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { Separator } from '@/components/ui/separator';
 import { UserAvatar } from '@/components/UserAvatar';
 import { useAuth } from '@/hooks/useAuth';
 import { motion } from 'framer-motion';
@@ -198,6 +199,35 @@ export function ReferralLeaderboard({ limit = 10 }: ReferralLeaderboardProps) {
           })}
         </div>
         
+        {/* Monthly Rewards Info */}
+        <Separator className="my-4" />
+        <div className="p-3 rounded-xl bg-gradient-to-r from-yellow-500/10 to-amber-500/10 border border-yellow-500/20">
+          <div className="flex items-center gap-2 mb-2">
+            <Gift className="h-4 w-4 text-yellow-500" />
+            <span className="font-semibold text-sm">Monthly Rewards</span>
+          </div>
+          <div className="grid grid-cols-3 gap-2 text-center">
+            <div className="p-2 rounded-lg bg-yellow-500/10">
+              <Crown className="h-4 w-4 text-yellow-500 mx-auto mb-1" />
+              <p className="text-xs font-bold">1st Place</p>
+              <p className="text-xs text-success font-semibold">{formatUGX(5000)}</p>
+            </div>
+            <div className="p-2 rounded-lg bg-slate-400/10">
+              <Medal className="h-4 w-4 text-slate-400 mx-auto mb-1" />
+              <p className="text-xs font-bold">2nd Place</p>
+              <p className="text-xs text-success font-semibold">{formatUGX(3000)}</p>
+            </div>
+            <div className="p-2 rounded-lg bg-amber-600/10">
+              <Award className="h-4 w-4 text-amber-600 mx-auto mb-1" />
+              <p className="text-xs font-bold">3rd Place</p>
+              <p className="text-xs text-success font-semibold">{formatUGX(1000)}</p>
+            </div>
+          </div>
+          <p className="text-[10px] text-muted-foreground text-center mt-2">
+            Top referrers are rewarded at the start of each month!
+          </p>
+        </div>
+
         {/* CTA for non-leaders */}
         {!userRank && user && (
           <div className="mt-4 p-3 rounded-lg bg-primary/5 border border-primary/20 text-center">
