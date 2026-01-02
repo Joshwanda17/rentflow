@@ -35,7 +35,7 @@ const MyReceipts = lazy(() => import('./pages/MyReceipts'));
 const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 const MyLoans = lazy(() => import('./pages/MyLoans'));
 const PaymentSchedule = lazy(() => import('./pages/PaymentSchedule'));
-
+const PayLandlord = lazy(() => import('./pages/PayLandlord'));
 // Optimized QueryClient for 40M+ users scale
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -125,8 +125,9 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
             <Route path="/my-receipts" element={<MyReceipts />} />
             <Route path="/my-loans" element={<MyLoans />} />
             <Route path="/payment-schedule" element={<PaymentSchedule />} />
+            <Route path="/pay-landlord" element={<PayLandlord />} />
             <Route path="/vendor-portal" element={<VendorPortal />} />
-            <Route path="/vendor-portal" element={<VendorPortal />} />
+            <Route path="*" element={<NotFound />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

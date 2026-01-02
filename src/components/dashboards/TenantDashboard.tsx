@@ -5,12 +5,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode, Home } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import LoanProgressWidget from '@/components/tenant/LoanProgressWidget';
+import { RentDiscountWidget } from '@/components/tenant/RentDiscountWidget';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -34,6 +35,7 @@ import { StatusIndicator } from '@/components/StatusIndicator';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 
 interface TenantDashboardProps {
   user: User;
@@ -71,6 +73,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showPayLandlord, setShowPayLandlord] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -184,15 +187,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         <QuickActions
           actions={[
             {
-              icon: Calculator,
-              label: 'Calculate',
-              onClick: () => setShowCalculator(true),
-              color: 'primary',
-            },
-            {
-              icon: Banknote,
-              label: 'My Loans',
-              onClick: () => navigate('/my-loans'),
+              icon: Home,
+              label: 'Pay Rent',
+              onClick: () => setShowPayLandlord(true),
               color: 'success',
             },
             {
@@ -200,6 +197,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               label: 'Receipts',
               onClick: () => navigate('/my-receipts'),
               color: 'warning',
+            },
+            {
+              icon: Banknote,
+              label: 'My Loans',
+              onClick: () => navigate('/my-loans'),
+              color: 'primary',
             },
             {
               icon: ShoppingBag,
@@ -212,6 +215,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Wallet */}
         <WalletCard />
+
+        {/* Rent Discount Widget - Shows monthly discount from receipts */}
+        <RentDiscountWidget userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />
@@ -401,14 +407,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <FloatingActionButton
         actions={[
           {
+            icon: Home,
+            label: 'Pay Rent',
+            onClick: () => setShowPayLandlord(true),
+          },
+          {
             icon: Calculator,
             label: 'Calculate',
             onClick: () => setShowCalculator(!showCalculator),
-          },
-          {
-            icon: FileText,
-            label: 'New Request',
-            onClick: () => setShowRequestForm(true),
           },
           {
             icon: Receipt,
@@ -427,6 +433,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           },
         ]}
       />
+      
+      <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
