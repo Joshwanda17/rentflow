@@ -216,6 +216,68 @@ export type Database = {
         }
         Relationships: []
       }
+      loan_applications: {
+        Row: {
+          agent_id: string
+          amount: number
+          applicant_id: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          duration_days: number
+          id: string
+          interest_rate: number
+          loan_product_id: string
+          purpose: string | null
+          rejected_reason: string | null
+          status: string
+          total_repayment: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          applicant_id: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          duration_days: number
+          id?: string
+          interest_rate: number
+          loan_product_id: string
+          purpose?: string | null
+          rejected_reason?: string | null
+          status?: string
+          total_repayment: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          applicant_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          duration_days?: number
+          id?: string
+          interest_rate?: number
+          loan_product_id?: string
+          purpose?: string | null
+          rejected_reason?: string | null
+          status?: string
+          total_repayment?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "loan_applications_loan_product_id_fkey"
+            columns: ["loan_product_id"]
+            isOneToOne: false
+            referencedRelation: "loan_products"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       loan_limits: {
         Row: {
           available_limit: number
@@ -240,6 +302,51 @@ export type Database = {
           updated_at?: string
           used_limit?: number
           user_id?: string
+        }
+        Relationships: []
+      }
+      loan_products: {
+        Row: {
+          active: boolean
+          agent_id: string
+          created_at: string
+          description: string | null
+          id: string
+          interest_rate: number
+          max_amount: number
+          max_duration_days: number
+          min_amount: number
+          min_duration_days: number
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          agent_id: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_rate?: number
+          max_amount: number
+          max_duration_days?: number
+          min_amount: number
+          min_duration_days?: number
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          agent_id?: string
+          created_at?: string
+          description?: string | null
+          id?: string
+          interest_rate?: number
+          max_amount?: number
+          max_duration_days?: number
+          min_amount?: number
+          min_duration_days?: number
+          title?: string
+          updated_at?: string
         }
         Relationships: []
       }

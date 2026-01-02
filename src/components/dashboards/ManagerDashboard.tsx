@@ -26,6 +26,7 @@ import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
+import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -561,6 +562,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <Banknote className="h-3.5 w-3.5" />
                 Funded ({fundedRequests.length})
               </TabsTrigger>
+              <TabsTrigger value="loans" className="text-xs md:text-sm gap-1.5">
+                <Banknote className="h-3.5 w-3.5" />
+                Loan Apps
+              </TabsTrigger>
               <TabsTrigger value="marketplace" className="text-xs md:text-sm gap-1.5">
                 <ShoppingCart className="h-3.5 w-3.5" />
                 Marketplace ({orders.length})
@@ -721,6 +726,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 )}
               </div>
             </div>
+          </TabsContent>
+
+          <TabsContent value="loans">
+            <LoanApplicationsManager />
           </TabsContent>
 
           <TabsContent value="marketplace">
