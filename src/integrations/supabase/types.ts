@@ -82,6 +82,45 @@ export type Database = {
           },
         ]
       }
+      deposit_requests: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_at: string | null
+          created_at: string
+          id: string
+          rejected_at: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_at?: string | null
+          created_at?: string
+          id?: string
+          rejected_at?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       financial_alerts: {
         Row: {
           acknowledged: boolean
