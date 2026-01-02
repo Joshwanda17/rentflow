@@ -1058,6 +1058,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <FloatingActionButton
         actions={[
           {
+            icon: Receipt,
+            label: 'My Receipts',
+            onClick: () => navigate('/my-receipts'),
+          },
+          {
             icon: FileText,
             label: 'Pending Requests',
             onClick: () => document.querySelector('[value="requests"]')?.dispatchEvent(new MouseEvent('click', { bubbles: true })),
