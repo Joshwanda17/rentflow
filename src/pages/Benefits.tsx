@@ -1,16 +1,28 @@
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { 
   Home, Users, Wallet, Receipt, ShoppingBag, TrendingUp, 
   Shield, Clock, Gift, Share2, ArrowLeft, CheckCircle2,
-  Smartphone, CreditCard, Percent, Building2
+  Smartphone, CreditCard, Percent, Building2, Coins
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { useLanguage } from '@/hooks/useLanguage';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { formatUGX } from '@/lib/rentCalculations';
 
 const benefits = [
+  {
+    icon: Coins,
+    title: "Earn UGX 100 Per Referral",
+    description: "Share your link and earn UGX 100 instantly when anyone joins through your link!",
+    color: "bg-success/10 text-success",
+    highlight: true
+  },
   {
     icon: Home,
     title: "Access Rent Today",
@@ -56,7 +68,7 @@ const benefits = [
   {
     icon: Users,
     title: "For Agents",
-    description: "Earn UGX 100 for every new member you register. Plus commissions on deposits and loans.",
+    description: "Earn commissions on deposits, loans, and marketplace sales.",
     color: "bg-amber-500/10 text-amber-500"
   },
   {
@@ -88,8 +100,15 @@ const benefits = [
 export default function Benefits() {
   const navigate = useNavigate();
   const { t } = useLanguage();
+  const { user } = useAuth();
+  const [referralCount, setReferralCount] = useState(0);
+  const [referralEarnings, setReferralEarnings] = useState(0);
 
-  const shareUrl = `${window.location.origin}/benefits`;
+  // Generate share URL with user's referral code if logged in
+  const shareUrl = user 
+    ? `${window.location.origin}/auth?ref=${user.id}`
+    : `${window.location.origin}/auth`;
+
   const shareMessage = `🏠 Discover Welile - Africa's Rent Facilitation Platform!
 
 ✅ Access rent today, pay back over time
@@ -97,11 +116,54 @@ export default function Benefits() {
 ✅ Build loan limits with receipts
 ✅ Send & receive money instantly
 ✅ Shop from trusted vendors
-✅ Earn as an agent or investor
+✅ Earn UGX 100 for every friend you invite!
 
 Join 40M+ users across East Africa!
 
 👉 ${shareUrl}`;
+
+  // Fetch referral stats with realtime updates
+  useEffect(() => {
+    if (!user) return;
+
+    const fetchReferrals = async () => {
+      const { data } = await supabase
+        .from('referrals')
+        .select('id, bonus_amount, credited')
+        .eq('referrer_id', user.id);
+      
+      if (data) {
+        setReferralCount(data.length);
+        setReferralEarnings(data.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0));
+      }
+    };
+
+    fetchReferrals();
+
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('referral-updates')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'referrals',
+          filter: `referrer_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('New referral!', payload);
+          setReferralCount(prev => prev + 1);
+          setReferralEarnings(prev => prev + Number(payload.new.bonus_amount || 100));
+          toast.success('🎉 You earned UGX 100 for a new referral!');
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const handleWhatsAppShare = () => {
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
@@ -170,6 +232,40 @@ Join 40M+ users across East Africa!
           </p>
         </motion.div>
 
+        {/* Referral Stats - Only show for logged in users */}
+        {user && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={{ delay: 0.2 }}
+            className="mb-8"
+          >
+            <Card className="border-success/30 bg-gradient-to-r from-success/5 to-primary/5 overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="p-2 rounded-lg bg-success/10">
+                    <Coins className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold">Your Referral Earnings</h3>
+                    <p className="text-xs text-muted-foreground">Earn UGX 100 for every friend who joins</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="p-3 rounded-lg bg-background/60 text-center">
+                    <p className="text-2xl font-bold text-success">{referralCount}</p>
+                    <p className="text-xs text-muted-foreground">Friends Joined</p>
+                  </div>
+                  <div className="p-3 rounded-lg bg-background/60 text-center">
+                    <p className="text-2xl font-bold text-success">{formatUGX(referralEarnings)}</p>
+                    <p className="text-xs text-muted-foreground">Total Earned</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Benefits Grid */}
         <div className="grid gap-4 mb-8">
           {benefits.map((benefit, index) => (
@@ -179,13 +275,18 @@ Join 40M+ users across East Africa!
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
             >
-              <Card className="border-border/50 hover:border-primary/30 transition-colors">
+              <Card className={`border-border/50 hover:border-primary/30 transition-colors ${(benefit as any).highlight ? 'ring-2 ring-success/30 bg-success/5' : ''}`}>
                 <CardContent className="p-4 flex items-start gap-4">
                   <div className={`p-3 rounded-xl ${benefit.color}`}>
                     <benefit.icon className="h-5 w-5" />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-semibold mb-1">{benefit.title}</h3>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-semibold mb-1">{benefit.title}</h3>
+                      {(benefit as any).highlight && (
+                        <Badge variant="success" className="text-[10px]">NEW</Badge>
+                      )}
+                    </div>
                     <p className="text-sm text-muted-foreground">{benefit.description}</p>
                   </div>
                   <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
