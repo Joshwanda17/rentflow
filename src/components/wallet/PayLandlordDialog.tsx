@@ -28,6 +28,7 @@ interface Landlord {
   name: string;
   phone: string;
   property_address: string;
+  monthly_rent?: number | null;
 }
 
 const formVariants = {
@@ -68,13 +69,29 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
   }, [open, user]);
 
   const fetchLandlords = async () => {
+    if (!user) return;
     setFetchingLandlords(true);
+    
+    // Get landlords registered by this tenant
     const { data } = await supabase
       .from('landlords')
-      .select('id, name, phone, property_address')
+      .select('id, name, phone, property_address, monthly_rent')
+      .eq('tenant_id', user.id)
       .order('name');
     
-    setLandlords(data || []);
+    const landlordList = data || [];
+    setLandlords(landlordList);
+    
+    // Auto-select if only one landlord and pre-fill rent amount
+    if (landlordList.length === 1) {
+      setSelectedLandlord(landlordList[0].id);
+      if (landlordList[0].monthly_rent) {
+        const rentAmount = landlordList[0].monthly_rent.toString();
+        setAmount(rentAmount);
+        handleAmountChange(rentAmount);
+      }
+    }
+    
     setFetchingLandlords(false);
   };
 
@@ -313,7 +330,19 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
                     <Home className="h-3.5 w-3.5 text-muted-foreground" />
                     Select Landlord
                   </Label>
-                  <Select value={selectedLandlord} onValueChange={setSelectedLandlord}>
+                  <Select 
+                    value={selectedLandlord} 
+                    onValueChange={(value) => {
+                      setSelectedLandlord(value);
+                      // Auto-fill rent amount when landlord is selected
+                      const landlord = landlords.find(l => l.id === value);
+                      if (landlord?.monthly_rent) {
+                        const rentAmount = landlord.monthly_rent.toString();
+                        setAmount(rentAmount);
+                        handleAmountChange(rentAmount);
+                      }
+                    }}
+                  >
                     <SelectTrigger className="bg-background/50 border-border/50">
                       <SelectValue placeholder={fetchingLandlords ? "Loading..." : "Select landlord"} />
                     </SelectTrigger>
@@ -322,7 +351,10 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
                         <SelectItem key={landlord.id} value={landlord.id}>
                           <div className="flex flex-col">
                             <span>{landlord.name}</span>
-                            <span className="text-xs text-muted-foreground">{landlord.property_address}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {landlord.property_address}
+                              {landlord.monthly_rent && ` • UGX ${landlord.monthly_rent.toLocaleString()}/mo`}
+                            </span>
                           </div>
                         </SelectItem>
                       ))}
