@@ -439,15 +439,109 @@
   }
 }
 
+/* Micro-interactions */
+@layer utilities {
+  /* Interactive hover lift */
+  .hover-lift {
+    @apply transition-all duration-200 ease-out;
+  }
+  .hover-lift:hover {
+    transform: translateY(-2px);
+  }
+  .hover-lift:active {
+    transform: translateY(0);
+  }
+
+  /* Scale on interaction */
+  .hover-scale {
+    @apply transition-transform duration-150 ease-out;
+  }
+  .hover-scale:hover {
+    transform: scale(1.02);
+  }
+  .hover-scale:active {
+    transform: scale(0.98);
+  }
+
+  /* Subtle press effect */
+  .press-effect {
+    @apply transition-all duration-100 ease-out;
+  }
+  .press-effect:active {
+    transform: scale(0.97);
+  }
+
+  /* Icon spin on hover */
+  .hover-spin {
+    @apply transition-transform duration-300 ease-out;
+  }
+  .hover-spin:hover {
+    transform: rotate(90deg);
+  }
+
+  /* Icon bounce */
+  .hover-bounce:hover {
+    animation: micro-bounce 0.4s ease-out;
+  }
+
+  @keyframes micro-bounce {
+    0%, 100% { transform: translateY(0); }
+    50% { transform: translateY(-3px); }
+  }
+
+  /* Glow effect on hover */
+  .hover-glow {
+    @apply transition-shadow duration-200;
+  }
+  .hover-glow:hover {
+    box-shadow: 0 0 20px hsl(var(--primary) / 0.15);
+  }
+
+  /* Card lift with shadow */
+  .card-interactive {
+    @apply transition-all duration-200 ease-out;
+  }
+  .card-interactive:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px -8px hsl(var(--foreground) / 0.1);
+  }
+  .card-interactive:active {
+    transform: translateY(0);
+    box-shadow: 0 2px 8px -4px hsl(var(--foreground) / 0.1);
+  }
+
+  /* Link underline animation */
+  .link-underline {
+    @apply relative;
+  }
+  .link-underline::after {
+    content: '';
+    @apply absolute bottom-0 left-0 w-0 h-px bg-current transition-all duration-200;
+  }
+  .link-underline:hover::after {
+    @apply w-full;
+  }
+
+  /* Ripple effect placeholder */
+  .ripple-effect {
+    @apply relative overflow-hidden;
+  }
+
+  /* Focus glow */
+  .focus-glow:focus-visible {
+    box-shadow: 0 0 0 3px hsl(var(--primary) / 0.15);
+  }
+}
+
 /* Focus styles */
 @layer utilities {
   .focus-ring {
-    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background;
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 focus-visible:ring-offset-background;
   }
 }
 
 /* Selection */
 ::selection {
-  background: hsl(var(--primary) / 0.15);
+  background: hsl(var(--primary) / 0.12);
   color: inherit;
 }
