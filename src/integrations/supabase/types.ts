@@ -996,6 +996,7 @@ export type Database = {
           location: string | null
           name: string
           phone: string | null
+          pin: string | null
         }
         Insert: {
           active?: boolean
@@ -1005,6 +1006,7 @@ export type Database = {
           location?: string | null
           name: string
           phone?: string | null
+          pin?: string | null
         }
         Update: {
           active?: boolean
@@ -1014,6 +1016,7 @@ export type Database = {
           location?: string | null
           name?: string
           phone?: string | null
+          pin?: string | null
         }
         Relationships: []
       }
