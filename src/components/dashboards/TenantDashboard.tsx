@@ -31,6 +31,7 @@ import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
+import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 import { StatusIndicator } from '@/components/StatusIndicator';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
@@ -218,6 +219,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Rent Discount Widget - Shows monthly discount from receipts */}
         <RentDiscountWidget userId={user.id} />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />

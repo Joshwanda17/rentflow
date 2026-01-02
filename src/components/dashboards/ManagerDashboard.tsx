@@ -29,6 +29,7 @@ import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
+import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -477,6 +478,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />

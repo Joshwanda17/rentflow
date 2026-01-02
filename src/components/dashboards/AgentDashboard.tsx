@@ -34,6 +34,7 @@ import { StatusIndicator } from '@/components/StatusIndicator';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 
 interface AgentDashboardProps {
   user: User;
@@ -217,6 +218,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet */}
         <WalletCard />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />

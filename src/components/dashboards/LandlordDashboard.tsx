@@ -24,6 +24,7 @@ import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 
 interface LandlordDashboardProps {
   user: User;
@@ -166,6 +167,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />
