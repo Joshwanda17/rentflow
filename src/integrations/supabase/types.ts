@@ -862,6 +862,42 @@ export type Database = {
           },
         ]
       }
+      referral_rewards: {
+        Row: {
+          created_at: string
+          credited: boolean
+          credited_at: string | null
+          id: string
+          rank: number
+          referral_count: number
+          reward_amount: number
+          reward_month: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          credited?: boolean
+          credited_at?: string | null
+          id?: string
+          rank: number
+          referral_count: number
+          reward_amount: number
+          reward_month: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          credited?: boolean
+          credited_at?: string | null
+          id?: string
+          rank?: number
+          referral_count?: number
+          reward_amount?: number
+          reward_month?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       referrals: {
         Row: {
           bonus_amount: number
@@ -1441,6 +1477,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      process_monthly_referral_rewards: { Args: never; Returns: undefined }
     }
     Enums: {
       app_role: "tenant" | "agent" | "landlord" | "supporter" | "manager"
