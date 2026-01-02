@@ -8,9 +8,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
+import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus } from 'lucide-react';
+import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
 
 interface UserReceipt {
@@ -61,6 +62,11 @@ export default function MyReceipts() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   
+  // Rent discount state
+  const [monthlyReceipts, setMonthlyReceipts] = useState(0);
+  const [rentDiscount, setRentDiscount] = useState(0);
+  const [monthlyReceiptCount, setMonthlyReceiptCount] = useState(0);
+  
   // Form state
   const [receiptCode, setReceiptCode] = useState('');
   const [itemsDescription, setItemsDescription] = useState('');
@@ -78,7 +84,12 @@ export default function MyReceipts() {
     if (!user) return;
     setLoading(true);
 
-    const [receiptsRes, loanLimitRes, loansRes] = await Promise.all([
+    // Get current month boundaries
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+    const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
+
+    const [receiptsRes, loanLimitRes, loansRes, monthlyReceiptsRes] = await Promise.all([
       supabase
         .from('user_receipts')
         .select(`
@@ -99,7 +110,15 @@ export default function MyReceipts() {
         .from('user_loans')
         .select('*')
         .eq('borrower_id', user.id)
-        .order('created_at', { ascending: false })
+        .order('created_at', { ascending: false }),
+      // Get this month's verified receipts for rent discount calculation
+      supabase
+        .from('user_receipts')
+        .select('claimed_amount')
+        .eq('user_id', user.id)
+        .eq('verified', true)
+        .gte('verified_at', startOfMonth)
+        .lte('verified_at', endOfMonth)
     ]);
 
     // Fetch lender profiles for loans
@@ -113,6 +132,12 @@ export default function MyReceipts() {
       ...l,
       lender: lenderProfiles?.find(p => p.id === l.lender_id)
     }));
+
+    // Calculate monthly rent discount (1% of verified receipts)
+    const monthlyTotal = monthlyReceiptsRes.data?.reduce((sum, r) => sum + Number(r.claimed_amount), 0) || 0;
+    setMonthlyReceipts(monthlyTotal);
+    setRentDiscount(Math.round(monthlyTotal * 0.01));
+    setMonthlyReceiptCount(monthlyReceiptsRes.data?.length || 0);
 
     setReceipts(receiptsRes.data || []);
     setLoanLimit(loanLimitRes.data);
@@ -216,6 +241,60 @@ export default function MyReceipts() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Rent Discount Card - NEW! Shows monthly savings */}
+        <Card className="elevated-card overflow-hidden border-success/20 bg-gradient-to-br from-success/10 via-success/5 to-background">
+          <CardHeader className="pb-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-success/20">
+                  <Percent className="h-6 w-6 text-success" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Your Rent Discount</CardTitle>
+                  <CardDescription>Earn 1% of your shopping as rent savings</CardDescription>
+                </div>
+              </div>
+              <Badge variant="success" className="gap-1">
+                <Sparkles className="h-3 w-3" />
+                Active
+              </Badge>
+            </div>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-4xl font-bold text-success">{formatUGX(rentDiscount)}</p>
+                <p className="text-sm text-muted-foreground mt-1">
+                  earned from {monthlyReceiptCount} receipts this month
+                </p>
+              </div>
+              <Button 
+                onClick={() => navigate('/pay-landlord')} 
+                className="bg-success hover:bg-success/90 gap-2"
+              >
+                <Home className="h-4 w-4" />
+                Pay Rent
+              </Button>
+            </div>
+            
+            <div className="p-3 rounded-xl bg-background/50 border border-border/50">
+              <div className="flex justify-between text-sm mb-2">
+                <span className="text-muted-foreground">Monthly shopping</span>
+                <span className="font-medium">{formatUGX(monthlyReceipts)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-muted-foreground">Max discount (70% of rent)</span>
+                <span className="font-medium text-muted-foreground">varies</span>
+              </div>
+            </div>
+            
+            <p className="text-xs text-muted-foreground flex items-center gap-1">
+              <TrendingUp className="h-3 w-3" />
+              Keep shopping at Welile partner stores to grow your discount!
+            </p>
+          </CardContent>
+        </Card>
+
         {/* Loan Limit Card */}
         <Card className="elevated-card bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
           <CardHeader>
