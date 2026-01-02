@@ -25,6 +25,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { AgentFloatManager } from '@/components/manager/AgentFloatManager';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -584,6 +585,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <Users className="h-3.5 w-3.5" />
                 Users
               </TabsTrigger>
+              <TabsTrigger value="receipts" className="text-xs md:text-sm gap-1.5">
+                <Receipt className="h-3.5 w-3.5" />
+                Receipts
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -1033,6 +1038,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 </div>
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="receipts">
+            <ReceiptManagement userId={user.id} />
           </TabsContent>
         </Tabs>
       </main>

@@ -109,6 +109,7 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
             <Route path="/marketplace" element={<Marketplace />} />
             <Route path="/categories" element={<Categories />} />
             <Route path="/seller/:sellerId" element={<SellerProfile />} />
+            <Route path="/my-receipts" element={<MyReceipts />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

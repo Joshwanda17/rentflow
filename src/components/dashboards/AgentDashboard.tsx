@@ -25,7 +25,9 @@ import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog'
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { AgentProductsSection } from '@/components/marketplace/AgentProductsSection';
+import { LoanManagement } from '@/components/agent/LoanManagement';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Banknote } from 'lucide-react';
 
 interface AgentDashboardProps {
   user: User;
@@ -203,10 +205,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Tabs for Dashboard and Marketplace */}
         <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-2">
+          <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="dashboard" className="gap-2">
               <Users className="h-4 w-4" />
               Dashboard
+            </TabsTrigger>
+            <TabsTrigger value="loans" className="gap-2">
+              <Banknote className="h-4 w-4" />
+              Loans
             </TabsTrigger>
             <TabsTrigger value="marketplace" className="gap-2">
               <Store className="h-4 w-4" />
@@ -400,6 +406,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 )}
               </CardContent>
             </Card>
+          </TabsContent>
+
+          <TabsContent value="loans" className="space-y-6">
+            <LoanManagement agentId={user.id} />
           </TabsContent>
 
           <TabsContent value="marketplace" className="space-y-4">

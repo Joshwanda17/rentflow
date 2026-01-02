@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -348,6 +348,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             icon: FileText,
             label: 'New Request',
             onClick: () => setShowRequestForm(true),
+          },
+          {
+            icon: Receipt,
+            label: 'My Receipts',
+            onClick: () => navigate('/my-receipts'),
           },
           {
             icon: History,
