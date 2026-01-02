@@ -9,7 +9,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer } from 'lucide-react';
+import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import {
   Dialog,
   DialogContent,
@@ -166,6 +167,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
   const [markAmount, setMarkAmount] = useState('');
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
+  const [printSheetOpen, setPrintSheetOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -459,7 +461,24 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
             </form>
           </DialogContent>
         </Dialog>
+
+        <Button 
+          variant="outline" 
+          className="gap-2"
+          onClick={() => setPrintSheetOpen(true)}
+        >
+          <Printer className="h-4 w-4" />
+          Print Receipt Codes
+        </Button>
       </div>
+
+      {/* Printable Receipt Sheet Dialog */}
+      <PrintableReceiptSheet
+        vendors={vendors}
+        receiptNumbers={receiptNumbers}
+        open={printSheetOpen}
+        onClose={() => setPrintSheetOpen(false)}
+      />
 
       {/* Mark Receipt Form */}
       <Card>
