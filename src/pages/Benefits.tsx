@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useMemo } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Home, Users, Wallet, Receipt, ShoppingBag, TrendingUp, 
   Shield, Clock, Gift, Share2, ArrowLeft, CheckCircle2,
   Smartphone, CreditCard, Percent, Building2, Coins, Star,
-  Zap, Trophy, Target, Sparkles, BadgeDollarSign, Flame
+  Zap, Trophy, Target, Sparkles, BadgeDollarSign, Flame,
+  Timer, AlertCircle, PartyPopper
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -15,6 +16,144 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+
+// Limited time offer component with countdown
+function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [isVisible, setIsVisible] = useState(true);
+  
+  // Calculate end time - resets daily at midnight
+  const endTime = useMemo(() => {
+    const now = new Date();
+    const end = new Date(now);
+    end.setHours(23, 59, 59, 999);
+    return end.getTime();
+  }, []);
+
+  useEffect(() => {
+    const calculateTimeLeft = () => {
+      const now = new Date().getTime();
+      const difference = endTime - now;
+      
+      if (difference > 0) {
+        setTimeLeft({
+          hours: Math.floor((difference % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+          minutes: Math.floor((difference % (1000 * 60 * 60)) / (1000 * 60)),
+          seconds: Math.floor((difference % (1000 * 60)) / 1000)
+        });
+      }
+    };
+
+    calculateTimeLeft();
+    const timer = setInterval(calculateTimeLeft, 1000);
+    return () => clearInterval(timer);
+  }, [endTime]);
+
+  if (!isVisible) return null;
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -20 }}
+        className="mb-6"
+      >
+        <Card className="relative overflow-hidden border-2 border-amber-500/50 bg-gradient-to-r from-amber-500/10 via-orange-500/10 to-red-500/10">
+          {/* Animated background shimmer */}
+          <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent animate-[shimmer_2s_infinite] -translate-x-full" 
+               style={{ animation: 'shimmer 2s infinite' }} />
+          
+          {/* Pulsing border effect */}
+          <div className="absolute inset-0 border-2 border-amber-400/30 rounded-lg animate-pulse" />
+          
+          <CardContent className="p-4 relative">
+            {/* Close button */}
+            <button 
+              onClick={() => setIsVisible(false)}
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+            >
+              ✕
+            </button>
+
+            <div className="flex flex-col sm:flex-row items-center gap-4">
+              {/* Icon with animation */}
+              <motion.div
+                animate={{ rotate: [0, -10, 10, -10, 0], scale: [1, 1.1, 1] }}
+                transition={{ repeat: Infinity, duration: 2, repeatDelay: 1 }}
+                className="shrink-0"
+              >
+                <div className="p-3 rounded-full bg-gradient-to-br from-amber-400 to-orange-500 shadow-lg">
+                  <PartyPopper className="h-8 w-8 text-white" />
+                </div>
+              </motion.div>
+
+              <div className="flex-1 text-center sm:text-left">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                  <Badge className="bg-red-500 text-white animate-pulse">
+                    🔥 LIMITED TIME
+                  </Badge>
+                  <Badge variant="outline" className="border-amber-500 text-amber-600 dark:text-amber-400">
+                    TODAY ONLY
+                  </Badge>
+                </div>
+                
+                <h3 className="font-bold text-lg mb-1">
+                  🎁 Get <span className="text-amber-500">DOUBLE BONUS</span> - UGX 200 Per Referral!
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  Sign up now and earn 2x rewards on your first 10 referrals. Don't miss out!
+                </p>
+
+                {/* Countdown Timer */}
+                <div className="flex items-center justify-center sm:justify-start gap-2 mt-3">
+                  <Timer className="h-4 w-4 text-red-500" />
+                  <span className="text-sm font-medium text-muted-foreground">Offer ends in:</span>
+                  <div className="flex gap-1">
+                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm">
+                      {String(timeLeft.hours).padStart(2, '0')}
+                    </span>
+                    <span className="font-bold">:</span>
+                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm">
+                      {String(timeLeft.minutes).padStart(2, '0')}
+                    </span>
+                    <span className="font-bold">:</span>
+                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm animate-pulse">
+                      {String(timeLeft.seconds).padStart(2, '0')}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* CTA Button */}
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+                className="shrink-0"
+              >
+                <Button 
+                  onClick={onClaim}
+                  className="bg-gradient-to-r from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 text-white font-bold shadow-lg"
+                >
+                  <Zap className="h-4 w-4 mr-1" />
+                  Claim Now
+                </Button>
+              </motion.div>
+            </div>
+
+            {/* Urgency indicator */}
+            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-border/50">
+              <AlertCircle className="h-4 w-4 text-amber-500" />
+              <span className="text-xs text-muted-foreground">
+                <span className="font-bold text-amber-500">2,847 people</span> claimed this offer today
+              </span>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    </AnimatePresence>
+  );
+}
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
 // High-impact opportunities for different user types
@@ -282,6 +421,11 @@ Trust me, you'll thank me later! 🙏`;
             Join the financial revolution sweeping East Africa 🌍
           </p>
         </motion.div>
+
+        {/* Limited Time Offer Banner - Only for non-logged in users */}
+        {!user && (
+          <LimitedTimeOfferBanner onClaim={() => navigate('/auth')} />
+        )}
 
         {/* Urgent CTA Banner */}
         <motion.div
