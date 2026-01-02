@@ -38,6 +38,7 @@ const PaymentSchedule = lazy(() => import('./pages/PaymentSchedule'));
 const PayLandlord = lazy(() => import('./pages/PayLandlord'));
 const RentDiscountHistory = lazy(() => import('./pages/RentDiscountHistory'));
 const Benefits = lazy(() => import('./pages/Benefits'));
+const Referrals = lazy(() => import('./pages/Referrals'));
 
 // Optimized QueryClient for 40M+ users scale
 const queryClient = new QueryClient({
@@ -131,6 +132,7 @@ const AnimatedRoutes = memo(function AnimatedRoutes() {
             <Route path="/pay-landlord" element={<PayLandlord />} />
             <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
             <Route path="/benefits" element={<Benefits />} />
+            <Route path="/referrals" element={<Referrals />} />
             <Route path="/vendor-portal" element={<VendorPortal />} />
             <Route path="*" element={<NotFound />} />
           </Routes>

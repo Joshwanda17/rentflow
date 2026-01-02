@@ -70,7 +70,7 @@ export function ReferralStatsCard({ userId }: ReferralStatsCardProps) {
 
   return (
     <button
-      onClick={() => navigate('/benefits')}
+      onClick={() => navigate('/referrals')}
       className="w-full text-left"
     >
       <Card className="elevated-card group hover:shadow-glow transition-all duration-300 border-primary/20 overflow-hidden">
