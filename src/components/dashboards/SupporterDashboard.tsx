@@ -28,6 +28,7 @@ import { StatusIndicator } from '@/components/StatusIndicator';
 import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 
 interface SupporterDashboardProps {
   user: User;
@@ -237,6 +238,9 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Loan Limit Promo */}
         <LoanLimitPromoCard userId={user.id} />
