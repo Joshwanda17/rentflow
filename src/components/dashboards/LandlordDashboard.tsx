@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Banknote, Building, CheckCircle, Settings, Sparkles, History, TrendingUp, Wallet, Receipt } from 'lucide-react';
+import { LogOut, Banknote, Building, CheckCircle, Settings, Sparkles, History, TrendingUp, Wallet, Receipt, QrCode, Send } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -22,6 +22,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
+import { QuickActions } from '@/components/QuickActions';
 
 interface LandlordDashboardProps {
   user: User;
@@ -127,6 +128,36 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
           </div>
         </div>
+
+        {/* Quick Actions - Large icon buttons */}
+        <QuickActions
+          actions={[
+            {
+              icon: Receipt,
+              label: 'Receipts',
+              onClick: () => navigate('/my-receipts'),
+              color: 'primary',
+            },
+            {
+              icon: History,
+              label: 'Payments',
+              onClick: () => navigate('/transactions'),
+              color: 'success',
+            },
+            {
+              icon: Wallet,
+              label: 'Wallet',
+              onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
+              color: 'warning',
+            },
+            {
+              icon: Settings,
+              label: 'Settings',
+              onClick: () => navigate('/settings'),
+              color: 'primary',
+            },
+          ]}
+        />
         
         {/* Wallet */}
         <WalletCard />

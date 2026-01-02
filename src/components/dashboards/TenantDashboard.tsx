@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -29,6 +29,7 @@ import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection'
 import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
+import { QuickActions } from '@/components/QuickActions';
 
 interface TenantDashboardProps {
   user: User;
@@ -171,6 +172,36 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </div>
         </div>
         
+        {/* Quick Actions - Large icon buttons */}
+        <QuickActions
+          actions={[
+            {
+              icon: Calculator,
+              label: 'Calculate',
+              onClick: () => setShowCalculator(true),
+              color: 'primary',
+            },
+            {
+              icon: Banknote,
+              label: 'My Loans',
+              onClick: () => navigate('/my-loans'),
+              color: 'success',
+            },
+            {
+              icon: Receipt,
+              label: 'Receipts',
+              onClick: () => navigate('/my-receipts'),
+              color: 'warning',
+            },
+            {
+              icon: ShoppingBag,
+              label: 'Shop',
+              onClick: () => navigate('/marketplace'),
+              color: 'primary',
+            },
+          ]}
+        />
+
         {/* Wallet */}
         <WalletCard />
 
