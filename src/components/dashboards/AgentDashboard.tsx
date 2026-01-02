@@ -35,6 +35,7 @@ import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReferralStatsCard } from '@/components/ReferralStatsCard';
+import { PendingDepositsSection } from '@/components/agent/PendingDepositsSection';
 
 interface AgentDashboardProps {
   user: User;
@@ -246,6 +247,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </TabsList>
 
           <TabsContent value="dashboard" className="space-y-6">
+            {/* Pending Deposits for Agent Approval */}
+            <PendingDepositsSection />
             {/* Referral Link */}
             <Card className="elevated-card border-primary/20 overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
