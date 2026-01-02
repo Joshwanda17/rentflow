@@ -14,6 +14,7 @@ import { useLanguage } from '@/hooks/useLanguage';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
+import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
 const benefits = [
   {
@@ -265,6 +266,16 @@ Join 40M+ users across East Africa!
             </Card>
           </motion.div>
         )}
+
+        {/* Referral Leaderboard */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="mb-8"
+        >
+          <ReferralLeaderboard limit={10} />
+        </motion.div>
 
         {/* Benefits Grid */}
         <div className="grid gap-4 mb-8">
