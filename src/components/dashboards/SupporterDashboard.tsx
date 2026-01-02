@@ -22,6 +22,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
+import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 
 interface SupporterDashboardProps {
   user: User;
@@ -197,6 +198,9 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Loan Limit Promo */}
+        <LoanLimitPromoCard userId={user.id} />
 
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />

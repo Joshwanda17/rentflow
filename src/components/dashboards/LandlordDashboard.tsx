@@ -21,6 +21,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
+import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 
 interface LandlordDashboardProps {
   user: User;
@@ -129,6 +130,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         
         {/* Wallet */}
         <WalletCard />
+
+        {/* Loan Limit Promo */}
+        <LoanLimitPromoCard userId={user.id} />
 
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />
