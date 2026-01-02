@@ -156,21 +156,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
         <AppBreadcrumb />
         
-        {/* Welcome Section */}
+        {/* Welcome Section - Simplified for mobile */}
         <div className="flex items-center justify-between">
           <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
+              Hi{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋
             </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Manage your rent requests and repayments
+            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
+              Your rent & payments
             </p>
-          </div>
-          <div className="hidden md:flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
           </div>
         </div>
         
@@ -183,55 +180,52 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />
 
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
-                  <CreditCard className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Active Balance</p>
-                  <p className="metric-value text-xl truncate">
-                    {formatUGX(remainingBalance)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+        {/* Quick Stats - Larger, icon-focused cards */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-4">
+          <button 
+            onClick={() => navigate('/transactions')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
+          >
+            <div className="p-2.5 rounded-xl bg-primary/10 mb-2">
+              <CreditCard className="h-6 w-6 text-primary" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold tabular-nums">
+              {remainingBalance >= 1000000 ? `${(remainingBalance / 1000000).toFixed(1)}M` : 
+               remainingBalance >= 1000 ? `${(remainingBalance / 1000).toFixed(0)}K` : remainingBalance}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-medium">Balance</p>
+          </button>
 
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
-                  <Calculator className="h-5 w-5 text-success" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Total Repaid</p>
-                  <p className="metric-value text-xl text-success truncate">
-                    {formatUGX(totalRepaid)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <button 
+            onClick={() => navigate('/transactions')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
+          >
+            <div className="p-2.5 rounded-xl bg-success/10 mb-2">
+              <Calculator className="h-6 w-6 text-success" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold text-success tabular-nums">
+              {totalRepaid >= 1000000 ? `${(totalRepaid / 1000000).toFixed(1)}M` : 
+               totalRepaid >= 1000 ? `${(totalRepaid / 1000).toFixed(0)}K` : totalRepaid}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-medium">Paid</p>
+          </button>
 
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
-                  <Clock className="h-5 w-5 text-warning" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Daily Payment</p>
-                  <p className="metric-value text-xl truncate">
-                    {activeRequest ? formatUGX(Number(activeRequest.daily_repayment)) : 'N/A'}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <button 
+            onClick={() => navigate('/payment-schedule')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
+          >
+            <div className="p-2.5 rounded-xl bg-warning/10 mb-2">
+              <Clock className="h-6 w-6 text-warning" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold tabular-nums">
+              {activeRequest ? (
+                Number(activeRequest.daily_repayment) >= 1000 
+                  ? `${(Number(activeRequest.daily_repayment) / 1000).toFixed(0)}K` 
+                  : Number(activeRequest.daily_repayment)
+              ) : '—'}
+            </p>
+            <p className="text-[10px] text-muted-foreground font-medium">Daily</p>
+          </button>
         </div>
 
         {/* Calculator Section */}
@@ -267,16 +261,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </div>
         )}
 
-        {/* Action Button */}
+        {/* Action Button - Larger touch target */}
         {!showCalculator && !showRequestForm && (
           <Button 
             onClick={() => setShowCalculator(true)}
-            className="w-full md:w-auto gap-2"
+            className="w-full gap-2 h-12 text-base"
             size="lg"
           >
-            <Plus className="h-4 w-4" />
-            New Rent Request
-            <ArrowRight className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
+            New Request
+            <ArrowRight className="h-5 w-5" />
           </Button>
         )}
 
@@ -299,54 +293,64 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Marketplace */}
         <MarketplaceSection />
 
-        {/* Rent Requests History */}
+        {/* Rent Requests History - Simplified */}
         <Card className="elevated-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-            <div className="flex items-center gap-3">
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
+            <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
-                <History className="h-4 w-4 text-primary" />
+                <History className="h-5 w-5 text-primary" />
               </div>
-              <CardTitle className="text-lg font-semibold">My Rent Requests</CardTitle>
+              <CardTitle className="text-base font-semibold">History</CardTitle>
             </div>
-            <Badge variant="outline" className="font-mono">
-              {rentRequests.length} total
+            <Badge variant="outline" className="font-mono text-xs">
+              {rentRequests.length}
             </Badge>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-0">
             {loading ? (
               <div className="flex items-center justify-center py-8">
                 <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
               </div>
             ) : rentRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <Calculator className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">No rent requests yet.</p>
-                <p className="text-sm text-muted-foreground/70">Use the calculator above to get started.</p>
+              <div className="text-center py-6">
+                <Calculator className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+                <p className="text-sm text-muted-foreground">No requests yet</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {rentRequests.map((request, index) => (
-                  <div 
+              <div className="space-y-2">
+                {rentRequests.slice(0, 5).map((request, index) => (
+                  <button 
                     key={request.id} 
-                    className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
-                    style={{ animationDelay: `${index * 50}ms` }}
+                    onClick={() => navigate('/transactions')}
+                    className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 active:scale-[0.98] transition-all"
                   >
-                    <div className="space-y-1">
-                      <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                      <p className="text-sm text-muted-foreground">
-                        {request.duration_days} days • Daily: {formatUGX(Number(request.daily_repayment))}
-                      </p>
+                    <div className="flex items-center gap-3">
+                      <div className={`w-2 h-2 rounded-full ${
+                        request.status === 'disbursed' || request.status === 'funded' ? 'bg-success' :
+                        request.status === 'pending' ? 'bg-warning' :
+                        request.status === 'rejected' ? 'bg-destructive' : 'bg-muted-foreground'
+                      }`} />
+                      <div className="text-left">
+                        <p className="font-bold text-sm">{formatUGX(Number(request.rent_amount))}</p>
+                        <p className="text-[11px] text-muted-foreground">{request.duration_days}d</p>
+                      </div>
                     </div>
-                    <div className="text-right space-y-1">
-                      <Badge variant={getStatusColor(request.status)}>
+                    <div className="text-right">
+                      <Badge variant={getStatusColor(request.status)} size="sm">
                         {request.status}
                       </Badge>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(request.created_at).toLocaleDateString()}
-                      </p>
                     </div>
-                  </div>
+                  </button>
                 ))}
+                {rentRequests.length > 5 && (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full text-sm"
+                    onClick={() => navigate('/transactions')}
+                  >
+                    See all {rentRequests.length} requests
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
@@ -357,7 +361,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         actions={[
           {
             icon: Calculator,
-            label: 'Rent Calculator',
+            label: 'Calculate',
             onClick: () => setShowCalculator(!showCalculator),
           },
           {
@@ -367,23 +371,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           },
           {
             icon: Receipt,
-            label: 'My Receipts',
+            label: 'Receipts',
             onClick: () => navigate('/my-receipts'),
           },
           {
             icon: Banknote,
-            label: 'My Loans',
+            label: 'Loans',
             onClick: () => navigate('/my-loans'),
           },
           {
             icon: Calendar,
-            label: 'Payment Schedule',
+            label: 'Schedule',
             onClick: () => navigate('/payment-schedule'),
-          },
-          {
-            icon: History,
-            label: 'Transaction History',
-            onClick: () => navigate('/transactions'),
           },
         ]}
       />

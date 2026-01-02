@@ -79,23 +79,23 @@ export function WalletCard() {
     <>
       <Card className="overflow-hidden border-border">
         {/* Header with gradient */}
-        <div className="bg-primary p-5 text-primary-foreground">
-          <div className="flex items-center justify-between mb-4">
+        <div className="bg-primary p-4 sm:p-5 text-primary-foreground">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary-foreground/10">
-                <Wallet className="h-4 w-4" />
+                <Wallet className="h-5 w-5" />
               </div>
-              <span className="font-medium text-sm">Welile Wallet</span>
+              <span className="font-semibold text-sm">Wallet</span>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
+              className="relative h-10 w-10 text-primary-foreground hover:bg-primary-foreground/10"
               onClick={() => setPendingOpen(true)}
             >
-              <Bell className="h-4 w-4" />
+              <Bell className="h-5 w-5" />
               {pendingCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-warning text-warning-foreground">
+                <Badge className="absolute -top-0.5 -right-0.5 h-5 w-5 p-0 flex items-center justify-center text-xs bg-warning text-warning-foreground">
                   {pendingCount}
                 </Badge>
               )}
@@ -108,64 +108,66 @@ export function WalletCard() {
               fullName={profile?.full_name} 
               size="md" 
             />
-            <div>
-              <p className="text-sm opacity-90">{profile?.full_name || 'User'}</p>
-              <p className="text-[10px] uppercase tracking-wider opacity-60 mb-0.5">Available Balance</p>
-              <p className="text-2xl font-semibold tracking-tight">
-                {formatCurrency(wallet?.balance || 0)}
+            <div className="flex-1">
+              <p className="text-sm opacity-90 truncate">{profile?.full_name || 'User'}</p>
+              <p className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5">
+                {wallet?.balance ? (
+                  wallet.balance >= 1000000 
+                    ? `UGX ${(wallet.balance / 1000000).toFixed(1)}M`
+                    : wallet.balance >= 1000
+                    ? `UGX ${(wallet.balance / 1000).toFixed(0)}K`
+                    : formatCurrency(wallet.balance)
+                ) : 'UGX 0'}
               </p>
             </div>
           </div>
         </div>
         
-        <CardContent className="p-4 space-y-4">
-          {/* Action buttons */}
+        <CardContent className="p-3 sm:p-4 space-y-3">
+          {/* Action buttons - Large touch targets */}
           <div className="grid grid-cols-3 gap-2">
             <Button 
               onClick={() => setSendOpen(true)} 
-              size="sm"
-              className="gap-1.5"
+              className="flex-col gap-1 h-auto py-3 active:scale-95"
             >
-              <Send className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Send</span>
+              <Send className="h-5 w-5" />
+              <span className="text-xs font-medium">Send</span>
             </Button>
             <Button 
               onClick={() => setRequestOpen(true)} 
               variant="secondary"
-              size="sm"
-              className="gap-1.5"
+              className="flex-col gap-1 h-auto py-3 active:scale-95"
             >
-              <HandCoins className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Request</span>
+              <HandCoins className="h-5 w-5" />
+              <span className="text-xs font-medium">Request</span>
             </Button>
             <Button 
               onClick={() => setDepositOpen(true)} 
               variant="outline" 
-              size="sm"
-              className="gap-1.5"
+              className="flex-col gap-1 h-auto py-3 active:scale-95"
             >
-              <Plus className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Deposit</span>
+              <Plus className="h-5 w-5" />
+              <span className="text-xs font-medium">Add</span>
             </Button>
           </div>
 
-          {/* Recent transactions */}
+          {/* Recent transactions - Simplified */}
           {transactions.length > 0 && (
-            <div className="pt-3 border-t border-border">
+            <div className="pt-2 border-t border-border">
               <div className="flex items-center justify-between mb-2">
-                <p className="text-sm font-medium">Recent</p>
+                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recent</p>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => navigate('/transactions')}
-                  className="gap-1 h-auto py-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                  className="gap-1 h-auto py-1 px-2 text-xs"
                 >
+                  All
                   <History className="h-3 w-3" />
-                  View All
                 </Button>
               </div>
               <div className="space-y-1">
-                {transactions.slice(0, 4).map((tx) => {
+                {transactions.slice(0, 3).map((tx) => {
                   const isSent = tx.sender_id === user?.id;
                   return (
                     <button 
@@ -174,27 +176,25 @@ export function WalletCard() {
                         setSelectedTransaction(tx);
                         setReceiptOpen(true);
                       }}
-                      className="flex items-center justify-between p-2 rounded-lg w-full hover:bg-muted/50 transition-colors"
+                      className="flex items-center justify-between p-2.5 rounded-xl w-full hover:bg-muted/50 active:scale-[0.98] transition-all"
                     >
-                      <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-full ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
+                      <div className="flex items-center gap-2.5">
+                        <div className={`p-2 rounded-full ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
                           {isSent ? (
-                            <ArrowUpRight className="h-3 w-3 text-destructive" />
+                            <ArrowUpRight className="h-4 w-4 text-destructive" />
                           ) : (
-                            <ArrowDownLeft className="h-3 w-3 text-success" />
+                            <ArrowDownLeft className="h-4 w-4 text-success" />
                           )}
                         </div>
                         <div className="text-left">
-                          <p className="text-sm font-medium">
-                            {isSent ? tx.recipient_name : tx.sender_name}
-                          </p>
-                          <p className="text-[10px] text-muted-foreground">
-                            {formatDate(tx.created_at)}
+                          <p className="text-sm font-semibold truncate max-w-[120px]">
+                            {isSent ? tx.recipient_name?.split(' ')[0] : tx.sender_name?.split(' ')[0]}
                           </p>
                         </div>
                       </div>
-                      <p className={`text-sm font-medium tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
-                        {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
+                      <p className={`text-sm font-bold tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
+                        {isSent ? '-' : '+'}
+                        {tx.amount >= 1000 ? `${(tx.amount / 1000).toFixed(0)}K` : tx.amount}
                       </p>
                     </button>
                   );
