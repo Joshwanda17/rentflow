@@ -880,6 +880,41 @@ export type Database = {
           },
         ]
       }
+      user_loan_repayments: {
+        Row: {
+          amount: number
+          borrower_id: string
+          created_at: string
+          id: string
+          loan_id: string
+          payment_method: string
+        }
+        Insert: {
+          amount: number
+          borrower_id: string
+          created_at?: string
+          id?: string
+          loan_id: string
+          payment_method?: string
+        }
+        Update: {
+          amount?: number
+          borrower_id?: string
+          created_at?: string
+          id?: string
+          loan_id?: string
+          payment_method?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_loan_repayments_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "user_loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_loans: {
         Row: {
           amount: number
@@ -889,6 +924,7 @@ export type Database = {
           id: string
           interest_rate: number
           lender_id: string
+          paid_amount: number
           repaid_at: string | null
           status: string
           total_repayment: number
@@ -901,6 +937,7 @@ export type Database = {
           id?: string
           interest_rate?: number
           lender_id: string
+          paid_amount?: number
           repaid_at?: string | null
           status?: string
           total_repayment: number
@@ -913,6 +950,7 @@ export type Database = {
           id?: string
           interest_rate?: number
           lender_id?: string
+          paid_amount?: number
           repaid_at?: string | null
           status?: string
           total_repayment?: number
