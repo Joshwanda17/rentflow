@@ -1,5 +1,4 @@
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { Search, TrendingUp, Clock, Package, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -25,7 +24,6 @@ export function SearchSuggestions({
   onSelectProduct,
   className 
 }: SearchSuggestionsProps) {
-  const navigate = useNavigate();
   const [suggestions, setSuggestions] = useState<Product[]>([]);
   const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const [popularSearches] = useState(['electronics', 'clothing', 'accessories', 'food']);
