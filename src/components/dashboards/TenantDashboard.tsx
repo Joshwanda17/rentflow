@@ -10,6 +10,7 @@ import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
+import LoanProgressWidget from '@/components/tenant/LoanProgressWidget';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -279,6 +280,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             onRepaymentSuccess={fetchData}
           />
         )}
+
+        {/* Loan Progress Widget */}
+        <LoanProgressWidget userId={user.id} />
 
         {/* Marketplace */}
         <MarketplaceSection />
