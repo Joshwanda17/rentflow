@@ -6,8 +6,9 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard } from 'lucide-react';
+import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface QuickReceiptFormProps {
@@ -33,6 +34,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const [loanLimit, setLoanLimit] = useState<LoanLimit | null>(null);
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [lastIncrease, setLastIncrease] = useState<number | null>(null);
+  const [showTips, setShowTips] = useState(false);
 
   useEffect(() => {
     fetchLoanLimit();
@@ -243,6 +245,68 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
             )}
           </Button>
         </form>
+
+        {/* Tips Section */}
+        <Collapsible open={showTips} onOpenChange={setShowTips}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground">
+              <Lightbulb className="h-3.5 w-3.5 text-warning" />
+              Tips to Maximize Your Loan Limit
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showTips ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <div className="space-y-2.5 p-3 rounded-lg bg-muted/50 border border-border/50">
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 rounded-md bg-success/10 shrink-0">
+                  <ShoppingBag className="h-3.5 w-3.5 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Shop Regularly at Partner Vendors</p>
+                  <p className="text-xs text-muted-foreground">Each verified receipt adds 20% of its value to your loan limit.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
+                  <Store className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Choose Welile-Partnered Shops</p>
+                  <p className="text-xs text-muted-foreground">Look for stores displaying the Welile logo for faster verification.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 rounded-md bg-warning/10 shrink-0">
+                  <Percent className="h-3.5 w-3.5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Larger Purchases = Bigger Limits</p>
+                  <p className="text-xs text-muted-foreground">A UGX 500,000 receipt adds UGX 100,000 to your available limit.</p>
+                </div>
+              </div>
+              
+              <div className="flex items-start gap-2.5">
+                <div className="p-1.5 rounded-md bg-chart-5/10 shrink-0">
+                  <Clock className="h-3.5 w-3.5 text-chart-5" />
+                </div>
+                <div>
+                  <p className="text-xs font-medium">Submit Receipts Promptly</p>
+                  <p className="text-xs text-muted-foreground">Submit within 24 hours of purchase for fastest verification.</p>
+                </div>
+              </div>
+              
+              <div className="mt-3 p-2 rounded-md bg-primary/5 border border-primary/20">
+                <p className="text-xs text-center">
+                  <TrendingUp className="h-3 w-3 inline mr-1 text-primary" />
+                  <span className="font-medium">Pro Tip:</span> To reach the max limit of {formatUGX(MAX_LOAN_LIMIT)}, 
+                  you need {formatUGX(MAX_LOAN_LIMIT * 5)} in verified purchases.
+                </p>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
       </CardContent>
     </Card>
   );
