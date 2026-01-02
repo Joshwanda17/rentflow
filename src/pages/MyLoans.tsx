@@ -10,7 +10,7 @@ import { Progress } from '@/components/ui/progress';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { ArrowLeft, Wallet, Clock, CheckCircle, AlertCircle, History, Loader2, Banknote } from 'lucide-react';
+import { ArrowLeft, Wallet, Clock, CheckCircle, AlertCircle, History, Loader2, Banknote, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
 import {
   Dialog,
@@ -159,14 +159,20 @@ export default function MyLoans() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-background via-background to-primary/5">
       <header className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-xl font-bold">My Loans</h1>
-            <p className="text-sm text-muted-foreground">Track and repay your loans</p>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <div>
+              <h1 className="text-xl font-bold">My Loans</h1>
+              <p className="text-sm text-muted-foreground">Track and repay your loans</p>
+            </div>
           </div>
+          <Button variant="outline" size="sm" className="gap-2" onClick={() => navigate('/payment-schedule')}>
+            <Calendar className="h-4 w-4" />
+            <span className="hidden sm:inline">Payment Schedule</span>
+          </Button>
         </div>
       </header>
 
