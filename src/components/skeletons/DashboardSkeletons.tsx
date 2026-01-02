@@ -13,22 +13,23 @@ const staggerContainer = {
   show: {
     opacity: 1,
     transition: {
-      staggerChildren: 0.1,
+      staggerChildren: 0.06,
     },
   },
 };
 
 const fadeInUp = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0, y: 8 },
   show: { opacity: 1, y: 0 },
 };
 
 export function DashboardHeaderSkeleton() {
   return (
     <motion.div
-      initial={{ opacity: 0, y: -10 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="flex items-center justify-between p-4 border-b border-border/50 bg-card/50 backdrop-blur-sm"
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+      className="flex items-center justify-between p-4 border-b border-border bg-card/80 backdrop-blur-sm"
     >
       <div className="flex items-center gap-3">
         <Skeleton className="h-10 w-10 rounded-lg" />
