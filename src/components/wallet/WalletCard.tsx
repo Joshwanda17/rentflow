@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Receipt, History } from 'lucide-react';
@@ -78,93 +77,95 @@ export function WalletCard() {
 
   return (
     <>
-      <Card className="overflow-hidden border-0 shadow-elevated">
-        <div className="gradient-primary p-5 text-primary-foreground">
+      <Card className="overflow-hidden border-border">
+        {/* Header with gradient */}
+        <div className="bg-primary p-5 text-primary-foreground">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-white/20 backdrop-blur-sm">
-                <Wallet className="h-5 w-5" />
+              <div className="p-2 rounded-lg bg-primary-foreground/10">
+                <Wallet className="h-4 w-4" />
               </div>
-              <span className="font-semibold">Welile Wallet</span>
+              <span className="font-medium text-sm">Welile Wallet</span>
             </div>
             <Button 
               variant="ghost" 
-              size="sm" 
-              className="relative text-primary-foreground hover:bg-white/20"
+              size="icon" 
+              className="relative h-8 w-8 text-primary-foreground hover:bg-primary-foreground/10"
               onClick={() => setPendingOpen(true)}
             >
               <Bell className="h-4 w-4" />
               {pendingCount > 0 && (
-                <Badge className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs bg-warning text-warning-foreground">
+                <Badge className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-warning text-warning-foreground">
                   {pendingCount}
                 </Badge>
               )}
             </Button>
           </div>
           
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-3">
             <UserAvatar 
               avatarUrl={profile?.avatar_url} 
               fullName={profile?.full_name} 
-              size="lg" 
+              size="md" 
             />
             <div>
               <p className="text-sm opacity-90">{profile?.full_name || 'User'}</p>
-              <p className="text-xs opacity-70 mb-1">Available Balance</p>
-              <p className="text-3xl font-bold tracking-tight">
+              <p className="text-[10px] uppercase tracking-wider opacity-60 mb-0.5">Available Balance</p>
+              <p className="text-2xl font-semibold tracking-tight">
                 {formatCurrency(wallet?.balance || 0)}
               </p>
             </div>
           </div>
         </div>
         
-        <CardContent className="p-5 space-y-4">
-
+        <CardContent className="p-4 space-y-4">
+          {/* Action buttons */}
           <div className="grid grid-cols-3 gap-2">
             <Button 
               onClick={() => setSendOpen(true)} 
-              className="gap-1"
               size="sm"
+              className="gap-1.5"
             >
-              <Send className="h-4 w-4" />
+              <Send className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Send</span>
             </Button>
             <Button 
               onClick={() => setRequestOpen(true)} 
               variant="secondary"
-              className="gap-1"
               size="sm"
+              className="gap-1.5"
             >
-              <HandCoins className="h-4 w-4" />
+              <HandCoins className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Request</span>
             </Button>
             <Button 
               onClick={() => setDepositOpen(true)} 
               variant="outline" 
-              className="gap-1"
               size="sm"
+              className="gap-1.5"
             >
-              <Plus className="h-4 w-4" />
+              <Plus className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Deposit</span>
             </Button>
           </div>
 
+          {/* Recent transactions */}
           {transactions.length > 0 && (
-            <div className="pt-4 border-t border-border">
-              <div className="flex items-center justify-between mb-3">
-                <p className="text-sm font-medium">Recent Transactions</p>
+            <div className="pt-3 border-t border-border">
+              <div className="flex items-center justify-between mb-2">
+                <p className="text-sm font-medium">Recent</p>
                 <Button 
                   variant="ghost" 
                   size="sm" 
                   onClick={() => navigate('/transactions')}
-                  className="gap-1 h-auto py-1 text-xs text-muted-foreground hover:text-foreground"
+                  className="gap-1 h-auto py-1 px-2 text-xs text-muted-foreground hover:text-foreground"
                 >
                   <History className="h-3 w-3" />
                   View All
                 </Button>
               </div>
-              <div className="space-y-2 max-h-48 overflow-y-auto">
-                {transactions.slice(0, 5).map((tx) => {
+              <div className="space-y-1">
+                {transactions.slice(0, 4).map((tx) => {
                   const isSent = tx.sender_id === user?.id;
                   return (
                     <button 
@@ -173,31 +174,28 @@ export function WalletCard() {
                         setSelectedTransaction(tx);
                         setReceiptOpen(true);
                       }}
-                      className="flex items-center justify-between p-2 rounded-lg bg-background/50 w-full hover:bg-background/80 transition-colors group"
+                      className="flex items-center justify-between p-2 rounded-lg w-full hover:bg-muted/50 transition-colors"
                     >
                       <div className="flex items-center gap-2">
-                        <div className={`p-1.5 rounded-full ${isSent ? 'bg-destructive/20' : 'bg-green-500/20'}`}>
+                        <div className={`p-1.5 rounded-full ${isSent ? 'bg-destructive/10' : 'bg-success/10'}`}>
                           {isSent ? (
                             <ArrowUpRight className="h-3 w-3 text-destructive" />
                           ) : (
-                            <ArrowDownLeft className="h-3 w-3 text-green-500" />
+                            <ArrowDownLeft className="h-3 w-3 text-success" />
                           )}
                         </div>
                         <div className="text-left">
                           <p className="text-sm font-medium">
                             {isSent ? tx.recipient_name : tx.sender_name}
                           </p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-[10px] text-muted-foreground">
                             {formatDate(tx.created_at)}
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
-                        <p className={`text-sm font-semibold ${isSent ? 'text-destructive' : 'text-green-500'}`}>
-                          {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
-                        </p>
-                        <Receipt className="h-3 w-3 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
-                      </div>
+                      <p className={`text-sm font-medium tabular-nums ${isSent ? 'text-destructive' : 'text-success'}`}>
+                        {isSent ? '-' : '+'}{formatCurrency(tx.amount)}
+                      </p>
                     </button>
                   );
                 })}
