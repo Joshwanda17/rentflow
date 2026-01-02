@@ -1,6 +1,5 @@
+import { lazy, Suspense, memo } from "react";
 import { Toaster } from "@/components/ui/toaster";
-const MyReceipts = lazy(() => import('./pages/MyReceipts'));
-const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -14,7 +13,7 @@ import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
-import { lazy, Suspense, memo } from "react";
+
 // Lazy load routes for better initial load performance at scale
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
@@ -32,6 +31,8 @@ const Marketplace = lazy(() => import("./pages/Marketplace"));
 const Categories = lazy(() => import("./pages/Categories"));
 const SellerProfile = lazy(() => import("./pages/SellerProfile"));
 const NotFound = lazy(() => import("./pages/NotFound"));
+const MyReceipts = lazy(() => import('./pages/MyReceipts'));
+const VendorPortal = lazy(() => import('./pages/VendorPortal'));
 
 // Optimized QueryClient for 40M+ users scale
 const queryClient = new QueryClient({
