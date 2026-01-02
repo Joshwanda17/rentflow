@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { CreditCard, Users, CheckCircle, Loader2, Search, Banknote, TrendingUp, Calendar } from 'lucide-react';
+import { CreditCard, Users, CheckCircle, Loader2, Search, Banknote, TrendingUp, Calendar, Calculator } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -16,6 +16,8 @@ import {
   DialogTrigger,
 } from '@/components/ui/dialog';
 import { format, addDays } from 'date-fns';
+import { LoanPaymentCalculator } from './LoanPaymentCalculator';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface LoanLimit {
   user_id: string;
@@ -254,54 +256,70 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
   }
 
   return (
-    <div className="space-y-6">
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <Card className="bg-primary/5 border-primary/20">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <Banknote className="h-5 w-5 text-primary" />
-              <div>
-                <p className="text-sm text-muted-foreground">Active Loans</p>
-                <p className="text-xl font-bold">{activeLoans.length}</p>
+    <Tabs defaultValue="management" className="space-y-6">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="management" className="gap-2">
+          <Banknote className="h-4 w-4" />
+          Loan Management
+        </TabsTrigger>
+        <TabsTrigger value="calculator" className="gap-2">
+          <Calculator className="h-4 w-4" />
+          Payment Calculator
+        </TabsTrigger>
+      </TabsList>
+
+      <TabsContent value="calculator">
+        <LoanPaymentCalculator />
+      </TabsContent>
+
+      <TabsContent value="management" className="space-y-6">
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <Banknote className="h-5 w-5 text-primary" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Active Loans</p>
+                  <p className="text-xl font-bold">{activeLoans.length}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-warning/5 border-warning/20">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <CreditCard className="h-5 w-5 text-warning" />
-              <div>
-                <p className="text-sm text-muted-foreground">Total Lent</p>
-                <p className="text-lg font-bold text-warning">{formatUGX(totalLent)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-warning/5 border-warning/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <CreditCard className="h-5 w-5 text-warning" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Total Lent</p>
+                  <p className="text-lg font-bold text-warning">{formatUGX(totalLent)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="bg-success/5 border-success/20">
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <TrendingUp className="h-5 w-5 text-success" />
-              <div>
-                <p className="text-sm text-muted-foreground">Expected Return</p>
-                <p className="text-lg font-bold text-success">{formatUGX(totalExpected)}</p>
+            </CardContent>
+          </Card>
+          <Card className="bg-success/5 border-success/20">
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <TrendingUp className="h-5 w-5 text-success" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Expected Return</p>
+                  <p className="text-lg font-bold text-success">{formatUGX(totalExpected)}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-        <Card>
-          <CardContent className="pt-4">
-            <div className="flex items-center gap-3">
-              <CheckCircle className="h-5 w-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm text-muted-foreground">Repaid</p>
-                <p className="text-xl font-bold">{repaidLoans.length}</p>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4">
+              <div className="flex items-center gap-3">
+                <CheckCircle className="h-5 w-5 text-muted-foreground" />
+                <div>
+                  <p className="text-sm text-muted-foreground">Repaid</p>
+                  <p className="text-xl font-bold">{repaidLoans.length}</p>
+                </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </CardContent>
+          </Card>
+        </div>
 
       {/* Create Loan */}
       <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
@@ -387,13 +405,37 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
                       </div>
                     </div>
                     {loanAmount && (
-                      <div className="p-3 rounded-lg bg-primary/10 text-sm">
-                        <p>Total Repayment: <span className="font-bold">
-                          {formatUGX(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100))}
-                        </span></p>
-                        <p>Due Date: <span className="font-bold">
-                          {format(addDays(new Date(), parseInt(durationDays)), 'MMM d, yyyy')}
-                        </span></p>
+                      <div className="p-3 rounded-lg bg-primary/10 text-sm space-y-2">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Principal:</span>
+                          <span className="font-mono">{formatUGX(parseFloat(loanAmount))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Interest ({interestRate}%):</span>
+                          <span className="font-mono text-warning">{formatUGX(parseFloat(loanAmount) * parseFloat(interestRate) / 100)}</span>
+                        </div>
+                        <div className="flex justify-between border-t border-border pt-2">
+                          <span className="font-medium">Total Repayment:</span>
+                          <span className="font-bold">{formatUGX(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100))}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Due Date:</span>
+                          <span className="font-medium">{format(addDays(new Date(), parseInt(durationDays)), 'MMM d, yyyy')}</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border">
+                          <div className="text-center p-2 rounded bg-background/50">
+                            <p className="text-xs text-muted-foreground">Daily</p>
+                            <p className="font-bold text-xs">{formatUGX(Math.ceil(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100) / parseInt(durationDays)))}</p>
+                          </div>
+                          <div className="text-center p-2 rounded bg-background/50">
+                            <p className="text-xs text-muted-foreground">Weekly</p>
+                            <p className="font-bold text-xs">{formatUGX(Math.ceil(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100) / Math.ceil(parseInt(durationDays) / 7)))}</p>
+                          </div>
+                          <div className="text-center p-2 rounded bg-background/50">
+                            <p className="text-xs text-muted-foreground">Monthly</p>
+                            <p className="font-bold text-xs">{formatUGX(Math.ceil(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100) / Math.ceil(parseInt(durationDays) / 30)))}</p>
+                          </div>
+                        </div>
                       </div>
                     )}
                     <Button type="submit" className="w-full" disabled={submitting}>
@@ -495,6 +537,7 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
           )}
         </CardContent>
       </Card>
-    </div>
+      </TabsContent>
+    </Tabs>
   );
 }
