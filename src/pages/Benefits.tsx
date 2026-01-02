@@ -17,10 +17,26 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 
-// Limited time offer component with countdown
+// Limited time offer component with countdown and spots remaining
 function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
   const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
   const [isVisible, setIsVisible] = useState(true);
+  const [spotsRemaining, setSpotsRemaining] = useState(() => {
+    // Initialize from localStorage or start with a random number between 47-89
+    const stored = localStorage.getItem('welile-spots-remaining');
+    const storedTime = localStorage.getItem('welile-spots-timestamp');
+    const now = Date.now();
+    
+    // Reset if more than 24 hours have passed
+    if (stored && storedTime && (now - parseInt(storedTime)) < 24 * 60 * 60 * 1000) {
+      return parseInt(stored);
+    }
+    return Math.floor(Math.random() * 43) + 47; // 47-89 spots
+  });
+  const [claimedToday, setClaimedToday] = useState(() => {
+    return Math.floor(Math.random() * 1500) + 2000; // 2000-3500
+  });
+  const [justClaimed, setJustClaimed] = useState(false);
   
   // Calculate end time - resets daily at midnight
   const endTime = useMemo(() => {
@@ -30,6 +46,7 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
     return end.getTime();
   }, []);
 
+  // Countdown timer
   useEffect(() => {
     const calculateTimeLeft = () => {
       const now = new Date().getTime();
@@ -49,7 +66,45 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
     return () => clearInterval(timer);
   }, [endTime]);
 
+  // Randomly decrease spots remaining to create urgency
+  useEffect(() => {
+    const decreaseSpots = () => {
+      setSpotsRemaining(prev => {
+        if (prev <= 5) return prev; // Don't go below 5
+        const decrease = Math.random() > 0.7 ? 1 : 0; // 30% chance to decrease
+        const newValue = prev - decrease;
+        localStorage.setItem('welile-spots-remaining', String(newValue));
+        localStorage.setItem('welile-spots-timestamp', String(Date.now()));
+        
+        if (decrease > 0) {
+          setJustClaimed(true);
+          setClaimedToday(prev => prev + 1);
+          setTimeout(() => setJustClaimed(false), 2000);
+        }
+        
+        return newValue;
+      });
+    };
+
+    // Decrease every 3-8 seconds randomly
+    const scheduleDecrease = () => {
+      const delay = Math.floor(Math.random() * 5000) + 3000;
+      return setTimeout(() => {
+        decreaseSpots();
+        scheduleDecrease();
+      }, delay);
+    };
+
+    const timerId = scheduleDecrease();
+    return () => clearTimeout(timerId);
+  }, []);
+
   if (!isVisible) return null;
+
+  // Determine urgency level based on spots
+  const urgencyLevel = spotsRemaining <= 10 ? 'critical' : spotsRemaining <= 25 ? 'high' : 'normal';
+  const spotsColor = urgencyLevel === 'critical' ? 'text-red-500' : urgencyLevel === 'high' ? 'text-orange-500' : 'text-amber-500';
+  const spotsBg = urgencyLevel === 'critical' ? 'bg-red-500/10' : urgencyLevel === 'high' ? 'bg-orange-500/10' : 'bg-amber-500/10';
 
   return (
     <AnimatePresence>
@@ -71,7 +126,7 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
             {/* Close button */}
             <button 
               onClick={() => setIsVisible(false)}
-              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors"
+              className="absolute top-2 right-2 text-muted-foreground hover:text-foreground transition-colors z-10"
             >
               ✕
             </button>
@@ -89,7 +144,7 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
               </motion.div>
 
               <div className="flex-1 text-center sm:text-left">
-                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1">
+                <div className="flex items-center justify-center sm:justify-start gap-2 mb-1 flex-wrap">
                   <Badge className="bg-red-500 text-white animate-pulse">
                     🔥 LIMITED TIME
                   </Badge>
@@ -105,23 +160,52 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
                   Sign up now and earn 2x rewards on your first 10 referrals. Don't miss out!
                 </p>
 
-                {/* Countdown Timer */}
-                <div className="flex items-center justify-center sm:justify-start gap-2 mt-3">
-                  <Timer className="h-4 w-4 text-red-500" />
-                  <span className="text-sm font-medium text-muted-foreground">Offer ends in:</span>
-                  <div className="flex gap-1">
-                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm">
-                      {String(timeLeft.hours).padStart(2, '0')}
-                    </span>
-                    <span className="font-bold">:</span>
-                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm">
-                      {String(timeLeft.minutes).padStart(2, '0')}
-                    </span>
-                    <span className="font-bold">:</span>
-                    <span className="bg-foreground text-background px-2 py-1 rounded font-mono font-bold text-sm animate-pulse">
-                      {String(timeLeft.seconds).padStart(2, '0')}
-                    </span>
+                {/* Countdown Timer & Spots Remaining */}
+                <div className="flex flex-col sm:flex-row items-center justify-center sm:justify-start gap-3 mt-3">
+                  {/* Timer */}
+                  <div className="flex items-center gap-2">
+                    <Timer className="h-4 w-4 text-red-500" />
+                    <span className="text-xs font-medium text-muted-foreground">Ends in:</span>
+                    <div className="flex gap-1">
+                      <span className="bg-foreground text-background px-1.5 py-0.5 rounded font-mono font-bold text-xs">
+                        {String(timeLeft.hours).padStart(2, '0')}
+                      </span>
+                      <span className="font-bold text-xs">:</span>
+                      <span className="bg-foreground text-background px-1.5 py-0.5 rounded font-mono font-bold text-xs">
+                        {String(timeLeft.minutes).padStart(2, '0')}
+                      </span>
+                      <span className="font-bold text-xs">:</span>
+                      <span className="bg-foreground text-background px-1.5 py-0.5 rounded font-mono font-bold text-xs animate-pulse">
+                        {String(timeLeft.seconds).padStart(2, '0')}
+                      </span>
+                    </div>
                   </div>
+
+                  <span className="hidden sm:block text-muted-foreground">•</span>
+
+                  {/* Spots Remaining Counter */}
+                  <motion.div 
+                    className={`flex items-center gap-2 px-2 py-1 rounded-full ${spotsBg}`}
+                    animate={justClaimed ? { scale: [1, 1.1, 1] } : {}}
+                    transition={{ duration: 0.3 }}
+                  >
+                    <motion.div
+                      animate={urgencyLevel === 'critical' ? { scale: [1, 1.2, 1] } : {}}
+                      transition={{ repeat: Infinity, duration: 0.5 }}
+                    >
+                      <Users className={`h-4 w-4 ${spotsColor}`} />
+                    </motion.div>
+                    <span className="text-xs font-bold">
+                      Only <motion.span 
+                        key={spotsRemaining}
+                        initial={{ scale: 1.5, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className={spotsColor}
+                      >
+                        {spotsRemaining}
+                      </motion.span> spots left!
+                    </span>
+                  </motion.div>
                 </div>
               </div>
 
@@ -141,12 +225,33 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
               </motion.div>
             </div>
 
-            {/* Urgency indicator */}
-            <div className="flex items-center justify-center gap-2 mt-3 pt-3 border-t border-border/50">
-              <AlertCircle className="h-4 w-4 text-amber-500" />
-              <span className="text-xs text-muted-foreground">
-                <span className="font-bold text-amber-500">2,847 people</span> claimed this offer today
-              </span>
+            {/* Urgency indicator with live updates */}
+            <div className="flex items-center justify-center gap-4 mt-3 pt-3 border-t border-border/50">
+              <div className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4 text-amber-500" />
+                <span className="text-xs text-muted-foreground">
+                  <motion.span 
+                    key={claimedToday}
+                    initial={{ color: '#22c55e' }}
+                    animate={{ color: 'inherit' }}
+                    className="font-bold text-amber-500"
+                  >
+                    {claimedToday.toLocaleString()}
+                  </motion.span> people claimed today
+                </span>
+              </div>
+              
+              {justClaimed && (
+                <motion.div
+                  initial={{ opacity: 0, x: 20 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0 }}
+                  className="flex items-center gap-1 text-xs text-success font-medium"
+                >
+                  <CheckCircle2 className="h-3 w-3" />
+                  Someone just claimed!
+                </motion.div>
+              )}
             </div>
           </CardContent>
         </Card>
