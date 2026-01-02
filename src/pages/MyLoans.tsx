@@ -34,6 +34,7 @@ interface Loan {
   lender?: {
     full_name: string;
   };
+  late_fees?: number;
 }
 
 interface Repayment {
@@ -44,11 +45,21 @@ interface Repayment {
   created_at: string;
 }
 
+interface LateFee {
+  id: string;
+  loan_id: string;
+  fee_amount: number;
+  days_overdue: number;
+  applied_at: string;
+  paid: boolean;
+}
+
 export default function MyLoans() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const [loans, setLoans] = useState<Loan[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
+  const [lateFees, setLateFees] = useState<LateFee[]>([]);
   const [walletBalance, setWalletBalance] = useState(0);
   const [loading, setLoading] = useState(true);
   const [selectedLoan, setSelectedLoan] = useState<Loan | null>(null);
@@ -67,7 +78,7 @@ export default function MyLoans() {
     if (!user) return;
     setLoading(true);
 
-    const [loansRes, repaymentsRes, walletRes] = await Promise.all([
+    const [loansRes, repaymentsRes, walletRes, lateFeesRes] = await Promise.all([
       supabase
         .from('user_loans')
         .select('*')
@@ -82,7 +93,12 @@ export default function MyLoans() {
         .from('wallets')
         .select('balance')
         .eq('user_id', user.id)
-        .maybeSingle()
+        .maybeSingle(),
+      supabase
+        .from('late_fees')
+        .select('*')
+        .eq('borrower_id', user.id)
+        .order('applied_at', { ascending: false })
     ]);
 
     // Fetch lender profiles
@@ -91,13 +107,21 @@ export default function MyLoans() {
       ? await supabase.from('profiles').select('id, full_name').in('id', lenderIds)
       : { data: [] };
 
-    const loansWithLenders = (loansRes.data || []).map(loan => ({
-      ...loan,
-      lender: profiles?.find(p => p.id === loan.lender_id)
-    }));
+    // Calculate late fees per loan
+    const lateFeesData = lateFeesRes.data || [];
+    const loansWithLenders = (loansRes.data || []).map(loan => {
+      const loanLateFees = lateFeesData.filter(f => f.loan_id === loan.id);
+      const totalLateFees = loanLateFees.reduce((sum, f) => sum + Number(f.fee_amount), 0);
+      return {
+        ...loan,
+        lender: profiles?.find(p => p.id === loan.lender_id),
+        late_fees: totalLateFees
+      };
+    });
 
     setLoans(loansWithLenders);
     setRepayments(repaymentsRes.data || []);
+    setLateFees(lateFeesData);
     setWalletBalance(walletRes.data?.balance || 0);
     setLoading(false);
   };
@@ -147,6 +171,7 @@ export default function MyLoans() {
   const activeLoans = loans.filter(l => l.status === 'active');
   const repaidLoans = loans.filter(l => l.status === 'repaid');
   const totalOwed = activeLoans.reduce((sum, l) => sum + (l.total_repayment - l.paid_amount), 0);
+  const totalLateFees = lateFees.filter(f => !f.paid).reduce((sum, f) => sum + Number(f.fee_amount), 0);
 
   if (authLoading || loading) {
     return (
@@ -178,7 +203,7 @@ export default function MyLoans() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -205,6 +230,21 @@ export default function MyLoans() {
               </div>
             </CardContent>
           </Card>
+          {totalLateFees > 0 && (
+            <Card className="border-amber-500/50 bg-amber-500/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-lg bg-amber-500/10">
+                    <AlertCircle className="h-5 w-5 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="text-xs text-muted-foreground">Late Fees</p>
+                    <p className="text-lg font-bold text-amber-600">{formatUGX(totalLateFees)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </div>
 
         <Tabs defaultValue="active" className="space-y-4">
@@ -278,6 +318,13 @@ export default function MyLoans() {
                             {new Date(loan.due_date).toLocaleDateString()}
                           </span>
                         </div>
+
+                        {loan.late_fees && loan.late_fees > 0 && (
+                          <div className="flex items-center justify-between text-sm p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                            <span className="text-amber-600 font-medium">Late Fees Applied</span>
+                            <span className="font-bold text-amber-600">{formatUGX(loan.late_fees)}</span>
+                          </div>
+                        )}
 
                         <Button
                           className="w-full"

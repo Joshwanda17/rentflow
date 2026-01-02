@@ -192,6 +192,96 @@ export type Database = {
         }
         Relationships: []
       }
+      late_fee_configurations: {
+        Row: {
+          active: boolean
+          apply_daily: boolean
+          created_at: string
+          grace_period_days: number
+          id: string
+          max_penalty_percentage: number | null
+          name: string
+          penalty_type: string
+          penalty_value: number
+          updated_at: string
+        }
+        Insert: {
+          active?: boolean
+          apply_daily?: boolean
+          created_at?: string
+          grace_period_days?: number
+          id?: string
+          max_penalty_percentage?: number | null
+          name: string
+          penalty_type?: string
+          penalty_value?: number
+          updated_at?: string
+        }
+        Update: {
+          active?: boolean
+          apply_daily?: boolean
+          created_at?: string
+          grace_period_days?: number
+          id?: string
+          max_penalty_percentage?: number | null
+          name?: string
+          penalty_type?: string
+          penalty_value?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      late_fees: {
+        Row: {
+          applied_at: string
+          borrower_id: string
+          configuration_id: string | null
+          days_overdue: number
+          fee_amount: number
+          id: string
+          loan_id: string
+          paid: boolean
+          paid_at: string | null
+        }
+        Insert: {
+          applied_at?: string
+          borrower_id: string
+          configuration_id?: string | null
+          days_overdue: number
+          fee_amount: number
+          id?: string
+          loan_id: string
+          paid?: boolean
+          paid_at?: string | null
+        }
+        Update: {
+          applied_at?: string
+          borrower_id?: string
+          configuration_id?: string | null
+          days_overdue?: number
+          fee_amount?: number
+          id?: string
+          loan_id?: string
+          paid?: boolean
+          paid_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "late_fees_configuration_id_fkey"
+            columns: ["configuration_id"]
+            isOneToOne: false
+            referencedRelation: "late_fee_configurations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "late_fees_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "user_loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       lc1_chairpersons: {
         Row: {
           created_at: string
