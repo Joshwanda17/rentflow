@@ -10,6 +10,7 @@ import { DepositDialog } from './DepositDialog';
 import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
+import { UserDepositRequests } from './UserDepositRequests';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -204,6 +205,9 @@ export function WalletCard() {
           )}
         </CardContent>
       </Card>
+
+      {/* User's Deposit Requests */}
+      <UserDepositRequests />
 
       <SendMoneyDialog open={sendOpen} onOpenChange={setSendOpen} />
       <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />

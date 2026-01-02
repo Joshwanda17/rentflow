@@ -1,0 +1,197 @@
+import { useState, useEffect } from 'react';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { Clock, CheckCircle2, XCircle, Wallet } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+
+interface DepositRequest {
+  id: string;
+  agent_id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  rejection_reason?: string;
+  agent_name?: string;
+}
+
+export function UserDepositRequests() {
+  const { user } = useAuth();
+  const [requests, setRequests] = useState<DepositRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const formatCurrency = (value: number) => {
+    return new Intl.NumberFormat('en-UG', {
+      style: 'currency',
+      currency: 'UGX',
+      minimumFractionDigits: 0,
+    }).format(value);
+  };
+
+  const fetchRequests = async () => {
+    if (!user) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        const agentIds = [...new Set(data.map(d => d.agent_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', agentIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
+
+        const enrichedRequests = data.map(d => ({
+          ...d,
+          agent_name: profileMap.get(d.agent_id) || 'Agent',
+        }));
+
+        setRequests(enrichedRequests);
+      } else {
+        setRequests([]);
+      }
+    } catch (error) {
+      console.error('Error fetching deposit requests:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRequests();
+
+    const channel = supabase
+      .channel('user-deposit-requests')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'deposit_requests',
+        },
+        () => {
+          fetchRequests();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
+  const getStatusIcon = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <CheckCircle2 className="h-4 w-4 text-success" />;
+      case 'rejected':
+        return <XCircle className="h-4 w-4 text-destructive" />;
+      default:
+        return <Clock className="h-4 w-4 text-yellow-500" />;
+    }
+  };
+
+  const getStatusBadge = (status: string) => {
+    switch (status) {
+      case 'approved':
+        return <Badge variant="default" className="bg-success/10 text-success border-success/20">Approved</Badge>;
+      case 'rejected':
+        return <Badge variant="destructive">Rejected</Badge>;
+      default:
+        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
+    }
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Clock className="h-4 w-4" />
+            Deposit Requests
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="animate-pulse space-y-2">
+            {[1, 2].map(i => (
+              <div key={i} className="h-16 bg-muted rounded-lg" />
+            ))}
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (requests.length === 0) {
+    return null;
+  }
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Wallet className="h-4 w-4 text-primary" />
+            Deposit Requests
+          </CardTitle>
+          {pendingCount > 0 && (
+            <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
+              {pendingCount} pending
+            </Badge>
+          )}
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-2">
+        <AnimatePresence mode="popLayout">
+          {requests.map((request) => (
+            <motion.div
+              key={request.id}
+              layout
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, x: -50 }}
+              className="p-3 rounded-lg border bg-card/50"
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  {getStatusIcon(request.status)}
+                  <div>
+                    <p className="font-medium text-sm">
+                      {formatCurrency(request.amount)}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      via {request.agent_name}
+                    </p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  {getStatusBadge(request.status)}
+                  <p className="text-xs text-muted-foreground mt-1">
+                    {new Date(request.created_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+              {request.status === 'rejected' && request.rejection_reason && (
+                <p className="text-xs text-destructive mt-2 bg-destructive/10 p-2 rounded">
+                  Reason: {request.rejection_reason}
+                </p>
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </CardContent>
+    </Card>
+  );
+}
