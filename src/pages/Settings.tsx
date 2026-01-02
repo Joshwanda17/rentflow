@@ -16,6 +16,7 @@ import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import { Skeleton } from '@/components/ui/skeleton';
+import MyLandlordsSection from '@/components/tenant/MyLandlordsSection';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 
@@ -447,6 +448,11 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* My Landlords Section */}
+        <motion.div variants={itemVariants} className="mb-6">
+          <MyLandlordsSection />
         </motion.div>
 
         {/* Appearance Card */}
