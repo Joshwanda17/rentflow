@@ -32,7 +32,7 @@ interface Vendor {
   phone: string | null;
 }
 
-const MAX_LOAN_LIMIT = 30000000; // UGX 30,000,000
+const MAX_LOAN_LIMIT = 30000000;
 
 export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const navigate = useNavigate();
@@ -93,7 +93,6 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const handleScanReceipt = async (file: File) => {
     setScanning(true);
     
-    // Create preview
     const reader = new FileReader();
     reader.onload = (e) => {
       setScanPreview(e.target?.result as string);
@@ -101,7 +100,6 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     reader.readAsDataURL(file);
     
     try {
-      // Convert to base64
       const base64 = await new Promise<string>((resolve, reject) => {
         const r = new FileReader();
         r.onload = () => resolve(r.result as string);
@@ -134,9 +132,9 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         const filledFields = [receiptNumber, items, totalAmount].filter(Boolean).length;
         
         toast({
-          title: 'Receipt Scanned!',
+          title: 'Receipt Scanned',
           description: filledFields > 0 
-            ? `Extracted ${filledFields} field${filledFields > 1 ? 's' : ''}. Please verify and adjust if needed.`
+            ? `Extracted ${filledFields} field${filledFields > 1 ? 's' : ''}. Please verify.`
             : 'Could not extract details. Please enter manually.',
           variant: filledFields > 0 ? 'default' : 'destructive'
         });
@@ -150,7 +148,6 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
       });
     } finally {
       setScanning(false);
-      // Clear preview after a delay
       setTimeout(() => setScanPreview(null), 3000);
     }
   };
@@ -176,7 +173,6 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
       }
       handleScanReceipt(file);
     }
-    // Reset input
     e.target.value = '';
   };
 
@@ -187,7 +183,6 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     const previousLimit = loanLimit?.available_limit || 0;
     setSubmitting(true);
 
-    // Find the receipt number by code
     const { data: receiptNumber, error: findError } = await supabase
       .from('receipt_numbers')
       .select('id, status, vendor_amount')
@@ -207,14 +202,13 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     if (receiptNumber.status === 'used') {
       toast({
         title: 'Receipt Already Used',
-        description: 'This receipt has already been submitted by another user',
+        description: 'This receipt has already been submitted',
         variant: 'destructive'
       });
       setSubmitting(false);
       return;
     }
 
-    // Submit the receipt
     const { error: submitError } = await supabase
       .from('user_receipts')
       .insert({
@@ -231,23 +225,20 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         variant: 'destructive'
       });
     } else {
-      // Fire confetti celebration!
       fireSuccess();
       
       toast({
-        title: '🎉 Receipt Submitted!',
-        description: 'Your receipt has been submitted for verification. Keep shopping to grow your limit!'
+        title: 'Receipt Submitted',
+        description: 'Your receipt has been submitted for verification.'
       });
       setReceiptCode('');
       setItemsDescription('');
       setClaimedAmount('');
       
-      // Refresh loan limit and calculate increase
       await fetchLoanLimit();
       const newLimit = loanLimit?.available_limit || 0;
       if (newLimit > previousLimit) {
         setLastIncrease(newLimit - previousLimit);
-        // Clear the increase indicator after 5 seconds
         setTimeout(() => setLastIncrease(null), 5000);
       }
       
@@ -262,7 +253,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const remainingToMax = MAX_LOAN_LIMIT - availableLimit;
 
   return (
-    <Card className="elevated-card border-primary/20 bg-gradient-to-br from-primary/5 to-transparent">
+    <Card className="border-border">
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -270,26 +261,27 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
               <Receipt className="h-4 w-4 text-primary" />
             </div>
             <div>
-              <CardTitle className="text-base">Quick Receipt Submission</CardTitle>
+              <CardTitle className="text-sm">Quick Receipt Submission</CardTitle>
               <CardDescription className="text-xs">Submit receipts to grow your loan limit</CardDescription>
             </div>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => navigate('/my-receipts')} className="gap-1 text-xs">
+          <Button variant="ghost" size="sm" onClick={() => navigate('/my-receipts')} className="gap-1 text-xs h-8">
             View All
             <ArrowRight className="h-3 w-3" />
           </Button>
         </div>
       </CardHeader>
+
       <CardContent className="space-y-4">
         {/* Loan Limit Progress */}
-        <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 to-success/10 border border-primary/20">
+        <div className="p-3 rounded-lg bg-muted/50 border border-border">
           <div className="flex items-center justify-between mb-2">
             <div className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Your Loan Limit</span>
+              <CreditCard className="h-4 w-4 text-muted-foreground" />
+              <span className="text-xs font-medium">Your Loan Limit</span>
             </div>
             {lastIncrease && lastIncrease > 0 && (
-              <div className="flex items-center gap-1 text-success text-xs font-medium animate-pulse">
+              <div className="flex items-center gap-1 text-success text-xs font-medium">
                 <TrendingUp className="h-3 w-3" />
                 +{formatUGX(lastIncrease)}
               </div>
@@ -304,11 +296,11 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
           ) : (
             <>
               <div className="flex items-baseline justify-between mb-1.5">
-                <span className="text-lg font-bold text-primary">{formatUGX(availableLimit)}</span>
+                <span className="text-base font-semibold">{formatUGX(availableLimit)}</span>
                 <span className="text-xs text-muted-foreground">of {formatUGX(MAX_LOAN_LIMIT)}</span>
               </div>
-              <Progress value={progressPercent} className="h-2" />
-              <div className="flex justify-between mt-1.5 text-xs text-muted-foreground">
+              <Progress value={progressPercent} className="h-1.5" />
+              <div className="flex justify-between mt-1.5 text-[10px] text-muted-foreground">
                 <span>{progressPercent.toFixed(1)}% unlocked</span>
                 <span>{formatUGX(remainingToMax)} to max</span>
               </div>
@@ -322,7 +314,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         </div>
 
         {/* AI Receipt Scanner */}
-        <div className="p-3 rounded-xl bg-gradient-to-r from-chart-5/10 to-primary/10 border border-chart-5/20">
+        <div className="p-3 rounded-lg border border-border">
           <input
             ref={fileInputRef}
             type="file"
@@ -333,22 +325,22 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
           />
           
           <div className="flex items-center gap-2 mb-2">
-            <Sparkles className="h-4 w-4 text-chart-5" />
-            <span className="text-sm font-medium">AI Receipt Scanner</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">NEW</Badge>
+            <Sparkles className="h-4 w-4 text-primary" />
+            <span className="text-xs font-medium">AI Receipt Scanner</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">NEW</Badge>
           </div>
           
           {scanning ? (
-            <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
+            <div className="flex items-center gap-3 p-2.5 rounded-md bg-muted/50">
               {scanPreview && (
-                <img src={scanPreview} alt="Scanning" className="h-12 w-12 object-cover rounded-md opacity-50" />
+                <img src={scanPreview} alt="Scanning" className="h-10 w-10 object-cover rounded opacity-60" />
               )}
               <div className="flex-1">
                 <div className="flex items-center gap-2">
-                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-sm">Scanning receipt...</span>
+                  <Loader2 className="h-3.5 w-3.5 animate-spin text-primary" />
+                  <span className="text-xs">Scanning receipt...</span>
                 </div>
-                <p className="text-xs text-muted-foreground mt-1">Extracting details with AI</p>
+                <p className="text-[10px] text-muted-foreground mt-0.5">Extracting details with AI</p>
               </div>
             </div>
           ) : (
@@ -357,7 +349,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 gap-2"
+                className="flex-1 gap-1.5 h-8 text-xs"
                 onClick={() => fileInputRef.current?.click()}
               >
                 <Camera className="h-3.5 w-3.5" />
@@ -367,7 +359,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 gap-2"
+                className="flex-1 gap-1.5 h-8 text-xs"
                 onClick={() => {
                   if (fileInputRef.current) {
                     fileInputRef.current.removeAttribute('capture');
@@ -377,13 +369,13 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                 }}
               >
                 <Upload className="h-3.5 w-3.5" />
-                Upload Image
+                Upload
               </Button>
             </div>
           )}
           
-          <p className="text-xs text-muted-foreground mt-2 text-center">
-            Take a photo or upload an image to auto-fill receipt details
+          <p className="text-[10px] text-muted-foreground mt-2 text-center">
+            Auto-fill receipt details with a photo
           </p>
         </div>
 
@@ -414,8 +406,8 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                 className="h-9 text-sm"
               />
             </div>
-            <div className="space-y-1.5 sm:col-span-1">
-              <Label htmlFor="quick-items" className="text-xs">Items Purchased</Label>
+            <div className="space-y-1.5">
+              <Label htmlFor="quick-items" className="text-xs">Items</Label>
               <Input
                 id="quick-items"
                 placeholder="Brief description..."
@@ -426,7 +418,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
               />
             </div>
           </div>
-          <Button type="submit" size="sm" className="w-full gap-2" disabled={submitting || scanning}>
+          <Button type="submit" size="sm" className="w-full gap-2 h-9" disabled={submitting || scanning}>
             {submitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -444,60 +436,52 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         {/* Tips Section */}
         <Collapsible open={showTips} onOpenChange={setShowTips}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground">
-              <Lightbulb className="h-3.5 w-3.5 text-warning" />
-              Tips to Maximize Your Loan Limit
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ${showTips ? 'rotate-180' : ''}`} />
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground h-8">
+              <Lightbulb className="h-3.5 w-3.5" />
+              Tips to Maximize Your Limit
+              <ChevronDown className={`h-3 w-3 ml-auto transition-transform duration-150 ${showTips ? 'rotate-180' : ''}`} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3">
-            <div className="space-y-2.5 p-3 rounded-lg bg-muted/50 border border-border/50">
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-md bg-success/10 shrink-0">
-                  <ShoppingBag className="h-3.5 w-3.5 text-success" />
+          <CollapsibleContent className="pt-2">
+            <div className="space-y-2 p-3 rounded-lg bg-muted/30 border border-border">
+              <div className="flex items-start gap-2">
+                <div className="p-1 rounded bg-success/10 shrink-0">
+                  <ShoppingBag className="h-3 w-3 text-success" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium">Shop Regularly at Partner Vendors</p>
-                  <p className="text-xs text-muted-foreground">Each verified receipt adds 20% of its value to your loan limit.</p>
+                  <p className="text-xs font-medium">Shop at Partner Vendors</p>
+                  <p className="text-[10px] text-muted-foreground">Each verified receipt adds 20% to your limit.</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-md bg-primary/10 shrink-0">
-                  <Store className="h-3.5 w-3.5 text-primary" />
+              <div className="flex items-start gap-2">
+                <div className="p-1 rounded bg-primary/10 shrink-0">
+                  <Store className="h-3 w-3 text-primary" />
                 </div>
                 <div>
                   <p className="text-xs font-medium">Choose Welile-Partnered Shops</p>
-                  <p className="text-xs text-muted-foreground">Look for stores displaying the Welile logo for faster verification.</p>
+                  <p className="text-[10px] text-muted-foreground">Look for the Welile logo for faster verification.</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-md bg-warning/10 shrink-0">
-                  <Percent className="h-3.5 w-3.5 text-warning" />
+              <div className="flex items-start gap-2">
+                <div className="p-1 rounded bg-warning/10 shrink-0">
+                  <Percent className="h-3 w-3 text-warning" />
                 </div>
                 <div>
                   <p className="text-xs font-medium">Larger Purchases = Bigger Limits</p>
-                  <p className="text-xs text-muted-foreground">A UGX 500,000 receipt adds UGX 100,000 to your available limit.</p>
+                  <p className="text-[10px] text-muted-foreground">UGX 500K receipt adds UGX 100K to your limit.</p>
                 </div>
               </div>
               
-              <div className="flex items-start gap-2.5">
-                <div className="p-1.5 rounded-md bg-chart-5/10 shrink-0">
-                  <Clock className="h-3.5 w-3.5 text-chart-5" />
+              <div className="flex items-start gap-2">
+                <div className="p-1 rounded bg-muted shrink-0">
+                  <Clock className="h-3 w-3 text-muted-foreground" />
                 </div>
                 <div>
-                  <p className="text-xs font-medium">Submit Receipts Promptly</p>
-                  <p className="text-xs text-muted-foreground">Submit within 24 hours of purchase for fastest verification.</p>
+                  <p className="text-xs font-medium">Submit Promptly</p>
+                  <p className="text-[10px] text-muted-foreground">Submit within 24 hours for fastest verification.</p>
                 </div>
-              </div>
-              
-              <div className="mt-3 p-2 rounded-md bg-primary/5 border border-primary/20">
-                <p className="text-xs text-center">
-                  <TrendingUp className="h-3 w-3 inline mr-1 text-primary" />
-                  <span className="font-medium">Pro Tip:</span> To reach the max limit of {formatUGX(MAX_LOAN_LIMIT)}, 
-                  you need {formatUGX(MAX_LOAN_LIMIT * 5)} in verified purchases.
-                </p>
               </div>
             </div>
           </CollapsibleContent>
@@ -506,40 +490,39 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
         {/* Partner Vendors Section */}
         <Collapsible open={showVendors} onOpenChange={setShowVendors}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground">
-              <Store className="h-3.5 w-3.5 text-primary" />
-              Welile Partner Vendors
-              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground h-8">
+              <Store className="h-3.5 w-3.5" />
+              Partner Vendors
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0 h-4">
                 {vendors.length > 0 ? vendors.length : '...'}
               </Badge>
-              <ChevronDown className={`h-3.5 w-3.5 transition-transform ml-auto ${showVendors ? 'rotate-180' : ''}`} />
+              <ChevronDown className={`h-3 w-3 ml-auto transition-transform duration-150 ${showVendors ? 'rotate-180' : ''}`} />
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="pt-3">
-            <div className="rounded-lg bg-muted/50 border border-border/50 overflow-hidden">
-              <div className="p-2.5 bg-gradient-to-r from-primary/10 to-success/10 border-b border-border/50">
-                <p className="text-xs text-center font-medium">
-                  <MapPin className="h-3 w-3 inline mr-1 text-primary" />
-                  Shop at these stores to grow your loan limit!
+          <CollapsibleContent className="pt-2">
+            <div className="rounded-lg border border-border overflow-hidden">
+              <div className="p-2 bg-muted/30 border-b border-border">
+                <p className="text-[10px] text-center text-muted-foreground">
+                  <MapPin className="h-3 w-3 inline mr-1" />
+                  Shop at these stores to grow your loan limit
                 </p>
               </div>
               
-              {/* Search Input */}
               {vendors.length > 0 && (
-                <div className="p-2 border-b border-border/50">
+                <div className="p-2 border-b border-border">
                   <div className="relative">
-                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+                    <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
                     <Input
-                      placeholder="Search by name or location..."
+                      placeholder="Search vendors..."
                       value={vendorSearch}
                       onChange={(e) => setVendorSearch(e.target.value)}
-                      className="h-8 pl-8 pr-8 text-xs"
+                      className="h-7 pl-7 pr-7 text-xs"
                     />
                     {vendorSearch && (
                       <Button
                         variant="ghost"
                         size="sm"
-                        className="absolute right-1 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
+                        className="absolute right-0.5 top-1/2 -translate-y-1/2 h-6 w-6 p-0"
                         onClick={() => setVendorSearch('')}
                       >
                         <X className="h-3 w-3" />
@@ -552,11 +535,11 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
               {loadingVendors ? (
                 <div className="flex items-center justify-center gap-2 p-6">
                   <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  <span className="text-xs text-muted-foreground">Loading vendors...</span>
+                  <span className="text-xs text-muted-foreground">Loading...</span>
                 </div>
               ) : vendors.length === 0 ? (
                 <div className="p-6 text-center">
-                  <Store className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <Store className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
                   <p className="text-xs text-muted-foreground">No partner vendors available yet.</p>
                 </div>
               ) : (
@@ -573,7 +556,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                     if (filteredVendors.length === 0) {
                       return (
                         <div className="p-6 text-center">
-                          <Search className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                          <Search className="h-6 w-6 mx-auto text-muted-foreground/40 mb-2" />
                           <p className="text-xs text-muted-foreground">No vendors match "{vendorSearch}"</p>
                           <Button
                             variant="link"
@@ -588,16 +571,16 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                     }
                     
                     return (
-                      <ScrollArea className="h-[200px]">
-                        <div className="divide-y divide-border/50">
+                      <ScrollArea className="h-[180px]">
+                        <div className="divide-y divide-border">
                           {filteredVendors.map((vendor) => (
-                            <div key={vendor.id} className="p-2.5 hover:bg-muted/80 transition-colors">
+                            <div key={vendor.id} className="p-2.5 hover:bg-muted/30 transition-colors">
                               <div className="flex items-start justify-between gap-2">
                                 <div className="flex-1 min-w-0">
                                   <p className="text-sm font-medium truncate">{vendor.name}</p>
                                   {vendor.location && (
-                                    <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
-                                      <MapPin className="h-3 w-3 shrink-0" />
+                                    <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                      <MapPin className="h-2.5 w-2.5 shrink-0" />
                                       <span className="truncate">{vendor.location}</span>
                                     </p>
                                   )}
@@ -605,22 +588,15 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                                 {vendor.phone && (
                                   <a 
                                     href={`tel:${vendor.phone}`}
-                                    className="shrink-0 p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
+                                    className="shrink-0 p-1.5 rounded-md bg-muted hover:bg-muted/80 transition-colors"
                                   >
-                                    <Phone className="h-3.5 w-3.5 text-primary" />
+                                    <Phone className="h-3 w-3 text-muted-foreground" />
                                   </a>
                                 )}
                               </div>
                             </div>
                           ))}
                         </div>
-                        {vendorSearch && (
-                          <div className="p-2 text-center border-t border-border/50">
-                            <p className="text-xs text-muted-foreground">
-                              Showing {filteredVendors.length} of {vendors.length} vendors
-                            </p>
-                          </div>
-                        )}
                       </ScrollArea>
                     );
                   })()}
