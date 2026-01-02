@@ -7,8 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock } from 'lucide-react';
+import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface QuickReceiptFormProps {
@@ -20,6 +22,13 @@ interface LoanLimit {
   total_verified_amount: number;
   available_limit: number;
   used_limit: number;
+}
+
+interface Vendor {
+  id: string;
+  name: string;
+  location: string | null;
+  phone: string | null;
 }
 
 const MAX_LOAN_LIMIT = 30000000; // UGX 30,000,000
@@ -35,10 +44,19 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [lastIncrease, setLastIncrease] = useState<number | null>(null);
   const [showTips, setShowTips] = useState(false);
+  const [showVendors, setShowVendors] = useState(false);
+  const [vendors, setVendors] = useState<Vendor[]>([]);
+  const [loadingVendors, setLoadingVendors] = useState(false);
 
   useEffect(() => {
     fetchLoanLimit();
   }, [userId]);
+
+  useEffect(() => {
+    if (showVendors && vendors.length === 0) {
+      fetchVendors();
+    }
+  }, [showVendors]);
 
   const fetchLoanLimit = async () => {
     if (!userId) return;
@@ -52,6 +70,18 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     
     setLoanLimit(data);
     setLoadingLimit(false);
+  };
+
+  const fetchVendors = async () => {
+    setLoadingVendors(true);
+    const { data } = await supabase
+      .from('vendors')
+      .select('id, name, location, phone')
+      .eq('active', true)
+      .order('name');
+    
+    setVendors(data || []);
+    setLoadingVendors(false);
   };
 
   const handleSubmitReceipt = async (e: React.FormEvent) => {
@@ -304,6 +334,70 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
                   you need {formatUGX(MAX_LOAN_LIMIT * 5)} in verified purchases.
                 </p>
               </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
+
+        {/* Partner Vendors Section */}
+        <Collapsible open={showVendors} onOpenChange={setShowVendors}>
+          <CollapsibleTrigger asChild>
+            <Button variant="ghost" size="sm" className="w-full gap-2 text-xs text-muted-foreground hover:text-foreground">
+              <Store className="h-3.5 w-3.5 text-primary" />
+              Welile Partner Vendors
+              <Badge variant="secondary" className="ml-1 text-[10px] px-1.5 py-0">
+                {vendors.length > 0 ? vendors.length : '...'}
+              </Badge>
+              <ChevronDown className={`h-3.5 w-3.5 transition-transform ml-auto ${showVendors ? 'rotate-180' : ''}`} />
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-3">
+            <div className="rounded-lg bg-muted/50 border border-border/50 overflow-hidden">
+              <div className="p-2.5 bg-gradient-to-r from-primary/10 to-success/10 border-b border-border/50">
+                <p className="text-xs text-center font-medium">
+                  <MapPin className="h-3 w-3 inline mr-1 text-primary" />
+                  Shop at these stores to grow your loan limit!
+                </p>
+              </div>
+              
+              {loadingVendors ? (
+                <div className="flex items-center justify-center gap-2 p-6">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-xs text-muted-foreground">Loading vendors...</span>
+                </div>
+              ) : vendors.length === 0 ? (
+                <div className="p-6 text-center">
+                  <Store className="h-8 w-8 mx-auto text-muted-foreground/50 mb-2" />
+                  <p className="text-xs text-muted-foreground">No partner vendors available yet.</p>
+                </div>
+              ) : (
+                <ScrollArea className="h-[200px]">
+                  <div className="divide-y divide-border/50">
+                    {vendors.map((vendor) => (
+                      <div key={vendor.id} className="p-2.5 hover:bg-muted/80 transition-colors">
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-medium truncate">{vendor.name}</p>
+                            {vendor.location && (
+                              <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <MapPin className="h-3 w-3 shrink-0" />
+                                <span className="truncate">{vendor.location}</span>
+                              </p>
+                            )}
+                          </div>
+                          {vendor.phone && (
+                            <a 
+                              href={`tel:${vendor.phone}`}
+                              className="shrink-0 p-1.5 rounded-md bg-primary/10 hover:bg-primary/20 transition-colors"
+                            >
+                              <Phone className="h-3.5 w-3.5 text-primary" />
+                            </a>
+                          )}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </ScrollArea>
+              )}
             </div>
           </CollapsibleContent>
         </Collapsible>
