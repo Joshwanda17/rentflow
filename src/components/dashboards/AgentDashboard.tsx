@@ -31,6 +31,8 @@ import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
 import { StatusIndicator } from '@/components/StatusIndicator';
+import { SwipeableRow } from '@/components/SwipeableRow';
+import { Eye } from 'lucide-react';
 
 interface AgentDashboardProps {
   user: User;
@@ -400,21 +402,32 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                 ) : (
                   <div className="space-y-3">
                     {rentRequests.map((request, index) => (
-                      <div 
-                        key={request.id} 
-                        className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
-                        style={{ animationDelay: `${index * 50}ms` }}
+                      <SwipeableRow
+                        key={request.id}
+                        rightActions={[
+                          {
+                            icon: Eye,
+                            label: 'View',
+                            onClick: () => navigate('/transactions'),
+                            color: 'primary',
+                          },
+                        ]}
                       >
-                        <div className="flex items-center gap-3">
-                          <StatusIndicator status={request.status} size="md" />
-                          <div>
-                            <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {new Date(request.created_at).toLocaleDateString()}
-                            </p>
+                        <div 
+                          className="group flex items-center justify-between p-4 bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
+                          style={{ animationDelay: `${index * 50}ms` }}
+                        >
+                          <div className="flex items-center gap-3">
+                            <StatusIndicator status={request.status} size="md" />
+                            <div>
+                              <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(request.created_at).toLocaleDateString()}
+                              </p>
+                            </div>
                           </div>
                         </div>
-                      </div>
+                      </SwipeableRow>
                     ))}
                   </div>
                 )}
