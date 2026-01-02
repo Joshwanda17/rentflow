@@ -31,6 +31,8 @@ import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { QuickActions } from '@/components/QuickActions';
 import { StatusIndicator } from '@/components/StatusIndicator';
+import { SwipeableRow, swipeActions } from '@/components/SwipeableRow';
+import { Eye } from 'lucide-react';
 
 interface TenantDashboardProps {
   user: User;
@@ -351,19 +353,30 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             ) : (
               <div className="space-y-2">
                 {rentRequests.slice(0, 5).map((request) => (
-                  <button 
-                    key={request.id} 
-                    onClick={() => navigate('/transactions')}
-                    className="w-full flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 active:scale-[0.98] transition-all"
+                  <SwipeableRow
+                    key={request.id}
+                    rightActions={[
+                      {
+                        icon: Eye,
+                        label: 'View',
+                        onClick: () => navigate('/transactions'),
+                        color: 'primary',
+                      },
+                    ]}
                   >
-                    <div className="flex items-center gap-3">
-                      <StatusIndicator status={request.status} size="md" />
-                      <div className="text-left">
-                        <p className="font-bold text-sm">{formatUGX(Number(request.rent_amount))}</p>
-                        <p className="text-[11px] text-muted-foreground">{request.duration_days}d</p>
+                    <button 
+                      onClick={() => navigate('/transactions')}
+                      className="w-full flex items-center justify-between p-3 bg-secondary/30 hover:bg-secondary/50 border border-border/50 active:scale-[0.98] transition-all"
+                    >
+                      <div className="flex items-center gap-3">
+                        <StatusIndicator status={request.status} size="md" />
+                        <div className="text-left">
+                          <p className="font-bold text-sm">{formatUGX(Number(request.rent_amount))}</p>
+                          <p className="text-[11px] text-muted-foreground">{request.duration_days}d</p>
+                        </div>
                       </div>
-                    </div>
-                  </button>
+                    </button>
+                  </SwipeableRow>
                 ))}
                 {rentRequests.length > 5 && (
                   <Button 
