@@ -216,6 +216,33 @@ export type Database = {
         }
         Relationships: []
       }
+      loan_limits: {
+        Row: {
+          available_limit: number
+          id: string
+          total_verified_amount: number
+          updated_at: string
+          used_limit: number
+          user_id: string
+        }
+        Insert: {
+          available_limit?: number
+          id?: string
+          total_verified_amount?: number
+          updated_at?: string
+          used_limit?: number
+          user_id: string
+        }
+        Update: {
+          available_limit?: number
+          id?: string
+          total_verified_amount?: number
+          updated_at?: string
+          used_limit?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       money_requests: {
         Row: {
           amount: number
@@ -567,6 +594,47 @@ export type Database = {
         }
         Relationships: []
       }
+      receipt_numbers: {
+        Row: {
+          created_at: string
+          created_by: string
+          id: string
+          receipt_code: string
+          status: string
+          vendor_amount: number | null
+          vendor_id: string
+          vendor_marked_at: string | null
+        }
+        Insert: {
+          created_at?: string
+          created_by: string
+          id?: string
+          receipt_code: string
+          status?: string
+          vendor_amount?: number | null
+          vendor_id: string
+          vendor_marked_at?: string | null
+        }
+        Update: {
+          created_at?: string
+          created_by?: string
+          id?: string
+          receipt_code?: string
+          status?: string
+          vendor_amount?: number | null
+          vendor_id?: string
+          vendor_marked_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_numbers_vendor_id_fkey"
+            columns: ["vendor_id"]
+            isOneToOne: false
+            referencedRelation: "vendors"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       referrals: {
         Row: {
           bonus_amount: number
@@ -812,6 +880,92 @@ export type Database = {
           },
         ]
       }
+      user_loans: {
+        Row: {
+          amount: number
+          borrower_id: string
+          created_at: string
+          due_date: string
+          id: string
+          interest_rate: number
+          lender_id: string
+          repaid_at: string | null
+          status: string
+          total_repayment: number
+        }
+        Insert: {
+          amount: number
+          borrower_id: string
+          created_at?: string
+          due_date: string
+          id?: string
+          interest_rate?: number
+          lender_id: string
+          repaid_at?: string | null
+          status?: string
+          total_repayment: number
+        }
+        Update: {
+          amount?: number
+          borrower_id?: string
+          created_at?: string
+          due_date?: string
+          id?: string
+          interest_rate?: number
+          lender_id?: string
+          repaid_at?: string | null
+          status?: string
+          total_repayment?: number
+        }
+        Relationships: []
+      }
+      user_receipts: {
+        Row: {
+          claimed_amount: number
+          created_at: string
+          id: string
+          items_description: string
+          loan_contribution: number | null
+          receipt_number_id: string
+          rejection_reason: string | null
+          user_id: string
+          verified: boolean
+          verified_at: string | null
+        }
+        Insert: {
+          claimed_amount: number
+          created_at?: string
+          id?: string
+          items_description: string
+          loan_contribution?: number | null
+          receipt_number_id: string
+          rejection_reason?: string | null
+          user_id: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Update: {
+          claimed_amount?: number
+          created_at?: string
+          id?: string
+          items_description?: string
+          loan_contribution?: number | null
+          receipt_number_id?: string
+          rejection_reason?: string | null
+          user_id?: string
+          verified?: boolean
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_receipts_receipt_number_id_fkey"
+            columns: ["receipt_number_id"]
+            isOneToOne: false
+            referencedRelation: "receipt_numbers"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_roles: {
         Row: {
           created_at: string
@@ -830,6 +984,36 @@ export type Database = {
           id?: string
           role?: Database["public"]["Enums"]["app_role"]
           user_id?: string
+        }
+        Relationships: []
+      }
+      vendors: {
+        Row: {
+          active: boolean
+          created_at: string
+          created_by: string
+          id: string
+          location: string | null
+          name: string
+          phone: string | null
+        }
+        Insert: {
+          active?: boolean
+          created_at?: string
+          created_by: string
+          id?: string
+          location?: string | null
+          name: string
+          phone?: string | null
+        }
+        Update: {
+          active?: boolean
+          created_at?: string
+          created_by?: string
+          id?: string
+          location?: string | null
+          name?: string
+          phone?: string | null
         }
         Relationships: []
       }

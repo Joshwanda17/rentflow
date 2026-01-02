@@ -1,0 +1,500 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
+import { useToast } from '@/hooks/use-toast';
+import { formatUGX } from '@/lib/rentCalculations';
+import { CreditCard, Users, CheckCircle, Loader2, Search, Banknote, TrendingUp, Calendar } from 'lucide-react';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '@/components/ui/dialog';
+import { format, addDays } from 'date-fns';
+
+interface LoanLimit {
+  user_id: string;
+  total_verified_amount: number;
+  available_limit: number;
+  used_limit: number;
+  profiles?: {
+    full_name: string;
+    phone: string;
+    email: string;
+  };
+}
+
+interface UserLoan {
+  id: string;
+  borrower_id: string;
+  lender_id: string;
+  amount: number;
+  interest_rate: number;
+  total_repayment: number;
+  status: string;
+  due_date: string;
+  created_at: string;
+  borrower?: {
+    full_name: string;
+    phone: string;
+  };
+}
+
+interface LoanManagementProps {
+  agentId: string;
+}
+
+export function LoanManagement({ agentId }: LoanManagementProps) {
+  const { toast } = useToast();
+  const [loanLimits, setLoanLimits] = useState<LoanLimit[]>([]);
+  const [loans, setLoans] = useState<UserLoan[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchPhone, setSearchPhone] = useState('');
+  const [searchedUser, setSearchedUser] = useState<LoanLimit | null>(null);
+  const [searching, setSearching] = useState(false);
+  
+  // Loan form
+  const [loanAmount, setLoanAmount] = useState('');
+  const [interestRate, setInterestRate] = useState('10');
+  const [durationDays, setDurationDays] = useState('30');
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    setLoading(true);
+
+    const [loanLimitsRes, loansRes] = await Promise.all([
+      supabase
+        .from('loan_limits')
+        .select('*')
+        .gt('available_limit', 0)
+        .order('available_limit', { ascending: false })
+        .limit(50),
+      supabase
+        .from('user_loans')
+        .select('*')
+        .eq('lender_id', agentId)
+        .order('created_at', { ascending: false })
+    ]);
+
+    // Fetch profiles for loan limits
+    const limitUserIds = (loanLimitsRes.data || []).map(l => l.user_id);
+    const loanBorrowerIds = (loansRes.data || []).map(l => l.borrower_id);
+    const allUserIds = [...new Set([...limitUserIds, ...loanBorrowerIds])];
+
+    const { data: profiles } = allUserIds.length > 0
+      ? await supabase.from('profiles').select('id, full_name, phone, email').in('id', allUserIds)
+      : { data: [] };
+
+    const limitsWithProfiles = (loanLimitsRes.data || []).map(l => ({
+      ...l,
+      profiles: profiles?.find(p => p.id === l.user_id)
+    }));
+
+    const loansWithBorrowers = (loansRes.data || []).map(l => ({
+      ...l,
+      borrower: profiles?.find(p => p.id === l.borrower_id)
+    }));
+
+    setLoanLimits(limitsWithProfiles);
+    setLoans(loansWithBorrowers);
+    setLoading(false);
+  };
+
+  const handleSearchUser = async () => {
+    if (!searchPhone.trim()) return;
+    setSearching(true);
+    setSearchedUser(null);
+
+    // Search for user by phone
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('id, full_name, phone, email')
+      .eq('phone', searchPhone.trim())
+      .single();
+
+    if (!profile) {
+      toast({ 
+        title: 'User Not Found', 
+        description: 'No user found with this phone number', 
+        variant: 'destructive' 
+      });
+      setSearching(false);
+      return;
+    }
+
+    // Get their loan limit
+    const { data: loanLimit } = await supabase
+      .from('loan_limits')
+      .select('*')
+      .eq('user_id', profile.id)
+      .single();
+
+    if (!loanLimit) {
+      toast({ 
+        title: 'No Loan Limit', 
+        description: 'This user has no verified receipts yet', 
+        variant: 'destructive' 
+      });
+      setSearching(false);
+      return;
+    }
+
+    setSearchedUser({
+      ...loanLimit,
+      profiles: profile
+    });
+    setSearching(false);
+  };
+
+  const handleCreateLoan = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!searchedUser) return;
+    setSubmitting(true);
+
+    const amount = parseFloat(loanAmount);
+    const rate = parseFloat(interestRate);
+    const days = parseInt(durationDays);
+    
+    if (amount > searchedUser.available_limit) {
+      toast({ 
+        title: 'Amount Exceeds Limit', 
+        description: `Maximum available: ${formatUGX(searchedUser.available_limit)}`, 
+        variant: 'destructive' 
+      });
+      setSubmitting(false);
+      return;
+    }
+
+    const totalRepayment = amount * (1 + rate / 100);
+    const dueDate = format(addDays(new Date(), days), 'yyyy-MM-dd');
+
+    // Create the loan
+    const { error: loanError } = await supabase
+      .from('user_loans')
+      .insert({
+        borrower_id: searchedUser.user_id,
+        lender_id: agentId,
+        amount,
+        interest_rate: rate,
+        total_repayment: totalRepayment,
+        due_date: dueDate
+      });
+
+    if (loanError) {
+      toast({ title: 'Error', description: loanError.message, variant: 'destructive' });
+      setSubmitting(false);
+      return;
+    }
+
+    // Update loan limit
+    const { error: limitError } = await supabase
+      .from('loan_limits')
+      .update({
+        available_limit: searchedUser.available_limit - amount,
+        used_limit: searchedUser.used_limit + amount,
+        updated_at: new Date().toISOString()
+      })
+      .eq('user_id', searchedUser.user_id);
+
+    if (limitError) {
+      toast({ title: 'Warning', description: 'Loan created but limit not updated', variant: 'destructive' });
+    } else {
+      toast({ 
+        title: 'Loan Created', 
+        description: `${formatUGX(amount)} loan created for ${searchedUser.profiles?.full_name}` 
+      });
+    }
+
+    setLoanAmount('');
+    setSearchedUser(null);
+    setSearchPhone('');
+    setCreateDialogOpen(false);
+    fetchData();
+    setSubmitting(false);
+  };
+
+  const handleMarkRepaid = async (loanId: string) => {
+    const { error } = await supabase
+      .from('user_loans')
+      .update({
+        status: 'repaid',
+        repaid_at: new Date().toISOString()
+      })
+      .eq('id', loanId);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Loan Marked Repaid' });
+      fetchData();
+    }
+  };
+
+  const activeLoans = loans.filter(l => l.status === 'active');
+  const repaidLoans = loans.filter(l => l.status === 'repaid');
+  const totalLent = activeLoans.reduce((sum, l) => sum + l.amount, 0);
+  const totalExpected = activeLoans.reduce((sum, l) => sum + l.total_repayment, 0);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Stats */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <Card className="bg-primary/5 border-primary/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <Banknote className="h-5 w-5 text-primary" />
+              <div>
+                <p className="text-sm text-muted-foreground">Active Loans</p>
+                <p className="text-xl font-bold">{activeLoans.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-warning/5 border-warning/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <CreditCard className="h-5 w-5 text-warning" />
+              <div>
+                <p className="text-sm text-muted-foreground">Total Lent</p>
+                <p className="text-lg font-bold text-warning">{formatUGX(totalLent)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card className="bg-success/5 border-success/20">
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <TrendingUp className="h-5 w-5 text-success" />
+              <div>
+                <p className="text-sm text-muted-foreground">Expected Return</p>
+                <p className="text-lg font-bold text-success">{formatUGX(totalExpected)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <CheckCircle className="h-5 w-5 text-muted-foreground" />
+              <div>
+                <p className="text-sm text-muted-foreground">Repaid</p>
+                <p className="text-xl font-bold">{repaidLoans.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Create Loan */}
+      <Dialog open={createDialogOpen} onOpenChange={setCreateDialogOpen}>
+        <DialogTrigger asChild>
+          <Button className="w-full gap-2" size="lg">
+            <CreditCard className="h-5 w-5" />
+            Create New Loan
+          </Button>
+        </DialogTrigger>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>Create Loan for User</DialogTitle>
+          </DialogHeader>
+          
+          {/* Search User */}
+          <div className="space-y-4">
+            <div className="flex gap-2">
+              <Input
+                placeholder="Enter user phone number"
+                value={searchPhone}
+                onChange={(e) => setSearchPhone(e.target.value)}
+              />
+              <Button onClick={handleSearchUser} disabled={searching}>
+                {searching ? <Loader2 className="h-4 w-4 animate-spin" /> : <Search className="h-4 w-4" />}
+              </Button>
+            </div>
+
+            {searchedUser && (
+              <Card className="bg-success/5 border-success/20">
+                <CardContent className="pt-4 space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{searchedUser.profiles?.full_name}</p>
+                      <p className="text-sm text-muted-foreground">{searchedUser.profiles?.phone}</p>
+                    </div>
+                    <Badge variant="success">Eligible</Badge>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="p-2 rounded bg-background/50">
+                      <p className="text-muted-foreground">Available Limit</p>
+                      <p className="font-bold text-success">{formatUGX(searchedUser.available_limit)}</p>
+                    </div>
+                    <div className="p-2 rounded bg-background/50">
+                      <p className="text-muted-foreground">Used Limit</p>
+                      <p className="font-bold">{formatUGX(searchedUser.used_limit)}</p>
+                    </div>
+                  </div>
+
+                  <form onSubmit={handleCreateLoan} className="space-y-3 pt-2 border-t">
+                    <div className="space-y-2">
+                      <Label>Loan Amount (UGX)</Label>
+                      <Input
+                        type="number"
+                        placeholder="Enter amount"
+                        value={loanAmount}
+                        onChange={(e) => setLoanAmount(e.target.value)}
+                        required
+                        max={searchedUser.available_limit}
+                      />
+                    </div>
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-2">
+                        <Label>Interest Rate (%)</Label>
+                        <Input
+                          type="number"
+                          value={interestRate}
+                          onChange={(e) => setInterestRate(e.target.value)}
+                          required
+                          min="0"
+                          max="50"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label>Duration (days)</Label>
+                        <Input
+                          type="number"
+                          value={durationDays}
+                          onChange={(e) => setDurationDays(e.target.value)}
+                          required
+                          min="7"
+                          max="90"
+                        />
+                      </div>
+                    </div>
+                    {loanAmount && (
+                      <div className="p-3 rounded-lg bg-primary/10 text-sm">
+                        <p>Total Repayment: <span className="font-bold">
+                          {formatUGX(parseFloat(loanAmount) * (1 + parseFloat(interestRate) / 100))}
+                        </span></p>
+                        <p>Due Date: <span className="font-bold">
+                          {format(addDays(new Date(), parseInt(durationDays)), 'MMM d, yyyy')}
+                        </span></p>
+                      </div>
+                    )}
+                    <Button type="submit" className="w-full" disabled={submitting}>
+                      {submitting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                      Create Loan
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* Eligible Users */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            Users with Loan Limits
+          </CardTitle>
+          <CardDescription>Users who have verified shopping receipts</CardDescription>
+        </CardHeader>
+        <CardContent>
+          {loanLimits.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No eligible users yet</p>
+          ) : (
+            <div className="space-y-3">
+              {loanLimits.map((limit) => (
+                <div 
+                  key={limit.user_id} 
+                  className="flex items-center justify-between p-4 rounded-xl bg-secondary/30 border border-border/50"
+                >
+                  <div>
+                    <p className="font-semibold">{limit.profiles?.full_name || 'Unknown'}</p>
+                    <p className="text-sm text-muted-foreground">{limit.profiles?.phone}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-success">{formatUGX(limit.available_limit)}</p>
+                    <p className="text-xs text-muted-foreground">Available</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Active Loans */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-lg flex items-center gap-2">
+            <Banknote className="h-5 w-5 text-warning" />
+            My Active Loans
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {activeLoans.length === 0 ? (
+            <p className="text-center text-muted-foreground py-8">No active loans</p>
+          ) : (
+            <div className="space-y-3">
+              {activeLoans.map((loan) => (
+                <div 
+                  key={loan.id} 
+                  className="p-4 rounded-xl bg-warning/5 border border-warning/20 space-y-3"
+                >
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="font-semibold">{loan.borrower?.full_name || 'Unknown'}</p>
+                      <p className="text-sm text-muted-foreground">{loan.borrower?.phone}</p>
+                    </div>
+                    <Badge variant="warning" className="gap-1">
+                      <Calendar className="h-3 w-3" />
+                      Due: {new Date(loan.due_date).toLocaleDateString()}
+                    </Badge>
+                  </div>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-muted-foreground">Principal</p>
+                      <p className="font-bold">{formatUGX(loan.amount)}</p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground">Total Due</p>
+                      <p className="font-bold text-warning">{formatUGX(loan.total_repayment)}</p>
+                    </div>
+                  </div>
+                  <Button 
+                    onClick={() => handleMarkRepaid(loan.id)} 
+                    variant="outline" 
+                    size="sm" 
+                    className="w-full"
+                  >
+                    <CheckCircle className="h-4 w-4 mr-2" />
+                    Mark as Repaid
+                  </Button>
+                </div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </div>
+  );
+}
