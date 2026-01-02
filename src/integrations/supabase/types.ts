@@ -1418,7 +1418,16 @@ export type Database = {
       }
     }
     Views: {
-      [_ in never]: never
+      referral_leaderboard: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          referral_count: number | null
+          total_earned: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {
