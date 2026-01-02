@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History, Receipt } from 'lucide-react';
+import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History, Receipt, Send } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -23,6 +23,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
+import { QuickActions } from '@/components/QuickActions';
 
 interface SupporterDashboardProps {
   user: User;
@@ -195,6 +196,36 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
           </div>
         </div>
+
+        {/* Quick Actions - Large icon buttons */}
+        <QuickActions
+          actions={[
+            {
+              icon: HandCoins,
+              label: 'Fund',
+              onClick: () => document.getElementById('available-requests')?.scrollIntoView({ behavior: 'smooth' }),
+              color: 'primary',
+            },
+            {
+              icon: TrendingUp,
+              label: 'Earnings',
+              onClick: () => navigate('/transactions'),
+              color: 'success',
+            },
+            {
+              icon: Receipt,
+              label: 'Receipts',
+              onClick: () => navigate('/my-receipts'),
+              color: 'warning',
+            },
+            {
+              icon: History,
+              label: 'History',
+              onClick: () => navigate('/transactions'),
+              color: 'primary',
+            },
+          ]}
+        />
         
         {/* Wallet */}
         <WalletCard />

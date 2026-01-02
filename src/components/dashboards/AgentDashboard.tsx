@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt } from 'lucide-react';
+import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt, Banknote } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -26,10 +26,10 @@ import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { AgentProductsSection } from '@/components/marketplace/AgentProductsSection';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Banknote } from 'lucide-react';
 import { AgentLoanProducts } from '@/components/loans/AgentLoanProducts';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
 import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
+import { QuickActions } from '@/components/QuickActions';
 
 interface AgentDashboardProps {
   user: User;
@@ -176,31 +176,36 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <Sparkles className="h-5 w-5 text-primary animate-pulse" />
           </div>
         </div>
-        
-        {/* Agent Actions */}
-        <div className="grid grid-cols-2 gap-4">
-          <Button 
-            onClick={() => setDepositOpen(true)} 
-            className="h-16 text-base gap-3 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-glow"
-            size="lg"
-          >
-            <div className="p-2 rounded-lg bg-white/20">
-              <ArrowDownCircle className="h-5 w-5" />
-            </div>
-            <span>Customer Deposit</span>
-          </Button>
-          <Button 
-            onClick={() => setWithdrawalOpen(true)} 
-            className="h-16 text-base gap-3" 
-            variant="outline"
-            size="lg"
-          >
-            <div className="p-2 rounded-lg bg-primary/10">
-              <ArrowUpCircle className="h-5 w-5 text-primary" />
-            </div>
-            <span>Customer Withdrawal</span>
-          </Button>
-        </div>
+
+        {/* Quick Actions - Large icon buttons */}
+        <QuickActions
+          actions={[
+            {
+              icon: ArrowDownCircle,
+              label: 'Deposit',
+              onClick: () => setDepositOpen(true),
+              color: 'success',
+            },
+            {
+              icon: ArrowUpCircle,
+              label: 'Withdraw',
+              onClick: () => setWithdrawalOpen(true),
+              color: 'warning',
+            },
+            {
+              icon: Store,
+              label: 'My Shop',
+              onClick: () => navigate('/agent-analytics'),
+              color: 'primary',
+            },
+            {
+              icon: Receipt,
+              label: 'Receipts',
+              onClick: () => navigate('/my-receipts'),
+              color: 'primary',
+            },
+          ]}
+        />
 
         {/* Wallet */}
         <WalletCard />
