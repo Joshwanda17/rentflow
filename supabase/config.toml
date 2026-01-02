@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.approve-deposit]
 verify_jwt = true
+
+[functions.rent-reminders]
+verify_jwt = false
