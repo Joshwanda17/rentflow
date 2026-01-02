@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Percent, Receipt, TrendingUp, Home, Sparkles, ArrowRight } from 'lucide-react';
+import { Percent, Receipt, TrendingUp, Home, Sparkles, ArrowRight, History } from 'lucide-react';
 
 interface RentDiscountWidgetProps {
   userId: string;
@@ -148,7 +148,7 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="grid grid-cols-3 gap-2">
           <Button 
             variant="outline" 
             size="sm" 
@@ -156,7 +156,16 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
             className="gap-1"
           >
             <Receipt className="h-4 w-4" />
-            Add Receipt
+            Add
+          </Button>
+          <Button 
+            variant="outline"
+            size="sm" 
+            onClick={() => navigate('/rent-discount-history')}
+            className="gap-1"
+          >
+            <History className="h-4 w-4" />
+            History
           </Button>
           <Button 
             size="sm" 
@@ -164,8 +173,7 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
             onClick={() => navigate('/pay-landlord')}
           >
             <Home className="h-4 w-4" />
-            Pay Rent
-            <ArrowRight className="h-3 w-3" />
+            Pay
           </Button>
         </div>
       </CardContent>
