@@ -31,6 +31,7 @@ import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
 import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
+import UserProfilesTable from '@/components/manager/UserProfilesTable';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -1031,38 +1032,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </TabsContent>
 
           <TabsContent value="users">
-            <Card className="glass-card">
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Users className="h-5 w-5" />
-                  Platform Users
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-3">
-                  {users.map((u) => (
-                    <div 
-                      key={u.id} 
-                      className="flex items-center justify-between p-4 rounded-lg bg-secondary/50"
-                    >
-                      <div>
-                        <p className="font-medium">{u.full_name}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {u.email} • {u.phone}
-                        </p>
-                      </div>
-                      <div className="flex gap-2">
-                        {u.user_roles.map((r, i) => (
-                          <Badge key={i} className={getRoleBadge(r.role)}>
-                            {r.role}
-                          </Badge>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <UserProfilesTable />
           </TabsContent>
 
           <TabsContent value="receipts">

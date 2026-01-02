@@ -209,6 +209,7 @@ export type Database = {
           name: string
           phone: string
           property_address: string
+          registered_by: string | null
           tenant_id: string | null
         }
         Insert: {
@@ -221,6 +222,7 @@ export type Database = {
           name: string
           phone: string
           property_address: string
+          registered_by?: string | null
           tenant_id?: string | null
         }
         Update: {
@@ -233,6 +235,7 @@ export type Database = {
           name?: string
           phone?: string
           property_address?: string
+          registered_by?: string | null
           tenant_id?: string | null
         }
         Relationships: []
@@ -807,8 +810,10 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          monthly_rent: number | null
           phone: string
           referrer_id: string | null
+          rent_discount_active: boolean
           updated_at: string
           verified: boolean
         }
@@ -818,8 +823,10 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          monthly_rent?: number | null
           phone: string
           referrer_id?: string | null
+          rent_discount_active?: boolean
           updated_at?: string
           verified?: boolean
         }
@@ -829,8 +836,10 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          monthly_rent?: number | null
           phone?: string
           referrer_id?: string | null
+          rent_discount_active?: boolean
           updated_at?: string
           verified?: boolean
         }
@@ -1187,6 +1196,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      tenant_ratings: {
+        Row: {
+          created_at: string
+          id: string
+          landlord_id: string
+          rating: number
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landlord_id: string
+          rating: number
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          rating?: number
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       user_loan_repayments: {
         Row: {
