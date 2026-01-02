@@ -21,6 +21,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { useToast } from '@/hooks/use-toast';
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
+import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
 import { motion } from 'framer-motion';
 
 interface Referral {
@@ -245,6 +246,9 @@ export default function Referrals() {
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Monthly Achievement Badges */}
+        <RewardHistoryBadges />
 
         {/* Leaderboard */}
         <ReferralLeaderboard limit={5} />
