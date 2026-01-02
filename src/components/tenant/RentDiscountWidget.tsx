@@ -13,18 +13,20 @@ interface RentDiscountWidgetProps {
   estimatedRent?: number;
 }
 
-export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDiscountWidgetProps) {
+export function RentDiscountWidget({ userId, estimatedRent }: RentDiscountWidgetProps) {
   const navigate = useNavigate();
   const [monthlyReceipts, setMonthlyReceipts] = useState(0);
   const [rentDiscount, setRentDiscount] = useState(0);
   const [receiptCount, setReceiptCount] = useState(0);
+  const [actualRent, setActualRent] = useState(estimatedRent || 500000);
+  const [hasRegisteredLandlord, setHasRegisteredLandlord] = useState(false);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    fetchMonthlyReceipts();
+    fetchData();
   }, [userId]);
 
-  const fetchMonthlyReceipts = async () => {
+  const fetchData = async () => {
     setLoading(true);
     
     // Get current month's verified receipts
@@ -32,16 +34,33 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
-    const { data: receipts } = await supabase
-      .from('user_receipts')
-      .select('claimed_amount')
-      .eq('user_id', userId)
-      .eq('verified', true)
-      .gte('verified_at', startOfMonth)
-      .lte('verified_at', endOfMonth);
+    // Fetch receipts and landlord data in parallel
+    const [receiptsResult, landlordResult] = await Promise.all([
+      supabase
+        .from('user_receipts')
+        .select('claimed_amount')
+        .eq('user_id', userId)
+        .eq('verified', true)
+        .gte('verified_at', startOfMonth)
+        .lte('verified_at', endOfMonth),
+      supabase
+        .from('landlords')
+        .select('monthly_rent')
+        .eq('tenant_id', userId)
+    ]);
+
+    const receipts = receiptsResult.data;
+    const landlords = landlordResult.data;
 
     const totalVerified = receipts?.reduce((sum, r) => sum + Number(r.claimed_amount), 0) || 0;
     const discount = Math.round(totalVerified * 0.01); // 1% of verified receipts
+    
+    // Use actual rent from registered landlords if available
+    const totalMonthlyRent = landlords?.reduce((sum, l) => sum + Number(l.monthly_rent || 0), 0) || 0;
+    if (totalMonthlyRent > 0) {
+      setActualRent(totalMonthlyRent);
+      setHasRegisteredLandlord(true);
+    }
     
     setMonthlyReceipts(totalVerified);
     setRentDiscount(discount);
@@ -49,8 +68,8 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
     setLoading(false);
   };
 
-  // Calculate max possible discount (70% of estimated rent)
-  const maxDiscount = Math.round(estimatedRent * 0.7);
+  // Calculate max possible discount (70% of actual rent)
+  const maxDiscount = Math.round(actualRent * 0.7);
   
   // Progress towards max discount
   const discountProgress = maxDiscount > 0 ? Math.min((rentDiscount / maxDiscount) * 100, 100) : 0;
@@ -101,9 +120,26 @@ export function RentDiscountWidget({ userId, estimatedRent = 500000 }: RentDisco
             <p className="text-sm font-medium text-muted-foreground">
               Max: {formatUGX(maxDiscount)}
             </p>
-            <p className="text-xs text-muted-foreground">(70% of rent)</p>
+            <p className="text-xs text-muted-foreground">(70% of {hasRegisteredLandlord ? 'your' : 'est.'} rent)</p>
           </div>
         </div>
+
+        {/* Register landlord prompt */}
+        {!hasRegisteredLandlord && (
+          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20 flex items-center justify-between">
+            <p className="text-xs text-amber-600 dark:text-amber-400">
+              Register your landlord to unlock full discounts
+            </p>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              onClick={() => navigate('/settings')}
+              className="text-xs text-amber-600 hover:text-amber-700 dark:text-amber-400 h-7 px-2"
+            >
+              Setup
+            </Button>
+          </div>
+        )}
 
         {/* Progress Bar */}
         <div className="space-y-2">
