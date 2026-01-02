@@ -204,7 +204,7 @@ export default function RentDiscountHistory() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Summary Cards */}
+        {/* Lifetime Summary Cards */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="elevated-card bg-gradient-to-br from-success/10 to-success/5 border-success/20">
             <CardContent className="pt-6">
@@ -229,34 +229,108 @@ export default function RentDiscountHistory() {
           </Card>
         </div>
 
-        {/* Current Month Highlight */}
+        {/* Monthly Summary Card - Enhanced */}
         {currentMonthDiscount && (
-          <Card className="elevated-card overflow-hidden">
-            <div className="bg-gradient-to-r from-success/20 via-success/10 to-transparent p-4">
+          <Card className="elevated-card overflow-hidden border-success/30">
+            <CardHeader className="pb-2 bg-gradient-to-r from-success/10 to-transparent">
               <div className="flex items-center justify-between">
-                <div>
-                  <p className="text-sm text-muted-foreground">This Month's Discount</p>
-                  <p className="text-3xl font-bold text-success mt-1">
-                    {formatUGX(currentMonthDiscount.discountEarned)}
-                  </p>
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Calendar className="h-4 w-4 text-success" />
+                  Monthly Summary
+                </CardTitle>
+                <Badge variant="success">
+                  {currentMonthDiscount.month} {currentMonthDiscount.year}
+                </Badge>
+              </div>
+              <CardDescription>Your rent discount progress this month</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4 pt-4">
+              {/* Main Discount Display */}
+              <div className="text-center py-4 bg-gradient-to-br from-success/5 to-transparent rounded-xl">
+                <p className="text-sm text-muted-foreground mb-1">Discount Earned</p>
+                <p className="text-4xl font-bold text-success">
+                  {formatUGX(currentMonthDiscount.discountEarned)}
+                </p>
+                <p className="text-sm text-muted-foreground mt-2">
+                  from {formatUGX(currentMonthDiscount.totalReceipts)} shopping
+                </p>
+              </div>
+
+              {/* Monthly Stats Grid */}
+              <div className="grid grid-cols-3 gap-3">
+                <div className="text-center p-3 rounded-xl bg-secondary/50">
+                  <Receipt className="h-5 w-5 mx-auto mb-1 text-muted-foreground" />
+                  <p className="text-lg font-bold">{currentMonthDiscount.receiptCount}</p>
+                  <p className="text-xs text-muted-foreground">Receipts</p>
                 </div>
-                <div className="text-right">
-                  <Badge variant="success" className="mb-2">
-                    {currentMonthDiscount.month} {currentMonthDiscount.year}
-                  </Badge>
-                  <p className="text-sm text-muted-foreground">
-                    {currentMonthDiscount.receiptCount} receipts
-                  </p>
+                <div className="text-center p-3 rounded-xl bg-secondary/50">
+                  <Percent className="h-5 w-5 mx-auto mb-1 text-success" />
+                  <p className="text-lg font-bold">1%</p>
+                  <p className="text-xs text-muted-foreground">Rate</p>
+                </div>
+                <div className="text-center p-3 rounded-xl bg-secondary/50">
+                  <TrendingUp className="h-5 w-5 mx-auto mb-1 text-primary" />
+                  <p className="text-lg font-bold">{formatUGX(currentMonthDiscount.discountUsed)}</p>
+                  <p className="text-xs text-muted-foreground">Used</p>
                 </div>
               </div>
-              <div className="mt-4">
-                <div className="flex justify-between text-xs text-muted-foreground mb-1">
-                  <span>Shopping: {formatUGX(currentMonthDiscount.totalReceipts)}</span>
-                  <span>1% = {formatUGX(currentMonthDiscount.discountEarned)}</span>
+
+              {/* Progress Info */}
+              <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-sm font-medium">Month Progress</span>
+                  <span className="text-xs text-muted-foreground">
+                    {new Date().getDate()} of {new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()} days
+                  </span>
                 </div>
-                <Progress value={100} className="h-2" />
+                <Progress value={(new Date().getDate() / new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).getDate()) * 100} className="h-2" />
+                <p className="text-xs text-muted-foreground mt-2">
+                  Keep shopping to maximize your discount before month end!
+                </p>
               </div>
-            </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* Previous Months Summary */}
+        {monthlyDiscounts.length > 1 && (
+          <Card className="elevated-card">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4 text-muted-foreground" />
+                Previous Months
+              </CardTitle>
+              <CardDescription>Your historical savings breakdown</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {monthlyDiscounts.slice(1, 4).map((month, index) => (
+                <div 
+                  key={`summary-${month.year}-${month.month}`}
+                  className="flex items-center justify-between p-3 rounded-xl bg-secondary/30 hover:bg-secondary/50 transition-colors"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-lg bg-background">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="font-medium text-sm">{month.month} {month.year}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {month.receiptCount} receipts • {formatUGX(month.totalReceipts)} spent
+                      </p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="font-bold text-success">{formatUGX(month.discountEarned)}</p>
+                    <p className="text-xs text-muted-foreground">saved</p>
+                  </div>
+                </div>
+              ))}
+              {monthlyDiscounts.length > 4 && (
+                <p className="text-xs text-center text-muted-foreground pt-2">
+                  + {monthlyDiscounts.length - 4} more months in history
+                </p>
+              )}
+            </CardContent>
           </Card>
         )}
 
