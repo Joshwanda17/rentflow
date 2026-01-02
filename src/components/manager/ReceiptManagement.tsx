@@ -9,9 +9,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp, FileSpreadsheet } from 'lucide-react';
 import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import { VendorAnalytics } from './VendorAnalytics';
+import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
+import { toast as sonnerToast } from 'sonner';
 import {
   Dialog,
   DialogContent,
@@ -311,6 +313,37 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
   const verifiedUserReceipts = userReceipts.filter(r => r.verified);
   const pendingUserReceipts = userReceipts.filter(r => !r.verified && !r.rejection_reason);
 
+  const handleExportUserReceipts = () => {
+    const headers = ['Receipt Code', 'User Name', 'Phone', 'Vendor', 'Claimed Amount', 'Vendor Amount', 'Status', 'Loan Contribution', 'Date'];
+    const rows = userReceipts.map(r => [
+      r.receipt_numbers?.receipt_code || 'N/A',
+      r.profiles?.full_name || 'Unknown',
+      r.profiles?.phone || 'N/A',
+      r.receipt_numbers?.vendors?.name || 'N/A',
+      r.claimed_amount,
+      r.receipt_numbers?.vendor_amount || 'Not marked',
+      r.verified ? 'Verified' : r.rejection_reason ? 'Rejected' : 'Pending',
+      r.loan_contribution || 0,
+      formatDateForExport(r.created_at)
+    ]);
+    exportToCSV({ headers, rows }, 'user_receipts');
+    sonnerToast.success('User receipts exported to CSV!');
+  };
+
+  const handleExportReceiptNumbers = () => {
+    const headers = ['Receipt Code', 'Vendor', 'Status', 'Vendor Amount', 'Marked Date', 'Created Date'];
+    const rows = receiptNumbers.map(r => [
+      r.receipt_code,
+      r.vendors?.name || 'N/A',
+      r.status,
+      r.vendor_amount || 'Not marked',
+      r.vendor_marked_at ? formatDateForExport(r.vendor_marked_at) : 'N/A',
+      formatDateForExport(r.created_at)
+    ]);
+    exportToCSV({ headers, rows }, 'receipt_numbers');
+    sonnerToast.success('Receipt numbers exported to CSV!');
+  };
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -540,8 +573,12 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
         <TabsContent value="user-receipts" className="space-y-4">
           <Card>
-            <CardHeader>
+            <CardHeader className="flex flex-row items-center justify-between">
               <CardTitle className="text-lg">User Submitted Receipts</CardTitle>
+              <Button variant="outline" size="sm" onClick={handleExportUserReceipts} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Export CSV
+              </Button>
             </CardHeader>
             <CardContent>
               {userReceipts.length === 0 ? (
@@ -605,11 +642,17 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
         <TabsContent value="receipt-numbers" className="space-y-4">
           <Card>
-            <CardHeader>
-              <CardTitle className="text-lg">Receipt Numbers</CardTitle>
-              <CardDescription>
-                {availableReceipts.length} available • {markedReceipts.length} marked • {usedReceipts.length} used
-              </CardDescription>
+            <CardHeader className="flex flex-row items-center justify-between">
+              <div>
+                <CardTitle className="text-lg">Receipt Numbers</CardTitle>
+                <CardDescription>
+                  {availableReceipts.length} available • {markedReceipts.length} marked • {usedReceipts.length} used
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExportReceiptNumbers} className="gap-2">
+                <FileSpreadsheet className="h-4 w-4" />
+                Export CSV
+              </Button>
             </CardHeader>
             <CardContent>
               <div className="space-y-2 max-h-96 overflow-y-auto">
