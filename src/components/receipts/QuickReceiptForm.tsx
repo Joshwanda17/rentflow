@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -10,7 +10,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/component
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone, Search, X } from 'lucide-react';
+import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone, Search, X, Camera, Upload, Sparkles } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface QuickReceiptFormProps {
@@ -48,6 +48,9 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const [vendors, setVendors] = useState<Vendor[]>([]);
   const [loadingVendors, setLoadingVendors] = useState(false);
   const [vendorSearch, setVendorSearch] = useState('');
+  const [scanning, setScanning] = useState(false);
+  const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchLoanLimit();
@@ -83,6 +86,96 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     
     setVendors(data || []);
     setLoadingVendors(false);
+  };
+
+  const handleScanReceipt = async (file: File) => {
+    setScanning(true);
+    
+    // Create preview
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      setScanPreview(e.target?.result as string);
+    };
+    reader.readAsDataURL(file);
+    
+    try {
+      // Convert to base64
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const r = new FileReader();
+        r.onload = () => resolve(r.result as string);
+        r.onerror = reject;
+        r.readAsDataURL(file);
+      });
+
+      const { data, error } = await supabase.functions.invoke('scan-receipt', {
+        body: { imageBase64: base64 }
+      });
+
+      if (error) throw error;
+
+      if (data.error) {
+        toast({
+          title: 'Scan Issue',
+          description: data.error,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      if (data.success && data.data) {
+        const { receiptNumber, items, totalAmount } = data.data;
+        
+        if (receiptNumber) setReceiptCode(receiptNumber);
+        if (items) setItemsDescription(items);
+        if (totalAmount) setClaimedAmount(String(totalAmount));
+        
+        const filledFields = [receiptNumber, items, totalAmount].filter(Boolean).length;
+        
+        toast({
+          title: 'Receipt Scanned!',
+          description: filledFields > 0 
+            ? `Extracted ${filledFields} field${filledFields > 1 ? 's' : ''}. Please verify and adjust if needed.`
+            : 'Could not extract details. Please enter manually.',
+          variant: filledFields > 0 ? 'default' : 'destructive'
+        });
+      }
+    } catch (err) {
+      console.error('Scan error:', err);
+      toast({
+        title: 'Scan Failed',
+        description: 'Could not scan receipt. Please enter details manually.',
+        variant: 'destructive'
+      });
+    } finally {
+      setScanning(false);
+      // Clear preview after a delay
+      setTimeout(() => setScanPreview(null), 3000);
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (!file.type.startsWith('image/')) {
+        toast({
+          title: 'Invalid File',
+          description: 'Please select an image file',
+          variant: 'destructive'
+        });
+        return;
+      }
+      if (file.size > 10 * 1024 * 1024) {
+        toast({
+          title: 'File Too Large',
+          description: 'Please select an image under 10MB',
+          variant: 'destructive'
+        });
+        return;
+      }
+      handleScanReceipt(file);
+    }
+    // Reset input
+    e.target.value = '';
   };
 
   const handleSubmitReceipt = async (e: React.FormEvent) => {
@@ -223,6 +316,72 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
           )}
         </div>
 
+        {/* AI Receipt Scanner */}
+        <div className="p-3 rounded-xl bg-gradient-to-r from-chart-5/10 to-primary/10 border border-chart-5/20">
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept="image/*"
+            capture="environment"
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+          
+          <div className="flex items-center gap-2 mb-2">
+            <Sparkles className="h-4 w-4 text-chart-5" />
+            <span className="text-sm font-medium">AI Receipt Scanner</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0">NEW</Badge>
+          </div>
+          
+          {scanning ? (
+            <div className="flex items-center gap-3 p-3 rounded-lg bg-background/50">
+              {scanPreview && (
+                <img src={scanPreview} alt="Scanning" className="h-12 w-12 object-cover rounded-md opacity-50" />
+              )}
+              <div className="flex-1">
+                <div className="flex items-center gap-2">
+                  <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  <span className="text-sm">Scanning receipt...</span>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">Extracting details with AI</p>
+              </div>
+            </div>
+          ) : (
+            <div className="flex gap-2">
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={() => fileInputRef.current?.click()}
+              >
+                <Camera className="h-3.5 w-3.5" />
+                Take Photo
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="flex-1 gap-2"
+                onClick={() => {
+                  if (fileInputRef.current) {
+                    fileInputRef.current.removeAttribute('capture');
+                    fileInputRef.current.click();
+                    fileInputRef.current.setAttribute('capture', 'environment');
+                  }
+                }}
+              >
+                <Upload className="h-3.5 w-3.5" />
+                Upload Image
+              </Button>
+            </div>
+          )}
+          
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            Take a photo or upload an image to auto-fill receipt details
+          </p>
+        </div>
+
         {/* Receipt Form */}
         <form onSubmit={handleSubmitReceipt} className="space-y-3">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -262,7 +421,7 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
               />
             </div>
           </div>
-          <Button type="submit" size="sm" className="w-full gap-2" disabled={submitting}>
+          <Button type="submit" size="sm" className="w-full gap-2" disabled={submitting || scanning}>
             {submitting ? (
               <>
                 <Loader2 className="h-3.5 w-3.5 animate-spin" />
