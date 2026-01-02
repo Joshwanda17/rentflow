@@ -8,25 +8,30 @@ interface SkeletonProps extends React.HTMLAttributes<HTMLDivElement> {
 
 function Skeleton({ className, shimmer = true }: SkeletonProps) {
   return (
-    <div className={cn("relative rounded-md bg-muted/60 overflow-hidden", className)}>
+    <div className={cn("relative rounded-lg bg-muted/40 overflow-hidden", className)}>
       {shimmer && (
         <motion.div
-          className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-foreground/5 to-transparent"
-          animate={{ translateX: ["100%", "-100%"] }}
-          transition={{ duration: 1.5, repeat: Infinity, ease: "linear", repeatDelay: 0.5 }}
+          className="absolute inset-0 -translate-x-full bg-gradient-to-r from-transparent via-foreground/[0.03] to-transparent"
+          animate={{ translateX: ["-100%", "100%"] }}
+          transition={{ 
+            duration: 1.8, 
+            repeat: Infinity, 
+            ease: "linear", 
+            repeatDelay: 0.3 
+          }}
         />
       )}
     </div>
   );
 }
 
-// Enhanced shimmer skeleton with pulse
+// Enhanced shimmer skeleton with gentle pulse
 function SkeletonPulse({ className }: { className?: string }) {
   return (
     <motion.div
-      className={cn("rounded-md bg-muted/60", className)}
-      animate={{ opacity: [0.5, 0.8, 0.5] }}
-      transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
+      className={cn("rounded-lg bg-muted/40", className)}
+      animate={{ opacity: [0.4, 0.7, 0.4] }}
+      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
     />
   );
 }
@@ -35,9 +40,10 @@ function SkeletonPulse({ className }: { className?: string }) {
 function SkeletonCard({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("rounded-xl border border-border/50 bg-card p-5 space-y-4", className)}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={cn("rounded-xl border border-border bg-card p-5 space-y-4", className)}
     >
       <div className="flex items-center gap-3">
         <Skeleton className="h-10 w-10 rounded-full" />
@@ -58,9 +64,10 @@ function SkeletonCard({ className }: { className?: string }) {
 function SkeletonMetricCard({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
-      animate={{ opacity: 1, scale: 1 }}
-      className={cn("rounded-xl border border-border/50 bg-card p-4 space-y-3", className)}
+      initial={{ opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={cn("rounded-xl border border-border bg-card p-4 space-y-3", className)}
     >
       <div className="flex items-center justify-between">
         <Skeleton className="h-4 w-24" />
@@ -75,9 +82,10 @@ function SkeletonMetricCard({ className }: { className?: string }) {
 function SkeletonListItem({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -10 }}
-      animate={{ opacity: 1, x: 0 }}
-      className={cn("flex items-center gap-3 p-3 rounded-lg bg-secondary/30", className)}
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      transition={{ duration: 0.25 }}
+      className={cn("flex items-center gap-3 p-3 rounded-lg bg-secondary/20", className)}
     >
       <Skeleton className="h-10 w-10 rounded-full" />
       <div className="flex-1 space-y-2">
@@ -92,11 +100,12 @@ function SkeletonListItem({ className }: { className?: string }) {
 function SkeletonWallet({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("rounded-xl overflow-hidden border border-border/50", className)}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={cn("rounded-xl overflow-hidden border border-border", className)}
     >
-      <div className="bg-gradient-to-br from-primary/20 to-primary/5 p-5 space-y-4">
+      <div className="bg-gradient-to-br from-muted/60 to-muted/30 p-5 space-y-4">
         <div className="flex items-center gap-3">
           <Skeleton className="h-10 w-10 rounded-lg" />
           <Skeleton className="h-5 w-28" />
@@ -112,11 +121,11 @@ function SkeletonWallet({ className }: { className?: string }) {
       </div>
       <div className="p-5 space-y-4 bg-card">
         <div className="grid grid-cols-3 gap-2">
-          <Skeleton className="h-9 rounded-md" />
-          <Skeleton className="h-9 rounded-md" />
-          <Skeleton className="h-9 rounded-md" />
+          <Skeleton className="h-9 rounded-lg" />
+          <Skeleton className="h-9 rounded-lg" />
+          <Skeleton className="h-9 rounded-lg" />
         </div>
-        <div className="space-y-2 pt-4 border-t border-border/50">
+        <div className="space-y-2 pt-4 border-t border-border">
           <Skeleton className="h-4 w-32 mb-3" />
           <SkeletonListItem />
           <SkeletonListItem />
@@ -130,13 +139,14 @@ function SkeletonWallet({ className }: { className?: string }) {
 function SkeletonChart({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("rounded-xl border border-border/50 bg-card p-5 space-y-4", className)}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={cn("rounded-xl border border-border bg-card p-5 space-y-4", className)}
     >
       <div className="flex items-center justify-between">
         <Skeleton className="h-5 w-32" />
-        <Skeleton className="h-8 w-24 rounded-md" />
+        <Skeleton className="h-8 w-24 rounded-lg" />
       </div>
       <div className="flex items-end gap-2 h-48">
         {[...Array(7)].map((_, i) => (
@@ -144,9 +154,9 @@ function SkeletonChart({ className }: { className?: string }) {
             key={i}
             initial={{ scaleY: 0 }}
             animate={{ scaleY: 1 }}
-            transition={{ delay: i * 0.05, duration: 0.3 }}
+            transition={{ delay: i * 0.04, duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] }}
             style={{ height: `${30 + Math.random() * 60}%` }}
-            className="flex-1 bg-muted/60 rounded-t-md origin-bottom"
+            className="flex-1 bg-muted/40 rounded-t-lg origin-bottom"
           />
         ))}
       </div>
@@ -159,21 +169,22 @@ function SkeletonTable({ rows = 5, className }: { rows?: number; className?: str
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className={cn("rounded-xl border border-border/50 bg-card overflow-hidden", className)}
+      transition={{ duration: 0.3 }}
+      className={cn("rounded-xl border border-border bg-card overflow-hidden", className)}
     >
-      <div className="p-4 border-b border-border/50 flex gap-4">
+      <div className="p-4 border-b border-border flex gap-4">
         <Skeleton className="h-4 w-20" />
         <Skeleton className="h-4 w-24" />
         <Skeleton className="h-4 w-16" />
         <Skeleton className="h-4 w-20 ml-auto" />
       </div>
-      <div className="divide-y divide-border/30">
+      <div className="divide-y divide-border/50">
         {[...Array(rows)].map((_, i) => (
           <motion.div
             key={i}
-            initial={{ opacity: 0, x: -10 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: i * 0.05 }}
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: i * 0.04, duration: 0.2 }}
             className="p-4 flex items-center gap-4"
           >
             <Skeleton className="h-8 w-8 rounded-full" />
@@ -191,9 +202,10 @@ function SkeletonTable({ rows = 5, className }: { rows?: number; className?: str
 function SkeletonProductCard({ className }: { className?: string }) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10 }}
+      initial={{ opacity: 0, y: 6 }}
       animate={{ opacity: 1, y: 0 }}
-      className={cn("rounded-xl border border-border/50 bg-card overflow-hidden", className)}
+      transition={{ duration: 0.3, ease: [0.25, 0.46, 0.45, 0.94] }}
+      className={cn("rounded-xl border border-border bg-card overflow-hidden", className)}
     >
       {/* Image placeholder */}
       <Skeleton className="aspect-square w-full rounded-none" />
@@ -226,9 +238,9 @@ function SkeletonProductGrid({ count = 8, className }: { count?: number; classNa
       {[...Array(count)].map((_, i) => (
         <motion.div
           key={i}
-          initial={{ opacity: 0, y: 20 }}
+          initial={{ opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.05 }}
+          transition={{ delay: i * 0.04, duration: 0.25 }}
         >
           <SkeletonProductCard />
         </motion.div>
@@ -244,10 +256,10 @@ function SkeletonTransactionList({ count = 5, className }: { count?: number; cla
       {[...Array(count)].map((_, i) => (
         <motion.div
           key={i}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: i * 0.08 }}
-          className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border/50"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: i * 0.05, duration: 0.2 }}
+          className="flex items-center gap-4 p-4 rounded-xl bg-card border border-border"
         >
           <Skeleton className="h-12 w-12 rounded-full" />
           <div className="flex-1 space-y-2">
