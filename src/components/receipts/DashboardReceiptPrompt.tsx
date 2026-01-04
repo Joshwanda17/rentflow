@@ -67,6 +67,13 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [rentDiscount, setRentDiscount] = useState(0);
   const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
   const [showBenefits, setShowBenefits] = useState(false);
+  const [showPulse, setShowPulse] = useState(true);
+
+  // Stop pulse animation after a few seconds
+  useEffect(() => {
+    const timer = setTimeout(() => setShowPulse(false), 4000);
+    return () => clearTimeout(timer);
+  }, []);
 
   useEffect(() => {
     fetchData();
@@ -341,7 +348,8 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             <Button 
               variant="ghost" 
               size="sm" 
-              className="w-full gap-1.5 text-xs text-muted-foreground"
+              className={`w-full gap-1.5 text-xs text-muted-foreground ${showPulse ? 'animate-pulse' : ''}`}
+              onClick={() => setShowPulse(false)}
             >
               <Info className="h-3 w-3" />
               Why Post?
