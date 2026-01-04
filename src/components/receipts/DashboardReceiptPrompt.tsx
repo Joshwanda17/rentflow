@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -71,6 +71,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [showBenefits, setShowBenefits] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const itemsInputRef = useRef<HTMLInputElement>(null);
 
   // Stop pulse animation after a few seconds
   useEffect(() => {
@@ -321,6 +322,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
                           const current = itemsDescription.trim();
                           if (current.toLowerCase().includes(item.toLowerCase())) return;
                           setItemsDescription(current ? `${current}, ${item}` : item);
+                          itemsInputRef.current?.focus();
                         }}
                       >
                         {item}
@@ -370,6 +372,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
               )}
 
               <Input
+                ref={itemsInputRef}
                 id="dashboard-items"
                 placeholder={itemsDescription ? "Add more items..." : "Tap categories above or type: rice, beans, sugar..."}
                 value=""
