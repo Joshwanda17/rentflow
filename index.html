@@ -35,9 +35,10 @@
       #root{min-height:100vh}
       .app-loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;z-index:9999;gap:24px;opacity:1;transition:opacity 0.4s ease-out,visibility 0.4s ease-out}
       .app-loader.fade-out{opacity:0;visibility:hidden}
-      .loader-logo{font-family:'Chewy',cursive;font-size:2.5rem;color:#7c3aed;animation:pulse-logo 2s ease-in-out infinite}
+      .loader-logo{font-family:'Chewy',cursive;font-size:2.5rem;color:#7c3aed;animation:pulse-logo 2s ease-in-out infinite;margin-bottom:-16px}
+      .loader-tagline{font-size:0.875rem;color:#64748b;margin-bottom:8px}
       .loader-spinner{width:40px;height:40px;border:3px solid #e2e8f0;border-top-color:#7c3aed;border-radius:50%;animation:spin .6s linear infinite}
-      .loader-text{font-size:0.875rem;color:#64748b;margin-top:-8px}
+      .loader-text{font-size:0.75rem;color:#94a3b8;margin-top:-8px}
       @keyframes spin{to{transform:rotate(360deg)}}
       @keyframes pulse-logo{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.05)}}
       @media(prefers-color-scheme:dark){
@@ -55,6 +56,7 @@
       <!-- Branded loading state -->
       <div class="app-loader" id="app-loader">
         <div class="loader-logo">Welile</div>
+        <div class="loader-tagline">Rent Facilitation Platform</div>
         <div class="loader-spinner"></div>
         <div class="loader-text">Loading...</div>
       </div>
