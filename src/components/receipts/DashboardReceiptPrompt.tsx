@@ -21,7 +21,8 @@ import {
   CheckCircle2,
   Clock,
   CheckCircle,
-  Info
+  Info,
+  ChevronDown
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
@@ -344,6 +345,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             >
               <Info className="h-3 w-3" />
               Why Post?
+              <ChevronDown className={`h-3 w-3 transition-transform duration-200 ${showBenefits ? 'rotate-180' : ''}`} />
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-2">
