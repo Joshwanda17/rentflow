@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
@@ -11,12 +11,8 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Receipt, 
   Loader2, 
-  FileText, 
   TrendingUp, 
   CreditCard, 
-  Camera, 
-  Upload, 
-  Sparkles,
   Gift,
   Percent,
   Home,
@@ -50,10 +46,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [loanLimit, setLoanLimit] = useState<LoanLimit | null>(null);
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [lastIncrease, setLastIncrease] = useState<number | null>(null);
-  const [scanning, setScanning] = useState(false);
-  const [scanPreview, setScanPreview] = useState<string | null>(null);
   const [rentDiscount, setRentDiscount] = useState(0);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -89,92 +82,6 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
     setRentDiscount(Math.round(discount));
     
     setLoadingLimit(false);
-  };
-
-  const handleScanReceipt = async (file: File) => {
-    setScanning(true);
-    
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setScanPreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-    
-    try {
-      const base64 = await new Promise<string>((resolve, reject) => {
-        const r = new FileReader();
-        r.onload = () => resolve(r.result as string);
-        r.onerror = reject;
-        r.readAsDataURL(file);
-      });
-
-      const { data, error } = await supabase.functions.invoke('scan-receipt', {
-        body: { imageBase64: base64 }
-      });
-
-      if (error) throw error;
-
-      if (data.error) {
-        toast({
-          title: 'Scan Issue',
-          description: data.error,
-          variant: 'destructive'
-        });
-        return;
-      }
-
-      if (data.success && data.data) {
-        const { receiptNumber, items, totalAmount } = data.data;
-        
-        if (receiptNumber) setReceiptCode(receiptNumber);
-        if (items) setItemsDescription(items);
-        if (totalAmount) setClaimedAmount(String(totalAmount));
-        
-        const filledFields = [receiptNumber, items, totalAmount].filter(Boolean).length;
-        
-        toast({
-          title: 'Receipt Scanned',
-          description: filledFields > 0 
-            ? `Extracted ${filledFields} field${filledFields > 1 ? 's' : ''}. Please verify.`
-            : 'Could not extract details. Please enter manually.',
-          variant: filledFields > 0 ? 'default' : 'destructive'
-        });
-      }
-    } catch (err) {
-      console.error('Scan error:', err);
-      toast({
-        title: 'Scan Failed',
-        description: 'Could not scan receipt. Please enter details manually.',
-        variant: 'destructive'
-      });
-    } finally {
-      setScanning(false);
-      setTimeout(() => setScanPreview(null), 3000);
-    }
-  };
-
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (!file.type.startsWith('image/')) {
-        toast({
-          title: 'Invalid File',
-          description: 'Please select an image file',
-          variant: 'destructive'
-        });
-        return;
-      }
-      if (file.size > 10 * 1024 * 1024) {
-        toast({
-          title: 'File Too Large',
-          description: 'Please select an image under 10MB',
-          variant: 'destructive'
-        });
-        return;
-      }
-      handleScanReceipt(file);
-    }
-    e.target.value = '';
   };
 
   const handleSubmitReceipt = async (e: React.FormEvent) => {
@@ -342,69 +249,10 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
           </div>
         </div>
 
-        {/* AI Scanner */}
-        <div className="p-3 rounded-lg border-2 border-dashed border-primary/30 bg-primary/5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            capture="environment"
-            onChange={handleFileSelect}
-            className="hidden"
-          />
-          
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <span className="text-sm font-medium">AI Receipt Scanner</span>
-            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4">FAST</Badge>
-          </div>
-          
-          {scanning ? (
-            <div className="flex items-center justify-center gap-3 p-3">
-              {scanPreview && (
-                <img src={scanPreview} alt="Scanning" className="h-12 w-12 object-cover rounded opacity-60" />
-              )}
-              <div className="text-center">
-                <Loader2 className="h-5 w-5 animate-spin text-primary mx-auto mb-1" />
-                <span className="text-xs">Scanning receipt...</span>
-              </div>
-            </div>
-          ) : (
-            <div className="flex gap-2">
-              <Button
-                type="button"
-                variant="default"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Camera className="h-4 w-4" />
-                Take Photo
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                className="flex-1 gap-1.5"
-                onClick={() => {
-                  if (fileInputRef.current) {
-                    fileInputRef.current.removeAttribute('capture');
-                    fileInputRef.current.click();
-                    fileInputRef.current.setAttribute('capture', 'environment');
-                  }
-                }}
-              >
-                <Upload className="h-4 w-4" />
-                Upload
-              </Button>
-            </div>
-          )}
-        </div>
-
-        {/* Manual Form */}
+        {/* Receipt Form */}
         <form onSubmit={handleSubmitReceipt} className="space-y-3">
           <div className="text-center">
-            <span className="text-xs text-muted-foreground">Or enter details manually</span>
+            <span className="text-xs text-muted-foreground">Enter your receipt details below</span>
           </div>
           
           <div className="space-y-2">
@@ -448,7 +296,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             </div>
           </div>
           
-          <Button type="submit" className="w-full gap-2" disabled={submitting || scanning}>
+          <Button type="submit" className="w-full gap-2" disabled={submitting}>
             {submitting ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
