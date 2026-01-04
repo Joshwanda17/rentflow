@@ -18,10 +18,14 @@ import {
   Home,
   ArrowRight,
   ShoppingBag,
-  CheckCircle2
+  CheckCircle2,
+  Clock,
+  CheckCircle,
+  XCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
+import { formatDistanceToNow } from 'date-fns';
 
 interface DashboardReceiptPromptProps {
   userId: string;
@@ -31,6 +35,14 @@ interface LoanLimit {
   total_verified_amount: number;
   available_limit: number;
   used_limit: number;
+}
+
+interface RecentReceipt {
+  id: string;
+  items_description: string;
+  claimed_amount: number;
+  verified: boolean;
+  created_at: string;
 }
 
 const MAX_LOAN_LIMIT = 30000000;
@@ -47,6 +59,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [loadingLimit, setLoadingLimit] = useState(true);
   const [lastIncrease, setLastIncrease] = useState<number | null>(null);
   const [rentDiscount, setRentDiscount] = useState(0);
+  const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -80,6 +93,16 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
     const totalVerified = receipts?.reduce((sum, r) => sum + (r.claimed_amount || 0), 0) || 0;
     const discount = Math.min(totalVerified * 0.007, 70); // 0.7% of receipts, max 70%
     setRentDiscount(Math.round(discount));
+
+    // Fetch last 5 receipts
+    const { data: recentData } = await supabase
+      .from('user_receipts')
+      .select('id, items_description, claimed_amount, verified, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(5);
+    
+    setRecentReceipts(recentData || []);
     
     setLoadingLimit(false);
   };
@@ -310,6 +333,46 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             )}
           </Button>
         </form>
+
+        {/* Recent Receipts */}
+        {recentReceipts.length > 0 && (
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-medium text-muted-foreground">Recent Receipts</span>
+              <Button 
+                variant="link" 
+                size="sm" 
+                className="h-auto p-0 text-xs text-primary"
+                onClick={() => navigate('/my-receipts')}
+              >
+                View all
+              </Button>
+            </div>
+            <div className="space-y-1.5">
+              {recentReceipts.map((receipt) => (
+                <div 
+                  key={receipt.id} 
+                  className="flex items-center justify-between p-2 rounded-lg bg-muted/30 border border-border/50"
+                >
+                  <div className="flex items-center gap-2 min-w-0 flex-1">
+                    {receipt.verified ? (
+                      <CheckCircle className="h-3.5 w-3.5 text-success flex-shrink-0" />
+                    ) : (
+                      <Clock className="h-3.5 w-3.5 text-warning flex-shrink-0" />
+                    )}
+                    <span className="text-xs truncate">{receipt.items_description}</span>
+                  </div>
+                  <div className="flex items-center gap-2 flex-shrink-0">
+                    <span className="text-xs font-medium">{formatUGX(receipt.claimed_amount)}</span>
+                    <span className="text-[10px] text-muted-foreground">
+                      {formatDistanceToNow(new Date(receipt.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* View All Link */}
         <Button 
