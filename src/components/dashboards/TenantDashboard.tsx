@@ -5,7 +5,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, Sparkles, History, ArrowRight, FileText, Wallet, Receipt, Banknote, Calendar, ShoppingBag, Send, QrCode, Home, Share2 } from 'lucide-react';
+import { LogOut, Plus, Calculator, CreditCard, Clock, Settings, History, ArrowRight, Receipt, Banknote, Calendar, ShoppingBag, Home, Share2, MoreVertical, Search, Camera } from 'lucide-react';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -108,18 +108,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const totalRepaid = activeRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
   const remainingBalance = activeRequest ? Number(activeRequest.total_repayment) - totalRepaid : 0;
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'approved': return 'default';
-      case 'funded': return 'success';
-      case 'disbursed': return 'success';
-      case 'completed': return 'secondary';
-      case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
-  };
-
   if (loading) {
     return <TenantDashboardSkeleton />;
   }
@@ -130,18 +118,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
-        <div className="container mx-auto px-4 py-3">
+      {/* WhatsApp-style Header */}
+      <header className="sticky top-0 z-50 wa-header shadow-sm">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
-              </div>
-              <div className="hidden sm:block">
-                <WelileLogo showText={false} />
-              </div>
+              <h1 className="text-xl font-bold text-white">Welile</h1>
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 
@@ -149,75 +131,124 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               />
             </div>
             
-            <div className="hidden md:flex items-center gap-1">
+            <div className="flex items-center gap-1">
+              <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
+                <Camera className="h-5 w-5" />
+              </Button>
+              <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
+                <Search className="h-5 w-5" />
+              </Button>
               <NotificationBell />
               <ThemeToggle />
-              {addRoleComponent}
-              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
-                <Settings className="h-4 w-4" />
+              <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10" onClick={() => navigate('/settings')}>
+                <MoreVertical className="h-5 w-5" />
               </Button>
-              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="md:hidden flex items-center gap-1">
-              <NotificationBell />
-              <ThemeToggle />
             </div>
           </div>
+        </div>
+        
+        {/* Quick Action Tabs */}
+        <div className="flex items-center gap-2 px-4 pb-3 overflow-x-auto hide-scrollbar">
+          <button 
+            onClick={() => setShowPayLandlord(true)}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-white text-sm font-medium whitespace-nowrap transition-colors"
+          >
+            <Home className="h-4 w-4" />
+            Pay Rent
+          </button>
+          <button 
+            onClick={() => navigate('/my-receipts')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-white text-sm font-medium whitespace-nowrap transition-colors"
+          >
+            <Receipt className="h-4 w-4" />
+            Receipts
+          </button>
+          <button 
+            onClick={() => navigate('/marketplace')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-white text-sm font-medium whitespace-nowrap transition-colors"
+          >
+            <ShoppingBag className="h-4 w-4" />
+            Shop
+          </button>
+          <button 
+            onClick={() => navigate('/benefits')}
+            className="flex items-center gap-2 px-4 py-2 bg-white/20 hover:bg-white/30 rounded-full text-white text-sm font-medium whitespace-nowrap transition-colors"
+          >
+            <Share2 className="h-4 w-4" />
+            Share
+          </button>
         </div>
       </header>
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6 animate-fade-in">
-        <AppBreadcrumb />
-        
-        {/* Welcome Section - Simplified for mobile */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-xl sm:text-2xl font-bold tracking-tight">
-              Hi{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''} 👋
-            </h1>
-            <p className="text-muted-foreground text-xs sm:text-sm mt-0.5">
-              Your rent & payments
+      <main className="px-4 py-4 space-y-4 animate-fade-in">
+        {/* User Profile Card */}
+        <div className="wa-list-item rounded-xl border border-border/50 shadow-sm">
+          <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+          <div className="flex-1 min-w-0">
+            <h2 className="font-semibold text-base truncate">
+              {profile?.full_name || 'Welcome'}
+            </h2>
+            <p className="text-sm text-muted-foreground truncate">
+              Your rent & payments dashboard
             </p>
           </div>
+          <div className="flex items-center">
+            {addRoleComponent}
+          </div>
         </div>
-        
-        {/* Quick Actions - Large icon buttons */}
-        <QuickActions
-          actions={[
-            {
-              icon: Home,
-              label: 'Pay Rent',
-              onClick: () => setShowPayLandlord(true),
-              color: 'success',
-            },
-            {
-              icon: Receipt,
-              label: 'Receipts',
-              onClick: () => navigate('/my-receipts'),
-              color: 'warning',
-            },
-            {
-              icon: Share2,
-              label: 'Share',
-              onClick: () => navigate('/benefits'),
-              color: 'primary',
-            },
-            {
-              icon: ShoppingBag,
-              label: 'Shop',
-              onClick: () => navigate('/marketplace'),
-              color: 'primary',
-            },
-          ]}
-        />
 
         {/* Wallet */}
         <WalletCard />
 
-        {/* Rent Discount Widget - Shows monthly discount from receipts */}
+        {/* Quick Stats - WhatsApp style */}
+        <div className="grid grid-cols-3 gap-3">
+          <button 
+            onClick={() => navigate('/transactions')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all"
+          >
+            <div className="p-2.5 rounded-full bg-primary/10 mb-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+            </div>
+            <p className="text-lg font-bold tabular-nums">
+              {remainingBalance >= 1000000 ? `${(remainingBalance / 1000000).toFixed(1)}M` : 
+               remainingBalance >= 1000 ? `${(remainingBalance / 1000).toFixed(0)}K` : remainingBalance}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-medium">Balance</p>
+          </button>
+
+          <button 
+            onClick={() => navigate('/transactions')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all"
+          >
+            <div className="p-2.5 rounded-full bg-success/10 mb-2">
+              <Calculator className="h-5 w-5 text-success" />
+            </div>
+            <p className="text-lg font-bold text-success tabular-nums">
+              {totalRepaid >= 1000000 ? `${(totalRepaid / 1000000).toFixed(1)}M` : 
+               totalRepaid >= 1000 ? `${(totalRepaid / 1000).toFixed(0)}K` : totalRepaid}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-medium">Paid</p>
+          </button>
+
+          <button 
+            onClick={() => navigate('/payment-schedule')}
+            className="flex flex-col items-center justify-center p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all"
+          >
+            <div className="p-2.5 rounded-full bg-warning/10 mb-2">
+              <Clock className="h-5 w-5 text-warning" />
+            </div>
+            <p className="text-lg font-bold tabular-nums">
+              {activeRequest ? (
+                Number(activeRequest.daily_repayment) >= 1000 
+                  ? `${(Number(activeRequest.daily_repayment) / 1000).toFixed(0)}K` 
+                  : Number(activeRequest.daily_repayment)
+              ) : '—'}
+            </p>
+            <p className="text-[11px] text-muted-foreground font-medium">Daily</p>
+          </button>
+        </div>
+
+        {/* Rent Discount Widget */}
         <RentDiscountWidget userId={user.id} />
 
         {/* Referral Stats */}
@@ -228,54 +259,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />
-
-        {/* Quick Stats - Larger, icon-focused cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-4">
-          <button 
-            onClick={() => navigate('/transactions')}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
-          >
-            <div className="p-2.5 rounded-xl bg-primary/10 mb-2">
-              <CreditCard className="h-6 w-6 text-primary" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold tabular-nums">
-              {remainingBalance >= 1000000 ? `${(remainingBalance / 1000000).toFixed(1)}M` : 
-               remainingBalance >= 1000 ? `${(remainingBalance / 1000).toFixed(0)}K` : remainingBalance}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-medium">Balance</p>
-          </button>
-
-          <button 
-            onClick={() => navigate('/transactions')}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
-          >
-            <div className="p-2.5 rounded-xl bg-success/10 mb-2">
-              <Calculator className="h-6 w-6 text-success" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold text-success tabular-nums">
-              {totalRepaid >= 1000000 ? `${(totalRepaid / 1000000).toFixed(1)}M` : 
-               totalRepaid >= 1000 ? `${(totalRepaid / 1000).toFixed(0)}K` : totalRepaid}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-medium">Paid</p>
-          </button>
-
-          <button 
-            onClick={() => navigate('/payment-schedule')}
-            className="flex flex-col items-center justify-center p-4 rounded-xl border border-border bg-card hover:bg-accent/30 active:scale-95 transition-all min-h-[90px]"
-          >
-            <div className="p-2.5 rounded-xl bg-warning/10 mb-2">
-              <Clock className="h-6 w-6 text-warning" />
-            </div>
-            <p className="text-lg sm:text-xl font-bold tabular-nums">
-              {activeRequest ? (
-                Number(activeRequest.daily_repayment) >= 1000 
-                  ? `${(Number(activeRequest.daily_repayment) / 1000).toFixed(0)}K` 
-                  : Number(activeRequest.daily_repayment)
-              ) : '—'}
-            </p>
-            <p className="text-[10px] text-muted-foreground font-medium">Daily</p>
-          </button>
-        </div>
 
         {/* Calculator Section */}
         {showCalculator && (
@@ -310,11 +293,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </div>
         )}
 
-        {/* Action Button - Larger touch target */}
+        {/* Action Button */}
         {!showCalculator && !showRequestForm && (
           <Button 
             onClick={() => setShowCalculator(true)}
-            className="w-full gap-2 h-12 text-base"
+            className="w-full gap-2 h-12 text-base rounded-xl"
             size="lg"
           >
             <Plus className="h-5 w-5" />
@@ -342,11 +325,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Marketplace */}
         <MarketplaceSection />
 
-        {/* Rent Requests History - Simplified */}
+        {/* Rent Requests History */}
         <Card className="elevated-card">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-3">
-            <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-full bg-primary/10">
                 <History className="h-5 w-5 text-primary" />
               </div>
               <CardTitle className="text-base font-semibold">History</CardTitle>
@@ -356,13 +339,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </Badge>
           </CardHeader>
           <CardContent className="pt-0">
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : rentRequests.length === 0 ? (
-              <div className="text-center py-6">
-                <Calculator className="h-10 w-10 text-muted-foreground/40 mx-auto mb-2" />
+            {rentRequests.length === 0 ? (
+              <div className="text-center py-8">
+                <Calculator className="h-12 w-12 text-muted-foreground/30 mx-auto mb-3" />
                 <p className="text-sm text-muted-foreground">No requests yet</p>
               </div>
             ) : (
@@ -381,22 +360,21 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                   >
                     <button 
                       onClick={() => navigate('/transactions')}
-                      className="w-full flex items-center justify-between p-3 bg-secondary/30 hover:bg-secondary/50 border border-border/50 active:scale-[0.98] transition-all"
+                      className="w-full wa-list-item rounded-lg"
                     >
-                      <div className="flex items-center gap-3">
-                        <StatusIndicator status={request.status} size="md" />
-                        <div className="text-left">
-                          <p className="font-bold text-sm">{formatUGX(Number(request.rent_amount))}</p>
-                          <p className="text-[11px] text-muted-foreground">{request.duration_days}d</p>
-                        </div>
+                      <StatusIndicator status={request.status} size="md" />
+                      <div className="flex-1 text-left">
+                        <p className="font-semibold text-sm">{formatUGX(Number(request.rent_amount))}</p>
+                        <p className="text-xs text-muted-foreground">{request.duration_days} days</p>
                       </div>
+                      <ArrowRight className="h-4 w-4 text-muted-foreground" />
                     </button>
                   </SwipeableRow>
                 ))}
                 {rentRequests.length > 5 && (
                   <Button 
                     variant="ghost" 
-                    className="w-full text-sm"
+                    className="w-full text-sm text-primary"
                     onClick={() => navigate('/transactions')}
                   >
                     See all {rentRequests.length} requests
@@ -408,35 +386,13 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         </Card>
       </main>
       
-      <FloatingActionButton
-        actions={[
-          {
-            icon: Home,
-            label: 'Pay Rent',
-            onClick: () => setShowPayLandlord(true),
-          },
-          {
-            icon: Calculator,
-            label: 'Calculate',
-            onClick: () => setShowCalculator(!showCalculator),
-          },
-          {
-            icon: Receipt,
-            label: 'Receipts',
-            onClick: () => navigate('/my-receipts'),
-          },
-          {
-            icon: Banknote,
-            label: 'Loans',
-            onClick: () => navigate('/my-loans'),
-          },
-          {
-            icon: Calendar,
-            label: 'Schedule',
-            onClick: () => navigate('/payment-schedule'),
-          },
-        ]}
-      />
+      {/* WhatsApp-style FAB */}
+      <button 
+        onClick={() => setShowPayLandlord(true)}
+        className="wa-fab"
+      >
+        <Home className="h-6 w-6" />
+      </button>
       
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
       
