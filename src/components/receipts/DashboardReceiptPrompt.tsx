@@ -272,7 +272,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             <div className="space-y-1.5">
               <Label htmlFor="dashboard-items" className="text-sm font-medium">Items Bought</Label>
               <div className="flex flex-wrap gap-1.5 mb-2">
-                {["Groceries", "Vegetables", "Meat", "Bread", "Rice", "Milk", "Fruits", "Cooking Oil"].map((item) => (
+                {["Groceries", "Vegetables", "Meat", "Bread", "Rice", "Milk", "Fruits", "Cooking Oil", "Drinks", "Snacks", "Toiletries", "Cleaning"].map((item) => (
                   <Button
                     key={item}
                     type="button"
