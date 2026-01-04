@@ -151,7 +151,7 @@ export function FoodShoppingLoansSection() {
             </div>
           </div>
           <p className="text-xs text-muted-foreground mt-3 text-center">
-            Get a food shopping loan → Shop at partner vendors → Post receipts → Save on rent!
+            Get a food shopping loan → Shop at Welile agents → Post receipts → Save on rent!
           </p>
         </div>
 
