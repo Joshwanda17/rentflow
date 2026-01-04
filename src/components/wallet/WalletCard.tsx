@@ -1,9 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, Receipt, History } from 'lucide-react';
+import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
@@ -11,6 +12,7 @@ import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
+import { AnimatedBalance } from './AnimatedBalance';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -76,6 +78,19 @@ export function WalletCard() {
     return <SkeletonWallet />;
   }
 
+  // Calculate income/expense from recent transactions
+  const recentStats = transactions.reduce(
+    (acc, tx) => {
+      if (tx.sender_id === user?.id) {
+        acc.sent += tx.amount;
+      } else {
+        acc.received += tx.amount;
+      }
+      return acc;
+    },
+    { sent: 0, received: 0 }
+  );
+
   return (
     <>
       <Card className="overflow-hidden border-border">
@@ -83,9 +98,13 @@ export function WalletCard() {
         <div className="bg-primary p-4 sm:p-5 text-primary-foreground">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary-foreground/10">
+              <motion.div 
+                className="p-2 rounded-lg bg-primary-foreground/10"
+                whileHover={{ scale: 1.1, rotate: 5 }}
+                whileTap={{ scale: 0.95 }}
+              >
                 <Wallet className="h-5 w-5" />
-              </div>
+              </motion.div>
               <span className="font-semibold text-sm">Wallet</span>
             </div>
             <Button 
@@ -111,17 +130,49 @@ export function WalletCard() {
             />
             <div className="flex-1">
               <p className="text-sm opacity-90 truncate">{profile?.full_name || 'User'}</p>
-              <p className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5">
-                {wallet?.balance ? (
-                  wallet.balance >= 1000000 
-                    ? `UGX ${(wallet.balance / 1000000).toFixed(1)}M`
-                    : wallet.balance >= 1000
-                    ? `UGX ${(wallet.balance / 1000).toFixed(0)}K`
-                    : formatCurrency(wallet.balance)
-                ) : 'UGX 0'}
-              </p>
+              <AnimatedBalance 
+                value={wallet?.balance || 0} 
+                className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5 block"
+              />
             </div>
           </div>
+
+          {/* Quick Stats Row */}
+          {transactions.length > 0 && (
+            <motion.div 
+              className="flex gap-3 mt-4 pt-3 border-t border-primary-foreground/20"
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex items-center gap-2 flex-1">
+                <div className="p-1.5 rounded-full bg-success/20">
+                  <TrendingUp className="h-3.5 w-3.5 text-success" />
+                </div>
+                <div>
+                  <p className="text-[10px] opacity-70 uppercase tracking-wide">In</p>
+                  <p className="text-sm font-semibold">
+                    {recentStats.received >= 1000 
+                      ? `${(recentStats.received / 1000).toFixed(0)}K` 
+                      : recentStats.received}
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2 flex-1">
+                <div className="p-1.5 rounded-full bg-destructive/20">
+                  <TrendingDown className="h-3.5 w-3.5 text-destructive" />
+                </div>
+                <div>
+                  <p className="text-[10px] opacity-70 uppercase tracking-wide">Out</p>
+                  <p className="text-sm font-semibold">
+                    {recentStats.sent >= 1000 
+                      ? `${(recentStats.sent / 1000).toFixed(0)}K` 
+                      : recentStats.sent}
+                  </p>
+                </div>
+              </div>
+            </motion.div>
+          )}
         </div>
         
         <CardContent className="p-3 sm:p-4 space-y-3">
