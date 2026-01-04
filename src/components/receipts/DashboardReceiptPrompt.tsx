@@ -26,6 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { hapticSelection, hapticTap } from '@/lib/haptics';
 import { useConfetti } from '@/components/Confetti';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -288,7 +289,10 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
                       variant={activeCategory === category.id ? "default" : "outline"}
                       size="sm"
                       className="h-7 text-xs px-2.5 flex-1"
-                      onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
+                      onClick={() => {
+                        hapticTap();
+                        setActiveCategory(activeCategory === category.id ? null : category.id);
+                      }}
                     >
                       {category.label}
                     </Button>
@@ -310,6 +314,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
                         size="sm"
                         className="h-6 text-xs px-2 rounded-full"
                         onClick={() => {
+                          hapticSelection();
                           const current = itemsDescription.trim();
                           if (current.toLowerCase().includes(item.toLowerCase())) return;
                           setItemsDescription(current ? `${current}, ${item}` : item);
