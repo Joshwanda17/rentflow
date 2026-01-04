@@ -18,8 +18,8 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
-    title: '',
-    description: '',
+    title: 'Food Shopping Loan',
+    description: 'Quick loan for grocery and food shopping at partner vendors. Shop, post receipts, and save up to 70% on rent!',
     min_amount: 50000,
     max_amount: 500000,
     interest_rate: 10,
@@ -50,11 +50,11 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
 
       if (error) throw error;
 
-      toast.success('Loan product created successfully!');
+      toast.success('Food Shopping Loan created successfully!');
       setOpen(false);
       setForm({
-        title: '',
-        description: '',
+        title: 'Food Shopping Loan',
+        description: 'Quick loan for grocery and food shopping at partner vendors. Shop, post receipts, and save up to 70% on rent!',
         min_amount: 50000,
         max_amount: 500000,
         interest_rate: 10,
@@ -78,23 +78,23 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button>
-          <Plus className="h-4 w-4 mr-2" />
-          Create Loan Product
+        <Button className="gap-2 bg-primary hover:bg-primary/90">
+          <Plus className="h-4 w-4" />
+          Create Food Loan
         </Button>
       </DialogTrigger>
       <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
-          <DialogTitle>Create New Loan Product</DialogTitle>
+          <DialogTitle>Create Food Shopping Loan</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="title">Title *</Label>
+            <Label htmlFor="title">Loan Title *</Label>
             <Input
               id="title"
               value={form.title}
               onChange={(e) => setForm({ ...form, title: e.target.value })}
-              placeholder="e.g., Quick Cash Loan"
+              placeholder="e.g., Food Shopping Loan"
               required
             />
           </div>
@@ -105,7 +105,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
               id="description"
               value={form.description}
               onChange={(e) => setForm({ ...form, description: e.target.value })}
-              placeholder="Describe your loan product..."
+              placeholder="Describe your food shopping loan..."
             />
           </div>
 
