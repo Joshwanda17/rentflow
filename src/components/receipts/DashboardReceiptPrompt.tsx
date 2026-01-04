@@ -321,14 +321,27 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
                 )}
               </div>
               
-              <Input
-                id="dashboard-items"
-                placeholder="Tap categories above or type: rice, beans, sugar..."
-                value={itemsDescription}
-                onChange={(e) => setItemsDescription(e.target.value)}
-                required
-                className="h-11 text-base"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="dashboard-items"
+                  placeholder="Tap categories above or type: rice, beans, sugar..."
+                  value={itemsDescription}
+                  onChange={(e) => setItemsDescription(e.target.value)}
+                  required
+                  className="h-11 text-base flex-1"
+                />
+                {itemsDescription && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-11 px-3 text-xs text-muted-foreground hover:text-destructive"
+                    onClick={() => setItemsDescription('')}
+                  >
+                    Clear
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
           
