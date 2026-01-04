@@ -26,7 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { hapticSelection, hapticTap, hapticSuccess } from '@/lib/haptics';
+import { hapticSelection, hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useConfetti } from '@/components/Confetti';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -138,6 +138,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
       .maybeSingle();
 
     if (findError || !receiptNumber) {
+      hapticError();
       toast({
         title: 'Invalid Receipt',
         description: 'This receipt number does not exist in our system',
@@ -148,6 +149,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
     }
 
     if (receiptNumber.status === 'used') {
+      hapticError();
       toast({
         title: 'Receipt Already Used',
         description: 'This receipt has already been submitted',
@@ -167,6 +169,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
       });
 
     if (submitError) {
+      hapticError();
       toast({
         title: 'Error',
         description: submitError.message,
