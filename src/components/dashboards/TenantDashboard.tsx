@@ -11,7 +11,6 @@ import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import LoanProgressWidget from '@/components/tenant/LoanProgressWidget';
-import { RentDiscountWidget } from '@/components/tenant/RentDiscountWidget';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -27,9 +26,9 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { MarketplaceSection } from '@/components/marketplace/MarketplaceSection';
-import { LoanProductsSection } from '@/components/loans/LoanProductsSection';
+import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
-import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
+import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { QuickActions } from '@/components/QuickActions';
 import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 import { StatusIndicator } from '@/components/StatusIndicator';
@@ -250,14 +249,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           </button>
         </div>
 
-        {/* Rent Discount Widget */}
-        <RentDiscountWidget userId={user.id} />
-
-        {/* Referral Stats */}
-        <ReferralStatsCard userId={user.id} />
-
-        {/* Loan Limit Promo */}
-        <LoanLimitPromoCard userId={user.id} />
+        {/* PRIORITY 1: Food Receipt Promo - Save 70% on Rent */}
+        <FoodReceiptPromoCard userId={user.id} />
 
         {/* Quick Receipt Form */}
         <QuickReceiptForm userId={user.id} />
@@ -321,8 +314,11 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Loan Progress Widget */}
         <LoanProgressWidget userId={user.id} />
 
-        {/* Available Loans */}
-        <LoanProductsSection />
+        {/* PRIORITY 2 & 3: Food Shopping Loans - Available for Everyone */}
+        <FoodShoppingLoansSection />
+
+        {/* Referral Stats */}
+        <ReferralStatsCard userId={user.id} />
 
         {/* Marketplace */}
         <MarketplaceSection />

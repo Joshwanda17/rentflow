@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Slider } from '@/components/ui/slider';
-import { Banknote, Percent, Calendar, User } from 'lucide-react';
+import { Banknote, Percent, Calendar, User, ShoppingCart, Sparkles } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -80,16 +80,22 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
   };
 
   return (
-    <Card className="hover:shadow-lg transition-shadow">
+    <Card className="hover:shadow-lg transition-shadow border-primary/20 bg-gradient-to-br from-background to-primary/5">
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between">
-          <CardTitle className="text-lg">{product.title}</CardTitle>
-          <Badge variant="secondary" className="bg-primary/10 text-primary">
-            {product.interest_rate}% interest
+          <div className="flex items-center gap-2">
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <ShoppingCart className="h-4 w-4 text-primary" />
+            </div>
+            <CardTitle className="text-lg">{product.title}</CardTitle>
+          </div>
+          <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1">
+            <Sparkles className="h-3 w-3" />
+            {product.interest_rate}%
           </Badge>
         </div>
         {product.agent_name && (
-          <p className="text-sm text-muted-foreground flex items-center gap-1">
+          <p className="text-sm text-muted-foreground flex items-center gap-1 mt-1">
             <User className="h-3 w-3" />
             by {product.agent_name}
           </p>
@@ -117,13 +123,17 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
 
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button className="w-full" disabled={user?.id === product.agent_id}>
-              {user?.id === product.agent_id ? 'Your Product' : 'Apply Now'}
+            <Button className="w-full gap-2 bg-primary hover:bg-primary/90" disabled={user?.id === product.agent_id}>
+              <ShoppingCart className="h-4 w-4" />
+              {user?.id === product.agent_id ? 'Your Product' : 'Get This Loan'}
             </Button>
           </DialogTrigger>
           <DialogContent className="max-w-md">
             <DialogHeader>
-              <DialogTitle>Apply for Loan</DialogTitle>
+              <DialogTitle className="flex items-center gap-2">
+                <ShoppingCart className="h-5 w-5 text-primary" />
+                Apply for Food Shopping Loan
+              </DialogTitle>
             </DialogHeader>
             <div className="space-y-4">
               <div className="space-y-2">
@@ -153,11 +163,11 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
               </div>
 
               <div className="space-y-2">
-                <Label>Purpose (optional)</Label>
+                <Label>Purpose (What will you shop for?)</Label>
                 <Textarea
                   value={purpose}
                   onChange={(e) => setPurpose(e.target.value)}
-                  placeholder="What will you use this loan for?"
+                  placeholder="e.g., Groceries, food supplies, household items..."
                 />
               </div>
 
@@ -180,8 +190,16 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
                 </div>
               </div>
 
-              <Button onClick={handleApply} disabled={loading} className="w-full">
-                {loading ? 'Submitting...' : 'Submit Application'}
+              <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-sm">
+                <p className="text-success font-medium">💡 Pro Tip</p>
+                <p className="text-muted-foreground text-xs mt-1">
+                  Shop at partner vendors and post your receipts to save up to 70% on rent!
+                </p>
+              </div>
+
+              <Button onClick={handleApply} disabled={loading} className="w-full gap-2">
+                <ShoppingCart className="h-4 w-4" />
+                {loading ? 'Submitting...' : 'Get Food Shopping Loan'}
               </Button>
             </div>
           </DialogContent>
