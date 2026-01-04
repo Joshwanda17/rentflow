@@ -160,7 +160,7 @@ export function FoodReceiptPromoCard({ userId }: FoodReceiptPromoCardProps) {
             How it Works
           </h4>
           <div className="space-y-1.5 text-xs text-muted-foreground">
-            <p>🛒 <strong className="text-foreground">Shop for food</strong> at partner vendors</p>
+            <p>🛒 <strong className="text-foreground">Shop for food</strong> at Welile agents</p>
             <p>📱 <strong className="text-foreground">Post your receipt</strong> with Welile code</p>
             <p>✅ <strong className="text-foreground">Get verified</strong> automatically</p>
             <p>💰 <strong className="text-foreground">Save up to 70%</strong> on rent + grow loan limit</p>

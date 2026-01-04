@@ -19,7 +19,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState({
     title: 'Food Shopping Loan',
-    description: 'Quick loan for grocery and food shopping at partner vendors. Shop, post receipts, and save up to 70% on rent!',
+    description: 'Quick loan for grocery and food shopping at Welile agents. Shop, post receipts, and save up to 70% on rent!',
     min_amount: 50000,
     max_amount: 500000,
     interest_rate: 10,
@@ -54,7 +54,7 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
       setOpen(false);
       setForm({
         title: 'Food Shopping Loan',
-        description: 'Quick loan for grocery and food shopping at partner vendors. Shop, post receipts, and save up to 70% on rent!',
+        description: 'Quick loan for grocery and food shopping at Welile agents. Shop, post receipts, and save up to 70% on rent!',
         min_amount: 50000,
         max_amount: 500000,
         interest_rate: 10,

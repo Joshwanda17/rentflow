@@ -193,7 +193,7 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
               <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-sm">
                 <p className="text-success font-medium">💡 Pro Tip</p>
                 <p className="text-muted-foreground text-xs mt-1">
-                  Shop at partner vendors and post your receipts to save up to 70% on rent!
+                  Shop at Welile agents and post your receipts to save up to 70% on rent!
                 </p>
               </div>
 
