@@ -21,11 +21,16 @@ import {
   CheckCircle2,
   Clock,
   CheckCircle,
-  XCircle
+  Info
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
 import { formatDistanceToNow } from 'date-fns';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/components/ui/collapsible";
 
 interface DashboardReceiptPromptProps {
   userId: string;
@@ -60,6 +65,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [lastIncrease, setLastIncrease] = useState<number | null>(null);
   const [rentDiscount, setRentDiscount] = useState(0);
   const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
+  const [showBenefits, setShowBenefits] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -183,59 +189,13 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   return (
     <Card className="border-primary/30 bg-gradient-to-br from-primary/5 via-background to-secondary/5 overflow-hidden">
       <CardContent className="p-4 space-y-4">
-        {/* Hero Section - Benefits */}
-        <div className="text-center space-y-2">
+        {/* Hero Section */}
+        <div className="text-center space-y-1">
           <div className="flex items-center justify-center gap-2">
             <div className="p-2 rounded-full bg-primary/10">
               <Receipt className="h-5 w-5 text-primary" />
             </div>
             <h2 className="text-lg font-bold">Post Your Shopping Receipt</h2>
-          </div>
-          <p className="text-sm text-muted-foreground">
-            Shop anywhere, submit your receipt, and unlock amazing benefits!
-          </p>
-        </div>
-
-        {/* Benefits Grid */}
-        <div className="grid grid-cols-2 gap-2">
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/20">
-            <div className="p-1.5 rounded-full bg-success/20">
-              <Home className="h-3.5 w-3.5 text-success" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-success">Save on Rent</p>
-              <p className="text-[10px] text-muted-foreground">Up to 70% off</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-            <div className="p-1.5 rounded-full bg-primary/20">
-              <CreditCard className="h-3.5 w-3.5 text-primary" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-primary">Grow Loan Limit</p>
-              <p className="text-[10px] text-muted-foreground">+20% per receipt</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/20">
-            <div className="p-1.5 rounded-full bg-warning/20">
-              <Gift className="h-3.5 w-3.5 text-warning" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold text-warning">Earn Rewards</p>
-              <p className="text-[10px] text-muted-foreground">Points & cashback</p>
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/30 border border-secondary/40">
-            <div className="p-1.5 rounded-full bg-secondary/50">
-              <ShoppingBag className="h-3.5 w-3.5 text-secondary-foreground" />
-            </div>
-            <div>
-              <p className="text-xs font-semibold">Shop Anywhere</p>
-              <p className="text-[10px] text-muted-foreground">Any store works</p>
-            </div>
           </div>
         </div>
 
@@ -373,6 +333,63 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
             </div>
           </div>
         )}
+
+        {/* Benefits Collapsible */}
+        <Collapsible open={showBenefits} onOpenChange={setShowBenefits}>
+          <CollapsibleTrigger asChild>
+            <Button 
+              variant="ghost" 
+              size="sm" 
+              className="w-full gap-1.5 text-xs text-muted-foreground"
+            >
+              <Info className="h-3 w-3" />
+              Why Post?
+            </Button>
+          </CollapsibleTrigger>
+          <CollapsibleContent className="pt-2">
+            <div className="grid grid-cols-2 gap-2">
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/20">
+                <div className="p-1.5 rounded-full bg-success/20">
+                  <Home className="h-3.5 w-3.5 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-success">Save on Rent</p>
+                  <p className="text-[10px] text-muted-foreground">Up to 70% off</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="p-1.5 rounded-full bg-primary/20">
+                  <CreditCard className="h-3.5 w-3.5 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-primary">Grow Loan Limit</p>
+                  <p className="text-[10px] text-muted-foreground">+20% per receipt</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/20">
+                <div className="p-1.5 rounded-full bg-warning/20">
+                  <Gift className="h-3.5 w-3.5 text-warning" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-warning">Earn Rewards</p>
+                  <p className="text-[10px] text-muted-foreground">Points & cashback</p>
+                </div>
+              </div>
+              
+              <div className="flex items-center gap-2 p-2.5 rounded-lg bg-secondary/30 border border-secondary/40">
+                <div className="p-1.5 rounded-full bg-secondary/50">
+                  <ShoppingBag className="h-3.5 w-3.5 text-secondary-foreground" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold">Shop Anywhere</p>
+                  <p className="text-[10px] text-muted-foreground">Any store works</p>
+                </div>
+              </div>
+            </div>
+          </CollapsibleContent>
+        </Collapsible>
 
         {/* View All Link */}
         <Button 
