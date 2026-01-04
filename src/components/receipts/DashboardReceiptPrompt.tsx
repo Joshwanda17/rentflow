@@ -70,8 +70,20 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
   const [showBenefits, setShowBenefits] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
-  const [activeCategory, setActiveCategory] = useState<string | null>(null);
+  const [activeCategory, setActiveCategory] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('receipt-last-category');
+    }
+    return null;
+  });
   const itemsInputRef = useRef<HTMLInputElement>(null);
+
+  // Persist last used category
+  useEffect(() => {
+    if (activeCategory) {
+      localStorage.setItem('receipt-last-category', activeCategory);
+    }
+  }, [activeCategory]);
 
   // Stop pulse animation after a few seconds
   useEffect(() => {
