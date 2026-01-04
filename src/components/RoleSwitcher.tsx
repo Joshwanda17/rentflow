@@ -54,7 +54,7 @@ export default function RoleSwitcher({ currentRole, availableRoles, onRoleChange
 
   if (availableRoles.length <= 1) {
     return (
-      <Badge className={currentConfig.color}>
+      <Badge className="bg-white/20 text-white border-white/30">
         {currentConfig.icon}
         <span className="ml-1">{currentConfig.label}</span>
       </Badge>
@@ -64,11 +64,11 @@ export default function RoleSwitcher({ currentRole, availableRoles, onRoleChange
   return (
     <DropdownMenu open={open} onOpenChange={setOpen}>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" size="sm" className="gap-2">
-          <Badge className={currentConfig.color}>
+        <Button variant="ghost" size="sm" className="gap-2 text-white hover:bg-white/10 border border-white/20">
+          <span className="flex items-center gap-1">
             {currentConfig.icon}
-            <span className="ml-1">{currentConfig.label}</span>
-          </Badge>
+            <span className="text-sm font-medium">{currentConfig.label}</span>
+          </span>
           <ChevronDown className="h-3 w-3" />
         </Button>
       </DropdownMenuTrigger>
