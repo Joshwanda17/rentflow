@@ -12,7 +12,8 @@ import {
   Download, 
   Calendar,
   Receipt,
-  X
+  X,
+  DollarSign
 } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -49,6 +50,8 @@ export default function TransactionHistory() {
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
   const [transactionType, setTransactionType] = useState<TransactionType>('all');
+  const [minAmount, setMinAmount] = useState<string>('');
+  const [maxAmount, setMaxAmount] = useState<string>('');
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
@@ -141,8 +144,20 @@ export default function TransactionHistory() {
       );
     }
 
+    // Amount range filter
+    const minAmountNum = parseFloat(minAmount);
+    const maxAmountNum = parseFloat(maxAmount);
+    
+    if (!isNaN(minAmountNum) && minAmountNum > 0) {
+      filtered = filtered.filter(tx => tx.amount >= minAmountNum);
+    }
+    
+    if (!isNaN(maxAmountNum) && maxAmountNum > 0) {
+      filtered = filtered.filter(tx => tx.amount <= maxAmountNum);
+    }
+
     setFilteredTransactions(filtered);
-  }, [searchQuery, startDate, endDate, transactionType, transactions, user?.id]);
+  }, [searchQuery, startDate, endDate, transactionType, minAmount, maxAmount, transactions, user?.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -167,6 +182,8 @@ export default function TransactionHistory() {
     setStartDate(undefined);
     setEndDate(undefined);
     setTransactionType('all');
+    setMinAmount('');
+    setMaxAmount('');
   };
 
   const exportToCSV = () => {
@@ -203,7 +220,7 @@ export default function TransactionHistory() {
     toast.success('Transactions exported successfully');
   };
 
-  const hasActiveFilters = searchQuery || startDate || endDate || transactionType !== 'all';
+  const hasActiveFilters = searchQuery || startDate || endDate || transactionType !== 'all' || minAmount || maxAmount;
 
   if (authLoading) {
     return (
@@ -327,6 +344,43 @@ export default function TransactionHistory() {
                 </Popover>
               </div>
             </div>
+
+            {/* Amount Range Filter */}
+            <div className="grid gap-4 md:grid-cols-2">
+              <div>
+                <Label htmlFor="minAmount" className="text-xs text-muted-foreground mb-1.5 block">
+                  Min Amount (UGX)
+                </Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="minAmount"
+                    type="number"
+                    placeholder="0"
+                    value={minAmount}
+                    onChange={(e) => setMinAmount(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+              <div>
+                <Label htmlFor="maxAmount" className="text-xs text-muted-foreground mb-1.5 block">
+                  Max Amount (UGX)
+                </Label>
+                <div className="relative">
+                  <DollarSign className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="maxAmount"
+                    type="number"
+                    placeholder="Any"
+                    value={maxAmount}
+                    onChange={(e) => setMaxAmount(e.target.value)}
+                    className="pl-9"
+                  />
+                </div>
+              </div>
+            </div>
+
 
             {hasActiveFilters && (
               <div className="flex items-center justify-between pt-4 border-t border-border">
