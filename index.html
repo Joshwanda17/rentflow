@@ -4,73 +4,54 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
     <title>Welile - Africa's Rent Facilitation Platform</title>
-    <meta name="description" content="Welile Technologies - Africa's leading rent facilitation platform serving 40M+ users. Access rent today, pay back over time with flexible daily repayments. Available in Uganda, Kenya, Tanzania, Rwanda, and across East Africa." />
-    <meta name="keywords" content="rent facilitation, rent access, Africa fintech, Uganda rent, Kenya rent, Tanzania rent, mobile money, rent payment, housing Africa" />
-    <meta name="author" content="Welile Technologies Limited" />
-    <meta name="robots" content="index, follow" />
-    <link rel="canonical" href="https://welile.com" />
+    <meta name="description" content="Welile Technologies - Africa's leading rent facilitation platform. Access rent today, pay back over time." />
     <link rel="icon" href="/favicon.png" type="image/png" />
     
-    <!-- Preconnect to critical resources -->
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <!-- Critical: Preconnect early -->
+    <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://wirntoujqoyjobfhyelc.supabase.co">
     
-    <!-- Optimized font loading with font-display: swap -->
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
-
-    <!-- Open Graph for social sharing -->
-    <meta property="og:title" content="Welile - Africa's Rent Facilitation Platform" />
-    <meta property="og:description" content="Africa's leading rent facilitation platform serving millions. Access rent today, pay back over time." />
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://welile.com" />
-    <meta property="og:image" content="/favicon.png" />
-    <meta property="og:locale" content="en_UG" />
-    <meta property="og:locale:alternate" content="en_KE" />
-    <meta property="og:locale:alternate" content="en_TZ" />
-    <meta property="og:locale:alternate" content="sw" />
-
-    <!-- Twitter Card -->
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@WelileTech" />
-    <meta name="twitter:title" content="Welile - Africa's Rent Facilitation Platform" />
-    <meta name="twitter:description" content="Access rent today, pay back over time. Serving millions across Africa." />
-    <meta name="twitter:image" content="/favicon.png" />
-
-    <!-- PWA and mobile optimization -->
+    <!-- PWA -->
     <meta name="theme-color" content="#7c3aed" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="mobile-web-app-capable" content="yes" />
-    
-    <!-- Performance hints -->
-    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
-    
-    <!-- Geo targeting for Africa -->
-    <meta name="geo.region" content="UG" />
-    <meta name="geo.placename" content="Kampala" />
-    
-    <!-- Structured data for organization -->
-    <script type="application/ld+json">
-    {
-      "@context": "https://schema.org",
-      "@type": "FinancialService",
-      "name": "Welile Technologies Limited",
-      "description": "Africa's leading rent facilitation platform",
-      "url": "https://welile.com",
-      "logo": "https://welile.com/favicon.png",
-      "areaServed": ["UG", "KE", "TZ", "RW", "BI", "SS", "CD", "ET"],
-      "serviceType": "Rent Facilitation",
-      "potentialAction": {
-        "@type": "UseAction",
-        "target": "https://welile.com/auth"
-      }
-    }
-    </script>
+
+    <!-- Open Graph -->
+    <meta property="og:title" content="Welile - Rent Facilitation" />
+    <meta property="og:description" content="Access rent today, pay back over time." />
+    <meta property="og:type" content="website" />
+    <meta property="og:image" content="/favicon.png" />
+
+    <!-- Inline critical CSS for instant first paint -->
+    <style>
+      *{box-sizing:border-box;margin:0;padding:0}
+      html{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc}
+      body{min-height:100vh}
+      #root{min-height:100vh}
+      .app-loader{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#f8fafc;z-index:9999}
+      .app-loader.dark{background:#0f172a}
+      .loader-spinner{width:32px;height:32px;border:3px solid #e2e8f0;border-top-color:#7c3aed;border-radius:50%;animation:spin .6s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+      @media(prefers-color-scheme:dark){html{background:#0f172a}.app-loader{background:#0f172a}.loader-spinner{border-color:#334155;border-top-color:#a78bfa}}
+    </style>
   </head>
 
   <body>
-    <div id="root"></div>
+    <div id="root">
+      <!-- Instant loading state -->
+      <div class="app-loader" id="app-loader">
+        <div class="loader-spinner"></div>
+      </div>
+    </div>
     <script type="module" src="/src/main.tsx"></script>
+    <script>
+      // Remove loader when app mounts
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          var loader = document.getElementById('app-loader');
+          if (loader) loader.style.display = 'none';
+        }, 100);
+      });
+    </script>
   </body>
 </html>

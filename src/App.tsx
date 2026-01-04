@@ -3,9 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AnimatePresence, motion } from "framer-motion";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CartProvider } from "@/hooks/useCart";
@@ -14,7 +13,7 @@ import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 
-// Lazy load routes for better initial load performance at scale
+// Lazy load all routes
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -40,105 +39,62 @@ const RentDiscountHistory = lazy(() => import('./pages/RentDiscountHistory'));
 const Benefits = lazy(() => import('./pages/Benefits'));
 const Referrals = lazy(() => import('./pages/Referrals'));
 
-// Optimized QueryClient for 40M+ users scale
+// Optimized QueryClient
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Stale time: 5 minutes - reduces server load
       staleTime: 5 * 60 * 1000,
-      // Cache time: 30 minutes - keeps data in memory
       gcTime: 30 * 60 * 1000,
-      // Retry with exponential backoff
-      retry: 3,
-      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
-      // Don't refetch on window focus for mobile users
+      retry: 2,
       refetchOnWindowFocus: false,
-      // Network-aware fetching
       networkMode: 'offlineFirst',
     },
     mutations: {
-      // Retry mutations once
       retry: 1,
       networkMode: 'offlineFirst',
     },
   },
 });
 
-const pageVariants = {
-  initial: { 
-    opacity: 0, 
-    y: 8,
-  },
-  animate: { 
-    opacity: 1, 
-    y: 0,
-  },
-  exit: { 
-    opacity: 0,
-    y: -4,
-  },
-};
-
-const pageTransition = {
-  duration: 0.2,
-  ease: [0.25, 0.46, 0.45, 0.94] as const,
-};
-
-// Minimal loading fallback for code splitting
+// Minimal page loader
 const PageLoader = memo(() => (
   <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="flex flex-col items-center gap-4">
-      <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-      <p className="text-sm text-muted-foreground">Loading...</p>
-    </div>
+    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 ));
-
 PageLoader.displayName = 'PageLoader';
 
-const AnimatedRoutes = memo(function AnimatedRoutes() {
-  const location = useLocation();
-  
+// Simple routes without animation overhead
+const AppRoutes = memo(function AppRoutes() {
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={pageVariants}
-        transition={pageTransition}
-      >
-        <Suspense fallback={<PageLoader />}>
-          <Routes location={location}>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/select-role" element={<SelectRole />} />
-            <Route path="/transactions" element={<TransactionHistory />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/earnings" element={<AgentEarnings />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/orders" element={<OrderHistory />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/analytics" element={<AgentAnalytics />} />
-            <Route path="/flash-sales" element={<FlashSales />} />
-            <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/seller/:sellerId" element={<SellerProfile />} />
-            <Route path="/my-receipts" element={<MyReceipts />} />
-            <Route path="/my-loans" element={<MyLoans />} />
-            <Route path="/payment-schedule" element={<PaymentSchedule />} />
-            <Route path="/pay-landlord" element={<PayLandlord />} />
-            <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
-            <Route path="/benefits" element={<Benefits />} />
-            <Route path="/referrals" element={<Referrals />} />
-            <Route path="/vendor-portal" element={<VendorPortal />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route path="/" element={<Index />} />
+        <Route path="/auth" element={<Auth />} />
+        <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/select-role" element={<SelectRole />} />
+        <Route path="/transactions" element={<TransactionHistory />} />
+        <Route path="/settings" element={<Settings />} />
+        <Route path="/earnings" element={<AgentEarnings />} />
+        <Route path="/update-password" element={<UpdatePassword />} />
+        <Route path="/orders" element={<OrderHistory />} />
+        <Route path="/wishlist" element={<Wishlist />} />
+        <Route path="/analytics" element={<AgentAnalytics />} />
+        <Route path="/flash-sales" element={<FlashSales />} />
+        <Route path="/marketplace" element={<Marketplace />} />
+        <Route path="/categories" element={<Categories />} />
+        <Route path="/seller/:sellerId" element={<SellerProfile />} />
+        <Route path="/my-receipts" element={<MyReceipts />} />
+        <Route path="/my-loans" element={<MyLoans />} />
+        <Route path="/payment-schedule" element={<PaymentSchedule />} />
+        <Route path="/pay-landlord" element={<PayLandlord />} />
+        <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
+        <Route path="/benefits" element={<Benefits />} />
+        <Route path="/referrals" element={<Referrals />} />
+        <Route path="/vendor-portal" element={<VendorPortal />} />
+        <Route path="*" element={<NotFound />} />
+      </Routes>
+    </Suspense>
   );
 });
 
@@ -156,7 +112,7 @@ const App = () => (
                       <ConnectionStatus />
                       <Toaster />
                       <Sonner />
-                      <AnimatedRoutes />
+                      <AppRoutes />
                     </TooltipProvider>
                   </ComparisonProvider>
                 </CartProvider>
