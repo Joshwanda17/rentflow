@@ -1,4 +1,5 @@
 import { useState, useRef, useCallback, TouchEvent } from 'react';
+import { hapticSuccess, hapticSelection } from '@/lib/haptics';
 
 interface UsePullToRefreshOptions {
   onRefresh: () => Promise<void>;
@@ -68,6 +69,9 @@ export function usePullToRefresh({
     if (!state.isPulling) return;
 
     if (state.canRefresh && !state.isRefreshing) {
+      // Haptic when starting refresh
+      hapticSelection();
+      
       setState(prev => ({
         ...prev,
         isPulling: false,
@@ -77,6 +81,8 @@ export function usePullToRefresh({
 
       try {
         await onRefresh();
+        // Success haptic when refresh completes
+        hapticSuccess();
       } finally {
         setState({
           isPulling: false,
