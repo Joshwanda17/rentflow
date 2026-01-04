@@ -33,20 +33,36 @@
       html{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc}
       body{min-height:100vh}
       #root{min-height:100vh}
-      .app-loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8fafc 0%,#ede9fe 50%,#f8fafc 100%);z-index:9999;gap:24px;opacity:1;transition:opacity 0.4s ease-out,visibility 0.4s ease-out}
+      .app-loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8fafc 0%,#ede9fe 50%,#f8fafc 100%);z-index:9999;gap:24px;opacity:1;transition:opacity 0.4s ease-out,visibility 0.4s ease-out;overflow:hidden}
       .app-loader.fade-out{opacity:0;visibility:hidden}
+      .loader-content{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;gap:24px}
       .loader-logo{font-family:'Chewy',cursive;font-size:2.5rem;color:#7c3aed;animation:pulse-logo 2s ease-in-out infinite;margin-bottom:-16px}
       .loader-tagline{font-size:0.875rem;color:#64748b;margin-bottom:8px}
       .loader-spinner{width:40px;height:40px;border:3px solid rgba(124,58,237,0.2);border-top-color:#7c3aed;border-radius:50%;animation:spin .6s linear infinite}
       .loader-text{font-size:0.75rem;color:#94a3b8;margin-top:-8px}
+      .loader-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
+      .particle{position:absolute;border-radius:50%;opacity:0.4;animation:float 8s ease-in-out infinite}
+      .particle:nth-child(1){width:80px;height:80px;background:radial-gradient(circle,rgba(124,58,237,0.3),transparent);top:10%;left:10%;animation-delay:0s}
+      .particle:nth-child(2){width:120px;height:120px;background:radial-gradient(circle,rgba(167,139,250,0.25),transparent);top:60%;right:10%;animation-delay:-2s}
+      .particle:nth-child(3){width:60px;height:60px;background:radial-gradient(circle,rgba(124,58,237,0.2),transparent);bottom:20%;left:20%;animation-delay:-4s}
+      .particle:nth-child(4){width:100px;height:100px;background:radial-gradient(circle,rgba(167,139,250,0.2),transparent);top:30%;right:25%;animation-delay:-1s}
+      .particle:nth-child(5){width:50px;height:50px;background:radial-gradient(circle,rgba(124,58,237,0.25),transparent);bottom:30%;right:30%;animation-delay:-3s}
+      .particle:nth-child(6){width:70px;height:70px;background:radial-gradient(circle,rgba(167,139,250,0.3),transparent);top:50%;left:5%;animation-delay:-5s}
       @keyframes spin{to{transform:rotate(360deg)}}
       @keyframes pulse-logo{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.05)}}
+      @keyframes float{0%,100%{transform:translateY(0) translateX(0) scale(1)}25%{transform:translateY(-20px) translateX(10px) scale(1.1)}50%{transform:translateY(-10px) translateX(-15px) scale(0.95)}75%{transform:translateY(-25px) translateX(5px) scale(1.05)}}
       @media(prefers-color-scheme:dark){
         html{background:#0f172a}
         .app-loader{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)}
         .loader-logo{color:#a78bfa}
         .loader-spinner{border-color:rgba(167,139,250,0.2);border-top-color:#a78bfa}
         .loader-text{color:#94a3b8}
+        .particle:nth-child(1){background:radial-gradient(circle,rgba(167,139,250,0.3),transparent)}
+        .particle:nth-child(2){background:radial-gradient(circle,rgba(124,58,237,0.25),transparent)}
+        .particle:nth-child(3){background:radial-gradient(circle,rgba(167,139,250,0.2),transparent)}
+        .particle:nth-child(4){background:radial-gradient(circle,rgba(124,58,237,0.2),transparent)}
+        .particle:nth-child(5){background:radial-gradient(circle,rgba(167,139,250,0.25),transparent)}
+        .particle:nth-child(6){background:radial-gradient(circle,rgba(124,58,237,0.3),transparent)}
       }
     </style>
   </head>
@@ -55,10 +71,20 @@
     <div id="root">
       <!-- Branded loading state -->
       <div class="app-loader" id="app-loader">
-        <div class="loader-logo">Welile</div>
-        <div class="loader-tagline">Rent Facilitation Platform</div>
-        <div class="loader-spinner"></div>
-        <div class="loader-text">Loading...</div>
+        <div class="loader-particles">
+          <div class="particle"></div>
+          <div class="particle"></div>
+          <div class="particle"></div>
+          <div class="particle"></div>
+          <div class="particle"></div>
+          <div class="particle"></div>
+        </div>
+        <div class="loader-content">
+          <div class="loader-logo">Welile</div>
+          <div class="loader-tagline">Rent Facilitation Platform</div>
+          <div class="loader-spinner"></div>
+          <div class="loader-text">Loading...</div>
+        </div>
       </div>
     </div>
     <script type="module" src="/src/main.tsx"></script>
