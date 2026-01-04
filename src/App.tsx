@@ -148,20 +148,20 @@ const App = () => (
       <FontSizeProvider>
         <HapticSettingsProvider>
           <LanguageProvider>
-            <AuthProvider>
-              <CartProvider>
-                <ComparisonProvider>
-                  <TooltipProvider delayDuration={300}>
-                    <ConnectionStatus />
-                    <Toaster />
-                    <Sonner />
-                    <BrowserRouter>
+            <BrowserRouter>
+              <AuthProvider>
+                <CartProvider>
+                  <ComparisonProvider>
+                    <TooltipProvider delayDuration={300}>
+                      <ConnectionStatus />
+                      <Toaster />
+                      <Sonner />
                       <AnimatedRoutes />
-                    </BrowserRouter>
-                  </TooltipProvider>
-                </ComparisonProvider>
-              </CartProvider>
-            </AuthProvider>
+                    </TooltipProvider>
+                  </ComparisonProvider>
+                </CartProvider>
+              </AuthProvider>
+            </BrowserRouter>
           </LanguageProvider>
         </HapticSettingsProvider>
       </FontSizeProvider>
