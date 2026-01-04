@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
@@ -64,20 +64,28 @@ export default function SelectRole() {
   const [isLoading, setIsLoading] = useState(false);
   const [showCodeInput, setShowCodeInput] = useState(false);
   
-  const { addRole, user, roles } = useAuth();
+  const { addRole, user, roles, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
 
-  // Redirect if user already has roles
-  if (user && roles.length > 0) {
-    navigate('/dashboard');
-    return null;
-  }
+  // Handle redirects in useEffect to avoid render-time navigation
+  useEffect(() => {
+    if (loading) return;
+    
+    if (!user) {
+      navigate('/auth');
+    } else if (roles.length > 0) {
+      navigate('/dashboard');
+    }
+  }, [user, roles, loading, navigate]);
 
-  // Redirect if not logged in
-  if (!user) {
-    navigate('/auth');
-    return null;
+  // Show loading while auth is checking
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
   }
 
   const toggleRole = (role: AppRole) => {
