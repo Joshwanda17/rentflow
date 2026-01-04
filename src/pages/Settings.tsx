@@ -21,6 +21,7 @@ import MyTenantsSection from '@/components/landlord/MyTenantsSection';
 import RentDiscountToggle from '@/components/tenant/RentDiscountToggle';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { WalletCard } from '@/components/wallet/WalletCard';
 
 interface Profile {
   id: string;
@@ -383,6 +384,11 @@ export default function Settings() {
               </motion.div>
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Wallet Card */}
+        <motion.div variants={itemVariants} className="mb-6">
+          <WalletCard />
         </motion.div>
 
         {/* Roles Card */}
