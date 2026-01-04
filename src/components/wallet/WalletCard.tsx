@@ -13,6 +13,7 @@ import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
 import { AnimatedBalance } from './AnimatedBalance';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -91,9 +92,14 @@ export function WalletCard() {
     { sent: 0, received: 0 }
   );
 
+  const handleRefresh = async () => {
+    await Promise.all([refreshWallet(), refreshTransactions(), fetchPendingCount()]);
+  };
+
   return (
     <>
-      <Card className="overflow-hidden border-border">
+      <PullToRefresh onRefresh={handleRefresh}>
+        <Card className="overflow-hidden border-border">
         {/* Header with gradient */}
         <div className="bg-primary p-4 sm:p-5 text-primary-foreground">
           <div className="flex items-center justify-between mb-3">
@@ -256,6 +262,7 @@ export function WalletCard() {
           )}
         </CardContent>
       </Card>
+      </PullToRefresh>
 
       {/* User's Deposit Requests */}
       <UserDepositRequests />
