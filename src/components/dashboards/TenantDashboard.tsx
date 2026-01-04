@@ -123,7 +123,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-extrabold tracking-wide text-white drop-shadow-lg" style={{ fontFamily: "'Segoe UI', 'SF Pro Display', -apple-system, BlinkMacSystemFont, sans-serif", letterSpacing: '0.05em' }}>
+              <h1 className="text-2xl text-white drop-shadow-lg" style={{ fontFamily: "'Chewy', cursive" }}>
                 Welile
               </h1>
               <RoleSwitcher
