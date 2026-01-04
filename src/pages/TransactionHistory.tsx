@@ -37,6 +37,8 @@ interface Transaction {
   recipient_name?: string;
 }
 
+type TransactionType = 'all' | 'sent' | 'received';
+
 export default function TransactionHistory() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
@@ -46,6 +48,7 @@ export default function TransactionHistory() {
   const [searchQuery, setSearchQuery] = useState('');
   const [startDate, setStartDate] = useState<Date | undefined>();
   const [endDate, setEndDate] = useState<Date | undefined>();
+  const [transactionType, setTransactionType] = useState<TransactionType>('all');
   const [selectedTransaction, setSelectedTransaction] = useState<Transaction | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
@@ -105,6 +108,13 @@ export default function TransactionHistory() {
   useEffect(() => {
     let filtered = [...transactions];
 
+    // Type filter
+    if (transactionType === 'sent') {
+      filtered = filtered.filter(tx => tx.sender_id === user?.id);
+    } else if (transactionType === 'received') {
+      filtered = filtered.filter(tx => tx.recipient_id === user?.id);
+    }
+
     // Search filter
     if (searchQuery) {
       const query = searchQuery.toLowerCase();
@@ -132,7 +142,7 @@ export default function TransactionHistory() {
     }
 
     setFilteredTransactions(filtered);
-  }, [searchQuery, startDate, endDate, transactions]);
+  }, [searchQuery, startDate, endDate, transactionType, transactions, user?.id]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -156,6 +166,7 @@ export default function TransactionHistory() {
     setSearchQuery('');
     setStartDate(undefined);
     setEndDate(undefined);
+    setTransactionType('all');
   };
 
   const exportToCSV = () => {
@@ -192,7 +203,7 @@ export default function TransactionHistory() {
     toast.success('Transactions exported successfully');
   };
 
-  const hasActiveFilters = searchQuery || startDate || endDate;
+  const hasActiveFilters = searchQuery || startDate || endDate || transactionType !== 'all';
 
   if (authLoading) {
     return (
@@ -228,7 +239,28 @@ export default function TransactionHistory() {
 
         {/* Filters */}
         <Card className="mb-6">
-          <CardContent className="pt-6">
+          <CardContent className="pt-6 space-y-4">
+            {/* Type Filter Tabs */}
+            <div className="flex gap-2 p-1 bg-muted rounded-lg">
+              {[
+                { value: 'all', label: 'All' },
+                { value: 'received', label: 'Received' },
+                { value: 'sent', label: 'Sent' },
+              ].map((type) => (
+                <button
+                  key={type.value}
+                  onClick={() => setTransactionType(type.value as TransactionType)}
+                  className={`flex-1 py-2 px-3 rounded-md text-sm font-medium transition-all ${
+                    transactionType === type.value
+                      ? 'bg-background shadow-sm text-foreground'
+                      : 'text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {type.label}
+                </button>
+              ))}
+            </div>
+
             <div className="grid gap-4 md:grid-cols-4">
               {/* Search */}
               <div className="md:col-span-2">
@@ -242,6 +274,14 @@ export default function TransactionHistory() {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-9"
                   />
+                  {searchQuery && (
+                    <button
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
                 </div>
               </div>
 
@@ -289,7 +329,7 @@ export default function TransactionHistory() {
             </div>
 
             {hasActiveFilters && (
-              <div className="flex items-center justify-between mt-4 pt-4 border-t border-border">
+              <div className="flex items-center justify-between pt-4 border-t border-border">
                 <p className="text-sm text-muted-foreground">
                   Showing {filteredTransactions.length} of {transactions.length} transactions
                 </p>
