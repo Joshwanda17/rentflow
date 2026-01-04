@@ -381,6 +381,40 @@ export default function TransactionHistory() {
               </div>
             </div>
 
+            {/* Quick Amount Presets */}
+            <div className="flex flex-wrap gap-2">
+              <span className="text-xs text-muted-foreground self-center mr-1">Quick:</span>
+              {[
+                { label: '< 10K', min: '', max: '10000' },
+                { label: '10K - 50K', min: '10000', max: '50000' },
+                { label: '50K - 100K', min: '50000', max: '100000' },
+                { label: '100K - 500K', min: '100000', max: '500000' },
+                { label: '> 500K', min: '500000', max: '' },
+              ].map((preset) => {
+                const isActive = minAmount === preset.min && maxAmount === preset.max;
+                return (
+                  <button
+                    key={preset.label}
+                    onClick={() => {
+                      if (isActive) {
+                        setMinAmount('');
+                        setMaxAmount('');
+                      } else {
+                        setMinAmount(preset.min);
+                        setMaxAmount(preset.max);
+                      }
+                    }}
+                    className={`px-3 py-1.5 text-xs font-medium rounded-full transition-all ${
+                      isActive
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                    }`}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
 
             {hasActiveFilters && (
               <div className="flex items-center justify-between pt-4 border-t border-border">
