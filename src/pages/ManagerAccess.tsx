@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -7,6 +7,15 @@ import { Input } from '@/components/ui/input';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Calendar } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { 
   ArrowLeft, 
   FileText, 
@@ -19,7 +28,9 @@ import {
   Search,
   X,
   User,
-  Package
+  Package,
+  Filter,
+  CalendarIcon
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -28,7 +39,8 @@ import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format } from 'date-fns';
+import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface SearchResult {
   type: 'user' | 'rent_request' | 'order' | 'loan';
@@ -37,7 +49,11 @@ interface SearchResult {
   subtitle: string;
   status?: string;
   amount?: number;
+  createdAt?: string;
 }
+
+type StatusFilter = 'all' | 'pending' | 'approved' | 'funded' | 'rejected' | 'delivered' | 'cancelled' | 'completed';
+type DatePreset = 'all' | 'today' | '7days' | '30days' | 'custom';
 
 export default function ManagerAccess() {
   const { user, role, loading } = useAuth();
@@ -46,8 +62,16 @@ export default function ManagerAccess() {
   const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'rent-requests');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
+  const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
+  
+  // Filter states
+  const [showFilters, setShowFilters] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
+  const [datePreset, setDatePreset] = useState<DatePreset>('all');
+  const [startDate, setStartDate] = useState<Date | undefined>(undefined);
+  const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (!loading && (!user || role !== 'manager')) {
@@ -69,10 +93,67 @@ export default function ManagerAccess() {
     setShowResults(false);
   };
 
+  const handleDatePresetChange = (preset: DatePreset) => {
+    setDatePreset(preset);
+    const now = new Date();
+    
+    switch (preset) {
+      case 'all':
+        setStartDate(undefined);
+        setEndDate(undefined);
+        break;
+      case 'today':
+        setStartDate(startOfDay(now));
+        setEndDate(endOfDay(now));
+        break;
+      case '7days':
+        setStartDate(startOfDay(subDays(now, 7)));
+        setEndDate(endOfDay(now));
+        break;
+      case '30days':
+        setStartDate(startOfDay(subDays(now, 30)));
+        setEndDate(endOfDay(now));
+        break;
+      case 'custom':
+        break;
+    }
+  };
+
+  const clearFilters = () => {
+    setStatusFilter('all');
+    setDatePreset('all');
+    setStartDate(undefined);
+    setEndDate(undefined);
+  };
+
+  const hasActiveFilters = statusFilter !== 'all' || datePreset !== 'all';
+
+  // Apply filters to results
+  useEffect(() => {
+    let results = [...searchResults];
+
+    // Filter by status
+    if (statusFilter !== 'all') {
+      results = results.filter(r => r.status === statusFilter);
+    }
+
+    // Filter by date range
+    if (startDate && endDate) {
+      results = results.filter(r => {
+        if (!r.createdAt) return true;
+        const itemDate = new Date(r.createdAt);
+        return isWithinInterval(itemDate, { start: startDate, end: endDate });
+      });
+    }
+
+    setFilteredResults(results);
+  }, [searchResults, statusFilter, startDate, endDate]);
+
   // Debounced search
   useEffect(() => {
     if (!searchQuery.trim()) {
       setSearchResults([]);
+      setFilteredResults([]);
       setShowResults(false);
       return;
     }
@@ -86,7 +167,7 @@ export default function ManagerAccess() {
         // Search users
         const { data: users } = await supabase
           .from('profiles')
-          .select('id, full_name, phone, email')
+          .select('id, full_name, phone, email, created_at')
           .or(`full_name.ilike.%${query}%,phone.ilike.%${query}%,email.ilike.%${query}%`)
           .limit(5);
 
@@ -96,6 +177,7 @@ export default function ManagerAccess() {
             id: u.id,
             title: u.full_name,
             subtitle: u.phone || u.email,
+            createdAt: u.created_at,
           });
         });
 
@@ -103,7 +185,8 @@ export default function ManagerAccess() {
         const { data: rentRequests } = await supabase
           .from('rent_requests')
           .select('id, rent_amount, status, tenant_id, created_at')
-          .limit(20);
+          .order('created_at', { ascending: false })
+          .limit(50);
 
         if (rentRequests?.length) {
           const tenantIds = [...new Set(rentRequests.map(r => r.tenant_id))];
@@ -122,6 +205,7 @@ export default function ManagerAccess() {
                 subtitle: format(new Date(r.created_at), 'MMM d, yyyy'),
                 status: r.status || 'pending',
                 amount: r.rent_amount,
+                createdAt: r.created_at,
               });
             }
           });
@@ -131,7 +215,8 @@ export default function ManagerAccess() {
         const { data: orders } = await supabase
           .from('product_orders')
           .select('id, total_price, status, product_id, buyer_id, created_at')
-          .limit(20);
+          .order('created_at', { ascending: false })
+          .limit(50);
 
         if (orders?.length) {
           const productIds = [...new Set(orders.map(o => o.product_id))];
@@ -153,6 +238,7 @@ export default function ManagerAccess() {
                 subtitle: buyer?.full_name || 'Unknown Buyer',
                 status: o.status,
                 amount: o.total_price,
+                createdAt: o.created_at,
               });
             }
           });
@@ -162,7 +248,8 @@ export default function ManagerAccess() {
         const { data: loans } = await supabase
           .from('loan_applications')
           .select('id, amount, status, applicant_id, created_at')
-          .limit(20);
+          .order('created_at', { ascending: false })
+          .limit(50);
 
         if (loans?.length) {
           const applicantIds = [...new Set(loans.map(l => l.applicant_id))];
@@ -181,12 +268,13 @@ export default function ManagerAccess() {
                 subtitle: format(new Date(l.created_at), 'MMM d, yyyy'),
                 status: l.status,
                 amount: l.amount,
+                createdAt: l.created_at,
               });
             }
           });
         }
 
-        setSearchResults(results.slice(0, 10));
+        setSearchResults(results);
         setShowResults(true);
       } catch (error) {
         console.error('Search error:', error);
@@ -272,42 +360,196 @@ export default function ManagerAccess() {
       </header>
 
       <main className="px-4 py-4 space-y-4">
-        {/* Global Search */}
-        <div className="relative">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search users, requests, orders, loans..."
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-10 pr-10"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
-                onClick={() => {
-                  setSearchQuery('');
-                  setShowResults(false);
-                }}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
+        {/* Global Search with Filters */}
+        <div className="space-y-2">
+          <div className="flex gap-2">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Search users, requests, orders, loans..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10 pr-10"
+              />
+              {searchQuery && (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7"
+                  onClick={() => {
+                    setSearchQuery('');
+                    setShowResults(false);
+                  }}
+                >
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+            </div>
+            <Button
+              variant={showFilters ? 'default' : 'outline'}
+              size="icon"
+              onClick={() => setShowFilters(!showFilters)}
+              className={cn(hasActiveFilters && !showFilters && 'border-primary text-primary')}
+            >
+              <Filter className="h-4 w-4" />
+              {hasActiveFilters && !showFilters && (
+                <span className="absolute -top-1 -right-1 h-3 w-3 rounded-full bg-primary" />
+              )}
+            </Button>
           </div>
+
+          {/* Filter Controls */}
+          {showFilters && (
+            <Card className="animate-fade-in">
+              <CardContent className="p-3 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-medium">Filters</span>
+                  {hasActiveFilters && (
+                    <Button variant="ghost" size="sm" onClick={clearFilters} className="h-7 text-xs">
+                      Clear all
+                    </Button>
+                  )}
+                </div>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Status Filter */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Status</label>
+                    <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All statuses" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All statuses</SelectItem>
+                        <SelectItem value="pending">Pending</SelectItem>
+                        <SelectItem value="approved">Approved</SelectItem>
+                        <SelectItem value="funded">Funded</SelectItem>
+                        <SelectItem value="delivered">Delivered</SelectItem>
+                        <SelectItem value="completed">Completed</SelectItem>
+                        <SelectItem value="rejected">Rejected</SelectItem>
+                        <SelectItem value="cancelled">Cancelled</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {/* Date Preset */}
+                  <div className="space-y-1">
+                    <label className="text-xs text-muted-foreground">Date Range</label>
+                    <Select value={datePreset} onValueChange={(v) => handleDatePresetChange(v as DatePreset)}>
+                      <SelectTrigger className="h-9">
+                        <SelectValue placeholder="All time" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="all">All time</SelectItem>
+                        <SelectItem value="today">Today</SelectItem>
+                        <SelectItem value="7days">Last 7 days</SelectItem>
+                        <SelectItem value="30days">Last 30 days</SelectItem>
+                        <SelectItem value="custom">Custom range</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                </div>
+
+                {/* Custom Date Range */}
+                {datePreset === 'custom' && (
+                  <div className="flex items-center gap-2">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "flex-1 h-9 justify-start text-left font-normal",
+                            !startDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {startDate ? format(startDate, "MMM d, yyyy") : "Start date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="start">
+                        <Calendar
+                          mode="single"
+                          selected={startDate}
+                          onSelect={(date) => setStartDate(date ? startOfDay(date) : undefined)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                    
+                    <span className="text-muted-foreground text-sm">to</span>
+                    
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={cn(
+                            "flex-1 h-9 justify-start text-left font-normal",
+                            !endDate && "text-muted-foreground"
+                          )}
+                        >
+                          <CalendarIcon className="h-4 w-4 mr-2" />
+                          {endDate ? format(endDate, "MMM d, yyyy") : "End date"}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <Calendar
+                          mode="single"
+                          selected={endDate}
+                          onSelect={(date) => setEndDate(date ? endOfDay(date) : undefined)}
+                          initialFocus
+                        />
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                )}
+
+                {/* Active Filters Summary */}
+                {hasActiveFilters && (
+                  <div className="flex flex-wrap gap-1.5 pt-1">
+                    {statusFilter !== 'all' && (
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        Status: {statusFilter}
+                        <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-foreground">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                    {datePreset !== 'all' && (
+                      <Badge variant="secondary" className="gap-1 text-xs">
+                        {datePreset === 'custom' && startDate && endDate 
+                          ? `${format(startDate, 'MMM d')} - ${format(endDate, 'MMM d')}`
+                          : datePreset === 'today' ? 'Today'
+                          : datePreset === '7days' ? 'Last 7 days'
+                          : 'Last 30 days'
+                        }
+                        <button onClick={() => handleDatePresetChange('all')} className="ml-1 hover:text-foreground">
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
 
           {/* Search Results Dropdown */}
           {showResults && (
-            <Card className="absolute top-full left-0 right-0 mt-1 z-50 shadow-lg max-h-80 overflow-auto">
+            <Card className="absolute left-4 right-4 z-50 shadow-lg max-h-80 overflow-auto">
               <CardContent className="p-2">
                 {isSearching ? (
                   <div className="flex items-center justify-center py-4">
                     <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
                   </div>
-                ) : searchResults.length > 0 ? (
+                ) : filteredResults.length > 0 ? (
                   <div className="space-y-1">
-                    {searchResults.map((result) => (
+                    <div className="px-2 py-1 text-xs text-muted-foreground">
+                      {filteredResults.length} result{filteredResults.length !== 1 ? 's' : ''}
+                      {hasActiveFilters && ' (filtered)'}
+                    </div>
+                    {filteredResults.slice(0, 10).map((result) => (
                       <button
                         key={`${result.type}-${result.id}`}
                         onClick={() => handleResultClick(result)}
@@ -335,7 +577,7 @@ export default function ManagerAccess() {
                   </div>
                 ) : (
                   <p className="text-center text-sm text-muted-foreground py-4">
-                    No results found for "{searchQuery}"
+                    No results found{hasActiveFilters ? ' with current filters' : ` for "${searchQuery}"`}
                   </p>
                 )}
               </CardContent>
