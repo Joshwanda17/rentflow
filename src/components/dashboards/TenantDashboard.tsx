@@ -23,7 +23,6 @@ import {
   Banknote,
   LogOut,
   Users,
-  Wallet,
   Calendar
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
@@ -33,7 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
-import { WalletCard } from '@/components/wallet/WalletCard';
+import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -212,13 +211,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {addRoleComponent}
         </button>
 
-        {/* Wallet Card - Already Clickable */}
-        <WalletCard />
+        {/* PRIORITY 1: Receipt Submission Prompt */}
+        <DashboardReceiptPrompt userId={user.id} />
 
-        {/* PRIORITY 1: Food Receipt Promo - Save 70% on Rent */}
-        <FoodReceiptPromoCard userId={user.id} />
-
-        {/* PRIORITY 2 & 3: Food Shopping Loans */}
+        {/* Food Shopping Loans */}
         <FoodShoppingLoansSection />
 
         {/* Calculator Section - Only show when triggered */}
