@@ -43,6 +43,7 @@ import { NotificationBell } from '@/components/NotificationBell';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
+import { FloatingActionButton } from '@/components/FloatingActionButton';
 
 interface ManagerDashboardProps {
   user: User;
@@ -332,6 +333,37 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       </main>
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      
+      {/* Floating Action Button */}
+      <FloatingActionButton 
+        actions={[
+          {
+            icon: FileText,
+            label: 'Rent Requests',
+            onClick: () => navigate('/manager-access?tab=rent-requests'),
+          },
+          {
+            icon: Banknote,
+            label: 'Loan Applications',
+            onClick: () => navigate('/manager-access?tab=loans'),
+          },
+          {
+            icon: ShoppingCart,
+            label: 'Orders',
+            onClick: () => navigate('/manager-access?tab=orders'),
+          },
+          {
+            icon: Users,
+            label: 'Users',
+            onClick: () => navigate('/manager-access?tab=users'),
+          },
+          {
+            icon: Receipt,
+            label: 'Receipts',
+            onClick: () => navigate('/manager-access?tab=receipts'),
+          },
+        ]}
+      />
     </div>
   );
 }
