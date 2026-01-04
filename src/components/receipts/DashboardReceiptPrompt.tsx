@@ -241,49 +241,62 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
         </div>
 
         {/* Receipt Form */}
-        <form onSubmit={handleSubmitReceipt} className="space-y-3">
-          <div className="text-center">
-            <span className="text-xs text-muted-foreground">Enter your receipt details below</span>
-          </div>
-          
-          <div className="space-y-2">
-            <div className="space-y-1">
-              <Label htmlFor="dashboard-receipt-code" className="text-xs">Receipt Number</Label>
+        <form onSubmit={handleSubmitReceipt} className="space-y-4">
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="dashboard-receipt-code" className="text-sm font-medium">Receipt Number</Label>
               <Input
                 id="dashboard-receipt-code"
                 placeholder="WL-001234"
                 value={receiptCode}
                 onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
                 required
-                className="font-mono uppercase h-9 text-sm"
+                className="font-mono uppercase h-11 text-base"
               />
             </div>
             
-            <div className="grid grid-cols-2 gap-2">
-              <div className="space-y-1">
-                <Label htmlFor="dashboard-amount" className="text-xs">Amount (UGX)</Label>
-                <Input
-                  id="dashboard-amount"
-                  type="number"
-                  placeholder="50000"
-                  value={claimedAmount}
-                  onChange={(e) => setClaimedAmount(e.target.value)}
-                  required
-                  min="1000"
-                  className="h-9 text-sm"
-                />
+            <div className="space-y-1.5">
+              <Label htmlFor="dashboard-amount" className="text-sm font-medium">Amount (UGX)</Label>
+              <Input
+                id="dashboard-amount"
+                type="number"
+                placeholder="50000"
+                value={claimedAmount}
+                onChange={(e) => setClaimedAmount(e.target.value)}
+                required
+                min="1000"
+                className="h-11 text-base"
+              />
+            </div>
+            
+            <div className="space-y-1.5">
+              <Label htmlFor="dashboard-items" className="text-sm font-medium">Items Bought</Label>
+              <div className="flex flex-wrap gap-1.5 mb-2">
+                {["Groceries", "Vegetables", "Meat", "Bread", "Rice", "Milk", "Fruits", "Cooking Oil"].map((item) => (
+                  <Button
+                    key={item}
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="h-7 text-xs px-2.5 rounded-full"
+                    onClick={() => {
+                      const current = itemsDescription.trim();
+                      if (current.toLowerCase().includes(item.toLowerCase())) return;
+                      setItemsDescription(current ? `${current}, ${item}` : item);
+                    }}
+                  >
+                    {item}
+                  </Button>
+                ))}
               </div>
-              <div className="space-y-1">
-                <Label htmlFor="dashboard-items" className="text-xs">Items Bought</Label>
-                <Input
-                  id="dashboard-items"
-                  placeholder="Groceries, food..."
-                  value={itemsDescription}
-                  onChange={(e) => setItemsDescription(e.target.value)}
-                  required
-                  className="h-9 text-sm"
-                />
-              </div>
+              <Input
+                id="dashboard-items"
+                placeholder="Tap items above or type: rice, beans, sugar..."
+                value={itemsDescription}
+                onChange={(e) => setItemsDescription(e.target.value)}
+                required
+                className="h-11 text-base"
+              />
             </div>
           </div>
           
