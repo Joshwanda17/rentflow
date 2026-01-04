@@ -68,6 +68,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
   const [showBenefits, setShowBenefits] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
+  const [activeCategory, setActiveCategory] = useState<string | null>(null);
 
   // Stop pulse animation after a few seconds
   useEffect(() => {
@@ -269,29 +270,60 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
               />
             </div>
             
-            <div className="space-y-1.5">
+            <div className="space-y-2">
               <Label htmlFor="dashboard-items" className="text-sm font-medium">Items Bought</Label>
-              <div className="flex flex-wrap gap-1.5 mb-2">
-                {["Groceries", "Vegetables", "Meat", "Bread", "Rice", "Milk", "Fruits", "Cooking Oil", "Drinks", "Snacks", "Toiletries", "Cleaning"].map((item) => (
-                  <Button
-                    key={item}
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    className="h-7 text-xs px-2.5 rounded-full"
-                    onClick={() => {
-                      const current = itemsDescription.trim();
-                      if (current.toLowerCase().includes(item.toLowerCase())) return;
-                      setItemsDescription(current ? `${current}, ${item}` : item);
-                    }}
-                  >
-                    {item}
-                  </Button>
-                ))}
+              
+              {/* Category Tabs */}
+              <div className="space-y-2">
+                <div className="flex gap-1.5">
+                  {[
+                    { id: 'food', label: '🍚 Food', items: ["Rice", "Bread", "Meat", "Vegetables", "Fruits", "Eggs", "Fish", "Beans"] },
+                    { id: 'beverages', label: '🥤 Beverages', items: ["Milk", "Drinks", "Water", "Juice", "Soda", "Tea", "Coffee"] },
+                    { id: 'household', label: '🏠 Household', items: ["Cooking Oil", "Toiletries", "Cleaning", "Soap", "Detergent", "Tissue"] },
+                  ].map((category) => (
+                    <Button
+                      key={category.id}
+                      type="button"
+                      variant={activeCategory === category.id ? "default" : "outline"}
+                      size="sm"
+                      className="h-7 text-xs px-2.5 flex-1"
+                      onClick={() => setActiveCategory(activeCategory === category.id ? null : category.id)}
+                    >
+                      {category.label}
+                    </Button>
+                  ))}
+                </div>
+                
+                {/* Category Items */}
+                {activeCategory && (
+                  <div className="flex flex-wrap gap-1.5 p-2 rounded-lg bg-muted/50 border border-border animate-fade-in">
+                    {(
+                      activeCategory === 'food' ? ["Rice", "Bread", "Meat", "Vegetables", "Fruits", "Eggs", "Fish", "Beans"] :
+                      activeCategory === 'beverages' ? ["Milk", "Drinks", "Water", "Juice", "Soda", "Tea", "Coffee"] :
+                      ["Cooking Oil", "Toiletries", "Cleaning", "Soap", "Detergent", "Tissue"]
+                    ).map((item) => (
+                      <Button
+                        key={item}
+                        type="button"
+                        variant="secondary"
+                        size="sm"
+                        className="h-6 text-xs px-2 rounded-full"
+                        onClick={() => {
+                          const current = itemsDescription.trim();
+                          if (current.toLowerCase().includes(item.toLowerCase())) return;
+                          setItemsDescription(current ? `${current}, ${item}` : item);
+                        }}
+                      >
+                        {item}
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
+              
               <Input
                 id="dashboard-items"
-                placeholder="Tap items above or type: rice, beans, sugar..."
+                placeholder="Tap categories above or type: rice, beans, sugar..."
                 value={itemsDescription}
                 onChange={(e) => setItemsDescription(e.target.value)}
                 required
