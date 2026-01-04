@@ -26,7 +26,7 @@ import {
   X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { hapticSelection, hapticTap } from '@/lib/haptics';
+import { hapticSelection, hapticTap, hapticSuccess } from '@/lib/haptics';
 import { useConfetti } from '@/components/Confetti';
 import { formatDistanceToNow } from 'date-fns';
 import {
@@ -174,7 +174,7 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
       });
     } else {
       fireSuccess();
-      
+      hapticSuccess();
       toast({
         title: '🎉 Receipt Submitted!',
         description: 'Your loan limit will increase by 20% of the amount after verification.'
