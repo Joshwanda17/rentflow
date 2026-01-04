@@ -22,7 +22,8 @@ import {
   Clock,
   CheckCircle,
   Info,
-  ChevronDown
+  ChevronDown,
+  X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
@@ -321,27 +322,77 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
                 )}
               </div>
               
-              <div className="flex gap-2">
-                <Input
-                  id="dashboard-items"
-                  placeholder="Tap categories above or type: rice, beans, sugar..."
-                  value={itemsDescription}
-                  onChange={(e) => setItemsDescription(e.target.value)}
-                  required
-                  className="h-11 text-base flex-1"
-                />
-                {itemsDescription && (
+              {/* Selected Items as Chips */}
+              {itemsDescription && (
+                <div className="flex flex-wrap gap-1.5">
+                  {itemsDescription.split(',').map((item, index) => {
+                    const trimmedItem = item.trim();
+                    if (!trimmedItem) return null;
+                    return (
+                      <Badge 
+                        key={index} 
+                        variant="secondary" 
+                        className="h-6 pl-2 pr-1 gap-1 text-xs"
+                      >
+                        {trimmedItem}
+                        <button
+                          type="button"
+                          className="ml-0.5 rounded-full hover:bg-muted p-0.5"
+                          onClick={() => {
+                            const items = itemsDescription.split(',').map(i => i.trim()).filter(Boolean);
+                            items.splice(index, 1);
+                            setItemsDescription(items.join(', '));
+                          }}
+                        >
+                          <X className="h-3 w-3" />
+                        </button>
+                      </Badge>
+                    );
+                  })}
                   <Button
                     type="button"
                     variant="ghost"
                     size="sm"
-                    className="h-11 px-3 text-xs text-muted-foreground hover:text-destructive"
+                    className="h-6 px-2 text-[10px] text-muted-foreground hover:text-destructive"
                     onClick={() => setItemsDescription('')}
                   >
-                    Clear
+                    Clear all
                   </Button>
-                )}
-              </div>
+                </div>
+              )}
+
+              <Input
+                id="dashboard-items"
+                placeholder={itemsDescription ? "Add more items..." : "Tap categories above or type: rice, beans, sugar..."}
+                value=""
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  if (newValue.includes(',')) {
+                    const parts = newValue.split(',').map(p => p.trim()).filter(Boolean);
+                    const current = itemsDescription.trim();
+                    const newItems = parts.filter(p => !current.toLowerCase().includes(p.toLowerCase()));
+                    if (newItems.length > 0) {
+                      setItemsDescription(current ? `${current}, ${newItems.join(', ')}` : newItems.join(', '));
+                    }
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const input = e.currentTarget;
+                    const value = input.value.trim();
+                    if (value) {
+                      const current = itemsDescription.trim();
+                      if (!current.toLowerCase().includes(value.toLowerCase())) {
+                        setItemsDescription(current ? `${current}, ${value}` : value);
+                      }
+                      input.value = '';
+                    }
+                  }
+                }}
+                className="h-11 text-base"
+              />
+              <input type="hidden" name="items_description" value={itemsDescription} required />
             </div>
           </div>
           
