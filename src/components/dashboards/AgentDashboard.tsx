@@ -5,15 +5,35 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Users, Coins, Link2, Copy, Check, Settings, ArrowDownCircle, ArrowUpCircle, TrendingUp, Sparkles, Zap, Store, BarChart3, History, Package, Receipt, Banknote, Share2 } from 'lucide-react';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
-import { formatUGX, AGENT_APPROVAL_BONUS } from '@/lib/rentCalculations';
-import { useToast } from '@/hooks/use-toast';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import { 
+  MoreVertical, 
+  Users, 
+  Coins, 
+  ArrowDownCircle, 
+  ArrowUpCircle, 
+  Store, 
+  Banknote, 
+  Receipt, 
+  Share2, 
+  Settings, 
+  LogOut, 
+  History,
+  TrendingUp,
+  ArrowRight,
+  Sparkles,
+  Package
+} from 'lucide-react';
+import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import AppBreadcrumb from '@/components/AppBreadcrumb';
-import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
@@ -24,18 +44,9 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { AgentProductsSection } from '@/components/marketplace/AgentProductsSection';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { AgentLoanProducts } from '@/components/loans/AgentLoanProducts';
-import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
-import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
-import { QuickActions } from '@/components/QuickActions';
-import { StatusIndicator } from '@/components/StatusIndicator';
-import { SwipeableRow } from '@/components/SwipeableRow';
-import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { ReferralStatsCard } from '@/components/ReferralStatsCard';
-import { PendingDepositsSection } from '@/components/agent/PendingDepositsSection';
+import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
+import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 
 interface AgentDashboardProps {
   user: User;
@@ -46,27 +57,15 @@ interface AgentDashboardProps {
   addRoleComponent: ReactNode;
 }
 
-interface RentRequest {
-  id: string;
-  rent_amount: number;
-  status: string;
-  created_at: string;
-}
-
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { totalEarnings, commissionTotal, bonusTotal } = useAgentEarnings();
-  const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [referralCount, setReferralCount] = useState(0);
-  const [referralEarnings, setReferralEarnings] = useState(0);
+  const [tenantsCount, setTenantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [copied, setCopied] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
-  const { toast } = useToast();
-
-  const referralLink = `${window.location.origin}/auth?ref=${user.id}`;
 
   useEffect(() => {
     fetchData();
@@ -78,46 +77,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     const [requestsRes, referralsRes] = await Promise.all([
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, status, created_at')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false }),
+        .select('id')
+        .eq('agent_id', user.id),
       supabase
         .from('referrals')
-        .select('id, bonus_amount, credited')
+        .select('id')
         .eq('referrer_id', user.id)
     ]);
     
-    setRentRequests(requestsRes.data || []);
-    
-    const referrals = referralsRes.data || [];
-    setReferralCount(referrals.length);
-    setReferralEarnings(referrals.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0));
-    
+    setTenantsCount(requestsRes.data?.length || 0);
+    setReferralCount(referralsRes.data?.length || 0);
     setLoading(false);
-  };
-
-  const copyReferralLink = () => {
-    navigator.clipboard.writeText(referralLink);
-    setCopied(true);
-    toast({
-      title: 'Link Copied!',
-      description: 'Share this link with potential tenants'
-    });
-    setTimeout(() => setCopied(false), 2000);
-  };
-
-  const approvedCount = rentRequests.filter(r => r.status !== 'pending' && r.status !== 'rejected').length;
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'pending': return 'warning';
-      case 'approved': return 'default';
-      case 'funded': return 'success';
-      case 'disbursed': return 'success';
-      case 'completed': return 'secondary';
-      case 'rejected': return 'destructive';
-      default: return 'secondary';
-    }
   };
 
   if (loading) {
@@ -130,18 +100,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
-        <div className="container mx-auto px-4 py-3">
+      {/* Simplified Header */}
+      <header className="sticky top-0 z-50 wa-header shadow-sm">
+        <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
-              </div>
-              <div className="hidden sm:block">
-                <WelileLogo showText={false} />
-              </div>
+              <h1 className="text-2xl text-white drop-shadow-lg" style={{ fontFamily: "'Chewy', cursive" }}>
+                Welile
+              </h1>
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 
@@ -149,369 +115,179 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               />
             </div>
             
-            <div className="hidden md:flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <NotificationBell />
               <ThemeToggle />
-              {addRoleComponent}
-              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="md:hidden flex items-center gap-1">
-              <NotificationBell />
-              <ThemeToggle />
+              
+              {/* Menu Button */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg z-50">
+                  <DropdownMenuItem onClick={() => setDepositOpen(true)} className="gap-3 cursor-pointer">
+                    <ArrowDownCircle className="h-4 w-4" />
+                    Deposit for User
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setWithdrawalOpen(true)} className="gap-3 cursor-pointer">
+                    <ArrowUpCircle className="h-4 w-4" />
+                    Withdraw for User
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="gap-3 cursor-pointer">
+                    <Receipt className="h-4 w-4" />
+                    My Receipts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="gap-3 cursor-pointer">
+                    <Banknote className="h-4 w-4" />
+                    My Loans
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/marketplace')} className="gap-3 cursor-pointer">
+                    <Store className="h-4 w-4" />
+                    My Shop
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/earnings')} className="gap-3 cursor-pointer">
+                    <TrendingUp className="h-4 w-4" />
+                    Earnings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/transactions')} className="gap-3 cursor-pointer">
+                    <History className="h-4 w-4" />
+                    Transactions
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/referrals')} className="gap-3 cursor-pointer">
+                    <Users className="h-4 w-4" />
+                    Referrals
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/benefits')} className="gap-3 cursor-pointer">
+                    <Share2 className="h-4 w-4" />
+                    Share & Earn
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-3 cursor-pointer">
+                    <Settings className="h-4 w-4" />
+                    Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => signOut()} className="gap-3 cursor-pointer text-destructive">
+                    <LogOut className="h-4 w-4" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
-        <AppBreadcrumb />
-        
-        {/* Welcome Section */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Manage your customers and track your earnings
+      <main className="px-4 py-4 space-y-4 animate-fade-in">
+        {/* User Profile Card - Clickable */}
+        <button 
+          onClick={() => navigate('/settings')}
+          className="w-full wa-list-item rounded-xl border border-border/50 shadow-sm hover:bg-muted/50 active:scale-[0.99] transition-all"
+        >
+          <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+          <div className="flex-1 min-w-0 text-left">
+            <h2 className="font-semibold text-base truncate">
+              {profile?.full_name || 'Agent'}
+            </h2>
+            <p className="text-sm text-muted-foreground truncate">
+              Tap to view profile
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-          </div>
-        </div>
+          {addRoleComponent}
+        </button>
 
-        {/* Quick Actions - Large icon buttons */}
-        <QuickActions
-          actions={[
-            {
-              icon: ArrowDownCircle,
-              label: 'Deposit',
-              onClick: () => setDepositOpen(true),
-              color: 'success',
-            },
-            {
-              icon: ArrowUpCircle,
-              label: 'Withdraw',
-              onClick: () => setWithdrawalOpen(true),
-              color: 'warning',
-            },
-            {
-              icon: Share2,
-              label: 'Share',
-              onClick: () => navigate('/benefits'),
-              color: 'primary',
-            },
-            {
-              icon: Receipt,
-              label: 'Receipts',
-              onClick: () => navigate('/my-receipts'),
-              color: 'primary',
-            },
-          ]}
-        />
-
-        {/* Wallet */}
+        {/* Wallet Card */}
         <WalletCard />
 
-        {/* Referral Stats */}
-        <ReferralStatsCard userId={user.id} />
-
-        {/* Loan Limit Promo */}
-        <LoanLimitPromoCard userId={user.id} />
-
-        {/* Quick Receipt Form */}
-        <QuickReceiptForm userId={user.id} />
-
-        {/* Tabs for Dashboard and Marketplace */}
-        <Tabs defaultValue="dashboard" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="dashboard" className="gap-2">
-              <Users className="h-4 w-4" />
-              Dashboard
-            </TabsTrigger>
-            <TabsTrigger value="loans" className="gap-2">
-              <Banknote className="h-4 w-4" />
-              Loans
-            </TabsTrigger>
-            <TabsTrigger value="marketplace" className="gap-2">
-              <Store className="h-4 w-4" />
-              My Shop
-            </TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="dashboard" className="space-y-6">
-            {/* Pending Deposits for Agent Approval */}
-            <PendingDepositsSection />
-            {/* Referral Link */}
-            <Card className="elevated-card border-primary/20 overflow-hidden">
-              <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
-              <CardHeader className="relative">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <Link2 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <CardTitle className="text-lg font-semibold">Your Referral Link</CardTitle>
-                      <p className="text-sm text-muted-foreground mt-0.5">
-                        Earn UGX 100 per new member signup
-                      </p>
-                    </div>
+        {/* Earnings Card - Clickable */}
+        <button 
+          onClick={() => navigate('/earnings')}
+          className="w-full text-left block"
+        >
+          <Card className="border-2 border-success/30 bg-gradient-to-br from-success/5 via-background to-warning/5 hover:shadow-lg active:scale-[0.99] transition-all cursor-pointer">
+            <CardContent className="p-5">
+              <div className="flex items-start justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-success/20 ring-2 ring-success/30">
+                    <Coins className="h-6 w-6 text-success" />
                   </div>
-                  <div className="text-right hidden sm:block">
-                    <p className="text-xs text-muted-foreground">Members Referred</p>
-                    <p className="text-xl font-bold text-success">{referralCount}</p>
+                  <div>
+                    <h3 className="font-bold text-lg">Your Earnings</h3>
+                    <p className="text-sm text-muted-foreground">Tap to view details</p>
                   </div>
                 </div>
-              </CardHeader>
-              <CardContent className="relative space-y-4">
-                <div className="flex gap-2">
-                  <code className="flex-1 p-3 bg-secondary/50 rounded-xl text-sm truncate font-mono border border-border/50">
-                    {referralLink}
-                  </code>
-                  <Button 
-                    onClick={copyReferralLink} 
-                    variant={copied ? "success" : "outline"}
-                    size="lg"
-                    className="shrink-0 gap-2"
-                  >
-                    {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
-                    {copied ? 'Copied!' : 'Copy'}
-                  </Button>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+
+              <div className="grid grid-cols-3 gap-3">
+                <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
+                  <p className="text-xl font-bold text-success">{formatUGX(totalEarnings)}</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
                 </div>
-                {referralCount > 0 && (
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-success/10 border border-success/20">
+                <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-center">
+                  <p className="text-lg font-bold">{tenantsCount}</p>
+                  <p className="text-xs text-muted-foreground">Tenants</p>
+                </div>
+                <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-center">
+                  <p className="text-lg font-bold">{referralCount}</p>
+                  <p className="text-xs text-muted-foreground">Referrals</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+
+        {/* My Shop Card - Clickable */}
+        <button 
+          onClick={() => navigate('/marketplace')}
+          className="w-full text-left block"
+        >
+          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-success/5 hover:shadow-lg active:scale-[0.99] transition-all cursor-pointer">
+            <CardContent className="p-5">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-primary/20 ring-2 ring-primary/30">
+                    <Store className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
                     <div className="flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-success" />
-                      <span className="text-sm font-medium">Referral Earnings</span>
+                      <h3 className="font-bold text-lg">My Shop</h3>
+                      <Badge className="bg-primary/20 text-primary border-primary/30 gap-1">
+                        <Package className="h-3 w-3" />
+                        Manage
+                      </Badge>
                     </div>
-                    <span className="font-bold text-success">{formatUGX(referralEarnings)}</span>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-
-            {/* Stats */}
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
-                      <Users className="h-5 w-5 text-primary" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground font-medium">Tenants Registered</p>
-                      <p className="metric-value text-2xl">{rentRequests.length}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-                <CardContent className="pt-6">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
-                      <Check className="h-5 w-5 text-success" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground font-medium">Approved Requests</p>
-                      <p className="metric-value text-2xl">{approvedCount}</p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
-                <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
-                <CardContent className="pt-6 relative">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
-                      <Coins className="h-5 w-5 text-warning" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm text-muted-foreground font-medium">Total Earnings</p>
-                      <p className="metric-value text-2xl text-success truncate">
-                        {formatUGX(totalEarnings)}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Earnings Breakdown */}
-            <Card className="elevated-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-success/10">
-                    <Zap className="h-4 w-4 text-success" />
-                  </div>
-                  <CardTitle className="text-lg font-semibold">Earnings Breakdown</CardTitle>
-                </div>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => navigate('/earnings')}
-                  className="gap-2"
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  View All
-                </Button>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-5 rounded-xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-primary" />
-                      <p className="text-sm text-muted-foreground font-medium">Approval Bonuses</p>
-                    </div>
-                    <p className="metric-value text-xl">{formatUGX(bonusTotal)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">{approvedCount} × UGX 5,000</p>
-                  </div>
-                  <div className="p-5 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-                    <div className="flex items-center gap-2 mb-2">
-                      <div className="w-2 h-2 rounded-full bg-success" />
-                      <p className="text-sm text-muted-foreground font-medium">Repayment Commissions</p>
-                    </div>
-                    <p className="metric-value text-xl text-success">{formatUGX(commissionTotal)}</p>
-                    <p className="text-xs text-muted-foreground mt-1">5% of tenant repayments</p>
+                    <p className="text-sm text-muted-foreground">Tap to manage products & orders</p>
                   </div>
                 </div>
-              </CardContent>
-            </Card>
+                <ArrowRight className="h-5 w-5 text-muted-foreground" />
+              </div>
+            </CardContent>
+          </Card>
+        </button>
 
-            {/* Registered Tenants */}
-            <Card className="elevated-card">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-lg bg-primary/10">
-                    <Users className="h-4 w-4 text-primary" />
-                  </div>
-                  <CardTitle className="text-lg font-semibold">Registered Tenants</CardTitle>
-                </div>
-                <Badge variant="outline" className="font-mono">
-                  {rentRequests.length} total
-                </Badge>
-              </CardHeader>
-              <CardContent>
-                {loading ? (
-                  <div className="flex items-center justify-center py-8">
-                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  </div>
-                ) : rentRequests.length === 0 ? (
-                  <div className="text-center py-8">
-                    <Users className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                    <p className="text-muted-foreground">No tenants registered yet.</p>
-                    <p className="text-sm text-muted-foreground/70">Share your referral link to get started.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {rentRequests.map((request, index) => (
-                      <SwipeableRow
-                        key={request.id}
-                        rightActions={[
-                          {
-                            icon: Eye,
-                            label: 'View',
-                            onClick: () => navigate('/transactions'),
-                            color: 'primary',
-                          },
-                        ]}
-                      >
-                        <div 
-                          className="group flex items-center justify-between p-4 bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
-                          style={{ animationDelay: `${index * 50}ms` }}
-                        >
-                          <div className="flex items-center gap-3">
-                            <StatusIndicator status={request.status} size="md" />
-                            <div>
-                              <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                              <p className="text-xs text-muted-foreground">
-                                {new Date(request.created_at).toLocaleDateString()}
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-                      </SwipeableRow>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+        {/* Food Receipt Promo */}
+        <FoodReceiptPromoCard userId={user.id} />
 
-          <TabsContent value="loans" className="space-y-6">
-            <AgentLoanProducts />
-          </TabsContent>
-
-          <TabsContent value="marketplace" className="space-y-4">
-            {/* Analytics Link */}
-            <Card className="border-primary/20 bg-gradient-to-r from-primary/5 to-transparent">
-              <CardContent className="py-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="p-2 rounded-lg bg-primary/10">
-                      <BarChart3 className="h-5 w-5 text-primary" />
-                    </div>
-                    <div>
-                      <p className="font-medium">Sales Analytics</p>
-                      <p className="text-sm text-muted-foreground">Track your product performance</p>
-                    </div>
-                  </div>
-                  <Button variant="outline" onClick={() => navigate('/analytics')} className="gap-2">
-                    <TrendingUp className="h-4 w-4" />
-                    View Analytics
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-            
-            <AgentProductsSection />
-          </TabsContent>
-        </Tabs>
+        {/* Food Shopping Loans */}
+        <FoodShoppingLoansSection />
       </main>
       
-      <FloatingActionButton
-        actions={[
-          {
-            icon: ArrowDownCircle,
-            label: 'Customer Deposit',
-            onClick: () => setDepositOpen(true),
-          },
-          {
-            icon: ArrowUpCircle,
-            label: 'Customer Withdrawal',
-            onClick: () => setWithdrawalOpen(true),
-          },
-          {
-            icon: Receipt,
-            label: 'My Receipts',
-            onClick: () => navigate('/my-receipts'),
-          },
-          {
-            icon: History,
-            label: 'View Earnings',
-            onClick: () => navigate('/earnings'),
-          },
-          {
-            icon: Package,
-            label: 'Add Product',
-            onClick: () => {}, // This will be handled by the marketplace tab
-          },
-        ]}
-      />
-      
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      {/* FAB for quick deposit */}
+      <button 
+        onClick={() => setDepositOpen(true)}
+        className="wa-fab"
+      >
+        <ArrowDownCircle className="h-6 w-6" />
+      </button>
       
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
+      
+      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );
 }
