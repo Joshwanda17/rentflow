@@ -10,6 +10,12 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -933,122 +939,132 @@ Trust me, you'll thank me later! 🙏`;
         </motion.div>
 
         {/* Opportunities by Category - Enhanced with Visual Headers */}
-        {filteredServices.map((section, sectionIndex) => {
-          const visual = categoryVisuals[section.category] || {
-            icon: Star,
-            gradient: "from-gray-500 to-gray-600",
-            bgPattern: "bg-gradient-to-br from-gray-500/10 to-gray-600/10"
-          };
-          const CategoryIcon = visual.icon;
-          
-          // Calculate the starting number for this section
-          const startingNumber = filteredServices
-            .slice(0, sectionIndex)
-            .reduce((acc, s) => acc + s.items.length, 0);
-          
-          return (
-            <motion.div
-              key={section.category}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 + sectionIndex * 0.1 }}
-              className="mb-8"
-            >
-              {/* Enhanced Category Header */}
-              <div className={`relative overflow-hidden rounded-2xl ${visual.bgPattern} p-4 mb-4 border border-border/30`}>
-                {/* Decorative background elements */}
-                <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
-                  <CategoryIcon className="w-full h-full" />
-                </div>
-                <motion.div 
-                  className="absolute -bottom-4 -left-4 w-24 h-24 opacity-5"
-                  animate={{ rotate: 360 }}
-                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
+        <Accordion type="single" collapsible defaultValue={filteredServices[0]?.category} className="space-y-4">
+          {filteredServices.map((section, sectionIndex) => {
+            const visual = categoryVisuals[section.category] || {
+              icon: Star,
+              gradient: "from-gray-500 to-gray-600",
+              bgPattern: "bg-gradient-to-br from-gray-500/10 to-gray-600/10"
+            };
+            const CategoryIcon = visual.icon;
+            
+            // Calculate the starting number for this section
+            const startingNumber = filteredServices
+              .slice(0, sectionIndex)
+              .reduce((acc, s) => acc + s.items.length, 0);
+            
+            return (
+              <AccordionItem 
+                key={section.category} 
+                value={section.category}
+                className="border-none"
+              >
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.3 + sectionIndex * 0.1 }}
                 >
-                  <CategoryIcon className="w-full h-full" />
-                </motion.div>
-                
-                <div className="relative flex items-center gap-4">
-                  {/* Animated Icon */}
-                  <motion.div
-                    whileHover={{ scale: 1.1, rotate: 5 }}
-                    className={`p-3 rounded-xl bg-gradient-to-br ${visual.gradient} shadow-lg`}
-                  >
-                    <CategoryIcon className="h-6 w-6 text-white" />
-                  </motion.div>
-                  
-                  <div>
-                    <h3 className="font-bold text-lg">
-                      {section.category.replace(/^[^\s]+\s/, '')}
-                    </h3>
-                    <p className="text-xs text-muted-foreground">
-                      {section.items.length} services available
-                    </p>
-                  </div>
-                  
-                  {/* Floating decorative dots */}
-                  <div className="ml-auto flex gap-1">
-                    {[...Array(3)].map((_, i) => (
-                      <motion.div
-                        key={i}
-                        className={`w-2 h-2 rounded-full bg-gradient-to-br ${visual.gradient}`}
-                        animate={{ y: [0, -4, 0] }}
-                        transition={{ duration: 1.5, delay: i * 0.2, repeat: Infinity }}
-                      />
-                    ))}
-                  </div>
-                </div>
-              </div>
-              
-              {/* Service Items Grid */}
-              <div className="grid gap-3">
-                {section.items.map((item, index) => {
-                  const serviceNumber = startingNumber + index + 1;
-                  return (
-                    <motion.div
-                      key={item.title}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: 0.4 + sectionIndex * 0.1 + index * 0.05 }}
-                    >
-                      <Card 
-                        className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+                  {/* Enhanced Category Header as Accordion Trigger */}
+                  <AccordionTrigger className="hover:no-underline p-0 [&[data-state=open]>div]:ring-2 [&[data-state=open]>div]:ring-primary/30">
+                    <div className={`relative overflow-hidden rounded-2xl ${visual.bgPattern} p-4 border border-border/30 w-full transition-all`}>
+                      {/* Decorative background elements */}
+                      <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
+                        <CategoryIcon className="w-full h-full" />
+                      </div>
+                      <motion.div 
+                        className="absolute -bottom-4 -left-4 w-24 h-24 opacity-5"
+                        animate={{ rotate: 360 }}
+                        transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                       >
-                        <CardContent className="p-4 flex items-start gap-3">
-                          {/* Service Number */}
-                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-muted-foreground font-bold text-sm shrink-0">
-                            {serviceNumber}
-                          </div>
-                          <motion.div 
-                            className={`p-3 rounded-xl ${item.color} shrink-0`}
-                            whileHover={{ scale: 1.1 }}
+                        <CategoryIcon className="w-full h-full" />
+                      </motion.div>
+                      
+                      <div className="relative flex items-center gap-4">
+                        {/* Animated Icon */}
+                        <motion.div
+                          whileHover={{ scale: 1.1, rotate: 5 }}
+                          className={`p-3 rounded-xl bg-gradient-to-br ${visual.gradient} shadow-lg`}
+                        >
+                          <CategoryIcon className="h-6 w-6 text-white" />
+                        </motion.div>
+                        
+                        <div className="text-left">
+                          <h3 className="font-bold text-lg">
+                            {section.category.replace(/^[^\s]+\s/, '')}
+                          </h3>
+                          <p className="text-xs text-muted-foreground">
+                            {section.items.length} services available
+                          </p>
+                        </div>
+                        
+                        {/* Floating decorative dots */}
+                        <div className="ml-auto flex gap-1 mr-2">
+                          {[...Array(3)].map((_, i) => (
+                            <motion.div
+                              key={i}
+                              className={`w-2 h-2 rounded-full bg-gradient-to-br ${visual.gradient}`}
+                              animate={{ y: [0, -4, 0] }}
+                              transition={{ duration: 1.5, delay: i * 0.2, repeat: Infinity }}
+                            />
+                          ))}
+                        </div>
+                      </div>
+                    </div>
+                  </AccordionTrigger>
+                  
+                  {/* Service Items Grid */}
+                  <AccordionContent className="pt-4 pb-0">
+                    <div className="grid gap-3">
+                      {section.items.map((item, index) => {
+                        const serviceNumber = startingNumber + index + 1;
+                        return (
+                          <motion.div
+                            key={item.title}
+                            initial={{ opacity: 0, x: -10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: index * 0.05 }}
                           >
-                            <item.icon className="h-5 w-5" />
-                          </motion.div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 flex-wrap mb-1">
-                              <h4 className="font-semibold text-sm">{item.title}</h4>
-                              {item.tag && (
-                                <Badge 
-                                  variant={item.highlight ? "success" : "secondary"} 
-                                  className="text-[10px]"
+                            <Card 
+                              className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+                            >
+                              <CardContent className="p-4 flex items-start gap-3">
+                                {/* Service Number */}
+                                <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-muted-foreground font-bold text-sm shrink-0">
+                                  {serviceNumber}
+                                </div>
+                                <motion.div 
+                                  className={`p-3 rounded-xl ${item.color} shrink-0`}
+                                  whileHover={{ scale: 1.1 }}
                                 >
-                                  {item.tag}
-                                </Badge>
-                              )}
-                            </div>
-                            <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
-                          </div>
-                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  );
-                })}
-              </div>
-            </motion.div>
-          );
-        })}
+                                  <item.icon className="h-5 w-5" />
+                                </motion.div>
+                                <div className="flex-1 min-w-0">
+                                  <div className="flex items-center gap-2 flex-wrap mb-1">
+                                    <h4 className="font-semibold text-sm">{item.title}</h4>
+                                    {item.tag && (
+                                      <Badge 
+                                        variant={item.highlight ? "success" : "secondary"} 
+                                        className="text-[10px]"
+                                      >
+                                        {item.tag}
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                                </div>
+                                <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
+                              </CardContent>
+                            </Card>
+                          </motion.div>
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </motion.div>
+              </AccordionItem>
+            );
+          })}
+        </Accordion>
 
         {/* Social Proof Stats */}
         <motion.div
