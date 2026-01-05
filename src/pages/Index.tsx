@@ -183,6 +183,9 @@ export default function Index() {
               <a href="#for-you" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 For You
               </a>
+              <Link to="/benefits" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
+                Services
+              </Link>
               <Link to="/marketplace" className="text-sm font-medium text-muted-foreground hover:text-primary transition-colors">
                 Shop
               </Link>
@@ -239,6 +242,13 @@ export default function Index() {
                 >
                   For You
                 </a>
+                <Link 
+                  to="/benefits" 
+                  className="py-3 px-4 text-base font-medium rounded-lg hover:bg-muted transition-colors"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  Services
+                </Link>
                 <Link 
                   to="/marketplace" 
                   className="py-3 px-4 text-base font-medium rounded-lg hover:bg-muted transition-colors"
