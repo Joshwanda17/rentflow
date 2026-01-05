@@ -958,6 +958,9 @@ export type Database = {
           created_at: string
           credited: boolean
           credited_at: string | null
+          first_transaction_bonus_amount: number | null
+          first_transaction_bonus_credited: boolean | null
+          first_transaction_bonus_credited_at: string | null
           id: string
           referred_id: string
           referrer_id: string
@@ -967,6 +970,9 @@ export type Database = {
           created_at?: string
           credited?: boolean
           credited_at?: string | null
+          first_transaction_bonus_amount?: number | null
+          first_transaction_bonus_credited?: boolean | null
+          first_transaction_bonus_credited_at?: string | null
           id?: string
           referred_id: string
           referrer_id: string
@@ -976,6 +982,9 @@ export type Database = {
           created_at?: string
           credited?: boolean
           credited_at?: string | null
+          first_transaction_bonus_amount?: number | null
+          first_transaction_bonus_credited?: boolean | null
+          first_transaction_bonus_credited_at?: string | null
           id?: string
           referred_id?: string
           referrer_id?: string

@@ -31,6 +31,8 @@ interface Referral {
   credited: boolean;
   credited_at: string | null;
   created_at: string;
+  first_transaction_bonus_credited?: boolean;
+  first_transaction_bonus_amount?: number;
   referred_user?: {
     full_name: string;
     avatar_url: string | null;
@@ -140,10 +142,15 @@ export default function Referrals() {
     }
   };
 
-  const totalEarned = referrals.reduce((sum, r) => sum + Number(r.bonus_amount), 0);
-  const pendingEarnings = referrals
-    .filter(r => !r.credited)
-    .reduce((sum, r) => sum + Number(r.bonus_amount), 0);
+  const totalSignupBonus = referrals.reduce((sum, r) => sum + Number(r.bonus_amount), 0);
+  const totalFirstTxBonus = referrals
+    .filter(r => r.first_transaction_bonus_credited)
+    .reduce((sum, r) => sum + Number(r.first_transaction_bonus_amount || 0), 0);
+  const totalEarned = totalSignupBonus + totalFirstTxBonus;
+  
+  const pendingFirstTxBonus = referrals
+    .filter(r => !r.first_transaction_bonus_credited)
+    .length * 200; // Potential earnings from first transactions
 
   return (
     <div className="min-h-screen bg-background">
@@ -200,8 +207,8 @@ export default function Referrals() {
             <Card className="text-center">
               <CardContent className="pt-4 pb-3">
                 <TrendingUp className="h-6 w-6 mx-auto text-warning mb-2" />
-                <p className="text-2xl font-bold text-warning">{formatUGX(pendingEarnings).replace('UGX ', '')}</p>
-                <p className="text-xs text-muted-foreground">Pending</p>
+                <p className="text-2xl font-bold text-warning">{formatUGX(pendingFirstTxBonus).replace('UGX ', '')}</p>
+                <p className="text-xs text-muted-foreground">Potential</p>
               </CardContent>
             </Card>
           </motion.div>
@@ -221,9 +228,22 @@ export default function Referrals() {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <p className="text-sm text-muted-foreground">
-                Share your unique link and earn <span className="font-bold text-success">UGX 100</span> for every friend who joins!
-              </p>
+              <div className="flex items-center justify-center gap-4 p-3 bg-muted/30 rounded-lg">
+                <div className="text-center">
+                  <p className="text-lg font-bold text-primary">UGX 100</p>
+                  <p className="text-xs text-muted-foreground">On signup</p>
+                </div>
+                <span className="text-xl text-muted-foreground">+</span>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-success">UGX 200</p>
+                  <p className="text-xs text-muted-foreground">1st transaction</p>
+                </div>
+                <span className="text-xl text-muted-foreground">=</span>
+                <div className="text-center">
+                  <p className="text-lg font-bold text-warning">UGX 300</p>
+                  <p className="text-xs text-muted-foreground">Total</p>
+                </div>
+              </div>
               
               <div className="flex gap-2">
                 <div className="flex-1 bg-muted/50 rounded-lg px-3 py-2 text-sm truncate font-mono">
@@ -313,16 +333,24 @@ export default function Referrals() {
                         </p>
                       </div>
 
-                      <div className="text-right">
+                      <div className="text-right space-y-1">
                         <p className="font-bold text-success">
-                          +{formatUGX(referral.bonus_amount)}
+                          +{formatUGX(Number(referral.bonus_amount) + (referral.first_transaction_bonus_credited ? Number(referral.first_transaction_bonus_amount || 0) : 0))}
                         </p>
-                        <Badge 
-                          variant={referral.credited ? 'default' : 'secondary'}
-                          className="text-xs"
-                        >
-                          {referral.credited ? 'Credited' : 'Pending'}
-                        </Badge>
+                        <div className="flex flex-col gap-0.5">
+                          <Badge 
+                            variant="default"
+                            className="text-xs"
+                          >
+                            Signup ✓
+                          </Badge>
+                          <Badge 
+                            variant={referral.first_transaction_bonus_credited ? 'default' : 'secondary'}
+                            className="text-xs"
+                          >
+                            {referral.first_transaction_bonus_credited ? '1st Tx ✓' : '1st Tx pending'}
+                          </Badge>
+                        </div>
                       </div>
                     </motion.div>
                   ))}
