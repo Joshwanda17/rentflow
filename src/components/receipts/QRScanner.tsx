@@ -9,6 +9,7 @@ import {
 } from '@/components/ui/dialog';
 import { Camera, X, ScanLine, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { hapticSuccess } from '@/lib/haptics';
 
 interface QRScannerProps {
   onScan: (code: string) => void;
@@ -44,7 +45,8 @@ export function QRScanner({
           aspectRatio: 1,
         },
         (decodedText) => {
-          // Success callback
+          // Success callback - trigger haptic feedback
+          hapticSuccess();
           onScan(decodedText);
           stopScanner();
           setIsOpen(false);
