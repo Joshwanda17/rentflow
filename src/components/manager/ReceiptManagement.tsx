@@ -296,6 +296,44 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     setSubmitting(false);
   };
 
+  // Helper function to generate QR code as data URL
+  const generateQRCodeDataUrl = (text: string): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 64;
+      canvas.height = 64;
+      
+      // Use qrcode.react's internal rendering
+      import('qrcode.react').then(({ QRCodeCanvas }) => {
+        const container = document.createElement('div');
+        container.style.position = 'absolute';
+        container.style.left = '-9999px';
+        document.body.appendChild(container);
+        
+        const root = document.createElement('div');
+        container.appendChild(root);
+        
+        import('react-dom/client').then(({ createRoot }) => {
+          const reactRoot = createRoot(root);
+          reactRoot.render(
+            <QRCodeCanvas value={text} size={64} level="M" />
+          );
+          
+          setTimeout(() => {
+            const qrCanvas = root.querySelector('canvas');
+            if (qrCanvas) {
+              resolve(qrCanvas.toDataURL('image/png'));
+            } else {
+              resolve('');
+            }
+            reactRoot.unmount();
+            document.body.removeChild(container);
+          }, 100);
+        });
+      });
+    });
+  };
+
   const generateReceiptPDF = async (): Promise<Blob> => {
     const pdf = new jsPDF({
       orientation: 'portrait',
@@ -321,6 +359,13 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
       console.log('Could not load logo for PDF');
     }
 
+    // Pre-generate all QR codes
+    const qrCodes: string[] = [];
+    for (const code of generatedReceipts) {
+      const qrDataUrl = await generateQRCodeDataUrl(code);
+      qrCodes.push(qrDataUrl);
+    }
+
     // Header with logo
     if (logoDataUrl) {
       const logoWidth = 30;
@@ -343,15 +388,15 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
     pdf.setFontSize(10);
     pdf.setTextColor(100, 100, 100);
-    pdf.text('Give one code to each customer. They will use it to verify their purchase.', pageWidth / 2, yPos, { align: 'center' });
+    pdf.text('Scan QR or use code to verify purchase.', pageWidth / 2, yPos, { align: 'center' });
     yPos += 12;
 
-    // Receipt codes in a grid with mini logos
+    // Receipt codes in a grid with QR codes
     pdf.setTextColor(0, 0, 0);
     pdf.setFontSize(10);
     
     const colWidth = (pageWidth - margin * 2) / 2;
-    const rowHeight = 18;
+    const rowHeight = 28;
     let col = 0;
     
     for (let i = 0; i < generatedReceipts.length; i++) {
@@ -362,22 +407,27 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
       pdf.setDrawColor(103, 58, 183);
       pdf.roundedRect(x, yPos - 4, colWidth - 5, rowHeight - 2, 2, 2, 'FD');
       
+      // QR Code
+      if (qrCodes[i]) {
+        pdf.addImage(qrCodes[i], 'PNG', x + 2, yPos - 2, 18, 18);
+      }
+      
       // Mini logo for each receipt
       if (logoDataUrl) {
-        pdf.addImage(logoDataUrl, 'PNG', x + 2, yPos - 2, 12, 5);
+        pdf.addImage(logoDataUrl, 'PNG', x + 22, yPos - 2, 14, 5);
       }
       
       // Code number
       pdf.setFont('helvetica', 'bold');
       pdf.setFontSize(8);
       pdf.setTextColor(100, 100, 100);
-      pdf.text(`#${i + 1}`, x + 2, yPos + 8);
+      pdf.text(`#${i + 1}`, x + 22, yPos + 7);
       
       // Code
       pdf.setFont('courier', 'bold');
       pdf.setFontSize(11);
       pdf.setTextColor(103, 58, 183);
-      pdf.text(generatedReceipts[i], x + 15, yPos + 7);
+      pdf.text(generatedReceipts[i], x + 22, yPos + 13);
       
       col++;
       if (col >= 2) {
@@ -385,7 +435,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
         yPos += rowHeight;
         
         // New page if needed
-        if (yPos > pdf.internal.pageSize.getHeight() - margin - 10) {
+        if (yPos > pdf.internal.pageSize.getHeight() - margin - 15) {
           pdf.addPage();
           yPos = margin;
         }
