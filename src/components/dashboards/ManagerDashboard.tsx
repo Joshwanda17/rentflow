@@ -278,8 +278,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </button>
 
+        {/* Prominent Create Receipts Button */}
+        <button 
+          onClick={() => navigate('/manager-access?tab=receipts')}
+          className="w-full p-5 rounded-2xl bg-gradient-to-r from-success to-success/80 text-success-foreground hover:opacity-90 active:scale-[0.99] transition-all shadow-lg"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20">
+                <Receipt className="h-7 w-7" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-lg">Create Receipt Codes</p>
+                <p className="text-sm opacity-90">Generate & share with vendors</p>
+              </div>
+            </div>
+            <ArrowRight className="h-6 w-6" />
+          </div>
+        </button>
+
         {/* Quick Actions Grid */}
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-3 gap-3">
           <button 
             onClick={() => navigate('/manager-access?tab=users')}
             className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
@@ -288,18 +307,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <Users className="h-5 w-5 text-primary" />
             </div>
             <p className="font-semibold text-sm">Users</p>
-            <p className="text-xs text-muted-foreground">{totalUsers} registered</p>
-          </button>
-          
-          <button 
-            onClick={() => navigate('/manager-access?tab=receipts')}
-            className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
-          >
-            <div className="p-2 rounded-lg bg-success/10 w-fit mb-2">
-              <Receipt className="h-5 w-5 text-success" />
-            </div>
-            <p className="font-semibold text-sm">Receipts</p>
-            <p className="text-xs text-muted-foreground">Manage vendors</p>
+            <p className="text-xs text-muted-foreground">{totalUsers}</p>
           </button>
           
           <button 
