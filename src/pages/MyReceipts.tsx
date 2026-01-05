@@ -91,6 +91,47 @@ export default function MyReceipts() {
     }
   }, [user, authLoading, navigate]);
 
+  // Real-time subscription for receipt updates
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('user-receipts-changes')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'user_receipts',
+          filter: `user_id=eq.${user.id}`
+        },
+        (payload) => {
+          console.log('Receipt update received:', payload);
+          
+          if (payload.eventType === 'INSERT') {
+            // Refetch to get full data with relations
+            fetchData();
+          } else if (payload.eventType === 'UPDATE') {
+            // Update the specific receipt in state
+            setReceipts(prev => prev.map(receipt => 
+              receipt.id === payload.new.id 
+                ? { ...receipt, ...payload.new }
+                : receipt
+            ));
+            // Refetch to update stats
+            fetchData();
+          } else if (payload.eventType === 'DELETE') {
+            setReceipts(prev => prev.filter(receipt => receipt.id !== payload.old.id));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
+
   const fetchData = async () => {
     if (!user) return;
     setLoading(true);
