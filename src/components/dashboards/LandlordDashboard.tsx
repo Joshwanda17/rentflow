@@ -39,6 +39,7 @@ import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkele
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
+import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface LandlordDashboardProps {
   user: User;
@@ -101,6 +102,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </div>
             
             <div className="flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
               

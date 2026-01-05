@@ -47,6 +47,7 @@ import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeleton
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
+import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface AgentDashboardProps {
   user: User;
@@ -116,6 +117,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
             
             <div className="flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
               

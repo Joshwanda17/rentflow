@@ -29,6 +29,7 @@ import { SwipeableRow } from '@/components/SwipeableRow';
 import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ReferralStatsCard } from '@/components/ReferralStatsCard';
+import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface SupporterDashboardProps {
   user: User;
@@ -169,6 +170,7 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
             </div>
             
             <div className="hidden md:flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
               {addRoleComponent}
@@ -181,6 +183,7 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
             </div>
             
             <div className="md:hidden flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
             </div>

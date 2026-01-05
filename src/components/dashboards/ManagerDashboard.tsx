@@ -44,6 +44,7 @@ import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkelet
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface ManagerDashboardProps {
   user: User;
@@ -122,6 +123,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </div>
             
             <div className="flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
               
