@@ -5,10 +5,11 @@ import {
   Shield, Clock, Gift, Share2, ArrowLeft, CheckCircle2,
   Smartphone, CreditCard, Percent, Building2, Coins, Star,
   Zap, Trophy, Target, Sparkles, BadgeDollarSign, Flame,
-  Timer, AlertCircle, PartyPopper, MessageCircle
+  Timer, AlertCircle, PartyPopper, MessageCircle, Search, X
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
@@ -544,6 +545,25 @@ export default function Benefits() {
   const [referralEarnings, setReferralEarnings] = useState(0);
   const [showLandlordDialog, setShowLandlordDialog] = useState(false);
   const [hasRegisteredLandlord, setHasRegisteredLandlord] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  // Filter services based on search query
+  const filteredServices = useMemo(() => {
+    if (!searchQuery.trim()) return services;
+    
+    const query = searchQuery.toLowerCase();
+    return services
+      .map(category => ({
+        ...category,
+        items: category.items.filter(item => 
+          item.title.toLowerCase().includes(query) ||
+          item.description.toLowerCase().includes(query) ||
+          (item.tag && item.tag.toLowerCase().includes(query)) ||
+          category.category.toLowerCase().includes(query)
+        )
+      }))
+      .filter(category => category.items.length > 0);
+  }, [searchQuery]);
 
   // Check if user has registered a landlord
   useEffect(() => {
@@ -678,6 +698,39 @@ Trust me, you'll thank me later! 🙏`;
       </header>
 
       <main className="container mx-auto px-4 py-6 pb-32 max-w-2xl">
+        {/* Search Bar */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="mb-6"
+        >
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Input
+              type="text"
+              placeholder="Search services, features, or keywords..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="pl-10 pr-10 h-12 text-base bg-muted/50 border-border/50 focus:bg-background"
+            />
+            {searchQuery && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                onClick={() => setSearchQuery('')}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
+          </div>
+          {searchQuery && (
+            <p className="text-sm text-muted-foreground mt-2">
+              Found {filteredServices.reduce((acc, cat) => acc + cat.items.length, 0)} services in {filteredServices.length} categories
+            </p>
+          )}
+        </motion.div>
+
         {/* Hero - More Compelling */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -880,7 +933,7 @@ Trust me, you'll thank me later! 🙏`;
         </motion.div>
 
         {/* Opportunities by Category - Enhanced with Visual Headers */}
-        {opportunities.map((section, sectionIndex) => {
+        {filteredServices.map((section, sectionIndex) => {
           const visual = categoryVisuals[section.category] || {
             icon: Star,
             gradient: "from-gray-500 to-gray-600",
