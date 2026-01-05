@@ -14,6 +14,7 @@ import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbu
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
 import { QRScanner } from '@/components/receipts/QRScanner';
+import { LoanLimitSuccessDialog } from '@/components/receipts/LoanLimitSuccessDialog';
 
 interface QuickReceiptFormProps {
   userId: string;
@@ -53,6 +54,12 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
   const [vendorSearch, setVendorSearch] = useState('');
   const [scanning, setScanning] = useState(false);
   const [scanPreview, setScanPreview] = useState<string | null>(null);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    previousLimit: number;
+    newLimit: number;
+    receiptAmount: number;
+  } | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -237,18 +244,27 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     } else {
       fireSuccess();
       
-      toast({
-        title: 'Receipt Submitted',
-        description: 'Your receipt has been submitted for verification.'
-      });
+      const submittedAmount = parseFloat(claimedAmount);
+      
       setReceiptCode('');
       setItemsDescription('');
       setClaimedAmount('');
       
       await fetchLoanLimit();
       const newLimit = loanLimit?.available_limit || 0;
-      if (newLimit > previousLimit) {
-        setLastIncrease(newLimit - previousLimit);
+      const estimatedIncrease = submittedAmount * 0.2; // 20% of receipt amount
+      const actualNewLimit = Math.max(newLimit, previousLimit + estimatedIncrease);
+      
+      // Show the success dialog with animated increase
+      setSuccessData({
+        previousLimit,
+        newLimit: actualNewLimit,
+        receiptAmount: submittedAmount,
+      });
+      setShowSuccessDialog(true);
+      
+      if (actualNewLimit > previousLimit) {
+        setLastIncrease(actualNewLimit - previousLimit);
         setTimeout(() => setLastIncrease(null), 5000);
       }
       
@@ -623,6 +639,20 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
           </CollapsibleContent>
         </Collapsible>
       </CardContent>
+
+      {/* Success Dialog */}
+      {successData && (
+        <LoanLimitSuccessDialog
+          open={showSuccessDialog}
+          onClose={() => {
+            setShowSuccessDialog(false);
+            setSuccessData(null);
+          }}
+          previousLimit={successData.previousLimit}
+          newLimit={successData.newLimit}
+          receiptAmount={successData.receiptAmount}
+        />
+      )}
     </Card>
   );
 }

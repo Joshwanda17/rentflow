@@ -29,6 +29,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { hapticSelection, hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useConfetti } from '@/components/Confetti';
 import { QRScanner } from '@/components/receipts/QRScanner';
+import { LoanLimitSuccessDialog } from '@/components/receipts/LoanLimitSuccessDialog';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Collapsible,
@@ -71,6 +72,12 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
   const [recentReceipts, setRecentReceipts] = useState<RecentReceipt[]>([]);
   const [showBenefits, setShowBenefits] = useState(false);
   const [showPulse, setShowPulse] = useState(true);
+  const [showSuccessDialog, setShowSuccessDialog] = useState(false);
+  const [successData, setSuccessData] = useState<{
+    previousLimit: number;
+    newLimit: number;
+    receiptAmount: number;
+  } | null>(null);
   const [activeCategory, setActiveCategory] = useState<string | null>(() => {
     if (typeof window !== 'undefined') {
       return localStorage.getItem('receipt-last-category');
@@ -201,18 +208,28 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
     } else {
       fireSuccess();
       hapticSuccess();
-      toast({
-        title: '🎉 Receipt Submitted!',
-        description: 'Your loan limit will increase by 20% of the amount after verification.'
-      });
+      
+      const submittedAmount = parseFloat(claimedAmount);
+      
       setReceiptCode('');
       setItemsDescription('');
       setClaimedAmount('');
       
       await fetchData();
       const newLimit = loanLimit?.available_limit || 0;
-      if (newLimit > previousLimit) {
-        setLastIncrease(newLimit - previousLimit);
+      const estimatedIncrease = submittedAmount * 0.2; // 20% of receipt amount
+      const actualNewLimit = Math.max(newLimit, previousLimit + estimatedIncrease);
+      
+      // Show the success dialog with animated increase
+      setSuccessData({
+        previousLimit,
+        newLimit: actualNewLimit,
+        receiptAmount: submittedAmount,
+      });
+      setShowSuccessDialog(true);
+      
+      if (actualNewLimit > previousLimit) {
+        setLastIncrease(actualNewLimit - previousLimit);
         setTimeout(() => setLastIncrease(null), 5000);
       }
     }
@@ -560,6 +577,20 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
           <ArrowRight className="h-3 w-3" />
         </Button>
       </CardContent>
+
+      {/* Success Dialog */}
+      {successData && (
+        <LoanLimitSuccessDialog
+          open={showSuccessDialog}
+          onClose={() => {
+            setShowSuccessDialog(false);
+            setSuccessData(null);
+          }}
+          previousLimit={successData.previousLimit}
+          newLimit={successData.newLimit}
+          receiptAmount={successData.receiptAmount}
+        />
+      )}
     </Card>
   );
 }
