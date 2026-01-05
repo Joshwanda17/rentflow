@@ -273,6 +273,45 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
 }
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
+// Category visual configurations with icons and gradients
+const categoryVisuals: Record<string, { icon: typeof Coins; gradient: string; bgPattern: string }> = {
+  "💰 EARN & GROW MONEY": {
+    icon: Coins,
+    gradient: "from-amber-500 via-yellow-500 to-orange-500",
+    bgPattern: "bg-gradient-to-br from-amber-500/10 via-yellow-500/5 to-orange-500/10"
+  },
+  "🏠 RENT SOLUTIONS": {
+    icon: Home,
+    gradient: "from-primary via-blue-500 to-indigo-500",
+    bgPattern: "bg-gradient-to-br from-primary/10 via-blue-500/5 to-indigo-500/10"
+  },
+  "💳 FINANCIAL SERVICES": {
+    icon: Wallet,
+    gradient: "from-rose-500 via-pink-500 to-purple-500",
+    bgPattern: "bg-gradient-to-br from-rose-500/10 via-pink-500/5 to-purple-500/10"
+  },
+  "🛒 MARKETPLACE & SHOPPING": {
+    icon: ShoppingBag,
+    gradient: "from-orange-500 via-red-500 to-pink-500",
+    bgPattern: "bg-gradient-to-br from-orange-500/10 via-red-500/5 to-pink-500/10"
+  },
+  "🤝 COMMUNITY & SUPPORT": {
+    icon: Users,
+    gradient: "from-teal-500 via-cyan-500 to-blue-500",
+    bgPattern: "bg-gradient-to-br from-teal-500/10 via-cyan-500/5 to-blue-500/10"
+  },
+  "📊 BUSINESS TOOLS": {
+    icon: TrendingUp,
+    gradient: "from-indigo-500 via-violet-500 to-purple-500",
+    bgPattern: "bg-gradient-to-br from-indigo-500/10 via-violet-500/5 to-purple-500/10"
+  },
+  "✅ SECURITY & TRUST": {
+    icon: Shield,
+    gradient: "from-emerald-500 via-green-500 to-teal-500",
+    bgPattern: "bg-gradient-to-br from-emerald-500/10 via-green-500/5 to-teal-500/10"
+  }
+};
+
 // Comprehensive services for all users
 const services = [
   {
@@ -840,49 +879,111 @@ Trust me, you'll thank me later! 🙏`;
           <ReferralLeaderboard limit={10} />
         </motion.div>
 
-        {/* Opportunities by Category */}
-        {opportunities.map((section, sectionIndex) => (
-          <motion.div
-            key={section.category}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + sectionIndex * 0.1 }}
-            className="mb-8"
-          >
-            <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-              {section.category}
-            </h3>
-            <div className="grid gap-3">
-              {section.items.map((item, index) => (
-                <Card 
-                  key={item.title}
-                  className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+        {/* Opportunities by Category - Enhanced with Visual Headers */}
+        {opportunities.map((section, sectionIndex) => {
+          const visual = categoryVisuals[section.category] || {
+            icon: Star,
+            gradient: "from-gray-500 to-gray-600",
+            bgPattern: "bg-gradient-to-br from-gray-500/10 to-gray-600/10"
+          };
+          const CategoryIcon = visual.icon;
+          
+          return (
+            <motion.div
+              key={section.category}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.3 + sectionIndex * 0.1 }}
+              className="mb-8"
+            >
+              {/* Enhanced Category Header */}
+              <div className={`relative overflow-hidden rounded-2xl ${visual.bgPattern} p-4 mb-4 border border-border/30`}>
+                {/* Decorative background elements */}
+                <div className="absolute top-0 right-0 w-32 h-32 opacity-10">
+                  <CategoryIcon className="w-full h-full" />
+                </div>
+                <motion.div 
+                  className="absolute -bottom-4 -left-4 w-24 h-24 opacity-5"
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
                 >
-                  <CardContent className="p-4 flex items-start gap-4">
-                    <div className={`p-3 rounded-xl ${item.color} shrink-0`}>
-                      <item.icon className="h-5 w-5" />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2 flex-wrap mb-1">
-                        <h4 className="font-semibold text-sm">{item.title}</h4>
-                        {item.tag && (
-                          <Badge 
-                            variant={item.highlight ? "success" : "secondary"} 
-                            className="text-[10px]"
-                          >
-                            {item.tag}
-                          </Badge>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
-                    </div>
-                    <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          </motion.div>
-        ))}
+                  <CategoryIcon className="w-full h-full" />
+                </motion.div>
+                
+                <div className="relative flex items-center gap-4">
+                  {/* Animated Icon */}
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 5 }}
+                    className={`p-3 rounded-xl bg-gradient-to-br ${visual.gradient} shadow-lg`}
+                  >
+                    <CategoryIcon className="h-6 w-6 text-white" />
+                  </motion.div>
+                  
+                  <div>
+                    <h3 className="font-bold text-lg">
+                      {section.category.replace(/^[^\s]+\s/, '')}
+                    </h3>
+                    <p className="text-xs text-muted-foreground">
+                      {section.items.length} services available
+                    </p>
+                  </div>
+                  
+                  {/* Floating decorative dots */}
+                  <div className="ml-auto flex gap-1">
+                    {[...Array(3)].map((_, i) => (
+                      <motion.div
+                        key={i}
+                        className={`w-2 h-2 rounded-full bg-gradient-to-br ${visual.gradient}`}
+                        animate={{ y: [0, -4, 0] }}
+                        transition={{ duration: 1.5, delay: i * 0.2, repeat: Infinity }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              </div>
+              
+              {/* Service Items Grid */}
+              <div className="grid gap-3">
+                {section.items.map((item, index) => (
+                  <motion.div
+                    key={item.title}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: 0.4 + sectionIndex * 0.1 + index * 0.05 }}
+                  >
+                    <Card 
+                      className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+                    >
+                      <CardContent className="p-4 flex items-start gap-4">
+                        <motion.div 
+                          className={`p-3 rounded-xl ${item.color} shrink-0`}
+                          whileHover={{ scale: 1.1 }}
+                        >
+                          <item.icon className="h-5 w-5" />
+                        </motion.div>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap mb-1">
+                            <h4 className="font-semibold text-sm">{item.title}</h4>
+                            {item.tag && (
+                              <Badge 
+                                variant={item.highlight ? "success" : "secondary"} 
+                                className="text-[10px]"
+                              >
+                                {item.tag}
+                              </Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                        </div>
+                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </div>
+            </motion.div>
+          );
+        })}
 
         {/* Social Proof Stats */}
         <motion.div
