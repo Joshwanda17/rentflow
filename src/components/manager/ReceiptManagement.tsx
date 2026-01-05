@@ -307,46 +307,77 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     const margin = 15;
     let yPos = margin;
 
-    // Header
-    pdf.setFontSize(20);
+    // Load the Welile logo
+    let logoDataUrl: string | null = null;
+    try {
+      const logoResponse = await fetch('/welile-logo.png');
+      const logoBlob = await logoResponse.blob();
+      logoDataUrl = await new Promise<string>((resolve) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.readAsDataURL(logoBlob);
+      });
+    } catch (e) {
+      console.log('Could not load logo for PDF');
+    }
+
+    // Header with logo
+    if (logoDataUrl) {
+      const logoWidth = 30;
+      const logoHeight = 12;
+      pdf.addImage(logoDataUrl, 'PNG', (pageWidth - logoWidth) / 2, yPos, logoWidth, logoHeight);
+      yPos += logoHeight + 5;
+    }
+    
+    pdf.setFontSize(16);
     pdf.setFont('helvetica', 'bold');
-    pdf.text('Welile Receipt Codes', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    pdf.text('Receipt Codes', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 8;
 
     pdf.setFontSize(12);
     pdf.setFont('helvetica', 'normal');
     pdf.text(`Vendor: ${generatedVendorName}`, pageWidth / 2, yPos, { align: 'center' });
     yPos += 6;
     pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
-    yPos += 10;
+    yPos += 8;
 
     pdf.setFontSize(10);
     pdf.setTextColor(100, 100, 100);
     pdf.text('Give one code to each customer. They will use it to verify their purchase.', pageWidth / 2, yPos, { align: 'center' });
-    yPos += 15;
+    yPos += 12;
 
-    // Receipt codes in a grid
+    // Receipt codes in a grid with mini logos
     pdf.setTextColor(0, 0, 0);
-    pdf.setFontSize(11);
+    pdf.setFontSize(10);
     
     const colWidth = (pageWidth - margin * 2) / 2;
-    const rowHeight = 12;
+    const rowHeight = 18;
     let col = 0;
     
     for (let i = 0; i < generatedReceipts.length; i++) {
       const x = margin + (col * colWidth);
       
       // Background for code
-      pdf.setFillColor(245, 245, 245);
-      pdf.rect(x, yPos - 4, colWidth - 5, rowHeight - 2, 'F');
+      pdf.setFillColor(248, 248, 255);
+      pdf.setDrawColor(103, 58, 183);
+      pdf.roundedRect(x, yPos - 4, colWidth - 5, rowHeight - 2, 2, 2, 'FD');
+      
+      // Mini logo for each receipt
+      if (logoDataUrl) {
+        pdf.addImage(logoDataUrl, 'PNG', x + 2, yPos - 2, 12, 5);
+      }
       
       // Code number
       pdf.setFont('helvetica', 'bold');
-      pdf.text(`${i + 1}.`, x + 2, yPos + 2);
+      pdf.setFontSize(8);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`#${i + 1}`, x + 2, yPos + 8);
       
       // Code
-      pdf.setFont('courier', 'normal');
-      pdf.text(generatedReceipts[i], x + 12, yPos + 2);
+      pdf.setFont('courier', 'bold');
+      pdf.setFontSize(11);
+      pdf.setTextColor(103, 58, 183);
+      pdf.text(generatedReceipts[i], x + 15, yPos + 7);
       
       col++;
       if (col >= 2) {
@@ -354,7 +385,7 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
         yPos += rowHeight;
         
         // New page if needed
-        if (yPos > pdf.internal.pageSize.getHeight() - margin) {
+        if (yPos > pdf.internal.pageSize.getHeight() - margin - 10) {
           pdf.addPage();
           yPos = margin;
         }
@@ -362,10 +393,13 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     }
 
     // Footer
-    yPos = pdf.internal.pageSize.getHeight() - 20;
-    pdf.setFontSize(9);
+    yPos = pdf.internal.pageSize.getHeight() - 15;
+    if (logoDataUrl) {
+      pdf.addImage(logoDataUrl, 'PNG', (pageWidth - 20) / 2, yPos - 5, 20, 8);
+    }
+    pdf.setFontSize(8);
     pdf.setTextColor(100, 100, 100);
-    pdf.text('Powered by Welile - Building credit through shopping', pageWidth / 2, yPos, { align: 'center' });
+    pdf.text('Building credit through shopping', pageWidth / 2, yPos + 5, { align: 'center' });
 
     return pdf.output('blob');
   };
