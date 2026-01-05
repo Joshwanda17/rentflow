@@ -28,6 +28,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticSelection, hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useConfetti } from '@/components/Confetti';
+import { QRScanner } from '@/components/receipts/QRScanner';
 import { formatDistanceToNow } from 'date-fns';
 import {
   Collapsible,
@@ -273,14 +274,20 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
           <div className="space-y-3">
             <div className="space-y-1.5">
               <Label htmlFor="dashboard-receipt-code" className="text-sm font-medium">Receipt Number</Label>
-              <Input
-                id="dashboard-receipt-code"
-                placeholder="WL-001234"
-                value={receiptCode}
-                onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
-                required
-                className="font-mono uppercase h-11 text-base"
-              />
+              <div className="flex gap-2">
+                <Input
+                  id="dashboard-receipt-code"
+                  placeholder="WL-001234"
+                  value={receiptCode}
+                  onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
+                  required
+                  className="font-mono uppercase h-11 text-base flex-1"
+                />
+                <QRScanner 
+                  onScan={(code) => setReceiptCode(code.toUpperCase())}
+                  buttonClassName="h-11 w-11"
+                />
+              </div>
             </div>
             
             <div className="space-y-1.5">

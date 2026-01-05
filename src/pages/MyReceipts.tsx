@@ -11,8 +11,9 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles } from 'lucide-react';
+import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles, Camera } from 'lucide-react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import { QRScanner } from '@/components/receipts/QRScanner';
 
 interface UserReceipt {
   id: string;
@@ -356,14 +357,24 @@ export default function MyReceipts() {
             <form onSubmit={handleSubmitReceipt} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="receiptCode">Receipt Number</Label>
-                <Input
-                  id="receiptCode"
-                  placeholder="Enter receipt code (e.g., WL-001234)"
-                  value={receiptCode}
-                  onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
-                  required
-                  className="font-mono uppercase"
-                />
+                <div className="flex gap-2">
+                  <Input
+                    id="receiptCode"
+                    placeholder="Enter receipt code (e.g., WL-001234)"
+                    value={receiptCode}
+                    onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
+                    required
+                    className="font-mono uppercase flex-1"
+                  />
+                  <QRScanner 
+                    onScan={(code) => setReceiptCode(code.toUpperCase())}
+                    buttonClassName="shrink-0"
+                  />
+                </div>
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <Camera className="h-3 w-3" />
+                  Tap the camera icon to scan QR code
+                </p>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="items">Items Purchased</Label>
