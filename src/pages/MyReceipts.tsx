@@ -20,6 +20,7 @@ import {
 import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserReceipt {
@@ -542,132 +543,141 @@ export default function MyReceipts() {
           </TabsContent>
 
           {/* History Tab */}
-          <TabsContent value="history" className="space-y-4 mt-0">
-            {receipts.length === 0 ? (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.95 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="py-16 text-center"
-              >
-                <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
-                  <Receipt className="h-10 w-10 text-muted-foreground/40" />
-                </div>
-                <p className="text-lg font-medium text-muted-foreground">No receipts yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-1 max-w-xs mx-auto">
-                  Submit your first shopping receipt to start earning rewards
-                </p>
-              </motion.div>
-            ) : (
-              <div className="space-y-3">
-                <AnimatePresence>
-                  {receipts.map((receipt, index) => {
-                    const isExpanded = expandedReceipt === receipt.id;
-                    return (
-                      <motion.div
-                        key={receipt.id}
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: index * 0.05 }}
-                        className={`p-4 rounded-2xl border-2 transition-all ${
-                          receipt.verified 
-                            ? 'bg-success/5 border-success/20 hover:border-success/40' 
-                            : receipt.rejection_reason 
-                              ? 'bg-destructive/5 border-destructive/20 hover:border-destructive/40'
-                              : 'bg-card border-border/50 hover:border-border'
-                        }`}
-                      >
-                        <div className="flex items-start justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded-lg font-semibold">
-                                {receipt.receipt_numbers?.receipt_code || 'N/A'}
-                              </code>
-                              {receipt.verified ? (
-                                <Badge className="gap-1 bg-success/10 text-success border-success/20 hover:bg-success/20">
-                                  <CheckCircle className="h-3 w-3" />
-                                  Verified
-                                </Badge>
-                              ) : receipt.rejection_reason ? (
-                                <Badge className="gap-1 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20">
-                                  <XCircle className="h-3 w-3" />
-                                  Rejected
-                                </Badge>
-                              ) : (
-                                <Badge className="gap-1 bg-warning/10 text-warning border-warning/20 hover:bg-warning/20">
-                                  <Clock className="h-3 w-3" />
-                                  Pending
-                                </Badge>
-                              )}
+          <TabsContent value="history" className="mt-0">
+            <PullToRefresh 
+              onRefresh={async () => {
+                await fetchData();
+              }}
+              className="min-h-[200px] -mx-4 px-4"
+            >
+              <div className="space-y-4 pt-2">
+                {receipts.length === 0 ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="py-16 text-center"
+                  >
+                    <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                      <Receipt className="h-10 w-10 text-muted-foreground/40" />
+                    </div>
+                    <p className="text-lg font-medium text-muted-foreground">No receipts yet</p>
+                    <p className="text-sm text-muted-foreground/70 mt-1 max-w-xs mx-auto">
+                      Submit your first shopping receipt to start earning rewards
+                    </p>
+                  </motion.div>
+                ) : (
+                  <div className="space-y-3">
+                    <AnimatePresence>
+                      {receipts.map((receipt, index) => {
+                        const isExpanded = expandedReceipt === receipt.id;
+                        return (
+                          <motion.div
+                            key={receipt.id}
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.05 }}
+                            className={`p-4 rounded-2xl border-2 transition-all ${
+                              receipt.verified 
+                                ? 'bg-success/5 border-success/20 hover:border-success/40' 
+                                : receipt.rejection_reason 
+                                  ? 'bg-destructive/5 border-destructive/20 hover:border-destructive/40'
+                                  : 'bg-card border-border/50 hover:border-border'
+                            }`}
+                          >
+                            <div className="flex items-start justify-between gap-4">
+                              <div className="flex-1 min-w-0">
+                                <div className="flex items-center gap-2 mb-2 flex-wrap">
+                                  <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded-lg font-semibold">
+                                    {receipt.receipt_numbers?.receipt_code || 'N/A'}
+                                  </code>
+                                  {receipt.verified ? (
+                                    <Badge className="gap-1 bg-success/10 text-success border-success/20 hover:bg-success/20">
+                                      <CheckCircle className="h-3 w-3" />
+                                      Verified
+                                    </Badge>
+                                  ) : receipt.rejection_reason ? (
+                                    <Badge className="gap-1 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20">
+                                      <XCircle className="h-3 w-3" />
+                                      Rejected
+                                    </Badge>
+                                  ) : (
+                                    <Badge className="gap-1 bg-warning/10 text-warning border-warning/20 hover:bg-warning/20">
+                                      <Clock className="h-3 w-3" />
+                                      Pending
+                                    </Badge>
+                                  )}
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
+                                </p>
+                                <p className="text-sm mt-1.5 line-clamp-2 text-foreground/80">{receipt.items_description}</p>
+                                {receipt.rejection_reason && (
+                                  <p className="text-sm text-destructive mt-2 p-2 rounded-lg bg-destructive/5">
+                                    {receipt.rejection_reason}
+                                  </p>
+                                )}
+                              </div>
+                              <div className="text-right shrink-0">
+                                <p className="text-lg font-bold">{formatUGX(receipt.claimed_amount)}</p>
+                                {receipt.loan_contribution && (
+                                  <p className="text-xs font-medium text-success mt-0.5">
+                                    +{formatUGX(receipt.loan_contribution)} limit
+                                  </p>
+                                )}
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  {new Date(receipt.created_at).toLocaleDateString('en-GB', {
+                                    day: 'numeric',
+                                    month: 'short',
+                                    year: '2-digit'
+                                  })}
+                                </p>
+                              </div>
                             </div>
-                            <p className="text-sm text-muted-foreground">
-                              {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
-                            </p>
-                            <p className="text-sm mt-1.5 line-clamp-2 text-foreground/80">{receipt.items_description}</p>
-                            {receipt.rejection_reason && (
-                              <p className="text-sm text-destructive mt-2 p-2 rounded-lg bg-destructive/5">
-                                {receipt.rejection_reason}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-lg font-bold">{formatUGX(receipt.claimed_amount)}</p>
-                            {receipt.loan_contribution && (
-                              <p className="text-xs font-medium text-success mt-0.5">
-                                +{formatUGX(receipt.loan_contribution)} limit
-                              </p>
-                            )}
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(receipt.created_at).toLocaleDateString('en-GB', {
-                                day: 'numeric',
-                                month: 'short',
-                                year: '2-digit'
-                              })}
-                            </p>
-                          </div>
-                        </div>
-                        
-                        {/* Timeline Toggle */}
-                        <button
-                          onClick={() => setExpandedReceipt(isExpanded ? null : receipt.id)}
-                          className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-2 rounded-lg hover:bg-muted/50"
-                        >
-                          {isExpanded ? (
-                            <>
-                              <ChevronUp className="h-3.5 w-3.5" />
-                              Hide timeline
-                            </>
-                          ) : (
-                            <>
-                              <ChevronDown className="h-3.5 w-3.5" />
-                              View timeline
-                            </>
-                          )}
-                        </button>
-                        
-                        {/* Status Timeline */}
-                        <AnimatePresence>
-                          {isExpanded && (
-                            <motion.div
-                              initial={{ opacity: 0, height: 0 }}
-                              animate={{ opacity: 1, height: 'auto' }}
-                              exit={{ opacity: 0, height: 0 }}
-                              transition={{ duration: 0.2 }}
+                            
+                            {/* Timeline Toggle */}
+                            <button
+                              onClick={() => setExpandedReceipt(isExpanded ? null : receipt.id)}
+                              className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-2 rounded-lg hover:bg-muted/50"
                             >
-                              <ReceiptStatusTimeline
-                                submittedAt={receipt.created_at}
-                                vendorVerifiedAt={receipt.receipt_numbers?.vendor_marked_at || null}
-                                approvedAt={receipt.verified_at}
-                                rejectedReason={receipt.rejection_reason}
-                              />
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-                      </motion.div>
-                    );
-                  })}
-                </AnimatePresence>
+                              {isExpanded ? (
+                                <>
+                                  <ChevronUp className="h-3.5 w-3.5" />
+                                  Hide timeline
+                                </>
+                              ) : (
+                                <>
+                                  <ChevronDown className="h-3.5 w-3.5" />
+                                  View timeline
+                                </>
+                              )}
+                            </button>
+                            
+                            {/* Status Timeline */}
+                            <AnimatePresence>
+                              {isExpanded && (
+                                <motion.div
+                                  initial={{ opacity: 0, height: 0 }}
+                                  animate={{ opacity: 1, height: 'auto' }}
+                                  exit={{ opacity: 0, height: 0 }}
+                                  transition={{ duration: 0.2 }}
+                                >
+                                  <ReceiptStatusTimeline
+                                    submittedAt={receipt.created_at}
+                                    vendorVerifiedAt={receipt.receipt_numbers?.vendor_marked_at || null}
+                                    approvedAt={receipt.verified_at}
+                                    rejectedReason={receipt.rejection_reason}
+                                  />
+                                </motion.div>
+                              )}
+                            </AnimatePresence>
+                          </motion.div>
+                        );
+                      })}
+                    </AnimatePresence>
+                  </div>
+                )}
               </div>
-            )}
+            </PullToRefresh>
           </TabsContent>
         </Tabs>
 
