@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -9,17 +9,20 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp, FileSpreadsheet } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp, FileSpreadsheet, Share2, MessageCircle } from 'lucide-react';
 import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import { VendorAnalytics } from './VendorAnalytics';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast as sonnerToast } from 'sonner';
+import { jsPDF } from 'jspdf';
+import { QRCodeCanvas } from 'qrcode.react';
 import {
   Dialog,
   DialogContent,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 
 interface Vendor {
@@ -171,6 +174,11 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
   const [vendorDialogOpen, setVendorDialogOpen] = useState(false);
   const [receiptDialogOpen, setReceiptDialogOpen] = useState(false);
   const [printSheetOpen, setPrintSheetOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [generatedReceipts, setGeneratedReceipts] = useState<string[]>([]);
+  const [generatedVendorName, setGeneratedVendorName] = useState('');
+  const [generatingPdf, setGeneratingPdf] = useState(false);
+  const qrContainerRef = useRef<HTMLDivElement>(null);
   const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
@@ -254,9 +262,11 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
     const count = parseInt(receiptCount);
     const receipts = [];
+    const codes: string[] = [];
     
     for (let i = 0; i < count; i++) {
       const code = `WL-${Date.now().toString(36).toUpperCase()}${i.toString().padStart(3, '0')}`;
+      codes.push(code);
       receipts.push({
         receipt_code: code,
         vendor_id: selectedVendor,
@@ -271,14 +281,164 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Store generated receipts for sharing
+      const vendorName = vendors.find(v => v.id === selectedVendor)?.name || 'Vendor';
+      setGeneratedReceipts(codes);
+      setGeneratedVendorName(vendorName);
+      setReceiptDialogOpen(false);
+      setShareDialogOpen(true);
       toast({ 
         title: 'Receipts Generated', 
-        description: `${count} receipt numbers created for distribution` 
+        description: `${count} receipt numbers created. Share them with the vendor!` 
       });
-      setReceiptDialogOpen(false);
       fetchData();
     }
     setSubmitting(false);
+  };
+
+  const generateReceiptPDF = async (): Promise<Blob> => {
+    const pdf = new jsPDF({
+      orientation: 'portrait',
+      unit: 'mm',
+      format: 'a4'
+    });
+
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 15;
+    let yPos = margin;
+
+    // Header
+    pdf.setFontSize(20);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Welile Receipt Codes', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    pdf.setFontSize(12);
+    pdf.setFont('helvetica', 'normal');
+    pdf.text(`Vendor: ${generatedVendorName}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 6;
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, yPos, { align: 'center' });
+    yPos += 10;
+
+    pdf.setFontSize(10);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text('Give one code to each customer. They will use it to verify their purchase.', pageWidth / 2, yPos, { align: 'center' });
+    yPos += 15;
+
+    // Receipt codes in a grid
+    pdf.setTextColor(0, 0, 0);
+    pdf.setFontSize(11);
+    
+    const colWidth = (pageWidth - margin * 2) / 2;
+    const rowHeight = 12;
+    let col = 0;
+    
+    for (let i = 0; i < generatedReceipts.length; i++) {
+      const x = margin + (col * colWidth);
+      
+      // Background for code
+      pdf.setFillColor(245, 245, 245);
+      pdf.rect(x, yPos - 4, colWidth - 5, rowHeight - 2, 'F');
+      
+      // Code number
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${i + 1}.`, x + 2, yPos + 2);
+      
+      // Code
+      pdf.setFont('courier', 'normal');
+      pdf.text(generatedReceipts[i], x + 12, yPos + 2);
+      
+      col++;
+      if (col >= 2) {
+        col = 0;
+        yPos += rowHeight;
+        
+        // New page if needed
+        if (yPos > pdf.internal.pageSize.getHeight() - margin) {
+          pdf.addPage();
+          yPos = margin;
+        }
+      }
+    }
+
+    // Footer
+    yPos = pdf.internal.pageSize.getHeight() - 20;
+    pdf.setFontSize(9);
+    pdf.setTextColor(100, 100, 100);
+    pdf.text('Powered by Welile - Building credit through shopping', pageWidth / 2, yPos, { align: 'center' });
+
+    return pdf.output('blob');
+  };
+
+  const handleShareOnWhatsApp = async () => {
+    setGeneratingPdf(true);
+    
+    try {
+      const pdfBlob = await generateReceiptPDF();
+      
+      // Check if Web Share API with files is supported
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [new File([pdfBlob], 'receipts.pdf', { type: 'application/pdf' })] })) {
+        const file = new File([pdfBlob], `welile-receipts-${generatedVendorName.replace(/\s+/g, '-')}.pdf`, { type: 'application/pdf' });
+        
+        await navigator.share({
+          title: `Welile Receipt Codes for ${generatedVendorName}`,
+          text: `Here are ${generatedReceipts.length} receipt codes for ${generatedVendorName}. Give one code to each customer when they make a purchase.`,
+          files: [file]
+        });
+        
+        sonnerToast.success('Shared successfully!');
+      } else {
+        // Fallback: Download and provide WhatsApp link
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `welile-receipts-${generatedVendorName.replace(/\s+/g, '-')}.pdf`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+        
+        // Open WhatsApp with pre-filled message
+        const whatsappText = encodeURIComponent(
+          `Hi! Here are ${generatedReceipts.length} Welile receipt codes for ${generatedVendorName}.\n\n` +
+          `I've just sent you the PDF file. Give one code to each customer when they make a purchase.\n\n` +
+          `Codes:\n${generatedReceipts.slice(0, 5).join('\n')}${generatedReceipts.length > 5 ? '\n...(see PDF for all codes)' : ''}`
+        );
+        window.open(`https://wa.me/?text=${whatsappText}`, '_blank');
+        
+        sonnerToast.success('PDF downloaded! Share it on WhatsApp.');
+      }
+      
+      setShareDialogOpen(false);
+    } catch (error) {
+      console.error('Share error:', error);
+      sonnerToast.error('Failed to share. Please try downloading instead.');
+    }
+    
+    setGeneratingPdf(false);
+  };
+
+  const handleDownloadPdf = async () => {
+    setGeneratingPdf(true);
+    
+    try {
+      const pdfBlob = await generateReceiptPDF();
+      const url = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `welile-receipts-${generatedVendorName.replace(/\s+/g, '-')}-${new Date().toISOString().split('T')[0]}.pdf`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      sonnerToast.success('PDF downloaded successfully!');
+    } catch (error) {
+      console.error('Download error:', error);
+      sonnerToast.error('Failed to generate PDF');
+    }
+    
+    setGeneratingPdf(false);
   };
 
   const handleMarkReceipt = async (e: React.FormEvent) => {
@@ -513,6 +673,73 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
         open={printSheetOpen}
         onClose={() => setPrintSheetOpen(false)}
       />
+
+      {/* Share Generated Receipts Dialog */}
+      <Dialog open={shareDialogOpen} onOpenChange={setShareDialogOpen}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-success" />
+              Receipts Generated!
+            </DialogTitle>
+            <DialogDescription>
+              {generatedReceipts.length} receipt codes created for {generatedVendorName}
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Preview of codes */}
+            <div className="max-h-40 overflow-y-auto bg-secondary/30 rounded-lg p-3">
+              <div className="grid grid-cols-2 gap-2 text-sm font-mono">
+                {generatedReceipts.slice(0, 10).map((code, i) => (
+                  <div key={code} className="bg-background px-2 py-1 rounded text-xs">
+                    {i + 1}. {code}
+                  </div>
+                ))}
+                {generatedReceipts.length > 10 && (
+                  <div className="col-span-2 text-center text-muted-foreground text-xs py-1">
+                    +{generatedReceipts.length - 10} more codes...
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Share buttons */}
+            <div className="flex flex-col gap-3">
+              <Button 
+                onClick={handleShareOnWhatsApp}
+                disabled={generatingPdf}
+                className="w-full gap-2 bg-[#25D366] hover:bg-[#20BD5A] text-white"
+              >
+                {generatingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <MessageCircle className="h-4 w-4" />
+                )}
+                Share on WhatsApp
+              </Button>
+              
+              <Button 
+                variant="outline"
+                onClick={handleDownloadPdf}
+                disabled={generatingPdf}
+                className="w-full gap-2"
+              >
+                {generatingPdf ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
+                Download PDF
+              </Button>
+            </div>
+
+            <p className="text-xs text-muted-foreground text-center">
+              Share this PDF with the vendor so they can give receipt codes to customers
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Mark Receipt Form */}
       <Card>
