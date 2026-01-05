@@ -42,6 +42,7 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
+import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface TenantDashboardProps {
   user: User;
@@ -132,6 +133,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             
             <div className="flex items-center gap-1">
+              <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
               
