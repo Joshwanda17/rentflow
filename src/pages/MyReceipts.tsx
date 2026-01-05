@@ -8,13 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Label } from '@/components/ui/label';
-import { Progress } from '@/components/ui/progress';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles, Camera, ChevronDown, ChevronUp } from 'lucide-react';
+import { 
+  Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, 
+  Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles, 
+  Camera, ChevronDown, ChevronUp, Wallet, ScanLine, Clock, 
+  CircleDollarSign, Gift, Zap
+} from 'lucide-react';
 import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserReceipt {
   id: string;
@@ -225,7 +231,15 @@ export default function MyReceipts() {
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <div className="text-center">
+          <div className="relative">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
+              <Receipt className="h-8 w-8 text-primary animate-pulse" />
+            </div>
+            <Loader2 className="h-5 w-5 animate-spin text-primary absolute -bottom-1 -right-1" />
+          </div>
+          <p className="text-sm text-muted-foreground mt-4">Loading your receipts...</p>
+        </div>
       </div>
     );
   }
@@ -236,17 +250,23 @@ export default function MyReceipts() {
   const activeLoans = loans.filter(l => l.status === 'active');
 
   return (
-    <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
-        <div className="container mx-auto px-4 py-3">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/30">
+      {/* Modern Header with gradient */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-border/40">
+        <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <div className="flex items-center gap-4">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => navigate(-1)}
+                className="rounded-xl hover:bg-muted"
+              >
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div className="flex items-center gap-2">
-                <Receipt className="h-5 w-5 text-primary" />
-                <h1 className="text-lg font-semibold">My Receipts</h1>
+              <div>
+                <h1 className="text-xl font-bold tracking-tight">My Receipts</h1>
+                <p className="text-xs text-muted-foreground">Track your shopping & grow your limit</p>
               </div>
             </div>
             <ThemeToggle />
@@ -254,308 +274,460 @@ export default function MyReceipts() {
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Rent Discount Card - NEW! Shows monthly savings */}
-        <Card className="elevated-card overflow-hidden border-success/20 bg-gradient-to-br from-success/10 via-success/5 to-background">
-          <CardHeader className="pb-2">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-success/20">
-                  <Percent className="h-6 w-6 text-success" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg">Your Rent Discount</CardTitle>
-                  <CardDescription>Earn 1% of your shopping as rent savings</CardDescription>
-                </div>
+      <main className="container mx-auto px-4 py-6 pb-24 space-y-6">
+        {/* Stats Overview - Horizontal scroll on mobile */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+            className="p-4 rounded-2xl bg-gradient-to-br from-success/10 via-success/5 to-transparent border border-success/20"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg bg-success/20">
+                <Percent className="h-4 w-4 text-success" />
               </div>
-              <Badge variant="success" className="gap-1">
-                <Sparkles className="h-3 w-3" />
-                Active
-              </Badge>
+              <span className="text-xs font-medium text-muted-foreground">Rent Discount</span>
             </div>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-4xl font-bold text-success">{formatUGX(rentDiscount)}</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  earned from {monthlyReceiptCount} receipts this month
-                </p>
-              </div>
-              <Button 
-                onClick={() => navigate('/pay-landlord')} 
-                className="bg-success hover:bg-success/90 gap-2"
-              >
-                <Home className="h-4 w-4" />
-                Pay Rent
-              </Button>
-            </div>
-            
-            <div className="p-3 rounded-xl bg-background/50 border border-border/50">
-              <div className="flex justify-between text-sm mb-2">
-                <span className="text-muted-foreground">Monthly shopping</span>
-                <span className="font-medium">{formatUGX(monthlyReceipts)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-muted-foreground">Max discount (70% of rent)</span>
-                <span className="font-medium text-muted-foreground">varies</span>
-              </div>
-            </div>
-            
-            <p className="text-xs text-muted-foreground flex items-center gap-1">
-              <TrendingUp className="h-3 w-3" />
-              Keep shopping at Welile partner stores to grow your discount!
-            </p>
-          </CardContent>
-        </Card>
+            <p className="text-2xl font-bold text-success">{formatUGX(rentDiscount)}</p>
+            <p className="text-xs text-muted-foreground mt-1">{monthlyReceiptCount} receipts this month</p>
+          </motion.div>
 
-        {/* Loan Limit Card */}
-        <Card className="elevated-card bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-xl bg-primary/20">
-                <CreditCard className="h-6 w-6 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/20"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg bg-primary/20">
+                <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Your Loan Limit</CardTitle>
-                <CardDescription>Based on verified shopping receipts</CardDescription>
-              </div>
+              <span className="text-xs font-medium text-muted-foreground">Loan Limit</span>
             </div>
-          </CardHeader>
-          <CardContent>
-            <div className="grid grid-cols-3 gap-4">
-              <div className="text-center p-4 rounded-xl bg-background/50">
-                <p className="text-sm text-muted-foreground mb-1">Total Verified</p>
-                <p className="text-xl font-bold">{formatUGX(loanLimit?.total_verified_amount || 0)}</p>
-              </div>
-              <div className="text-center p-4 rounded-xl bg-success/10 border border-success/20">
-                <p className="text-sm text-muted-foreground mb-1">Available Limit</p>
-                <p className="text-xl font-bold text-success">{formatUGX(loanLimit?.available_limit || 0)}</p>
-              </div>
-              <div className="text-center p-4 rounded-xl bg-warning/10 border border-warning/20">
-                <p className="text-sm text-muted-foreground mb-1">Used Limit</p>
-                <p className="text-xl font-bold text-warning">{formatUGX(loanLimit?.used_limit || 0)}</p>
-              </div>
-            </div>
-            <p className="text-xs text-muted-foreground mt-4 text-center">
-              <TrendingUp className="h-3 w-3 inline mr-1" />
-              Your loan limit grows by 20% of each verified receipt amount
-            </p>
-          </CardContent>
-        </Card>
+            <p className="text-2xl font-bold text-primary">{formatUGX(loanLimit?.available_limit || 0)}</p>
+            <p className="text-xs text-muted-foreground mt-1">Available to borrow</p>
+          </motion.div>
 
-        {/* Submit Receipt Form */}
-        <Card className="elevated-card">
-          <CardHeader>
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Plus className="h-4 w-4 text-primary" />
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+            className="p-4 rounded-2xl bg-card border border-border/50"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg bg-muted">
+                <CheckCircle className="h-4 w-4 text-foreground" />
               </div>
-              <div>
-                <CardTitle className="text-lg">Submit Shopping Receipt</CardTitle>
-                <CardDescription>Enter your Welile receipt number from the vendor</CardDescription>
-              </div>
+              <span className="text-xs font-medium text-muted-foreground">Verified</span>
             </div>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleSubmitReceipt} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="receiptCode">Receipt Number</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="receiptCode"
-                    placeholder="Enter receipt code (e.g., WL-001234)"
-                    value={receiptCode}
-                    onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
-                    required
-                    className="font-mono uppercase flex-1"
-                  />
-                  <QRScanner 
-                    onScan={(code) => setReceiptCode(code.toUpperCase())}
-                    buttonClassName="shrink-0"
-                  />
-                </div>
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <Camera className="h-3 w-3" />
-                  Tap the camera icon to scan QR code
-                </p>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="items">Items Purchased</Label>
-                <Textarea
-                  id="items"
-                  placeholder="List the items you purchased..."
-                  value={itemsDescription}
-                  onChange={(e) => setItemsDescription(e.target.value)}
-                  required
-                  rows={3}
-                />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="amount">Total Amount (UGX)</Label>
-                <Input
-                  id="amount"
-                  type="number"
-                  placeholder="Enter total amount"
-                  value={claimedAmount}
-                  onChange={(e) => setClaimedAmount(e.target.value)}
-                  required
-                  min="1000"
-                />
-              </div>
-              <Button type="submit" className="w-full gap-2" disabled={submitting}>
-                {submitting ? (
-                  <>
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Submitting...
-                  </>
-                ) : (
-                  <>
-                    <FileText className="h-4 w-4" />
-                    Submit Receipt
-                  </>
-                )}
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
+            <p className="text-2xl font-bold">{verifiedReceipts.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">{formatUGX(loanLimit?.total_verified_amount || 0)} total</p>
+          </motion.div>
 
-        {/* Active Loans */}
-        {activeLoans.length > 0 && (
-          <Card className="elevated-card border-warning/20">
-            <CardHeader>
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-warning/10">
-                  <CreditCard className="h-4 w-4 text-warning" />
-                </div>
-                <CardTitle className="text-lg">Active Loans</CardTitle>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+            className="p-4 rounded-2xl bg-card border border-border/50"
+          >
+            <div className="flex items-center gap-2 mb-2">
+              <div className="p-2 rounded-lg bg-warning/20">
+                <Clock className="h-4 w-4 text-warning" />
               </div>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {activeLoans.map((loan) => (
-                <div key={loan.id} className="p-4 rounded-xl bg-warning/5 border border-warning/20 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="font-semibold">{formatUGX(loan.amount)}</span>
-                    <Badge variant="warning">Due: {new Date(loan.due_date).toLocaleDateString()}</Badge>
+              <span className="text-xs font-medium text-muted-foreground">Pending</span>
+            </div>
+            <p className="text-2xl font-bold">{pendingReceipts.length}</p>
+            <p className="text-xs text-muted-foreground mt-1">Awaiting verification</p>
+          </motion.div>
+        </div>
+
+        {/* Main Content Tabs */}
+        <Tabs defaultValue="submit" className="space-y-6">
+          <TabsList className="grid w-full grid-cols-2 h-12 p-1 bg-muted/50 rounded-2xl">
+            <TabsTrigger 
+              value="submit" 
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
+            >
+              <Plus className="h-4 w-4" />
+              Submit Receipt
+            </TabsTrigger>
+            <TabsTrigger 
+              value="history" 
+              className="rounded-xl data-[state=active]:bg-background data-[state=active]:shadow-sm gap-2"
+            >
+              <ShoppingBag className="h-4 w-4" />
+              History
+              {receipts.length > 0 && (
+                <Badge variant="secondary" className="ml-1 h-5 px-1.5 text-xs">
+                  {receipts.length}
+                </Badge>
+              )}
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Submit Receipt Tab */}
+          <TabsContent value="submit" className="space-y-6 mt-0">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <Card className="border-2 border-dashed border-primary/30 bg-gradient-to-br from-primary/5 via-transparent to-transparent overflow-hidden">
+                <CardHeader className="pb-4">
+                  <div className="flex items-center gap-4">
+                    <div className="p-3 rounded-2xl bg-primary/10 ring-4 ring-primary/5">
+                      <ScanLine className="h-6 w-6 text-primary" />
+                    </div>
+                    <div className="flex-1">
+                      <CardTitle className="text-xl">Submit Shopping Receipt</CardTitle>
+                      <CardDescription className="text-sm mt-1">
+                        Enter your Welile receipt code to grow your loan limit
+                      </CardDescription>
+                    </div>
                   </div>
-                  <div className="flex justify-between text-sm text-muted-foreground">
-                    <span>Repayment: {formatUGX(loan.total_repayment)}</span>
-                    <span>From: {loan.lender?.full_name || 'Unknown'}</span>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Receipt History */}
-        <Card className="elevated-card">
-          <CardHeader>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-lg bg-primary/10">
-                  <ShoppingBag className="h-4 w-4 text-primary" />
-                </div>
-                <CardTitle className="text-lg">Receipt History</CardTitle>
-              </div>
-              <Badge variant="outline">{receipts.length} total</Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {receipts.length === 0 ? (
-              <div className="text-center py-8">
-                <Receipt className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">No receipts submitted yet</p>
-                <p className="text-sm text-muted-foreground/70">Submit your shopping receipts to grow your loan limit</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {receipts.map((receipt) => {
-                  const isExpanded = expandedReceipt === receipt.id;
-                  return (
-                    <div 
-                      key={receipt.id} 
-                      className={`p-4 rounded-xl border transition-all ${
-                        receipt.verified 
-                          ? 'bg-success/5 border-success/20' 
-                          : receipt.rejection_reason 
-                            ? 'bg-destructive/5 border-destructive/20'
-                            : 'bg-secondary/30 border-border/50'
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <code className="text-sm font-mono bg-background/50 px-2 py-0.5 rounded">
-                              {receipt.receipt_numbers?.receipt_code || 'N/A'}
-                            </code>
-                            {receipt.verified ? (
-                              <Badge variant="success" className="gap-1">
-                                <CheckCircle className="h-3 w-3" />
-                                Verified
-                              </Badge>
-                            ) : receipt.rejection_reason ? (
-                              <Badge variant="destructive" className="gap-1">
-                                <XCircle className="h-3 w-3" />
-                                Rejected
-                              </Badge>
-                            ) : (
-                              <Badge variant="warning">Pending</Badge>
-                            )}
-                          </div>
-                          <p className="text-sm text-muted-foreground truncate">
-                            {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
-                          </p>
-                          <p className="text-sm mt-1 line-clamp-2">{receipt.items_description}</p>
-                          {receipt.rejection_reason && (
-                            <p className="text-sm text-destructive mt-2">{receipt.rejection_reason}</p>
-                          )}
-                        </div>
-                        <div className="text-right shrink-0">
-                          <p className="font-semibold">{formatUGX(receipt.claimed_amount)}</p>
-                          {receipt.loan_contribution && (
-                            <p className="text-xs text-success">+{formatUGX(receipt.loan_contribution)} limit</p>
-                          )}
-                          <p className="text-xs text-muted-foreground mt-1">
-                            {new Date(receipt.created_at).toLocaleDateString()}
-                          </p>
+                </CardHeader>
+                <CardContent className="space-y-5">
+                  <form onSubmit={handleSubmitReceipt} className="space-y-5">
+                    {/* Receipt Code Input */}
+                    <div className="space-y-3">
+                      <Label htmlFor="receiptCode" className="text-sm font-semibold flex items-center gap-2">
+                        <Receipt className="h-4 w-4 text-muted-foreground" />
+                        Receipt Code
+                      </Label>
+                      <div className="relative">
+                        <Input
+                          id="receiptCode"
+                          placeholder="WL-001234"
+                          value={receiptCode}
+                          onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
+                          required
+                          className="font-mono text-lg uppercase h-14 pl-4 pr-14 rounded-xl bg-background border-2 focus:border-primary transition-colors"
+                        />
+                        <div className="absolute right-2 top-1/2 -translate-y-1/2">
+                          <QRScanner 
+                            onScan={(code) => setReceiptCode(code.toUpperCase())}
+                            buttonVariant="ghost"
+                            buttonClassName="h-10 w-10 rounded-lg bg-muted hover:bg-muted/80"
+                          />
                         </div>
                       </div>
-                      
-                      {/* Timeline Toggle */}
-                      <button
-                        onClick={() => setExpandedReceipt(isExpanded ? null : receipt.id)}
-                        className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center"
-                      >
-                        {isExpanded ? (
-                          <>
-                            <ChevronUp className="h-3 w-3" />
-                            Hide timeline
-                          </>
-                        ) : (
-                          <>
-                            <ChevronDown className="h-3 w-3" />
-                            View timeline
-                          </>
-                        )}
-                      </button>
-                      
-                      {/* Status Timeline */}
-                      {isExpanded && (
-                        <ReceiptStatusTimeline
-                          submittedAt={receipt.created_at}
-                          vendorVerifiedAt={receipt.receipt_numbers?.vendor_marked_at || null}
-                          approvedAt={receipt.verified_at}
-                          rejectedReason={receipt.rejection_reason}
-                        />
-                      )}
+                      <p className="text-xs text-muted-foreground flex items-center gap-2">
+                        <Camera className="h-3 w-3" />
+                        Tap the camera icon to scan QR code from receipt
+                      </p>
                     </div>
-                  );
-                })}
+
+                    {/* Items Description */}
+                    <div className="space-y-3">
+                      <Label htmlFor="items" className="text-sm font-semibold flex items-center gap-2">
+                        <ShoppingBag className="h-4 w-4 text-muted-foreground" />
+                        Items Purchased
+                      </Label>
+                      <Textarea
+                        id="items"
+                        placeholder="e.g., Rice, Sugar, Cooking Oil, Vegetables..."
+                        value={itemsDescription}
+                        onChange={(e) => setItemsDescription(e.target.value)}
+                        required
+                        rows={3}
+                        className="rounded-xl bg-background border-2 focus:border-primary transition-colors resize-none"
+                      />
+                    </div>
+
+                    {/* Amount Input */}
+                    <div className="space-y-3">
+                      <Label htmlFor="amount" className="text-sm font-semibold flex items-center gap-2">
+                        <CircleDollarSign className="h-4 w-4 text-muted-foreground" />
+                        Total Amount
+                      </Label>
+                      <div className="relative">
+                        <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">
+                          UGX
+                        </span>
+                        <Input
+                          id="amount"
+                          type="number"
+                          placeholder="50,000"
+                          value={claimedAmount}
+                          onChange={(e) => setClaimedAmount(e.target.value)}
+                          required
+                          min="1000"
+                          className="font-mono text-lg h-14 pl-14 rounded-xl bg-background border-2 focus:border-primary transition-colors"
+                        />
+                      </div>
+                    </div>
+
+                    {/* Benefits Preview */}
+                    <div className="p-4 rounded-xl bg-muted/30 border border-border/50 space-y-3">
+                      <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">What you'll earn</p>
+                      <div className="grid grid-cols-2 gap-3">
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-success/10">
+                            <Percent className="h-3.5 w-3.5 text-success" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Rent Discount</p>
+                            <p className="text-sm font-semibold text-success">
+                              {claimedAmount ? formatUGX(Math.round(parseFloat(claimedAmount) * 0.01)) : 'UGX 0'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-lg bg-primary/10">
+                            <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Loan Limit</p>
+                            <p className="text-sm font-semibold text-primary">
+                              +{claimedAmount ? formatUGX(Math.round(parseFloat(claimedAmount) * 0.2)) : 'UGX 0'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full h-14 text-base font-semibold rounded-xl gap-2 bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/20" 
+                      disabled={submitting}
+                    >
+                      {submitting ? (
+                        <>
+                          <Loader2 className="h-5 w-5 animate-spin" />
+                          Submitting...
+                        </>
+                      ) : (
+                        <>
+                          <Zap className="h-5 w-5" />
+                          Submit Receipt
+                        </>
+                      )}
+                    </Button>
+                  </form>
+                </CardContent>
+              </Card>
+            </motion.div>
+
+            {/* Quick Tips */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="p-4 rounded-2xl bg-muted/30 border border-border/50"
+            >
+              <div className="flex items-start gap-3">
+                <div className="p-2 rounded-xl bg-primary/10 shrink-0">
+                  <Gift className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-semibold text-sm">How it works</p>
+                  <ul className="mt-2 space-y-1.5 text-sm text-muted-foreground">
+                    <li className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">1</span>
+                      Shop at any Welile partner store
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">2</span>
+                      Submit your receipt code here
+                    </li>
+                    <li className="flex items-center gap-2">
+                      <span className="w-5 h-5 rounded-full bg-primary/10 text-primary text-xs font-bold flex items-center justify-center">3</span>
+                      Earn 1% rent discount + grow loan limit
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </motion.div>
+          </TabsContent>
+
+          {/* History Tab */}
+          <TabsContent value="history" className="space-y-4 mt-0">
+            {receipts.length === 0 ? (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="py-16 text-center"
+              >
+                <div className="w-20 h-20 rounded-3xl bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                  <Receipt className="h-10 w-10 text-muted-foreground/40" />
+                </div>
+                <p className="text-lg font-medium text-muted-foreground">No receipts yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-1 max-w-xs mx-auto">
+                  Submit your first shopping receipt to start earning rewards
+                </p>
+              </motion.div>
+            ) : (
+              <div className="space-y-3">
+                <AnimatePresence>
+                  {receipts.map((receipt, index) => {
+                    const isExpanded = expandedReceipt === receipt.id;
+                    return (
+                      <motion.div
+                        key={receipt.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className={`p-4 rounded-2xl border-2 transition-all ${
+                          receipt.verified 
+                            ? 'bg-success/5 border-success/20 hover:border-success/40' 
+                            : receipt.rejection_reason 
+                              ? 'bg-destructive/5 border-destructive/20 hover:border-destructive/40'
+                              : 'bg-card border-border/50 hover:border-border'
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-4">
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-2 flex-wrap">
+                              <code className="text-sm font-mono bg-muted px-2.5 py-1 rounded-lg font-semibold">
+                                {receipt.receipt_numbers?.receipt_code || 'N/A'}
+                              </code>
+                              {receipt.verified ? (
+                                <Badge className="gap-1 bg-success/10 text-success border-success/20 hover:bg-success/20">
+                                  <CheckCircle className="h-3 w-3" />
+                                  Verified
+                                </Badge>
+                              ) : receipt.rejection_reason ? (
+                                <Badge className="gap-1 bg-destructive/10 text-destructive border-destructive/20 hover:bg-destructive/20">
+                                  <XCircle className="h-3 w-3" />
+                                  Rejected
+                                </Badge>
+                              ) : (
+                                <Badge className="gap-1 bg-warning/10 text-warning border-warning/20 hover:bg-warning/20">
+                                  <Clock className="h-3 w-3" />
+                                  Pending
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground">
+                              {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
+                            </p>
+                            <p className="text-sm mt-1.5 line-clamp-2 text-foreground/80">{receipt.items_description}</p>
+                            {receipt.rejection_reason && (
+                              <p className="text-sm text-destructive mt-2 p-2 rounded-lg bg-destructive/5">
+                                {receipt.rejection_reason}
+                              </p>
+                            )}
+                          </div>
+                          <div className="text-right shrink-0">
+                            <p className="text-lg font-bold">{formatUGX(receipt.claimed_amount)}</p>
+                            {receipt.loan_contribution && (
+                              <p className="text-xs font-medium text-success mt-0.5">
+                                +{formatUGX(receipt.loan_contribution)} limit
+                              </p>
+                            )}
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(receipt.created_at).toLocaleDateString('en-GB', {
+                                day: 'numeric',
+                                month: 'short',
+                                year: '2-digit'
+                              })}
+                            </p>
+                          </div>
+                        </div>
+                        
+                        {/* Timeline Toggle */}
+                        <button
+                          onClick={() => setExpandedReceipt(isExpanded ? null : receipt.id)}
+                          className="mt-3 flex items-center gap-1.5 text-xs font-medium text-muted-foreground hover:text-foreground transition-colors w-full justify-center py-2 rounded-lg hover:bg-muted/50"
+                        >
+                          {isExpanded ? (
+                            <>
+                              <ChevronUp className="h-3.5 w-3.5" />
+                              Hide timeline
+                            </>
+                          ) : (
+                            <>
+                              <ChevronDown className="h-3.5 w-3.5" />
+                              View timeline
+                            </>
+                          )}
+                        </button>
+                        
+                        {/* Status Timeline */}
+                        <AnimatePresence>
+                          {isExpanded && (
+                            <motion.div
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: 'auto' }}
+                              exit={{ opacity: 0, height: 0 }}
+                              transition={{ duration: 0.2 }}
+                            >
+                              <ReceiptStatusTimeline
+                                submittedAt={receipt.created_at}
+                                vendorVerifiedAt={receipt.receipt_numbers?.vendor_marked_at || null}
+                                approvedAt={receipt.verified_at}
+                                rejectedReason={receipt.rejection_reason}
+                              />
+                            </motion.div>
+                          )}
+                        </AnimatePresence>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
               </div>
             )}
-          </CardContent>
-        </Card>
+          </TabsContent>
+        </Tabs>
+
+        {/* Active Loans Section */}
+        {activeLoans.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="border-warning/30 bg-gradient-to-br from-warning/5 to-transparent">
+              <CardHeader className="pb-3">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-warning/10">
+                    <CreditCard className="h-5 w-5 text-warning" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-lg">Active Loans</CardTitle>
+                    <CardDescription>Your current outstanding loans</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {activeLoans.map((loan) => (
+                  <div 
+                    key={loan.id} 
+                    className="p-4 rounded-xl bg-background border border-warning/20 space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-xl font-bold">{formatUGX(loan.amount)}</span>
+                      <Badge className="bg-warning/10 text-warning border-warning/20">
+                        Due: {new Date(loan.due_date).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </Badge>
+                    </div>
+                    <div className="flex justify-between text-sm text-muted-foreground">
+                      <span>Repay: {formatUGX(loan.total_repayment)}</span>
+                      <span>From: {loan.lender?.full_name || 'Unknown'}</span>
+                    </div>
+                  </div>
+                ))}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Pay Rent CTA */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+        >
+          <Button 
+            onClick={() => navigate('/pay-landlord')} 
+            variant="outline"
+            className="w-full h-14 rounded-2xl gap-3 border-2 border-success/30 text-success hover:bg-success/10 hover:border-success/50"
+          >
+            <Home className="h-5 w-5" />
+            <span className="font-semibold">Pay Rent with {formatUGX(rentDiscount)} Discount</span>
+            <Sparkles className="h-4 w-4" />
+          </Button>
+        </motion.div>
       </main>
     </div>
   );
