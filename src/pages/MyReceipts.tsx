@@ -11,7 +11,8 @@ import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles, Camera } from 'lucide-react';
+import { Receipt, CreditCard, CheckCircle, XCircle, ArrowLeft, TrendingUp, Loader2, ShoppingBag, FileText, Plus, Percent, Home, Sparkles, Camera, ChevronDown, ChevronUp } from 'lucide-react';
+import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeline';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
 
@@ -27,6 +28,7 @@ interface UserReceipt {
   created_at: string;
   receipt_numbers?: {
     receipt_code: string;
+    vendor_marked_at: string | null;
     vendors?: {
       name: string;
     };
@@ -62,6 +64,7 @@ export default function MyReceipts() {
   const [loans, setLoans] = useState<UserLoan[]>([]);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
+  const [expandedReceipt, setExpandedReceipt] = useState<string | null>(null);
   
   // Rent discount state
   const [monthlyReceipts, setMonthlyReceipts] = useState(0);
@@ -97,6 +100,7 @@ export default function MyReceipts() {
           *,
           receipt_numbers (
             receipt_code,
+            vendor_marked_at,
             vendors (name)
           )
         `)
@@ -466,57 +470,88 @@ export default function MyReceipts() {
               </div>
             ) : (
               <div className="space-y-3">
-                {receipts.map((receipt) => (
-                  <div 
-                    key={receipt.id} 
-                    className={`p-4 rounded-xl border transition-all ${
-                      receipt.verified 
-                        ? 'bg-success/5 border-success/20' 
-                        : receipt.rejection_reason 
-                          ? 'bg-destructive/5 border-destructive/20'
-                          : 'bg-secondary/30 border-border/50'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <code className="text-sm font-mono bg-background/50 px-2 py-0.5 rounded">
-                            {receipt.receipt_numbers?.receipt_code || 'N/A'}
-                          </code>
-                          {receipt.verified ? (
-                            <Badge variant="success" className="gap-1">
-                              <CheckCircle className="h-3 w-3" />
-                              Verified
-                            </Badge>
-                          ) : receipt.rejection_reason ? (
-                            <Badge variant="destructive" className="gap-1">
-                              <XCircle className="h-3 w-3" />
-                              Rejected
-                            </Badge>
-                          ) : (
-                            <Badge variant="warning">Pending</Badge>
+                {receipts.map((receipt) => {
+                  const isExpanded = expandedReceipt === receipt.id;
+                  return (
+                    <div 
+                      key={receipt.id} 
+                      className={`p-4 rounded-xl border transition-all ${
+                        receipt.verified 
+                          ? 'bg-success/5 border-success/20' 
+                          : receipt.rejection_reason 
+                            ? 'bg-destructive/5 border-destructive/20'
+                            : 'bg-secondary/30 border-border/50'
+                      }`}
+                    >
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1">
+                            <code className="text-sm font-mono bg-background/50 px-2 py-0.5 rounded">
+                              {receipt.receipt_numbers?.receipt_code || 'N/A'}
+                            </code>
+                            {receipt.verified ? (
+                              <Badge variant="success" className="gap-1">
+                                <CheckCircle className="h-3 w-3" />
+                                Verified
+                              </Badge>
+                            ) : receipt.rejection_reason ? (
+                              <Badge variant="destructive" className="gap-1">
+                                <XCircle className="h-3 w-3" />
+                                Rejected
+                              </Badge>
+                            ) : (
+                              <Badge variant="warning">Pending</Badge>
+                            )}
+                          </div>
+                          <p className="text-sm text-muted-foreground truncate">
+                            {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
+                          </p>
+                          <p className="text-sm mt-1 line-clamp-2">{receipt.items_description}</p>
+                          {receipt.rejection_reason && (
+                            <p className="text-sm text-destructive mt-2">{receipt.rejection_reason}</p>
                           )}
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">
-                          {receipt.receipt_numbers?.vendors?.name || 'Unknown Vendor'}
-                        </p>
-                        <p className="text-sm mt-1 line-clamp-2">{receipt.items_description}</p>
-                        {receipt.rejection_reason && (
-                          <p className="text-sm text-destructive mt-2">{receipt.rejection_reason}</p>
-                        )}
+                        <div className="text-right shrink-0">
+                          <p className="font-semibold">{formatUGX(receipt.claimed_amount)}</p>
+                          {receipt.loan_contribution && (
+                            <p className="text-xs text-success">+{formatUGX(receipt.loan_contribution)} limit</p>
+                          )}
+                          <p className="text-xs text-muted-foreground mt-1">
+                            {new Date(receipt.created_at).toLocaleDateString()}
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-semibold">{formatUGX(receipt.claimed_amount)}</p>
-                        {receipt.loan_contribution && (
-                          <p className="text-xs text-success">+{formatUGX(receipt.loan_contribution)} limit</p>
+                      
+                      {/* Timeline Toggle */}
+                      <button
+                        onClick={() => setExpandedReceipt(isExpanded ? null : receipt.id)}
+                        className="mt-3 flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground transition-colors w-full justify-center"
+                      >
+                        {isExpanded ? (
+                          <>
+                            <ChevronUp className="h-3 w-3" />
+                            Hide timeline
+                          </>
+                        ) : (
+                          <>
+                            <ChevronDown className="h-3 w-3" />
+                            View timeline
+                          </>
                         )}
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {new Date(receipt.created_at).toLocaleDateString()}
-                        </p>
-                      </div>
+                      </button>
+                      
+                      {/* Status Timeline */}
+                      {isExpanded && (
+                        <ReceiptStatusTimeline
+                          submittedAt={receipt.created_at}
+                          vendorVerifiedAt={receipt.receipt_numbers?.vendor_marked_at || null}
+                          approvedAt={receipt.verified_at}
+                          rejectedReason={receipt.rejection_reason}
+                        />
+                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </CardContent>
