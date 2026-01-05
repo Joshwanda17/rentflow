@@ -5,7 +5,7 @@ import {
   Shield, Clock, Gift, Share2, ArrowLeft, CheckCircle2,
   Smartphone, CreditCard, Percent, Building2, Coins, Star,
   Zap, Trophy, Target, Sparkles, BadgeDollarSign, Flame,
-  Timer, AlertCircle, PartyPopper
+  Timer, AlertCircle, PartyPopper, MessageCircle
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -273,14 +273,14 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
 }
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 
-// High-impact opportunities for different user types
-const opportunities = [
+// Comprehensive services for all users
+const services = [
   {
-    category: "💰 EARN MONEY",
+    category: "💰 EARN & GROW MONEY",
     items: [
       {
         icon: Coins,
-        title: "Earn UGX 100 Per Referral - Unlimited!",
+        title: "Referral Rewards - UGX 100 Per Friend",
         description: "No limits! Invite 10 friends = UGX 1,000. Invite 100 friends = UGX 10,000. The more you share, the more you earn!",
         color: "bg-success/10 text-success",
         highlight: true,
@@ -288,7 +288,7 @@ const opportunities = [
       },
       {
         icon: Trophy,
-        title: "Win Monthly Cash Prizes - Up to UGX 30,000!",
+        title: "Monthly Leaderboard Prizes - Up to UGX 30,000!",
         description: "Top 3 referrers every month win BONUS rewards: 1st = UGX 30,000, 2nd = UGX 20,000, 3rd = UGX 10,000. Could be YOU!",
         color: "bg-amber-500/10 text-amber-500",
         highlight: true,
@@ -296,14 +296,14 @@ const opportunities = [
       },
       {
         icon: TrendingUp,
-        title: "Invest & Grow Your Money - Earn 10-15% Returns",
+        title: "Investment Returns - Earn 10-15%",
         description: "Be a Supporter! Fund verified rent requests and earn guaranteed returns. Your money works for you 24/7.",
         color: "bg-indigo-500/10 text-indigo-500",
         tag: "INVESTORS"
       },
       {
         icon: BadgeDollarSign,
-        title: "Become an Agent - Build Your Own Business",
+        title: "Agent Commission - Build Your Business",
         description: "Earn commission on every deposit, withdrawal, loan, and sale in your area. No capital needed to start!",
         color: "bg-violet-500/10 text-violet-500",
         tag: "ENTREPRENEURS"
@@ -311,85 +311,191 @@ const opportunities = [
     ]
   },
   {
-    category: "🏠 SOLVE RENT STRESS",
+    category: "🏠 RENT SOLUTIONS",
     items: [
       {
         icon: Home,
-        title: "Get Rent Money TODAY - Pay Back Over 30 Days",
-        description: "Landlord breathing down your neck? Access up to 100% of your rent NOW and repay in small daily amounts. No more sleepless nights!",
+        title: "Rent Advance - Get Money TODAY",
+        description: "Landlord breathing down your neck? Access up to 100% of your rent NOW and repay in small daily amounts.",
         color: "bg-primary/10 text-primary",
         tag: "TENANTS"
       },
       {
         icon: Percent,
-        title: "Get Up to 70% OFF Your Rent - Seriously!",
+        title: "Rent Discounts - Save Up to 70%",
         description: "Every purchase you make with Welile receipts earns 1% back as rent credit. Shop smart, save BIG on rent!",
         color: "bg-emerald-500/10 text-emerald-500",
         tag: "EXCLUSIVE"
       },
       {
         icon: Receipt,
-        title: "Turn Your Shopping Receipts Into Loan Power",
-        description: "Those receipts in your pocket? They're worth money! Submit verified receipts to unlock higher loan limits instantly.",
+        title: "Receipt-Based Loan Limits",
+        description: "Submit verified shopping receipts to unlock higher loan limits. Turn everyday spending into borrowing power!",
         color: "bg-blue-500/10 text-blue-500",
         tag: "GENIUS HACK"
-      }
-    ]
-  },
-  {
-    category: "💼 FOR BUSINESS OWNERS",
-    items: [
+      },
       {
         icon: Building2,
-        title: "Landlords: Get Paid ON TIME, Every Time",
+        title: "Landlord Direct Payments",
         description: "Never chase tenants again! Receive rent directly to your wallet. We handle collection - you enjoy peace of mind.",
         color: "bg-cyan-500/10 text-cyan-500",
         tag: "LANDLORDS"
-      },
-      {
-        icon: ShoppingBag,
-        title: "Sell to 40M+ Customers - Zero Startup Cost",
-        description: "List your products on our marketplace. Reach buyers across East Africa. We handle payments - you focus on selling!",
-        color: "bg-orange-500/10 text-orange-500",
-        tag: "VENDORS"
       }
     ]
   },
   {
-    category: "⚡ INSTANT FINANCIAL SERVICES",
+    category: "💳 FINANCIAL SERVICES",
     items: [
       {
         icon: Wallet,
-        title: "Send & Receive Money - Zero Hidden Fees",
-        description: "Transfer to anyone on Welile instantly. Deposit or withdraw through agents in your neighborhood. Fast, free, simple!",
+        title: "Digital Wallet - Store & Manage Money",
+        description: "Keep your money safe in your Welile wallet. Track all transactions, send and receive instantly.",
         color: "bg-rose-500/10 text-rose-500"
       },
       {
         icon: CreditCard,
-        title: "Quick Loans When You Need Cash FAST",
-        description: "Emergency? Bills due? Access instant loans based on your history. No paperwork, no guarantors, approved in minutes!",
+        title: "Instant Loans - No Guarantors",
+        description: "Emergency? Bills due? Access instant loans based on your history. No paperwork, approved in minutes!",
+        color: "bg-pink-500/10 text-pink-500",
+        tag: "FAST APPROVAL"
+      },
+      {
+        icon: Smartphone,
+        title: "Mobile Money Integration",
+        description: "Deposit and withdraw using MTN Mobile Money, Airtel Money, or through local agents near you.",
+        color: "bg-yellow-500/10 text-yellow-500"
+      },
+      {
+        icon: Users,
+        title: "Peer-to-Peer Transfers",
+        description: "Send money to any Welile user instantly for FREE. No hidden fees, no delays.",
+        color: "bg-sky-500/10 text-sky-500"
+      }
+    ]
+  },
+  {
+    category: "🛒 MARKETPLACE & SHOPPING",
+    items: [
+      {
+        icon: ShoppingBag,
+        title: "Shop From Local Vendors",
+        description: "Browse and buy products from verified local sellers. Pay with your wallet or on delivery.",
+        color: "bg-orange-500/10 text-orange-500",
+        tag: "BUYERS"
+      },
+      {
+        icon: Star,
+        title: "Flash Sales & Discounts",
+        description: "Get exclusive deals and flash sales from top vendors. Save money on everyday items!",
+        color: "bg-fuchsia-500/10 text-fuchsia-500"
+      },
+      {
+        icon: BadgeDollarSign,
+        title: "Sell Your Products - Zero Fees",
+        description: "List your products on our marketplace. Reach thousands of buyers across East Africa!",
+        color: "bg-lime-500/10 text-lime-500",
+        tag: "VENDORS"
+      },
+      {
+        icon: Gift,
+        title: "Buy Now, Pay Later",
+        description: "Purchase products and pay in installments. Flexible payment plans that fit your budget.",
+        color: "bg-purple-500/10 text-purple-500",
+        tag: "COMING SOON"
+      }
+    ]
+  },
+  {
+    category: "🤝 COMMUNITY & SUPPORT",
+    items: [
+      {
+        icon: Users,
+        title: "Agent Network - Find Help Nearby",
+        description: "Over 10,000 agents across Uganda ready to help with deposits, withdrawals, and support.",
+        color: "bg-teal-500/10 text-teal-500"
+      },
+      {
+        icon: Shield,
+        title: "Verified User System",
+        description: "All users are verified through LC1 chairpersons for maximum security and trust.",
+        color: "bg-green-500/10 text-green-500"
+      },
+      {
+        icon: MessageCircle,
+        title: "24/7 Customer Support",
+        description: "Need help? Our support team is available around the clock via WhatsApp and in-app chat.",
+        color: "bg-blue-500/10 text-blue-500"
+      },
+      {
+        icon: Target,
+        title: "Financial Education",
+        description: "Learn smart money management tips, budgeting strategies, and financial literacy resources.",
+        color: "bg-amber-500/10 text-amber-500"
+      }
+    ]
+  },
+  {
+    category: "📊 BUSINESS TOOLS",
+    items: [
+      {
+        icon: TrendingUp,
+        title: "Earnings Dashboard",
+        description: "Track your referral earnings, commissions, and investment returns in real-time.",
+        color: "bg-indigo-500/10 text-indigo-500"
+      },
+      {
+        icon: Receipt,
+        title: "Transaction History",
+        description: "Complete record of all your transactions. Export reports for personal or business use.",
+        color: "bg-slate-500/10 text-slate-500"
+      },
+      {
+        icon: Clock,
+        title: "Payment Schedules",
+        description: "View and manage your repayment schedules. Get reminders before due dates.",
+        color: "bg-orange-500/10 text-orange-500"
+      },
+      {
+        icon: Sparkles,
+        title: "Smart Notifications",
+        description: "Stay updated with instant notifications for payments, approvals, and special offers.",
         color: "bg-pink-500/10 text-pink-500"
       }
     ]
   },
   {
-    category: "✅ WHY TRUST WELILE",
+    category: "✅ SECURITY & TRUST",
     items: [
       {
         icon: Shield,
-        title: "Bank-Level Security - Your Money is SAFE",
-        description: "Protected by advanced encryption. Verified by LC1 chairpersons. Over 40 million users trust us with their money.",
+        title: "Bank-Level Encryption",
+        description: "Your data and money are protected by advanced encryption. We never share your information.",
         color: "bg-green-500/10 text-green-500"
       },
       {
         icon: Clock,
-        title: "24/7 Access - Works Even on Basic Phones",
-        description: "No smartphone? No problem! Access anytime, anywhere. Simple interface that anyone can use.",
+        title: "24/7 Access - Any Device",
+        description: "Access your account anytime, anywhere. Works on smartphones, tablets, and computers.",
         color: "bg-teal-500/10 text-teal-500"
+      },
+      {
+        icon: CheckCircle2,
+        title: "Verified Transactions",
+        description: "Every transaction is verified and recorded. Get instant receipts for all activities.",
+        color: "bg-emerald-500/10 text-emerald-500"
+      },
+      {
+        icon: Flame,
+        title: "Fraud Protection",
+        description: "Advanced systems detect and prevent fraudulent activities to keep your money safe.",
+        color: "bg-red-500/10 text-red-500"
       }
     ]
   }
 ];
+
+// Keep legacy name for backward compatibility
+const opportunities = services;
 
 export default function Benefits() {
   const navigate = useNavigate();
