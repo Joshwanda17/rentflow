@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
-import { Share2, MessageCircle, Copy, Check } from 'lucide-react';
+import { Share2, MessageCircle, Copy, Check, Gift } from 'lucide-react';
 import {
   Dialog,
   DialogContent,
@@ -9,22 +9,28 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { toast } from 'sonner';
-
-const APP_URL = window.location.origin;
-const SHARE_MESSAGE = `🏠 Hey! I'm using Welile to manage my rent payments and build credit through shopping. It's super easy! Join me: ${APP_URL}`;
+import { useAuth } from '@/hooks/useAuth';
 
 export function ShareAppButton() {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
+
+  // Generate referral link with user's ID
+  const referralLink = user 
+    ? `${window.location.origin}/auth?ref=${user.id}`
+    : window.location.origin;
+  
+  const shareMessage = `🏠 Hey! I'm using Welile to manage my rent payments and build credit through shopping. It's super easy! Join using my link and we both get rewarded: ${referralLink}`;
 
   const handleShare = async () => {
     // Try native share first (works great on mobile)
     if (navigator.share) {
       try {
         await navigator.share({
-          title: 'Join Welile',
-          text: SHARE_MESSAGE,
-          url: APP_URL,
+          title: 'Join Welile - Get Rewarded!',
+          text: shareMessage,
+          url: referralLink,
         });
         return;
       } catch (err) {
@@ -39,14 +45,14 @@ export function ShareAppButton() {
   };
 
   const handleCopyLink = async () => {
-    await navigator.clipboard.writeText(APP_URL);
+    await navigator.clipboard.writeText(referralLink);
     setCopied(true);
-    toast.success('Link copied!');
+    toast.success('Referral link copied!');
     setTimeout(() => setCopied(false), 2000);
   };
 
   const handleWhatsAppShare = () => {
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(SHARE_MESSAGE)}`;
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
     window.open(whatsappUrl, '_blank');
     setOpen(false);
   };
@@ -65,13 +71,26 @@ export function ShareAppButton() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
-            <DialogTitle className="text-center">Share Welile</DialogTitle>
+            <DialogTitle className="text-center flex items-center justify-center gap-2">
+              <Gift className="h-5 w-5 text-primary" />
+              Invite & Earn
+            </DialogTitle>
             <DialogDescription className="text-center">
-              Invite your friends and family to join Welile!
+              Share your unique link! When friends sign up, you'll automatically receive <span className="font-bold text-primary">UGX 100</span> in your wallet!
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-3 pt-2">
+            {/* Reward info */}
+            <div className="bg-gradient-to-r from-primary/10 to-success/10 rounded-lg p-3 border border-primary/20">
+              <div className="flex items-center justify-center gap-3">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-primary">UGX 100</p>
+                  <p className="text-xs text-muted-foreground">Per referral</p>
+                </div>
+              </div>
+            </div>
+
             <Button
               onClick={handleWhatsAppShare}
               className="w-full gap-3 bg-[#25D366] hover:bg-[#1fb855] text-white h-12"
@@ -93,15 +112,19 @@ export function ShareAppButton() {
               ) : (
                 <>
                   <Copy className="h-5 w-5" />
-                  Copy Link
+                  Copy Referral Link
                 </>
               )}
             </Button>
 
             <div className="bg-secondary/50 rounded-lg p-3 text-center">
-              <p className="text-xs text-muted-foreground mb-1">Share this link:</p>
-              <p className="text-sm font-mono break-all text-primary">{APP_URL}</p>
+              <p className="text-xs text-muted-foreground mb-1">Your unique referral link:</p>
+              <p className="text-xs font-mono break-all text-primary">{referralLink}</p>
             </div>
+
+            <p className="text-xs text-center text-muted-foreground">
+              Rewards are credited instantly when your friend signs up! 🎉
+            </p>
           </div>
         </DialogContent>
       </Dialog>
