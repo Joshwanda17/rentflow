@@ -219,11 +219,20 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
       });
 
     if (submitError) {
-      toast({
-        title: 'Error',
-        description: submitError.message,
-        variant: 'destructive'
-      });
+      // Check for unique constraint violation
+      if (submitError.code === '23505' || submitError.message.includes('unique') || submitError.message.includes('duplicate')) {
+        toast({
+          title: 'Receipt Already Submitted',
+          description: 'This receipt code has already been claimed. Each receipt can only be used once.',
+          variant: 'destructive'
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: submitError.message,
+          variant: 'destructive'
+        });
+      }
     } else {
       fireSuccess();
       
