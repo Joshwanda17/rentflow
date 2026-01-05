@@ -21,6 +21,7 @@ import { ReceiptStatusTimeline } from '@/components/receipts/ReceiptStatusTimeli
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { QRScanner } from '@/components/receipts/QRScanner';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { useConfetti } from '@/components/Confetti';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserReceipt {
@@ -65,6 +66,7 @@ export default function MyReceipts() {
   const navigate = useNavigate();
   const { user, loading: authLoading } = useAuth();
   const { toast } = useToast();
+  const { fireSuccess: fireConfetti } = useConfetti();
   
   const [receipts, setReceipts] = useState<UserReceipt[]>([]);
   const [loanLimit, setLoanLimit] = useState<LoanLimit | null>(null);
@@ -257,8 +259,11 @@ export default function MyReceipts() {
         });
       }
     } else {
+      // Fire confetti celebration!
+      fireConfetti();
+      
       toast({
-        title: 'Receipt Submitted',
+        title: '🎉 Receipt Submitted!',
         description: 'Your receipt has been submitted for verification'
       });
       setReceiptCode('');
