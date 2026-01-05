@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp, FileSpreadsheet, Share2, MessageCircle } from 'lucide-react';
+import { Receipt, Store, Plus, CheckCircle, XCircle, Clock, Loader2, Users, FileText, Key, ExternalLink, Printer, TrendingUp, FileSpreadsheet, Share2, MessageCircle, Copy } from 'lucide-react';
 import { PrintableReceiptSheet } from './PrintableReceiptSheet';
 import { VendorAnalytics } from './VendorAnalytics';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
@@ -706,6 +706,19 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
             {/* Share buttons */}
             <div className="flex flex-col gap-3">
+              <Button 
+                variant="outline"
+                onClick={() => {
+                  const allCodes = generatedReceipts.join('\n');
+                  navigator.clipboard.writeText(allCodes);
+                  sonnerToast.success(`${generatedReceipts.length} codes copied to clipboard!`);
+                }}
+                className="w-full gap-2"
+              >
+                <Copy className="h-4 w-4" />
+                Copy All Codes
+              </Button>
+              
               <Button 
                 onClick={handleShareOnWhatsApp}
                 disabled={generatingPdf}
