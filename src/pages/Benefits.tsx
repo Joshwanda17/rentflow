@@ -941,6 +941,11 @@ Trust me, you'll thank me later! 🙏`;
           };
           const CategoryIcon = visual.icon;
           
+          // Calculate the starting number for this section
+          const startingNumber = filteredServices
+            .slice(0, sectionIndex)
+            .reduce((acc, s) => acc + s.items.length, 0);
+          
           return (
             <motion.div
               key={section.category}
@@ -997,42 +1002,49 @@ Trust me, you'll thank me later! 🙏`;
               
               {/* Service Items Grid */}
               <div className="grid gap-3">
-                {section.items.map((item, index) => (
-                  <motion.div
-                    key={item.title}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.4 + sectionIndex * 0.1 + index * 0.05 }}
-                  >
-                    <Card 
-                      className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+                {section.items.map((item, index) => {
+                  const serviceNumber = startingNumber + index + 1;
+                  return (
+                    <motion.div
+                      key={item.title}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: 0.4 + sectionIndex * 0.1 + index * 0.05 }}
                     >
-                      <CardContent className="p-4 flex items-start gap-4">
-                        <motion.div 
-                          className={`p-3 rounded-xl ${item.color} shrink-0`}
-                          whileHover={{ scale: 1.1 }}
-                        >
-                          <item.icon className="h-5 w-5" />
-                        </motion.div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 flex-wrap mb-1">
-                            <h4 className="font-semibold text-sm">{item.title}</h4>
-                            {item.tag && (
-                              <Badge 
-                                variant={item.highlight ? "success" : "secondary"} 
-                                className="text-[10px]"
-                              >
-                                {item.tag}
-                              </Badge>
-                            )}
+                      <Card 
+                        className={`border-border/50 hover:border-primary/30 transition-all hover:shadow-lg hover:-translate-y-0.5 ${item.highlight ? 'ring-2 ring-success/30 bg-gradient-to-r from-success/5 to-amber-500/5' : ''}`}
+                      >
+                        <CardContent className="p-4 flex items-start gap-3">
+                          {/* Service Number */}
+                          <div className="flex items-center justify-center w-7 h-7 rounded-full bg-muted text-muted-foreground font-bold text-sm shrink-0">
+                            {serviceNumber}
                           </div>
-                          <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
-                        </div>
-                        <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
+                          <motion.div 
+                            className={`p-3 rounded-xl ${item.color} shrink-0`}
+                            whileHover={{ scale: 1.1 }}
+                          >
+                            <item.icon className="h-5 w-5" />
+                          </motion.div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap mb-1">
+                              <h4 className="font-semibold text-sm">{item.title}</h4>
+                              {item.tag && (
+                                <Badge 
+                                  variant={item.highlight ? "success" : "secondary"} 
+                                  className="text-[10px]"
+                                >
+                                  {item.tag}
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-sm text-muted-foreground leading-relaxed">{item.description}</p>
+                          </div>
+                          <CheckCircle2 className="h-5 w-5 text-primary shrink-0 mt-1" />
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
               </div>
             </motion.div>
           );
