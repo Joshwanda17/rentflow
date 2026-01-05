@@ -460,4 +460,21 @@
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgb(0 0 0 / 0.08);
   }
+
+  /* QR Scanner scan line animation */
+  @keyframes scanLine {
+    0% {
+      top: 0;
+    }
+    50% {
+      top: calc(100% - 2px);
+    }
+    100% {
+      top: 0;
+    }
+  }
+  
+  .animate-scan-line {
+    animation: scanLine 2s ease-in-out infinite;
+  }
 }

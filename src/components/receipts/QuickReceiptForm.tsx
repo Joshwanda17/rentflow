@@ -13,6 +13,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Receipt, Loader2, FileText, ArrowRight, TrendingUp, CreditCard, Lightbulb, ChevronDown, ShoppingBag, Store, Percent, Clock, MapPin, Phone, Search, X, Camera, Upload, Sparkles } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
+import { QRScanner } from '@/components/receipts/QRScanner';
 
 interface QuickReceiptFormProps {
   userId: string;
@@ -393,14 +394,21 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <div className="space-y-1.5">
               <Label htmlFor="quick-receipt-code" className="text-xs">Receipt Number</Label>
-              <Input
-                id="quick-receipt-code"
-                placeholder="WL-001234"
-                value={receiptCode}
-                onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
-                required
-                className="font-mono uppercase h-9 text-sm"
-              />
+              <div className="flex gap-1.5">
+                <Input
+                  id="quick-receipt-code"
+                  placeholder="WL-001234"
+                  value={receiptCode}
+                  onChange={(e) => setReceiptCode(e.target.value.toUpperCase())}
+                  required
+                  className="font-mono uppercase h-9 text-sm flex-1"
+                />
+                <QRScanner 
+                  onScan={(code) => setReceiptCode(code.toUpperCase())}
+                  buttonSize="sm"
+                  buttonClassName="h-9 w-9"
+                />
+              </div>
             </div>
             <div className="space-y-1.5">
               <Label htmlFor="quick-amount" className="text-xs">Amount (UGX)</Label>
