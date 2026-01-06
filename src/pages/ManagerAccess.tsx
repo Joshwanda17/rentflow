@@ -40,6 +40,7 @@ import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
+import { DepositRequestsManager } from '@/components/manager/DepositRequestsManager';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -635,6 +636,10 @@ export default function ManagerAccess() {
               <ChartBar className="h-3.5 w-3.5" />
               Financials
             </TabsTrigger>
+            <TabsTrigger value="deposits" className="gap-1.5 text-xs flex-1 min-w-[80px]">
+              <Wallet className="h-3.5 w-3.5" />
+              Deposits
+            </TabsTrigger>
             <TabsTrigger value="investments" className="gap-1.5 text-xs flex-1 min-w-[100px]">
               <Wallet className="h-3.5 w-3.5" />
               Investments
@@ -663,6 +668,10 @@ export default function ManagerAccess() {
 
           <TabsContent value="financials" className="mt-4">
             <FinancialOverview />
+          </TabsContent>
+
+          <TabsContent value="deposits" className="mt-4">
+            <DepositRequestsManager />
           </TabsContent>
 
           <TabsContent value="investments" className="mt-4">
