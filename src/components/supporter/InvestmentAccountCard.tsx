@@ -19,6 +19,7 @@ export interface InvestmentAccount {
   returns: number;
   color: string;
   isDefault?: boolean;
+  status?: 'pending' | 'approved' | 'rejected';
 }
 
 interface InvestmentAccountCardProps {
@@ -91,12 +92,27 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund }: Inv
                 <Wallet className="h-5 w-5 text-white" />
               </motion.div>
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-bold text-foreground text-lg">{account.name}</h3>
                   {account.isDefault && (
                     <Badge className="text-[10px] px-2 py-0.5 bg-white/10 text-white/90 border-0">
                       <Sparkles className="h-2.5 w-2.5 mr-1" />
                       Default
+                    </Badge>
+                  )}
+                  {account.status === 'pending' && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-warning/20 text-warning border-warning/30">
+                      Pending Approval
+                    </Badge>
+                  )}
+                  {account.status === 'approved' && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-success/20 text-success border-success/30">
+                      Approved
+                    </Badge>
+                  )}
+                  {account.status === 'rejected' && (
+                    <Badge variant="outline" className="text-[10px] px-2 py-0.5 bg-destructive/20 text-destructive border-destructive/30">
+                      Rejected
                     </Badge>
                   )}
                 </div>

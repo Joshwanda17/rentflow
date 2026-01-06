@@ -30,7 +30,8 @@ import {
   User,
   Package,
   Filter,
-  CalendarIcon
+  CalendarIcon,
+  Wallet
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -38,6 +39,7 @@ import UserProfilesTable from '@/components/manager/UserProfilesTable';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { OrdersManager } from '@/components/manager/OrdersManager';
+import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -633,6 +635,10 @@ export default function ManagerAccess() {
               <ChartBar className="h-3.5 w-3.5" />
               Financials
             </TabsTrigger>
+            <TabsTrigger value="investments" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <Wallet className="h-3.5 w-3.5" />
+              Investments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="rent-requests" className="mt-4">
@@ -657,6 +663,10 @@ export default function ManagerAccess() {
 
           <TabsContent value="financials" className="mt-4">
             <FinancialOverview />
+          </TabsContent>
+
+          <TabsContent value="investments" className="mt-4">
+            <InvestmentAccountsManager />
           </TabsContent>
         </Tabs>
       </main>

@@ -198,6 +198,48 @@ export type Database = {
         }
         Relationships: []
       }
+      investment_accounts: {
+        Row: {
+          approved_at: string | null
+          approved_by: string | null
+          balance: number
+          color: string
+          created_at: string
+          id: string
+          name: string
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance?: number
+          color?: string
+          created_at?: string
+          id?: string
+          name: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          approved_at?: string | null
+          approved_by?: string | null
+          balance?: number
+          color?: string
+          created_at?: string
+          id?: string
+          name?: string
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       landlords: {
         Row: {
           account_number: string | null

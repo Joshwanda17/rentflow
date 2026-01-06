@@ -93,7 +93,7 @@ export function InvestmentCalculator() {
                       value={desiredEarnings.toLocaleString()}
                       onChange={(e) => {
                         const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
-                        setDesiredEarnings(Math.max(0, Math.min(value, 100000000)));
+                        setDesiredEarnings(Math.max(0, Math.min(value, 30000000000))); // Up to 30B monthly earnings (200B investment)
                       }}
                       className="pl-12 sm:pl-16 text-xl sm:text-2xl md:text-3xl font-black h-14 sm:h-16 md:h-20 bg-background border-2 border-primary/30 focus:border-primary rounded-xl sm:rounded-2xl text-center shadow-xl"
                     />
@@ -103,8 +103,8 @@ export function InvestmentCalculator() {
                   value={[desiredEarnings]}
                   onValueChange={([value]) => setDesiredEarnings(value)}
                   min={50000}
-                  max={5000000}
-                  step={50000}
+                  max={30000000000}
+                  step={100000}
                   className="py-3 sm:py-4"
                 />
                 <div className="flex justify-between text-[10px] sm:text-xs text-muted-foreground font-semibold">
@@ -112,7 +112,7 @@ export function InvestmentCalculator() {
                   <span className="text-primary flex items-center gap-1">
                     <Zap className="h-2.5 w-2.5 sm:h-3 sm:w-3" /> Drag to adjust
                   </span>
-                  <span>UGX 5M</span>
+                  <span>UGX 30B</span>
                 </div>
               </div>
             </motion.div>
