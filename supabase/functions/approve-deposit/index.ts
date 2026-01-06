@@ -103,12 +103,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === "approve") {
-      // Update deposit request status
+      // Update deposit request status with processor info
       const { error: updateError } = await supabaseAdmin
         .from("deposit_requests")
         .update({
           status: "approved",
           approved_at: new Date().toISOString(),
+          processed_by: user.id,
         })
         .eq("id", deposit_request_id);
 
@@ -179,13 +180,14 @@ Deno.serve(async (req) => {
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     } else {
-      // Reject the deposit
+      // Reject the deposit with processor info
       const { error: updateError } = await supabaseAdmin
         .from("deposit_requests")
         .update({
           status: "rejected",
           rejected_at: new Date().toISOString(),
-          rejection_reason: rejection_reason || "Rejected by agent",
+          rejection_reason: rejection_reason || "Rejected by manager",
+          processed_by: user.id,
         })
         .eq("id", deposit_request_id);
 
