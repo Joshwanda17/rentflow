@@ -108,6 +108,14 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Get the processor's name for notification
+    const { data: processorProfile } = await supabaseAdmin
+      .from("profiles")
+      .select("full_name")
+      .eq("id", user.id)
+      .single();
+    const processorName = processorProfile?.full_name || "Manager";
+
     if (action === "approve") {
       // Update deposit request status with processor info
       const { error: updateError } = await supabaseAdmin
@@ -166,13 +174,18 @@ Deno.serve(async (req) => {
         }
       }
 
-      // Create notification for user
+      // Create notification for user with manager details
       await supabaseAdmin.from("notifications").insert({
         user_id: depositRequest.user_id,
         title: "Deposit Approved! 💰",
-        message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} has been approved and added to your wallet.`,
+        message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} has been approved by ${processorName} and added to your wallet.`,
         type: "success",
-        metadata: { deposit_request_id, amount: depositRequest.amount },
+        metadata: { 
+          deposit_request_id, 
+          amount: depositRequest.amount,
+          processed_by: user.id,
+          processed_by_name: processorName
+        },
       });
 
       // Log audit entry
@@ -186,7 +199,7 @@ Deno.serve(async (req) => {
         metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
       });
 
-      console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}`);
+      console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}, by: ${processorName}`);
 
       return new Response(
         JSON.stringify({
@@ -213,13 +226,19 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Create notification for user
+      // Create notification for user with manager details
       await supabaseAdmin.from("notifications").insert({
         user_id: depositRequest.user_id,
-        title: "Deposit Rejected",
-        message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected. Reason: ${rejection_reason || "Rejected by agent"}`,
+        title: "Deposit Rejected ❌",
+        message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected by ${processorName}. Reason: ${rejection_reason || "No reason provided"}`,
         type: "warning",
-        metadata: { deposit_request_id, amount: depositRequest.amount, reason: rejection_reason },
+        metadata: { 
+          deposit_request_id, 
+          amount: depositRequest.amount, 
+          reason: rejection_reason,
+          processed_by: user.id,
+          processed_by_name: processorName
+        },
       });
 
       // Log audit entry
@@ -234,7 +253,7 @@ Deno.serve(async (req) => {
         metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
       });
 
-      console.log(`Deposit rejected: ${deposit_request_id}`);
+      console.log(`Deposit rejected: ${deposit_request_id}, by: ${processorName}`);
 
       return new Response(
         JSON.stringify({
