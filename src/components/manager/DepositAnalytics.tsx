@@ -1,23 +1,27 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  TrendingUp, 
-  TrendingDown, 
   Wallet, 
   CheckCircle, 
   XCircle,
   Clock,
   User,
-  Calendar
+  Calendar,
+  Download,
+  FileText,
+  Loader2
 } from 'lucide-react';
-import { format, subDays, startOfDay, endOfDay } from 'date-fns';
+import { format, subDays, startOfDay } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
+import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
+import { toast } from 'sonner';
 
 interface DepositStats {
   totalApproved: number;
@@ -53,6 +57,8 @@ export function DepositAnalytics() {
   const [recentDeposits, setRecentDeposits] = useState<ProcessedDeposit[]>([]);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState<'7d' | '30d' | 'all'>('7d');
+  const [exporting, setExporting] = useState<'csv' | 'pdf' | null>(null);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchAnalytics();
@@ -167,6 +173,48 @@ export function DepositAnalytics() {
     }
   };
 
+  const handleExportCSV = () => {
+    setExporting('csv');
+    try {
+      const headers = ['User', 'Amount (UGX)', 'Status', 'Created Date', 'Processed Date', 'Processed By'];
+      const rows = recentDeposits.map(d => [
+        d.user_name,
+        d.amount,
+        d.status,
+        formatDateForExport(d.created_at),
+        d.approved_at || d.rejected_at ? formatDateForExport(d.approved_at || d.rejected_at!) : 'N/A',
+        d.processed_by_name || 'N/A'
+      ]);
+
+      // Add summary row
+      rows.unshift(['--- SUMMARY ---', '', '', '', '', '']);
+      rows.unshift(['Pending Count', stats?.pendingCount || 0, 'Pending Total', stats?.totalPending || 0, '', '']);
+      rows.unshift(['Rejected Count', stats?.rejectedCount || 0, 'Rejected Total', stats?.totalRejected || 0, '', '']);
+      rows.unshift(['Approved Count', stats?.approvedCount || 0, 'Approved Total', stats?.totalApproved || 0, '', '']);
+      rows.unshift(['Period', period === '7d' ? 'Last 7 days' : period === '30d' ? 'Last 30 days' : 'All time', '', '', '', '']);
+
+      exportToCSV({ headers, rows }, 'deposit_analytics');
+      toast.success('CSV exported successfully');
+    } catch (error) {
+      toast.error('Failed to export CSV');
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+    setExporting('pdf');
+    try {
+      await exportToPDF(reportRef.current, 'deposit_analytics', 'Deposit Analytics Report');
+      toast.success('PDF exported successfully');
+    } catch (error) {
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(null);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -186,19 +234,56 @@ export function DepositAnalytics() {
 
   return (
     <div className="space-y-4">
-      {/* Period Selector */}
-      <div className="flex gap-2">
-        {(['7d', '30d', 'all'] as const).map(p => (
-          <Badge
-            key={p}
-            variant={period === p ? 'default' : 'outline'}
-            className="cursor-pointer"
-            onClick={() => setPeriod(p)}
+      {/* Header with Period Selector and Export Buttons */}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="flex gap-2">
+          {(['7d', '30d', 'all'] as const).map(p => (
+            <Badge
+              key={p}
+              variant={period === p ? 'default' : 'outline'}
+              className="cursor-pointer"
+              onClick={() => setPeriod(p)}
+            >
+              {p === '7d' ? 'Last 7 days' : p === '30d' ? 'Last 30 days' : 'All time'}
+            </Badge>
+          ))}
+        </div>
+        <div className="flex gap-2">
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportCSV}
+            disabled={exporting !== null}
           >
-            {p === '7d' ? 'Last 7 days' : p === '30d' ? 'Last 30 days' : 'All time'}
-          </Badge>
-        ))}
+            {exporting === 'csv' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <Download className="h-4 w-4 mr-1" />
+                CSV
+              </>
+            )}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={handleExportPDF}
+            disabled={exporting !== null}
+          >
+            {exporting === 'pdf' ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <>
+                <FileText className="h-4 w-4 mr-1" />
+                PDF
+              </>
+            )}
+          </Button>
+        </div>
       </div>
+
+      {/* Report Content (ref for PDF export) */}
+      <div ref={reportRef} className="space-y-4 bg-background p-1">
 
       {/* Stats Cards */}
       <div className="grid grid-cols-3 gap-3">
@@ -367,6 +452,7 @@ export function DepositAnalytics() {
           </ScrollArea>
         </CardContent>
       </Card>
+      </div>
     </div>
   );
 }
