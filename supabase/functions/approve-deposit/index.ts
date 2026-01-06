@@ -74,8 +74,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify the agent is authorized
-    if (depositRequest.agent_id !== user.id) {
+    // Check if user is a manager or the assigned agent
+    const { is_manager } = await req.json().catch(() => ({}));
+    
+    // Verify authorization - allow if manager or assigned agent
+    const { data: isManagerRole } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "manager")
+      .maybeSingle();
+
+    const isAuthorized = isManagerRole || depositRequest.agent_id === user.id;
+    
+    if (!isAuthorized) {
       return new Response(
         JSON.stringify({ error: "Not authorized to process this request" }),
         { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
