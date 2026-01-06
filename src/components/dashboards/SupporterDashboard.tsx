@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useConfetti } from '@/components/Confetti';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -145,6 +146,8 @@ export default function SupporterDashboard({
     setLoading(false);
   };
 
+  const { fireSuccess } = useConfetti();
+
   const fundRequest = async (requestId: string, rentAmount: number) => {
     const { error } = await supabase
       .from('rent_requests')
@@ -172,8 +175,11 @@ export default function SupporterDashboard({
         description: 'Rent facilitation funding'
       });
 
+      // Trigger confetti celebration! 🎉
+      fireSuccess();
+
       toast({
-        title: 'Request Funded!',
+        title: '🎉 Request Funded!',
         description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
       });
       fetchData();
