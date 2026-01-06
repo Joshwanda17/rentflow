@@ -228,12 +228,16 @@ export default function SupporterDashboard({
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
   const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
 
-  // Update goal progress when earnings change
+  // Update goal progress when earnings change - using ref to prevent infinite loops
   useEffect(() => {
-    if (goals.length > 0) {
-      setGoals(prev => prev.map(g => ({ ...g, currentAmount: completedRewards })));
+    if (goals.length > 0 && !loading) {
+      const needsUpdate = goals.some(g => g.currentAmount !== completedRewards);
+      if (needsUpdate) {
+        setGoals(prev => prev.map(g => ({ ...g, currentAmount: completedRewards })));
+      }
     }
-  }, [completedRewards]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [completedRewards, loading]);
 
   if (loading) {
     return <SupporterDashboardSkeleton />;
