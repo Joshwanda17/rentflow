@@ -39,6 +39,7 @@ const RentDiscountHistory = lazy(() => import('./pages/RentDiscountHistory'));
 const Benefits = lazy(() => import('./pages/Benefits'));
 const Referrals = lazy(() => import('./pages/Referrals'));
 const ManagerAccess = lazy(() => import('./pages/ManagerAccess'));
+const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -93,6 +94,7 @@ const AppRoutes = memo(function AppRoutes() {
         <Route path="/benefits" element={<Benefits />} />
         <Route path="/referrals" element={<Referrals />} />
         <Route path="/manager-access" element={<ManagerAccess />} />
+        <Route path="/become-supporter" element={<BecomeSupporter />} />
         <Route path="/vendor-portal" element={<VendorPortal />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
