@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Search, Star, Home, Banknote, CheckCircle, XCircle } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import UserDetailsDialog from './UserDetailsDialog';
 
 interface UserWithRating {
   id: string;
@@ -25,6 +26,8 @@ export default function UserProfilesTable() {
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
+  const [dialogOpen, setDialogOpen] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -122,6 +125,11 @@ export default function UserProfilesTable() {
     );
   };
 
+  const handleUserClick = (user: UserWithRating) => {
+    setSelectedUser(user);
+    setDialogOpen(true);
+  };
+
   if (loading) {
     return (
       <Card>
@@ -139,90 +147,99 @@ export default function UserProfilesTable() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Users className="h-5 w-5 text-primary" />
-          All User Profiles ({users.length})
-        </CardTitle>
-        <CardDescription>
-          View all platform users with their roles, ratings, and rent info
-        </CardDescription>
-        <div className="relative pt-2">
-          <Search className="absolute left-3 top-1/2 transform h-4 w-4 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-9"
-          />
-        </div>
-      </CardHeader>
-      <CardContent>
-        <div className="space-y-3 max-h-[600px] overflow-y-auto">
-          {filteredUsers.length === 0 ? (
-            <p className="text-center text-muted-foreground py-8">No users found</p>
-          ) : (
-            filteredUsers.map((user) => (
-              <div
-                key={user.id}
-                className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatar_url || undefined} />
-                  <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
-                </Avatar>
-                
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 flex-wrap">
-                    <p className="font-medium truncate">{user.full_name}</p>
-                    {user.rent_discount_active && (
-                      <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Active
-                      </Badge>
+    <>
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Users className="h-5 w-5 text-primary" />
+            All User Profiles ({users.length})
+          </CardTitle>
+          <CardDescription>
+            Click on a user to view their full details and investment accounts
+          </CardDescription>
+          <div className="relative pt-2">
+            <Search className="absolute left-3 top-1/2 transform h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Search by name, email, or phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-9"
+            />
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+            {filteredUsers.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">No users found</p>
+            ) : (
+              filteredUsers.map((user) => (
+                <div
+                  key={user.id}
+                  onClick={() => handleUserClick(user)}
+                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                >
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={user.avatar_url || undefined} />
+                    <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
+                  </Avatar>
+                  
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="font-medium truncate text-primary hover:underline">{user.full_name}</p>
+                      {user.rent_discount_active && (
+                        <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                          <CheckCircle className="h-3 w-3 mr-1" />
+                          Active
+                        </Badge>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <span>{user.email}</span>
+                      <span>•</span>
+                      <span>{user.phone}</span>
+                    </div>
+                    <div className="flex items-center gap-2 mt-1 flex-wrap">
+                      {user.roles.map((role) => (
+                        <Badge key={role} className={`text-xs ${getRoleBadgeColor(role)}`}>
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="text-right shrink-0">
+                    {/* Rating */}
+                    {user.rating_count > 0 ? (
+                      <div className="flex flex-col items-end gap-0.5">
+                        {renderStars(user.average_rating || 0)}
+                        <span className="text-xs text-muted-foreground">
+                          {user.average_rating?.toFixed(1)} ({user.rating_count})
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="text-xs text-muted-foreground">No ratings</span>
+                    )}
+                    
+                    {/* Monthly rent */}
+                    {user.monthly_rent && (
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
+                        <Banknote className="h-3 w-3" />
+                        {formatUGX(user.monthly_rent)}/mo
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                    <span>{user.email}</span>
-                    <span>•</span>
-                    <span>{user.phone}</span>
-                  </div>
-                  <div className="flex items-center gap-2 mt-1 flex-wrap">
-                    {user.roles.map((role) => (
-                      <Badge key={role} className={`text-xs ${getRoleBadgeColor(role)}`}>
-                        {role}
-                      </Badge>
-                    ))}
-                  </div>
                 </div>
+              ))
+            )}
+          </div>
+        </CardContent>
+      </Card>
 
-                <div className="text-right shrink-0">
-                  {/* Rating */}
-                  {user.rating_count > 0 ? (
-                    <div className="flex flex-col items-end gap-0.5">
-                      {renderStars(user.average_rating || 0)}
-                      <span className="text-xs text-muted-foreground">
-                        {user.average_rating?.toFixed(1)} ({user.rating_count})
-                      </span>
-                    </div>
-                  ) : (
-                    <span className="text-xs text-muted-foreground">No ratings</span>
-                  )}
-                  
-                  {/* Monthly rent */}
-                  {user.monthly_rent && (
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                      <Banknote className="h-3 w-3" />
-                      {formatUGX(user.monthly_rent)}/mo
-                    </div>
-                  )}
-                </div>
-              </div>
-            ))
-          )}
-        </div>
-      </CardContent>
-    </Card>
+      <UserDetailsDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        user={selectedUser}
+      />
+    </>
   );
 }
