@@ -1,0 +1,335 @@
+import { useState, useEffect } from 'react';
+import { useNavigate, Link } from 'react-router-dom';
+import { useAuth } from '@/hooks/useAuth';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { useToast } from '@/hooks/use-toast';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle } from 'lucide-react';
+import WelileLogo from '@/components/WelileLogo';
+import { motion } from 'framer-motion';
+import { z } from 'zod';
+
+const signUpSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(6, 'Password must be at least 6 characters'),
+  fullName: z.string().min(2, 'Full name is required'),
+  phone: z.string().min(10, 'Please enter a valid phone number'),
+});
+
+const signInSchema = z.object({
+  email: z.string().email('Please enter a valid email'),
+  password: z.string().min(1, 'Password is required')
+});
+
+const benefits = [
+  { icon: TrendingUp, title: '15% Monthly Returns', description: 'Earn interest on your investments' },
+  { icon: Wallet, title: 'Flexible Withdrawals', description: 'Access your funds anytime' },
+  { icon: Users, title: 'Help Tenants', description: 'Support people with rent payments' },
+];
+
+export default function BecomeSupporter() {
+  const [isSignUp, setIsSignUp] = useState(true);
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  
+  const { signUpWithoutRole, signIn, user, roles, addRole } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // If user is already logged in
+    if (user) {
+      if (roles.includes('supporter')) {
+        // Already a supporter, go to dashboard
+        navigate('/dashboard');
+      } else {
+        // User exists but not a supporter, add the role
+        handleAddSupporterRole();
+      }
+    }
+  }, [user, roles]);
+
+  const handleAddSupporterRole = async () => {
+    const { error } = await addRole('supporter');
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ 
+        title: '🎉 Welcome, Supporter!', 
+        description: 'You are now a Tenant Supporter. Start investing today!' 
+      });
+      navigate('/dashboard');
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsLoading(true);
+
+    try {
+      if (isSignUp) {
+        const validation = signUpSchema.safeParse({ email, password, fullName, phone });
+        if (!validation.success) {
+          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
+        // Store that this user should become a supporter
+        localStorage.setItem('pending_supporter_signup', 'true');
+
+        const { error } = await signUpWithoutRole(email, password, fullName, phone);
+        if (error) {
+          toast({ title: 'Sign Up Failed', description: error.message, variant: 'destructive' });
+          localStorage.removeItem('pending_supporter_signup');
+        } else {
+          toast({ title: 'Account Created!', description: 'Welcome to Welile as a Supporter!' });
+        }
+      } else {
+        const validation = signInSchema.safeParse({ email, password });
+        if (!validation.success) {
+          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
+        const { error } = await signIn(email, password);
+        if (error) {
+          toast({ title: 'Sign In Failed', description: error.message, variant: 'destructive' });
+        }
+        // After sign in, the useEffect will handle adding supporter role
+      }
+    } catch {
+      toast({ title: 'Error', description: 'An unexpected error occurred', variant: 'destructive' });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Check for pending supporter signup after auth
+  useEffect(() => {
+    if (user && localStorage.getItem('pending_supporter_signup')) {
+      localStorage.removeItem('pending_supporter_signup');
+      handleAddSupporterRole();
+    }
+  }, [user]);
+
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
+      {/* Background decoration */}
+      <div className="fixed inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute top-1/4 -left-20 w-72 h-72 bg-success/10 rounded-full blur-3xl" />
+        <div className="absolute bottom-1/4 -right-20 w-96 h-96 bg-primary/5 rounded-full blur-3xl" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-gradient-to-r from-success/5 to-primary/5 rounded-full blur-3xl" />
+      </div>
+
+      <div className="relative z-10 container mx-auto px-4 py-8">
+        <Link 
+          to="/" 
+          className="inline-flex items-center gap-2 text-muted-foreground hover:text-primary mb-6 transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          <span>Back to Home</span>
+        </Link>
+
+        <div className="max-w-4xl mx-auto">
+          {/* Hero Section */}
+          <motion.div 
+            className="text-center mb-8"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex items-center justify-center mb-4">
+              <WelileLogo linkToHome={false} />
+            </div>
+            <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 mb-4">
+              <Sparkles className="h-4 w-4 text-success" />
+              <span className="text-sm font-medium text-success">Become a Tenant Supporter</span>
+            </div>
+            <h1 className="text-3xl sm:text-4xl font-black mb-3">
+              Invest & Earn <span className="text-success">15% Monthly</span>
+            </h1>
+            <p className="text-muted-foreground max-w-md mx-auto">
+              Help tenants pay their rent while growing your investment portfolio with guaranteed returns
+            </p>
+          </motion.div>
+
+          <div className="grid lg:grid-cols-2 gap-8 items-start">
+            {/* Benefits Section */}
+            <motion.div 
+              className="space-y-4"
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <h2 className="text-xl font-bold mb-4">Why Become a Supporter?</h2>
+              
+              {benefits.map((benefit, index) => (
+                <motion.div
+                  key={benefit.title}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 + index * 0.1 }}
+                  className="flex items-start gap-4 p-4 rounded-xl bg-card border shadow-sm"
+                >
+                  <div className="p-3 rounded-xl bg-success/10">
+                    <benefit.icon className="h-6 w-6 text-success" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold">{benefit.title}</h3>
+                    <p className="text-sm text-muted-foreground">{benefit.description}</p>
+                  </div>
+                </motion.div>
+              ))}
+
+              {/* Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+                className="grid grid-cols-3 gap-3 mt-6"
+              >
+                <div className="p-4 rounded-xl bg-success/5 border border-success/20 text-center">
+                  <p className="text-2xl font-black text-success">15%</p>
+                  <p className="text-xs text-muted-foreground">Monthly ROI</p>
+                </div>
+                <div className="p-4 rounded-xl bg-primary/5 border border-primary/20 text-center">
+                  <p className="text-2xl font-black text-primary">24/7</p>
+                  <p className="text-xs text-muted-foreground">Access</p>
+                </div>
+                <div className="p-4 rounded-xl bg-warning/5 border border-warning/20 text-center">
+                  <p className="text-2xl font-black text-warning">100%</p>
+                  <p className="text-xs text-muted-foreground">Secure</p>
+                </div>
+              </motion.div>
+            </motion.div>
+
+            {/* Sign Up Form */}
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.2 }}
+            >
+              <Card className="border-success/20 shadow-xl shadow-success/5">
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <div className="p-2 rounded-lg bg-success/10">
+                      {isSignUp ? <UserPlus className="h-5 w-5 text-success" /> : <LogIn className="h-5 w-5 text-success" />}
+                    </div>
+                    {isSignUp ? 'Create Supporter Account' : 'Sign In as Supporter'}
+                  </CardTitle>
+                  <CardDescription>
+                    {isSignUp 
+                      ? 'Join as a Tenant Supporter and start earning today' 
+                      : 'Sign in to access your supporter dashboard'}
+                  </CardDescription>
+                </CardHeader>
+                
+                <CardContent>
+                  <form onSubmit={handleSubmit} className="space-y-4">
+                    {isSignUp && (
+                      <>
+                        <div className="space-y-2">
+                          <Label htmlFor="fullName">Full Name</Label>
+                          <div className="relative">
+                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="fullName"
+                              value={fullName}
+                              onChange={(e) => setFullName(e.target.value)}
+                              placeholder="Enter your full name"
+                              className="pl-10"
+                              required
+                            />
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <Label htmlFor="phone">Phone Number</Label>
+                          <div className="relative">
+                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                            <Input
+                              id="phone"
+                              value={phone}
+                              onChange={(e) => setPhone(e.target.value)}
+                              placeholder="e.g., 0700123456"
+                              className="pl-10"
+                              required
+                            />
+                          </div>
+                        </div>
+                      </>
+                    )}
+
+                    <div className="space-y-2">
+                      <Label htmlFor="email">Email</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="email"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="password">Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          id="password"
+                          type="password"
+                          value={password}
+                          onChange={(e) => setPassword(e.target.value)}
+                          placeholder="••••••••"
+                          className="pl-10"
+                          required
+                        />
+                      </div>
+                    </div>
+
+                    <Button 
+                      type="submit" 
+                      className="w-full gap-2 h-12 bg-success hover:bg-success/90 text-white font-bold" 
+                      disabled={isLoading}
+                    >
+                      {isLoading ? (
+                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      ) : (
+                        <>
+                          <CheckCircle className="h-5 w-5" />
+                          {isSignUp ? 'Become a Supporter' : 'Sign In & Continue'}
+                        </>
+                      )}
+                    </Button>
+                  </form>
+
+                  <div className="mt-6 text-center text-sm">
+                    {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
+                    <button
+                      type="button"
+                      onClick={() => setIsSignUp(!isSignUp)}
+                      className="text-success hover:text-success/80 font-medium transition-colors"
+                    >
+                      {isSignUp ? 'Sign In' : 'Sign Up'}
+                    </button>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

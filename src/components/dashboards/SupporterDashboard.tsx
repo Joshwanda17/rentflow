@@ -36,6 +36,7 @@ import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
 import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
 import { InterestPaymentHistory } from '@/components/supporter/InterestPaymentHistory';
 import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
+import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
 import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
@@ -518,6 +519,15 @@ export default function SupporterDashboard({
                     <Share2 className="h-4 w-4 mr-2" />
                     Referrals
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => {
+                    const shareLink = `${window.location.origin}/become-supporter`;
+                    const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns!\n\n💰 Help tenants pay rent while growing your investment\n📈 Guaranteed monthly interest payments\n\nStart investing: ${shareLink}`;
+                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+                    window.open(whatsappUrl, '_blank');
+                  }} className="text-sm text-success">
+                    <Users className="h-4 w-4 mr-2" />
+                    Invite Supporters
+                  </DropdownMenuItem>
                   <DropdownMenuItem onClick={() => navigate('/benefits')} className="text-sm">
                     <Coins className="h-4 w-4 mr-2" />
                     Benefits
@@ -710,6 +720,31 @@ export default function SupporterDashboard({
         <div id="interest-section">
           <InterestPaymentHistory userId={user.id} />
         </div>
+
+        {/* Invite Supporters Card */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.4 }}
+        >
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/10 via-background to-violet-500/10 backdrop-blur-xl shadow-xl">
+            <div className="absolute -top-12 -right-12 w-32 h-32 bg-gradient-to-br from-primary/20 to-transparent rounded-full blur-2xl" />
+            <CardContent className="relative p-4 sm:p-6">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-primary/20">
+                    <Users className="h-6 w-6 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-lg">Invite Supporters</h3>
+                    <p className="text-sm text-muted-foreground">Share with friends & grow together</p>
+                  </div>
+                </div>
+                <ShareSupporterLink variant="default" className="bg-primary hover:bg-primary/90" />
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
 
         {/* Wallet */}
         <div id="wallet-section">
