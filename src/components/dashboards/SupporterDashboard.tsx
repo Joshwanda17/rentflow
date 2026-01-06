@@ -31,6 +31,7 @@ import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculato
 import { InvestmentAccountCard, InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
 import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
 import { FundAccountDialog } from '@/components/supporter/FundAccountDialog';
+import { WithdrawAccountDialog } from '@/components/supporter/WithdrawAccountDialog';
 import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
 import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
 import { useWallet } from '@/hooks/useWallet';
@@ -78,7 +79,9 @@ export default function SupporterDashboard({
   const [loading, setLoading] = useState(true);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showFundAccount, setShowFundAccount] = useState(false);
+  const [showWithdrawAccount, setShowWithdrawAccount] = useState(false);
   const [selectedAccountForFunding, setSelectedAccountForFunding] = useState<InvestmentAccount | null>(null);
+  const [selectedAccountForWithdraw, setSelectedAccountForWithdraw] = useState<InvestmentAccount | null>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
 
@@ -332,6 +335,84 @@ export default function SupporterDashboard({
     toast({ 
       title: '🎉 Account Funded!', 
       description: `${formatUGX(amount)} has been added to your investment account` 
+    });
+  };
+
+  // Withdraw account handler
+  const handleWithdrawAccountClick = (account: InvestmentAccount) => {
+    if (account.status !== 'approved') {
+      toast({ 
+        title: 'Account Not Approved', 
+        description: 'Only approved accounts can withdraw funds',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    if (account.balance <= 0) {
+      toast({ 
+        title: 'No Balance', 
+        description: 'This account has no funds to withdraw',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    setSelectedAccountForWithdraw(account);
+    setShowWithdrawAccount(true);
+  };
+
+  const handleWithdrawAccount = async (accountId: string, amount: number) => {
+    const account = accounts.find(a => a.id === accountId);
+    if (!account || account.balance < amount) {
+      toast({ 
+        title: 'Insufficient Balance', 
+        description: 'The account doesn\'t have enough funds',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Get current wallet balance
+    const { data: currentWallet } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+
+    const currentWalletBalance = currentWallet?.balance || 0;
+
+    // Add to wallet
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .update({ balance: currentWalletBalance + amount })
+      .eq('user_id', user.id);
+
+    if (walletError) {
+      toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
+      return;
+    }
+
+    // Deduct from investment account
+    await supabase
+      .from('investment_accounts')
+      .update({ balance: account.balance - amount })
+      .eq('id', accountId);
+
+    // Update local state
+    setAccounts(prev => prev.map(acc => 
+      acc.id === accountId 
+        ? { ...acc, balance: acc.balance - amount }
+        : acc
+    ));
+
+    // Refresh wallet
+    await refreshWallet();
+
+    // Fire confetti!
+    fireSuccess();
+
+    toast({ 
+      title: '💰 Withdrawal Complete!', 
+      description: `${formatUGX(amount)} has been transferred to your wallet` 
     });
   };
 
@@ -595,6 +676,7 @@ export default function SupporterDashboard({
                 onDelete={handleDeleteAccount}
                 onEdit={(id) => toast({ title: 'Edit coming soon' })}
                 onFund={() => handleFundAccountClick(account)}
+                onWithdraw={() => handleWithdrawAccountClick(account)}
               />
             ))}
           </div>
@@ -732,6 +814,17 @@ export default function SupporterDashboard({
           accountId={selectedAccountForFunding.id}
           walletBalance={wallet?.balance || 0}
           onFund={handleFundAccount}
+        />
+      )}
+
+      {selectedAccountForWithdraw && (
+        <WithdrawAccountDialog
+          open={showWithdrawAccount}
+          onOpenChange={setShowWithdrawAccount}
+          accountName={selectedAccountForWithdraw.name}
+          accountId={selectedAccountForWithdraw.id}
+          accountBalance={selectedAccountForWithdraw.balance}
+          onWithdraw={handleWithdrawAccount}
         />
       )}
       

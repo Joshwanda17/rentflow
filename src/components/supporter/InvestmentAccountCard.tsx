@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight, Clock } from 'lucide-react';
+import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight, Clock, ArrowDownToLine } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import {
@@ -27,9 +27,10 @@ interface InvestmentAccountCardProps {
   onDelete?: (id: string) => void;
   onEdit?: (id: string) => void;
   onFund?: (id: string) => void;
+  onWithdraw?: (id: string) => void;
 }
 
-export function InvestmentAccountCard({ account, onDelete, onEdit, onFund }: InvestmentAccountCardProps) {
+export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWithdraw }: InvestmentAccountCardProps) {
   const totalValue = account.balance + account.returns;
   const roi = account.invested > 0 ? ((account.returns / account.invested) * 100) : 0;
   const progressPercent = account.invested > 0 ? Math.min((account.returns / (account.invested * 0.15)) * 100, 100) : 0;
@@ -186,15 +187,26 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund }: Inv
             </div>
           </div>
 
-          {/* Fund Button - only for approved accounts */}
+          {/* Action Buttons - only for approved accounts */}
           {account.status === 'approved' ? (
-            <Button 
-              onClick={() => onFund?.(account.id)} 
-              className="w-full h-11 font-semibold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
-            >
-              <Sparkles className="h-4 w-4 mr-2" />
-              Fund Account
-            </Button>
+            <div className="flex gap-2">
+              <Button 
+                onClick={() => onFund?.(account.id)} 
+                className="flex-1 h-11 font-semibold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+              >
+                <Sparkles className="h-4 w-4 mr-2" />
+                Fund
+              </Button>
+              <Button 
+                onClick={() => onWithdraw?.(account.id)} 
+                variant="outline"
+                className="flex-1 h-11 font-semibold text-sm border-primary/30 hover:bg-primary/10"
+                disabled={account.balance <= 0}
+              >
+                <ArrowDownToLine className="h-4 w-4 mr-2" />
+                Withdraw
+              </Button>
+            </div>
           ) : account.status === 'pending' ? (
             <Button 
               disabled
