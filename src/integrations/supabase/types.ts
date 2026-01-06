@@ -89,6 +89,7 @@ export type Database = {
           approved_at: string | null
           created_at: string
           id: string
+          processed_by: string | null
           rejected_at: string | null
           rejection_reason: string | null
           status: string
@@ -101,6 +102,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           id?: string
+          processed_by?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string
@@ -113,6 +115,7 @@ export type Database = {
           approved_at?: string | null
           created_at?: string
           id?: string
+          processed_by?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string

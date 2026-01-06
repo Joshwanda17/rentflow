@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -16,11 +17,12 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Wallet, Check, X, Loader2, User, Phone, Calendar } from 'lucide-react';
+import { Wallet, Check, X, Loader2, User, Phone, Calendar, BarChart3 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
+import { DepositAnalytics } from './DepositAnalytics';
 
 interface DepositRequest {
   id: string;
@@ -189,129 +191,146 @@ export function DepositRequestsManager() {
   }
 
   return (
-    <div className="space-y-4">
-      {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2">
-        {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
-          <Button
-            key={status}
-            variant={statusFilter === status ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setStatusFilter(status)}
-            className="capitalize"
-          >
-            {status}
-          </Button>
-        ))}
-      </div>
+    <Tabs defaultValue="requests" className="space-y-4">
+      <TabsList className="grid w-full grid-cols-2">
+        <TabsTrigger value="requests" className="gap-2">
+          <Wallet className="h-4 w-4" />
+          Requests
+        </TabsTrigger>
+        <TabsTrigger value="analytics" className="gap-2">
+          <BarChart3 className="h-4 w-4" />
+          Analytics
+        </TabsTrigger>
+      </TabsList>
 
-      {deposits.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-            <p className="text-muted-foreground">No {statusFilter !== 'all' ? statusFilter : ''} deposit requests</p>
-          </CardContent>
-        </Card>
-      ) : (
-        <AnimatePresence mode="popLayout">
-          {deposits.map((deposit, index) => (
-            <motion.div
-              key={deposit.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ delay: index * 0.05 }}
+      <TabsContent value="requests" className="space-y-4">
+        {/* Filter Tabs */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
+          {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
+            <Button
+              key={status}
+              variant={statusFilter === status ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setStatusFilter(status)}
+              className="capitalize"
             >
-              <Card>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-start mb-3">
-                    <div className="flex-1">
-                      <div className="flex items-center gap-2 mb-1">
-                        <User className="h-4 w-4 text-muted-foreground" />
-                        <span className="font-medium">{deposit.user_name}</span>
-                      </div>
-                      {deposit.user_phone && (
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span>{deposit.user_phone}</span>
-                        </div>
-                      )}
-                    </div>
-                    {getStatusBadge(deposit.status)}
-                  </div>
-
-                  <div className="flex items-center justify-between mb-3">
-                    <span className="text-2xl font-bold text-primary">{formatUGX(deposit.amount)}</span>
-                    <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                      <Calendar className="h-3 w-3" />
-                      <span>{format(new Date(deposit.created_at), 'MMM d, yyyy h:mm a')}</span>
-                    </div>
-                  </div>
-
-                  {deposit.agent_name && (
-                    <p className="text-xs text-muted-foreground mb-3">
-                      Assigned Agent: {deposit.agent_name}
-                    </p>
-                  )}
-
-                  {deposit.status === 'pending' && (
-                    <div className="flex gap-2">
-                      <Button
-                        size="sm"
-                        className="flex-1"
-                        onClick={() => handleApprove(deposit)}
-                        disabled={processingIds.has(deposit.id)}
-                      >
-                        {processingIds.has(deposit.id) ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <>
-                            <Check className="h-4 w-4 mr-1" />
-                            Approve
-                          </>
-                        )}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={() => setRejectDialog({ open: true, deposit })}
-                        disabled={processingIds.has(deposit.id)}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </div>
-                  )}
-                </CardContent>
-              </Card>
-            </motion.div>
+              {status}
+            </Button>
           ))}
-        </AnimatePresence>
-      )}
+        </div>
 
-      {/* Reject Dialog */}
-      <AlertDialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, deposit: null })}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Reject Deposit Request</AlertDialogTitle>
-            <AlertDialogDescription>
-              Are you sure you want to reject this deposit of {rejectDialog.deposit && formatUGX(rejectDialog.deposit.amount)}?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <Input
-            placeholder="Reason for rejection (optional)"
-            value={rejectionReason}
-            onChange={(e) => setRejectionReason(e.target.value)}
-          />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={handleReject} className="bg-destructive hover:bg-destructive/90">
-              Reject
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </div>
+        {deposits.length === 0 ? (
+          <Card>
+            <CardContent className="py-12 text-center">
+              <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+              <p className="text-muted-foreground">No {statusFilter !== 'all' ? statusFilter : ''} deposit requests</p>
+            </CardContent>
+          </Card>
+        ) : (
+          <AnimatePresence mode="popLayout">
+            {deposits.map((deposit, index) => (
+              <motion.div
+                key={deposit.id}
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card>
+                  <CardContent className="p-4">
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2 mb-1">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium">{deposit.user_name}</span>
+                        </div>
+                        {deposit.user_phone && (
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{deposit.user_phone}</span>
+                          </div>
+                        )}
+                      </div>
+                      {getStatusBadge(deposit.status)}
+                    </div>
+
+                    <div className="flex items-center justify-between mb-3">
+                      <span className="text-2xl font-bold text-primary">{formatUGX(deposit.amount)}</span>
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <Calendar className="h-3 w-3" />
+                        <span>{format(new Date(deposit.created_at), 'MMM d, yyyy h:mm a')}</span>
+                      </div>
+                    </div>
+
+                    {deposit.agent_name && (
+                      <p className="text-xs text-muted-foreground mb-3">
+                        Assigned Agent: {deposit.agent_name}
+                      </p>
+                    )}
+
+                    {deposit.status === 'pending' && (
+                      <div className="flex gap-2">
+                        <Button
+                          size="sm"
+                          className="flex-1"
+                          onClick={() => handleApprove(deposit)}
+                          disabled={processingIds.has(deposit.id)}
+                        >
+                          {processingIds.has(deposit.id) ? (
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                          ) : (
+                            <>
+                              <Check className="h-4 w-4 mr-1" />
+                              Approve
+                            </>
+                          )}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="destructive"
+                          className="flex-1"
+                          onClick={() => setRejectDialog({ open: true, deposit })}
+                          disabled={processingIds.has(deposit.id)}
+                        >
+                          <X className="h-4 w-4 mr-1" />
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </AnimatePresence>
+        )}
+
+        {/* Reject Dialog */}
+        <AlertDialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, deposit: null })}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Reject Deposit Request</AlertDialogTitle>
+              <AlertDialogDescription>
+                Are you sure you want to reject this deposit of {rejectDialog.deposit && formatUGX(rejectDialog.deposit.amount)}?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <Input
+              placeholder="Reason for rejection (optional)"
+              value={rejectionReason}
+              onChange={(e) => setRejectionReason(e.target.value)}
+            />
+            <AlertDialogFooter>
+              <AlertDialogCancel>Cancel</AlertDialogCancel>
+              <AlertDialogAction onClick={handleReject} className="bg-destructive hover:bg-destructive/90">
+                Reject
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </TabsContent>
+
+      <TabsContent value="analytics">
+        <DepositAnalytics />
+      </TabsContent>
+    </Tabs>
   );
 }
