@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle, Gift } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
@@ -30,16 +32,38 @@ const benefits = [
 ];
 
 export default function BecomeSupporter() {
+  const [searchParams] = useSearchParams();
+  const referrerId = searchParams.get('ref');
+  
   const [isSignUp, setIsSignUp] = useState(true);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [referrerName, setReferrerName] = useState<string | null>(null);
   
   const { signUpWithoutRole, signIn, user, roles, addRole } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Store referrer ID and fetch referrer name
+  useEffect(() => {
+    if (referrerId) {
+      localStorage.setItem('supporter_referrer_id', referrerId);
+      // Fetch referrer name
+      supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', referrerId)
+        .single()
+        .then(({ data }) => {
+          if (data) {
+            setReferrerName(data.full_name);
+          }
+        });
+    }
+  }, [referrerId]);
 
   useEffect(() => {
     // If user is already logged in
@@ -59,6 +83,16 @@ export default function BecomeSupporter() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Create referral record if there's a referrer
+      const storedReferrerId = localStorage.getItem('supporter_referrer_id');
+      if (storedReferrerId && user) {
+        await supabase.from('supporter_referrals').insert({
+          referrer_id: storedReferrerId,
+          referred_id: user.id,
+        });
+        localStorage.removeItem('supporter_referrer_id');
+      }
+      
       toast({ 
         title: '🎉 Welcome, Supporter!', 
         description: 'You are now a Tenant Supporter. Start investing today!' 
@@ -159,6 +193,30 @@ export default function BecomeSupporter() {
             </p>
           </motion.div>
 
+          {/* Referral Badge */}
+          {referrerName && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="mb-6"
+            >
+              <div className="max-w-md mx-auto p-4 rounded-xl bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
+                <div className="flex items-center justify-center gap-3">
+                  <div className="p-2 rounded-lg bg-primary/20">
+                    <Gift className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="text-center">
+                    <p className="text-sm text-muted-foreground">Invited by</p>
+                    <p className="font-bold text-primary">{referrerName}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2 text-center">
+                  Your friend will earn a bonus when you make your first investment!
+                </p>
+              </div>
+            </motion.div>
+          )}
+
           <div className="grid lg:grid-cols-2 gap-8 items-start">
             {/* Benefits Section */}
             <motion.div 
@@ -187,11 +245,31 @@ export default function BecomeSupporter() {
                 </motion.div>
               ))}
 
-              {/* Stats */}
+              {/* Referral Bonus Info */}
               <motion.div
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
+                className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-violet-500/5 border border-primary/20"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-lg bg-primary/20">
+                    <Gift className="h-5 w-5 text-primary" />
+                  </div>
+                  <div>
+                    <h3 className="font-bold text-sm">Referral Rewards</h3>
+                    <p className="text-xs text-muted-foreground">
+                      Invite friends and earn <span className="font-bold text-primary">5,000 UGX</span> when they make their first investment!
+                    </p>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Stats */}
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.6 }}
                 className="grid grid-cols-3 gap-3 mt-6"
               >
                 <div className="p-4 rounded-xl bg-success/5 border border-success/20 text-center">

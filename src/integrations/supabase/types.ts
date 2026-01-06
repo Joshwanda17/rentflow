@@ -1289,6 +1289,39 @@ export type Database = {
           },
         ]
       }
+      supporter_referrals: {
+        Row: {
+          bonus_amount: number | null
+          bonus_credited: boolean | null
+          bonus_credited_at: string | null
+          created_at: string
+          first_investment_at: string | null
+          id: string
+          referred_id: string
+          referrer_id: string
+        }
+        Insert: {
+          bonus_amount?: number | null
+          bonus_credited?: boolean | null
+          bonus_credited_at?: string | null
+          created_at?: string
+          first_investment_at?: string | null
+          id?: string
+          referred_id: string
+          referrer_id: string
+        }
+        Update: {
+          bonus_amount?: number | null
+          bonus_credited?: boolean | null
+          bonus_credited_at?: string | null
+          created_at?: string
+          first_investment_at?: string | null
+          id?: string
+          referred_id?: string
+          referrer_id?: string
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string
