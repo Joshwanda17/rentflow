@@ -35,6 +35,7 @@ import { WithdrawAccountDialog } from '@/components/supporter/WithdrawAccountDia
 import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
 import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
 import { InterestPaymentHistory } from '@/components/supporter/InterestPaymentHistory';
+import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
 import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
@@ -81,8 +82,10 @@ export default function SupporterDashboard({
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showFundAccount, setShowFundAccount] = useState(false);
   const [showWithdrawAccount, setShowWithdrawAccount] = useState(false);
+  const [showAccountDetails, setShowAccountDetails] = useState(false);
   const [selectedAccountForFunding, setSelectedAccountForFunding] = useState<InvestmentAccount | null>(null);
   const [selectedAccountForWithdraw, setSelectedAccountForWithdraw] = useState<InvestmentAccount | null>(null);
+  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<InvestmentAccount | null>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
 
@@ -682,6 +685,10 @@ export default function SupporterDashboard({
                 onEdit={(id) => toast({ title: 'Edit coming soon' })}
                 onFund={() => handleFundAccountClick(account)}
                 onWithdraw={() => handleWithdrawAccountClick(account)}
+                onClick={(acc) => {
+                  setSelectedAccountForDetails(acc);
+                  setShowAccountDetails(true);
+                }}
               />
             ))}
           </div>
@@ -837,6 +844,22 @@ export default function SupporterDashboard({
           onWithdraw={handleWithdrawAccount}
         />
       )}
+
+      <AccountDetailsDialog
+        open={showAccountDetails}
+        onOpenChange={setShowAccountDetails}
+        account={selectedAccountForDetails}
+        onFund={() => {
+          if (selectedAccountForDetails) {
+            handleFundAccountClick(selectedAccountForDetails);
+          }
+        }}
+        onWithdraw={() => {
+          if (selectedAccountForDetails) {
+            handleWithdrawAccountClick(selectedAccountForDetails);
+          }
+        }}
+      />
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
