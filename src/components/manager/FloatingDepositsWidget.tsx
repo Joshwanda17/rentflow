@@ -154,9 +154,9 @@ export function FloatingDepositsWidget() {
       <motion.div
         initial={{ opacity: 0, y: 20, scale: 0.95 }}
         animate={{ opacity: 1, y: 0, scale: 1 }}
-        className="fixed bottom-24 right-4 z-40 w-[calc(100%-2rem)] max-w-sm"
+        className="fixed bottom-24 right-4 z-40 w-[calc(100%-2rem)] max-w-sm pointer-events-none"
       >
-        <Card className="shadow-2xl border-2 border-warning/50 bg-card/95 backdrop-blur-sm">
+        <Card className="shadow-2xl border-2 border-warning/50 bg-card/95 backdrop-blur-sm pointer-events-auto">
           <CardHeader className="p-3 pb-2">
             <button
               onClick={() => setExpanded(!expanded)}

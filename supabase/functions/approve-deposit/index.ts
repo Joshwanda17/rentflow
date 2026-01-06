@@ -39,8 +39,13 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Parse request body
-    const { deposit_request_id, action, rejection_reason } = await req.json();
+    // Parse request body (read ONCE)
+    const body = await req.json().catch(() => ({}));
+    const { deposit_request_id, action, rejection_reason } = body as {
+      deposit_request_id?: string;
+      action?: string;
+      rejection_reason?: string;
+    };
 
     if (!deposit_request_id || !action) {
       return new Response(
@@ -74,19 +79,20 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check if user is a manager or the assigned agent
-    const { is_manager } = await req.json().catch(() => ({}));
-    
-    // Verify authorization - allow if manager or assigned agent
-    const { data: isManagerRole } = await supabaseAdmin
+    // Verify authorization - allow if manager OR assigned agent
+    const { data: isManagerRole, error: roleError } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "manager")
       .maybeSingle();
 
-    const isAuthorized = isManagerRole || depositRequest.agent_id === user.id;
-    
+    if (roleError) {
+      console.error("Role check error:", roleError);
+    }
+
+    const isAuthorized = !!isManagerRole || depositRequest.agent_id === user.id;
+
     if (!isAuthorized) {
       return new Response(
         JSON.stringify({ error: "Not authorized to process this request" }),
