@@ -9,9 +9,21 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
+import { useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+
+interface NotificationMetadata {
+  account_id?: string;
+  supporter_id?: string;
+  account_name?: string;
+  rent_request_id?: string;
+  user_id?: string;
+}
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
+  const [open, setOpen] = useState(false);
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -24,8 +36,47 @@ export function NotificationBell() {
     }
   };
 
+  const handleNotificationClick = (notification: { 
+    id: string; 
+    read: boolean; 
+    type: string; 
+    title: string;
+    metadata?: NotificationMetadata | null;
+  }) => {
+    if (!notification.read) {
+      markAsRead(notification.id);
+    }
+
+    const metadata = notification.metadata as NotificationMetadata | null;
+    
+    // Handle different notification types
+    if (metadata?.account_id) {
+      // Investment account related - scroll to accounts section
+      setOpen(false);
+      setTimeout(() => {
+        const accountsSection = document.getElementById('accounts-section');
+        if (accountsSection) {
+          accountsSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    } else if (metadata?.rent_request_id) {
+      // Rent request related - navigate to transactions
+      setOpen(false);
+      navigate('/transactions');
+    } else if (notification.title.includes('Portfolio') || notification.type === 'earning') {
+      // Portfolio related - scroll to portfolio section
+      setOpen(false);
+      setTimeout(() => {
+        const portfolioSection = document.getElementById('portfolio-section');
+        if (portfolioSection) {
+          portfolioSection.scrollIntoView({ behavior: 'smooth' });
+        }
+      }, 100);
+    }
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
         <Button variant="ghost" size="icon" className="relative text-white/90 hover:text-white hover:bg-white/10">
           <Bell className="h-5 w-5" />
@@ -60,7 +111,7 @@ export function NotificationBell() {
                   className={`p-3 cursor-pointer hover:bg-secondary/50 transition-colors ${
                     !notification.read ? 'bg-primary/5' : ''
                   }`}
-                  onClick={() => !notification.read && markAsRead(notification.id)}
+                  onClick={() => handleNotificationClick(notification)}
                 >
                   <div className="flex gap-2">
                     <span className="text-lg">{getTypeIcon(notification.type)}</span>

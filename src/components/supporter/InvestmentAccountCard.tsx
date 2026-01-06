@@ -28,9 +28,10 @@ interface InvestmentAccountCardProps {
   onEdit?: (id: string) => void;
   onFund?: (id: string) => void;
   onWithdraw?: (id: string) => void;
+  onClick?: (account: InvestmentAccount) => void;
 }
 
-export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWithdraw }: InvestmentAccountCardProps) {
+export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWithdraw, onClick }: InvestmentAccountCardProps) {
   const totalValue = account.balance + account.returns;
   const roi = account.invested > 0 ? ((account.returns / account.invested) * 100) : 0;
   const progressPercent = account.invested > 0 ? Math.min((account.returns / (account.invested * 0.15)) * 100, 100) : 0;
@@ -76,6 +77,8 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWit
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
       whileHover={{ y: -4, transition: { duration: 0.2 } }}
+      onClick={() => onClick?.(account)}
+      className={onClick ? 'cursor-pointer' : ''}
     >
       <Card className={`relative overflow-hidden border-0 bg-gradient-to-br ${scheme.gradient} backdrop-blur-xl shadow-xl ${scheme.glow} hover:shadow-2xl transition-all duration-500`}>
         {/* Animated background effect */}
