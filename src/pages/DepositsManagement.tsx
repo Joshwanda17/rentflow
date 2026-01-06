@@ -43,7 +43,11 @@ import {
   RefreshCw,
   Search,
   ClipboardList,
+  CheckSquare,
+  Square,
+  CheckCheck,
 } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { format, startOfDay, endOfDay } from 'date-fns';
@@ -106,11 +110,21 @@ export default function DepositsManagement() {
 
   // Processing state
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
-  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; deposit: DepositRequest | null }>({
+  const [rejectDialog, setRejectDialog] = useState<{ open: boolean; deposit: DepositRequest | null; isBulk?: boolean }>({
     open: false,
     deposit: null,
+    isBulk: false,
   });
   const [rejectionReason, setRejectionReason] = useState('');
+
+  // Bulk selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
+
+  const pendingDeposits = deposits.filter(d => d.status === 'pending');
+  const allPendingSelected = pendingDeposits.length > 0 && pendingDeposits.every(d => selectedIds.has(d.id));
+  const somePendingSelected = pendingDeposits.some(d => selectedIds.has(d.id));
+  const selectedPendingCount = pendingDeposits.filter(d => selectedIds.has(d.id)).length;
 
   // Redirect non-managers
   useEffect(() => {
@@ -287,10 +301,18 @@ export default function DepositsManagement() {
 
   const handleReject = async () => {
     const deposit = rejectDialog.deposit;
+    if (!deposit && !rejectDialog.isBulk) return;
+
+    if (rejectDialog.isBulk) {
+      // Bulk reject
+      await handleBulkReject();
+      return;
+    }
+
     if (!deposit) return;
 
     setProcessingIds(prev => new Set(prev).add(deposit.id));
-    setRejectDialog({ open: false, deposit: null });
+    setRejectDialog({ open: false, deposit: null, isBulk: false });
 
     try {
       const { error } = await supabase.functions.invoke('approve-deposit', {
@@ -314,6 +336,110 @@ export default function DepositsManagement() {
         return next;
       });
     }
+  };
+
+  // Toggle selection for a single deposit
+  const toggleSelect = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  // Toggle all pending deposits
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingDeposits.map(d => d.id)));
+    }
+  };
+
+  // Bulk approve handler
+  const handleBulkApprove = async () => {
+    const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
+    if (selectedDeposits.length === 0) return;
+
+    setBulkProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const deposit of selectedDeposits) {
+      try {
+        const { error } = await supabase.functions.invoke('approve-deposit', {
+          body: {
+            deposit_request_id: deposit.id,
+            action: 'approve',
+          },
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to approve ${deposit.id}:`, error);
+        failCount++;
+      }
+    }
+
+    setBulkProcessing(false);
+    setSelectedIds(new Set());
+
+    if (successCount > 0) {
+      toast.success(`Approved ${successCount} deposit${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to approve ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+    }
+
+    fetchDeposits();
+  };
+
+  // Bulk reject handler
+  const handleBulkReject = async () => {
+    const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
+    if (selectedDeposits.length === 0) return;
+
+    setBulkProcessing(true);
+    setRejectDialog({ open: false, deposit: null, isBulk: false });
+
+    let successCount = 0;
+    let failCount = 0;
+
+    for (const deposit of selectedDeposits) {
+      try {
+        const { error } = await supabase.functions.invoke('approve-deposit', {
+          body: {
+            deposit_request_id: deposit.id,
+            action: 'reject',
+            rejection_reason: rejectionReason || 'Bulk rejected by manager',
+          },
+        });
+
+        if (error) throw error;
+        successCount++;
+      } catch (error) {
+        console.error(`Failed to reject ${deposit.id}:`, error);
+        failCount++;
+      }
+    }
+
+    setBulkProcessing(false);
+    setSelectedIds(new Set());
+    setRejectionReason('');
+
+    if (successCount > 0) {
+      toast.success(`Rejected ${successCount} deposit${successCount > 1 ? 's' : ''}`);
+    }
+    if (failCount > 0) {
+      toast.error(`Failed to reject ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+    }
+
+    fetchDeposits();
   };
 
   const handleExport = () => {
@@ -426,6 +552,55 @@ export default function DepositsManagement() {
             <Download className="h-4 w-4" />
           </Button>
         </div>
+
+        {/* Bulk Actions Bar */}
+        {selectedPendingCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between p-3 bg-primary/10 rounded-lg border border-primary/20"
+          >
+            <div className="flex items-center gap-2">
+              <CheckCheck className="h-4 w-4 text-primary" />
+              <span className="text-sm font-medium">
+                {selectedPendingCount} deposit{selectedPendingCount > 1 ? 's' : ''} selected
+              </span>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                size="sm"
+                onClick={handleBulkApprove}
+                disabled={bulkProcessing}
+              >
+                {bulkProcessing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <>
+                    <Check className="h-4 w-4 mr-1" />
+                    Approve All
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                variant="destructive"
+                onClick={() => setRejectDialog({ open: true, deposit: null, isBulk: true })}
+                disabled={bulkProcessing}
+              >
+                <X className="h-4 w-4 mr-1" />
+                Reject All
+              </Button>
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => setSelectedIds(new Set())}
+                disabled={bulkProcessing}
+              >
+                Clear
+              </Button>
+            </div>
+          </motion.div>
+        )}
 
         {/* Filter Panel */}
         <AnimatePresence>
@@ -572,6 +747,19 @@ export default function DepositsManagement() {
           </Card>
         ) : (
           <div className="space-y-3">
+            {/* Select All for Pending */}
+            {pendingDeposits.length > 0 && (
+              <div className="flex items-center gap-2 p-2 bg-muted/50 rounded-lg">
+                <Checkbox
+                  id="select-all"
+                  checked={allPendingSelected}
+                  onCheckedChange={toggleSelectAll}
+                />
+                <label htmlFor="select-all" className="text-sm text-muted-foreground cursor-pointer">
+                  Select all pending ({pendingDeposits.length})
+                </label>
+              </div>
+            )}
             <AnimatePresence mode="popLayout">
               {deposits.map((deposit, index) => (
                 <motion.div
@@ -581,20 +769,31 @@ export default function DepositsManagement() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.03 }}
                 >
-                  <Card>
+                  <Card className={cn(
+                    selectedIds.has(deposit.id) && deposit.status === 'pending' && 'ring-2 ring-primary'
+                  )}>
                     <CardContent className="p-4">
                       <div className="flex justify-between items-start mb-3">
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                            <span className="font-medium truncate">{deposit.user_name}</span>
-                          </div>
-                          {deposit.user_phone && (
-                            <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                              <Phone className="h-3 w-3 flex-shrink-0" />
-                              <span>{deposit.user_phone}</span>
-                            </div>
+                        <div className="flex items-start gap-3 flex-1 min-w-0">
+                          {deposit.status === 'pending' && (
+                            <Checkbox
+                              checked={selectedIds.has(deposit.id)}
+                              onCheckedChange={() => toggleSelect(deposit.id)}
+                              className="mt-1"
+                            />
                           )}
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 mb-1">
+                              <User className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                              <span className="font-medium truncate">{deposit.user_name}</span>
+                            </div>
+                            {deposit.user_phone && (
+                              <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                                <Phone className="h-3 w-3 flex-shrink-0" />
+                                <span>{deposit.user_phone}</span>
+                              </div>
+                            )}
+                          </div>
                         </div>
                         {getStatusBadge(deposit.status)}
                       </div>
@@ -622,13 +821,13 @@ export default function DepositsManagement() {
                         </p>
                       )}
 
-                      {deposit.status === 'pending' && (
+                      {deposit.status === 'pending' && !selectedIds.has(deposit.id) && (
                         <div className="flex gap-2">
                           <Button
                             size="sm"
                             className="flex-1"
                             onClick={() => handleApprove(deposit)}
-                            disabled={processingIds.has(deposit.id)}
+                            disabled={processingIds.has(deposit.id) || bulkProcessing}
                           >
                             {processingIds.has(deposit.id) ? (
                               <Loader2 className="h-4 w-4 animate-spin" />
@@ -643,13 +842,18 @@ export default function DepositsManagement() {
                             size="sm"
                             variant="destructive"
                             className="flex-1"
-                            onClick={() => setRejectDialog({ open: true, deposit })}
-                            disabled={processingIds.has(deposit.id)}
+                            onClick={() => setRejectDialog({ open: true, deposit, isBulk: false })}
+                            disabled={processingIds.has(deposit.id) || bulkProcessing}
                           >
                             <X className="h-4 w-4 mr-1" />
                             Reject
                           </Button>
                         </div>
+                      )}
+                      {deposit.status === 'pending' && selectedIds.has(deposit.id) && (
+                        <p className="text-xs text-primary text-center">
+                          Selected for bulk action
+                        </p>
                       )}
                     </CardContent>
                   </Card>
@@ -694,12 +898,18 @@ export default function DepositsManagement() {
       </main>
 
       {/* Reject Dialog */}
-      <AlertDialog open={rejectDialog.open} onOpenChange={open => setRejectDialog({ open, deposit: null })}>
+      <AlertDialog open={rejectDialog.open} onOpenChange={open => setRejectDialog({ open, deposit: null, isBulk: false })}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Deposit Request</AlertDialogTitle>
+            <AlertDialogTitle>
+              {rejectDialog.isBulk 
+                ? `Reject ${selectedPendingCount} Deposit${selectedPendingCount > 1 ? 's' : ''}` 
+                : 'Reject Deposit Request'}
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Reject deposit of {rejectDialog.deposit && formatUGX(rejectDialog.deposit.amount)}?
+              {rejectDialog.isBulk 
+                ? `Are you sure you want to reject ${selectedPendingCount} selected deposit${selectedPendingCount > 1 ? 's' : ''}?`
+                : `Reject deposit of ${rejectDialog.deposit && formatUGX(rejectDialog.deposit.amount)}?`}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <Input
