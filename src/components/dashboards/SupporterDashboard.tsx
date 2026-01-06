@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Menu, Receipt, History, Share2, Users, Coins,
-  BarChart3, Bell, HelpCircle, FileText
+  BarChart3, FileText
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -29,6 +29,7 @@ import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculato
 import { InvestmentAccountCard, InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
 import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
 import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
+import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -89,9 +90,20 @@ export default function SupporterDashboard({
     }];
   });
 
+  // Investment goals (stored in localStorage)
+  const [goals, setGoals] = useState<InvestmentGoal[]>(() => {
+    const saved = localStorage.getItem(`supporter_goals_${user.id}`);
+    if (saved) return JSON.parse(saved);
+    return [];
+  });
+
   useEffect(() => {
     localStorage.setItem(`supporter_accounts_${user.id}`, JSON.stringify(accounts));
   }, [accounts, user.id]);
+
+  useEffect(() => {
+    localStorage.setItem(`supporter_goals_${user.id}`, JSON.stringify(goals));
+  }, [goals, user.id]);
 
   useEffect(() => {
     fetchData();
@@ -185,11 +197,43 @@ export default function SupporterDashboard({
     toast({ title: 'Account Deleted' });
   };
 
+  // Goal handlers
+  const handleAddGoal = (goal: Omit<InvestmentGoal, 'id' | 'currentAmount' | 'createdAt'>) => {
+    const newGoal: InvestmentGoal = {
+      ...goal,
+      id: crypto.randomUUID(),
+      currentAmount: expectedRewards,
+      createdAt: new Date().toISOString(),
+    };
+    setGoals(prev => [...prev, newGoal]);
+    toast({ title: 'Goal Created', description: `"${goal.name}" has been set` });
+  };
+
+  const handleUpdateGoal = (id: string, updates: Partial<InvestmentGoal>) => {
+    setGoals(prev => prev.map(g => g.id === id ? { ...g, ...updates } : g));
+    toast({ title: 'Goal Updated' });
+  };
+
+  const handleDeleteGoal = (id: string) => {
+    setGoals(prev => prev.filter(g => g.id !== id));
+    toast({ title: 'Goal Deleted' });
+  };
+
   const totalFunded = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
   const expectedRewards = fundedRequests
     .filter(r => r.status !== 'completed')
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
+  const completedRewards = fundedRequests
+    .filter(r => r.status === 'completed')
+    .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
   const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
+
+  // Update goal progress when earnings change
+  useEffect(() => {
+    if (goals.length > 0) {
+      setGoals(prev => prev.map(g => ({ ...g, currentAmount: completedRewards })));
+    }
+  }, [completedRewards]);
 
   if (loading) {
     return <SupporterDashboardSkeleton />;
@@ -355,6 +399,16 @@ export default function SupporterDashboard({
             ))}
           </div>
         </div>
+
+        {/* Investment Goals */}
+        <InvestmentGoals
+          goals={goals}
+          onAddGoal={handleAddGoal}
+          onUpdateGoal={handleUpdateGoal}
+          onDeleteGoal={handleDeleteGoal}
+          totalEarnings={completedRewards}
+          monthlyEarnings={expectedRewards}
+        />
 
         {/* Wallet */}
         <WalletCard />
