@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -17,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Wallet, Check, X, Loader2, User, Phone, Calendar, BarChart3 } from 'lucide-react';
+import { Wallet, Check, X, Loader2, User, Phone, Calendar, BarChart3, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -38,6 +39,7 @@ interface DepositRequest {
 
 export function DepositRequestsManager() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [deposits, setDeposits] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processingIds, setProcessingIds] = useState<Set<string>>(new Set());
@@ -204,19 +206,30 @@ export function DepositRequestsManager() {
       </TabsList>
 
       <TabsContent value="requests" className="space-y-4">
-        {/* Filter Tabs */}
-        <div className="flex gap-2 overflow-x-auto pb-2">
-          {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
-            <Button
-              key={status}
-              variant={statusFilter === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setStatusFilter(status)}
-              className="capitalize"
-            >
-              {status}
-            </Button>
-          ))}
+        {/* Header with filter and full page link */}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex gap-2 overflow-x-auto">
+            {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
+              <Button
+                key={status}
+                variant={statusFilter === status ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setStatusFilter(status)}
+                className="capitalize"
+              >
+                {status}
+              </Button>
+            ))}
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/deposits-management')}
+            className="gap-1 whitespace-nowrap"
+          >
+            <ExternalLink className="h-3 w-3" />
+            Full Page
+          </Button>
         </div>
 
         {deposits.length === 0 ? (

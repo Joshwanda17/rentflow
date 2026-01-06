@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -15,7 +16,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Wallet, Check, X, Loader2, ChevronDown, ChevronUp, User } from 'lucide-react';
+import { Wallet, Check, X, Loader2, ChevronDown, ChevronUp, User, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -31,6 +32,7 @@ interface DepositRequest {
 }
 
 export function FloatingDepositsWidget() {
+  const navigate = useNavigate();
   const [deposits, setDeposits] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [expanded, setExpanded] = useState(false);
@@ -246,6 +248,15 @@ export function FloatingDepositsWidget() {
                       ))}
                     </div>
                   </ScrollArea>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="w-full mt-2 gap-1"
+                    onClick={() => navigate('/deposits-management')}
+                  >
+                    <ExternalLink className="h-3 w-3" />
+                    View All Deposits
+                  </Button>
                 </CardContent>
               </motion.div>
             )}
