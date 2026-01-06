@@ -1,14 +1,15 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
 import { 
   Target, Plus, Edit2, Trophy, TrendingUp, 
-  Calendar, CheckCircle2, Clock, Flame
+  Calendar, CheckCircle2, Clock, Flame, Sparkles, Rocket
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { SetGoalDialog } from './SetGoalDialog';
+import { motion, AnimatePresence } from 'framer-motion';
 
 export interface InvestmentGoal {
   id: string;
@@ -55,176 +56,213 @@ export function InvestmentGoals({
     const progress = getProgressPercent(goal);
     const daysRemaining = getDaysRemaining(goal.deadline);
     
-    if (progress >= 100) return { label: 'Completed', color: 'success', icon: CheckCircle2 };
-    if (daysRemaining < 0) return { label: 'Expired', color: 'destructive', icon: Clock };
-    if (daysRemaining <= 7) return { label: 'Ending Soon', color: 'warning', icon: Flame };
-    return { label: 'In Progress', color: 'secondary', icon: TrendingUp };
+    if (progress >= 100) return { label: 'Completed', color: 'bg-success/20 text-success border-success/30', icon: CheckCircle2 };
+    if (daysRemaining < 0) return { label: 'Expired', color: 'bg-destructive/20 text-destructive border-destructive/30', icon: Clock };
+    if (daysRemaining <= 7) return { label: 'Hot!', color: 'bg-warning/20 text-warning border-warning/30', icon: Flame };
+    return { label: 'Active', color: 'bg-primary/20 text-primary border-primary/30', icon: Rocket };
   };
 
-  const colorClasses: Record<string, { bg: string; border: string; icon: string }> = {
-    blue: { bg: 'from-blue-500/10 to-blue-600/5', border: 'border-blue-500/30', icon: 'text-blue-500' },
-    green: { bg: 'from-green-500/10 to-green-600/5', border: 'border-green-500/30', icon: 'text-green-500' },
-    purple: { bg: 'from-purple-500/10 to-purple-600/5', border: 'border-purple-500/30', icon: 'text-purple-500' },
-    orange: { bg: 'from-orange-500/10 to-orange-600/5', border: 'border-orange-500/30', icon: 'text-orange-500' },
-    pink: { bg: 'from-pink-500/10 to-pink-600/5', border: 'border-pink-500/30', icon: 'text-pink-500' },
+  const colorSchemes: Record<string, { gradient: string; iconBg: string; progressBg: string }> = {
+    blue: { gradient: 'from-blue-600/15 via-cyan-500/10 to-blue-600/5', iconBg: 'from-blue-500 to-cyan-400', progressBg: 'bg-gradient-to-r from-blue-500 to-cyan-400' },
+    green: { gradient: 'from-emerald-600/15 via-green-500/10 to-emerald-600/5', iconBg: 'from-emerald-500 to-green-400', progressBg: 'bg-gradient-to-r from-emerald-500 to-green-400' },
+    purple: { gradient: 'from-purple-600/15 via-violet-500/10 to-purple-600/5', iconBg: 'from-purple-500 to-violet-400', progressBg: 'bg-gradient-to-r from-purple-500 to-violet-400' },
+    orange: { gradient: 'from-orange-600/15 via-amber-500/10 to-orange-600/5', iconBg: 'from-orange-500 to-amber-400', progressBg: 'bg-gradient-to-r from-orange-500 to-amber-400' },
+    pink: { gradient: 'from-pink-600/15 via-rose-500/10 to-pink-600/5', iconBg: 'from-pink-500 to-rose-400', progressBg: 'bg-gradient-to-r from-pink-500 to-rose-400' },
   };
-
-  // Calculate projected earnings based on current monthly rate
-  const projectedMonthlyEarnings = monthlyEarnings;
 
   return (
     <>
-      <Card className="elevated-card overflow-hidden">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
-                <Target className="h-5 w-5 text-primary" />
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5, delay: 0.15 }}
+      >
+        <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/5 via-background to-violet-500/5 backdrop-blur-xl shadow-xl">
+          {/* Decorative elements */}
+          <div className="absolute top-0 left-0 w-48 h-48 bg-gradient-to-br from-primary/15 to-transparent rounded-full blur-3xl" />
+          <div className="absolute -bottom-12 -right-12 w-32 h-32 bg-gradient-to-tl from-violet-500/10 to-transparent rounded-full blur-2xl" />
+          
+          <CardHeader className="relative pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <motion.div 
+                  className="p-3 rounded-2xl bg-gradient-to-br from-primary via-violet-500 to-purple-600 shadow-lg shadow-primary/30"
+                  whileHover={{ scale: 1.05, rotate: 5 }}
+                >
+                  <Target className="h-5 w-5 text-white" />
+                </motion.div>
+                <div>
+                  <CardTitle className="text-xl font-black tracking-tight">Your Goals 🎯</CardTitle>
+                  <p className="text-sm text-muted-foreground font-medium mt-0.5">Track your earning targets</p>
+                </div>
               </div>
-              <div>
-                <CardTitle className="text-lg font-semibold">Investment Goals</CardTitle>
-                <p className="text-xs text-muted-foreground">Track your earning targets</p>
-              </div>
-            </div>
-            <Button 
-              size="sm" 
-              variant="outline" 
-              onClick={() => setShowAddGoal(true)}
-              className="gap-1.5"
-            >
-              <Plus className="h-4 w-4" />
-              Set Goal
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          {/* Monthly Earnings Summary */}
-          <div className="p-4 rounded-xl bg-gradient-to-br from-success/10 to-success/5 border border-success/20">
-            <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-2">
-                <TrendingUp className="h-4 w-4 text-success" />
-                <span className="text-sm font-medium">Monthly Earnings Rate</span>
-              </div>
-              <Badge variant="outline" className="text-success border-success/50">
-                15% ROI
-              </Badge>
-            </div>
-            <p className="text-2xl font-bold text-success">{formatUGX(projectedMonthlyEarnings)}</p>
-            <p className="text-xs text-muted-foreground mt-1">
-              Total earned: {formatUGX(totalEarnings)}
-            </p>
-          </div>
-
-          {/* Goals List */}
-          {goals.length === 0 ? (
-            <div className="text-center py-8">
-              <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-                <Trophy className="h-8 w-8 text-muted-foreground/50" />
-              </div>
-              <p className="text-muted-foreground font-medium">No goals set yet</p>
-              <p className="text-sm text-muted-foreground/70 mt-1">
-                Set a monthly earning target to stay motivated
-              </p>
               <Button 
                 size="sm" 
-                className="mt-4"
                 onClick={() => setShowAddGoal(true)}
+                className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 shadow-lg shadow-primary/25"
               >
-                <Plus className="h-4 w-4 mr-1" />
-                Create First Goal
+                <Plus className="h-4 w-4" />
+                New Goal
               </Button>
             </div>
-          ) : (
-            <div className="space-y-3">
-              {goals.map((goal) => {
-                const progress = getProgressPercent(goal);
-                const daysRemaining = getDaysRemaining(goal.deadline);
-                const status = getGoalStatus(goal);
-                const StatusIcon = status.icon;
-                const colors = colorClasses[goal.color] || colorClasses.blue;
+          </CardHeader>
+          
+          <CardContent className="relative space-y-5">
+            {/* Monthly Earnings Summary */}
+            <motion.div 
+              className="relative p-5 rounded-2xl bg-gradient-to-br from-success/15 via-success/10 to-emerald-600/5 border border-success/20 overflow-hidden"
+              whileHover={{ scale: 1.01 }}
+            >
+              <div className="absolute -top-12 -right-12 w-24 h-24 bg-success/20 rounded-full blur-2xl" />
+              <div className="relative flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                  <span className="text-sm font-bold text-foreground">Monthly Earning Power</span>
+                </div>
+                <Badge className="text-[10px] px-2.5 py-1 bg-success/20 text-success border-success/30 font-bold">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  15% ROI
+                </Badge>
+              </div>
+              <p className="text-3xl font-black text-success tracking-tight">{formatUGX(monthlyEarnings)}</p>
+              <p className="text-xs text-muted-foreground mt-2 font-medium">
+                💰 Total earned: <span className="text-foreground font-bold">{formatUGX(totalEarnings)}</span>
+              </p>
+            </motion.div>
 
-                return (
-                  <div
-                    key={goal.id}
-                    className={`p-4 rounded-xl bg-gradient-to-br ${colors.bg} border ${colors.border} transition-all duration-200 hover:shadow-md`}
-                  >
-                    <div className="flex items-start justify-between mb-3">
-                      <div className="flex items-center gap-2">
-                        <Target className={`h-4 w-4 ${colors.icon}`} />
-                        <h4 className="font-semibold text-foreground">{goal.name}</h4>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <Badge 
-                          variant={status.color as any} 
-                          className="text-[10px] px-2 py-0.5 gap-1"
-                        >
-                          <StatusIcon className="h-3 w-3" />
-                          {status.label}
-                        </Badge>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          className="h-7 w-7"
-                          onClick={() => setEditingGoal(goal)}
-                        >
-                          <Edit2 className="h-3.5 w-3.5" />
-                        </Button>
-                      </div>
-                    </div>
+            {/* Goals List */}
+            {goals.length === 0 ? (
+              <div className="text-center py-12">
+                <motion.div 
+                  className="p-5 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 w-fit mx-auto mb-5"
+                  animate={{ scale: [1, 1.05, 1], rotate: [0, 5, -5, 0] }}
+                  transition={{ duration: 3, repeat: Infinity }}
+                >
+                  <Trophy className="h-10 w-10 text-primary/60" />
+                </motion.div>
+                <p className="text-foreground font-bold text-lg">No goals yet? Let's fix that! 🚀</p>
+                <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                  Set a monthly earning target to stay motivated and track progress
+                </p>
+                <Button 
+                  className="mt-5 gap-2 bg-gradient-to-r from-primary to-violet-500 shadow-lg shadow-primary/25"
+                  onClick={() => setShowAddGoal(true)}
+                >
+                  <Sparkles className="h-4 w-4" />
+                  Create Your First Goal
+                </Button>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <AnimatePresence>
+                  {goals.map((goal, index) => {
+                    const progress = getProgressPercent(goal);
+                    const daysRemaining = getDaysRemaining(goal.deadline);
+                    const status = getGoalStatus(goal);
+                    const StatusIcon = status.icon;
+                    const scheme = colorSchemes[goal.color] || colorSchemes.purple;
 
-                    <div className="space-y-3">
-                      {/* Target vs Current */}
-                      <div className="flex items-end justify-between">
-                        <div>
-                          <p className="text-xs text-muted-foreground mb-0.5">Current</p>
-                          <p className="text-lg font-bold">{formatUGX(goal.currentAmount)}</p>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-xs text-muted-foreground mb-0.5">Target</p>
-                          <p className="text-lg font-bold text-muted-foreground">
-                            {formatUGX(goal.targetAmount)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* Progress Bar */}
-                      <div className="space-y-1.5">
-                        <Progress value={progress} className="h-2" />
-                        <div className="flex items-center justify-between text-xs">
-                          <span className="font-medium text-foreground">
-                            {progress.toFixed(0)}% Complete
-                          </span>
-                          <div className="flex items-center gap-1 text-muted-foreground">
-                            <Calendar className="h-3 w-3" />
-                            {daysRemaining > 0 ? (
-                              <span>{daysRemaining} days left</span>
-                            ) : daysRemaining === 0 ? (
-                              <span className="text-warning">Due today</span>
-                            ) : (
-                              <span className="text-destructive">
-                                {Math.abs(daysRemaining)} days overdue
-                              </span>
-                            )}
+                    return (
+                      <motion.div
+                        key={goal.id}
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ scale: 1.01, y: -2 }}
+                        className={`relative p-5 rounded-2xl bg-gradient-to-br ${scheme.gradient} border border-white/10 hover:border-white/20 transition-all duration-300 overflow-hidden`}
+                      >
+                        {/* Decorative glow */}
+                        <div className="absolute -top-8 -right-8 w-20 h-20 bg-white/5 rounded-full blur-2xl" />
+                        
+                        <div className="relative flex items-start justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className={`p-2.5 rounded-xl bg-gradient-to-br ${scheme.iconBg} shadow-lg`}>
+                              <Target className="h-4 w-4 text-white" />
+                            </div>
+                            <div>
+                              <h4 className="font-bold text-foreground text-lg">{goal.name}</h4>
+                              <p className="text-xs text-muted-foreground font-medium">Target: {formatUGX(goal.targetAmount)}/month</p>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <Badge className={`text-[10px] px-2 py-1 gap-1 border ${status.color}`}>
+                              <StatusIcon className="h-3 w-3" />
+                              {status.label}
+                            </Badge>
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              className="h-8 w-8 hover:bg-white/10"
+                              onClick={() => setEditingGoal(goal)}
+                            >
+                              <Edit2 className="h-3.5 w-3.5" />
+                            </Button>
                           </div>
                         </div>
-                      </div>
 
-                      {/* Remaining Amount */}
-                      {progress < 100 && (
-                        <p className="text-xs text-muted-foreground">
-                          Need <span className="font-medium text-foreground">
-                            {formatUGX(goal.targetAmount - goal.currentAmount)}
-                          </span> more to reach your goal
-                        </p>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                        <div className="relative space-y-4">
+                          {/* Target vs Current */}
+                          <div className="flex items-end justify-between">
+                            <div>
+                              <p className="text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Progress</p>
+                              <p className="text-2xl font-black text-foreground">{formatUGX(goal.currentAmount)}</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs text-muted-foreground mb-1 font-semibold uppercase tracking-wider">Goal</p>
+                              <p className="text-xl font-bold text-muted-foreground/60">
+                                {formatUGX(goal.targetAmount)}
+                              </p>
+                            </div>
+                          </div>
+
+                          {/* Progress Bar */}
+                          <div className="space-y-2">
+                            <div className="h-3 bg-white/10 rounded-full overflow-hidden backdrop-blur">
+                              <motion.div 
+                                className={`h-full ${scheme.progressBg} rounded-full`}
+                                initial={{ width: 0 }}
+                                animate={{ width: `${progress}%` }}
+                                transition={{ duration: 1, ease: "easeOut" }}
+                              />
+                            </div>
+                            <div className="flex items-center justify-between text-xs">
+                              <span className="font-bold text-foreground">
+                                {progress.toFixed(0)}% Complete {progress >= 100 && '🎉'}
+                              </span>
+                              <div className="flex items-center gap-1.5 text-muted-foreground font-medium">
+                                <Calendar className="h-3 w-3" />
+                                {daysRemaining > 0 ? (
+                                  <span>{daysRemaining} days left</span>
+                                ) : daysRemaining === 0 ? (
+                                  <span className="text-warning font-bold">Due today!</span>
+                                ) : (
+                                  <span className="text-destructive font-bold">
+                                    {Math.abs(daysRemaining)}d overdue
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+
+                          {/* Remaining Amount */}
+                          {progress < 100 && (
+                            <p className="text-xs text-muted-foreground">
+                              💪 Just <span className="font-bold text-foreground">
+                                {formatUGX(goal.targetAmount - goal.currentAmount)}
+                              </span> more to crush this goal!
+                            </p>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </AnimatePresence>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       <SetGoalDialog
         open={showAddGoal}
