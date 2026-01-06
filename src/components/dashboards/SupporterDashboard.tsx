@@ -5,14 +5,16 @@ import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { LogOut, Wallet, TrendingUp, HandCoins, Settings, Sparkles, Zap, Clock, ArrowRight, Coins, History, Receipt, Send, Share2 } from 'lucide-react';
-import { FloatingActionButton } from '@/components/FloatingActionButton';
+import { 
+  LogOut, Wallet, TrendingUp, Settings, Plus, 
+  Menu, Receipt, History, Share2, Users, Coins,
+  BarChart3, Bell, HelpCircle, FileText
+} from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import AppBreadcrumb from '@/components/AppBreadcrumb';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
@@ -21,15 +23,19 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { QuickReceiptForm } from '@/components/receipts/QuickReceiptForm';
-import { LoanLimitPromoCard } from '@/components/LoanLimitPromoCard';
-import { QuickActions } from '@/components/QuickActions';
-import { StatusIndicator } from '@/components/StatusIndicator';
-import { SwipeableRow } from '@/components/SwipeableRow';
-import { Eye } from 'lucide-react';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { ReferralStatsCard } from '@/components/ReferralStatsCard';
 import { ShareAppButton } from '@/components/ShareAppButton';
+import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
+import { InvestmentAccountCard, InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
+import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
+import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface SupporterDashboardProps {
   user: User;
@@ -46,6 +52,7 @@ interface AvailableRequest {
   duration_days: number;
   status: string;
   created_at: string;
+  tenant_name?: string;
 }
 
 interface FundedRequest {
@@ -56,13 +63,35 @@ interface FundedRequest {
   funded_at: string;
 }
 
-export default function SupporterDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: SupporterDashboardProps) {
+export default function SupporterDashboard({ 
+  user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent 
+}: SupporterDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [showCreateAccount, setShowCreateAccount] = useState(false);
   const { toast } = useToast();
+
+  // Investment accounts (stored in localStorage for now)
+  const [accounts, setAccounts] = useState<InvestmentAccount[]>(() => {
+    const saved = localStorage.getItem(`supporter_accounts_${user.id}`);
+    if (saved) return JSON.parse(saved);
+    return [{
+      id: 'default',
+      name: 'Main Portfolio',
+      balance: 0,
+      invested: 0,
+      returns: 0,
+      color: 'blue',
+      isDefault: true,
+    }];
+  });
+
+  useEffect(() => {
+    localStorage.setItem(`supporter_accounts_${user.id}`, JSON.stringify(accounts));
+  }, [accounts, user.id]);
 
   useEffect(() => {
     fetchData();
@@ -71,14 +100,12 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
   const fetchData = async () => {
     setLoading(true);
     
-    // Approved requests waiting for funding
     const { data: available } = await supabase
       .from('rent_requests')
       .select('id, rent_amount, duration_days, status, created_at')
       .eq('status', 'approved')
       .order('created_at', { ascending: true });
     
-    // Requests funded by this supporter
     const { data: funded } = await supabase
       .from('rent_requests')
       .select('id, rent_amount, duration_days, status, funded_at')
@@ -87,6 +114,21 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     
     setAvailableRequests(available || []);
     setFundedRequests(funded || []);
+
+    // Update accounts with actual funded data
+    if (funded && funded.length > 0) {
+      const totalInvested = funded.reduce((sum, r) => sum + Number(r.rent_amount), 0);
+      const totalReturns = funded
+        .filter(r => r.status === 'completed')
+        .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
+      
+      setAccounts(prev => prev.map(acc => 
+        acc.isDefault 
+          ? { ...acc, invested: totalInvested, returns: totalReturns }
+          : acc
+      ));
+    }
+
     setLoading(false);
   };
 
@@ -108,7 +150,6 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
         variant: 'destructive'
       });
     } else {
-      // Record the transaction
       await supabase.from('platform_transactions').insert({
         rent_request_id: requestId,
         user_id: user.id,
@@ -126,19 +167,29 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
     }
   };
 
+  const handleCreateAccount = (name: string, color: string) => {
+    const newAccount: InvestmentAccount = {
+      id: crypto.randomUUID(),
+      name,
+      balance: 0,
+      invested: 0,
+      returns: 0,
+      color,
+    };
+    setAccounts(prev => [...prev, newAccount]);
+    toast({ title: 'Account Created', description: `${name} has been created` });
+  };
+
+  const handleDeleteAccount = (id: string) => {
+    setAccounts(prev => prev.filter(acc => acc.id !== id));
+    toast({ title: 'Account Deleted' });
+  };
+
   const totalFunded = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
   const expectedRewards = fundedRequests
     .filter(r => r.status !== 'completed')
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
-
-  const getStatusVariant = (status: string) => {
-    switch (status) {
-      case 'completed': return 'success';
-      case 'funded': return 'default';
-      case 'disbursed': return 'success';
-      default: return 'secondary';
-    }
-  };
+  const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
 
   if (loading) {
     return <SupporterDashboardSkeleton />;
@@ -169,286 +220,230 @@ export default function SupporterDashboard({ user, signOut, currentRole, availab
               />
             </div>
             
-            <div className="hidden md:flex items-center gap-1">
+            <div className="flex items-center gap-1">
               <ShareAppButton />
               <NotificationBell />
               <ThemeToggle />
-              {addRoleComponent}
-              <Button variant="ghost" size="sm" onClick={() => navigate('/settings')} className="text-muted-foreground hover:text-foreground">
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="ghost" size="sm" onClick={signOut} className="text-muted-foreground hover:text-foreground">
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-            
-            <div className="md:hidden flex items-center gap-1">
-              <ShareAppButton />
-              <NotificationBell />
-              <ThemeToggle />
+              
+              {/* Menu Button - Contains receipts and other items */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                    <Menu className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-56">
+                  <DropdownMenuItem onClick={() => navigate('/my-receipts')}>
+                    <Receipt className="h-4 w-4 mr-2" />
+                    My Receipts
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/transactions')}>
+                    <History className="h-4 w-4 mr-2" />
+                    Transaction History
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/referrals')}>
+                    <Share2 className="h-4 w-4 mr-2" />
+                    Referrals
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/benefits')}>
+                    <Coins className="h-4 w-4 mr-2" />
+                    Benefits
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={() => navigate('/my-loans')}>
+                    <FileText className="h-4 w-4 mr-2" />
+                    My Loans
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                    <Settings className="h-4 w-4 mr-2" />
+                    Settings
+                  </DropdownMenuItem>
+                  {addRoleComponent}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={signOut} className="text-destructive">
+                    <LogOut className="h-4 w-4 mr-2" />
+                    Sign Out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
-        <AppBreadcrumb />
-        
         {/* Welcome Section */}
         <div className="flex items-center justify-between">
           <div>
             <h1 className="text-2xl font-bold tracking-tight">
-              Welcome back{profile?.full_name ? `, ${profile.full_name.split(' ')[0]}` : ''}
+              Investor Dashboard
             </h1>
             <p className="text-muted-foreground text-sm mt-1">
-              Fund rent requests and earn 15% returns
+              Manage your investments • 15% monthly ROI
             </p>
           </div>
-          <div className="hidden md:flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary animate-pulse" />
-          </div>
+          <Badge variant="outline" className="hidden md:flex gap-1 px-3 py-1">
+            <TrendingUp className="h-3.5 w-3.5 text-success" />
+            <span className="font-medium">{activeFundings} Active</span>
+          </Badge>
         </div>
 
-        {/* Quick Actions - Large icon buttons */}
-        <QuickActions
-          actions={[
-            {
-              icon: HandCoins,
-              label: 'Fund',
-              onClick: () => document.getElementById('available-requests')?.scrollIntoView({ behavior: 'smooth' }),
-              color: 'primary',
-            },
-            {
-              icon: TrendingUp,
-              label: 'Earnings',
-              onClick: () => navigate('/transactions'),
-              color: 'success',
-            },
-            {
-              icon: Share2,
-              label: 'Share',
-              onClick: () => navigate('/benefits'),
-              color: 'primary',
-            },
-            {
-              icon: Receipt,
-              label: 'Receipts',
-              onClick: () => navigate('/my-receipts'),
-              color: 'warning',
-            },
-          ]}
-        />
-        
-        {/* Wallet */}
-        <WalletCard />
-
-        {/* Referral Stats */}
-        <ReferralStatsCard userId={user.id} />
-
-        {/* Loan Limit Promo */}
-        <LoanLimitPromoCard userId={user.id} />
-
-        {/* Quick Receipt Form */}
-        <QuickReceiptForm userId={user.id} />
-
-        {/* Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 group-hover:scale-110 transition-transform duration-300">
-                  <Wallet className="h-5 w-5 text-primary" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Total Funded</p>
-                  <p className="metric-value text-xl truncate">{formatUGX(totalFunded)}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300 relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-r from-success/5 to-transparent" />
-            <CardContent className="pt-6 relative">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5 group-hover:scale-110 transition-transform duration-300">
-                  <TrendingUp className="h-5 w-5 text-success" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Expected Rewards</p>
-                  <p className="metric-value text-xl text-success truncate">
-                    {formatUGX(expectedRewards)}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card className="elevated-card group hover:shadow-glow transition-all duration-300">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-gradient-to-br from-warning/20 to-warning/5 group-hover:scale-110 transition-transform duration-300">
-                  <HandCoins className="h-5 w-5 text-warning" />
-                </div>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground font-medium">Active Fundings</p>
-                  <p className="metric-value text-2xl">
-                    {fundedRequests.filter(r => r.status !== 'completed').length}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Info Card */}
-        <Card className="elevated-card border-primary/20 overflow-hidden">
-          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5" />
-          <CardContent className="pt-6 relative">
-            <div className="flex items-start gap-4">
-              <div className="p-3 rounded-xl bg-gradient-to-br from-success/20 to-success/5">
-                <Zap className="h-5 w-5 text-success" />
-              </div>
-              <div>
-                <p className="font-semibold text-foreground">Earn 15% Returns</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Fund approved rent requests and earn 15% reward when the tenant completes repayment.
-                </p>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Available Requests */}
-        <Card className="elevated-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+        {/* Quick Stats Bar */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="elevated-card p-4">
             <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Clock className="h-4 w-4 text-warning" />
+              <div className="p-2 rounded-lg bg-primary/10">
+                <Wallet className="h-4 w-4 text-primary" />
               </div>
-              <CardTitle className="text-lg font-semibold">Available Rent Requests</CardTitle>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Invested</p>
+                <p className="font-bold text-foreground truncate">{formatUGX(totalFunded)}</p>
+              </div>
             </div>
-            <Badge variant="outline" className="font-mono">
-              {availableRequests.length} available
-            </Badge>
-          </CardHeader>
-          <CardContent>
-            {loading ? (
-              <div className="flex items-center justify-center py-8">
-                <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-              </div>
-            ) : availableRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <HandCoins className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">No approved requests available for funding.</p>
-                <p className="text-sm text-muted-foreground/70">Check back later for new opportunities.</p>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {availableRequests.map((request, index) => {
-                  const reward = calculateSupporterReward(Number(request.rent_amount));
-                  return (
-                    <div 
-                      key={request.id} 
-                      className="group flex items-center justify-between p-4 rounded-xl bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-primary/30 transition-all duration-200"
-                      style={{ animationDelay: `${index * 50}ms` }}
-                    >
-                      <div className="space-y-1">
-                        <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                        <p className="text-sm text-muted-foreground">
-                          {request.duration_days} days • Reward: <span className="text-success font-medium">{formatUGX(reward)}</span>
-                        </p>
-                      </div>
-                      <Button 
-                        size="sm"
-                        onClick={() => fundRequest(request.id, Number(request.rent_amount))}
-                        className="gap-2"
-                      >
-                        Fund
-                        <ArrowRight className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Funded Requests */}
-        <Card className="elevated-card">
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4">
+          </Card>
+          <Card className="elevated-card p-4">
             <div className="flex items-center gap-3">
               <div className="p-2 rounded-lg bg-success/10">
                 <TrendingUp className="h-4 w-4 text-success" />
               </div>
-              <CardTitle className="text-lg font-semibold">My Funded Requests</CardTitle>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Expected</p>
+                <p className="font-bold text-success truncate">{formatUGX(expectedRewards)}</p>
+              </div>
             </div>
-            <Badge variant="outline" className="font-mono">
-              {fundedRequests.length} total
-            </Badge>
+          </Card>
+          <Card className="elevated-card p-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-lg bg-warning/10">
+                <Users className="h-4 w-4 text-warning" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Tenants</p>
+                <p className="font-bold text-foreground">{availableRequests.length} waiting</p>
+              </div>
+            </div>
+          </Card>
+        </div>
+
+        {/* Investment Accounts Section */}
+        <div className="space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" />
+              <h2 className="text-lg font-semibold">Investment Accounts</h2>
+            </div>
+            <Button 
+              size="sm" 
+              variant="outline" 
+              onClick={() => setShowCreateAccount(true)}
+              className="gap-1.5"
+            >
+              <Plus className="h-4 w-4" />
+              New Account
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {accounts.map((account) => (
+              <InvestmentAccountCard
+                key={account.id}
+                account={account}
+                onDelete={handleDeleteAccount}
+                onEdit={(id) => toast({ title: 'Edit coming soon' })}
+                onFund={() => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' })}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Wallet */}
+        <WalletCard />
+
+        {/* Investment Calculator */}
+        <InvestmentCalculator />
+
+        {/* Tenants Needing Rent */}
+        <div id="tenants-section">
+          <TenantsNeedingRent
+            requests={availableRequests}
+            onFund={fundRequest}
+            loading={loading}
+          />
+        </div>
+
+        {/* My Funded Tenants */}
+        <Card className="elevated-card">
+          <CardHeader className="pb-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="p-2 rounded-xl bg-gradient-to-br from-success/20 to-success/10">
+                  <TrendingUp className="h-5 w-5 text-success" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg font-semibold">My Funded Tenants</CardTitle>
+                  <p className="text-xs text-muted-foreground">Track your investment returns</p>
+                </div>
+              </div>
+              <Badge variant="outline" className="font-mono text-xs">
+                {fundedRequests.length} total
+              </Badge>
+            </div>
           </CardHeader>
           <CardContent>
             {fundedRequests.length === 0 ? (
-              <div className="text-center py-8">
-                <Wallet className="h-12 w-12 text-muted-foreground/50 mx-auto mb-3" />
-                <p className="text-muted-foreground">You haven't funded any requests yet.</p>
-                <p className="text-sm text-muted-foreground/70">Start funding to earn rewards.</p>
+              <div className="text-center py-12">
+                <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
+                  <Wallet className="h-8 w-8 text-muted-foreground/50" />
+                </div>
+                <p className="text-muted-foreground font-medium">No investments yet</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">Fund tenants above to start earning</p>
               </div>
             ) : (
-              <div className="space-y-3">
-                {fundedRequests.map((request, index) => (
-                  <SwipeableRow
-                    key={request.id}
-                    rightActions={[
-                      {
-                        icon: Eye,
-                        label: 'View',
-                        onClick: () => navigate('/transactions'),
-                        color: 'primary',
-                      },
-                    ]}
-                  >
-                    <div 
-                      className="group flex items-center justify-between p-4 bg-secondary/30 hover:bg-secondary/50 border border-border/50 hover:border-success/30 transition-all duration-200"
-                      style={{ animationDelay: `${index * 50}ms` }}
+              <div className="space-y-2">
+                {fundedRequests.slice(0, 5).map((request, index) => {
+                  const reward = calculateSupporterReward(Number(request.rent_amount));
+                  const statusColor = request.status === 'completed' ? 'success' : 
+                                     request.status === 'disbursed' ? 'primary' : 'warning';
+                  return (
+                    <div
+                      key={request.id}
+                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
                     >
                       <div className="flex items-center gap-3">
-                        <StatusIndicator status={request.status} size="md" />
+                        <div className={`w-2 h-2 rounded-full bg-${statusColor}`} />
                         <div>
-                          <p className="font-semibold text-foreground">{formatUGX(Number(request.rent_amount))}</p>
-                          <p className="text-xs text-muted-foreground">
-                            +{formatUGX(calculateSupporterReward(Number(request.rent_amount)))}
-                          </p>
+                          <p className="font-medium">{formatUGX(Number(request.rent_amount))}</p>
+                          <p className="text-xs text-muted-foreground">{request.duration_days} days</p>
                         </div>
                       </div>
+                      <div className="text-right">
+                        <p className="font-medium text-success">+{formatUGX(reward)}</p>
+                        <Badge variant="secondary" className="text-[10px]">
+                          {request.status}
+                        </Badge>
+                      </div>
                     </div>
-                  </SwipeableRow>
-                ))}
+                  );
+                })}
+                {fundedRequests.length > 5 && (
+                  <Button 
+                    variant="ghost" 
+                    className="w-full mt-2"
+                    onClick={() => navigate('/transactions')}
+                  >
+                    View All ({fundedRequests.length})
+                  </Button>
+                )}
               </div>
             )}
           </CardContent>
         </Card>
       </main>
-      
-      <FloatingActionButton
-        actions={[
-          {
-            icon: Coins,
-            label: 'Available Requests',
-            onClick: () => window.scrollTo({ top: 0, behavior: 'smooth' }),
-          },
-          {
-            icon: Receipt,
-            label: 'My Receipts',
-            onClick: () => navigate('/my-receipts'),
-          },
-          {
-            icon: History,
-            label: 'My Fundings',
-            onClick: () => document.getElementById('funded-requests')?.scrollIntoView({ behavior: 'smooth' }),
-          },
-        ]}
+
+      <CreateAccountDialog
+        open={showCreateAccount}
+        onOpenChange={setShowCreateAccount}
+        onCreateAccount={handleCreateAccount}
       />
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
