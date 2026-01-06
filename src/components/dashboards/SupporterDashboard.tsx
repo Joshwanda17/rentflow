@@ -37,6 +37,7 @@ import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/Investme
 import { InterestPaymentHistory } from '@/components/supporter/InterestPaymentHistory';
 import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
 import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
+import { SupporterReferralStats } from '@/components/supporter/SupporterReferralStats';
 import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
@@ -745,6 +746,9 @@ export default function SupporterDashboard({
             </CardContent>
           </Card>
         </motion.div>
+
+        {/* Supporter Referral Stats */}
+        <SupporterReferralStats userId={user.id} />
 
         {/* Wallet */}
         <div id="wallet-section">

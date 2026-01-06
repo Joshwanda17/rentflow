@@ -1,6 +1,7 @@
 import { Button } from '@/components/ui/button';
 import { Share2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 
 interface ShareSupporterLinkProps {
   className?: string;
@@ -10,14 +11,19 @@ interface ShareSupporterLinkProps {
 
 export function ShareSupporterLink({ className, variant = 'outline', size = 'default' }: ShareSupporterLinkProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
 
-  const shareLink = `${window.location.origin}/become-supporter`;
+  // Include referrer ID in the link
+  const shareLink = user 
+    ? `${window.location.origin}/become-supporter?ref=${user.id}`
+    : `${window.location.origin}/become-supporter`;
   
   const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns! 
 
 💰 Help tenants pay rent while growing your investment
 📈 Guaranteed monthly interest payments
 🔒 Secure and flexible withdrawals
+🎁 Make your first investment and I earn a bonus!
 
 Start investing today: ${shareLink}`;
 
@@ -46,26 +52,16 @@ Start investing today: ${shareLink}`;
     });
   };
 
-  const handleCopyLink = () => {
-    navigator.clipboard.writeText(shareLink);
-    toast({
-      title: '📋 Link Copied!',
-      description: 'Supporter onboarding link copied to clipboard',
-    });
-  };
-
   return (
-    <div className="flex gap-2">
-      <Button 
-        onClick={handleShare}
-        variant={variant}
-        size={size}
-        className={`gap-2 ${className}`}
-      >
-        <Share2 className="h-4 w-4" />
-        <span className="hidden sm:inline">Share on WhatsApp</span>
-        <span className="sm:hidden">Share</span>
-      </Button>
-    </div>
+    <Button 
+      onClick={handleShare}
+      variant={variant}
+      size={size}
+      className={`gap-2 ${className}`}
+    >
+      <Share2 className="h-4 w-4" />
+      <span className="hidden sm:inline">Share on WhatsApp</span>
+      <span className="sm:hidden">Share</span>
+    </Button>
   );
 }
