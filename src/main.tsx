@@ -1,3 +1,4 @@
+import React from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
@@ -7,7 +8,11 @@ const loader = document.getElementById('app-loader');
 if (loader) loader.style.display = 'none';
 
 // Mount app
-createRoot(document.getElementById("root")!).render(<App />);
+createRoot(document.getElementById("root")!).render(
+  <React.StrictMode>
+    <App />
+  </React.StrictMode>
+);
 
 // Register service worker after load
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
