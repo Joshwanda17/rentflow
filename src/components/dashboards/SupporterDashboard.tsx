@@ -26,7 +26,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { ShareAppButton } from '@/components/ShareAppButton';
+
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { InvestmentAccountCard, InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
 import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
@@ -476,7 +476,7 @@ export default function SupporterDashboard({
             </div>
             
             <div className="flex items-center gap-0.5 sm:gap-1">
-              <ShareAppButton />
+              <ShareSupporterLink variant="ghost" size="icon" />
               <NotificationBell />
               <AnimatedThemeToggle />
               
