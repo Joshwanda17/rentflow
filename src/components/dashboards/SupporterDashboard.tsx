@@ -34,6 +34,7 @@ import { FundAccountDialog } from '@/components/supporter/FundAccountDialog';
 import { WithdrawAccountDialog } from '@/components/supporter/WithdrawAccountDialog';
 import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
 import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
+import { InterestPaymentHistory } from '@/components/supporter/InterestPaymentHistory';
 import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
@@ -692,6 +693,11 @@ export default function SupporterDashboard({
             totalEarnings={completedRewards}
             monthlyEarnings={expectedRewards}
           />
+        </div>
+
+        {/* Interest Payment History */}
+        <div id="interest-section">
+          <InterestPaymentHistory userId={user.id} />
         </div>
 
         {/* Wallet */}
