@@ -240,6 +240,47 @@ export type Database = {
         }
         Relationships: []
       }
+      investment_interest_payments: {
+        Row: {
+          account_id: string
+          credited_at: string
+          id: string
+          interest_amount: number
+          interest_rate: number
+          payment_month: string
+          principal_amount: number
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          credited_at?: string
+          id?: string
+          interest_amount: number
+          interest_rate?: number
+          payment_month: string
+          principal_amount: number
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          credited_at?: string
+          id?: string
+          interest_amount?: number
+          interest_rate?: number
+          payment_month?: string
+          principal_amount?: number
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_interest_payments_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "investment_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null

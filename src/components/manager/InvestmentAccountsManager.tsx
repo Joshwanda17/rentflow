@@ -10,7 +10,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
-  Search, RefreshCw, TrendingUp, AlertCircle
+  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2
 } from 'lucide-react';
 import {
   Dialog,
@@ -43,6 +43,7 @@ export function InvestmentAccountsManager() {
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [processingInterest, setProcessingInterest] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -157,6 +158,35 @@ export function InvestmentAccountsManager() {
     setRejectDialogOpen(true);
   };
 
+  const handleProcessInterest = async () => {
+    setProcessingInterest(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('process-investment-interest');
+      
+      if (error) {
+        toast({ 
+          title: 'Error', 
+          description: error.message, 
+          variant: 'destructive' 
+        });
+        return;
+      }
+
+      toast({ 
+        title: '💰 Interest Processed!', 
+        description: `${data.processed} accounts received interest. ${data.skipped} already paid this month.` 
+      });
+    } catch (err) {
+      toast({ 
+        title: 'Error', 
+        description: 'Failed to process interest', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setProcessingInterest(false);
+    }
+  };
+
   const filteredAccounts = accounts.filter(acc => 
     acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     acc.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -165,6 +195,9 @@ export function InvestmentAccountsManager() {
 
   const pendingCount = accounts.filter(a => a.status === 'pending').length;
   const approvedCount = accounts.filter(a => a.status === 'approved').length;
+  const totalBalance = accounts
+    .filter(a => a.status === 'approved')
+    .reduce((sum, a) => sum + Number(a.balance), 0);
 
   const colorBadgeClasses: Record<string, string> = {
     blue: 'bg-blue-500',
@@ -176,6 +209,42 @@ export function InvestmentAccountsManager() {
 
   return (
     <div className="space-y-4">
+      {/* Process Interest Button */}
+      <Card className="border-success/30 bg-gradient-to-r from-success/10 to-emerald-500/10">
+        <CardContent className="p-4">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-success/20">
+                <Sparkles className="h-5 w-5 text-success" />
+              </div>
+              <div>
+                <h4 className="font-bold">Monthly Interest (15%)</h4>
+                <p className="text-xs text-muted-foreground">
+                  Credit interest to all approved accounts • Total: {formatUGX(totalBalance)}
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={handleProcessInterest}
+              disabled={processingInterest || approvedCount === 0}
+              className="bg-success hover:bg-success/90 gap-2"
+            >
+              {processingInterest ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <TrendingUp className="h-4 w-4" />
+                  Process Interest
+                </>
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       {/* Stats */}
       <div className="grid grid-cols-3 gap-3">
         <Card className="border-warning/30 bg-warning/5">
@@ -194,9 +263,9 @@ export function InvestmentAccountsManager() {
         </Card>
         <Card className="border-primary/30 bg-primary/5">
           <CardContent className="p-4 text-center">
-            <TrendingUp className="h-5 w-5 mx-auto mb-2 text-primary" />
-            <p className="text-2xl font-bold text-primary">{accounts.length}</p>
-            <p className="text-xs text-muted-foreground">Total</p>
+            <Wallet className="h-5 w-5 mx-auto mb-2 text-primary" />
+            <p className="text-lg font-bold text-primary">{formatUGX(totalBalance)}</p>
+            <p className="text-xs text-muted-foreground">Total Balance</p>
           </CardContent>
         </Card>
       </div>
