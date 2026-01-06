@@ -5,12 +5,14 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { useConfetti } from '@/components/Confetti';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
-  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2
+  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2
 } from 'lucide-react';
 import {
   Dialog,
@@ -19,6 +21,13 @@ import {
   DialogTitle,
   DialogFooter,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface InvestmentAccountWithUser {
   id: string;
@@ -35,16 +44,28 @@ interface InvestmentAccountWithUser {
   user_phone?: string;
 }
 
+const colorOptions = [
+  { value: 'blue', label: 'Blue', class: 'bg-blue-500' },
+  { value: 'green', label: 'Green', class: 'bg-green-500' },
+  { value: 'purple', label: 'Purple', class: 'bg-purple-500' },
+  { value: 'orange', label: 'Orange', class: 'bg-orange-500' },
+  { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
+];
+
 export function InvestmentAccountsManager() {
   const [accounts, setAccounts] = useState<InvestmentAccountWithUser[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
+  const [editName, setEditName] = useState('');
+  const [editColor, setEditColor] = useState('');
   const [processing, setProcessing] = useState(false);
   const [processingInterest, setProcessingInterest] = useState(false);
   const { toast } = useToast();
+  const { fireSuccess } = useConfetti();
 
   useEffect(() => {
     fetchAccounts();
@@ -84,7 +105,57 @@ export function InvestmentAccountsManager() {
     setLoading(false);
   };
 
-  const handleApprove = async (account: InvestmentAccountWithUser) => {
+  const openEditDialog = (account: InvestmentAccountWithUser) => {
+    setSelectedAccount(account);
+    setEditName(account.name);
+    setEditColor(account.color);
+    setEditDialogOpen(true);
+  };
+
+  const handleApproveWithEdit = async () => {
+    if (!selectedAccount) return;
+    
+    setProcessing(true);
+    
+    const { data: { user } } = await supabase.auth.getUser();
+    
+    // Update account with edited values and approve
+    const { error } = await supabase
+      .from('investment_accounts')
+      .update({
+        name: editName.trim() || selectedAccount.name,
+        color: editColor || selectedAccount.color,
+        status: 'approved',
+        approved_at: new Date().toISOString(),
+        approved_by: user?.id
+      })
+      .eq('id', selectedAccount.id);
+
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      // Send notification to supporter
+      await supabase.from('notifications').insert({
+        user_id: selectedAccount.user_id,
+        title: '✅ Account Approved!',
+        message: `Your investment account "${editName.trim() || selectedAccount.name}" has been approved. You can now start investing!`,
+        type: 'success',
+        metadata: { account_id: selectedAccount.id }
+      });
+
+      // 🎉 Fire confetti celebration!
+      fireSuccess();
+
+      toast({ title: '🎉 Account Approved!', description: `${editName.trim() || selectedAccount.name} has been approved` });
+      setEditDialogOpen(false);
+      setSelectedAccount(null);
+      fetchAccounts();
+    }
+    
+    setProcessing(false);
+  };
+
+  const handleQuickApprove = async (account: InvestmentAccountWithUser) => {
     setProcessing(true);
     
     const { data: { user } } = await supabase.auth.getUser();
@@ -110,7 +181,10 @@ export function InvestmentAccountsManager() {
         metadata: { account_id: account.id }
       });
 
-      toast({ title: 'Account Approved', description: `${account.name} has been approved` });
+      // 🎉 Fire confetti celebration!
+      fireSuccess();
+
+      toast({ title: '🎉 Account Approved!', description: `${account.name} has been approved` });
       fetchAccounts();
     }
     
@@ -357,7 +431,16 @@ export function InvestmentAccountsManager() {
                       </Button>
                       <Button
                         size="sm"
-                        onClick={() => handleApprove(account)}
+                        variant="outline"
+                        onClick={() => openEditDialog(account)}
+                        disabled={processing}
+                      >
+                        <Edit2 className="h-4 w-4 mr-1" />
+                        Edit
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleQuickApprove(account)}
                         className="bg-success hover:bg-success/90"
                         disabled={processing}
                       >
@@ -372,6 +455,77 @@ export function InvestmentAccountsManager() {
           ))
         )}
       </div>
+
+      {/* Edit & Approve Dialog */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Edit2 className="h-5 w-5" />
+              Edit & Approve Account
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              Edit the account details before approving for{' '}
+              <strong>{selectedAccount?.user_name}</strong>
+            </p>
+            
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Account Name</Label>
+              <Input
+                id="edit-name"
+                value={editName}
+                onChange={(e) => setEditName(e.target.value)}
+                placeholder="Investment account name"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="edit-color">Account Color</Label>
+              <Select value={editColor} onValueChange={setEditColor}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select a color" />
+                </SelectTrigger>
+                <SelectContent>
+                  {colorOptions.map((color) => (
+                    <SelectItem key={color.value} value={color.value}>
+                      <div className="flex items-center gap-2">
+                        <div className={`w-3 h-3 rounded-full ${color.class}`} />
+                        {color.label}
+                      </div>
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={handleApproveWithEdit}
+              disabled={processing}
+              className="bg-success hover:bg-success/90 gap-2"
+            >
+              {processing ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Approving...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="h-4 w-4" />
+                  Save & Approve
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Reject Dialog */}
       <Dialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
