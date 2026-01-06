@@ -16,7 +16,7 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import WelileLogo from '@/components/WelileLogo';
-import { ThemeToggle } from '@/components/ThemeToggle';
+import { AnimatedThemeToggle } from '@/components/AnimatedThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { motion } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
@@ -275,7 +275,7 @@ export default function SupporterDashboard({
             <div className="flex items-center gap-1">
               <ShareAppButton />
               <NotificationBell />
-              <ThemeToggle />
+              <AnimatedThemeToggle />
               
               {/* Menu Button */}
               <DropdownMenu>

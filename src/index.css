@@ -150,6 +150,20 @@
     font-size: 16px;
   }
 
+  /* Smooth theme transition for all color properties */
+  body,
+  body * {
+    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+    transition-duration: 300ms;
+  }
+
+  /* Disable transitions during theme change to prevent flicker on interactive elements */
+  html.disable-transitions,
+  html.disable-transitions * {
+    transition: none !important;
+  }
+
   body {
     @apply bg-background text-foreground antialiased;
     font-family: 'Segoe UI', 'Roboto', 'Helvetica Neue', -apple-system, sans-serif;
