@@ -28,7 +28,8 @@ import {
   Clock,
   ChartBar,
   Package,
-  Award
+  Award,
+  Wallet
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import RoleSwitcher from '@/components/RoleSwitcher';
@@ -159,6 +160,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   <DropdownMenuItem onClick={() => navigate('/manager-access?tab=financials')} className="gap-3 cursor-pointer">
                     <ChartBar className="h-4 w-4" />
                     Financial Overview
+                  </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=investments')} className="gap-3 cursor-pointer">
+                    <Wallet className="h-4 w-4" />
+                    Investment Accounts
                   </DropdownMenuItem>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="gap-3 cursor-pointer">

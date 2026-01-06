@@ -77,20 +77,8 @@ export default function SupporterDashboard({
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const { toast } = useToast();
 
-  // Investment accounts (stored in localStorage for now)
-  const [accounts, setAccounts] = useState<InvestmentAccount[]>(() => {
-    const saved = localStorage.getItem(`supporter_accounts_${user.id}`);
-    if (saved) return JSON.parse(saved);
-    return [{
-      id: 'default',
-      name: 'Main Portfolio',
-      balance: 0,
-      invested: 0,
-      returns: 0,
-      color: 'blue',
-      isDefault: true,
-    }];
-  });
+  // Investment accounts (stored in database)
+  const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
 
   // Investment goals (stored in localStorage)
   const [goals, setGoals] = useState<InvestmentGoal[]>(() => {
@@ -98,10 +86,6 @@ export default function SupporterDashboard({
     if (saved) return JSON.parse(saved);
     return [];
   });
-
-  useEffect(() => {
-    localStorage.setItem(`supporter_accounts_${user.id}`, JSON.stringify(accounts));
-  }, [accounts, user.id]);
 
   useEffect(() => {
     localStorage.setItem(`supporter_goals_${user.id}`, JSON.stringify(goals));
@@ -114,34 +98,38 @@ export default function SupporterDashboard({
   const fetchData = async () => {
     setLoading(true);
     
-    const { data: available } = await supabase
-      .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, created_at')
-      .eq('status', 'approved')
-      .order('created_at', { ascending: true });
+    const [availableRes, fundedRes, accountsRes] = await Promise.all([
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, duration_days, status, created_at')
+        .eq('status', 'approved')
+        .order('created_at', { ascending: true }),
+      supabase
+        .from('rent_requests')
+        .select('id, rent_amount, duration_days, status, funded_at')
+        .eq('supporter_id', user.id)
+        .order('funded_at', { ascending: false }),
+      supabase
+        .from('investment_accounts')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: true })
+    ]);
     
-    const { data: funded } = await supabase
-      .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, funded_at')
-      .eq('supporter_id', user.id)
-      .order('funded_at', { ascending: false });
-    
-    setAvailableRequests(available || []);
-    setFundedRequests(funded || []);
+    setAvailableRequests(availableRes.data || []);
+    setFundedRequests(fundedRes.data || []);
 
-    // Update accounts with actual funded data
-    if (funded && funded.length > 0) {
-      const totalInvested = funded.reduce((sum, r) => sum + Number(r.rent_amount), 0);
-      const totalReturns = funded
-        .filter(r => r.status === 'completed')
-        .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
-      
-      setAccounts(prev => prev.map(acc => 
-        acc.isDefault 
-          ? { ...acc, invested: totalInvested, returns: totalReturns }
-          : acc
-      ));
-    }
+    // Map database accounts to InvestmentAccount format
+    const dbAccounts = (accountsRes.data || []).map(acc => ({
+      id: acc.id,
+      name: acc.name,
+      balance: Number(acc.balance),
+      invested: 0,
+      returns: 0,
+      color: acc.color,
+      status: acc.status as 'pending' | 'approved' | 'rejected',
+    }));
+    setAccounts(dbAccounts);
 
     setLoading(false);
   };
@@ -186,20 +174,62 @@ export default function SupporterDashboard({
     }
   };
 
-  const handleCreateAccount = (name: string, color: string) => {
-    const newAccount: InvestmentAccount = {
-      id: crypto.randomUUID(),
-      name,
-      balance: 0,
-      invested: 0,
-      returns: 0,
-      color,
-    };
-    setAccounts(prev => [...prev, newAccount]);
-    toast({ title: 'Account Created', description: `${name} has been created` });
+  const handleCreateAccount = async (name: string, color: string) => {
+    const { data, error } = await supabase
+      .from('investment_accounts')
+      .insert({
+        user_id: user.id,
+        name,
+        color,
+        status: 'pending'
+      })
+      .select()
+      .single();
+
+    if (error) {
+      toast({ 
+        title: 'Error', 
+        description: error.message,
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    if (data) {
+      const newAccount: InvestmentAccount = {
+        id: data.id,
+        name: data.name,
+        balance: Number(data.balance),
+        invested: 0,
+        returns: 0,
+        color: data.color,
+        status: 'pending',
+      };
+      setAccounts(prev => [...prev, newAccount]);
+      toast({ 
+        title: '🎉 Account Created!', 
+        description: `${name} is pending manager approval` 
+      });
+    }
   };
 
-  const handleDeleteAccount = (id: string) => {
+  const handleDeleteAccount = async (id: string) => {
+    const { error } = await supabase
+      .from('investment_accounts')
+      .delete()
+      .eq('id', id)
+      .eq('user_id', user.id)
+      .eq('status', 'pending');
+
+    if (error) {
+      toast({ 
+        title: 'Error', 
+        description: 'Cannot delete approved accounts',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     setAccounts(prev => prev.filter(acc => acc.id !== id));
     toast({ title: 'Account Deleted' });
   };
