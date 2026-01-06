@@ -498,6 +498,10 @@ export default function SupporterDashboard({
                     <TrendingUp className="h-4 w-4 mr-2" />
                     My Portfolio
                   </DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => document.getElementById('interest-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
+                    <Coins className="h-4 w-4 mr-2" />
+                    Interest Payments
+                  </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="text-sm">
                     <Receipt className="h-4 w-4 mr-2" />
