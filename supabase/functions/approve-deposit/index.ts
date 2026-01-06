@@ -175,6 +175,17 @@ Deno.serve(async (req) => {
         metadata: { deposit_request_id, amount: depositRequest.amount },
       });
 
+      // Log audit entry
+      await supabaseAdmin.from("audit_logs").insert({
+        action_type: "approve",
+        table_name: "deposit_requests",
+        record_id: deposit_request_id,
+        performed_by: user.id,
+        old_values: { status: "pending" },
+        new_values: { status: "approved", approved_at: new Date().toISOString() },
+        metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
+      });
+
       console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}`);
 
       return new Response(
@@ -209,6 +220,18 @@ Deno.serve(async (req) => {
         message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected. Reason: ${rejection_reason || "Rejected by agent"}`,
         type: "warning",
         metadata: { deposit_request_id, amount: depositRequest.amount, reason: rejection_reason },
+      });
+
+      // Log audit entry
+      await supabaseAdmin.from("audit_logs").insert({
+        action_type: "reject",
+        table_name: "deposit_requests",
+        record_id: deposit_request_id,
+        performed_by: user.id,
+        old_values: { status: "pending" },
+        new_values: { status: "rejected", rejected_at: new Date().toISOString() },
+        reason: rejection_reason || "Rejected by manager",
+        metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
       });
 
       console.log(`Deposit rejected: ${deposit_request_id}`);

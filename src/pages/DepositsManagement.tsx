@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -41,6 +42,7 @@ import {
   Download,
   RefreshCw,
   Search,
+  ClipboardList,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
@@ -48,6 +50,7 @@ import { format, startOfDay, endOfDay } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { cn } from '@/lib/utils';
+import { AuditLogViewer } from '@/components/manager/AuditLogViewer';
 
 interface DepositRequest {
   id: string;
@@ -384,6 +387,19 @@ export default function DepositsManagement() {
       </header>
 
       <main className="px-4 py-4 space-y-4">
+        <Tabs defaultValue="deposits" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="deposits" className="flex items-center gap-2">
+              <Wallet className="h-4 w-4" />
+              Deposits
+            </TabsTrigger>
+            <TabsTrigger value="audit" className="flex items-center gap-2">
+              <ClipboardList className="h-4 w-4" />
+              Audit Log
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="deposits" className="mt-4 space-y-4">
         {/* Search and Filter Bar */}
         <div className="flex gap-2">
           <div className="relative flex-1">
@@ -669,6 +685,12 @@ export default function DepositsManagement() {
             </Button>
           </div>
         )}
+          </TabsContent>
+          
+          <TabsContent value="audit" className="mt-4">
+            <AuditLogViewer tableName="deposit_requests" />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* Reject Dialog */}
