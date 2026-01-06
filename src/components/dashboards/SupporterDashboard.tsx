@@ -30,8 +30,10 @@ import { ShareAppButton } from '@/components/ShareAppButton';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { InvestmentAccountCard, InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
 import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
+import { FundAccountDialog } from '@/components/supporter/FundAccountDialog';
 import { TenantsNeedingRent } from '@/components/supporter/TenantsNeedingRent';
 import { InvestmentGoals, InvestmentGoal } from '@/components/supporter/InvestmentGoals';
+import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -75,7 +77,10 @@ export default function SupporterDashboard({
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
+  const [showFundAccount, setShowFundAccount] = useState(false);
+  const [selectedAccountForFunding, setSelectedAccountForFunding] = useState<InvestmentAccount | null>(null);
   const { toast } = useToast();
+  const { wallet, refreshWallet } = useWallet();
 
   // Investment accounts (stored in database)
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
@@ -254,6 +259,80 @@ export default function SupporterDashboard({
   const handleDeleteGoal = (id: string) => {
     setGoals(prev => prev.filter(g => g.id !== id));
     toast({ title: 'Goal Deleted' });
+  };
+
+  // Fund account handler
+  const handleFundAccountClick = (account: InvestmentAccount) => {
+    if (account.status !== 'approved') {
+      toast({ 
+        title: 'Account Not Approved', 
+        description: 'Only approved accounts can receive funds',
+        variant: 'destructive' 
+      });
+      return;
+    }
+    setSelectedAccountForFunding(account);
+    setShowFundAccount(true);
+  };
+
+  const handleFundAccount = async (accountId: string, amount: number) => {
+    if (!wallet || wallet.balance < amount) {
+      toast({ 
+        title: 'Insufficient Balance', 
+        description: 'You don\'t have enough funds in your wallet',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Deduct from wallet
+    const { error: walletError } = await supabase
+      .from('wallets')
+      .update({ balance: wallet.balance - amount })
+      .eq('user_id', user.id);
+
+    if (walletError) {
+      toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
+      return;
+    }
+
+    // Add to investment account
+    const { error: accountError } = await supabase
+      .from('investment_accounts')
+      .update({ balance: supabase.rpc ? amount : amount }) // Will use current + amount
+      .eq('id', accountId);
+
+    // Actually we need to get current balance first
+    const { data: currentAccount } = await supabase
+      .from('investment_accounts')
+      .select('balance')
+      .eq('id', accountId)
+      .single();
+
+    if (currentAccount) {
+      await supabase
+        .from('investment_accounts')
+        .update({ balance: Number(currentAccount.balance) + amount })
+        .eq('id', accountId);
+    }
+
+    // Update local state
+    setAccounts(prev => prev.map(acc => 
+      acc.id === accountId 
+        ? { ...acc, balance: acc.balance + amount, invested: acc.invested + amount }
+        : acc
+    ));
+
+    // Refresh wallet
+    await refreshWallet();
+
+    // Fire confetti!
+    fireSuccess();
+
+    toast({ 
+      title: '🎉 Account Funded!', 
+      description: `${formatUGX(amount)} has been added to your investment account` 
+    });
   };
 
   const totalFunded = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
@@ -515,7 +594,7 @@ export default function SupporterDashboard({
                 account={account}
                 onDelete={handleDeleteAccount}
                 onEdit={(id) => toast({ title: 'Edit coming soon' })}
-                onFund={() => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' })}
+                onFund={() => handleFundAccountClick(account)}
               />
             ))}
           </div>
@@ -644,6 +723,17 @@ export default function SupporterDashboard({
         onOpenChange={setShowCreateAccount}
         onCreateAccount={handleCreateAccount}
       />
+
+      {selectedAccountForFunding && (
+        <FundAccountDialog
+          open={showFundAccount}
+          onOpenChange={setShowFundAccount}
+          accountName={selectedAccountForFunding.name}
+          accountId={selectedAccountForFunding.id}
+          walletBalance={wallet?.balance || 0}
+          onFund={handleFundAccount}
+        />
+      )}
       
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>

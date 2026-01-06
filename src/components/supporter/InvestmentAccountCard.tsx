@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight } from 'lucide-react';
+import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight, Clock } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import {
@@ -186,14 +186,33 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund }: Inv
             </div>
           </div>
 
-          {/* Fund Button */}
-          <Button 
-            onClick={() => onFund?.(account.id)} 
-            className="w-full h-11 font-semibold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
-          >
-            <Sparkles className="h-4 w-4 mr-2" />
-            Fund Tenants
-          </Button>
+          {/* Fund Button - only for approved accounts */}
+          {account.status === 'approved' ? (
+            <Button 
+              onClick={() => onFund?.(account.id)} 
+              className="w-full h-11 font-semibold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+            >
+              <Sparkles className="h-4 w-4 mr-2" />
+              Fund Account
+            </Button>
+          ) : account.status === 'pending' ? (
+            <Button 
+              disabled
+              variant="outline"
+              className="w-full h-11 font-semibold text-sm"
+            >
+              <Clock className="h-4 w-4 mr-2" />
+              Awaiting Approval
+            </Button>
+          ) : (
+            <Button 
+              disabled
+              variant="outline"
+              className="w-full h-11 font-semibold text-sm text-destructive"
+            >
+              Account Rejected
+            </Button>
+          )}
         </CardContent>
       </Card>
     </motion.div>
