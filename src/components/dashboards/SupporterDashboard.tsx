@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Menu, Receipt, History, Share2, Users, Coins,
-  BarChart3, FileText
+  BarChart3, FileText, Sparkles, ArrowUpRight, Zap
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -18,6 +18,7 @@ import { ReactNode } from 'react';
 import WelileLogo from '@/components/WelileLogo';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { WalletCard } from '@/components/wallet/WalletCard';
+import { motion } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -248,16 +249,19 @@ export default function SupporterDashboard({
   };
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Modern Header */}
-      <header className="sticky top-0 z-50 glass-card border-b border-border/50">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-20 md:pb-0">
+      {/* Modern Glassmorphism Header */}
+      <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-white/10 shadow-lg shadow-black/5">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <div className="relative">
+              <motion.div 
+                className="relative"
+                whileHover={{ scale: 1.05 }}
+              >
                 <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-success rounded-full border-2 border-background" />
-              </div>
+                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-background animate-pulse" />
+              </motion.div>
               <div className="hidden sm:block">
                 <WelileLogo showText={false} />
               </div>
@@ -273,14 +277,14 @@ export default function SupporterDashboard({
               <NotificationBell />
               <ThemeToggle />
               
-              {/* Menu Button - Contains receipts and other items */}
+              {/* Menu Button */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9">
+                  <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10">
                     <Menu className="h-5 w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuContent align="end" className="w-56 backdrop-blur-xl bg-background/95 border-white/10">
                   <DropdownMenuItem onClick={() => navigate('/my-receipts')}>
                     <Receipt className="h-4 w-4 mr-2" />
                     My Receipts
@@ -297,7 +301,7 @@ export default function SupporterDashboard({
                     <Coins className="h-4 w-4 mr-2" />
                     Benefits
                   </DropdownMenuItem>
-                  <DropdownMenuSeparator />
+                  <DropdownMenuSeparator className="bg-white/10" />
                   <DropdownMenuItem onClick={() => navigate('/my-loans')}>
                     <FileText className="h-4 w-4 mr-2" />
                     My Loans
@@ -307,8 +311,8 @@ export default function SupporterDashboard({
                     Settings
                   </DropdownMenuItem>
                   {addRoleComponent}
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={signOut} className="text-destructive">
+                  <DropdownMenuSeparator className="bg-white/10" />
+                  <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
                   </DropdownMenuItem>
@@ -319,79 +323,133 @@ export default function SupporterDashboard({
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6 animate-fade-in">
-        {/* Welcome Section */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-2xl font-bold tracking-tight">
-              Investor Dashboard
-            </h1>
-            <p className="text-muted-foreground text-sm mt-1">
-              Manage your investments • 15% monthly ROI
-            </p>
+      <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Hero Welcome Section */}
+        <motion.div 
+          className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary/20 via-violet-500/15 to-purple-600/20 p-6 border border-white/10"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5 }}
+        >
+          {/* Decorative elements */}
+          <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-white/10 to-transparent rounded-full blur-3xl" />
+          <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-gradient-to-tr from-primary/20 to-transparent rounded-full blur-2xl" />
+          
+          <div className="relative flex items-center justify-between">
+            <div>
+              <div className="flex items-center gap-2 mb-2">
+                <Sparkles className="h-5 w-5 text-primary" />
+                <span className="text-xs font-bold text-primary uppercase tracking-wider">Investor Portal</span>
+              </div>
+              <h1 className="text-2xl md:text-3xl font-black tracking-tight text-foreground">
+                Welcome Back! 👋
+              </h1>
+              <p className="text-muted-foreground text-sm mt-2 font-medium flex items-center gap-2">
+                <Zap className="h-4 w-4 text-warning" />
+                Earning 15% monthly on your investments
+              </p>
+            </div>
+            <Badge className="hidden md:flex gap-2 px-4 py-2 bg-success/20 text-success border-success/30 font-bold">
+              <TrendingUp className="h-4 w-4" />
+              {activeFundings} Active Investments
+            </Badge>
           </div>
-          <Badge variant="outline" className="hidden md:flex gap-1 px-3 py-1">
-            <TrendingUp className="h-3.5 w-3.5 text-success" />
-            <span className="font-medium">{activeFundings} Active</span>
-          </Badge>
-        </div>
+        </motion.div>
 
-        {/* Quick Stats Bar */}
+        {/* Quick Stats Bar - Modern Cards */}
         <div className="grid grid-cols-3 gap-3">
-          <Card className="elevated-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-primary/10">
-                <Wallet className="h-4 w-4 text-primary" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Invested</p>
-                <p className="font-bold text-foreground truncate">{formatUGX(totalFunded)}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="elevated-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-success/10">
-                <TrendingUp className="h-4 w-4 text-success" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Expected</p>
-                <p className="font-bold text-success truncate">{formatUGX(expectedRewards)}</p>
-              </div>
-            </div>
-          </Card>
-          <Card className="elevated-card p-4">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-lg bg-warning/10">
-                <Users className="h-4 w-4 text-warning" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[10px] uppercase tracking-wide text-muted-foreground">Tenants</p>
-                <p className="font-bold text-foreground">{availableRequests.length} waiting</p>
-              </div>
-            </div>
-          </Card>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.1 }}
+          >
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/15 via-primary/10 to-violet-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute -top-8 -right-8 w-20 h-20 bg-primary/20 rounded-full blur-2xl" />
+              <CardContent className="relative p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-violet-500 shadow-lg shadow-primary/30">
+                    <Wallet className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Invested</p>
+                    <p className="font-black text-foreground truncate text-lg">{formatUGX(totalFunded)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.2 }}
+          >
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/15 via-success/10 to-emerald-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute -top-8 -right-8 w-20 h-20 bg-success/20 rounded-full blur-2xl" />
+              <CardContent className="relative p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-success to-emerald-500 shadow-lg shadow-success/30">
+                    <ArrowUpRight className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Expected</p>
+                    <p className="font-black text-success truncate text-lg">{formatUGX(expectedRewards)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+          
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.3 }}
+          >
+            <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-warning/15 via-warning/10 to-orange-500/10 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:-translate-y-1">
+              <div className="absolute -top-8 -right-8 w-20 h-20 bg-warning/20 rounded-full blur-2xl" />
+              <CardContent className="relative p-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-gradient-to-br from-warning to-orange-500 shadow-lg shadow-warning/30">
+                    <Users className="h-4 w-4 text-white" />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="text-[10px] uppercase tracking-wider text-muted-foreground font-semibold">Waiting</p>
+                    <p className="font-black text-foreground text-lg">{availableRequests.length} tenants</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
         </div>
 
         {/* Investment Accounts Section */}
-        <div className="space-y-4">
+        <motion.div 
+          className="space-y-5"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+        >
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              <h2 className="text-lg font-semibold">Investment Accounts</h2>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
+                <BarChart3 className="h-5 w-5 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-xl font-black">Investment Accounts</h2>
+                <p className="text-xs text-muted-foreground font-medium">Manage your portfolios</p>
+              </div>
             </div>
             <Button 
               size="sm" 
-              variant="outline" 
               onClick={() => setShowCreateAccount(true)}
-              className="gap-1.5"
+              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 shadow-lg shadow-primary/25"
             >
               <Plus className="h-4 w-4" />
-              New Account
+              New Portfolio
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
             {accounts.map((account) => (
               <InvestmentAccountCard
                 key={account.id}
@@ -402,7 +460,7 @@ export default function SupporterDashboard({
               />
             ))}
           </div>
-        </div>
+        </motion.div>
 
         {/* Investment Goals */}
         <InvestmentGoals
@@ -430,72 +488,103 @@ export default function SupporterDashboard({
         </div>
 
         {/* My Funded Tenants */}
-        <Card className="elevated-card">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="p-2 rounded-xl bg-gradient-to-br from-success/20 to-success/10">
-                  <TrendingUp className="h-5 w-5 text-success" />
-                </div>
-                <div>
-                  <CardTitle className="text-lg font-semibold">My Funded Tenants</CardTitle>
-                  <p className="text-xs text-muted-foreground">Track your investment returns</p>
-                </div>
-              </div>
-              <Badge variant="outline" className="font-mono text-xs">
-                {fundedRequests.length} total
-              </Badge>
-            </div>
-          </CardHeader>
-          <CardContent>
-            {fundedRequests.length === 0 ? (
-              <div className="text-center py-12">
-                <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-                  <Wallet className="h-8 w-8 text-muted-foreground/50" />
-                </div>
-                <p className="text-muted-foreground font-medium">No investments yet</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">Fund tenants above to start earning</p>
-              </div>
-            ) : (
-              <div className="space-y-2">
-                {fundedRequests.slice(0, 5).map((request, index) => {
-                  const reward = calculateSupporterReward(Number(request.rent_amount));
-                  const statusColor = request.status === 'completed' ? 'success' : 
-                                     request.status === 'disbursed' ? 'primary' : 'warning';
-                  return (
-                    <div
-                      key={request.id}
-                      className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className={`w-2 h-2 rounded-full bg-${statusColor}`} />
-                        <div>
-                          <p className="font-medium">{formatUGX(Number(request.rent_amount))}</p>
-                          <p className="text-xs text-muted-foreground">{request.duration_days} days</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="font-medium text-success">+{formatUGX(reward)}</p>
-                        <Badge variant="secondary" className="text-[10px]">
-                          {request.status}
-                        </Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-                {fundedRequests.length > 5 && (
-                  <Button 
-                    variant="ghost" 
-                    className="w-full mt-2"
-                    onClick={() => navigate('/transactions')}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.5, delay: 0.3 }}
+        >
+          <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/5 via-background to-emerald-500/5 backdrop-blur-xl shadow-xl">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-success/10 to-transparent rounded-full blur-3xl" />
+            
+            <CardHeader className="relative pb-3">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <motion.div 
+                    className="p-3 rounded-2xl bg-gradient-to-br from-success via-emerald-500 to-green-500 shadow-lg shadow-success/30"
+                    whileHover={{ scale: 1.05, rotate: -5 }}
                   >
-                    View All ({fundedRequests.length})
-                  </Button>
-                )}
+                    <TrendingUp className="h-5 w-5 text-white" />
+                  </motion.div>
+                  <div>
+                    <CardTitle className="text-xl font-black tracking-tight">Your Portfolio 💼</CardTitle>
+                    <p className="text-sm text-muted-foreground font-medium mt-0.5">Track your investment returns</p>
+                  </div>
+                </div>
+                <Badge className="font-mono text-xs bg-success/20 text-success border-success/30 px-3 py-1">
+                  <Sparkles className="h-3 w-3 mr-1" />
+                  {fundedRequests.length} total
+                </Badge>
               </div>
-            )}
-          </CardContent>
-        </Card>
+            </CardHeader>
+            
+            <CardContent className="relative">
+              {fundedRequests.length === 0 ? (
+                <div className="text-center py-16">
+                  <motion.div 
+                    className="p-5 rounded-full bg-gradient-to-br from-success/20 to-success/5 w-fit mx-auto mb-5"
+                    animate={{ scale: [1, 1.05, 1] }}
+                    transition={{ duration: 2, repeat: Infinity }}
+                  >
+                    <Wallet className="h-10 w-10 text-success/60" />
+                  </motion.div>
+                  <p className="text-foreground font-bold text-lg">No investments yet 🌱</p>
+                  <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                    Fund your first tenant above to start earning 15% monthly returns
+                  </p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {fundedRequests.slice(0, 5).map((request, index) => {
+                    const reward = calculateSupporterReward(Number(request.rent_amount));
+                    const statusConfig = {
+                      completed: { color: 'from-success to-emerald-500', bg: 'bg-success/20', text: 'text-success', label: '✓ Complete' },
+                      disbursed: { color: 'from-primary to-violet-500', bg: 'bg-primary/20', text: 'text-primary', label: 'Active' },
+                      funded: { color: 'from-warning to-orange-500', bg: 'bg-warning/20', text: 'text-warning', label: 'Funded' },
+                    };
+                    const status = statusConfig[request.status as keyof typeof statusConfig] || statusConfig.funded;
+                    
+                    return (
+                      <motion.div
+                        key={request.id}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.1 }}
+                        whileHover={{ scale: 1.01, x: 4 }}
+                        className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-success/30 transition-all duration-300"
+                      >
+                        <div className="flex items-center gap-4">
+                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${status.color} flex items-center justify-center shadow-lg`}>
+                            <Coins className="h-5 w-5 text-white" />
+                          </div>
+                          <div>
+                            <p className="font-bold text-foreground text-lg">{formatUGX(Number(request.rent_amount))}</p>
+                            <p className="text-xs text-muted-foreground font-medium">{request.duration_days} days term</p>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="font-black text-success text-lg">+{formatUGX(reward)}</p>
+                          <Badge className={`text-[10px] px-2 py-0.5 ${status.bg} ${status.text} border-0`}>
+                            {status.label}
+                          </Badge>
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                  {fundedRequests.length > 5 && (
+                    <Button 
+                      variant="ghost" 
+                      className="w-full mt-3 gap-2 hover:bg-white/10"
+                      onClick={() => navigate('/transactions')}
+                    >
+                      <Sparkles className="h-4 w-4" />
+                      View All {fundedRequests.length} Investments
+                    </Button>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
       </main>
 
       <CreateAccountDialog
