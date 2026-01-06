@@ -1,7 +1,7 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight, Clock, ArrowDownToLine } from 'lucide-react';
+import { Wallet, TrendingUp, MoreVertical, Trash2, Edit2, Sparkles, ArrowUpRight, Clock, ArrowDownToLine, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import {
@@ -227,6 +227,19 @@ export function InvestmentAccountCard({ account, onDelete, onEdit, onFund, onWit
             >
               Account Rejected
             </Button>
+          )}
+
+          {/* Tap for details indicator */}
+          {onClick && (
+            <motion.div 
+              className="flex items-center justify-center gap-1 mt-3 text-xs text-muted-foreground/60 font-medium"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.3 }}
+            >
+              <span>Tap for details</span>
+              <ChevronRight className="h-3.5 w-3.5 animate-[pulse_2s_ease-in-out_infinite]" />
+            </motion.div>
           )}
         </CardContent>
       </Card>
