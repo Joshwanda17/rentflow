@@ -2,6 +2,16 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { playNotificationSound, playCoinSound } from '@/lib/notificationSound';
+
+interface NotificationMetadata {
+  account_id?: string;
+  supporter_id?: string;
+  account_name?: string;
+  rent_request_id?: string;
+  user_id?: string;
+  reason?: string;
+}
 
 interface Notification {
   id: string;
@@ -9,7 +19,7 @@ interface Notification {
   message: string;
   type: string;
   read: boolean;
-  metadata: unknown;
+  metadata: NotificationMetadata | null;
   created_at: string;
 }
 
@@ -34,8 +44,13 @@ export function useNotifications() {
       return;
     }
 
-    setNotifications(data || []);
-    setUnreadCount((data || []).filter(n => !n.read).length);
+    const mappedData = (data || []).map(n => ({
+      ...n,
+      metadata: n.metadata as NotificationMetadata | null,
+    }));
+
+    setNotifications(mappedData);
+    setUnreadCount(mappedData.filter(n => !n.read).length);
   }, [user]);
 
   const markAsRead = async (notificationId: string) => {
@@ -89,11 +104,48 @@ export function useNotifications() {
           filter: `user_id=eq.${user.id}`,
         },
         (payload) => {
-          const newNotification = payload.new as Notification;
+          const rawNotification = payload.new as { 
+            id: string; 
+            title: string; 
+            message: string; 
+            type: string; 
+            read: boolean; 
+            metadata: unknown; 
+            created_at: string 
+          };
+          const newNotification: Notification = {
+            ...rawNotification,
+            metadata: rawNotification.metadata as NotificationMetadata | null,
+          };
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
-          toast.success(newNotification.title, {
+
+          // Play appropriate sound based on notification type
+          if (newNotification.type === 'success' || newNotification.title.includes('Approved')) {
+            // Celebration sound for approvals!
+            playCoinSound();
+          } else if (newNotification.type === 'earning') {
+            playCoinSound();
+          } else {
+            playNotificationSound('chime');
+          }
+
+          // Show enhanced toast notification
+          const toastIcon = getNotificationIcon(newNotification.type);
+          
+          toast(newNotification.title, {
             description: newNotification.message,
+            icon: toastIcon,
+            duration: 5000,
+            action: newNotification.metadata?.account_id ? {
+              label: 'View',
+              onClick: () => {
+                const section = document.getElementById('accounts-section');
+                if (section) {
+                  section.scrollIntoView({ behavior: 'smooth' });
+                }
+              }
+            } : undefined,
           });
         }
       )
@@ -112,4 +164,16 @@ export function useNotifications() {
     markAllAsRead,
     refreshNotifications: fetchNotifications,
   };
+}
+
+function getNotificationIcon(type: string): string {
+  switch (type) {
+    case 'success': return '✅';
+    case 'earning': return '💰';
+    case 'warning': return '⚠️';
+    case 'alert': return '🚨';
+    case 'info': return '📊';
+    case 'request': return '📨';
+    default: return '🔔';
+  }
 }
