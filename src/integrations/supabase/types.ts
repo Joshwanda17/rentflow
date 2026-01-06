@@ -1670,6 +1670,17 @@ export type Database = {
         }
         Relationships: []
       }
+      supporter_referral_leaderboard: {
+        Row: {
+          avatar_url: string | null
+          converted_count: number | null
+          full_name: string | null
+          referral_count: number | null
+          total_earned: number | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       get_user_role: {

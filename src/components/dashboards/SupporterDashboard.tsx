@@ -38,6 +38,7 @@ import { InterestPaymentHistory } from '@/components/supporter/InterestPaymentHi
 import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
 import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
 import { SupporterReferralStats } from '@/components/supporter/SupporterReferralStats';
+import { SupporterLeaderboard } from '@/components/supporter/SupporterLeaderboard';
 import { useWallet } from '@/hooks/useWallet';
 import {
   DropdownMenu,
@@ -747,8 +748,11 @@ export default function SupporterDashboard({
           </Card>
         </motion.div>
 
-        {/* Supporter Referral Stats */}
-        <SupporterReferralStats userId={user.id} />
+        {/* Supporter Referral Stats & Leaderboard */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <SupporterReferralStats userId={user.id} />
+          <SupporterLeaderboard limit={5} />
+        </div>
 
         {/* Wallet */}
         <div id="wallet-section">
