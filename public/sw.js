@@ -1,5 +1,6 @@
 // Welile Service Worker - Offline Support for 40M+ African Users
-const CACHE_NAME = 'welile-v1';
+// NOTE: Avoid cache-first for JS chunks to prevent "Invalid hook call" / mixed-bundle issues after deploys.
+const CACHE_NAME = 'welile-v2';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to cache immediately on install
@@ -26,7 +27,7 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name !== CACHE_NAME)
+          .filter((name) => name.startsWith('welile-') && name !== CACHE_NAME)
           .map((name) => caches.delete(name))
       );
     }).then(() => {
@@ -35,7 +36,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - network-first with cache fallback
+// Fetch event - keep HTML network-first; keep JS network-first to avoid stale chunk mixing
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -43,14 +44,14 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip cross-origin requests except for fonts and CDN assets
-  if (url.origin !== location.origin && 
+  // Skip cross-origin requests except for fonts
+  if (url.origin !== location.origin &&
       !url.hostname.includes('fonts.googleapis.com') &&
       !url.hostname.includes('fonts.gstatic.com')) {
     return;
   }
 
-  // Skip Supabase API requests - always fetch fresh
+  // Skip backend API requests - always fetch fresh
   if (url.hostname.includes('supabase.co')) {
     return;
   }
@@ -60,7 +61,6 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(request)
         .then((response) => {
-          // Clone and cache successful responses
           if (response.ok) {
             const responseClone = response.clone();
             caches.open(CACHE_NAME).then((cache) => {
@@ -70,7 +70,6 @@ self.addEventListener('fetch', (event) => {
           return response;
         })
         .catch(() => {
-          // Return cached version or offline page
           return caches.match(request).then((cached) => {
             return cached || caches.match(OFFLINE_URL);
           });
@@ -79,15 +78,34 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For static assets, use cache-first
-  if (request.destination === 'style' || 
-      request.destination === 'script' || 
-      request.destination === 'image' ||
-      request.destination === 'font') {
+  // IMPORTANT: Scripts should be network-first (Vite chunk hashes change on deploy)
+  if (request.destination === 'script') {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response.ok) {
+            const responseClone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return response;
+        })
+        .catch(() => caches.match(request))
+    );
+    return;
+  }
+
+  // For other static assets, use cache-first
+  if (
+    request.destination === 'style' ||
+    request.destination === 'image' ||
+    request.destination === 'font'
+  ) {
     event.respondWith(
       caches.match(request).then((cached) => {
         if (cached) {
-          // Return cached, but also update cache in background
+          // Update cache in background
           fetch(request).then((response) => {
             if (response.ok) {
               caches.open(CACHE_NAME).then((cache) => {
@@ -97,7 +115,7 @@ self.addEventListener('fetch', (event) => {
           }).catch(() => {});
           return cached;
         }
-        
+
         return fetch(request).then((response) => {
           if (response.ok) {
             const responseClone = response.clone();
