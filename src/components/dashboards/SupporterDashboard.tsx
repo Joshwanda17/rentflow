@@ -255,18 +255,18 @@ export default function SupporterDashboard({
   };
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-20 md:pb-0">
-      {/* Modern Glassmorphism Header */}
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-24 sm:pb-20 md:pb-0">
+      {/* Modern Glassmorphism Header - Optimized for mobile */}
       <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-white/10 shadow-lg shadow-black/5">
-        <div className="container mx-auto px-4 py-3">
+        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
               <motion.div 
                 className="relative"
                 whileHover={{ scale: 1.05 }}
               >
                 <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-3 h-3 bg-success rounded-full border-2 border-background animate-pulse" />
+                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 bg-success rounded-full border-2 border-background animate-pulse" />
               </motion.div>
               <div className="hidden sm:block">
                 <WelileLogo showText={false} />
@@ -278,7 +278,7 @@ export default function SupporterDashboard({
               />
             </div>
             
-            <div className="flex items-center gap-1">
+            <div className="flex items-center gap-0.5 sm:gap-1">
               <ShareAppButton />
               <NotificationBell />
               <AnimatedThemeToggle />
@@ -286,56 +286,56 @@ export default function SupporterDashboard({
               {/* Menu Button */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-9 w-9 hover:bg-white/10">
-                    <Menu className="h-5 w-5" />
+                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-white/10">
+                    <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 backdrop-blur-xl bg-background/95 border-white/10">
-                  <DropdownMenuItem onClick={() => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                <DropdownMenuContent align="end" className="w-52 sm:w-56 backdrop-blur-xl bg-background/95 border-white/10">
+                  <DropdownMenuItem onClick={() => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
                     <BarChart3 className="h-4 w-4 mr-2" />
                     Investment Accounts
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('goals-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                  <DropdownMenuItem onClick={() => document.getElementById('goals-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
                     <Target className="h-4 w-4 mr-2" />
                     Investment Goals
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                  <DropdownMenuItem onClick={() => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
                     <Wallet className="h-4 w-4 mr-2" />
                     My Wallet
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('portfolio-section')?.scrollIntoView({ behavior: 'smooth' })}>
+                  <DropdownMenuItem onClick={() => document.getElementById('portfolio-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
                     <TrendingUp className="h-4 w-4 mr-2" />
                     My Portfolio
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={() => navigate('/my-receipts')}>
+                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="text-sm">
                     <Receipt className="h-4 w-4 mr-2" />
                     My Receipts
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/transactions')}>
+                  <DropdownMenuItem onClick={() => navigate('/transactions')} className="text-sm">
                     <History className="h-4 w-4 mr-2" />
                     Transaction History
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/referrals')}>
+                  <DropdownMenuItem onClick={() => navigate('/referrals')} className="text-sm">
                     <Share2 className="h-4 w-4 mr-2" />
                     Referrals
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/benefits')}>
+                  <DropdownMenuItem onClick={() => navigate('/benefits')} className="text-sm">
                     <Coins className="h-4 w-4 mr-2" />
                     Benefits
                   </DropdownMenuItem>
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={() => navigate('/my-loans')}>
+                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="text-sm">
                     <FileText className="h-4 w-4 mr-2" />
                     My Loans
                   </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings')}>
+                  <DropdownMenuItem onClick={() => navigate('/settings')} className="text-sm">
                     <Settings className="h-4 w-4 mr-2" />
                     Settings
                   </DropdownMenuItem>
                   {addRoleComponent}
                   <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={signOut} className="text-destructive focus:text-destructive">
+                  <DropdownMenuItem onClick={signOut} className="text-sm text-destructive focus:text-destructive">
                     <LogOut className="h-4 w-4 mr-2" />
                     Sign Out
                   </DropdownMenuItem>
@@ -346,13 +346,13 @@ export default function SupporterDashboard({
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
+      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Investment Calculator - HERO SECTION */}
         <InvestmentCalculator />
 
         {/* Create Account CTA + Tenants Available */}
         <motion.div 
-          className="grid grid-cols-1 md:grid-cols-2 gap-4"
+          className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.5, delay: 0.2 }}
@@ -360,30 +360,30 @@ export default function SupporterDashboard({
           {/* Create Investment Account CTA */}
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/15 via-violet-500/10 to-primary/5 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 group">
             <div className="absolute inset-0 bg-gradient-to-r from-primary/20 via-transparent to-violet-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="absolute -top-16 -right-16 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-violet-500/20 rounded-full blur-2xl" />
+            <div className="absolute -top-12 sm:-top-16 -right-12 sm:-right-16 w-28 sm:w-40 h-28 sm:h-40 bg-primary/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-8 sm:-bottom-12 -left-8 sm:-left-12 w-24 sm:w-32 h-24 sm:h-32 bg-violet-500/20 rounded-full blur-2xl" />
             
-            <CardContent className="relative p-6 flex flex-col items-center justify-center text-center min-h-[200px] space-y-4">
+            <CardContent className="relative p-4 sm:p-6 flex flex-col items-center justify-center text-center min-h-[160px] sm:min-h-[200px] space-y-3 sm:space-y-4">
               <motion.div 
-                className="p-4 rounded-2xl bg-gradient-to-br from-primary to-violet-600 shadow-2xl shadow-primary/40"
+                className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-primary to-violet-600 shadow-2xl shadow-primary/40"
                 whileHover={{ scale: 1.1, rotate: -10 }}
                 animate={{ y: [0, -5, 0] }}
                 transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
               >
-                <Plus className="h-8 w-8 text-white" />
+                <Plus className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
               </motion.div>
               
               <div>
-                <h3 className="text-xl font-black text-foreground mb-1">Start Investing Today</h3>
-                <p className="text-sm text-muted-foreground font-medium">Create your investment account and start earning 15% monthly</p>
+                <h3 className="text-base sm:text-xl font-black text-foreground mb-0.5 sm:mb-1">Start Investing Today</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium px-2">Create your investment account and start earning 15% monthly</p>
               </div>
               
               <Button 
-                size="lg"
+                size="default"
                 onClick={() => setShowCreateAccount(true)}
-                className="gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-xl shadow-primary/30 font-bold text-base px-8"
+                className="gap-1.5 sm:gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90 shadow-xl shadow-primary/30 font-bold text-sm sm:text-base px-5 sm:px-8 h-10 sm:h-11"
               >
-                <Sparkles className="h-4 w-4" />
+                <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 Create Account
               </Button>
             </CardContent>
@@ -392,32 +392,32 @@ export default function SupporterDashboard({
           {/* Tenants Waiting Card */}
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/15 via-emerald-500/10 to-success/5 backdrop-blur-xl shadow-xl hover:shadow-2xl transition-all duration-300 group">
             <div className="absolute inset-0 bg-gradient-to-r from-success/20 via-transparent to-emerald-500/20 opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
-            <div className="absolute -top-16 -right-16 w-40 h-40 bg-success/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-12 -left-12 w-32 h-32 bg-emerald-500/20 rounded-full blur-2xl" />
+            <div className="absolute -top-12 sm:-top-16 -right-12 sm:-right-16 w-28 sm:w-40 h-28 sm:h-40 bg-success/20 rounded-full blur-3xl" />
+            <div className="absolute -bottom-8 sm:-bottom-12 -left-8 sm:-left-12 w-24 sm:w-32 h-24 sm:h-32 bg-emerald-500/20 rounded-full blur-2xl" />
             
-            <CardContent className="relative p-6 flex flex-col items-center justify-center text-center min-h-[200px] space-y-4">
+            <CardContent className="relative p-4 sm:p-6 flex flex-col items-center justify-center text-center min-h-[160px] sm:min-h-[200px] space-y-3 sm:space-y-4">
               <motion.div 
                 className="relative"
                 animate={{ scale: [1, 1.05, 1] }}
                 transition={{ duration: 2, repeat: Infinity }}
               >
-                <div className="p-4 rounded-2xl bg-gradient-to-br from-success to-emerald-600 shadow-2xl shadow-success/40">
-                  <Users className="h-8 w-8 text-white" />
+                <div className="p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-gradient-to-br from-success to-emerald-600 shadow-2xl shadow-success/40">
+                  <Users className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
                 </div>
                 {availableRequests.length > 0 && (
                   <motion.div 
-                    className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-warning flex items-center justify-center shadow-lg"
+                    className="absolute -top-1.5 sm:-top-2 -right-1.5 sm:-right-2 w-6 h-6 sm:w-8 sm:h-8 rounded-full bg-warning flex items-center justify-center shadow-lg"
                     animate={{ scale: [1, 1.2, 1] }}
                     transition={{ duration: 1.5, repeat: Infinity }}
                   >
-                    <span className="text-xs font-black text-warning-foreground">{availableRequests.length}</span>
+                    <span className="text-[10px] sm:text-xs font-black text-warning-foreground">{availableRequests.length}</span>
                   </motion.div>
                 )}
               </motion.div>
               
               <div>
-                <h3 className="text-xl font-black text-foreground mb-1">Tenants Waiting</h3>
-                <p className="text-sm text-muted-foreground font-medium">
+                <h3 className="text-base sm:text-xl font-black text-foreground mb-0.5 sm:mb-1">Tenants Waiting</h3>
+                <p className="text-xs sm:text-sm text-muted-foreground font-medium px-2">
                   {availableRequests.length > 0 
                     ? `${availableRequests.length} tenants need rent funding now`
                     : 'No tenants waiting right now'
@@ -426,12 +426,12 @@ export default function SupporterDashboard({
               </div>
               
               <Button 
-                size="lg"
+                size="default"
                 variant="outline"
                 onClick={() => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' })}
-                className="gap-2 border-success/30 text-success hover:bg-success/10 font-bold text-base px-8"
+                className="gap-1.5 sm:gap-2 border-success/30 text-success hover:bg-success/10 font-bold text-sm sm:text-base px-5 sm:px-8 h-10 sm:h-11"
               >
-                <ArrowUpRight className="h-4 w-4" />
+                <ArrowUpRight className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 View & Fund
               </Button>
             </CardContent>
@@ -452,32 +452,33 @@ export default function SupporterDashboard({
         {/* Investment Accounts Section */}
         <motion.div 
           id="accounts-section"
-          className="space-y-5"
+          className="space-y-4 sm:space-y-5"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.4 }}
         >
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
-                <BarChart3 className="h-5 w-5 text-primary" />
+          <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-1.5 sm:p-2 rounded-lg sm:rounded-xl bg-gradient-to-br from-primary/20 to-primary/10">
+                <BarChart3 className="h-4 w-4 sm:h-5 sm:w-5 text-primary" />
               </div>
               <div>
-                <h2 className="text-xl font-black">Investment Accounts</h2>
-                <p className="text-xs text-muted-foreground font-medium">Manage your portfolios</p>
+                <h2 className="text-base sm:text-xl font-black">Investment Accounts</h2>
+                <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">Manage your portfolios</p>
               </div>
             </div>
             <Button 
               size="sm" 
               onClick={() => setShowCreateAccount(true)}
-              className="gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 shadow-lg shadow-primary/25"
+              className="gap-1.5 sm:gap-2 bg-gradient-to-r from-primary to-violet-500 hover:from-primary/90 hover:to-violet-500/90 shadow-lg shadow-primary/25 text-xs sm:text-sm h-8 sm:h-9 px-3 sm:px-4"
             >
-              <Plus className="h-4 w-4" />
-              New Portfolio
+              <Plus className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+              <span className="hidden xs:inline">New Portfolio</span>
+              <span className="xs:hidden">New</span>
             </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-5">
             {accounts.map((account) => (
               <InvestmentAccountCard
                 key={account.id}
@@ -515,46 +516,46 @@ export default function SupporterDashboard({
           transition={{ duration: 0.5, delay: 0.3 }}
         >
           <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/5 via-background to-emerald-500/5 backdrop-blur-xl shadow-xl">
-            <div className="absolute top-0 right-0 w-48 h-48 bg-gradient-to-bl from-success/10 to-transparent rounded-full blur-3xl" />
+            <div className="absolute top-0 right-0 w-32 sm:w-48 h-32 sm:h-48 bg-gradient-to-bl from-success/10 to-transparent rounded-full blur-3xl" />
             
-            <CardHeader className="relative pb-3">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
+            <CardHeader className="relative pb-2 sm:pb-3 px-3 sm:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 sm:gap-0">
+                <div className="flex items-center gap-2.5 sm:gap-4">
                   <motion.div 
-                    className="p-3 rounded-2xl bg-gradient-to-br from-success via-emerald-500 to-green-500 shadow-lg shadow-success/30"
+                    className="p-2 sm:p-3 rounded-xl sm:rounded-2xl bg-gradient-to-br from-success via-emerald-500 to-green-500 shadow-lg shadow-success/30"
                     whileHover={{ scale: 1.05, rotate: -5 }}
                   >
-                    <TrendingUp className="h-5 w-5 text-white" />
+                    <TrendingUp className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                   </motion.div>
                   <div>
-                    <CardTitle className="text-xl font-black tracking-tight">Your Portfolio 💼</CardTitle>
-                    <p className="text-sm text-muted-foreground font-medium mt-0.5">Track your investment returns</p>
+                    <CardTitle className="text-base sm:text-xl font-black tracking-tight">Your Portfolio 💼</CardTitle>
+                    <p className="text-xs sm:text-sm text-muted-foreground font-medium mt-0.5">Track your investment returns</p>
                   </div>
                 </div>
-                <Badge className="font-mono text-xs bg-success/20 text-success border-success/30 px-3 py-1">
-                  <Sparkles className="h-3 w-3 mr-1" />
+                <Badge className="font-mono text-[10px] sm:text-xs bg-success/20 text-success border-success/30 px-2 sm:px-3 py-0.5 sm:py-1 w-fit">
+                  <Sparkles className="h-2.5 w-2.5 sm:h-3 sm:w-3 mr-1" />
                   {fundedRequests.length} total
                 </Badge>
               </div>
             </CardHeader>
             
-            <CardContent className="relative">
+            <CardContent className="relative px-3 sm:px-6 pb-4 sm:pb-6">
               {fundedRequests.length === 0 ? (
-                <div className="text-center py-16">
+                <div className="text-center py-10 sm:py-16">
                   <motion.div 
-                    className="p-5 rounded-full bg-gradient-to-br from-success/20 to-success/5 w-fit mx-auto mb-5"
+                    className="p-4 sm:p-5 rounded-full bg-gradient-to-br from-success/20 to-success/5 w-fit mx-auto mb-4 sm:mb-5"
                     animate={{ scale: [1, 1.05, 1] }}
                     transition={{ duration: 2, repeat: Infinity }}
                   >
-                    <Wallet className="h-10 w-10 text-success/60" />
+                    <Wallet className="h-8 w-8 sm:h-10 sm:w-10 text-success/60" />
                   </motion.div>
-                  <p className="text-foreground font-bold text-lg">No investments yet 🌱</p>
-                  <p className="text-sm text-muted-foreground mt-2 max-w-xs mx-auto">
+                  <p className="text-foreground font-bold text-base sm:text-lg">No investments yet 🌱</p>
+                  <p className="text-xs sm:text-sm text-muted-foreground mt-1.5 sm:mt-2 max-w-xs mx-auto px-4">
                     Fund your first tenant above to start earning 15% monthly returns
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2 sm:space-y-3">
                   {fundedRequests.slice(0, 5).map((request, index) => {
                     const reward = calculateSupporterReward(Number(request.rent_amount));
                     const statusConfig = {
@@ -571,20 +572,20 @@ export default function SupporterDashboard({
                         animate={{ opacity: 1, x: 0 }}
                         transition={{ delay: index * 0.1 }}
                         whileHover={{ scale: 1.01, x: 4 }}
-                        className="flex items-center justify-between p-4 rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-success/30 transition-all duration-300"
+                        className="flex items-center justify-between gap-3 p-3 sm:p-4 rounded-xl sm:rounded-2xl bg-white/5 hover:bg-white/10 backdrop-blur-sm border border-white/10 hover:border-success/30 transition-all duration-300"
                       >
-                        <div className="flex items-center gap-4">
-                          <div className={`w-12 h-12 rounded-xl bg-gradient-to-br ${status.color} flex items-center justify-center shadow-lg`}>
-                            <Coins className="h-5 w-5 text-white" />
+                        <div className="flex items-center gap-2.5 sm:gap-4">
+                          <div className={`w-10 h-10 sm:w-12 sm:h-12 rounded-lg sm:rounded-xl bg-gradient-to-br ${status.color} flex items-center justify-center shadow-lg shrink-0`}>
+                            <Coins className="h-4 w-4 sm:h-5 sm:w-5 text-white" />
                           </div>
                           <div>
-                            <p className="font-bold text-foreground text-lg">{formatUGX(Number(request.rent_amount))}</p>
-                            <p className="text-xs text-muted-foreground font-medium">{request.duration_days} days term</p>
+                            <p className="font-bold text-foreground text-sm sm:text-lg">{formatUGX(Number(request.rent_amount))}</p>
+                            <p className="text-[10px] sm:text-xs text-muted-foreground font-medium">{request.duration_days} days term</p>
                           </div>
                         </div>
                         <div className="text-right">
-                          <p className="font-black text-success text-lg">+{formatUGX(reward)}</p>
-                          <Badge className={`text-[10px] px-2 py-0.5 ${status.bg} ${status.text} border-0`}>
+                          <p className="font-black text-success text-sm sm:text-lg">+{formatUGX(reward)}</p>
+                          <Badge className={`text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0 sm:py-0.5 ${status.bg} ${status.text} border-0`}>
                             {status.label}
                           </Badge>
                         </div>
@@ -594,10 +595,10 @@ export default function SupporterDashboard({
                   {fundedRequests.length > 5 && (
                     <Button 
                       variant="ghost" 
-                      className="w-full mt-3 gap-2 hover:bg-white/10"
+                      className="w-full mt-2 sm:mt-3 gap-1.5 sm:gap-2 hover:bg-white/10 text-xs sm:text-sm h-9 sm:h-10"
                       onClick={() => navigate('/transactions')}
                     >
-                      <Sparkles className="h-4 w-4" />
+                      <Sparkles className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       View All {fundedRequests.length} Investments
                     </Button>
                   )}
