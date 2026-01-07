@@ -1,5 +1,5 @@
 import { useState, useRef, useCallback, TouchEvent } from 'react';
-import { hapticSuccess, hapticSelection } from '@/lib/haptics';
+import { hapticSuccess, hapticSelection, hapticImpact } from '@/lib/haptics';
 
 interface UsePullToRefreshOptions {
   onRefresh: () => Promise<void>;
@@ -29,6 +29,7 @@ export function usePullToRefresh({
   const startY = useRef<number>(0);
   const currentY = useRef<number>(0);
   const isAtTop = useRef<boolean>(true);
+  const hasTriggeredThresholdHaptic = useRef<boolean>(false);
 
   const handleTouchStart = useCallback((e: TouchEvent) => {
     // Check if we're at the top of the scroll container
@@ -37,6 +38,7 @@ export function usePullToRefresh({
     
     if (isAtTop.current && !state.isRefreshing) {
       startY.current = e.touches[0].clientY;
+      hasTriggeredThresholdHaptic.current = false;
       setState(prev => ({ ...prev, isPulling: true }));
     }
   }, [state.isRefreshing]);
@@ -57,6 +59,15 @@ export function usePullToRefresh({
     const resistance = 0.5;
     const pullDistance = Math.min(diff * resistance, maxPull);
     const canRefresh = pullDistance >= threshold;
+
+    // Trigger haptic when crossing threshold (ready to refresh)
+    if (canRefresh && !hasTriggeredThresholdHaptic.current) {
+      hasTriggeredThresholdHaptic.current = true;
+      hapticImpact();
+    } else if (!canRefresh && hasTriggeredThresholdHaptic.current) {
+      // Reset if pulled back below threshold
+      hasTriggeredThresholdHaptic.current = false;
+    }
 
     setState(prev => ({
       ...prev,
