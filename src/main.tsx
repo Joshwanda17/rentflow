@@ -3,9 +3,11 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 
-// Hide initial loader
-const loader = document.getElementById('app-loader');
-if (loader) loader.style.display = 'none';
+// Trigger splash screen hide (respects 3-second minimum)
+const win = window as unknown as { hideSplash?: () => void };
+if (win.hideSplash) {
+  win.hideSplash();
+}
 
 // IMPORTANT: prevent "invalid hook call" caused by stale cached JS chunks.
 // In preview/dev we hard-reset any existing service worker + caches once.
