@@ -10,7 +10,8 @@ import {
   History, 
   Banknote,
   Users,
-  Calendar
+  Calendar,
+  Download
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -107,6 +108,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     { icon: Calendar, label: 'Payment Schedule', onClick: () => navigate('/payment-schedule') },
     { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals'), separator: true },
     { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
   return (

@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Menu, Receipt, History, Share2, Users, Coins,
-  BarChart3, FileText, Sparkles, ArrowUpRight, Zap, Target
+  BarChart3, FileText, Sparkles, ArrowUpRight, Zap, Target, Download
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -456,6 +456,7 @@ export default function SupporterDashboard({
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
     { icon: History, label: 'Transaction History', onClick: () => navigate('/transactions') },
     { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
+    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
     { icon: FileText, label: 'My Loans', onClick: () => navigate('/my-loans'), separator: true },
   ];
 

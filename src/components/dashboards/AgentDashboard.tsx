@@ -16,7 +16,8 @@ import {
   History,
   TrendingUp,
   ArrowRight,
-  Package
+  Package,
+  Download
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -94,6 +95,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
     { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
     { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
   return (

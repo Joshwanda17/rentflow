@@ -11,7 +11,8 @@ import {
   Share2,
   ArrowRight,
   TrendingUp,
-  Users
+  Users,
+  Download
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -75,6 +76,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
     { icon: History, label: 'Payment History', onClick: () => navigate('/transactions'), separator: true },
     { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
     { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
   return (
