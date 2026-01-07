@@ -5,7 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3 } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
@@ -26,6 +26,7 @@ export function InvestmentCalculator() {
   const [desiredEarnings, setDesiredEarnings] = useState(150000);
   const [duration, setDuration] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
+  const [showComparison, setShowComparison] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const projectionRef = useRef<HTMLDivElement>(null);
 
@@ -67,6 +68,40 @@ export function InvestmentCalculator() {
 
     return results;
   }, [calculations.requiredInvestment, duration, isCompounding]);
+
+  // Generate both compounding and non-compounding projections for comparison
+  const comparisonData = useMemo(() => {
+    const data = [{ 
+      month: 0, 
+      compoundingBalance: calculations.requiredInvestment, 
+      simpleBalance: calculations.requiredInvestment,
+      compoundingEarnings: 0,
+      simpleEarnings: 0
+    }];
+
+    let compoundBalance = calculations.requiredInvestment;
+    let compoundTotalEarnings = 0;
+    let simpleTotalEarnings = 0;
+
+    for (let month = 1; month <= duration; month++) {
+      const compoundEarnings = compoundBalance * ROI_RATE;
+      compoundTotalEarnings += compoundEarnings;
+      compoundBalance += compoundEarnings;
+
+      const simpleEarnings = calculations.requiredInvestment * ROI_RATE;
+      simpleTotalEarnings += simpleEarnings;
+
+      data.push({
+        month,
+        compoundingBalance: compoundBalance,
+        simpleBalance: calculations.requiredInvestment,
+        compoundingEarnings: compoundTotalEarnings,
+        simpleEarnings: simpleTotalEarnings,
+      });
+    }
+
+    return data;
+  }, [calculations.requiredInvestment, duration]);
 
   const handleExportPDF = async () => {
     if (!projectionRef.current) return;
@@ -219,16 +254,29 @@ export function InvestmentCalculator() {
               </div>
 
               {/* Compounding Toggle */}
-              <div className="flex items-center justify-center gap-3 p-3 rounded-xl bg-muted/50 border border-border">
-                <RefreshCw className={`h-4 w-4 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
-                <Label htmlFor="compounding" className="text-sm font-medium cursor-pointer">
-                  Compound Monthly ROI
-                </Label>
-                <Switch
-                  id="compounding"
-                  checked={isCompounding}
-                  onCheckedChange={setIsCompounding}
-                />
+              <div className="flex flex-col sm:flex-row items-center justify-center gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border flex-1 w-full justify-center">
+                  <RefreshCw className={`h-4 w-4 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
+                  <Label htmlFor="compounding" className="text-sm font-medium cursor-pointer">
+                    Compound Monthly ROI
+                  </Label>
+                  <Switch
+                    id="compounding"
+                    checked={isCompounding}
+                    onCheckedChange={setIsCompounding}
+                  />
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 border border-border flex-1 w-full justify-center">
+                  <GitCompare className={`h-4 w-4 ${showComparison ? 'text-primary' : 'text-muted-foreground'}`} />
+                  <Label htmlFor="comparison" className="text-sm font-medium cursor-pointer">
+                    Compare Mode
+                  </Label>
+                  <Switch
+                    id="comparison"
+                    checked={showComparison}
+                    onCheckedChange={setShowComparison}
+                  />
+                </div>
               </div>
             </motion.div>
 
@@ -366,19 +414,22 @@ export function InvestmentCalculator() {
         <div className="p-4 sm:p-6 border-b border-border">
           <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
             <BarChart3 className="h-5 w-5 text-primary" />
-            Investment Growth Over Time
+            {showComparison ? 'Compounding vs Simple Interest Comparison' : 'Investment Growth Over Time'}
           </h3>
           <div className="h-64 sm:h-80">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart
-                data={[
-                  { month: 0, balance: calculations.requiredInvestment, earnings: 0 },
-                  ...projections.map(p => ({
-                    month: p.month,
-                    balance: p.balance,
-                    earnings: p.totalEarnings,
-                  }))
-                ]}
+                data={showComparison 
+                  ? comparisonData 
+                  : [
+                      { month: 0, balance: calculations.requiredInvestment, earnings: 0 },
+                      ...projections.map(p => ({
+                        month: p.month,
+                        balance: p.balance,
+                        earnings: p.totalEarnings,
+                      }))
+                    ]
+                }
                 margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
               >
                 <defs>
@@ -389,6 +440,14 @@ export function InvestmentCalculator() {
                   <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4} />
                     <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="compoundGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="simpleGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--warning))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--warning))" stopOpacity={0.05} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
@@ -419,6 +478,14 @@ export function InvestmentCalculator() {
                               {entry.name}: {formatUGX(entry.value as number)}
                             </p>
                           ))}
+                          {showComparison && label > 0 && (
+                            <p className="text-xs text-muted-foreground mt-2 border-t border-border pt-2">
+                              Difference: {formatUGX(
+                                (payload.find(p => p.dataKey === 'compoundingEarnings')?.value as number || 0) -
+                                (payload.find(p => p.dataKey === 'simpleEarnings')?.value as number || 0)
+                              )}
+                            </p>
+                          )}
                         </div>
                       );
                     }
@@ -428,25 +495,69 @@ export function InvestmentCalculator() {
                 <Legend 
                   wrapperStyle={{ fontSize: '12px' }}
                 />
-                <Area
-                  type="monotone"
-                  dataKey="balance"
-                  name="Total Balance"
-                  stroke="hsl(var(--primary))"
-                  strokeWidth={2}
-                  fill="url(#balanceGradient)"
-                />
-                <Area
-                  type="monotone"
-                  dataKey="earnings"
-                  name="Total Earnings"
-                  stroke="hsl(var(--success))"
-                  strokeWidth={2}
-                  fill="url(#earningsGradient)"
-                />
+                {showComparison ? (
+                  <>
+                    <Area
+                      type="monotone"
+                      dataKey="compoundingEarnings"
+                      name="Compounding Earnings"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#compoundGradient)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="simpleEarnings"
+                      name="Simple Earnings"
+                      stroke="hsl(var(--warning))"
+                      strokeWidth={2}
+                      fill="url(#simpleGradient)"
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Area
+                      type="monotone"
+                      dataKey="balance"
+                      name="Total Balance"
+                      stroke="hsl(var(--primary))"
+                      strokeWidth={2}
+                      fill="url(#balanceGradient)"
+                    />
+                    <Area
+                      type="monotone"
+                      dataKey="earnings"
+                      name="Total Earnings"
+                      stroke="hsl(var(--success))"
+                      strokeWidth={2}
+                      fill="url(#earningsGradient)"
+                    />
+                  </>
+                )}
               </AreaChart>
             </ResponsiveContainer>
           </div>
+          {showComparison && (
+            <div className="mt-4 grid grid-cols-2 gap-4">
+              <div className="p-3 rounded-lg bg-primary/10 border border-primary/30 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Compounding Earnings</p>
+                <p className="font-bold text-primary">{formatUGX(comparisonData[comparisonData.length - 1]?.compoundingEarnings || 0)}</p>
+              </div>
+              <div className="p-3 rounded-lg bg-warning/10 border border-warning/30 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Simple Earnings</p>
+                <p className="font-bold text-warning">{formatUGX(comparisonData[comparisonData.length - 1]?.simpleEarnings || 0)}</p>
+              </div>
+              <div className="col-span-2 p-3 rounded-lg bg-success/10 border border-success/30 text-center">
+                <p className="text-xs text-muted-foreground mb-1">Extra Earnings with Compounding</p>
+                <p className="font-bold text-success">
+                  +{formatUGX(
+                    (comparisonData[comparisonData.length - 1]?.compoundingEarnings || 0) - 
+                    (comparisonData[comparisonData.length - 1]?.simpleEarnings || 0)
+                  )}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* Monthly Breakdown Table */}
