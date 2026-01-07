@@ -37,7 +37,7 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
-import { CreateSupporterDialog } from '@/components/manager/CreateSupporterDialog';
+import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 
 interface ManagerDashboardProps {
@@ -53,7 +53,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const navigate = useNavigate();
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
-  const [createSupporterOpen, setCreateSupporterOpen] = useState(false);
+  const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalFacilitated, setTotalFacilitated] = useState(0);
@@ -237,9 +237,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </div>
         </button>
 
-        {/* Create Supporter Button */}
+        {/* Create User Invite Button */}
         <Button 
-          onClick={() => setCreateSupporterOpen(true)}
+          onClick={() => setCreateUserInviteOpen(true)}
           className="w-full h-auto p-5 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:opacity-90 shadow-lg"
         >
           <div className="flex items-center justify-between w-full">
@@ -248,8 +248,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <UserPlus className="h-7 w-7" />
               </div>
               <div className="text-left">
-                <p className="font-bold text-lg">Sign Up Supporter</p>
-                <p className="text-sm opacity-90">Create & share activation link</p>
+                <p className="font-bold text-lg">Sign Up New User</p>
+                <p className="text-sm opacity-90">Create tenant, agent, or supporter</p>
               </div>
             </div>
             <ArrowRight className="h-6 w-6" />
@@ -339,9 +339,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         ]}
       />
       
-      <CreateSupporterDialog 
-        open={createSupporterOpen} 
-        onOpenChange={setCreateSupporterOpen} 
+      <CreateUserInviteDialog 
+        open={createUserInviteOpen} 
+        onOpenChange={setCreateUserInviteOpen} 
       />
     </div>
   );

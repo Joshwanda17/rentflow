@@ -48,6 +48,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    const userRole = invite.role || 'supporter';
+
     // Create the user account
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: invite.email,
@@ -56,7 +58,7 @@ Deno.serve(async (req) => {
       user_metadata: {
         full_name: invite.full_name,
         phone: invite.phone,
-        role: "supporter",
+        role: userRole,
         referrer_id: invite.created_by,
       },
     });
@@ -69,12 +71,12 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Add supporter role
+    // Add user role
     const { error: roleError } = await adminClient
       .from("user_roles")
       .insert({
         user_id: authData.user.id,
-        role: "supporter",
+        role: userRole,
       });
 
     if (roleError) {
@@ -91,30 +93,66 @@ Deno.serve(async (req) => {
       })
       .eq("id", invite.id);
 
-    // Create supporter referral record
+    // Create supporter referral record only for supporters
+    if (userRole === 'supporter') {
+      await adminClient
+        .from("supporter_referrals")
+        .insert({
+          referrer_id: invite.created_by,
+          referred_id: authData.user.id,
+          bonus_amount: 500,
+        });
+    }
+
+    // Create general referral record for all roles
     await adminClient
-      .from("supporter_referrals")
+      .from("referrals")
       .insert({
         referrer_id: invite.created_by,
         referred_id: authData.user.id,
-        bonus_amount: 500,
+        bonus_amount: 100,
+        credited: true,
+        credited_at: new Date().toISOString(),
       });
+
+    // Credit manager's wallet for the referral
+    const { data: walletData } = await adminClient
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", invite.created_by)
+      .single();
+
+    if (walletData) {
+      await adminClient
+        .from("wallets")
+        .update({ balance: walletData.balance + 100 })
+        .eq("user_id", invite.created_by);
+    }
+
+    const roleLabels: Record<string, string> = {
+      tenant: 'Tenant',
+      agent: 'Agent', 
+      supporter: 'Supporter',
+    };
 
     // Notify the manager
     await adminClient
       .from("notifications")
       .insert({
         user_id: invite.created_by,
-        title: "🎉 Supporter Activated!",
-        message: `${invite.full_name} has activated their supporter account!`,
+        title: `🎉 ${roleLabels[userRole]} Activated!`,
+        message: `${invite.full_name} has activated their ${userRole} account! You earned UGX 100 referral bonus.`,
         type: "success",
-        metadata: { supporter_id: authData.user.id, invite_id: invite.id },
+        metadata: { user_id: authData.user.id, invite_id: invite.id, role: userRole },
       });
+
+    console.log(`Activated ${userRole} account for ${invite.email}`);
 
     return new Response(JSON.stringify({ 
       success: true,
       message: "Account activated successfully! You can now log in.",
       email: invite.email,
+      role: userRole,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

@@ -5,6 +5,8 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+const validRoles = ['tenant', 'agent', 'supporter'];
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -47,16 +49,23 @@ Deno.serve(async (req) => {
       .single();
 
     if (!roleData) {
-      return new Response(JSON.stringify({ error: "Only managers can create supporter invites" }), {
+      return new Response(JSON.stringify({ error: "Only managers can create user invites" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    const { email, fullName, phone, password } = await req.json();
+    const { email, fullName, phone, password, role = 'supporter' } = await req.json();
 
     if (!email || !fullName || !phone || !password) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!validRoles.includes(role)) {
+      return new Response(JSON.stringify({ error: "Invalid role. Must be tenant, agent, or supporter" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -96,6 +105,7 @@ Deno.serve(async (req) => {
         full_name: fullName,
         phone,
         temp_password: password,
+        role,
         created_by: user.id,
       })
       .select()
@@ -109,6 +119,8 @@ Deno.serve(async (req) => {
       });
     }
 
+    console.log(`Created ${role} invite for ${email} by manager ${user.id}`);
+
     return new Response(JSON.stringify({ 
       success: true, 
       invite: {
@@ -116,6 +128,7 @@ Deno.serve(async (req) => {
         activation_token: invite.activation_token,
         email: invite.email,
         full_name: invite.full_name,
+        role: invite.role,
       }
     }), {
       status: 200,

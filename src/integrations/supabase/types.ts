@@ -1342,6 +1342,7 @@ export type Database = {
           full_name: string
           id: string
           phone: string
+          role: string
           status: string
           temp_password: string
         }
@@ -1355,6 +1356,7 @@ export type Database = {
           full_name: string
           id?: string
           phone: string
+          role?: string
           status?: string
           temp_password: string
         }
@@ -1368,6 +1370,7 @@ export type Database = {
           full_name?: string
           id?: string
           phone?: string
+          role?: string
           status?: string
           temp_password?: string
         }
