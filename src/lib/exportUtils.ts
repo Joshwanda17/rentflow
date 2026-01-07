@@ -40,7 +40,7 @@ export function exportToCSV(data: ExportData, filename: string): void {
 }
 
 /**
- * Export an HTML element to PDF
+ * Export an HTML element to PDF - optimized for mobile compatibility
  */
 export async function exportToPDF(
   element: HTMLElement, 
@@ -48,18 +48,21 @@ export async function exportToPDF(
   title?: string
 ): Promise<void> {
   try {
-    // Capture element as image
+    // Capture element as image with lower pixel ratio for better mobile compatibility
     const dataUrl = await toPng(element, {
-      quality: 1,
-      pixelRatio: 2,
-      backgroundColor: '#ffffff'
+      quality: 0.95,
+      pixelRatio: 1.5, // Reduced for smaller file size and better mobile compatibility
+      backgroundColor: '#ffffff',
+      cacheBust: true,
+      skipFonts: true, // Skip custom fonts for better compatibility
     });
 
-    // Create PDF
+    // Create PDF with PDF/A-1b compatible settings for maximum compatibility
     const pdf = new jsPDF({
       orientation: 'portrait',
       unit: 'mm',
-      format: 'a4'
+      format: 'a4',
+      compress: true, // Enable compression for smaller file size
     });
 
     const pageWidth = pdf.internal.pageSize.getWidth();
@@ -69,40 +72,77 @@ export async function exportToPDF(
     // Add title if provided
     let yPosition = margin;
     if (title) {
-      pdf.setFontSize(18);
+      pdf.setFontSize(16);
       pdf.setFont('helvetica', 'bold');
-      pdf.text(title, margin, yPosition + 10);
-      yPosition += 20;
+      pdf.text(title, margin, yPosition + 8);
+      yPosition += 15;
     }
 
     // Add date
-    pdf.setFontSize(10);
+    pdf.setFontSize(9);
     pdf.setFont('helvetica', 'normal');
-    pdf.setTextColor(128, 128, 128);
-    pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
-    yPosition += 10;
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Generated: ${new Date().toLocaleDateString()}`, margin, yPosition);
+    yPosition += 8;
 
     // Calculate image dimensions to fit page
     const img = new Image();
     img.src = dataUrl;
     
-    await new Promise<void>((resolve) => {
+    await new Promise<void>((resolve, reject) => {
       img.onload = () => {
-        const imgWidth = pageWidth - (margin * 2);
-        const imgHeight = (img.height * imgWidth) / img.width;
-        
-        // Check if image fits on remaining page, otherwise add new page
-        const availableHeight = pageHeight - yPosition - margin;
-        const finalHeight = Math.min(imgHeight, availableHeight);
-        const finalWidth = (finalHeight / imgHeight) * imgWidth;
-
-        pdf.addImage(dataUrl, 'PNG', margin, yPosition, finalWidth, finalHeight);
-        resolve();
+        try {
+          const imgWidth = pageWidth - (margin * 2);
+          const imgHeight = (img.height * imgWidth) / img.width;
+          
+          // Handle multi-page if content is too tall
+          const availableHeight = pageHeight - yPosition - margin;
+          
+          if (imgHeight <= availableHeight) {
+            // Single page - content fits
+            pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth, imgHeight, undefined, 'FAST');
+          } else {
+            // Scale to fit with proper aspect ratio
+            const scale = availableHeight / imgHeight;
+            const scaledWidth = imgWidth * scale;
+            const scaledHeight = imgHeight * scale;
+            const xOffset = margin + (imgWidth - scaledWidth) / 2;
+            
+            pdf.addImage(dataUrl, 'PNG', xOffset, yPosition, scaledWidth, scaledHeight, undefined, 'FAST');
+          }
+          resolve();
+        } catch (err) {
+          reject(err);
+        }
       };
+      img.onerror = () => reject(new Error('Failed to load image'));
     });
 
-    // Save PDF
-    pdf.save(`${filename}_${new Date().toISOString().split('T')[0]}.pdf`);
+    // Generate PDF as blob first, then create a more compatible download
+    const pdfBlob = pdf.output('blob');
+    
+    // Create download link with better mobile support
+    const blobUrl = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = blobUrl;
+    link.download = `${filename}_${new Date().toISOString().split('T')[0]}.pdf`;
+    link.style.display = 'none';
+    
+    // For iOS Safari compatibility
+    if (typeof navigator !== 'undefined' && /iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      // Open in new tab for iOS devices
+      window.open(blobUrl, '_blank');
+    } else {
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    
+    // Clean up blob URL after a delay
+    setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+    }, 1000);
+    
   } catch (error) {
     console.error('PDF export failed:', error);
     throw error;
