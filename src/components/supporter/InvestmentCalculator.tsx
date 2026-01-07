@@ -150,6 +150,59 @@ export function InvestmentCalculator() {
     window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
   };
 
+  const handleSharePDFWhatsApp = async () => {
+    if (!projectionRef.current) return;
+    
+    setIsExporting(true);
+    try {
+      // Generate monthly breakdown text for WhatsApp
+      let breakdownText = `📊 *WELILE INVESTMENT PROJECTION*\n`;
+      breakdownText += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+      breakdownText += `💰 Initial Investment: ${formatUGX(calculations.requiredInvestment)}\n`;
+      breakdownText += `📈 Monthly ROI: 15%\n`;
+      breakdownText += `⏱️ Duration: ${duration} months\n`;
+      breakdownText += `🔄 Compounding: ${isCompounding ? 'Yes' : 'No'}\n\n`;
+      breakdownText += `📋 *MONTHLY BREAKDOWN*\n`;
+      breakdownText += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+      
+      projections.forEach((row) => {
+        breakdownText += `*Month ${row.month}*\n`;
+        breakdownText += `  Principal: ${formatUGX(row.principal)}\n`;
+        breakdownText += `  Earnings: +${formatUGX(row.earnings)}\n`;
+        breakdownText += `  Total Earned: ${formatUGX(row.totalEarnings)}\n`;
+        breakdownText += `  Balance: ${formatUGX(row.balance)}\n\n`;
+      });
+      
+      breakdownText += `━━━━━━━━━━━━━━━━━━━━\n`;
+      breakdownText += `🏆 *FINAL RESULTS*\n`;
+      breakdownText += `💵 Total Earnings: ${formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}\n`;
+      breakdownText += `🏦 Final Balance: ${formatUGX(projections[projections.length - 1]?.balance || 0)}\n\n`;
+      breakdownText += `━━━━━━━━━━━━━━━━━━━━\n`;
+      breakdownText += `✅ *WHY INVEST WITH WELILE?*\n`;
+      breakdownText += `• Earn by supporting tenants access rent\n`;
+      breakdownText += `• Welile guarantees rent collection through our Agent Network\n`;
+      breakdownText += `• Withdraw principal with 90-day notice\n\n`;
+      breakdownText += `🚀 Start earning 15% monthly returns today!\n`;
+      breakdownText += `📱 Visit Welile to become a Supporter`;
+      
+      const encodedMessage = encodeURIComponent(breakdownText);
+      window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+      
+      toast({
+        title: "Opening WhatsApp",
+        description: "Monthly breakdown ready to share!",
+      });
+    } catch (error) {
+      toast({
+        title: "Share Failed",
+        description: "Could not prepare share content. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -353,22 +406,33 @@ export function InvestmentCalculator() {
             </motion.div>
 
             {/* Action Buttons */}
-            <div className="flex flex-col sm:flex-row gap-3 justify-center max-w-md mx-auto">
+            <div className="flex flex-col gap-3 justify-center max-w-lg mx-auto">
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  onClick={handleExportPDF}
+                  disabled={isExporting}
+                  className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                >
+                  <Download className="h-4 w-4" />
+                  {isExporting ? 'Generating...' : 'Download PDF'}
+                </Button>
+                <Button
+                  onClick={handleShareWhatsApp}
+                  variant="outline"
+                  className="flex-1 gap-2 border-success/50 text-success hover:bg-success/10"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share Summary
+                </Button>
+              </div>
               <Button
-                onClick={handleExportPDF}
+                onClick={handleSharePDFWhatsApp}
                 disabled={isExporting}
-                className="flex-1 gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
-              >
-                <Download className="h-4 w-4" />
-                {isExporting ? 'Generating...' : 'Download PDF'}
-              </Button>
-              <Button
-                onClick={handleShareWhatsApp}
                 variant="outline"
-                className="flex-1 gap-2 border-success/50 text-success hover:bg-success/10"
+                className="w-full gap-2 border-primary/50 text-primary hover:bg-primary/10"
               >
                 <Share2 className="h-4 w-4" />
-                Share on WhatsApp
+                📊 Share Monthly Breakdown on WhatsApp
               </Button>
             </div>
           </CardContent>
@@ -377,16 +441,21 @@ export function InvestmentCalculator() {
 
       {/* Printable Projection Table */}
       <div ref={projectionRef} className="bg-background rounded-2xl border border-border overflow-hidden">
-        {/* PDF Header with Logo */}
-        <div className="p-4 sm:p-6 border-b border-border bg-muted/30">
+        {/* PDF Header with Logo - Single Purple Logo */}
+        <div className="p-4 sm:p-6 border-b border-border bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <img src={welileLogo} alt="Welile" className="h-8 w-auto" />
-              <span className="text-xl font-bold text-foreground" style={{ fontFamily: "'Chewy', cursive" }}>Welile</span>
+            <div className="flex items-center gap-3">
+              <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg">
+                <img src={welileLogo} alt="Welile" className="h-10 w-10 object-contain" />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
+                <p className="text-[10px] text-muted-foreground">Investment Projection</p>
+              </div>
             </div>
             <div className="text-right text-xs sm:text-sm text-muted-foreground">
-              <p className="font-semibold">Investment Projection Report</p>
-              <p>Generated: {new Date().toLocaleDateString()}</p>
+              <p className="font-semibold text-foreground">Report</p>
+              <p>{new Date().toLocaleDateString()}</p>
             </div>
           </div>
         </div>
