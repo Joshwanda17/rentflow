@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw } from 'lucide-react';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface SupporterInvite {
@@ -56,6 +56,15 @@ export function SupporterInvitesList() {
     setCopiedId(invite.id);
     setTimeout(() => setCopiedId(null), 2000);
     toast({ title: 'Link copied!' });
+  };
+
+  const handleCopyAll = async (invite: SupporterInvite) => {
+    const text = `Activation Link: ${getShareLink(invite.activation_token)}
+Password: ${invite.temp_password}`;
+    await navigator.clipboard.writeText(text);
+    setCopiedId(`all-${invite.id}`);
+    setTimeout(() => setCopiedId(null), 2000);
+    toast({ title: 'Link & password copied!' });
   };
 
   const handleShareWhatsApp = (invite: SupporterInvite) => {
@@ -158,7 +167,21 @@ Just click the link and enter your password to get started!`;
                   variant="ghost" 
                   size="icon" 
                   className="h-8 w-8"
+                  onClick={() => handleCopyAll(invite)}
+                  title="Copy link & password"
+                >
+                  {copiedId === `all-${invite.id}` ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <ClipboardList className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
                   onClick={() => handleCopyLink(invite)}
+                  title="Copy link only"
                 >
                   {copiedId === invite.id ? (
                     <Check className="h-4 w-4 text-green-500" />
@@ -171,6 +194,7 @@ Just click the link and enter your password to get started!`;
                   size="icon" 
                   className="h-8 w-8 text-green-600"
                   onClick={() => handleShareWhatsApp(invite)}
+                  title="Share on WhatsApp"
                 >
                   <Share2 className="h-4 w-4" />
                 </Button>
