@@ -658,14 +658,9 @@ export function InvestmentCalculator() {
                   <div ref={comparisonRef} className="space-y-4 pt-4 border-t border-border/50 mt-4 bg-background">
                     {/* PDF Header for Comparison Export */}
                     <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 rounded-xl">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg">
-                          <img src={welileLogo} alt="Welile" className="h-8 w-8 object-contain" />
-                        </div>
-                        <div>
-                          <h2 className="text-lg font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
-                          <p className="text-[10px] text-muted-foreground">Scenario Comparison</p>
-                        </div>
+                      <div>
+                        <h2 className="text-2xl font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
+                        <p className="text-xs text-muted-foreground">Scenario Comparison</p>
                       </div>
                       <div className="text-right text-xs text-muted-foreground">
                         <p className="font-semibold text-foreground">{savedScenarios.length + 1} Scenarios</p>
@@ -920,17 +915,12 @@ export function InvestmentCalculator() {
 
       {/* Printable Projection Table */}
       <div ref={projectionRef} className="bg-background rounded-2xl border border-border overflow-hidden">
-        {/* PDF Header with Logo - Single Purple Logo */}
+        {/* PDF Header with Purple Text Logo Only */}
         <div className="p-4 sm:p-6 border-b border-border bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg">
-                <img src={welileLogo} alt="Welile" className="h-10 w-10 object-contain" />
-              </div>
-              <div>
-                <h2 className="text-xl font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
-                <p className="text-[10px] text-muted-foreground">Investment Projection</p>
-              </div>
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
+              <p className="text-xs text-muted-foreground">Investment Projection</p>
             </div>
             <div className="text-right text-xs sm:text-sm text-muted-foreground">
               <p className="font-semibold text-foreground">Report</p>
