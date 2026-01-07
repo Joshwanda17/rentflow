@@ -1,0 +1,180 @@
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
+
+interface SupporterInvite {
+  id: string;
+  email: string;
+  full_name: string;
+  phone: string;
+  activation_token: string;
+  status: string;
+  created_at: string;
+  activated_at: string | null;
+}
+
+export function SupporterInvitesList() {
+  const { toast } = useToast();
+  const [invites, setInvites] = useState<SupporterInvite[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const fetchInvites = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('supporter_invites')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+
+    if (error) {
+      console.error('Error fetching invites:', error);
+    } else {
+      setInvites(data || []);
+    }
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    fetchInvites();
+  }, []);
+
+  const getShareLink = (token: string) => {
+    return `${window.location.origin}/activate-supporter?token=${token}`;
+  };
+
+  const handleCopyLink = async (invite: SupporterInvite) => {
+    const link = getShareLink(invite.activation_token);
+    await navigator.clipboard.writeText(link);
+    setCopiedId(invite.id);
+    setTimeout(() => setCopiedId(null), 2000);
+    toast({ title: 'Link copied!' });
+  };
+
+  const handleShareWhatsApp = (invite: SupporterInvite) => {
+    const message = `🎉 Welcome to Welile, ${invite.full_name}!
+
+You've been invited to become a Tenant Supporter and earn 15% monthly returns!
+
+👉 Activate your account here:
+${getShareLink(invite.activation_token)}
+
+Just click the link and enter your password to get started!`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
+  if (loading) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Supporter Invites
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {[1, 2, 3].map(i => (
+            <Skeleton key={i} className="h-16 w-full" />
+          ))}
+        </CardContent>
+      </Card>
+    );
+  }
+
+  if (invites.length === 0) {
+    return (
+      <Card>
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Supporter Invites
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <p className="text-sm text-muted-foreground text-center py-4">
+            No supporter invites yet. Create one using the button above!
+          </p>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card>
+      <CardHeader className="pb-3">
+        <div className="flex items-center justify-between">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Users className="h-4 w-4" />
+            Supporter Invites
+          </CardTitle>
+          <Button variant="ghost" size="icon" onClick={fetchInvites}>
+            <RefreshCw className="h-4 w-4" />
+          </Button>
+        </div>
+      </CardHeader>
+      <CardContent className="space-y-3">
+        {invites.map(invite => (
+          <div 
+            key={invite.id} 
+            className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="flex items-center gap-2">
+                <p className="font-medium text-sm truncate">{invite.full_name}</p>
+                <Badge 
+                  variant="outline" 
+                  className={invite.status === 'activated' 
+                    ? 'bg-success/10 text-success border-success/30' 
+                    : 'bg-warning/10 text-warning border-warning/30'
+                  }
+                >
+                  {invite.status === 'activated' ? (
+                    <><CheckCircle className="h-3 w-3 mr-1" /> Activated</>
+                  ) : (
+                    <><Clock className="h-3 w-3 mr-1" /> Pending</>
+                  )}
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground truncate">{invite.email}</p>
+              <p className="text-xs text-muted-foreground">
+                {formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}
+              </p>
+            </div>
+            
+            {invite.status === 'pending' && (
+              <div className="flex gap-1 ml-2">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8"
+                  onClick={() => handleCopyLink(invite)}
+                >
+                  {copiedId === invite.id ? (
+                    <Check className="h-4 w-4 text-green-500" />
+                  ) : (
+                    <Copy className="h-4 w-4" />
+                  )}
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  className="h-8 w-8 text-green-600"
+                  onClick={() => handleShareWhatsApp(invite)}
+                >
+                  <Share2 className="h-4 w-4" />
+                </Button>
+              </div>
+            )}
+          </div>
+        ))}
+      </CardContent>
+    </Card>
+  );
+}
