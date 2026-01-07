@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Share, Plus } from 'lucide-react';
+import { Download, X, Share, Plus, Square, ArrowDown } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 
@@ -8,6 +8,7 @@ export default function PWAInstallPrompt() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [dismissed, setDismissed] = useState(false);
+  const [showIOSGuide, setShowIOSGuide] = useState(false);
 
   useEffect(() => {
     // Check if user has previously dismissed
@@ -36,11 +37,135 @@ export default function PWAInstallPrompt() {
 
   const handleDismiss = () => {
     setShowPrompt(false);
+    setShowIOSGuide(false);
     setDismissed(true);
     sessionStorage.setItem('pwa-install-dismissed', 'true');
   };
 
   if (isInstalled || dismissed) return null;
+
+  // Full-screen iOS installation guide
+  if (showIOSGuide && isIOS) {
+    return (
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 z-[100] bg-background/95 backdrop-blur-sm flex flex-col"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b">
+          <h2 className="text-lg font-semibold">Install Welile.com</h2>
+          <button
+            onClick={handleDismiss}
+            className="p-2 rounded-full hover:bg-muted transition-colors"
+          >
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="flex-1 overflow-auto px-6 py-8">
+          <div className="max-w-sm mx-auto space-y-8">
+            {/* App preview */}
+            <div className="text-center">
+              <div className="w-20 h-20 mx-auto rounded-2xl overflow-hidden shadow-xl mb-4">
+                <img src="/welile-logo.png" alt="Welile" className="w-full h-full object-cover" />
+              </div>
+              <h3 className="text-xl font-bold">Welile.com</h3>
+              <p className="text-muted-foreground text-sm mt-1">Rent Facilitation Platform</p>
+            </div>
+
+            {/* Steps */}
+            <div className="space-y-6">
+              <h4 className="font-semibold text-center">Follow these 3 easy steps:</h4>
+              
+              {/* Step 1 */}
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.1 }}
+                className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                  1
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium mb-2">Tap the Share button</p>
+                  <div className="flex items-center gap-2 text-primary">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Square className="h-5 w-5" strokeWidth={1.5} />
+                      <ArrowDown className="h-3 w-3 -mt-1 mx-auto" />
+                    </div>
+                    <span className="text-sm text-muted-foreground">at the bottom of Safari</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Step 2 */}
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.2 }}
+                className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                  2
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium mb-2">Scroll and tap "Add to Home Screen"</p>
+                  <div className="flex items-center gap-2">
+                    <div className="p-2 bg-primary/10 rounded-lg">
+                      <Plus className="h-5 w-5 text-primary" />
+                    </div>
+                    <span className="text-sm text-muted-foreground">Add to Home Screen</span>
+                  </div>
+                </div>
+              </motion.div>
+
+              {/* Step 3 */}
+              <motion.div 
+                initial={{ x: -20, opacity: 0 }}
+                animate={{ x: 0, opacity: 1 }}
+                transition={{ delay: 0.3 }}
+                className="flex items-start gap-4 p-4 bg-primary/5 rounded-xl border border-primary/20"
+              >
+                <div className="flex-shrink-0 w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center font-bold">
+                  3
+                </div>
+                <div className="flex-1">
+                  <p className="font-medium mb-2">Tap "Add" in the top right</p>
+                  <span className="text-sm text-muted-foreground">That's it! Welile will appear on your home screen</span>
+                </div>
+              </motion.div>
+            </div>
+
+            {/* Benefits */}
+            <div className="bg-muted/50 rounded-xl p-4">
+              <h5 className="font-medium mb-2 text-sm">Why install?</h5>
+              <ul className="text-sm text-muted-foreground space-y-1">
+                <li>✓ Faster access from home screen</li>
+                <li>✓ Works offline</li>
+                <li>✓ Full-screen experience</li>
+                <li>✓ Get notifications</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom indicator pointing to Safari share */}
+        <motion.div 
+          initial={{ y: 20, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          transition={{ delay: 0.5, repeat: Infinity, repeatType: 'reverse', duration: 1 }}
+          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center text-primary"
+        >
+          <span className="text-sm font-medium mb-1">Tap Share below</span>
+          <ArrowDown className="h-6 w-6 animate-bounce" />
+        </motion.div>
+      </motion.div>
+    );
+  }
 
   return (
     <AnimatePresence>
@@ -74,19 +199,20 @@ export default function PWAInstallPrompt() {
                 <h3 className="font-semibold text-foreground mb-1">Install Welile.com</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   {isIOS 
-                    ? 'Tap Share then "Add to Home Screen"'
+                    ? 'Add to your home screen for easy access'
                     : 'Install for quick access & offline use'
                   }
                 </p>
 
                 {isIOS ? (
-                  <div className="flex items-center gap-2 text-sm text-primary">
-                    <Share className="h-4 w-4" />
-                    <span>Share</span>
-                    <span className="text-muted-foreground">→</span>
-                    <Plus className="h-4 w-4" />
-                    <span>Add to Home</span>
-                  </div>
+                  <Button 
+                    onClick={() => setShowIOSGuide(true)}
+                    size="sm"
+                    className="gap-2 w-full"
+                  >
+                    <Download className="h-4 w-4" />
+                    Install Now - It's Easy!
+                  </Button>
                 ) : (
                   <Button 
                     onClick={handleInstall}
