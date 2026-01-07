@@ -92,7 +92,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <WelileLogo showText={false} />
+              <WelileLogo />
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 

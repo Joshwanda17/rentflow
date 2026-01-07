@@ -11,7 +11,7 @@ export default function WelileLogo({ showText = true, className = '', linkToHome
   const content = (
     <div className={`flex items-center gap-2 ${className}`}>
       <img src={welileLogo} alt="Welile" className="h-8 w-auto" />
-      {showText && <span className="text-xl text-foreground" style={{ fontFamily: "'Chewy', cursive" }}>Welile</span>}
+      {showText && <span className="hidden sm:inline text-xl text-foreground" style={{ fontFamily: "'Chewy', cursive" }}>Welile</span>}
     </div>
   );
 
