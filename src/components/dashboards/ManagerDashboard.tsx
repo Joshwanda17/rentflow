@@ -38,6 +38,7 @@ import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateSupporterDialog } from '@/components/manager/CreateSupporterDialog';
+import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 
 interface ManagerDashboardProps {
   user: User;
@@ -290,6 +291,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             <p className="text-xs text-muted-foreground">Leaderboard</p>
           </button>
         </div>
+
+        {/* Supporter Invites List */}
+        <SupporterInvitesList />
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
