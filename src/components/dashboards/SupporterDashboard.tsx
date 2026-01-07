@@ -16,14 +16,12 @@ import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import WelileLogo from '@/components/WelileLogo';
-import { AnimatedThemeToggle } from '@/components/AnimatedThemeToggle';
+import DashboardHeader from '@/components/DashboardHeader';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { motion } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { NotificationBell } from '@/components/NotificationBell';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
@@ -451,108 +449,25 @@ export default function SupporterDashboard({
     await fetchData();
   };
 
+  const menuItems = [
+    { icon: BarChart3, label: 'Investment Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
+    { icon: Target, label: 'Investment Goals', onClick: () => document.getElementById('goals-section')?.scrollIntoView({ behavior: 'smooth' }) },
+    { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
+    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
+    { icon: History, label: 'Transaction History', onClick: () => navigate('/transactions') },
+    { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
+    { icon: FileText, label: 'My Loans', onClick: () => navigate('/my-loans'), separator: true },
+  ];
+
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-24 sm:pb-20 md:pb-0">
-      {/* Modern Glassmorphism Header - Optimized for mobile */}
-      <header className="sticky top-0 z-50 backdrop-blur-xl bg-background/80 border-b border-white/10 shadow-lg shadow-black/5">
-        <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <WelileLogo />
-              <motion.div 
-                className="relative"
-                whileHover={{ scale: 1.05 }}
-              >
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
-                <div className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 bg-success rounded-full border-2 border-background animate-pulse" />
-              </motion.div>
-              <RoleSwitcher
-                currentRole={currentRole} 
-                availableRoles={availableRoles} 
-                onRoleChange={onRoleChange} 
-              />
-            </div>
-            
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              <ShareSupporterLink variant="ghost" size="icon" />
-              <NotificationBell />
-              <AnimatedThemeToggle />
-              
-              {/* Menu Button */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="h-8 w-8 sm:h-9 sm:w-9 hover:bg-white/10">
-                    <Menu className="h-4 w-4 sm:h-5 sm:w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52 sm:w-56 backdrop-blur-xl bg-background/95 border-white/10">
-                  <DropdownMenuItem onClick={() => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
-                    <BarChart3 className="h-4 w-4 mr-2" />
-                    Investment Accounts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('goals-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
-                    <Target className="h-4 w-4 mr-2" />
-                    Investment Goals
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
-                    <Wallet className="h-4 w-4 mr-2" />
-                    My Wallet
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('portfolio-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
-                    <TrendingUp className="h-4 w-4 mr-2" />
-                    My Portfolio
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => document.getElementById('interest-section')?.scrollIntoView({ behavior: 'smooth' })} className="text-sm">
-                    <Coins className="h-4 w-4 mr-2" />
-                    Interest Payments
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="text-sm">
-                    <Receipt className="h-4 w-4 mr-2" />
-                    My Receipts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/transactions')} className="text-sm">
-                    <History className="h-4 w-4 mr-2" />
-                    Transaction History
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/referrals')} className="text-sm">
-                    <Share2 className="h-4 w-4 mr-2" />
-                    Referrals
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => {
-                    const shareLink = `${window.location.origin}/become-supporter`;
-                    const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns!\n\n💰 Help tenants pay rent while growing your investment\n📈 Guaranteed monthly interest payments\n\nStart investing: ${shareLink}`;
-                    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
-                    window.open(whatsappUrl, '_blank');
-                  }} className="text-sm text-success">
-                    <Users className="h-4 w-4 mr-2" />
-                    Invite Supporters
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/benefits')} className="text-sm">
-                    <Coins className="h-4 w-4 mr-2" />
-                    Benefits
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="text-sm">
-                    <FileText className="h-4 w-4 mr-2" />
-                    My Loans
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="text-sm">
-                    <Settings className="h-4 w-4 mr-2" />
-                    Settings
-                  </DropdownMenuItem>
-                  {addRoleComponent}
-                  <DropdownMenuSeparator className="bg-white/10" />
-                  <DropdownMenuItem onClick={signOut} className="text-sm text-destructive focus:text-destructive">
-                    <LogOut className="h-4 w-4 mr-2" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        currentRole={currentRole}
+        availableRoles={availableRoles}
+        onRoleChange={onRoleChange}
+        onSignOut={signOut}
+        menuItems={menuItems}
+      />
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-4 sm:space-y-6">
         {/* Investment Calculator - HERO SECTION */}

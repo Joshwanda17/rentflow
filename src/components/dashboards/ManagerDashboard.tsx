@@ -2,24 +2,13 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { 
-  MoreVertical, 
   Users, 
   FileText, 
   Banknote, 
   Receipt, 
-  Settings, 
-  LogOut, 
   TrendingUp,
   ArrowRight,
   Sparkles,
@@ -32,21 +21,17 @@ import {
   Wallet
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import WelileLogo from '@/components/WelileLogo';
+import DashboardHeader from '@/components/DashboardHeader';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { NotificationBell } from '@/components/NotificationBell';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
-import { ShareAppButton } from '@/components/ShareAppButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 
 interface ManagerDashboardProps {
@@ -108,87 +93,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     return <ManagerDashboardSkeleton />;
   }
 
+  const menuItems = [
+    { icon: FileText, label: 'Rent Requests', onClick: () => navigate('/manager-access') },
+    { icon: Banknote, label: 'Loan Applications', onClick: () => navigate('/manager-access?tab=loans') },
+    { icon: ShoppingCart, label: 'Product Orders', onClick: () => navigate('/manager-access?tab=orders') },
+    { icon: Users, label: 'User Management', onClick: () => navigate('/manager-access?tab=users'), separator: true },
+    { icon: Receipt, label: 'Receipt Management', onClick: () => navigate('/manager-access?tab=receipts') },
+    { icon: ChartBar, label: 'Financial Overview', onClick: () => navigate('/manager-access?tab=financials') },
+    { icon: Wallet, label: 'Investment Accounts', onClick: () => navigate('/manager-access?tab=investments') },
+    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
+    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+  ];
+
   return (
     <div className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Simplified Header */}
-      <header className="sticky top-0 z-50 wa-header shadow-sm">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <WelileLogo />
-              <RoleSwitcher
-                currentRole={currentRole} 
-                availableRoles={availableRoles} 
-                onRoleChange={onRoleChange} 
-              />
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <ShareAppButton />
-              <NotificationBell />
-              <ThemeToggle />
-              
-              {/* Menu Button */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg z-50">
-                  <DropdownMenuItem onClick={() => navigate('/manager-access')} className="gap-3 cursor-pointer">
-                    <FileText className="h-4 w-4" />
-                    Rent Requests
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=loans')} className="gap-3 cursor-pointer">
-                    <Banknote className="h-4 w-4" />
-                    Loan Applications
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=orders')} className="gap-3 cursor-pointer">
-                    <ShoppingCart className="h-4 w-4" />
-                    Product Orders
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=users')} className="gap-3 cursor-pointer">
-                    <Users className="h-4 w-4" />
-                    User Management
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=receipts')} className="gap-3 cursor-pointer">
-                    <Receipt className="h-4 w-4" />
-                    Receipt Management
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=financials')} className="gap-3 cursor-pointer">
-                    <ChartBar className="h-4 w-4" />
-                    Financial Overview
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/manager-access?tab=investments')} className="gap-3 cursor-pointer">
-                    <Wallet className="h-4 w-4" />
-                    Investment Accounts
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="gap-3 cursor-pointer">
-                    <Receipt className="h-4 w-4" />
-                    My Receipts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="gap-3 cursor-pointer">
-                    <Banknote className="h-4 w-4" />
-                    My Loans
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-3 cursor-pointer">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => signOut()} className="gap-3 cursor-pointer text-destructive">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        currentRole={currentRole}
+        availableRoles={availableRoles}
+        onRoleChange={onRoleChange}
+        onSignOut={signOut}
+        menuItems={menuItems}
+      />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
         {/* User Profile Card - Clickable */}
