@@ -6,7 +6,8 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Users, Clock } from 'lucide-react';
+import welileLogo from '@/assets/welile-logo.png';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
@@ -378,10 +379,9 @@ export function InvestmentCalculator() {
         {/* PDF Header with Logo */}
         <div className="p-4 sm:p-6 border-b border-border bg-muted/30">
           <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <span className="text-2xl sm:text-3xl font-black bg-gradient-to-r from-primary via-violet-600 to-success bg-clip-text text-transparent">
-                Welile
-              </span>
+            <div className="flex items-center gap-2">
+              <img src={welileLogo} alt="Welile" className="h-8 w-auto" />
+              <span className="text-xl font-bold text-foreground" style={{ fontFamily: "'Chewy', cursive" }}>Welile</span>
             </div>
             <div className="text-right text-xs sm:text-sm text-muted-foreground">
               <p className="font-semibold">Investment Projection Report</p>
@@ -656,12 +656,51 @@ export function InvestmentCalculator() {
           </div>
         </Collapsible>
 
-        {/* Footer */}
-        <div className="p-4 sm:p-6 border-t border-border bg-muted/30 text-center">
-          <p className="text-xs text-muted-foreground">
-            This projection is for illustrative purposes. Actual returns may vary. 
-            Contact Welile for more information.
-          </p>
+        {/* Footer - Business Information */}
+        <div className="p-4 sm:p-6 border-t border-border bg-gradient-to-br from-primary/5 via-muted/30 to-success/5">
+          <div className="space-y-4">
+            {/* Business Model */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                <div className="p-1.5 rounded-full bg-success/20">
+                  <TrendingUp className="h-4 w-4 text-success" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Earn by Supporting Tenants</p>
+                  <p className="text-[10px] text-muted-foreground">Your investment helps tenants access rent when they need it most.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                <div className="p-1.5 rounded-full bg-primary/20">
+                  <Shield className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">Guaranteed Collection</p>
+                  <p className="text-[10px] text-muted-foreground">Welile guarantees rent collection through our trusted Agent Network.</p>
+                </div>
+              </div>
+              <div className="flex items-start gap-2 p-3 rounded-lg bg-background/50 border border-border/50">
+                <div className="p-1.5 rounded-full bg-warning/20">
+                  <Clock className="h-4 w-4 text-warning" />
+                </div>
+                <div>
+                  <p className="text-xs font-semibold text-foreground">90-Day Withdrawal Notice</p>
+                  <p className="text-[10px] text-muted-foreground">Withdraw your principal by notifying Welile 90 days in advance.</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Disclaimer */}
+            <div className="text-center pt-3 border-t border-border/50">
+              <p className="text-[10px] text-muted-foreground">
+                This projection is for illustrative purposes. Returns are based on a 15% monthly ROI model. 
+                By investing with Welile, you are participating in a business that supports tenants to access rent financing.
+              </p>
+              <p className="text-[10px] text-muted-foreground mt-1">
+                <strong>Contact Welile</strong> for more information about becoming a Supporter.
+              </p>
+            </div>
+          </div>
         </div>
       </div>
     </motion.div>
