@@ -22,8 +22,12 @@ export default function PWAInstallPrompt() {
     const timer = setTimeout(() => {
       if ((isInstallable || isIOS) && !isInstalled && !dismissed) {
         setShowPrompt(true);
+        // Auto-show iOS guide for iPhone users for immediate guidance
+        if (isIOS) {
+          setShowIOSGuide(true);
+        }
       }
-    }, 2000);
+    }, 1500);
 
     return () => clearTimeout(timer);
   }, [isInstallable, isInstalled, isIOS, dismissed]);
@@ -93,11 +97,13 @@ export default function PWAInstallPrompt() {
                 <div className="flex-1">
                   <p className="font-medium mb-2">Tap the Share button</p>
                   <div className="flex items-center gap-2 text-primary">
-                    <div className="p-2 bg-primary/10 rounded-lg">
+                    <div className="p-2 bg-primary/10 rounded-lg flex flex-col items-center">
                       <Square className="h-5 w-5" strokeWidth={1.5} />
-                      <ArrowDown className="h-3 w-3 -mt-1 mx-auto" />
+                      <ArrowDown className="h-3 w-3 -mt-1" />
                     </div>
-                    <span className="text-sm text-muted-foreground">at the bottom of Safari</span>
+                    <span className="text-sm text-muted-foreground">
+                      Look for <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-500/20 text-blue-600 rounded text-xs font-medium">Share</span> in Safari toolbar
+                    </span>
                   </div>
                 </div>
               </motion.div>
@@ -153,16 +159,25 @@ export default function PWAInstallPrompt() {
           </div>
         </div>
 
-        {/* Bottom indicator pointing to Safari share */}
-        <motion.div 
-          initial={{ y: 20, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          transition={{ delay: 0.5, repeat: Infinity, repeatType: 'reverse', duration: 1 }}
-          className="absolute bottom-4 left-1/2 -translate-x-1/2 flex flex-col items-center text-primary"
-        >
-          <span className="text-sm font-medium mb-1">Tap Share below</span>
-          <ArrowDown className="h-6 w-6 animate-bounce" />
-        </motion.div>
+        {/* Footer with clear CTA */}
+        <div className="p-4 border-t bg-primary/5">
+          <div className="max-w-sm mx-auto text-center space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Look for the <span className="inline-flex items-center px-1.5 py-0.5 bg-blue-500/20 text-blue-600 rounded text-xs font-medium mx-1">
+                <Square className="h-3 w-3 mr-0.5" strokeWidth={1.5} />
+                <ArrowDown className="h-2 w-2" />
+              </span> Share icon in Safari
+            </p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={handleDismiss}
+              className="text-xs"
+            >
+              I'll do this later
+            </Button>
+          </div>
+        </div>
       </motion.div>
     );
   }
