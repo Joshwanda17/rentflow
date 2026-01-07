@@ -2,48 +2,30 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { 
-  MoreVertical, 
   Home, 
   Receipt, 
   ShoppingBag, 
   Share2, 
   History, 
-  Settings, 
-  Calculator, 
-  CreditCard,
   Banknote,
-  LogOut,
   Users,
   Calendar
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
-import RoleSwitcher from '@/components/RoleSwitcher';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import WelileLogo from '@/components/WelileLogo';
+import DashboardHeader from '@/components/DashboardHeader';
 import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { NotificationBell } from '@/components/NotificationBell';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
-import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
-import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface TenantDashboardProps {
   user: User;
@@ -116,83 +98,26 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     await fetchData();
   };
 
+  const menuItems = [
+    { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true) },
+    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
+    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+    { icon: ShoppingBag, label: 'Marketplace', onClick: () => navigate('/marketplace'), separator: true },
+    { icon: History, label: 'Transaction History', onClick: () => navigate('/transactions') },
+    { icon: Calendar, label: 'Payment Schedule', onClick: () => navigate('/payment-schedule') },
+    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals'), separator: true },
+    { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+  ];
+
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Simplified Header */}
-      <header className="sticky top-0 z-50 wa-header shadow-sm">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <WelileLogo />
-              <RoleSwitcher
-                currentRole={currentRole} 
-                availableRoles={availableRoles} 
-                onRoleChange={onRoleChange} 
-              />
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <ShareAppButton />
-              <NotificationBell />
-              <ThemeToggle />
-              
-              {/* Menu Button with all actions */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg z-50">
-                  <DropdownMenuItem onClick={() => setShowPayLandlord(true)} className="gap-3 cursor-pointer">
-                    <Home className="h-4 w-4" />
-                    Pay Rent
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="gap-3 cursor-pointer">
-                    <Receipt className="h-4 w-4" />
-                    My Receipts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="gap-3 cursor-pointer">
-                    <Banknote className="h-4 w-4" />
-                    My Loans
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/marketplace')} className="gap-3 cursor-pointer">
-                    <ShoppingBag className="h-4 w-4" />
-                    Marketplace
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/transactions')} className="gap-3 cursor-pointer">
-                    <History className="h-4 w-4" />
-                    Transaction History
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/payment-schedule')} className="gap-3 cursor-pointer">
-                    <Calendar className="h-4 w-4" />
-                    Payment Schedule
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/referrals')} className="gap-3 cursor-pointer">
-                    <Users className="h-4 w-4" />
-                    Referrals
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/benefits')} className="gap-3 cursor-pointer">
-                    <Share2 className="h-4 w-4" />
-                    Share & Earn
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-3 cursor-pointer">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => signOut()} className="gap-3 cursor-pointer text-destructive">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        currentRole={currentRole}
+        availableRoles={availableRoles}
+        onRoleChange={onRoleChange}
+        onSignOut={signOut}
+        menuItems={menuItems}
+      />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
         {/* User Profile Card - Clickable */}

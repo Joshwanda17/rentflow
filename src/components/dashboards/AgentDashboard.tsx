@@ -2,18 +2,9 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import { 
-  MoreVertical, 
   Users, 
   Coins, 
   ArrowDownCircle, 
@@ -22,25 +13,19 @@ import {
   Banknote, 
   Receipt, 
   Share2, 
-  Settings, 
-  LogOut, 
   History,
   TrendingUp,
   ArrowRight,
-  Sparkles,
   Package
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
-import { ThemeToggle } from '@/components/ThemeToggle';
-import WelileLogo from '@/components/WelileLogo';
+import DashboardHeader from '@/components/DashboardHeader';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { NotificationBell } from '@/components/NotificationBell';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
@@ -48,7 +33,6 @@ import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeleton
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
-import { ShareAppButton } from '@/components/ShareAppButton';
 
 interface AgentDashboardProps {
   user: User;
@@ -62,7 +46,7 @@ interface AgentDashboardProps {
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const { totalEarnings, commissionTotal, bonusTotal } = useAgentEarnings();
+  const { totalEarnings } = useAgentEarnings();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -100,87 +84,27 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     await fetchData();
   };
 
+  const menuItems = [
+    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
+    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true) },
+    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
+    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+    { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
+    { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), separator: true },
+    { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
+    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
+    { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+  ];
+
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
-      {/* Simplified Header */}
-      <header className="sticky top-0 z-50 wa-header shadow-sm">
-        <div className="px-4 py-3">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <WelileLogo />
-              <RoleSwitcher
-                currentRole={currentRole} 
-                availableRoles={availableRoles} 
-                onRoleChange={onRoleChange} 
-              />
-            </div>
-            
-            <div className="flex items-center gap-1">
-              <ShareAppButton />
-              <NotificationBell />
-              <ThemeToggle />
-              
-              {/* Menu Button */}
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" className="text-white/90 hover:text-white hover:bg-white/10">
-                    <MoreVertical className="h-5 w-5" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56 bg-background border shadow-lg z-50">
-                  <DropdownMenuItem onClick={() => setDepositOpen(true)} className="gap-3 cursor-pointer">
-                    <ArrowDownCircle className="h-4 w-4" />
-                    Deposit for User
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setWithdrawalOpen(true)} className="gap-3 cursor-pointer">
-                    <ArrowUpCircle className="h-4 w-4" />
-                    Withdraw for User
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/my-receipts')} className="gap-3 cursor-pointer">
-                    <Receipt className="h-4 w-4" />
-                    My Receipts
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/my-loans')} className="gap-3 cursor-pointer">
-                    <Banknote className="h-4 w-4" />
-                    My Loans
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/marketplace')} className="gap-3 cursor-pointer">
-                    <Store className="h-4 w-4" />
-                    My Shop
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/earnings')} className="gap-3 cursor-pointer">
-                    <TrendingUp className="h-4 w-4" />
-                    Earnings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/transactions')} className="gap-3 cursor-pointer">
-                    <History className="h-4 w-4" />
-                    Transactions
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/referrals')} className="gap-3 cursor-pointer">
-                    <Users className="h-4 w-4" />
-                    Referrals
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => navigate('/benefits')} className="gap-3 cursor-pointer">
-                    <Share2 className="h-4 w-4" />
-                    Share & Earn
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={() => navigate('/settings')} className="gap-3 cursor-pointer">
-                    <Settings className="h-4 w-4" />
-                    Settings
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => signOut()} className="gap-3 cursor-pointer text-destructive">
-                    <LogOut className="h-4 w-4" />
-                    Sign Out
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </div>
-      </header>
+      <DashboardHeader
+        currentRole={currentRole}
+        availableRoles={availableRoles}
+        onRoleChange={onRoleChange}
+        onSignOut={signOut}
+        menuItems={menuItems}
+      />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
         {/* User Profile Card - Clickable */}
