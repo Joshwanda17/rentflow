@@ -34,6 +34,7 @@ import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeleton
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
+import { FloatingShareButton } from '@/components/FloatingShareButton';
 
 interface AgentDashboardProps {
   user: User;
@@ -214,6 +215,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
       
+      <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );

@@ -27,6 +27,7 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
+import { FloatingShareButton } from '@/components/FloatingShareButton';
 
 interface TenantDashboardProps {
   user: User;
@@ -188,6 +189,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
       
+      <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );

@@ -38,6 +38,7 @@ import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
 import { SupporterReferralStats } from '@/components/supporter/SupporterReferralStats';
 import { SupporterLeaderboard } from '@/components/supporter/SupporterLeaderboard';
 import { useWallet } from '@/hooks/useWallet';
+import { FloatingShareButton } from '@/components/FloatingShareButton';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -818,6 +819,7 @@ export default function SupporterDashboard({
         }}
       />
       
+      <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );
