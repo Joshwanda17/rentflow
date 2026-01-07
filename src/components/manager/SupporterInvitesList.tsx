@@ -16,9 +16,16 @@ interface SupporterInvite {
   temp_password: string;
   activation_token: string;
   status: string;
+  role: string;
   created_at: string;
   activated_at: string | null;
 }
+
+const roleConfig: Record<string, { label: string; emoji: string; color: string }> = {
+  tenant: { label: 'Tenant', emoji: '🏠', color: 'text-blue-500' },
+  agent: { label: 'Agent', emoji: '💼', color: 'text-amber-500' },
+  supporter: { label: 'Supporter', emoji: '💰', color: 'text-rose-500' },
+};
 
 export function SupporterInvitesList() {
   const { toast } = useToast();
@@ -68,9 +75,10 @@ Password: ${invite.temp_password}`;
   };
 
   const handleShareWhatsApp = (invite: SupporterInvite) => {
-    const message = `🎉 Welcome to Welile, ${invite.full_name}!
+    const roleInfo = roleConfig[invite.role] || roleConfig.supporter;
+    const message = `${roleInfo.emoji} Welcome to Welile, ${invite.full_name}!
 
-You've been invited to become a Tenant Supporter and earn 15% monthly returns!
+You've been invited to join as a ${roleInfo.label}!
 
 🔐 Your password: ${invite.temp_password}
 
@@ -80,7 +88,7 @@ ${getShareLink(invite.activation_token)}
 Just click the link and enter your password to get started!`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
-    toast({ title: 'Opening WhatsApp...', description: 'Share the activation link with the supporter.' });
+    toast({ title: 'Opening WhatsApp...', description: 'Share the activation link with the user.' });
   };
 
   if (loading) {
@@ -89,7 +97,7 @@ Just click the link and enter your password to get started!`;
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Supporter Invites
+            User Invites
           </CardTitle>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -107,12 +115,12 @@ Just click the link and enter your password to get started!`;
         <CardHeader className="pb-3">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Supporter Invites
+            User Invites
           </CardTitle>
         </CardHeader>
         <CardContent>
           <p className="text-sm text-muted-foreground text-center py-4">
-            No supporter invites yet. Create one using the button above!
+            No invites yet. Create one using the button above!
           </p>
         </CardContent>
       </Card>
@@ -139,8 +147,12 @@ Just click the link and enter your password to get started!`;
             className="flex items-center justify-between p-3 rounded-lg border border-border/50 bg-muted/30"
           >
             <div className="flex-1 min-w-0">
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-lg">{(roleConfig[invite.role] || roleConfig.supporter).emoji}</span>
                 <p className="font-medium text-sm truncate">{invite.full_name}</p>
+                <Badge variant="secondary" className="text-xs">
+                  {(roleConfig[invite.role] || roleConfig.supporter).label}
+                </Badge>
                 <Badge 
                   variant="outline" 
                   className={invite.status === 'activated' 
