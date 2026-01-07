@@ -5,8 +5,9 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter, ChevronLeft, ChevronRight, Search } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
 
 interface SupporterInvite {
@@ -34,6 +35,7 @@ export function SupporterInvitesList() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
   const [totalCount, setTotalCount] = useState(0);
   const PAGE_SIZE = 10;
@@ -53,6 +55,10 @@ export function SupporterInvitesList() {
       query = query.eq('role', roleFilter);
     }
 
+    if (searchQuery.trim()) {
+      query = query.or(`full_name.ilike.%${searchQuery.trim()}%,email.ilike.%${searchQuery.trim()}%`);
+    }
+
     const { data, error, count } = await query;
 
     if (error) {
@@ -65,12 +71,15 @@ export function SupporterInvitesList() {
   };
 
   useEffect(() => {
-    fetchInvites();
-  }, [roleFilter, page]);
+    const debounce = setTimeout(() => {
+      fetchInvites();
+    }, searchQuery ? 300 : 0);
+    return () => clearTimeout(debounce);
+  }, [roleFilter, page, searchQuery]);
 
   useEffect(() => {
     setPage(0);
-  }, [roleFilter]);
+  }, [roleFilter, searchQuery]);
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
@@ -176,6 +185,15 @@ Just click the link and enter your password to get started!`;
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="relative">
+          <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by name or email..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-8 h-9 text-sm"
+          />
+        </div>
         <div className="flex gap-3 text-xs">
           <span className="flex items-center gap-1 text-warning">
             <Clock className="h-3 w-3" />
