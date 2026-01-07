@@ -3,6 +3,7 @@ import * as TabsPrimitive from "@radix-ui/react-tabs";
 import { cva, type VariantProps } from "class-variance-authority";
 
 import { cn } from "@/lib/utils";
+import { hapticSelection } from "@/lib/haptics";
 
 const Tabs = TabsPrimitive.Root;
 
@@ -53,13 +54,21 @@ const tabsTriggerVariants = cva(
 const TabsTrigger = React.forwardRef<
   React.ElementRef<typeof TabsPrimitive.Trigger>,
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Trigger> & VariantProps<typeof tabsTriggerVariants>
->(({ className, variant, ...props }, ref) => (
-  <TabsPrimitive.Trigger
-    ref={ref}
-    className={cn(tabsTriggerVariants({ variant }), className)}
-    {...props}
-  />
-));
+>(({ className, variant, onClick, ...props }, ref) => {
+  const handleClick = React.useCallback((e: React.MouseEvent<HTMLButtonElement>) => {
+    hapticSelection();
+    onClick?.(e);
+  }, [onClick]);
+
+  return (
+    <TabsPrimitive.Trigger
+      ref={ref}
+      className={cn(tabsTriggerVariants({ variant }), className)}
+      onClick={handleClick}
+      {...props}
+    />
+  );
+});
 TabsTrigger.displayName = TabsPrimitive.Trigger.displayName;
 
 const TabsContent = React.forwardRef<
