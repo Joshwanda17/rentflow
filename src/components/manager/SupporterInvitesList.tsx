@@ -13,6 +13,7 @@ interface SupporterInvite {
   email: string;
   full_name: string;
   phone: string;
+  temp_password: string;
   activation_token: string;
   status: string;
   created_at: string;
@@ -62,12 +63,15 @@ export function SupporterInvitesList() {
 
 You've been invited to become a Tenant Supporter and earn 15% monthly returns!
 
+🔐 Your password: ${invite.temp_password}
+
 👉 Activate your account here:
 ${getShareLink(invite.activation_token)}
 
 Just click the link and enter your password to get started!`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+    toast({ title: 'Opening WhatsApp...', description: 'Share the activation link with the supporter.' });
   };
 
   if (loading) {
