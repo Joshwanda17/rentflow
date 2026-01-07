@@ -23,6 +23,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
 import { motion } from 'framer-motion';
+import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface Referral {
   id: string;
@@ -151,6 +152,10 @@ export default function Referrals() {
   const pendingFirstTxBonus = referrals
     .filter(r => !r.first_transaction_bonus_credited)
     .length * 200; // Potential earnings from first transactions
+
+  if (loading) {
+    return <ReferralsSkeleton />;
+  }
 
   return (
     <div className="min-h-screen bg-background">

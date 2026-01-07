@@ -18,6 +18,7 @@ import {
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { TransactionReceipt } from '@/components/wallet/TransactionReceipt';
+import { TransactionHistorySkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { toast } from 'sonner';
 import {
   Popover,
@@ -222,12 +223,8 @@ export default function TransactionHistory() {
 
   const hasActiveFilters = searchQuery || startDate || endDate || transactionType !== 'all' || minAmount || maxAmount;
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <div className="animate-pulse text-muted-foreground">Loading...</div>
-      </div>
-    );
+  if (authLoading || loading) {
+    return <TransactionHistorySkeleton />;
   }
 
   return (
