@@ -24,6 +24,7 @@ import { ReferralLeaderboard } from '@/components/ReferralLeaderboard';
 import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
 import { motion } from 'framer-motion';
 import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
+import { PullToRefresh } from '@/components/PullToRefresh';
 
 interface Referral {
   id: string;
@@ -157,8 +158,34 @@ export default function Referrals() {
     return <ReferralsSkeleton />;
   }
 
+  const handleRefresh = async () => {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('referrals')
+      .select('*')
+      .eq('referrer_id', user?.id)
+      .order('created_at', { ascending: false });
+
+    if (!error && data) {
+      const referredIds = data.map(r => r.referred_id);
+      if (referredIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, avatar_url')
+          .in('id', referredIds);
+
+        const referralsWithUsers = data.map(r => ({
+          ...r,
+          referred_user: profiles?.find(p => p.id === r.referred_id)
+        }));
+        setReferrals(referralsWithUsers);
+      }
+    }
+    setLoading(false);
+  };
+
   return (
-    <div className="min-h-screen bg-background">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -365,6 +392,6 @@ export default function Referrals() {
           </Card>
         </motion.div>
       </main>
-    </div>
+    </PullToRefresh>
   );
 }
