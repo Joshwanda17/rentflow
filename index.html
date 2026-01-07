@@ -37,36 +37,58 @@
       html{font-family:system-ui,-apple-system,sans-serif;background:#f8fafc}
       body{min-height:100vh}
       #root{min-height:100vh}
-      .app-loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8fafc 0%,#ede9fe 50%,#f8fafc 100%);z-index:9999;gap:24px;opacity:1;transition:opacity 0.4s ease-out,visibility 0.4s ease-out;overflow:hidden}
+      .app-loader{position:fixed;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;background:linear-gradient(135deg,#f8fafc 0%,#ede9fe 50%,#f8fafc 100%);z-index:9999;gap:24px;opacity:1;transition:opacity 0.5s ease-out,visibility 0.5s ease-out;overflow:hidden}
       .app-loader.fade-out{opacity:0;visibility:hidden}
-      .loader-content{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;gap:24px}
-      .loader-logo{font-family:'Chewy',cursive;font-size:2.5rem;color:#7c3aed;animation:pulse-logo 2s ease-in-out infinite;margin-bottom:-16px}
-      .loader-tagline{font-size:0.875rem;color:#64748b;margin-bottom:8px}
-      .loader-spinner{width:40px;height:40px;border:3px solid rgba(124,58,237,0.2);border-top-color:#7c3aed;border-radius:50%;animation:spin .6s linear infinite}
-      .loader-text{font-size:0.75rem;color:#94a3b8;margin-top:-8px}
+      .app-loader.fade-out .loader-content{transform:scale(1.1);opacity:0}
+      .loader-content{position:relative;z-index:10;display:flex;flex-direction:column;align-items:center;gap:20px;transition:transform 0.5s ease-out,opacity 0.5s ease-out}
+      .loader-logo-container{position:relative;display:flex;align-items:center;justify-content:center}
+      .loader-logo-ring{position:absolute;width:100px;height:100px;border-radius:50%;border:2px solid transparent;border-top-color:#7c3aed;border-right-color:#a78bfa;animation:ring-spin 1.5s linear infinite}
+      .loader-logo-ring:nth-child(2){width:120px;height:120px;border-top-color:#a78bfa;border-right-color:#7c3aed;animation-direction:reverse;animation-duration:2s}
+      .loader-logo-icon{width:64px;height:64px;border-radius:16px;overflow:hidden;box-shadow:0 10px 40px rgba(124,58,237,0.3);animation:logo-bounce 2s ease-in-out infinite}
+      .loader-logo-icon img{width:100%;height:100%;object-fit:cover}
+      .loader-brand{font-family:'Chewy',cursive;font-size:2.5rem;color:#7c3aed;animation:shimmer 2s ease-in-out infinite;background:linear-gradient(90deg,#7c3aed 0%,#a78bfa 50%,#7c3aed 100%);background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+      .loader-tagline{font-size:0.875rem;color:#64748b;opacity:0;animation:fade-up 0.6s ease-out 0.3s forwards}
+      .loader-progress{width:120px;height:3px;background:rgba(124,58,237,0.2);border-radius:3px;overflow:hidden;margin-top:8px}
+      .loader-progress-bar{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:3px;animation:progress 2.5s ease-in-out infinite}
+      .loader-text{font-size:0.75rem;color:#94a3b8;opacity:0;animation:fade-up 0.6s ease-out 0.5s forwards}
       .loader-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
-      .particle{position:absolute;border-radius:50%;opacity:0.4;animation:float 8s ease-in-out infinite}
+      .particle{position:absolute;border-radius:50%;opacity:0;animation:particle-float 8s ease-in-out infinite}
       .particle:nth-child(1){width:80px;height:80px;background:radial-gradient(circle,rgba(124,58,237,0.3),transparent);top:10%;left:10%;animation-delay:0s}
       .particle:nth-child(2){width:120px;height:120px;background:radial-gradient(circle,rgba(167,139,250,0.25),transparent);top:60%;right:10%;animation-delay:-2s}
       .particle:nth-child(3){width:60px;height:60px;background:radial-gradient(circle,rgba(124,58,237,0.2),transparent);bottom:20%;left:20%;animation-delay:-4s}
       .particle:nth-child(4){width:100px;height:100px;background:radial-gradient(circle,rgba(167,139,250,0.2),transparent);top:30%;right:25%;animation-delay:-1s}
       .particle:nth-child(5){width:50px;height:50px;background:radial-gradient(circle,rgba(124,58,237,0.25),transparent);bottom:30%;right:30%;animation-delay:-3s}
       .particle:nth-child(6){width:70px;height:70px;background:radial-gradient(circle,rgba(167,139,250,0.3),transparent);top:50%;left:5%;animation-delay:-5s}
-      @keyframes spin{to{transform:rotate(360deg)}}
-      @keyframes pulse-logo{0%,100%{opacity:1;transform:scale(1)}50%{opacity:0.7;transform:scale(1.05)}}
-      @keyframes float{0%,100%{transform:translateY(0) translateX(0) scale(1)}25%{transform:translateY(-20px) translateX(10px) scale(1.1)}50%{transform:translateY(-10px) translateX(-15px) scale(0.95)}75%{transform:translateY(-25px) translateX(5px) scale(1.05)}}
+      @keyframes ring-spin{to{transform:rotate(360deg)}}
+      @keyframes logo-bounce{0%,100%{transform:translateY(0) scale(1)}50%{transform:translateY(-5px) scale(1.02)}}
+      @keyframes shimmer{0%,100%{background-position:200% 0}50%{background-position:-200% 0}}
+      @keyframes fade-up{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+      @keyframes progress{0%{width:0%}50%{width:100%}100%{width:0%}}
+      @keyframes particle-float{0%{opacity:0;transform:translateY(20px) scale(0.8)}10%{opacity:0.4}50%{transform:translateY(-20px) translateX(-10px) scale(1.1)}90%{opacity:0.4}100%{opacity:0;transform:translateY(20px) translateX(10px) scale(0.8)}}
       @media(prefers-color-scheme:dark){
         html{background:#0f172a}
         .app-loader{background:linear-gradient(135deg,#0f172a 0%,#1e1b4b 50%,#0f172a 100%)}
-        .loader-logo{color:#a78bfa}
-        .loader-spinner{border-color:rgba(167,139,250,0.2);border-top-color:#a78bfa}
+        .loader-brand{background:linear-gradient(90deg,#a78bfa 0%,#c4b5fd 50%,#a78bfa 100%);background-size:200% 100%;-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+        .loader-logo-ring{border-top-color:#a78bfa;border-right-color:#7c3aed}
+        .loader-logo-ring:nth-child(2){border-top-color:#7c3aed;border-right-color:#a78bfa}
+        .loader-logo-icon{box-shadow:0 10px 40px rgba(167,139,250,0.3)}
+        .loader-progress{background:rgba(167,139,250,0.2)}
+        .loader-progress-bar{background:linear-gradient(90deg,#a78bfa,#c4b5fd)}
         .loader-text{color:#94a3b8}
+        .loader-tagline{color:#94a3b8}
         .particle:nth-child(1){background:radial-gradient(circle,rgba(167,139,250,0.3),transparent)}
         .particle:nth-child(2){background:radial-gradient(circle,rgba(124,58,237,0.25),transparent)}
         .particle:nth-child(3){background:radial-gradient(circle,rgba(167,139,250,0.2),transparent)}
         .particle:nth-child(4){background:radial-gradient(circle,rgba(124,58,237,0.2),transparent)}
         .particle:nth-child(5){background:radial-gradient(circle,rgba(167,139,250,0.25),transparent)}
         .particle:nth-child(6){background:radial-gradient(circle,rgba(124,58,237,0.3),transparent)}
+      }
+      /* PWA standalone mode - extended splash */
+      @media(display-mode:standalone){
+        .loader-logo-icon{width:80px;height:80px;border-radius:20px}
+        .loader-logo-ring{width:120px;height:120px}
+        .loader-logo-ring:nth-child(2){width:144px;height:144px}
+        .loader-brand{font-size:3rem}
       }
     </style>
   </head>
@@ -84,10 +106,19 @@
           <div class="particle"></div>
         </div>
         <div class="loader-content">
-          <div class="loader-logo">Welile</div>
+          <div class="loader-logo-container">
+            <div class="loader-logo-ring"></div>
+            <div class="loader-logo-ring"></div>
+            <div class="loader-logo-icon">
+              <img src="/welile-logo.png" alt="Welile" />
+            </div>
+          </div>
+          <div class="loader-brand">Welile</div>
           <div class="loader-tagline">Rent Facilitation Platform</div>
-          <div class="loader-spinner"></div>
-          <div class="loader-text">Loading...</div>
+          <div class="loader-progress">
+            <div class="loader-progress-bar"></div>
+          </div>
+          <div class="loader-text">Loading your experience...</div>
         </div>
       </div>
     </div>
