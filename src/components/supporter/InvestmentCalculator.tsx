@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -7,13 +7,13 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight, Save, Trash2, Layers, X } from 'lucide-react';
 import welileLogo from '@/assets/welile-logo.png';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, BarChart, Bar } from 'recharts';
 
 const ROI_RATE = 0.15; // 15% per month
 
@@ -25,6 +25,28 @@ interface MonthlyProjection {
   balance: number;
 }
 
+interface SavedScenario {
+  id: string;
+  name: string;
+  desiredEarnings: number;
+  duration: number;
+  isCompounding: boolean;
+  requiredInvestment: number;
+  totalEarnings: number;
+  finalBalance: number;
+  color: string;
+  createdAt: Date;
+}
+
+const SCENARIO_COLORS = [
+  'hsl(var(--primary))',
+  'hsl(var(--success))',
+  'hsl(var(--warning))',
+  'hsl(142, 76%, 36%)',
+  'hsl(280, 65%, 60%)',
+  'hsl(200, 80%, 50%)',
+];
+
 export function InvestmentCalculator() {
   const [desiredEarnings, setDesiredEarnings] = useState(150000);
   const [duration, setDuration] = useState(12);
@@ -32,7 +54,33 @@ export function InvestmentCalculator() {
   const [showComparison, setShowComparison] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
+  const [showSavedScenarios, setShowSavedScenarios] = useState(false);
+  const [scenarioName, setScenarioName] = useState('');
   const projectionRef = useRef<HTMLDivElement>(null);
+
+  // Load saved scenarios from localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('welile-investment-scenarios');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setSavedScenarios(parsed.map((s: SavedScenario) => ({
+          ...s,
+          createdAt: new Date(s.createdAt)
+        })));
+      } catch (e) {
+        console.error('Failed to load saved scenarios', e);
+      }
+    }
+  }, []);
+
+  // Save scenarios to localStorage
+  useEffect(() => {
+    if (savedScenarios.length > 0) {
+      localStorage.setItem('welile-investment-scenarios', JSON.stringify(savedScenarios));
+    }
+  }, [savedScenarios]);
 
   const calculations = useMemo(() => {
     const requiredInvestment = Math.ceil(desiredEarnings / ROI_RATE);
@@ -106,6 +154,104 @@ export function InvestmentCalculator() {
 
     return data;
   }, [calculations.requiredInvestment, duration]);
+
+  // Generate comparison data for saved scenarios
+  const scenarioComparisonData = useMemo(() => {
+    if (savedScenarios.length === 0) return [];
+    
+    const maxDuration = Math.max(...savedScenarios.map(s => s.duration), duration);
+    const data = [];
+    
+    for (let month = 0; month <= maxDuration; month++) {
+      const point: Record<string, number> = { month };
+      
+      // Current scenario
+      if (month <= duration) {
+        let currentBalance = calculations.requiredInvestment;
+        let totalEarnings = 0;
+        for (let m = 1; m <= month; m++) {
+          const earnings = currentBalance * ROI_RATE;
+          totalEarnings += earnings;
+          if (isCompounding) currentBalance += earnings;
+        }
+        point['current'] = totalEarnings;
+      }
+      
+      // Saved scenarios
+      savedScenarios.forEach(scenario => {
+        if (month <= scenario.duration) {
+          let currentBalance = scenario.requiredInvestment;
+          let totalEarnings = 0;
+          for (let m = 1; m <= month; m++) {
+            const earnings = currentBalance * ROI_RATE;
+            totalEarnings += earnings;
+            if (scenario.isCompounding) currentBalance += earnings;
+          }
+          point[scenario.id] = totalEarnings;
+        }
+      });
+      
+      data.push(point);
+    }
+    
+    return data;
+  }, [savedScenarios, calculations.requiredInvestment, duration, isCompounding]);
+
+  const handleSaveScenario = () => {
+    if (savedScenarios.length >= 5) {
+      toast({
+        title: "Maximum Scenarios Reached",
+        description: "You can save up to 5 scenarios. Delete one to add more.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const finalProjection = projections[projections.length - 1];
+    const newScenario: SavedScenario = {
+      id: `scenario-${Date.now()}`,
+      name: scenarioName || `Scenario ${savedScenarios.length + 1}`,
+      desiredEarnings,
+      duration,
+      isCompounding,
+      requiredInvestment: calculations.requiredInvestment,
+      totalEarnings: finalProjection?.totalEarnings || 0,
+      finalBalance: finalProjection?.balance || 0,
+      color: SCENARIO_COLORS[savedScenarios.length % SCENARIO_COLORS.length],
+      createdAt: new Date(),
+    };
+    
+    setSavedScenarios(prev => [...prev, newScenario]);
+    setScenarioName('');
+    toast({
+      title: "Scenario Saved",
+      description: `"${newScenario.name}" has been saved for comparison.`,
+    });
+  };
+
+  const handleDeleteScenario = (id: string) => {
+    setSavedScenarios(prev => {
+      const updated = prev.filter(s => s.id !== id);
+      if (updated.length === 0) {
+        localStorage.removeItem('welile-investment-scenarios');
+      }
+      return updated;
+    });
+    toast({
+      title: "Scenario Deleted",
+      description: "The scenario has been removed.",
+    });
+  };
+
+  const handleLoadScenario = (scenario: SavedScenario) => {
+    setDesiredEarnings(scenario.desiredEarnings);
+    setDuration(scenario.duration);
+    setIsCompounding(scenario.isCompounding);
+    toast({
+      title: "Scenario Loaded",
+      description: `"${scenario.name}" settings have been applied.`,
+    });
+  };
 
   const handleExportPDF = async () => {
     if (!projectionRef.current) return;
@@ -434,7 +580,241 @@ export function InvestmentCalculator() {
                 <Share2 className="h-4 w-4" />
                 📊 Share Monthly Breakdown on WhatsApp
               </Button>
+              
+              {/* Save Scenario Section */}
+              <div className="flex flex-col sm:flex-row gap-2 mt-2">
+                <Input
+                  placeholder="Name this scenario..."
+                  value={scenarioName}
+                  onChange={(e) => setScenarioName(e.target.value)}
+                  className="flex-1"
+                />
+                <Button
+                  onClick={handleSaveScenario}
+                  variant="outline"
+                  className="gap-2 border-warning/50 text-warning hover:bg-warning/10"
+                >
+                  <Save className="h-4 w-4" />
+                  Save Scenario
+                </Button>
+              </div>
+              
+              {savedScenarios.length > 0 && (
+                <Button
+                  onClick={() => setShowSavedScenarios(!showSavedScenarios)}
+                  variant="ghost"
+                  className="gap-2"
+                >
+                  <Layers className="h-4 w-4" />
+                  {showSavedScenarios ? 'Hide' : 'Show'} Saved Scenarios ({savedScenarios.length})
+                  <ChevronDown className={`h-4 w-4 transition-transform ${showSavedScenarios ? 'rotate-180' : ''}`} />
+                </Button>
+              )}
             </div>
+            
+            {/* Saved Scenarios Comparison */}
+            <AnimatePresence>
+              {showSavedScenarios && savedScenarios.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: 'auto' }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="overflow-hidden"
+                >
+                  <div className="space-y-4 pt-4 border-t border-border/50 mt-4">
+                    <h3 className="font-bold text-lg flex items-center gap-2 justify-center">
+                      <Layers className="h-5 w-5 text-primary" />
+                      Compare Scenarios
+                    </h3>
+                    
+                    {/* Scenarios Cards - Side by Side */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                      {/* Current Scenario */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="p-4 rounded-xl border-2 border-primary bg-primary/5"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <span className="font-bold text-primary text-sm">📍 Current</span>
+                          <span className="text-[10px] px-2 py-0.5 rounded-full bg-primary/20 text-primary">Active</span>
+                        </div>
+                        <div className="space-y-2 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Investment:</span>
+                            <span className="font-semibold">{formatUGX(calculations.requiredInvestment)}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Duration:</span>
+                            <span className="font-semibold">{duration} months</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Compounding:</span>
+                            <span className="font-semibold">{isCompounding ? '✓ Yes' : '✗ No'}</span>
+                          </div>
+                          <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
+                            <span className="text-muted-foreground">Total Earnings:</span>
+                            <span className="font-bold text-success">{formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}</span>
+                          </div>
+                        </div>
+                      </motion.div>
+                      
+                      {/* Saved Scenarios */}
+                      {savedScenarios.map((scenario, index) => (
+                        <motion.div
+                          key={scenario.id}
+                          initial={{ opacity: 0, y: 10 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: index * 0.1 }}
+                          className="p-4 rounded-xl border border-border bg-muted/30 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center justify-between mb-3">
+                            <span className="font-bold text-sm truncate max-w-[120px]" style={{ color: scenario.color }}>
+                              {scenario.name}
+                            </span>
+                            <div className="flex gap-1">
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6"
+                                onClick={() => handleLoadScenario(scenario)}
+                              >
+                                <RefreshCw className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                className="h-6 w-6 text-destructive hover:text-destructive"
+                                onClick={() => handleDeleteScenario(scenario.id)}
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Investment:</span>
+                              <span className="font-semibold">{formatUGX(scenario.requiredInvestment)}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Duration:</span>
+                              <span className="font-semibold">{scenario.duration} months</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Compounding:</span>
+                              <span className="font-semibold">{scenario.isCompounding ? '✓ Yes' : '✗ No'}</span>
+                            </div>
+                            <div className="flex justify-between border-t border-border/50 pt-2 mt-2">
+                              <span className="text-muted-foreground">Total Earnings:</span>
+                              <span className="font-bold text-success">{formatUGX(scenario.totalEarnings)}</span>
+                            </div>
+                          </div>
+                        </motion.div>
+                      ))}
+                    </div>
+                    
+                    {/* Comparison Chart */}
+                    {savedScenarios.length > 0 && (
+                      <div className="mt-6 p-4 rounded-xl bg-muted/30 border border-border">
+                        <h4 className="font-semibold mb-4 flex items-center gap-2">
+                          <BarChart3 className="h-4 w-4 text-primary" />
+                          Earnings Comparison Over Time
+                        </h4>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <AreaChart data={scenarioComparisonData}>
+                              <defs>
+                                <linearGradient id="currentGradient" x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                                </linearGradient>
+                                {savedScenarios.map((scenario, index) => (
+                                  <linearGradient key={scenario.id} id={`gradient-${scenario.id}`} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="5%" stopColor={scenario.color} stopOpacity={0.4} />
+                                    <stop offset="95%" stopColor={scenario.color} stopOpacity={0.05} />
+                                  </linearGradient>
+                                ))}
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                              <XAxis 
+                                dataKey="month" 
+                                tick={{ fontSize: 10 }}
+                                tickFormatter={(value) => `M${value}`}
+                              />
+                              <YAxis 
+                                tick={{ fontSize: 10 }}
+                                tickFormatter={(value) => {
+                                  if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+                                  if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                                  if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                                  return value.toString();
+                                }}
+                              />
+                              <Tooltip 
+                                content={({ active, payload, label }) => {
+                                  if (active && payload && payload.length) {
+                                    return (
+                                      <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
+                                        <p className="font-semibold mb-2">Month {label}</p>
+                                        {payload.map((entry, index) => (
+                                          <p key={index} className="text-sm" style={{ color: entry.color }}>
+                                            {entry.name}: {formatUGX(entry.value as number)}
+                                          </p>
+                                        ))}
+                                      </div>
+                                    );
+                                  }
+                                  return null;
+                                }}
+                              />
+                              <Legend wrapperStyle={{ fontSize: '11px' }} />
+                              <Area
+                                type="monotone"
+                                dataKey="current"
+                                name="📍 Current"
+                                stroke="hsl(var(--primary))"
+                                strokeWidth={2}
+                                fill="url(#currentGradient)"
+                              />
+                              {savedScenarios.map((scenario) => (
+                                <Area
+                                  key={scenario.id}
+                                  type="monotone"
+                                  dataKey={scenario.id}
+                                  name={scenario.name}
+                                  stroke={scenario.color}
+                                  strokeWidth={2}
+                                  fill={`url(#gradient-${scenario.id})`}
+                                />
+                              ))}
+                            </AreaChart>
+                          </ResponsiveContainer>
+                        </div>
+                        
+                        {/* Summary Bar Chart */}
+                        <div className="mt-4 pt-4 border-t border-border/50">
+                          <h5 className="text-sm font-medium mb-3 text-center">Total Earnings Comparison</h5>
+                          <div className="flex flex-wrap gap-2 justify-center">
+                            <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-primary/10 border border-primary/30">
+                              <div className="w-3 h-3 rounded-full bg-primary" />
+                              <span className="text-xs font-medium">Current:</span>
+                              <span className="text-sm font-bold text-primary">{formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}</span>
+                            </div>
+                            {savedScenarios.map((scenario) => (
+                              <div key={scenario.id} className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted border border-border">
+                                <div className="w-3 h-3 rounded-full" style={{ backgroundColor: scenario.color }} />
+                                <span className="text-xs font-medium truncate max-w-[80px]">{scenario.name}:</span>
+                                <span className="text-sm font-bold" style={{ color: scenario.color }}>{formatUGX(scenario.totalEarnings)}</span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </CardContent>
         </Card>
       </div>
