@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList } from 'lucide-react';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 
 interface SupporterInvite {
@@ -32,14 +33,21 @@ export function SupporterInvitesList() {
   const [invites, setInvites] = useState<SupporterInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [roleFilter, setRoleFilter] = useState<string>('all');
 
   const fetchInvites = async () => {
     setLoading(true);
-    const { data, error } = await supabase
+    let query = supabase
       .from('supporter_invites')
       .select('*')
       .order('created_at', { ascending: false })
-      .limit(10);
+      .limit(50);
+
+    if (roleFilter !== 'all') {
+      query = query.eq('role', roleFilter);
+    }
+
+    const { data, error } = await query;
 
     if (error) {
       console.error('Error fetching invites:', error);
@@ -51,7 +59,7 @@ export function SupporterInvitesList() {
 
   useEffect(() => {
     fetchInvites();
-  }, []);
+  }, [roleFilter]);
 
   const getShareLink = (token: string) => {
     return `${window.location.origin}/activate-supporter?token=${token}`;
@@ -130,14 +138,28 @@ Just click the link and enter your password to get started!`;
   return (
     <Card>
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between gap-2 flex-wrap">
           <CardTitle className="text-base flex items-center gap-2">
             <Users className="h-4 w-4" />
-            Supporter Invites
+            User Invites
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={fetchInvites}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-2">
+            <Select value={roleFilter} onValueChange={setRoleFilter}>
+              <SelectTrigger className="w-[120px] h-8 text-xs">
+                <Filter className="h-3 w-3 mr-1" />
+                <SelectValue placeholder="Filter" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">All Roles</SelectItem>
+                <SelectItem value="tenant">🏠 Tenant</SelectItem>
+                <SelectItem value="agent">💼 Agent</SelectItem>
+                <SelectItem value="supporter">💰 Supporter</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={fetchInvites}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
