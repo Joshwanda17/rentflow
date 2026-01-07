@@ -34,6 +34,7 @@ import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
+import { FloatingShareButton } from '@/components/FloatingShareButton';
 
 interface ManagerDashboardProps {
   user: User;
@@ -277,6 +278,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       {/* Floating Deposits Widget */}
       <FloatingDepositsWidget />
       
+      <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
       
       {/* Floating Action Button */}

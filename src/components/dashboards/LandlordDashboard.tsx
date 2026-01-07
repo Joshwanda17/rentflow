@@ -26,6 +26,7 @@ import { LandlordDashboardSkeleton } from '@/components/skeletons/DashboardSkele
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
+import { FloatingShareButton } from '@/components/FloatingShareButton';
 
 interface LandlordDashboardProps {
   user: User;
@@ -157,6 +158,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         <FoodShoppingLoansSection />
       </main>
       
+      <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );
