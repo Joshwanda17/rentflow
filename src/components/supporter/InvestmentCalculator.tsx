@@ -1,4 +1,5 @@
 import { useState, useMemo, useRef } from 'react';
+import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -6,7 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Users, Clock } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight } from 'lucide-react';
 import welileLogo from '@/assets/welile-logo.png';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -696,9 +697,23 @@ export function InvestmentCalculator() {
                 This projection is for illustrative purposes. Returns are based on a 15% monthly ROI model. 
                 By investing with Welile, you are participating in a business that supports tenants to access rent financing.
               </p>
-              <p className="text-[10px] text-muted-foreground mt-1">
-                <strong>Contact Welile</strong> for more information about becoming a Supporter.
-              </p>
+              
+              {/* CTA Button */}
+              <div className="pt-4">
+                <Link to="/become-supporter">
+                  <Button 
+                    size="lg" 
+                    className="w-full sm:w-auto gap-2 bg-gradient-to-r from-success to-emerald-600 hover:from-success/90 hover:to-emerald-600/90 text-white font-bold shadow-lg hover:shadow-xl transition-all"
+                  >
+                    <Sparkles className="h-5 w-5" />
+                    Become a Supporter Today
+                    <ArrowRight className="h-5 w-5" />
+                  </Button>
+                </Link>
+                <p className="text-[10px] text-muted-foreground mt-2">
+                  Start earning 15% monthly returns by supporting tenants
+                </p>
+              </div>
             </div>
           </div>
         </div>
