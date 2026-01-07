@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter } from 'lucide-react';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { formatDistanceToNow } from 'date-fns';
 
@@ -34,32 +34,45 @@ export function SupporterInvitesList() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>('all');
+  const [page, setPage] = useState(0);
+  const [totalCount, setTotalCount] = useState(0);
+  const PAGE_SIZE = 10;
 
   const fetchInvites = async () => {
     setLoading(true);
+    const from = page * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
+
     let query = supabase
       .from('supporter_invites')
-      .select('*')
+      .select('*', { count: 'exact' })
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(from, to);
 
     if (roleFilter !== 'all') {
       query = query.eq('role', roleFilter);
     }
 
-    const { data, error } = await query;
+    const { data, error, count } = await query;
 
     if (error) {
       console.error('Error fetching invites:', error);
     } else {
       setInvites(data || []);
+      setTotalCount(count || 0);
     }
     setLoading(false);
   };
 
   useEffect(() => {
     fetchInvites();
+  }, [roleFilter, page]);
+
+  useEffect(() => {
+    setPage(0);
   }, [roleFilter]);
+
+  const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const getShareLink = (token: string) => {
     return `${window.location.origin}/activate-supporter?token=${token}`;
@@ -246,6 +259,34 @@ Just click the link and enter your password to get started!`;
             )}
           </div>
         ))}
+        
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between pt-2 border-t">
+            <span className="text-xs text-muted-foreground">
+              Page {page + 1} of {totalPages} ({totalCount} total)
+            </span>
+            <div className="flex gap-1">
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage(p => Math.max(0, p - 1))}
+                disabled={page === 0}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="outline"
+                size="icon"
+                className="h-7 w-7"
+                onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
+                disabled={page >= totalPages - 1}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+          </div>
+        )}
       </CardContent>
     </Card>
   );
