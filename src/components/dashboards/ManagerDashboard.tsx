@@ -18,7 +18,8 @@ import {
   ChartBar,
   Package,
   Award,
-  Wallet
+  Wallet,
+  Download
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -103,6 +104,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     { icon: Wallet, label: 'Investment Accounts', onClick: () => navigate('/manager-access?tab=investments') },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
   return (
