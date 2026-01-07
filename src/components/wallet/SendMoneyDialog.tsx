@@ -13,6 +13,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { useWallet } from '@/hooks/useWallet';
+import { useFirstTransactionCelebration } from '@/hooks/useFirstTransactionCelebration';
+import { useConfetti } from '@/components/Confetti';
 import { toast } from 'sonner';
 import { Loader2, Send, Phone, Coins, FileText, CheckCircle, Sparkles } from 'lucide-react';
 
@@ -41,11 +43,14 @@ const itemVariants = {
 
 export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
   const { sendMoney, wallet } = useWallet();
+  const { triggerCelebration, markCelebrated } = useFirstTransactionCelebration();
+  const { fireSuccess } = useConfetti();
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [isFirstTx, setIsFirstTx] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -74,6 +79,21 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
     }
 
     setSuccess(true);
+    
+    // Check if this was the first transaction and trigger celebration
+    setTimeout(async () => {
+      const celebrated = localStorage.getItem(`welile_first_tx_celebrated_${wallet?.user_id}`);
+      if (!celebrated) {
+        // This might be their first transaction - fire confetti!
+        fireSuccess();
+        setIsFirstTx(true);
+        localStorage.setItem(`welile_first_tx_celebrated_${wallet?.user_id}`, 'true');
+        toast.success('🎉 Congratulations on your first transaction!', {
+          duration: 4000,
+        });
+      }
+    }, 300);
+    
     toast.success(`Successfully sent ${formatCurrency(amountNum)}`);
     
     setTimeout(() => {
@@ -81,8 +101,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setAmount('');
       setDescription('');
       setSuccess(false);
+      setIsFirstTx(false);
       onOpenChange(false);
-    }, 1500);
+    }, isFirstTx ? 3000 : 1500);
   };
 
   const handleClose = (value: boolean) => {
@@ -91,6 +112,7 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
       setAmount('');
       setDescription('');
       setSuccess(false);
+      setIsFirstTx(false);
     }
     onOpenChange(value);
   };
@@ -113,9 +135,9 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-20 h-20 rounded-full bg-success/20 flex items-center justify-center mb-4"
+                className={`w-20 h-20 rounded-full flex items-center justify-center mb-4 ${isFirstTx ? 'bg-gradient-to-br from-success/30 to-primary/30' : 'bg-success/20'}`}
               >
-                <CheckCircle className="h-10 w-10 text-success" />
+                <CheckCircle className={`h-10 w-10 ${isFirstTx ? 'text-primary' : 'text-success'}`} />
               </motion.div>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
@@ -123,15 +145,18 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
                 transition={{ delay: 0.2 }}
                 className="text-lg font-semibold"
               >
-                Money Sent!
+                {isFirstTx ? '🎉 First Transaction!' : 'Money Sent!'}
               </motion.p>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="text-muted-foreground text-sm"
+                className="text-muted-foreground text-sm text-center"
               >
-                {formatCurrency(parseFloat(amount))} transferred successfully
+                {isFirstTx 
+                  ? `Welcome to Welile! ${formatCurrency(parseFloat(amount))} sent successfully.`
+                  : `${formatCurrency(parseFloat(amount))} transferred successfully`
+                }
               </motion.p>
             </motion.div>
           ) : (
