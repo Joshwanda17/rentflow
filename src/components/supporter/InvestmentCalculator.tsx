@@ -5,11 +5,12 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { Calculator, TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 
 const ROI_RATE = 0.15; // 15% per month
 
@@ -358,6 +359,93 @@ export function InvestmentCalculator() {
               <p className="text-xs text-muted-foreground mb-1">Compounding</p>
               <p className="font-bold text-warning">{isCompounding ? 'Yes' : 'No'}</p>
             </div>
+          </div>
+        </div>
+
+        {/* Growth Chart */}
+        <div className="p-4 sm:p-6 border-b border-border">
+          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
+            <BarChart3 className="h-5 w-5 text-primary" />
+            Investment Growth Over Time
+          </h3>
+          <div className="h-64 sm:h-80">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart
+                data={[
+                  { month: 0, balance: calculations.requiredInvestment, earnings: 0 },
+                  ...projections.map(p => ({
+                    month: p.month,
+                    balance: p.balance,
+                    earnings: p.totalEarnings,
+                  }))
+                ]}
+                margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+              >
+                <defs>
+                  <linearGradient id="balanceGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
+                  </linearGradient>
+                  <linearGradient id="earningsGradient" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="hsl(var(--success))" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="hsl(var(--success))" stopOpacity={0.05} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" className="stroke-border" />
+                <XAxis 
+                  dataKey="month" 
+                  tick={{ fontSize: 12 }}
+                  tickFormatter={(value) => `M${value}`}
+                  className="text-muted-foreground"
+                />
+                <YAxis 
+                  tick={{ fontSize: 10 }}
+                  tickFormatter={(value) => {
+                    if (value >= 1000000000) return `${(value / 1000000000).toFixed(1)}B`;
+                    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
+                    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
+                    return value.toString();
+                  }}
+                  className="text-muted-foreground"
+                />
+                <Tooltip 
+                  content={({ active, payload, label }) => {
+                    if (active && payload && payload.length) {
+                      return (
+                        <div className="bg-background/95 backdrop-blur-sm border border-border rounded-lg p-3 shadow-lg">
+                          <p className="font-semibold mb-2">Month {label}</p>
+                          {payload.map((entry, index) => (
+                            <p key={index} className="text-sm" style={{ color: entry.color }}>
+                              {entry.name}: {formatUGX(entry.value as number)}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    }
+                    return null;
+                  }}
+                />
+                <Legend 
+                  wrapperStyle={{ fontSize: '12px' }}
+                />
+                <Area
+                  type="monotone"
+                  dataKey="balance"
+                  name="Total Balance"
+                  stroke="hsl(var(--primary))"
+                  strokeWidth={2}
+                  fill="url(#balanceGradient)"
+                />
+                <Area
+                  type="monotone"
+                  dataKey="earnings"
+                  name="Total Earnings"
+                  stroke="hsl(var(--success))"
+                  strokeWidth={2}
+                  fill="url(#earningsGradient)"
+                />
+              </AreaChart>
+            </ResponsiveContainer>
           </div>
         </div>
 
