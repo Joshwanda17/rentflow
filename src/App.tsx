@@ -43,6 +43,7 @@ const Referrals = lazy(() => import('./pages/Referrals'));
 const ManagerAccess = lazy(() => import('./pages/ManagerAccess'));
 const BecomeSupporter = lazy(() => import('./pages/BecomeSupporter'));
 const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
+const Install = lazy(() => import('./pages/Install'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -133,6 +134,7 @@ function AnimatedRoutes() {
             <Route path="/become-supporter" element={<BecomeSupporter />} />
             <Route path="/vendor-portal" element={<VendorPortal />} />
             <Route path="/deposits-management" element={<DepositsManagement />} />
+            <Route path="/install" element={<Install />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
