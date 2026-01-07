@@ -3,7 +3,8 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
@@ -67,42 +68,77 @@ const PageLoader = memo(() => (
 ));
 PageLoader.displayName = 'PageLoader';
 
-// Simple routes without animation overhead
-const AppRoutes = memo(function AppRoutes() {
+// Page transition variants
+const pageVariants = {
+  initial: {
+    opacity: 0,
+    y: 8,
+  },
+  animate: {
+    opacity: 1,
+    y: 0,
+  },
+  exit: {
+    opacity: 0,
+    y: -8,
+  },
+};
+
+const pageTransition = {
+  duration: 0.2,
+  ease: [0.25, 0.46, 0.45, 0.94] as const,
+};
+
+// Animated routes wrapper
+function AnimatedRoutes() {
+  const location = useLocation();
+  
   return (
-    <Suspense fallback={<PageLoader />}>
-      <Routes>
-        <Route path="/" element={<Index />} />
-        <Route path="/auth" element={<Auth />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/select-role" element={<SelectRole />} />
-        <Route path="/transactions" element={<TransactionHistory />} />
-        <Route path="/settings" element={<Settings />} />
-        <Route path="/earnings" element={<AgentEarnings />} />
-        <Route path="/update-password" element={<UpdatePassword />} />
-        <Route path="/orders" element={<OrderHistory />} />
-        <Route path="/wishlist" element={<Wishlist />} />
-        <Route path="/analytics" element={<AgentAnalytics />} />
-        <Route path="/flash-sales" element={<FlashSales />} />
-        <Route path="/marketplace" element={<Marketplace />} />
-        <Route path="/categories" element={<Categories />} />
-        <Route path="/seller/:sellerId" element={<SellerProfile />} />
-        <Route path="/my-receipts" element={<MyReceipts />} />
-        <Route path="/my-loans" element={<MyLoans />} />
-        <Route path="/payment-schedule" element={<PaymentSchedule />} />
-        <Route path="/pay-landlord" element={<PayLandlord />} />
-        <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
-        <Route path="/benefits" element={<Benefits />} />
-        <Route path="/referrals" element={<Referrals />} />
-        <Route path="/manager-access" element={<ManagerAccess />} />
-        <Route path="/become-supporter" element={<BecomeSupporter />} />
-        <Route path="/vendor-portal" element={<VendorPortal />} />
-        <Route path="/deposits-management" element={<DepositsManagement />} />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+    <AnimatePresence mode="wait" initial={false}>
+      <motion.div
+        key={location.pathname}
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={pageVariants}
+        transition={pageTransition}
+        className="min-h-screen"
+      >
+        <Suspense fallback={<PageLoader />}>
+          <Routes location={location}>
+            <Route path="/" element={<Index />} />
+            <Route path="/auth" element={<Auth />} />
+            <Route path="/dashboard" element={<Dashboard />} />
+            <Route path="/select-role" element={<SelectRole />} />
+            <Route path="/transactions" element={<TransactionHistory />} />
+            <Route path="/settings" element={<Settings />} />
+            <Route path="/earnings" element={<AgentEarnings />} />
+            <Route path="/update-password" element={<UpdatePassword />} />
+            <Route path="/orders" element={<OrderHistory />} />
+            <Route path="/wishlist" element={<Wishlist />} />
+            <Route path="/analytics" element={<AgentAnalytics />} />
+            <Route path="/flash-sales" element={<FlashSales />} />
+            <Route path="/marketplace" element={<Marketplace />} />
+            <Route path="/categories" element={<Categories />} />
+            <Route path="/seller/:sellerId" element={<SellerProfile />} />
+            <Route path="/my-receipts" element={<MyReceipts />} />
+            <Route path="/my-loans" element={<MyLoans />} />
+            <Route path="/payment-schedule" element={<PaymentSchedule />} />
+            <Route path="/pay-landlord" element={<PayLandlord />} />
+            <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
+            <Route path="/benefits" element={<Benefits />} />
+            <Route path="/referrals" element={<Referrals />} />
+            <Route path="/manager-access" element={<ManagerAccess />} />
+            <Route path="/become-supporter" element={<BecomeSupporter />} />
+            <Route path="/vendor-portal" element={<VendorPortal />} />
+            <Route path="/deposits-management" element={<DepositsManagement />} />
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Suspense>
+      </motion.div>
+    </AnimatePresence>
   );
-});
+}
 
 const App = () => (
   <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
@@ -118,7 +154,7 @@ const App = () => (
                       <ConnectionStatus />
                       <Toaster />
                       <Sonner />
-                      <AppRoutes />
+                      <AnimatedRoutes />
                     </TooltipProvider>
                   </ComparisonProvider>
                 </CartProvider>
