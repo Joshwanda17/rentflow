@@ -163,6 +163,16 @@ Just click the link and enter your password to get started!`;
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
+        <div className="flex gap-3 text-xs">
+          <span className="flex items-center gap-1 text-warning">
+            <Clock className="h-3 w-3" />
+            {invites.filter(i => i.status === 'pending').length} pending
+          </span>
+          <span className="flex items-center gap-1 text-success">
+            <CheckCircle className="h-3 w-3" />
+            {invites.filter(i => i.status === 'activated').length} activated
+          </span>
+        </div>
         {invites.map(invite => (
           <div 
             key={invite.id} 
