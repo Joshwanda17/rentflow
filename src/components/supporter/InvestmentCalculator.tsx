@@ -287,6 +287,62 @@ export function InvestmentCalculator() {
     }
   };
 
+  const handleShareComparisonWhatsApp = () => {
+    if (savedScenarios.length === 0) {
+      toast({
+        title: "No Scenarios to Share",
+        description: "Save at least one scenario to share a comparison.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    const currentEarnings = projections[projections.length - 1]?.totalEarnings || 0;
+    
+    let message = `📊 *WELILE SCENARIO COMPARISON*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `Compare ${savedScenarios.length + 1} investment scenarios:\n\n`;
+    
+    // Current scenario
+    message += `📍 *CURRENT SCENARIO*\n`;
+    message += `💰 Investment: ${formatUGX(calculations.requiredInvestment)}\n`;
+    message += `⏱️ Duration: ${duration} months\n`;
+    message += `🔄 Compounding: ${isCompounding ? 'Yes' : 'No'}\n`;
+    message += `✨ Total Earnings: ${formatUGX(currentEarnings)}\n\n`;
+    
+    // Saved scenarios
+    savedScenarios.forEach((scenario, index) => {
+      message += `${index + 1}️⃣ *${scenario.name.toUpperCase()}*\n`;
+      message += `💰 Investment: ${formatUGX(scenario.requiredInvestment)}\n`;
+      message += `⏱️ Duration: ${scenario.duration} months\n`;
+      message += `🔄 Compounding: ${scenario.isCompounding ? 'Yes' : 'No'}\n`;
+      message += `✨ Total Earnings: ${formatUGX(scenario.totalEarnings)}\n\n`;
+    });
+    
+    // Find best scenario
+    const allScenarios = [
+      { name: 'Current', earnings: currentEarnings },
+      ...savedScenarios.map(s => ({ name: s.name, earnings: s.totalEarnings }))
+    ];
+    const bestScenario = allScenarios.reduce((best, current) => 
+      current.earnings > best.earnings ? current : best
+    );
+    
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `🏆 *BEST OPTION: ${bestScenario.name}*\n`;
+    message += `💵 Highest Earnings: ${formatUGX(bestScenario.earnings)}\n\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `✅ *WHY INVEST WITH WELILE?*\n`;
+    message += `• 15% Monthly ROI\n`;
+    message += `• Support tenants to access rent\n`;
+    message += `• Guaranteed rent collection\n`;
+    message += `• 90-day withdrawal notice\n\n`;
+    message += `🚀 Start earning today with Welile!`;
+    
+    const encodedMessage = encodeURIComponent(message);
+    window.open(`https://wa.me/?text=${encodedMessage}`, '_blank');
+  };
+
   const handleExportPDF = async () => {
     if (!projectionRef.current) return;
     
@@ -894,8 +950,8 @@ export function InvestmentCalculator() {
                       </div>
                     )}
                     
-                    {/* Export Comparison Button */}
-                    <div className="flex justify-center pt-4">
+                    {/* Export & Share Comparison Buttons */}
+                    <div className="flex flex-col sm:flex-row gap-3 justify-center pt-4">
                       <Button
                         onClick={handleExportComparisonPDF}
                         disabled={isExportingComparison}
@@ -903,6 +959,14 @@ export function InvestmentCalculator() {
                       >
                         <Download className="h-4 w-4" />
                         {isExportingComparison ? 'Generating PDF...' : 'Download Comparison PDF'}
+                      </Button>
+                      <Button
+                        onClick={handleShareComparisonWhatsApp}
+                        variant="outline"
+                        className="gap-2 border-success/50 text-success hover:bg-success/10"
+                      >
+                        <Share2 className="h-4 w-4" />
+                        Share Comparison on WhatsApp
                       </Button>
                     </div>
                   </div>
