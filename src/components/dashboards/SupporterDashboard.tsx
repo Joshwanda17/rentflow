@@ -458,7 +458,7 @@ export default function SupporterDashboard({
         <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
-              <WelileLogo showText={false} />
+              <WelileLogo />
               <motion.div 
                 className="relative"
                 whileHover={{ scale: 1.05 }}
