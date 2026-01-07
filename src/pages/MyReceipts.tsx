@@ -23,6 +23,7 @@ import { QRScanner } from '@/components/receipts/QRScanner';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useConfetti } from '@/components/Confetti';
 import { motion, AnimatePresence } from 'framer-motion';
+import { ReceiptsSkeleton } from '@/components/skeletons/DashboardSkeletons';
 
 interface UserReceipt {
   id: string;
@@ -276,19 +277,7 @@ export default function MyReceipts() {
   };
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="relative">
-            <div className="w-16 h-16 rounded-2xl bg-primary/10 flex items-center justify-center mx-auto mb-4">
-              <Receipt className="h-8 w-8 text-primary animate-pulse" />
-            </div>
-            <Loader2 className="h-5 w-5 animate-spin text-primary absolute -bottom-1 -right-1" />
-          </div>
-          <p className="text-sm text-muted-foreground mt-4">Loading your receipts...</p>
-        </div>
-      </div>
-    );
+    return <ReceiptsSkeleton />;
   }
 
   const verifiedReceipts = receipts.filter(r => r.verified);

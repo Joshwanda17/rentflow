@@ -12,6 +12,7 @@ import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { ArrowLeft, Wallet, Clock, CheckCircle, AlertCircle, History, Loader2, Banknote, Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { LoansSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import {
   Dialog,
   DialogContent,
@@ -174,11 +175,7 @@ export default function MyLoans() {
   const totalLateFees = lateFees.filter(f => !f.paid).reduce((sum, f) => sum + Number(f.fee_amount), 0);
 
   if (authLoading || loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-background">
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-      </div>
-    );
+    return <LoansSkeleton />;
   }
 
   return (
