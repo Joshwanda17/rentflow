@@ -57,7 +57,9 @@ export function InvestmentCalculator() {
   const [savedScenarios, setSavedScenarios] = useState<SavedScenario[]>([]);
   const [showSavedScenarios, setShowSavedScenarios] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
+  const [isExportingComparison, setIsExportingComparison] = useState(false);
   const projectionRef = useRef<HTMLDivElement>(null);
+  const comparisonRef = useRef<HTMLDivElement>(null);
 
   // Load saved scenarios from localStorage
   useEffect(() => {
@@ -251,6 +253,38 @@ export function InvestmentCalculator() {
       title: "Scenario Loaded",
       description: `"${scenario.name}" settings have been applied.`,
     });
+  };
+
+  const handleExportComparisonPDF = async () => {
+    if (!comparisonRef.current || savedScenarios.length === 0) {
+      toast({
+        title: "No Scenarios to Export",
+        description: "Save at least one scenario to export a comparison.",
+        variant: "destructive",
+      });
+      return;
+    }
+    
+    setIsExportingComparison(true);
+    try {
+      await exportToPDF(
+        comparisonRef.current,
+        `Welile_Scenario_Comparison_${savedScenarios.length + 1}scenarios`,
+        'Investment Scenarios Comparison'
+      );
+      toast({
+        title: "Comparison PDF Downloaded",
+        description: "Your scenario comparison has been saved as PDF.",
+      });
+    } catch (error) {
+      toast({
+        title: "Export Failed",
+        description: "Could not generate PDF. Please try again.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsExportingComparison(false);
+    }
   };
 
   const handleExportPDF = async () => {
@@ -621,7 +655,24 @@ export function InvestmentCalculator() {
                   exit={{ opacity: 0, height: 0 }}
                   className="overflow-hidden"
                 >
-                  <div className="space-y-4 pt-4 border-t border-border/50 mt-4">
+                  <div ref={comparisonRef} className="space-y-4 pt-4 border-t border-border/50 mt-4 bg-background">
+                    {/* PDF Header for Comparison Export */}
+                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-primary/10 via-violet-500/10 to-primary/10 rounded-xl">
+                      <div className="flex items-center gap-3">
+                        <div className="p-2 rounded-xl bg-gradient-to-br from-primary to-violet-600 shadow-lg">
+                          <img src={welileLogo} alt="Welile" className="h-8 w-8 object-contain" />
+                        </div>
+                        <div>
+                          <h2 className="text-lg font-bold text-primary" style={{ fontFamily: "'Chewy', cursive" }}>Welile</h2>
+                          <p className="text-[10px] text-muted-foreground">Scenario Comparison</p>
+                        </div>
+                      </div>
+                      <div className="text-right text-xs text-muted-foreground">
+                        <p className="font-semibold text-foreground">{savedScenarios.length + 1} Scenarios</p>
+                        <p>{new Date().toLocaleDateString()}</p>
+                      </div>
+                    </div>
+                    
                     <h3 className="font-bold text-lg flex items-center gap-2 justify-center">
                       <Layers className="h-5 w-5 text-primary" />
                       Compare Scenarios
@@ -809,8 +860,56 @@ export function InvestmentCalculator() {
                             ))}
                           </div>
                         </div>
+                        
+                        {/* Footer for PDF */}
+                        <div className="mt-6 p-4 rounded-xl bg-gradient-to-br from-primary/5 via-muted/30 to-success/5 border border-border/50">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 mb-4">
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-background/50">
+                              <div className="p-1 rounded-full bg-success/20">
+                                <TrendingUp className="h-3 w-3 text-success" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold text-foreground">Earn by Supporting Tenants</p>
+                                <p className="text-[8px] text-muted-foreground">Your investment helps tenants access rent.</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-background/50">
+                              <div className="p-1 rounded-full bg-primary/20">
+                                <Shield className="h-3 w-3 text-primary" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold text-foreground">Guaranteed Collection</p>
+                                <p className="text-[8px] text-muted-foreground">Welile guarantees rent collection.</p>
+                              </div>
+                            </div>
+                            <div className="flex items-start gap-2 p-2 rounded-lg bg-background/50">
+                              <div className="p-1 rounded-full bg-warning/20">
+                                <Clock className="h-3 w-3 text-warning" />
+                              </div>
+                              <div>
+                                <p className="text-[10px] font-semibold text-foreground">90-Day Withdrawal Notice</p>
+                                <p className="text-[8px] text-muted-foreground">Withdraw with 90 days notice.</p>
+                              </div>
+                            </div>
+                          </div>
+                          <p className="text-[9px] text-muted-foreground text-center">
+                            This comparison is for illustrative purposes. Returns are based on a 15% monthly ROI model.
+                          </p>
+                        </div>
                       </div>
                     )}
+                    
+                    {/* Export Comparison Button */}
+                    <div className="flex justify-center pt-4">
+                      <Button
+                        onClick={handleExportComparisonPDF}
+                        disabled={isExportingComparison}
+                        className="gap-2 bg-gradient-to-r from-primary to-violet-600 hover:from-primary/90 hover:to-violet-600/90"
+                      >
+                        <Download className="h-4 w-4" />
+                        {isExportingComparison ? 'Generating PDF...' : 'Download Comparison PDF'}
+                      </Button>
+                    </div>
                   </div>
                 </motion.div>
               )}
