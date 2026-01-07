@@ -13,6 +13,7 @@ import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
+import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 
 // Lazy load all routes
 const Index = lazy(() => import("./pages/Index"));
@@ -152,6 +153,7 @@ const App = () => (
                   <ComparisonProvider>
                     <TooltipProvider delayDuration={300}>
                       <ConnectionStatus />
+                      <PWAInstallPrompt />
                       <Toaster />
                       <Sonner />
                       <AnimatedRoutes />

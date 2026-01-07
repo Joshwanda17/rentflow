@@ -67,9 +67,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
       setRoles(userRoles);
-      // Set first role as active if no role is currently set
+      // Prioritize supporter role as default, otherwise use first role
       if (!role || !userRoles.includes(role)) {
-        setRole(userRoles[0]);
+        const defaultRole = userRoles.includes('supporter') ? 'supporter' : userRoles[0];
+        setRole(defaultRole);
       }
     } else {
       setRoles([]);
