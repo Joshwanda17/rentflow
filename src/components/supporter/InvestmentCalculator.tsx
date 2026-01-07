@@ -5,7 +5,8 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare } from 'lucide-react';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
@@ -27,6 +28,7 @@ export function InvestmentCalculator() {
   const [duration, setDuration] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
   const [showComparison, setShowComparison] = useState(false);
+  const [showBreakdown, setShowBreakdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const projectionRef = useRef<HTMLDivElement>(null);
 
@@ -560,49 +562,61 @@ export function InvestmentCalculator() {
           )}
         </div>
 
-        {/* Monthly Breakdown Table */}
-        <div className="p-4 sm:p-6">
-          <h3 className="font-bold text-lg mb-4 flex items-center gap-2">
-            <Coins className="h-5 w-5 text-warning" />
-            Monthly Breakdown
-          </h3>
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border">
-                  <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Month</th>
-                  <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Principal</th>
-                  <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Earnings</th>
-                  <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Total Earnings</th>
-                  <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Balance</th>
-                </tr>
-              </thead>
-              <tbody>
-                {projections.map((row, index) => (
-                  <tr 
-                    key={row.month} 
-                    className={`border-b border-border/50 ${index % 2 === 0 ? 'bg-muted/20' : ''}`}
-                  >
-                    <td className="py-3 px-2 font-medium">Month {row.month}</td>
-                    <td className="py-3 px-2 text-right">{formatUGX(row.principal)}</td>
-                    <td className="py-3 px-2 text-right text-success font-medium">+{formatUGX(row.earnings)}</td>
-                    <td className="py-3 px-2 text-right text-primary font-medium">{formatUGX(row.totalEarnings)}</td>
-                    <td className="py-3 px-2 text-right font-bold">{formatUGX(row.balance)}</td>
-                  </tr>
-                ))}
-              </tbody>
-              <tfoot>
-                <tr className="bg-success/10 font-bold">
-                  <td className="py-3 px-2">Total</td>
-                  <td className="py-3 px-2 text-right">-</td>
-                  <td className="py-3 px-2 text-right text-success">-</td>
-                  <td className="py-3 px-2 text-right text-success">{formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}</td>
-                  <td className="py-3 px-2 text-right">{formatUGX(projections[projections.length - 1]?.balance || 0)}</td>
-                </tr>
-              </tfoot>
-            </table>
+        {/* Monthly Breakdown Table - Collapsible */}
+        <Collapsible open={showBreakdown} onOpenChange={setShowBreakdown}>
+          <div className="p-4 sm:p-6">
+            <CollapsibleTrigger asChild>
+              <Button 
+                variant="outline" 
+                className="w-full justify-between gap-2 h-12 text-left"
+              >
+                <div className="flex items-center gap-2">
+                  <Coins className="h-5 w-5 text-warning" />
+                  <span className="font-bold">View Monthly Breakdown</span>
+                </div>
+                <ChevronDown className={`h-5 w-5 transition-transform duration-200 ${showBreakdown ? 'rotate-180' : ''}`} />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent className="mt-4">
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-border">
+                      <th className="text-left py-3 px-2 font-semibold text-muted-foreground">Month</th>
+                      <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Principal</th>
+                      <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Earnings</th>
+                      <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Total Earnings</th>
+                      <th className="text-right py-3 px-2 font-semibold text-muted-foreground">Balance</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {projections.map((row, index) => (
+                      <tr 
+                        key={row.month} 
+                        className={`border-b border-border/50 ${index % 2 === 0 ? 'bg-muted/20' : ''}`}
+                      >
+                        <td className="py-3 px-2 font-medium">Month {row.month}</td>
+                        <td className="py-3 px-2 text-right">{formatUGX(row.principal)}</td>
+                        <td className="py-3 px-2 text-right text-success font-medium">+{formatUGX(row.earnings)}</td>
+                        <td className="py-3 px-2 text-right text-primary font-medium">{formatUGX(row.totalEarnings)}</td>
+                        <td className="py-3 px-2 text-right font-bold">{formatUGX(row.balance)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr className="bg-success/10 font-bold">
+                      <td className="py-3 px-2">Total</td>
+                      <td className="py-3 px-2 text-right">-</td>
+                      <td className="py-3 px-2 text-right text-success">-</td>
+                      <td className="py-3 px-2 text-right text-success">{formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}</td>
+                      <td className="py-3 px-2 text-right">{formatUGX(projections[projections.length - 1]?.balance || 0)}</td>
+                    </tr>
+                  </tfoot>
+                </table>
+              </div>
+            </CollapsibleContent>
           </div>
-        </div>
+        </Collapsible>
 
         {/* Footer */}
         <div className="p-4 sm:p-6 border-t border-border bg-muted/30 text-center">
