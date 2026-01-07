@@ -11,7 +11,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
-import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from 'recharts';
+import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine } from 'recharts';
 
 const ROI_RATE = 0.15; // 15% per month
 
@@ -497,6 +497,44 @@ export function InvestmentCalculator() {
                 <Legend 
                   wrapperStyle={{ fontSize: '12px' }}
                 />
+                {/* Milestone Reference Lines */}
+                {[1000000, 5000000, 10000000, 50000000, 100000000, 500000000, 1000000000].map((milestone) => {
+                  const maxValue = showComparison 
+                    ? Math.max(
+                        comparisonData[comparisonData.length - 1]?.compoundingEarnings || 0,
+                        comparisonData[comparisonData.length - 1]?.simpleEarnings || 0
+                      )
+                    : Math.max(
+                        projections[projections.length - 1]?.balance || 0,
+                        projections[projections.length - 1]?.totalEarnings || 0
+                      );
+                  
+                  // Only show milestones that are within the chart's range
+                  if (milestone > maxValue * 1.2 || milestone < calculations.requiredInvestment * 0.5) return null;
+                  
+                  const label = milestone >= 1000000000 
+                    ? `${(milestone / 1000000000).toFixed(0)}B` 
+                    : milestone >= 1000000 
+                      ? `${(milestone / 1000000).toFixed(0)}M` 
+                      : `${(milestone / 1000).toFixed(0)}K`;
+                  
+                  return (
+                    <ReferenceLine
+                      key={milestone}
+                      y={milestone}
+                      stroke="hsl(var(--muted-foreground))"
+                      strokeDasharray="5 5"
+                      strokeOpacity={0.6}
+                      label={{
+                        value: `🎯 ${label}`,
+                        position: 'right',
+                        fill: 'hsl(var(--muted-foreground))',
+                        fontSize: 10,
+                        fontWeight: 'bold',
+                      }}
+                    />
+                  );
+                })}
                 {showComparison ? (
                   <>
                     <Area
