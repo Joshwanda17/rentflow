@@ -30,6 +30,7 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import WelileLogo from '@/components/WelileLogo';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { useProfile } from '@/hooks/useProfile';
@@ -91,9 +92,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl text-white drop-shadow-lg" style={{ fontFamily: "'Chewy', cursive" }}>
-                Welile
-              </h1>
+              <WelileLogo showText={false} />
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 

@@ -32,6 +32,7 @@ import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import { ThemeToggle } from '@/components/ThemeToggle';
+import WelileLogo from '@/components/WelileLogo';
 import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
@@ -122,9 +123,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         <div className="px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
-              <h1 className="text-2xl text-white drop-shadow-lg" style={{ fontFamily: "'Chewy', cursive" }}>
-                Welile
-              </h1>
+              <WelileLogo showText={false} />
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 
