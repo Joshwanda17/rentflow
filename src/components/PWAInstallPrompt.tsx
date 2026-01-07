@@ -66,12 +66,12 @@ export default function PWAInstallPrompt() {
 
             <div className="relative flex items-start gap-4">
               {/* App icon */}
-              <div className="flex-shrink-0 w-14 h-14 rounded-xl bg-primary flex items-center justify-center shadow-lg">
-                <span className="text-white font-bold text-xl" style={{ fontFamily: 'Chewy, cursive' }}>W</span>
+              <div className="flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden shadow-lg">
+                <img src="/welile-logo.png" alt="Welile" className="w-full h-full object-cover" />
               </div>
 
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-foreground mb-1">Install Welile</h3>
+                <h3 className="font-semibold text-foreground mb-1">Install Welile.com</h3>
                 <p className="text-sm text-muted-foreground mb-3">
                   {isIOS 
                     ? 'Tap Share then "Add to Home Screen"'

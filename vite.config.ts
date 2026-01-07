@@ -15,10 +15,10 @@ export default defineConfig(({ mode }) => ({
     mode === "development" && componentTagger(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.png', 'welile-logo.png'],
+      includeAssets: ['welile-logo.png', 'favicon.png'],
       manifest: {
-        name: 'Welile - Rent Facilitation',
-        short_name: 'Welile',
+        name: 'Welile.com',
+        short_name: 'Welile.com',
         description: "Africa's leading rent facilitation platform",
         start_url: '/dashboard',
         display: 'standalone',
@@ -27,13 +27,13 @@ export default defineConfig(({ mode }) => ({
         orientation: 'portrait-primary',
         icons: [
           {
-            src: '/favicon.png',
+            src: '/welile-logo.png',
             sizes: '192x192',
             type: 'image/png',
             purpose: 'any maskable'
           },
           {
-            src: '/favicon.png',
+            src: '/welile-logo.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
