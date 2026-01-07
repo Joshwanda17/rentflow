@@ -458,6 +458,7 @@ export default function SupporterDashboard({
         <div className="container mx-auto px-2 sm:px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2 sm:gap-3">
+              <WelileLogo showText={false} />
               <motion.div 
                 className="relative"
                 whileHover={{ scale: 1.05 }}
@@ -465,9 +466,6 @@ export default function SupporterDashboard({
                 <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="sm" />
                 <div className="absolute -bottom-0.5 -right-0.5 w-2.5 sm:w-3 h-2.5 sm:h-3 bg-success rounded-full border-2 border-background animate-pulse" />
               </motion.div>
-              <div className="hidden sm:block">
-                <WelileLogo showText={false} />
-              </div>
               <RoleSwitcher
                 currentRole={currentRole} 
                 availableRoles={availableRoles} 
