@@ -1331,6 +1331,48 @@ export type Database = {
           },
         ]
       }
+      supporter_invites: {
+        Row: {
+          activated_at: string | null
+          activated_user_id: string | null
+          activation_token: string
+          created_at: string
+          created_by: string
+          email: string
+          full_name: string
+          id: string
+          phone: string
+          status: string
+          temp_password: string
+        }
+        Insert: {
+          activated_at?: string | null
+          activated_user_id?: string | null
+          activation_token?: string
+          created_at?: string
+          created_by: string
+          email: string
+          full_name: string
+          id?: string
+          phone: string
+          status?: string
+          temp_password: string
+        }
+        Update: {
+          activated_at?: string | null
+          activated_user_id?: string | null
+          activation_token?: string
+          created_at?: string
+          created_by?: string
+          email?: string
+          full_name?: string
+          id?: string
+          phone?: string
+          status?: string
+          temp_password?: string
+        }
+        Relationships: []
+      }
       supporter_referrals: {
         Row: {
           bonus_amount: number | null

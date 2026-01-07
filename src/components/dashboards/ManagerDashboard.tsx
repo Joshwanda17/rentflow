@@ -4,6 +4,7 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   Users, 
   FileText, 
@@ -19,7 +20,8 @@ import {
   Package,
   Award,
   Wallet,
-  Download
+  Download,
+  UserPlus
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -35,6 +37,7 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import { CreateSupporterDialog } from '@/components/manager/CreateSupporterDialog';
 
 interface ManagerDashboardProps {
   user: User;
@@ -49,6 +52,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const navigate = useNavigate();
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
+  const [createSupporterOpen, setCreateSupporterOpen] = useState(false);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalFacilitated, setTotalFacilitated] = useState(0);
@@ -232,6 +236,25 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </div>
         </button>
 
+        {/* Create Supporter Button */}
+        <Button 
+          onClick={() => setCreateSupporterOpen(true)}
+          className="w-full h-auto p-5 rounded-2xl bg-gradient-to-r from-primary to-primary/80 text-primary-foreground hover:opacity-90 shadow-lg"
+        >
+          <div className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20">
+                <UserPlus className="h-7 w-7" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-lg">Sign Up Supporter</p>
+                <p className="text-sm opacity-90">Create & share activation link</p>
+              </div>
+            </div>
+            <ArrowRight className="h-6 w-6" />
+          </div>
+        </Button>
+
         {/* Quick Actions Grid */}
         <div className="grid grid-cols-3 gap-3">
           <button 
@@ -310,6 +333,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             onClick: () => navigate('/manager-access?tab=receipts'),
           },
         ]}
+      />
+      
+      <CreateSupporterDialog 
+        open={createSupporterOpen} 
+        onOpenChange={setCreateSupporterOpen} 
       />
     </div>
   );
