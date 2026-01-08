@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 export interface MessageReaction {
   emoji: string;
@@ -382,6 +383,7 @@ export function useConversation(conversationId: string | null) {
 
     if (error) {
       console.error('Failed to send message:', error);
+      toast.error(error.message || 'Failed to send message');
       return false;
     }
 
