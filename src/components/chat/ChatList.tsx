@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useChat } from '@/hooks/useChat';
+import { usePresenceContext } from '@/hooks/usePresence';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -8,6 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { MessageCircle, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import UsersList from './UsersList';
+import OnlineIndicator from './OnlineIndicator';
 
 interface ChatListProps {
   onSelectConversation: (conversationId: string) => void;
@@ -16,6 +18,7 @@ interface ChatListProps {
 
 export default function ChatList({ onSelectConversation, selectedId }: ChatListProps) {
   const { conversations, loading } = useChat();
+  const { isOnline } = usePresenceContext();
   const [activeTab, setActiveTab] = useState<string>('chats');
 
   const getInitials = (name: string) => {
@@ -89,10 +92,16 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
                     <AvatarImage src={participant.avatar_url || undefined} />
                     <AvatarFallback>{getInitials(participant.full_name)}</AvatarFallback>
                   </Avatar>
-                  {conv.unread_count > 0 && (
+                  {conv.unread_count > 0 ? (
                     <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-primary text-primary-foreground text-xs flex items-center justify-center font-bold">
                       {conv.unread_count > 9 ? '9+' : conv.unread_count}
                     </div>
+                  ) : (
+                    <OnlineIndicator 
+                      isOnline={isOnline(participant.user_id)} 
+                      size="md"
+                      className="absolute bottom-0 right-0"
+                    />
                   )}
                 </div>
                 

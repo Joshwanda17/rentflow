@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useConversation, Message } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
+import { usePresenceContext } from '@/hooks/usePresence';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
+import OnlineIndicator from './OnlineIndicator';
 
 interface ChatWindowProps {
   conversationId: string;
@@ -18,6 +20,7 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
   const { user } = useAuth();
+  const { isOnline } = usePresenceContext();
   const { 
     messages, 
     loading, 
@@ -194,13 +197,23 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
         )}
         {otherParticipant && (
           <>
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={otherParticipant.avatar_url || undefined} />
-              <AvatarFallback>{getInitials(otherParticipant.full_name)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar className="h-10 w-10">
+                <AvatarImage src={otherParticipant.avatar_url || undefined} />
+                <AvatarFallback>{getInitials(otherParticipant.full_name)}</AvatarFallback>
+              </Avatar>
+              <OnlineIndicator 
+                isOnline={isOnline(otherParticipant.user_id)} 
+                size="md"
+                className="absolute bottom-0 right-0"
+              />
+            </div>
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-semibold">{otherParticipant.full_name}</span>
+                {isOnline(otherParticipant.user_id) && (
+                  <span className="text-xs text-success font-medium">Online</span>
+                )}
               </div>
               <div className="flex gap-1 flex-wrap">
                 {otherParticipant.roles.map(role => (
