@@ -8,6 +8,7 @@ export interface Message {
   sender_id: string;
   content: string;
   created_at: string;
+  read_at: string | null;
   sender?: {
     full_name: string;
     avatar_url: string | null;
@@ -293,12 +294,24 @@ export function useConversation(conversationId: string | null) {
       }
     }
 
-    // Mark as read
+    // Mark as read (both participant timestamp and individual messages)
     await supabase
       .from('conversation_participants')
       .update({ last_read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
       .eq('user_id', user.id);
+
+    // Mark individual messages as read
+    const unreadMessageIds = messagesData
+      ?.filter(m => m.sender_id !== user.id && !m.read_at)
+      .map(m => m.id) || [];
+    
+    if (unreadMessageIds.length > 0) {
+      await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .in('id', unreadMessageIds);
+    }
 
     setLoading(false);
   }, [conversationId, user]);
@@ -322,7 +335,37 @@ export function useConversation(conversationId: string | null) {
     return true;
   };
 
-  // Real-time subscription
+  // Mark a specific message as read
+  const markMessageAsRead = async (messageId: string) => {
+    if (!user) return;
+    
+    await supabase
+      .from('messages')
+      .update({ read_at: new Date().toISOString() })
+      .eq('id', messageId)
+      .is('read_at', null);
+  };
+
+  // Mark all unread messages from others as read
+  const markAllAsRead = useCallback(async () => {
+    if (!conversationId || !user) return;
+    
+    const { data: unreadMessages } = await supabase
+      .from('messages')
+      .select('id')
+      .eq('conversation_id', conversationId)
+      .neq('sender_id', user.id)
+      .is('read_at', null);
+    
+    if (unreadMessages && unreadMessages.length > 0) {
+      await supabase
+        .from('messages')
+        .update({ read_at: new Date().toISOString() })
+        .in('id', unreadMessages.map(m => m.id));
+    }
+  }, [conversationId, user]);
+
+  // Real-time subscription for new messages and updates
   useEffect(() => {
     if (!conversationId || !user) return;
 
@@ -360,12 +403,28 @@ export function useConversation(conversationId: string | null) {
 
           // Mark as read if not sender
           if (newMessage.sender_id !== user.id) {
+            await markMessageAsRead(newMessage.id);
             await supabase
               .from('conversation_participants')
               .update({ last_read_at: new Date().toISOString() })
               .eq('conversation_id', conversationId)
               .eq('user_id', user.id);
           }
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          const updatedMessage = payload.new as Message;
+          setMessages(prev => prev.map(m => 
+            m.id === updatedMessage.id ? { ...m, read_at: updatedMessage.read_at } : m
+          ));
         }
       )
       .subscribe();
@@ -440,6 +499,7 @@ export function useConversation(conversationId: string | null) {
     sendMessage,
     fetchMessages,
     handleTyping,
-    typingUsers
+    typingUsers,
+    markAllAsRead
   };
 }

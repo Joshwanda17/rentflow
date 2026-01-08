@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
 
 interface ChatWindowProps {
@@ -214,9 +214,20 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                           >
                             <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
                           </div>
-                          <p className={`text-[10px] text-muted-foreground mt-1 ${isOwn ? 'text-right' : ''}`}>
-                            {formatMessageDate(msg.created_at)}
-                          </p>
+                          <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+                            <p className="text-[10px] text-muted-foreground">
+                              {formatMessageDate(msg.created_at)}
+                            </p>
+                            {isOwn && (
+                              <span className="text-muted-foreground">
+                                {msg.read_at ? (
+                                  <CheckCheck className="h-3.5 w-3.5 text-primary" />
+                                ) : (
+                                  <Check className="h-3.5 w-3.5" />
+                                )}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
