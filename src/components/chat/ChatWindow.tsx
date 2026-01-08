@@ -12,6 +12,7 @@ import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X } from 'lucide-re
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import OnlineIndicator from './OnlineIndicator';
+import MessageReactions from './MessageReactions';
 
 interface ChatWindowProps {
   conversationId: string;
@@ -30,7 +31,8 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
     typingUsers,
     editMessage,
     deleteMessage,
-    canEditMessage
+    canEditMessage,
+    fetchMessages
   } = useConversation(conversationId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
@@ -313,7 +315,15 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                             </div>
                           )}
                           
-                          <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
+                          {/* Reactions */}
+                          <MessageReactions
+                            messageId={msg.id}
+                            reactions={msg.reactions || []}
+                            isOwn={isOwn}
+                            onReactionChange={fetchMessages}
+                          />
+                          
+                          <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
                             <p className="text-[10px] text-muted-foreground">
                               {formatMessageDate(msg.created_at)}
                             </p>

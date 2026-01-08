@@ -2,6 +2,13 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
+export interface MessageReaction {
+  emoji: string;
+  count: number;
+  users: string[];
+  hasReacted: boolean;
+}
+
 export interface Message {
   id: string;
   conversation_id: string;
@@ -14,6 +21,7 @@ export interface Message {
     avatar_url: string | null;
     roles: string[];
   };
+  reactions?: MessageReaction[];
 }
 
 export interface Conversation {
@@ -230,6 +238,48 @@ export function useConversation(conversationId: string | null) {
     roles: string[];
   } | null>(null);
 
+  const fetchReactionsForMessages = useCallback(async (messageIds: string[]): Promise<Map<string, MessageReaction[]>> => {
+    if (!user || messageIds.length === 0) return new Map();
+
+    const { data: reactionsData } = await supabase
+      .from('message_reactions')
+      .select('message_id, user_id, emoji')
+      .in('message_id', messageIds);
+
+    const reactionsMap = new Map<string, MessageReaction[]>();
+
+    if (reactionsData) {
+      // Group by message_id and emoji
+      const grouped = new Map<string, Map<string, string[]>>();
+      
+      reactionsData.forEach(r => {
+        if (!grouped.has(r.message_id)) {
+          grouped.set(r.message_id, new Map());
+        }
+        const emojiMap = grouped.get(r.message_id)!;
+        if (!emojiMap.has(r.emoji)) {
+          emojiMap.set(r.emoji, []);
+        }
+        emojiMap.get(r.emoji)!.push(r.user_id);
+      });
+
+      grouped.forEach((emojiMap, messageId) => {
+        const reactions: MessageReaction[] = [];
+        emojiMap.forEach((users, emoji) => {
+          reactions.push({
+            emoji,
+            count: users.length,
+            users,
+            hasReacted: users.includes(user.id)
+          });
+        });
+        reactionsMap.set(messageId, reactions);
+      });
+    }
+
+    return reactionsMap;
+  }, [user]);
+
   const fetchMessages = useCallback(async () => {
     if (!conversationId || !user) return;
 
@@ -245,10 +295,12 @@ export function useConversation(conversationId: string | null) {
     if (messagesData) {
       // Get sender info
       const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+      const messageIds = messagesData.map(m => m.id);
       
-      const [profilesRes, rolesRes] = await Promise.all([
+      const [profilesRes, rolesRes, reactionsMap] = await Promise.all([
         supabase.from('profiles').select('id, full_name, avatar_url').in('id', senderIds),
-        supabase.from('user_roles').select('user_id, role').in('user_id', senderIds)
+        supabase.from('user_roles').select('user_id, role').in('user_id', senderIds),
+        fetchReactionsForMessages(messageIds)
       ]);
 
       const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
@@ -264,7 +316,8 @@ export function useConversation(conversationId: string | null) {
           full_name: profilesMap.get(m.sender_id)?.full_name || 'Unknown',
           avatar_url: profilesMap.get(m.sender_id)?.avatar_url || null,
           roles: rolesMap.get(m.sender_id) || []
-        }
+        },
+        reactions: reactionsMap.get(m.id) || []
       }));
 
       setMessages(messagesWithSenders);
@@ -487,10 +540,35 @@ export function useConversation(conversationId: string | null) {
       )
       .subscribe();
 
+    // Reactions channel for real-time updates
+    const messageIds = messages.map(m => m.id);
+    const reactionsChannel = supabase
+      .channel(`reactions-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'message_reactions'
+        },
+        async (payload) => {
+          // Refresh reactions when any change happens
+          const messageId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
+          if (messageId) {
+            const reactionsMap = await fetchReactionsForMessages([messageId]);
+            setMessages(prev => prev.map(m => 
+              m.id === messageId ? { ...m, reactions: reactionsMap.get(messageId) || [] } : m
+            ));
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(reactionsChannel);
     };
-  }, [conversationId, user, fetchMessages]);
+  }, [conversationId, user, fetchMessages, fetchReactionsForMessages]);
 
   // Typing indicator state
   const [isTyping, setIsTyping] = useState(false);
