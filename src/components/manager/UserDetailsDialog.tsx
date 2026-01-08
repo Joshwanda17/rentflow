@@ -842,6 +842,34 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                           </p>
                         </div>
                       </div>
+                      
+                      {/* Money Flow Progress Bar */}
+                      {(activitySummary.moneyIn > 0 || activitySummary.moneyOut > 0) && (
+                        <div className="mt-3">
+                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
+                            <span>
+                              {Math.round((activitySummary.moneyIn / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100)}% In
+                            </span>
+                            <span>
+                              {Math.round((activitySummary.moneyOut / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100)}% Out
+                            </span>
+                          </div>
+                          <div className="h-2 rounded-full bg-muted overflow-hidden flex">
+                            <div 
+                              className="h-full bg-success transition-all duration-300"
+                              style={{ 
+                                width: `${(activitySummary.moneyIn / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100}%` 
+                              }}
+                            />
+                            <div 
+                              className="h-full bg-destructive transition-all duration-300"
+                              style={{ 
+                                width: `${(activitySummary.moneyOut / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100}%` 
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
                     </Card>
                   </>
                 )}
