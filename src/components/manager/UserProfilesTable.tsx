@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -23,9 +23,12 @@ interface UserWithRating {
   roles: string[];
   average_rating: number | null;
   rating_count: number;
+  created_at: string;
 }
 
 type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
+type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low';
+
 
 export default function UserProfilesTable() {
   const [users, setUsers] = useState<UserWithRating[]>([]);
@@ -34,6 +37,8 @@ export default function UserProfilesTable() {
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [showSortMenu, setShowSortMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
@@ -46,7 +51,7 @@ export default function UserProfilesTable() {
     // Fetch profiles
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent')
+      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -86,7 +91,8 @@ export default function UserProfilesTable() {
         ...p,
         roles: userRoles,
         average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
-        rating_count: ratingInfo?.count || 0
+        rating_count: ratingInfo?.count || 0,
+        created_at: p.created_at
       };
     });
 
@@ -104,7 +110,28 @@ export default function UserProfilesTable() {
     await fetchUsers();
   }, []);
 
-  const filteredUsers = users.filter(u => {
+  const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
+    return [...usersToSort].sort((a, b) => {
+      switch (sortBy) {
+        case 'newest':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'oldest':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        case 'name_asc':
+          return a.full_name.localeCompare(b.full_name);
+        case 'name_desc':
+          return b.full_name.localeCompare(a.full_name);
+        case 'rating_high':
+          return (b.average_rating || 0) - (a.average_rating || 0);
+        case 'rating_low':
+          return (a.average_rating || 0) - (b.average_rating || 0);
+        default:
+          return 0;
+      }
+    });
+  };
+
+  const filteredUsers = sortUsers(users.filter(u => {
     const matchesSearch = 
       u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -113,7 +140,18 @@ export default function UserProfilesTable() {
     const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
     
     return matchesSearch && matchesRole;
-  });
+  }));
+
+  const sortOptions: { value: SortOption; label: string; icon: typeof ArrowUp }[] = [
+    { value: 'newest', label: 'Newest first', icon: ArrowDown },
+    { value: 'oldest', label: 'Oldest first', icon: ArrowUp },
+    { value: 'name_asc', label: 'Name A-Z', icon: ArrowUp },
+    { value: 'name_desc', label: 'Name Z-A', icon: ArrowDown },
+    { value: 'rating_high', label: 'Highest rated', icon: ArrowDown },
+    { value: 'rating_low', label: 'Lowest rated', icon: ArrowUp },
+  ];
+
+  const currentSortLabel = sortOptions.find(s => s.value === sortBy)?.label || 'Sort';
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
@@ -254,22 +292,72 @@ export default function UserProfilesTable() {
           ))}
         </div>
 
-        {/* Results Count */}
-        <div className="flex items-center justify-between text-sm text-muted-foreground">
-          <span>
+        {/* Sort & Results Row */}
+        <div className="flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">
             {filteredUsers.length === users.length 
               ? `${users.length} users` 
               : `${filteredUsers.length} of ${users.length} users`
             }
           </span>
-          {roleFilter !== 'all' && (
-            <button 
-              onClick={() => setRoleFilter('all')}
-              className="text-primary text-xs font-medium"
+          
+          {/* Sort Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowSortMenu(!showSortMenu)}
+              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
             >
-              Clear filter
+              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+              <span className="hidden sm:inline">{currentSortLabel}</span>
             </button>
-          )}
+            
+            {/* Sort Menu */}
+            <AnimatePresence>
+              {showSortMenu && (
+                <>
+                  {/* Backdrop */}
+                  <div 
+                    className="fixed inset-0 z-40" 
+                    onClick={() => setShowSortMenu(false)} 
+                  />
+                  
+                  <motion.div
+                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute right-0 top-full mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden min-w-[180px]"
+                  >
+                    <div className="p-1">
+                      {sortOptions.map((option) => {
+                        const Icon = option.icon;
+                        return (
+                          <button
+                            key={option.value}
+                            onClick={() => {
+                              setSortBy(option.value);
+                              setShowSortMenu(false);
+                            }}
+                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
+                              sortBy === option.value
+                                ? 'bg-primary/10 text-primary font-medium'
+                                : 'text-foreground hover:bg-muted'
+                            }`}
+                          >
+                            <Icon className="h-4 w-4" />
+                            {option.label}
+                            {sortBy === option.value && (
+                              <CheckCircle className="h-4 w-4 ml-auto" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </motion.div>
+                </>
+              )}
+            </AnimatePresence>
+          </div>
         </div>
 
         {/* User List */}
