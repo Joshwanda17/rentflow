@@ -15,6 +15,7 @@ import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
+import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 
 // Lazy load all routes
 const Index = lazy(() => import("./pages/Index"));
@@ -96,6 +97,9 @@ const pageTransition = {
 // Animated routes wrapper
 function AnimatedRoutes() {
   const location = useLocation();
+  
+  // Listen for service worker updates
+  useServiceWorkerUpdate();
   
   return (
     <AnimatePresence mode="wait" initial={false}>
