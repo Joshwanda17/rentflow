@@ -7,14 +7,16 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, MoreHorizontal } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
+import BulkAssignRoleDialog from './BulkAssignRoleDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 
 interface UserWithRating {
   id: string;
@@ -47,7 +49,10 @@ export default function UserProfilesTable() {
   const [exporting, setExporting] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
+  const [bulkAssignRoleOpen, setBulkAssignRoleOpen] = useState(false);
+  const [exportingSelected, setExportingSelected] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
+  const selectedUsersRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -190,6 +195,62 @@ export default function UserProfilesTable() {
 
   const handleBulkNotificationSuccess = () => {
     clearSelection();
+  };
+
+  const handleBulkAssignRoleSuccess = () => {
+    clearSelection();
+    fetchUsers(); // Refresh to show updated roles
+  };
+
+  const getSelectedUsers = () => {
+    return filteredUsers.filter(u => selectedUserIds.has(u.id));
+  };
+
+  const handleExportSelectedCSV = () => {
+    const selected = getSelectedUsers();
+    if (selected.length === 0) {
+      toast.error('No users selected');
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
+    const rows = selected.map(user => [
+      user.full_name,
+      user.email,
+      user.phone,
+      user.roles.join(', '),
+      user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
+      user.monthly_rent ? user.monthly_rent : 'N/A',
+      user.rent_discount_active ? 'Yes' : 'No',
+      formatDateForExport(user.created_at)
+    ]);
+
+    exportToCSV({ headers, rows }, 'selected_users_export');
+    toast.success(`Exported ${selected.length} users to CSV`);
+  };
+
+  const handleExportSelectedPDF = async () => {
+    const selected = getSelectedUsers();
+    if (selected.length === 0) {
+      toast.error('No users selected');
+      return;
+    }
+
+    if (!selectedUsersRef.current) {
+      toast.error('Unable to generate PDF');
+      return;
+    }
+
+    setExportingSelected(true);
+    try {
+      await exportToPDF(selectedUsersRef.current, 'selected_users_export', `Selected Users Report (${selected.length} users)`);
+      toast.success(`Exported ${selected.length} users to PDF`);
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExportingSelected(false);
+    }
   };
 
   const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
@@ -609,6 +670,32 @@ export default function UserProfilesTable() {
         onSuccess={handleBulkNotificationSuccess}
       />
 
+      <BulkAssignRoleDialog
+        open={bulkAssignRoleOpen}
+        onOpenChange={setBulkAssignRoleOpen}
+        selectedUserIds={Array.from(selectedUserIds)}
+        onSuccess={handleBulkAssignRoleSuccess}
+      />
+
+      {/* Hidden container for selected users PDF export */}
+      {selectedUserIds.size > 0 && (
+        <div className="fixed -left-[9999px] top-0" aria-hidden="true">
+          <div ref={selectedUsersRef} className="bg-white p-4 space-y-2 w-[600px]">
+            {getSelectedUsers().map(user => (
+              <div key={user.id} className="border-b border-gray-200 pb-2 mb-2">
+                <div className="font-semibold">{user.full_name}</div>
+                <div className="text-sm text-gray-600">{user.email} • {user.phone}</div>
+                <div className="text-xs text-gray-500">
+                  Roles: {user.roles.join(', ') || 'None'} | 
+                  Rating: {user.average_rating?.toFixed(1) || 'N/A'} | 
+                  Joined: {formatDateForExport(user.created_at)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Floating Bulk Actions Bar */}
       <AnimatePresence>
         {selectedUserIds.size > 0 && (
@@ -616,10 +703,10 @@ export default function UserProfilesTable() {
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3"
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-2xl shadow-xl px-3 py-2.5 flex items-center gap-2 max-w-[95vw]"
           >
-            <div className="flex items-center gap-2 pr-3 border-r border-border">
-              <span className="text-sm font-medium">{selectedUserIds.size} selected</span>
+            <div className="flex items-center gap-2 pr-2 border-r border-border">
+              <span className="text-sm font-medium whitespace-nowrap">{selectedUserIds.size} selected</span>
               <button
                 onClick={clearSelection}
                 className="p-1 rounded-full hover:bg-muted transition-colors"
@@ -628,14 +715,45 @@ export default function UserProfilesTable() {
               </button>
             </div>
             
+            {/* Primary Actions - visible */}
             <Button
               size="sm"
+              variant="ghost"
               onClick={() => setBulkNotificationOpen(true)}
-              className="gap-2"
+              className="gap-1.5 px-2.5"
             >
               <Bell className="h-4 w-4" />
-              Send Notification
+              <span className="hidden sm:inline">Notify</span>
             </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setBulkAssignRoleOpen(true)}
+              className="gap-1.5 px-2.5"
+            >
+              <UserCog className="h-4 w-4" />
+              <span className="hidden sm:inline">Assign Role</span>
+            </Button>
+
+            {/* More Actions Dropdown */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button size="sm" variant="ghost" className="px-2">
+                  <MoreHorizontal className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleExportSelectedCSV}>
+                  <Download className="h-4 w-4 mr-2" />
+                  Export to CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportSelectedPDF} disabled={exportingSelected}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  {exportingSelected ? 'Exporting...' : 'Export to PDF'}
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </motion.div>
         )}
       </AnimatePresence>
