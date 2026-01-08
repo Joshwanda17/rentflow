@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
+import { usePresenceContext } from '@/hooks/usePresence';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -9,6 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { Users, Search, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
+import OnlineIndicator from './OnlineIndicator';
 
 interface UserProfile {
   id: string;
@@ -24,6 +26,7 @@ interface UsersListProps {
 export default function UsersList({ onStartConversation }: UsersListProps) {
   const { user } = useAuth();
   const { startConversation } = useChat();
+  const { isOnline } = usePresenceContext();
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -166,12 +169,19 @@ export default function UsersList({ onStartConversation }: UsersListProps) {
                 disabled={startingChat === userProfile.id}
                 className="w-full flex items-center gap-3 p-3 hover:bg-muted/50 transition-colors text-left disabled:opacity-50"
               >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={userProfile.avatar_url || undefined} />
-                  <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                    {getInitials(userProfile.full_name)}
-                  </AvatarFallback>
-                </Avatar>
+                <div className="relative">
+                  <Avatar className="h-10 w-10">
+                    <AvatarImage src={userProfile.avatar_url || undefined} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">
+                      {getInitials(userProfile.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <OnlineIndicator 
+                    isOnline={isOnline(userProfile.id)} 
+                    size="sm"
+                    className="absolute bottom-0 right-0"
+                  />
+                </div>
                 
                 <div className="flex-1 min-w-0">
                   <span className="font-medium text-sm block truncate">
