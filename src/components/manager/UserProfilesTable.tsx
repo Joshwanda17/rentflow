@@ -7,11 +7,12 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, MoreHorizontal } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
+import BulkRemoveRoleDialog from './BulkRemoveRoleDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
@@ -50,6 +51,7 @@ export default function UserProfilesTable() {
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
   const [bulkAssignRoleOpen, setBulkAssignRoleOpen] = useState(false);
+  const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
   const [exportingSelected, setExportingSelected] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
@@ -198,6 +200,11 @@ export default function UserProfilesTable() {
   };
 
   const handleBulkAssignRoleSuccess = () => {
+    clearSelection();
+    fetchUsers(); // Refresh to show updated roles
+  };
+
+  const handleBulkRemoveRoleSuccess = () => {
     clearSelection();
     fetchUsers(); // Refresh to show updated roles
   };
@@ -677,6 +684,13 @@ export default function UserProfilesTable() {
         onSuccess={handleBulkAssignRoleSuccess}
       />
 
+      <BulkRemoveRoleDialog
+        open={bulkRemoveRoleOpen}
+        onOpenChange={setBulkRemoveRoleOpen}
+        selectedUserIds={Array.from(selectedUserIds)}
+        onSuccess={handleBulkRemoveRoleSuccess}
+      />
+
       {/* Hidden container for selected users PDF export */}
       {selectedUserIds.size > 0 && (
         <div className="fixed -left-[9999px] top-0" aria-hidden="true">
@@ -733,7 +747,17 @@ export default function UserProfilesTable() {
               className="gap-1.5 px-2.5"
             >
               <UserCog className="h-4 w-4" />
-              <span className="hidden sm:inline">Assign Role</span>
+              <span className="hidden sm:inline">Add Role</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setBulkRemoveRoleOpen(true)}
+              className="gap-1.5 px-2.5 text-destructive hover:text-destructive"
+            >
+              <UserMinus className="h-4 w-4" />
+              <span className="hidden sm:inline">Remove Role</span>
             </Button>
 
             {/* More Actions Dropdown */}
