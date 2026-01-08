@@ -15,6 +15,7 @@ import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from './BulkRemoveRoleDialog';
+import BulkWhatsAppDialog from './BulkWhatsAppDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
@@ -54,6 +55,7 @@ export default function UserProfilesTable() {
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
   const [bulkAssignRoleOpen, setBulkAssignRoleOpen] = useState(false);
   const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
+  const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [exportingSelected, setExportingSelected] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
@@ -705,6 +707,17 @@ export default function UserProfilesTable() {
         onSuccess={handleBulkRemoveRoleSuccess}
       />
 
+      <BulkWhatsAppDialog
+        open={bulkWhatsAppOpen}
+        onOpenChange={setBulkWhatsAppOpen}
+        selectedUsers={getSelectedUsers().map(u => ({
+          id: u.id,
+          full_name: u.full_name,
+          phone: u.phone,
+          avatar_url: u.avatar_url
+        }))}
+      />
+
       {/* Hidden container for selected users PDF export */}
       {selectedUserIds.size > 0 && (
         <div className="fixed -left-[9999px] top-0" aria-hidden="true">
@@ -752,6 +765,16 @@ export default function UserProfilesTable() {
             >
               <Bell className="h-4 w-4" />
               <span className="hidden sm:inline">Notify</span>
+            </Button>
+
+            <Button
+              size="sm"
+              variant="ghost"
+              onClick={() => setBulkWhatsAppOpen(true)}
+              className="gap-1.5 px-2.5 text-success hover:text-success"
+            >
+              <MessageCircle className="h-4 w-4" />
+              <span className="hidden sm:inline">WhatsApp</span>
             </Button>
 
             <Button
