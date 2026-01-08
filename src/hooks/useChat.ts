@@ -335,6 +335,64 @@ export function useConversation(conversationId: string | null) {
     return true;
   };
 
+  // Time window for editing/deleting messages (15 minutes)
+  const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
+
+  const canEditMessage = (message: Message) => {
+    if (message.sender_id !== user?.id) return false;
+    const messageTime = new Date(message.created_at).getTime();
+    const now = Date.now();
+    return now - messageTime < MESSAGE_EDIT_WINDOW_MS;
+  };
+
+  const editMessage = async (messageId: string, newContent: string) => {
+    if (!user || !newContent.trim()) return false;
+
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !canEditMessage(message)) return false;
+
+    const { error } = await supabase
+      .from('messages')
+      .update({ content: newContent.trim() })
+      .eq('id', messageId)
+      .eq('sender_id', user.id);
+
+    if (error) {
+      console.error('Failed to edit message:', error);
+      return false;
+    }
+
+    // Update local state immediately
+    setMessages(prev => prev.map(m => 
+      m.id === messageId ? { ...m, content: newContent.trim() } : m
+    ));
+
+    return true;
+  };
+
+  const deleteMessage = async (messageId: string) => {
+    if (!user) return false;
+
+    const message = messages.find(m => m.id === messageId);
+    if (!message || !canEditMessage(message)) return false;
+
+    const { error } = await supabase
+      .from('messages')
+      .delete()
+      .eq('id', messageId)
+      .eq('sender_id', user.id);
+
+    if (error) {
+      console.error('Failed to delete message:', error);
+      return false;
+    }
+
+    // Update local state immediately
+    setMessages(prev => prev.filter(m => m.id !== messageId));
+
+    return true;
+  };
+
   // Mark a specific message as read
   const markMessageAsRead = async (messageId: string) => {
     if (!user) return;
@@ -500,6 +558,9 @@ export function useConversation(conversationId: string | null) {
     fetchMessages,
     handleTyping,
     typingUsers,
-    markAllAsRead
+    markAllAsRead,
+    editMessage,
+    deleteMessage,
+    canEditMessage
   };
 }
