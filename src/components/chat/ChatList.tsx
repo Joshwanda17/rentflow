@@ -6,9 +6,10 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { MessageCircle, Users } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { MessageCircle, Users, PlusCircle } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
-import UsersList from './UsersList';
+import NewChatSearch from './NewChatSearch';
 import OnlineIndicator from './OnlineIndicator';
 
 interface ChatListProps {
@@ -66,8 +67,12 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
           </div>
           <h3 className="font-semibold mb-1">No conversations yet</h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Tap the "Users" tab to start chatting
+            Tap "New Chat" to start chatting with someone
           </p>
+          <Button onClick={() => setActiveTab('new')} className="gap-2">
+            <PlusCircle className="h-4 w-4" />
+            Start New Chat
+          </Button>
         </div>
       );
     }
@@ -134,23 +139,36 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
 
   return (
     <Tabs value={activeTab} onValueChange={setActiveTab} className="h-full flex flex-col">
-      <TabsList className="grid w-full grid-cols-2 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
+      <TabsList className="grid w-full grid-cols-3 mx-4 mt-2" style={{ width: 'calc(100% - 2rem)' }}>
         <TabsTrigger value="chats" className="flex items-center gap-2">
           <MessageCircle className="h-4 w-4" />
           Chats
         </TabsTrigger>
+        <TabsTrigger value="new" className="flex items-center gap-2">
+          <PlusCircle className="h-4 w-4" />
+          New Chat
+        </TabsTrigger>
         <TabsTrigger value="users" className="flex items-center gap-2">
           <Users className="h-4 w-4" />
-          Users
+          All Users
         </TabsTrigger>
       </TabsList>
       
       <TabsContent value="chats" className="flex-1 mt-2 overflow-hidden">
         {renderConversationsList()}
       </TabsContent>
+
+      <TabsContent value="new" className="flex-1 mt-2 overflow-hidden">
+        <NewChatSearch 
+          onStartConversation={handleStartConversation} 
+          onClose={() => setActiveTab('chats')}
+        />
+      </TabsContent>
       
       <TabsContent value="users" className="flex-1 mt-2 overflow-hidden">
-        <UsersList onStartConversation={handleStartConversation} />
+        <NewChatSearch 
+          onStartConversation={handleStartConversation}
+        />
       </TabsContent>
     </Tabs>
   );
