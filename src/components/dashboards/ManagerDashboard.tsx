@@ -124,6 +124,44 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
+        {/* PROMINENT User Management Card - First item */}
+        <button 
+          onClick={() => navigate('/manager-access?tab=users')}
+          className="w-full text-left block"
+        >
+          <Card className="border-2 border-primary bg-gradient-to-br from-primary/10 via-primary/5 to-background hover:shadow-xl active:scale-[0.99] transition-all cursor-pointer overflow-hidden relative">
+            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            <CardContent className="p-5 relative">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg">
+                    <Users className="h-8 w-8" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-bold text-xl">User Management</h3>
+                      <Badge className="bg-primary text-primary-foreground">
+                        {totalUsers}
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">View, search & manage all users</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
+                        <CheckCircle className="h-3 w-3 mr-1" />
+                        Active profiles
+                      </Badge>
+                    </div>
+                  </div>
+                </div>
+                <div className="p-3 rounded-full bg-primary/10">
+                  <ArrowRight className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </button>
+
         {/* User Profile Card - Clickable */}
         <button 
           onClick={() => navigate('/settings')}

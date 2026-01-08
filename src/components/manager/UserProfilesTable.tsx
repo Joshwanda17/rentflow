@@ -5,9 +5,11 @@ import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, Search, Star, Banknote, CheckCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface UserWithRating {
   id: string;
@@ -22,12 +24,16 @@ interface UserWithRating {
   rating_count: number;
 }
 
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
+
 export default function UserProfilesTable() {
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [refreshing, setRefreshing] = useState(false);
 
   useEffect(() => {
     fetchUsers();
@@ -87,19 +93,30 @@ export default function UserProfilesTable() {
     setLoading(false);
   };
 
-  const filteredUsers = users.filter(u => 
-    u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    u.phone.includes(searchTerm)
-  );
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    await fetchUsers();
+    setRefreshing(false);
+  };
+
+  const filteredUsers = users.filter(u => {
+    const matchesSearch = 
+      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      u.phone.includes(searchTerm);
+    
+    const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
+    
+    return matchesSearch && matchesRole;
+  });
 
   const getRoleBadgeColor = (role: string) => {
     const colors: Record<string, string> = {
-      tenant: 'bg-primary/20 text-primary',
-      agent: 'bg-warning/20 text-warning',
-      supporter: 'bg-success/20 text-success',
-      landlord: 'bg-chart-5/20 text-chart-5',
-      manager: 'bg-destructive/20 text-destructive'
+      tenant: 'bg-primary/15 text-primary border-primary/30',
+      agent: 'bg-warning/15 text-warning border-warning/30',
+      supporter: 'bg-success/15 text-success border-success/30',
+      landlord: 'bg-chart-5/15 text-chart-5 border-chart-5/30',
+      manager: 'bg-destructive/15 text-destructive border-destructive/30'
     };
     return colors[role] || 'bg-muted text-muted-foreground';
   };
@@ -114,10 +131,10 @@ export default function UserProfilesTable() {
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`h-3 w-3 ${
+            className={`h-3.5 w-3.5 ${
               star <= rating
                 ? 'fill-yellow-400 text-yellow-400'
-                : 'text-muted-foreground/30'
+                : 'text-muted-foreground/20'
             }`}
           />
         ))}
@@ -130,110 +147,228 @@ export default function UserProfilesTable() {
     setDialogOpen(true);
   };
 
+  const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
+    { value: 'all', label: 'All', count: users.length },
+    { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
+    { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
+    { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
+    { value: 'landlord', label: 'Landlords', count: users.filter(u => u.roles.includes('landlord')).length },
+    { value: 'manager', label: 'Managers', count: users.filter(u => u.roles.includes('manager')).length },
+  ];
+
   if (loading) {
     return (
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-40" />
-          <Skeleton className="h-4 w-60" />
-        </CardHeader>
-        <CardContent className="space-y-3">
+      <div className="space-y-4">
+        {/* Header Skeleton */}
+        <div className="flex items-center justify-between">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-10 w-10 rounded-full" />
+        </div>
+        
+        {/* Search Skeleton */}
+        <Skeleton className="h-12 w-full rounded-xl" />
+        
+        {/* Filter Skeleton */}
+        <div className="flex gap-2 overflow-x-auto pb-2">
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-16 w-full" />
+            <Skeleton key={i} className="h-9 w-24 rounded-full shrink-0" />
           ))}
-        </CardContent>
-      </Card>
+        </div>
+        
+        {/* User Cards Skeleton */}
+        <div className="space-y-3">
+          {[1, 2, 3, 4, 5].map(i => (
+            <Skeleton key={i} className="h-24 w-full rounded-2xl" />
+          ))}
+        </div>
+      </div>
     );
   }
 
   return (
     <>
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5 text-primary" />
-            All User Profiles ({users.length})
-          </CardTitle>
-          <CardDescription>
-            Click on a user to view their full details and investment accounts
-          </CardDescription>
-          <div className="relative pt-2">
-            <Search className="absolute left-3 top-1/2 transform h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, email, or phone..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9"
-            />
+      <div className="space-y-4">
+        {/* Modern Header */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="p-2.5 rounded-xl bg-primary/10">
+              <Users className="h-6 w-6 text-primary" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold">Users</h2>
+              <p className="text-sm text-muted-foreground">{users.length} registered</p>
+            </div>
           </div>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-3 max-h-[600px] overflow-y-auto">
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={handleRefresh}
+            disabled={refreshing}
+            className="rounded-full"
+          >
+            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+          </Button>
+        </div>
+
+        {/* Modern Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+          <Input
+            placeholder="Search by name, email, or phone..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-12 pr-10 h-12 rounded-xl bg-muted/50 border-0 text-base focus-visible:ring-2 focus-visible:ring-primary"
+          />
+          {searchTerm && (
+            <button
+              onClick={() => setSearchTerm('')}
+              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
+        </div>
+
+        {/* Role Filter Pills - Horizontal Scroll */}
+        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
+          {roleFilters.map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => setRoleFilter(filter.value)}
+              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
+                roleFilter === filter.value
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {filter.label}
+              <span className={`ml-1.5 ${roleFilter === filter.value ? 'opacity-90' : 'opacity-60'}`}>
+                {filter.count}
+              </span>
+            </button>
+          ))}
+        </div>
+
+        {/* Results Count */}
+        <div className="flex items-center justify-between text-sm text-muted-foreground">
+          <span>
+            {filteredUsers.length === users.length 
+              ? `${users.length} users` 
+              : `${filteredUsers.length} of ${users.length} users`
+            }
+          </span>
+          {roleFilter !== 'all' && (
+            <button 
+              onClick={() => setRoleFilter('all')}
+              className="text-primary text-xs font-medium"
+            >
+              Clear filter
+            </button>
+          )}
+        </div>
+
+        {/* User List */}
+        <div className="space-y-3">
+          <AnimatePresence mode="popLayout">
             {filteredUsers.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">No users found</p>
+              <motion.div 
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="text-center py-12"
+              >
+                <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
+                  <Users className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <p className="font-medium text-muted-foreground">No users found</p>
+                <p className="text-sm text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
+              </motion.div>
             ) : (
-              filteredUsers.map((user) => (
-                <div
+              filteredUsers.map((user, index) => (
+                <motion.div
                   key={user.id}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ delay: index * 0.02 }}
                   onClick={() => handleUserClick(user)}
-                  className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors cursor-pointer"
+                  className="group relative bg-card rounded-2xl border border-border/50 p-4 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer"
                 >
-                  <Avatar className="h-10 w-10">
-                    <AvatarImage src={user.avatar_url || undefined} />
-                    <AvatarFallback>{getInitials(user.full_name)}</AvatarFallback>
-                  </Avatar>
-                  
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap">
-                      <p className="font-medium truncate text-primary hover:underline">{user.full_name}</p>
+                  <div className="flex items-start gap-4">
+                    {/* Avatar */}
+                    <div className="relative">
+                      <Avatar className="h-14 w-14 border-2 border-background shadow-md">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
                       {user.rent_discount_active && (
-                        <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                          <CheckCircle className="h-3 w-3 mr-1" />
-                          Active
-                        </Badge>
+                        <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-success text-success-foreground">
+                          <CheckCircle className="h-3.5 w-3.5" />
+                        </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <span>{user.email}</span>
-                      <span>•</span>
-                      <span>{user.phone}</span>
-                    </div>
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      {user.roles.map((role) => (
-                        <Badge key={role} className={`text-xs ${getRoleBadgeColor(role)}`}>
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="text-right shrink-0">
-                    {/* Rating */}
-                    {user.rating_count > 0 ? (
-                      <div className="flex flex-col items-end gap-0.5">
-                        {renderStars(user.average_rating || 0)}
-                        <span className="text-xs text-muted-foreground">
-                          {user.average_rating?.toFixed(1)} ({user.rating_count})
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">No ratings</span>
-                    )}
                     
-                    {/* Monthly rent */}
-                    {user.monthly_rent && (
-                      <div className="flex items-center gap-1 text-xs text-muted-foreground mt-1">
-                        <Banknote className="h-3 w-3" />
-                        {formatUGX(user.monthly_rent)}/mo
+                    {/* User Info */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-start justify-between gap-2">
+                        <div className="min-w-0">
+                          <h3 className="font-semibold text-base truncate group-hover:text-primary transition-colors">
+                            {user.full_name}
+                          </h3>
+                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
+                          <p className="text-xs text-muted-foreground/70 mt-0.5">{user.phone}</p>
+                        </div>
+                        
+                        {/* Arrow indicator */}
+                        <div className="shrink-0 p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        </div>
                       </div>
-                    )}
+                      
+                      {/* Roles */}
+                      <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                        {user.roles.map((role) => (
+                          <Badge 
+                            key={role} 
+                            variant="outline"
+                            className={`text-xs font-medium ${getRoleBadgeColor(role)}`}
+                          >
+                            {role}
+                          </Badge>
+                        ))}
+                      </div>
+                      
+                      {/* Rating & Rent - Bottom Row */}
+                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                        <div className="flex items-center gap-3">
+                          {user.rating_count > 0 ? (
+                            <div className="flex items-center gap-1.5">
+                              {renderStars(user.average_rating || 0)}
+                              <span className="text-xs text-muted-foreground font-medium">
+                                {user.average_rating?.toFixed(1)}
+                              </span>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-muted-foreground/60">No ratings</span>
+                          )}
+                        </div>
+                        
+                        {user.monthly_rent && (
+                          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                            <Banknote className="h-3.5 w-3.5" />
+                            {formatUGX(user.monthly_rent)}/mo
+                          </div>
+                        )}
+                      </div>
+                    </div>
                   </div>
-                </div>
+                </motion.div>
               ))
             )}
-          </div>
-        </CardContent>
-      </Card>
+          </AnimatePresence>
+        </div>
+      </div>
 
       <UserDetailsDialog
         open={dialogOpen}
