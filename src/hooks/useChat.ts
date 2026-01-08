@@ -375,11 +375,71 @@ export function useConversation(conversationId: string | null) {
     };
   }, [conversationId, user, fetchMessages]);
 
+  // Typing indicator state
+  const [isTyping, setIsTyping] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<string[]>([]);
+
+  // Broadcast typing status
+  const sendTypingIndicator = useCallback((typing: boolean) => {
+    if (!conversationId || !user) return;
+
+    const channel = supabase.channel(`typing-${conversationId}`);
+    channel.send({
+      type: 'broadcast',
+      event: 'typing',
+      payload: { user_id: user.id, typing }
+    });
+  }, [conversationId, user]);
+
+  // Debounced typing handler
+  const handleTyping = useCallback(() => {
+    if (!isTyping) {
+      setIsTyping(true);
+      sendTypingIndicator(true);
+    }
+
+    // Clear previous timeout
+    const timeoutId = setTimeout(() => {
+      setIsTyping(false);
+      sendTypingIndicator(false);
+    }, 2000);
+
+    return () => clearTimeout(timeoutId);
+  }, [isTyping, sendTypingIndicator]);
+
+  // Subscribe to typing events
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    const channel = supabase
+      .channel(`typing-${conversationId}`)
+      .on('broadcast', { event: 'typing' }, (payload) => {
+        const { user_id, typing } = payload.payload as { user_id: string; typing: boolean };
+        if (user_id === user.id) return;
+
+        setTypingUsers(prev => {
+          if (typing && !prev.includes(user_id)) {
+            return [...prev, user_id];
+          } else if (!typing) {
+            return prev.filter(id => id !== user_id);
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, user]);
+
   return {
     messages,
     loading,
     otherParticipant,
     sendMessage,
-    fetchMessages
+    fetchMessages,
+    handleTyping,
+    typingUsers
   };
 }

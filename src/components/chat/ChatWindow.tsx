@@ -17,11 +17,12 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
   const { user } = useAuth();
-  const { messages, loading, otherParticipant, sendMessage } = useConversation(conversationId);
+  const { messages, loading, otherParticipant, sendMessage, handleTyping, typingUsers } = useConversation(conversationId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -48,6 +49,22 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
       handleSend();
     }
   };
+
+  const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setNewMessage(e.target.value);
+    
+    // Handle typing indicator
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+    
+    const cleanup = handleTyping();
+    typingTimeoutRef.current = setTimeout(() => {
+      cleanup?.();
+    }, 2000);
+  };
+
+  const isOtherTyping = typingUsers.length > 0;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -208,6 +225,28 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
               </div>
             </div>
           ))}
+          
+          {/* Typing indicator */}
+          {isOtherTyping && otherParticipant && (
+            <div className="flex justify-start">
+              <div className="flex gap-2 items-center">
+                <Avatar className="h-8 w-8 shrink-0">
+                  <AvatarImage src={otherParticipant.avatar_url || undefined} />
+                  <AvatarFallback className="text-xs">
+                    {getInitials(otherParticipant.full_name)}
+                  </AvatarFallback>
+                </Avatar>
+                <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2">
+                  <div className="flex gap-1 items-center">
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+          
           <div ref={scrollRef} />
         </div>
       </ScrollArea>
@@ -219,7 +258,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
             ref={inputRef}
             placeholder="Type a message..."
             value={newMessage}
-            onChange={(e) => setNewMessage(e.target.value)}
+            onChange={onInputChange}
             onKeyPress={handleKeyPress}
             disabled={sending}
             className="flex-1"
