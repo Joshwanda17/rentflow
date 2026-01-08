@@ -8,11 +8,17 @@ import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
+interface LatestMessage {
+  content: string;
+  senderName: string;
+}
+
 export default function FloatingChatButton() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
+  const [latestMessage, setLatestMessage] = useState<LatestMessage | null>(null);
   const [isHovered, setIsHovered] = useState(false);
 
   // Don't show on chat page
@@ -21,7 +27,7 @@ export default function FloatingChatButton() {
   useEffect(() => {
     if (!user) return;
 
-    const fetchUnreadCount = async () => {
+    const fetchUnreadData = async () => {
       // Get conversations the user is part of
       const { data: participations } = await supabase
         .from('conversation_participants')
@@ -30,24 +36,52 @@ export default function FloatingChatButton() {
 
       if (!participations || participations.length === 0) {
         setUnreadCount(0);
+        setLatestMessage(null);
         return;
       }
 
       let totalUnread = 0;
+      let newestMessage: { content: string; created_at: string; sender_id: string } | null = null;
+
       for (const participation of participations) {
-        const { count } = await supabase
+        const { data: messages, count } = await supabase
           .from('messages')
-          .select('*', { count: 'exact', head: true })
+          .select('content, created_at, sender_id', { count: 'exact' })
           .eq('conversation_id', participation.conversation_id)
           .neq('sender_id', user.id)
-          .gt('created_at', participation.last_read_at || '1970-01-01');
+          .gt('created_at', participation.last_read_at || '1970-01-01')
+          .order('created_at', { ascending: false })
+          .limit(1);
         
         totalUnread += count || 0;
+        
+        if (messages && messages.length > 0) {
+          if (!newestMessage || messages[0].created_at > newestMessage.created_at) {
+            newestMessage = messages[0];
+          }
+        }
       }
+      
       setUnreadCount(totalUnread);
+      
+      if (newestMessage) {
+        // Fetch sender's name
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('full_name')
+          .eq('id', newestMessage.sender_id)
+          .single();
+        
+        setLatestMessage({
+          content: newestMessage.content,
+          senderName: profile?.full_name || 'Someone'
+        });
+      } else {
+        setLatestMessage(null);
+      }
     };
 
-    fetchUnreadCount();
+    fetchUnreadData();
 
     // Subscribe to new messages
     const channel = supabase
@@ -60,7 +94,7 @@ export default function FloatingChatButton() {
           table: 'messages',
         },
         () => {
-          fetchUnreadCount();
+          fetchUnreadData();
         }
       )
       .subscribe();
@@ -150,8 +184,15 @@ export default function FloatingChatButton() {
             <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10" />
           </motion.button>
         </TooltipTrigger>
-        <TooltipContent side="left" className="font-medium">
-          Chat with users
+        <TooltipContent side="left" className="max-w-[250px]">
+          {latestMessage ? (
+            <div className="space-y-1">
+              <p className="font-semibold text-xs text-muted-foreground">{latestMessage.senderName}</p>
+              <p className="text-sm line-clamp-2">{latestMessage.content}</p>
+            </div>
+          ) : (
+            <span className="font-medium">Chat with users</span>
+          )}
         </TooltipContent>
       </Tooltip>
     </TooltipProvider>
