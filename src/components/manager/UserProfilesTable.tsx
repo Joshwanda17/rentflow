@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,11 +6,13 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
+import { toast } from 'sonner';
 
 interface UserWithRating {
   id: string;
@@ -40,6 +42,8 @@ export default function UserProfilesTable() {
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     fetchUsers();
@@ -109,6 +113,51 @@ export default function UserProfilesTable() {
   const handlePullToRefresh = useCallback(async () => {
     await fetchUsers();
   }, []);
+
+  const handleExportCSV = () => {
+    if (filteredUsers.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
+    const rows = filteredUsers.map(user => [
+      user.full_name,
+      user.email,
+      user.phone,
+      user.roles.join(', '),
+      user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
+      user.monthly_rent ? user.monthly_rent : 'N/A',
+      user.rent_discount_active ? 'Yes' : 'No',
+      formatDateForExport(user.created_at)
+    ]);
+
+    exportToCSV({ headers, rows }, 'users_export');
+    toast.success('Users exported to CSV');
+  };
+
+  const handleExportPDF = async () => {
+    if (filteredUsers.length === 0) {
+      toast.error('No users to export');
+      return;
+    }
+
+    if (!tableRef.current) {
+      toast.error('Unable to generate PDF');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      await exportToPDF(tableRef.current, 'users_export', 'User Management Report');
+      toast.success('Users exported to PDF');
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
     return [...usersToSort].sort((a, b) => {
@@ -242,15 +291,36 @@ export default function UserProfilesTable() {
               <p className="text-sm text-muted-foreground">{users.length} registered</p>
             </div>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={handleRefresh}
-            disabled={refreshing}
-            className="rounded-full"
-          >
-            <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleExportCSV}
+              className="rounded-full"
+              title="Export to CSV"
+            >
+              <Download className="h-5 w-5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleExportPDF}
+              disabled={exporting}
+              className="rounded-full"
+              title="Export to PDF"
+            >
+              <FileText className={`h-5 w-5 ${exporting ? 'animate-pulse' : ''}`} />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className="rounded-full"
+            >
+              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+            </Button>
+          </div>
         </div>
 
         {/* Modern Search Bar */}
@@ -361,7 +431,7 @@ export default function UserProfilesTable() {
         </div>
 
         {/* User List */}
-        <div className="space-y-3">
+        <div ref={tableRef} className="space-y-3">
           <AnimatePresence mode="popLayout">
             {filteredUsers.length === 0 ? (
               <motion.div 
