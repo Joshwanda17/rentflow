@@ -7,6 +7,7 @@ import SupporterDashboard from '@/components/dashboards/SupporterDashboard';
 import LandlordDashboard from '@/components/dashboards/LandlordDashboard';
 import ManagerDashboard from '@/components/dashboards/ManagerDashboard';
 import AddRoleDialog from '@/components/AddRoleDialog';
+import FloatingChatButton from '@/components/chat/FloatingChatButton';
 import { Loader2 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 
@@ -46,22 +47,31 @@ export default function Dashboard() {
     addRoleComponent: <AddRoleDialog availableRoles={roles} onAddRole={addRole} />
   };
 
-  switch (role) {
-    case 'tenant':
-      return <TenantDashboard {...dashboardProps} />;
-    case 'agent':
-      return <AgentDashboard {...dashboardProps} />;
-    case 'supporter':
-      return <SupporterDashboard {...dashboardProps} />;
-    case 'landlord':
-      return <LandlordDashboard {...dashboardProps} />;
-    case 'manager':
-      return <ManagerDashboard {...dashboardProps} />;
-    default:
-      return (
-        <div className="min-h-screen bg-background flex items-center justify-center">
-          <p>Unknown role. Please contact support.</p>
-        </div>
-      );
-  }
+  const renderDashboard = () => {
+    switch (role) {
+      case 'tenant':
+        return <TenantDashboard {...dashboardProps} />;
+      case 'agent':
+        return <AgentDashboard {...dashboardProps} />;
+      case 'supporter':
+        return <SupporterDashboard {...dashboardProps} />;
+      case 'landlord':
+        return <LandlordDashboard {...dashboardProps} />;
+      case 'manager':
+        return <ManagerDashboard {...dashboardProps} />;
+      default:
+        return (
+          <div className="min-h-screen bg-background flex items-center justify-center">
+            <p>Unknown role. Please contact support.</p>
+          </div>
+        );
+    }
+  };
+
+  return (
+    <>
+      {renderDashboard()}
+      <FloatingChatButton />
+    </>
+  );
 }
