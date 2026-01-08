@@ -83,7 +83,19 @@ export default function FloatingChatButton() {
         <TooltipTrigger asChild>
           <motion.button
             initial={{ scale: 0, opacity: 0 }}
-            animate={{ scale: 1, opacity: 1 }}
+            animate={{ 
+              scale: 1, 
+              opacity: 1,
+              y: unreadCount > 0 ? [0, -8, 0] : 0
+            }}
+            transition={{
+              y: {
+                repeat: unreadCount > 0 ? Infinity : 0,
+                repeatDelay: 2,
+                duration: 0.5,
+                ease: "easeInOut"
+              }
+            }}
             exit={{ scale: 0, opacity: 0 }}
             whileHover={{ scale: 1.15 }}
             whileTap={{ scale: 0.9 }}
