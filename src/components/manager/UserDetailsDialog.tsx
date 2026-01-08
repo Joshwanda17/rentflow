@@ -440,7 +440,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-0">
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{user.email}</span>
+                      <a 
+                        href={`mailto:${user.email}`}
+                        className="text-sm text-primary hover:underline"
+                      >
+                        {user.email}
+                      </a>
                     </div>
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
