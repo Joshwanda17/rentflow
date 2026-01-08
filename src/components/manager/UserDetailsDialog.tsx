@@ -17,10 +17,11 @@ import {
   User, Mail, Phone, Star, Banknote, CheckCircle, XCircle, 
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
-  Send, Download as DownloadIcon
+  Send, Download as DownloadIcon, MessageCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
+import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 
 interface InvestmentAccount {
   id: string;
@@ -397,7 +398,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                     </div>
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-sm">{user.phone}</span>
+                      <WhatsAppPhoneLink phone={user.phone} />
                     </div>
                   </CardContent>
                 </Card>
