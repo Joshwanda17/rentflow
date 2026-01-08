@@ -23,7 +23,8 @@ import {
   Download,
   UserPlus,
   UserCheck,
-  CalendarPlus
+  CalendarPlus,
+  Crown
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -63,6 +64,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [pendingLoans, setPendingLoans] = useState(0);
   const [activeUsers, setActiveUsers] = useState(0);
   const [newSignupsThisWeek, setNewSignupsThisWeek] = useState(0);
+  const [topOnboarder, setTopOnboarder] = useState<{
+    id: string;
+    full_name: string;
+    avatar_url: string | null;
+    referral_count: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -76,7 +83,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const oneWeekAgoISO = oneWeekAgo.toISOString();
     
-    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
+    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes, topOnboarderRes] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('id, status, rent_amount'),
@@ -92,7 +99,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       supabase
         .from('profiles')
         .select('id')
-        .gte('created_at', oneWeekAgoISO)
+        .gte('created_at', oneWeekAgoISO),
+      supabase
+        .from('referral_leaderboard')
+        .select('user_id, full_name, avatar_url, referral_count')
+        .order('referral_count', { ascending: false })
+        .limit(1)
+        .single()
     ]);
     
     const requests = requestsRes.data || [];
@@ -109,6 +122,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setNewSignupsThisWeek(newUsersRes.data?.length || 0);
     setPendingOrders((ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length);
     setPendingLoans((loansRes.data || []).filter(l => l.status === 'pending').length);
+    
+    if (topOnboarderRes.data && topOnboarderRes.data.referral_count > 0) {
+      setTopOnboarder({
+        id: topOnboarderRes.data.user_id,
+        full_name: topOnboarderRes.data.full_name,
+        avatar_url: topOnboarderRes.data.avatar_url,
+        referral_count: topOnboarderRes.data.referral_count
+      });
+    }
     
     setLoading(false);
   };
@@ -194,6 +216,38 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         </button>
+
+        {/* Top Onboarder Card */}
+        {topOnboarder && (
+          <Card className="border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-background overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <UserAvatar 
+                    avatarUrl={topOnboarder.avatar_url} 
+                    fullName={topOnboarder.full_name} 
+                    size="md" 
+                  />
+                  <div className="absolute -top-1 -right-1 p-1 rounded-full bg-amber-500 text-white">
+                    <Crown className="h-3 w-3" />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-0.5">
+                    <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px]">
+                      <Crown className="h-2.5 w-2.5 mr-1" />
+                      Top Onboarder
+                    </Badge>
+                  </div>
+                  <h3 className="font-semibold truncate">{topOnboarder.full_name}</h3>
+                  <p className="text-sm text-muted-foreground">
+                    <span className="font-bold text-amber-600 dark:text-amber-400">{topOnboarder.referral_count}</span> users onboarded
+                  </p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* User Profile Card - Clickable */}
         <button 
