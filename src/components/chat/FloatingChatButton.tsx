@@ -137,20 +137,20 @@ export default function FloatingChatButton() {
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             className={cn(
-              "fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[60]",
-              "h-16 w-16 md:h-[72px] md:w-[72px] rounded-full",
-              "bg-gradient-to-br from-primary to-primary/80",
+              "fixed top-20 md:top-6 right-4 md:right-8 z-[60]",
+              "h-14 w-14 md:h-16 md:w-16 rounded-full",
+              "bg-gradient-to-br from-primary via-primary to-primary/70",
               "text-primary-foreground",
-              "shadow-2xl shadow-primary/40",
+              "shadow-2xl shadow-primary/50",
               "flex items-center justify-center",
               "transition-all duration-300",
-              "hover:shadow-primary/60 hover:shadow-2xl",
+              "hover:shadow-primary/70 hover:shadow-2xl",
               "focus:outline-none focus:ring-4 focus:ring-primary/50 focus:ring-offset-2",
-              "border-2 border-primary-foreground/20"
+              "border-2 border-primary-foreground/30"
             )}
             aria-label="Chat with users"
           >
-            <MessageCircle className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
+            <MessageCircle className="h-6 w-6 md:h-7 md:w-7" strokeWidth={2.5} />
 
             {/* Unread badge */}
             <AnimatePresence>
