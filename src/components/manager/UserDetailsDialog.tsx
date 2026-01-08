@@ -354,6 +354,56 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
     return filtered;
   }, [activityLog, dateRange, activityTypeFilter]);
 
+  // Calculate activity summary statistics
+  const activitySummary = useMemo(() => {
+    const summary = {
+      totalDeposits: 0,
+      totalWithdrawals: 0,
+      totalSent: 0,
+      totalReceived: 0,
+      totalOrders: 0,
+      totalRepayments: 0,
+      depositCount: 0,
+      withdrawalCount: 0,
+      sentCount: 0,
+      receivedCount: 0,
+      orderCount: 0,
+      repaymentCount: 0,
+    };
+
+    activityLog.forEach(activity => {
+      switch (activity.type) {
+        case 'deposit':
+          summary.totalDeposits += activity.amount;
+          summary.depositCount++;
+          break;
+        case 'withdrawal':
+          summary.totalWithdrawals += activity.amount;
+          summary.withdrawalCount++;
+          break;
+        case 'transaction_sent':
+          summary.totalSent += activity.amount;
+          summary.sentCount++;
+          break;
+        case 'transaction_received':
+          summary.totalReceived += activity.amount;
+          summary.receivedCount++;
+          break;
+        case 'order':
+          summary.totalOrders += activity.amount;
+          summary.orderCount++;
+          break;
+        case 'repayment':
+        case 'loan_repayment':
+          summary.totalRepayments += activity.amount;
+          summary.repaymentCount++;
+          break;
+      }
+    });
+
+    return summary;
+  }, [activityLog]);
+
   const setQuickDateRange = (days: number) => {
     const to = new Date();
     const from = days === 7 ? subWeeks(to, 1) : days === 30 ? subMonths(to, 1) : subDays(to, days);
@@ -663,6 +713,78 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                     </Popover>
                   </div>
                 </div>
+
+                {/* Activity Summary Stats */}
+                {!activityLoading && activityLog.length > 0 && (
+                  <div className="grid grid-cols-3 gap-2 mb-4">
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-success/10">
+                          <DownloadIcon className="h-3 w-3 text-success" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Deposits ({activitySummary.depositCount})</p>
+                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalDeposits)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-warning/10">
+                          <Send className="h-3 w-3 text-warning" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Withdrawals ({activitySummary.withdrawalCount})</p>
+                          <p className="text-xs font-semibold text-warning truncate">{formatUGX(activitySummary.totalWithdrawals)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-primary/10">
+                          <ShoppingCart className="h-3 w-3 text-primary" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Orders ({activitySummary.orderCount})</p>
+                          <p className="text-xs font-semibold text-primary truncate">{formatUGX(activitySummary.totalOrders)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-destructive/10">
+                          <ArrowUpRight className="h-3 w-3 text-destructive" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Sent ({activitySummary.sentCount})</p>
+                          <p className="text-xs font-semibold text-destructive truncate">{formatUGX(activitySummary.totalSent)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-success/10">
+                          <ArrowDownLeft className="h-3 w-3 text-success" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Received ({activitySummary.receivedCount})</p>
+                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalReceived)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                    <Card className="p-2.5">
+                      <div className="flex items-center gap-2">
+                        <div className="p-1.5 rounded-full bg-success/10">
+                          <CreditCard className="h-3 w-3 text-success" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="text-[10px] text-muted-foreground truncate">Repayments ({activitySummary.repaymentCount})</p>
+                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalRepayments)}</p>
+                        </div>
+                      </div>
+                    </Card>
+                  </div>
+                )}
 
                 {/* Active filter indicator */}
                 {(dateRange.from || dateRange.to || activityTypeFilter !== 'all') && (
