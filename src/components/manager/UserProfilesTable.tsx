@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
@@ -611,7 +612,7 @@ export default function UserProfilesTable() {
                             {user.full_name}
                           </h3>
                           <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                          <p className="text-xs text-muted-foreground/70 mt-0.5">{user.phone}</p>
+                          <WhatsAppPhoneLink phone={user.phone} size="sm" className="mt-0.5" />
                         </div>
                         
                         {/* Arrow indicator */}
