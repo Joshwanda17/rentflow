@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 
@@ -508,6 +508,9 @@ export function useConversation(conversationId: string | null) {
     });
   }, [conversationId, user]);
 
+  // Typing timeout ref
+  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
   // Debounced typing handler
   const handleTyping = useCallback(() => {
     if (!isTyping) {
@@ -516,12 +519,14 @@ export function useConversation(conversationId: string | null) {
     }
 
     // Clear previous timeout
-    const timeoutId = setTimeout(() => {
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+    }
+
+    typingTimeoutRef.current = setTimeout(() => {
       setIsTyping(false);
       sendTypingIndicator(false);
     }, 2000);
-
-    return () => clearTimeout(timeoutId);
   }, [isTyping, sendTypingIndicator]);
 
   // Subscribe to typing events

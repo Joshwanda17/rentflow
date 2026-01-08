@@ -39,7 +39,6 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     // Scroll to bottom when messages change
@@ -102,16 +101,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    
-    // Handle typing indicator
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-    
-    const cleanup = handleTyping();
-    typingTimeoutRef.current = setTimeout(() => {
-      cleanup?.();
-    }, 2000);
+    handleTyping();
   };
 
   const isOtherTyping = typingUsers.length > 0;
