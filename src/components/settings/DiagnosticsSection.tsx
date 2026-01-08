@@ -3,8 +3,10 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bug, Download, RefreshCw, Wifi, WifiOff, HardDrive, Trash2, Check, X, Loader2 } from 'lucide-react';
+import { Bug, Download, RefreshCw, Wifi, WifiOff, HardDrive, Trash2, Check, X, Loader2, Info } from 'lucide-react';
 import { toast } from 'sonner';
+
+declare const __APP_VERSION__: string;
 
 interface DiagnosticsInfo {
   isInstalled: boolean;
@@ -180,6 +182,17 @@ export default function DiagnosticsSection() {
       </CardHeader>
       
       <CardContent className="space-y-4 relative">
+        {/* App Version */}
+        <div className="p-3 rounded-lg bg-primary/5 border border-primary/20">
+          <div className="flex items-center gap-2">
+            <Info className="h-4 w-4 text-primary" />
+            <span className="text-sm font-medium">App Version</span>
+            <Badge variant="outline" className="ml-auto font-mono text-xs">
+              {__APP_VERSION__}
+            </Badge>
+          </div>
+        </div>
+
         {/* Status Grid */}
         <div className="grid grid-cols-2 gap-3">
           {/* Install Status */}
