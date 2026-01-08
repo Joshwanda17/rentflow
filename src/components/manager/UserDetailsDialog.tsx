@@ -15,6 +15,7 @@ import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { 
   User, Mail, Phone, Star, Banknote, CheckCircle, XCircle, 
@@ -72,6 +73,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
     to: undefined
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
+  const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
 
   useEffect(() => {
     if (open && user) {
@@ -303,38 +305,64 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
     }
   };
 
-  // Filter activities by date range
+  // Activity type options for filtering
+  const activityTypeOptions = [
+    { value: 'all', label: 'All Types' },
+    { value: 'transaction_sent', label: 'Sent' },
+    { value: 'transaction_received', label: 'Received' },
+    { value: 'deposit', label: 'Deposits' },
+    { value: 'withdrawal', label: 'Withdrawals' },
+    { value: 'order', label: 'Orders' },
+    { value: 'rent_request', label: 'Rent Requests' },
+    { value: 'repayment', label: 'Repayments' },
+    { value: 'loan_repayment', label: 'Loan Repayments' },
+  ];
+
+  // Filter activities by date range and type
   const filteredActivityLog = useMemo(() => {
-    if (!dateRange.from && !dateRange.to) {
-      return activityLog;
+    let filtered = activityLog;
+    
+    // Filter by activity type
+    if (activityTypeFilter !== 'all') {
+      filtered = filtered.filter(activity => activity.type === activityTypeFilter);
     }
     
-    return activityLog.filter(activity => {
-      const activityDate = new Date(activity.created_at);
-      
-      if (dateRange.from && dateRange.to) {
-        return isWithinInterval(activityDate, {
-          start: startOfDay(dateRange.from),
-          end: endOfDay(dateRange.to)
-        });
-      }
-      
-      if (dateRange.from) {
-        return activityDate >= startOfDay(dateRange.from);
-      }
-      
-      if (dateRange.to) {
-        return activityDate <= endOfDay(dateRange.to);
-      }
-      
-      return true;
-    });
-  }, [activityLog, dateRange]);
+    // Filter by date range
+    if (dateRange.from || dateRange.to) {
+      filtered = filtered.filter(activity => {
+        const activityDate = new Date(activity.created_at);
+        
+        if (dateRange.from && dateRange.to) {
+          return isWithinInterval(activityDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to)
+          });
+        }
+        
+        if (dateRange.from) {
+          return activityDate >= startOfDay(dateRange.from);
+        }
+        
+        if (dateRange.to) {
+          return activityDate <= endOfDay(dateRange.to);
+        }
+        
+        return true;
+      });
+    }
+    
+    return filtered;
+  }, [activityLog, dateRange, activityTypeFilter]);
 
   const setQuickDateRange = (days: number) => {
     const to = new Date();
     const from = days === 7 ? subWeeks(to, 1) : days === 30 ? subMonths(to, 1) : subDays(to, days);
     setDateRange({ from, to });
+  };
+
+  const clearAllFilters = () => {
+    setDateRange({ from: undefined, to: undefined });
+    setActivityTypeFilter('all');
   };
 
   const clearDateRange = () => {
@@ -558,78 +586,102 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
 
             <TabsContent value="activity" className="mt-0">
               <div className="p-6 pt-4">
-                <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
                   <h3 className="font-semibold flex items-center gap-2">
                     <Activity className="h-5 w-5 text-primary" />
                     Activity Log
                   </h3>
                   
-                  {/* Date Filter */}
-                  <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-                    <PopoverTrigger asChild>
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className={`gap-2 ${(dateRange.from || dateRange.to) ? 'border-primary text-primary' : ''}`}
-                      >
-                        <CalendarDays className="h-4 w-4" />
-                        {dateRange.from ? (
-                          dateRange.to ? (
-                            <span className="text-xs">
-                              {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
-                            </span>
+                  <div className="flex items-center gap-2">
+                    {/* Activity Type Filter */}
+                    <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
+                      <SelectTrigger className={`w-[130px] h-8 text-xs ${activityTypeFilter !== 'all' ? 'border-primary text-primary' : ''}`}>
+                        <SelectValue placeholder="All Types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activityTypeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value} className="text-xs">
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+
+                    {/* Date Filter */}
+                    <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
+                      <PopoverTrigger asChild>
+                        <Button 
+                          variant="outline" 
+                          size="sm" 
+                          className={`gap-2 h-8 ${(dateRange.from || dateRange.to) ? 'border-primary text-primary' : ''}`}
+                        >
+                          <CalendarDays className="h-4 w-4" />
+                          {dateRange.from ? (
+                            dateRange.to ? (
+                              <span className="text-xs">
+                                {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                              </span>
+                            ) : (
+                              <span className="text-xs">From {format(dateRange.from, 'MMM d')}</span>
+                            )
                           ) : (
-                            <span className="text-xs">From {format(dateRange.from, 'MMM d')}</span>
-                          )
-                        ) : (
-                          <span className="text-xs">Filter by date</span>
+                            <span className="text-xs">Date</span>
+                          )}
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent className="w-auto p-0" align="end">
+                        <div className="p-3 border-b space-y-2">
+                          <p className="text-sm font-medium">Quick select</p>
+                          <div className="flex flex-wrap gap-1">
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(7)}>
+                              Last 7 days
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(30)}>
+                              Last 30 days
+                            </Button>
+                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(90)}>
+                              Last 90 days
+                            </Button>
+                          </div>
+                        </div>
+                        <CalendarComponent
+                          mode="range"
+                          selected={{ from: dateRange.from, to: dateRange.to }}
+                          onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
+                          numberOfMonths={1}
+                          disabled={{ after: new Date() }}
+                        />
+                        {(dateRange.from || dateRange.to) && (
+                          <div className="p-3 border-t">
+                            <Button size="sm" variant="ghost" className="w-full gap-2" onClick={clearDateRange}>
+                              <X className="h-4 w-4" />
+                              Clear date filter
+                            </Button>
+                          </div>
                         )}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0" align="end">
-                      <div className="p-3 border-b space-y-2">
-                        <p className="text-sm font-medium">Quick select</p>
-                        <div className="flex flex-wrap gap-1">
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(7)}>
-                            Last 7 days
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(30)}>
-                            Last 30 days
-                          </Button>
-                          <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(90)}>
-                            Last 90 days
-                          </Button>
-                        </div>
-                      </div>
-                      <CalendarComponent
-                        mode="range"
-                        selected={{ from: dateRange.from, to: dateRange.to }}
-                        onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                        numberOfMonths={1}
-                        disabled={{ after: new Date() }}
-                      />
-                      {(dateRange.from || dateRange.to) && (
-                        <div className="p-3 border-t">
-                          <Button size="sm" variant="ghost" className="w-full gap-2" onClick={clearDateRange}>
-                            <X className="h-4 w-4" />
-                            Clear filter
-                          </Button>
-                        </div>
-                      )}
-                    </PopoverContent>
-                  </Popover>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
                 </div>
 
                 {/* Active filter indicator */}
-                {(dateRange.from || dateRange.to) && (
-                  <div className="flex items-center gap-2 mb-3 text-xs text-muted-foreground">
-                    <Filter className="h-3 w-3" />
-                    <span>
-                      Showing {filteredActivityLog.length} of {activityLog.length} activities
-                      {dateRange.from && dateRange.to && (
-                        <> from {format(dateRange.from, 'MMM d, yyyy')} to {format(dateRange.to, 'MMM d, yyyy')}</>
-                      )}
-                    </span>
+                {(dateRange.from || dateRange.to || activityTypeFilter !== 'all') && (
+                  <div className="flex items-center justify-between gap-2 mb-3">
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <Filter className="h-3 w-3" />
+                      <span>
+                        Showing {filteredActivityLog.length} of {activityLog.length} activities
+                        {activityTypeFilter !== 'all' && (
+                          <> • {activityTypeOptions.find(o => o.value === activityTypeFilter)?.label}</>
+                        )}
+                        {dateRange.from && dateRange.to && (
+                          <> • {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}</>
+                        )}
+                      </span>
+                    </div>
+                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={clearAllFilters}>
+                      Clear all
+                    </Button>
                   </div>
                 )}
 
@@ -646,10 +698,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                   </Card>
                 ) : filteredActivityLog.length === 0 ? (
                   <Card className="p-8 text-center">
-                    <CalendarDays className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No activity in selected date range</p>
-                    <Button variant="link" size="sm" onClick={clearDateRange} className="mt-2">
-                      Clear filter
+                    <Filter className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                    <p className="text-muted-foreground">No activity matches the selected filters</p>
+                    <Button variant="link" size="sm" onClick={clearAllFilters} className="mt-2">
+                      Clear all filters
                     </Button>
                   </Card>
                 ) : (
