@@ -36,6 +36,12 @@ const TEMPLATE_CATEGORIES = [
   { value: 'support', label: 'Support', color: 'bg-rose-500' },
   { value: 'general', label: 'General', color: 'bg-slate-500' },
 ];
+
+const PLACEHOLDERS = [
+  { key: '{name}', label: 'Name', description: 'Full name' },
+  { key: '{first_name}', label: 'First Name', description: 'First name only' },
+  { key: '{phone}', label: 'Phone', description: 'Phone number' },
+];
 import { toast } from 'sonner';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
 
@@ -165,13 +171,41 @@ export default function BulkWhatsAppDialog({
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const getWhatsAppLinkWithMessage = (phone: string) => {
+  const replacePlaceholders = (text: string, user: User) => {
+    const phoneInfo = parsePhoneNumber(user.phone);
+    const firstName = user.full_name.split(' ')[0];
+    
+    return text
+      .replace(/{name}/gi, user.full_name)
+      .replace(/{first_name}/gi, firstName)
+      .replace(/{phone}/gi, phoneInfo.formatted);
+  };
+
+  const getWhatsAppLinkWithMessage = (phone: string, user?: User) => {
     const phoneInfo = parsePhoneNumber(phone);
     const baseLink = phoneInfo.whatsappLink;
     if (message.trim()) {
-      return `${baseLink}?text=${encodeURIComponent(message.trim())}`;
+      const personalizedMessage = user ? replacePlaceholders(message.trim(), user) : message.trim();
+      return `${baseLink}?text=${encodeURIComponent(personalizedMessage)}`;
     }
     return baseLink;
+  };
+
+  const insertPlaceholder = (placeholder: string) => {
+    const textarea = document.getElementById('message') as HTMLTextAreaElement;
+    if (textarea) {
+      const start = textarea.selectionStart;
+      const end = textarea.selectionEnd;
+      const newMessage = message.slice(0, start) + placeholder + message.slice(end);
+      setMessage(newMessage);
+      // Set cursor position after placeholder
+      setTimeout(() => {
+        textarea.focus();
+        textarea.setSelectionRange(start + placeholder.length, start + placeholder.length);
+      }, 0);
+    } else {
+      setMessage(prev => prev + placeholder);
+    }
   };
 
   const handleCopyNumbers = () => {
@@ -187,9 +221,9 @@ export default function BulkWhatsAppDialog({
     setTimeout(() => setCopiedNumbers(false), 2000);
   };
 
-  const handleOpenSingleChat = (phone: string, index: number) => {
+  const handleOpenSingleChat = (user: User, index: number) => {
     setOpeningIndex(index);
-    window.open(getWhatsAppLinkWithMessage(phone), '_blank');
+    window.open(getWhatsAppLinkWithMessage(user.phone, user), '_blank');
     setTimeout(() => setOpeningIndex(null), 500);
   };
 
@@ -200,12 +234,14 @@ export default function BulkWhatsAppDialog({
     
     selectedUsers.forEach((user, index) => {
       setTimeout(() => {
-        window.open(getWhatsAppLinkWithMessage(user.phone), '_blank');
+        window.open(getWhatsAppLinkWithMessage(user.phone, user), '_blank');
       }, index * 300);
     });
     
     toast.success(`Opening ${selectedUsers.length} WhatsApp chats...`);
   };
+
+  const hasPlaceholders = PLACEHOLDERS.some(p => message.includes(p.key));
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -251,15 +287,37 @@ export default function BulkWhatsAppDialog({
               </div>
               <Textarea
                 id="message"
-                placeholder="Type your message here... This will be pre-filled when opening each chat."
+                placeholder="Type your message here... Use {name}, {first_name}, or {phone} for personalization."
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 rows={3}
                 maxLength={1000}
               />
-              <p className="text-xs text-muted-foreground text-right">
-                {message.length}/1000
-              </p>
+              <div className="flex items-center justify-between">
+                <div className="flex gap-1 flex-wrap">
+                  <span className="text-xs text-muted-foreground mr-1">Insert:</span>
+                  {PLACEHOLDERS.map((p) => (
+                    <Badge
+                      key={p.key}
+                      variant="outline"
+                      className="cursor-pointer text-xs h-5 hover:bg-primary hover:text-primary-foreground transition-colors"
+                      onClick={() => insertPlaceholder(p.key)}
+                      title={p.description}
+                    >
+                      {p.label}
+                    </Badge>
+                  ))}
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  {message.length}/1000
+                </p>
+              </div>
+              {hasPlaceholders && (
+                <p className="text-xs text-primary flex items-center gap-1">
+                  <Check className="h-3 w-3" />
+                  Placeholders will be personalized for each recipient
+                </p>
+              )}
             </div>
 
             {/* Save Template Form */}
@@ -366,7 +424,7 @@ export default function BulkWhatsAppDialog({
                           variant="ghost"
                           size="icon"
                           className="h-8 w-8 shrink-0"
-                          onClick={() => handleOpenSingleChat(user.phone, index)}
+                          onClick={() => handleOpenSingleChat(user, index)}
                         >
                           {openingIndex === index ? (
                             <Check className="h-4 w-4 text-success" />
