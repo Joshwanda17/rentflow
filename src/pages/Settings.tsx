@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate } from 'lucide-react';
+import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -629,6 +630,11 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+        </motion.div>
+
+        {/* Diagnostics Section */}
+        <motion.div variants={itemVariants} className="mt-6">
+          <DiagnosticsSection />
         </motion.div>
       </motion.div>
     </div>
