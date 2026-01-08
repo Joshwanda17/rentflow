@@ -1,11 +1,12 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { MessageCircle, X } from 'lucide-react';
+import { MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 export default function FloatingChatButton() {
   const navigate = useNavigate();
@@ -77,61 +78,70 @@ export default function FloatingChatButton() {
   if (isOnChatPage || !user) return null;
 
   return (
-    <motion.button
-      initial={{ scale: 0, opacity: 0 }}
-      animate={{ scale: 1, opacity: 1 }}
-      exit={{ scale: 0, opacity: 0 }}
-      whileHover={{ scale: 1.15 }}
-      whileTap={{ scale: 0.9 }}
-      onClick={handleClick}
-      onMouseEnter={() => setIsHovered(true)}
-      onMouseLeave={() => setIsHovered(false)}
-      className={cn(
-        "fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[60]",
-        "h-16 w-16 md:h-[72px] md:w-[72px] rounded-full",
-        "bg-gradient-to-br from-primary to-primary/80",
-        "text-primary-foreground",
-        "shadow-2xl shadow-primary/40",
-        "flex items-center justify-center",
-        "transition-all duration-300",
-        "hover:shadow-primary/60 hover:shadow-2xl",
-        "focus:outline-none focus:ring-4 focus:ring-primary/50 focus:ring-offset-2",
-        "border-2 border-primary-foreground/20"
-      )}
-      aria-label="Open chat"
-    >
-      <MessageCircle className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
-
-      {/* Unread badge */}
-      <AnimatePresence>
-        {unreadCount > 0 && (
-          <motion.span
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            exit={{ scale: 0 }}
+    <TooltipProvider delayDuration={300}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <motion.button
+            initial={{ scale: 0, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            exit={{ scale: 0, opacity: 0 }}
+            whileHover={{ scale: 1.15 }}
+            whileTap={{ scale: 0.9 }}
+            onClick={handleClick}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             className={cn(
-              "absolute -top-1 -right-1",
-              "min-w-[26px] h-[26px] px-2",
-              "rounded-full",
-              "bg-destructive text-destructive-foreground",
-              "text-sm font-bold",
+              "fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[60]",
+              "h-16 w-16 md:h-[72px] md:w-[72px] rounded-full",
+              "bg-gradient-to-br from-primary to-primary/80",
+              "text-primary-foreground",
+              "shadow-2xl shadow-primary/40",
               "flex items-center justify-center",
-              "border-2 border-background",
-              "shadow-lg"
+              "transition-all duration-300",
+              "hover:shadow-primary/60 hover:shadow-2xl",
+              "focus:outline-none focus:ring-4 focus:ring-primary/50 focus:ring-offset-2",
+              "border-2 border-primary-foreground/20"
             )}
+            aria-label="Chat with users"
           >
-            {unreadCount > 99 ? '99+' : unreadCount}
-          </motion.span>
-        )}
-      </AnimatePresence>
+            <MessageCircle className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
 
-      {/* Pulse animation for unread */}
-      {unreadCount > 0 && (
-        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25" />
-      )}
+            {/* Unread badge */}
+            <AnimatePresence>
+              {unreadCount > 0 && (
+                <motion.span
+                  initial={{ scale: 0 }}
+                  animate={{ scale: 1 }}
+                  exit={{ scale: 0 }}
+                  className={cn(
+                    "absolute -top-1 -right-1",
+                    "min-w-[26px] h-[26px] px-2",
+                    "rounded-full",
+                    "bg-destructive text-destructive-foreground",
+                    "text-sm font-bold",
+                    "flex items-center justify-center",
+                    "border-2 border-background",
+                    "shadow-lg"
+                  )}
+                >
+                  {unreadCount > 99 ? '99+' : unreadCount}
+                </motion.span>
+              )}
+            </AnimatePresence>
 
-      {/* Glow effect */}
-      <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10" />
-    </motion.button>
+            {/* Pulse animation for unread */}
+            {unreadCount > 0 && (
+              <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25" />
+            )}
+
+            {/* Glow effect */}
+            <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10" />
+          </motion.button>
+        </TooltipTrigger>
+        <TooltipContent side="left" className="font-medium">
+          Chat with users
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }
