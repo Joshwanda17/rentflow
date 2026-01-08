@@ -1,0 +1,385 @@
+import { useState, useEffect, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+
+export interface Message {
+  id: string;
+  conversation_id: string;
+  sender_id: string;
+  content: string;
+  created_at: string;
+  sender?: {
+    full_name: string;
+    avatar_url: string | null;
+    roles: string[];
+  };
+}
+
+export interface Conversation {
+  id: string;
+  created_at: string;
+  updated_at: string;
+  participants: {
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    roles: string[];
+  }[];
+  last_message?: Message;
+  unread_count: number;
+}
+
+export function useChat() {
+  const { user } = useAuth();
+  const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchConversations = useCallback(async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    
+    // Get all conversations for the user
+    const { data: participations } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', user.id);
+
+    if (!participations || participations.length === 0) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+
+    const conversationIds = participations.map(p => p.conversation_id);
+    const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
+
+    // Get conversation details with participants
+    const { data: convData } = await supabase
+      .from('conversations')
+      .select('id, created_at, updated_at')
+      .in('id', conversationIds)
+      .order('updated_at', { ascending: false });
+
+    if (!convData) {
+      setConversations([]);
+      setLoading(false);
+      return;
+    }
+
+    // Get all participants for these conversations
+    const { data: allParticipants } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id, user_id')
+      .in('conversation_id', conversationIds);
+
+    // Get profiles and roles for all participants
+    const participantIds = [...new Set(allParticipants?.map(p => p.user_id) || [])];
+    
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, avatar_url').in('id', participantIds),
+      supabase.from('user_roles').select('user_id, role').in('user_id', participantIds)
+    ]);
+
+    const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+    const rolesMap = new Map<string, string[]>();
+    rolesRes.data?.forEach(r => {
+      const existing = rolesMap.get(r.user_id) || [];
+      rolesMap.set(r.user_id, [...existing, r.role]);
+    });
+
+    // Get last message for each conversation
+    const lastMessagesPromises = conversationIds.map(async (convId) => {
+      const { data } = await supabase
+        .from('messages')
+        .select('*')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+      return { convId, message: data };
+    });
+
+    const lastMessages = await Promise.all(lastMessagesPromises);
+    const lastMessageMap = new Map(lastMessages.map(lm => [lm.convId, lm.message]));
+
+    // Get unread counts
+    const unreadPromises = conversationIds.map(async (convId) => {
+      const lastRead = lastReadMap.get(convId);
+      let query = supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', convId)
+        .neq('sender_id', user.id);
+      
+      if (lastRead) {
+        query = query.gt('created_at', lastRead);
+      }
+      
+      const { count } = await query;
+      return { convId, count: count || 0 };
+    });
+
+    const unreadCounts = await Promise.all(unreadPromises);
+    const unreadMap = new Map(unreadCounts.map(u => [u.convId, u.count]));
+
+    // Build conversation objects
+    const conversationsWithDetails: Conversation[] = convData.map(conv => {
+      const convParticipants = allParticipants?.filter(p => p.conversation_id === conv.id) || [];
+      const participants = convParticipants
+        .filter(p => p.user_id !== user.id)
+        .map(p => {
+          const profile = profilesMap.get(p.user_id);
+          return {
+            user_id: p.user_id,
+            full_name: profile?.full_name || 'Unknown',
+            avatar_url: profile?.avatar_url || null,
+            roles: rolesMap.get(p.user_id) || []
+          };
+        });
+
+      return {
+        id: conv.id,
+        created_at: conv.created_at,
+        updated_at: conv.updated_at,
+        participants,
+        last_message: lastMessageMap.get(conv.id) || undefined,
+        unread_count: unreadMap.get(conv.id) || 0
+      };
+    });
+
+    setConversations(conversationsWithDetails);
+    setLoading(false);
+  }, [user]);
+
+  const startConversation = async (otherUserId: string): Promise<string | null> => {
+    if (!user) return null;
+
+    // Check if conversation already exists between these two users
+    const { data: existingParticipations } = await supabase
+      .from('conversation_participants')
+      .select('conversation_id')
+      .eq('user_id', user.id);
+
+    if (existingParticipations) {
+      for (const p of existingParticipations) {
+        const { data: otherParticipant } = await supabase
+          .from('conversation_participants')
+          .select('user_id')
+          .eq('conversation_id', p.conversation_id)
+          .eq('user_id', otherUserId)
+          .single();
+
+        if (otherParticipant) {
+          // Conversation exists
+          return p.conversation_id;
+        }
+      }
+    }
+
+    // Create new conversation
+    const { data: newConv, error: convError } = await supabase
+      .from('conversations')
+      .insert({})
+      .select()
+      .single();
+
+    if (convError || !newConv) {
+      console.error('Failed to create conversation:', convError);
+      return null;
+    }
+
+    // Add both participants
+    const { error: partError } = await supabase
+      .from('conversation_participants')
+      .insert([
+        { conversation_id: newConv.id, user_id: user.id },
+        { conversation_id: newConv.id, user_id: otherUserId }
+      ]);
+
+    if (partError) {
+      console.error('Failed to add participants:', partError);
+      return null;
+    }
+
+    await fetchConversations();
+    return newConv.id;
+  };
+
+  useEffect(() => {
+    fetchConversations();
+  }, [fetchConversations]);
+
+  return {
+    conversations,
+    loading,
+    fetchConversations,
+    startConversation
+  };
+}
+
+export function useConversation(conversationId: string | null) {
+  const { user } = useAuth();
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [otherParticipant, setOtherParticipant] = useState<{
+    user_id: string;
+    full_name: string;
+    avatar_url: string | null;
+    roles: string[];
+  } | null>(null);
+
+  const fetchMessages = useCallback(async () => {
+    if (!conversationId || !user) return;
+
+    setLoading(true);
+
+    // Get messages
+    const { data: messagesData } = await supabase
+      .from('messages')
+      .select('*')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true });
+
+    if (messagesData) {
+      // Get sender info
+      const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
+      
+      const [profilesRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').in('id', senderIds),
+        supabase.from('user_roles').select('user_id, role').in('user_id', senderIds)
+      ]);
+
+      const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+      const rolesMap = new Map<string, string[]>();
+      rolesRes.data?.forEach(r => {
+        const existing = rolesMap.get(r.user_id) || [];
+        rolesMap.set(r.user_id, [...existing, r.role]);
+      });
+
+      const messagesWithSenders = messagesData.map(m => ({
+        ...m,
+        sender: {
+          full_name: profilesMap.get(m.sender_id)?.full_name || 'Unknown',
+          avatar_url: profilesMap.get(m.sender_id)?.avatar_url || null,
+          roles: rolesMap.get(m.sender_id) || []
+        }
+      }));
+
+      setMessages(messagesWithSenders);
+    }
+
+    // Get other participant
+    const { data: participants } = await supabase
+      .from('conversation_participants')
+      .select('user_id')
+      .eq('conversation_id', conversationId)
+      .neq('user_id', user.id);
+
+    if (participants && participants.length > 0) {
+      const otherId = participants[0].user_id;
+      const [profileRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('id, full_name, avatar_url').eq('id', otherId).single(),
+        supabase.from('user_roles').select('role').eq('user_id', otherId)
+      ]);
+
+      if (profileRes.data) {
+        setOtherParticipant({
+          user_id: otherId,
+          full_name: profileRes.data.full_name,
+          avatar_url: profileRes.data.avatar_url,
+          roles: rolesRes.data?.map(r => r.role) || []
+        });
+      }
+    }
+
+    // Mark as read
+    await supabase
+      .from('conversation_participants')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', user.id);
+
+    setLoading(false);
+  }, [conversationId, user]);
+
+  const sendMessage = async (content: string) => {
+    if (!conversationId || !user || !content.trim()) return false;
+
+    const { error } = await supabase
+      .from('messages')
+      .insert({
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: content.trim()
+      });
+
+    if (error) {
+      console.error('Failed to send message:', error);
+      return false;
+    }
+
+    return true;
+  };
+
+  // Real-time subscription
+  useEffect(() => {
+    if (!conversationId || !user) return;
+
+    fetchMessages();
+
+    const channel = supabase
+      .channel(`messages-${conversationId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        async (payload) => {
+          const newMessage = payload.new as Message;
+          
+          // Get sender info
+          const [profileRes, rolesRes] = await Promise.all([
+            supabase.from('profiles').select('id, full_name, avatar_url').eq('id', newMessage.sender_id).single(),
+            supabase.from('user_roles').select('role').eq('user_id', newMessage.sender_id)
+          ]);
+
+          const messageWithSender: Message = {
+            ...newMessage,
+            sender: {
+              full_name: profileRes.data?.full_name || 'Unknown',
+              avatar_url: profileRes.data?.avatar_url || null,
+              roles: rolesRes.data?.map(r => r.role) || []
+            }
+          };
+
+          setMessages(prev => [...prev, messageWithSender]);
+
+          // Mark as read if not sender
+          if (newMessage.sender_id !== user.id) {
+            await supabase
+              .from('conversation_participants')
+              .update({ last_read_at: new Date().toISOString() })
+              .eq('conversation_id', conversationId)
+              .eq('user_id', user.id);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [conversationId, user, fetchMessages]);
+
+  return {
+    messages,
+    loading,
+    otherParticipant,
+    sendMessage,
+    fetchMessages
+  };
+}

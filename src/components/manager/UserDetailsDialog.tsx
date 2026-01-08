@@ -26,6 +26,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
+import StartChatButton from '@/components/chat/StartChatButton';
 
 interface InvestmentAccount {
   id: string;
@@ -539,6 +540,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                     <div className="flex items-center gap-3">
                       <Phone className="h-4 w-4 text-muted-foreground" />
                       <WhatsAppPhoneLink phone={user.phone} />
+                    </div>
+                    <div className="flex items-center gap-3 md:col-span-2">
+                      <StartChatButton 
+                        userId={user.id} 
+                        userName={user.full_name}
+                        variant="default"
+                        className="w-full md:w-auto"
+                      />
                     </div>
                   </CardContent>
                 </Card>
