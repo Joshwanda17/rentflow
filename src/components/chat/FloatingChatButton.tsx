@@ -81,45 +81,26 @@ export default function FloatingChatButton() {
       initial={{ scale: 0, opacity: 0 }}
       animate={{ scale: 1, opacity: 1 }}
       exit={{ scale: 0, opacity: 0 }}
-      whileHover={{ scale: 1.1 }}
-      whileTap={{ scale: 0.95 }}
+      whileHover={{ scale: 1.15 }}
+      whileTap={{ scale: 0.9 }}
       onClick={handleClick}
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
       className={cn(
-        "fixed bottom-20 md:bottom-6 right-4 md:right-6 z-50",
-        "h-14 w-14 rounded-full",
-        "bg-primary text-primary-foreground",
-        "shadow-lg shadow-primary/25",
+        "fixed bottom-24 md:bottom-8 right-4 md:right-8 z-[60]",
+        "h-16 w-16 md:h-[72px] md:w-[72px] rounded-full",
+        "bg-gradient-to-br from-primary to-primary/80",
+        "text-primary-foreground",
+        "shadow-2xl shadow-primary/40",
         "flex items-center justify-center",
-        "transition-colors duration-200",
-        "hover:bg-primary/90",
-        "focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-2"
+        "transition-all duration-300",
+        "hover:shadow-primary/60 hover:shadow-2xl",
+        "focus:outline-none focus:ring-4 focus:ring-primary/50 focus:ring-offset-2",
+        "border-2 border-primary-foreground/20"
       )}
       aria-label="Open chat"
     >
-      <AnimatePresence mode="wait">
-        {isHovered ? (
-          <motion.div
-            key="text"
-            initial={{ opacity: 0, width: 0 }}
-            animate={{ opacity: 1, width: 'auto' }}
-            exit={{ opacity: 0, width: 0 }}
-            className="flex items-center gap-2 px-2"
-          >
-            <MessageCircle className="h-5 w-5 shrink-0" />
-          </motion.div>
-        ) : (
-          <motion.div
-            key="icon"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-          >
-            <MessageCircle className="h-6 w-6" />
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <MessageCircle className="h-7 w-7 md:h-8 md:w-8" strokeWidth={2.5} />
 
       {/* Unread badge */}
       <AnimatePresence>
@@ -130,12 +111,13 @@ export default function FloatingChatButton() {
             exit={{ scale: 0 }}
             className={cn(
               "absolute -top-1 -right-1",
-              "min-w-[22px] h-[22px] px-1.5",
+              "min-w-[26px] h-[26px] px-2",
               "rounded-full",
               "bg-destructive text-destructive-foreground",
-              "text-xs font-bold",
+              "text-sm font-bold",
               "flex items-center justify-center",
-              "border-2 border-background"
+              "border-2 border-background",
+              "shadow-lg"
             )}
           >
             {unreadCount > 99 ? '99+' : unreadCount}
@@ -145,8 +127,11 @@ export default function FloatingChatButton() {
 
       {/* Pulse animation for unread */}
       {unreadCount > 0 && (
-        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-20" />
+        <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25" />
       )}
+
+      {/* Glow effect */}
+      <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10" />
     </motion.button>
   );
 }
