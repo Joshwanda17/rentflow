@@ -6,9 +6,11 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
+import BulkNotificationDialog from './BulkNotificationDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
@@ -43,6 +45,8 @@ export default function UserProfilesTable() {
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -157,6 +161,35 @@ export default function UserProfilesTable() {
     } finally {
       setExporting(false);
     }
+  };
+
+  const toggleUserSelection = (userId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setSelectedUserIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.size === filteredUsers.length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(filteredUsers.map(u => u.id)));
+    }
+  };
+
+  const clearSelection = () => {
+    setSelectedUserIds(new Set());
+  };
+
+  const handleBulkNotificationSuccess = () => {
+    clearSelection();
   };
 
   const sortUsers = (usersToSort: UserWithRating[]): UserWithRating[] => {
@@ -364,12 +397,27 @@ export default function UserProfilesTable() {
 
         {/* Sort & Results Row */}
         <div className="flex items-center justify-between">
-          <span className="text-sm text-muted-foreground">
-            {filteredUsers.length === users.length 
-              ? `${users.length} users` 
-              : `${filteredUsers.length} of ${users.length} users`
-            }
-          </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={toggleSelectAll}
+              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
+                <CheckSquare className="h-4 w-4 text-primary" />
+              ) : (
+                <Square className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">
+                {selectedUserIds.size > 0 ? `${selectedUserIds.size} selected` : 'Select all'}
+              </span>
+            </button>
+            <span className="text-sm text-muted-foreground">
+              {filteredUsers.length === users.length 
+                ? `${users.length} users` 
+                : `${filteredUsers.length} of ${users.length} users`
+              }
+            </span>
+          </div>
           
           {/* Sort Dropdown */}
           <div className="relative">
@@ -454,20 +502,35 @@ export default function UserProfilesTable() {
                   exit={{ opacity: 0, scale: 0.95 }}
                   transition={{ delay: index * 0.02 }}
                   onClick={() => handleUserClick(user)}
-                  className="group relative bg-card rounded-2xl border border-border/50 p-4 hover:border-primary/30 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer"
+                  className={`group relative bg-card rounded-2xl border p-4 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer ${
+                    selectedUserIds.has(user.id) 
+                      ? 'border-primary/50 bg-primary/5' 
+                      : 'border-border/50 hover:border-primary/30'
+                  }`}
                 >
-                  <div className="flex items-start gap-4">
+                  <div className="flex items-start gap-3">
+                    {/* Checkbox */}
+                    <div 
+                      className="shrink-0 pt-1"
+                      onClick={(e) => toggleUserSelection(user.id, e)}
+                    >
+                      <Checkbox
+                        checked={selectedUserIds.has(user.id)}
+                        className="h-5 w-5 rounded-md"
+                      />
+                    </div>
+                    
                     {/* Avatar */}
-                    <div className="relative">
-                      <Avatar className="h-14 w-14 border-2 border-background shadow-md">
+                    <div className="relative shrink-0">
+                      <Avatar className="h-12 w-12 border-2 border-background shadow-md">
                         <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold text-lg">
+                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>
                       {user.rent_discount_active && (
                         <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-success text-success-foreground">
-                          <CheckCircle className="h-3.5 w-3.5" />
+                          <CheckCircle className="h-3 w-3" />
                         </div>
                       )}
                     </div>
@@ -490,7 +553,7 @@ export default function UserProfilesTable() {
                       </div>
                       
                       {/* Roles */}
-                      <div className="flex items-center gap-1.5 mt-3 flex-wrap">
+                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
                         {user.roles.map((role) => (
                           <Badge 
                             key={role} 
@@ -503,7 +566,7 @@ export default function UserProfilesTable() {
                       </div>
                       
                       {/* Rating & Rent - Bottom Row */}
-                      <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
                         <div className="flex items-center gap-3">
                           {user.rating_count > 0 ? (
                             <div className="flex items-center gap-1.5">
@@ -538,6 +601,44 @@ export default function UserProfilesTable() {
         onOpenChange={setDialogOpen}
         user={selectedUser}
       />
+
+      <BulkNotificationDialog
+        open={bulkNotificationOpen}
+        onOpenChange={setBulkNotificationOpen}
+        selectedUserIds={Array.from(selectedUserIds)}
+        onSuccess={handleBulkNotificationSuccess}
+      />
+
+      {/* Floating Bulk Actions Bar */}
+      <AnimatePresence>
+        {selectedUserIds.size > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 100 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 100 }}
+            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-2xl shadow-xl px-4 py-3 flex items-center gap-3"
+          >
+            <div className="flex items-center gap-2 pr-3 border-r border-border">
+              <span className="text-sm font-medium">{selectedUserIds.size} selected</span>
+              <button
+                onClick={clearSelection}
+                className="p-1 rounded-full hover:bg-muted transition-colors"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            </div>
+            
+            <Button
+              size="sm"
+              onClick={() => setBulkNotificationOpen(true)}
+              className="gap-2"
+            >
+              <Bell className="h-4 w-4" />
+              Send Notification
+            </Button>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }
