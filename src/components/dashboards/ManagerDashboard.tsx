@@ -21,7 +21,9 @@ import {
   Award,
   Wallet,
   Download,
-  UserPlus
+  UserPlus,
+  UserCheck,
+  CalendarPlus
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -59,6 +61,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [totalFacilitated, setTotalFacilitated] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const [pendingLoans, setPendingLoans] = useState(0);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [newSignupsThisWeek, setNewSignupsThisWeek] = useState(0);
 
   useEffect(() => {
     fetchData();
@@ -67,29 +71,42 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const fetchData = async () => {
     setLoading(true);
     
-    const [requestsRes, usersRes, ordersRes, loansRes] = await Promise.all([
+    // Calculate date for one week ago
+    const oneWeekAgo = new Date();
+    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+    const oneWeekAgoISO = oneWeekAgo.toISOString();
+    
+    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('id, status, rent_amount'),
       supabase
         .from('profiles')
-        .select('id'),
+        .select('id, rent_discount_active, created_at'),
       supabase
         .from('product_orders')
         .select('id, status'),
       supabase
         .from('loan_applications')
-        .select('id, status')
+        .select('id, status'),
+      supabase
+        .from('profiles')
+        .select('id')
+        .gte('created_at', oneWeekAgoISO)
     ]);
     
     const requests = requestsRes.data || [];
+    const users = usersRes.data || [];
+    
     setPendingRequests(requests.filter(r => r.status === 'pending').length);
     setTotalFacilitated(
       requests
         .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
         .reduce((sum, r) => sum + Number(r.rent_amount), 0)
     );
-    setTotalUsers(usersRes.data?.length || 0);
+    setTotalUsers(users.length);
+    setActiveUsers(users.filter(u => u.rent_discount_active).length);
+    setNewSignupsThisWeek(newUsersRes.data?.length || 0);
     setPendingOrders((ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length);
     setPendingLoans((loansRes.data || []).filter(l => l.status === 'pending').length);
     
@@ -133,7 +150,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
             <CardContent className="p-5 relative">
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-4">
                   <div className="p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg">
                     <Users className="h-8 w-8" />
@@ -146,16 +163,32 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       </Badge>
                     </div>
                     <p className="text-sm text-muted-foreground">View, search & manage all users</p>
-                    <div className="flex items-center gap-2 mt-2">
-                      <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
-                        <CheckCircle className="h-3 w-3 mr-1" />
-                        Active profiles
-                      </Badge>
-                    </div>
                   </div>
                 </div>
                 <div className="p-3 rounded-full bg-primary/10">
                   <ArrowRight className="h-6 w-6 text-primary" />
+                </div>
+              </div>
+              
+              {/* Quick Stats Row */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 border border-success/20">
+                  <div className="p-2 rounded-lg bg-success/20">
+                    <UserCheck className="h-4 w-4 text-success" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-success">{activeUsers}</p>
+                    <p className="text-xs text-muted-foreground">Active users</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-3 p-3 rounded-xl bg-chart-5/10 border border-chart-5/20">
+                  <div className="p-2 rounded-lg bg-chart-5/20">
+                    <CalendarPlus className="h-4 w-4 text-chart-5" />
+                  </div>
+                  <div>
+                    <p className="text-lg font-bold text-chart-5">{newSignupsThisWeek}</p>
+                    <p className="text-xs text-muted-foreground">New this week</p>
+                  </div>
                 </div>
               </div>
             </CardContent>
