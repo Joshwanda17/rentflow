@@ -9,6 +9,7 @@ import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X } from 'lucide-react';
+import ReadReceipt from './ReadReceipt';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import OnlineIndicator from './OnlineIndicator';
@@ -323,19 +324,15 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                             onReactionChange={fetchMessages}
                           />
                           
-                          <div className={`flex items-center gap-1 ${isOwn ? 'justify-end' : ''}`}>
+                          <div className={`flex items-center gap-1.5 ${isOwn ? 'justify-end' : ''}`}>
                             <p className="text-[10px] text-muted-foreground">
                               {formatMessageDate(msg.created_at)}
                             </p>
-                            {isOwn && (
-                              <span className="text-muted-foreground">
-                                {msg.read_at ? (
-                                  <CheckCheck className="h-3.5 w-3.5 text-primary" />
-                                ) : (
-                                  <Check className="h-3.5 w-3.5" />
-                                )}
-                              </span>
-                            )}
+                            <ReadReceipt 
+                              sentAt={msg.created_at} 
+                              readAt={msg.read_at} 
+                              isOwn={isOwn} 
+                            />
                           </div>
                         </div>
                       </div>
