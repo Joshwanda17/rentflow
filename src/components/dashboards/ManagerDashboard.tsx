@@ -64,12 +64,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [pendingLoans, setPendingLoans] = useState(0);
   const [activeUsers, setActiveUsers] = useState(0);
   const [newSignupsThisWeek, setNewSignupsThisWeek] = useState(0);
-  const [topOnboarder, setTopOnboarder] = useState<{
+  const [topOnboarders, setTopOnboarders] = useState<{
     id: string;
     full_name: string;
     avatar_url: string | null;
     referral_count: number;
-  } | null>(null);
+  }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -104,8 +104,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         .from('referral_leaderboard')
         .select('user_id, full_name, avatar_url, referral_count')
         .order('referral_count', { ascending: false })
-        .limit(1)
-        .single()
+        .limit(5)
     ]);
     
     const requests = requestsRes.data || [];
@@ -123,14 +122,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setPendingOrders((ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length);
     setPendingLoans((loansRes.data || []).filter(l => l.status === 'pending').length);
     
-    if (topOnboarderRes.data && topOnboarderRes.data.referral_count > 0) {
-      setTopOnboarder({
-        id: topOnboarderRes.data.user_id,
-        full_name: topOnboarderRes.data.full_name,
-        avatar_url: topOnboarderRes.data.avatar_url,
-        referral_count: topOnboarderRes.data.referral_count
-      });
-    }
+    const onboarders = (topOnboarderRes.data || [])
+      .filter(o => o.referral_count > 0)
+      .map(o => ({
+        id: o.user_id,
+        full_name: o.full_name,
+        avatar_url: o.avatar_url,
+        referral_count: o.referral_count
+      }));
+    setTopOnboarders(onboarders);
     
     setLoading(false);
   };
@@ -217,33 +217,52 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </button>
 
-        {/* Top Onboarder Card */}
-        {topOnboarder && (
+        {/* Top Onboarders Leaderboard */}
+        {topOnboarders.length > 0 && (
           <Card className="border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-background overflow-hidden">
             <CardContent className="p-4">
-              <div className="flex items-center gap-4">
-                <div className="relative">
-                  <UserAvatar 
-                    avatarUrl={topOnboarder.avatar_url} 
-                    fullName={topOnboarder.full_name} 
-                    size="md" 
-                  />
-                  <div className="absolute -top-1 -right-1 p-1 rounded-full bg-amber-500 text-white">
-                    <Crown className="h-3 w-3" />
-                  </div>
+              <div className="flex items-center gap-2 mb-3">
+                <div className="p-2 rounded-lg bg-amber-500/20">
+                  <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-0.5">
-                    <Badge className="bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/30 text-[10px]">
-                      <Crown className="h-2.5 w-2.5 mr-1" />
-                      Top Onboarder
+                <h3 className="font-semibold">Top Onboarders</h3>
+                <Badge variant="secondary" className="ml-auto text-xs">
+                  {topOnboarders.reduce((sum, o) => sum + o.referral_count, 0)} total
+                </Badge>
+              </div>
+              <div className="space-y-2">
+                {topOnboarders.map((onboarder, index) => (
+                  <div 
+                    key={onboarder.id}
+                    className={`flex items-center gap-3 p-2 rounded-lg ${
+                      index === 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-muted/50'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
+                      style={{
+                        backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
+                        color: index < 3 ? 'white' : 'inherit',
+                        border: index >= 3 ? '1px solid hsl(var(--border))' : 'none'
+                      }}
+                    >
+                      {index + 1}
+                    </div>
+                    <UserAvatar 
+                      avatarUrl={onboarder.avatar_url} 
+                      fullName={onboarder.full_name} 
+                      size="sm" 
+                    />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium truncate">{onboarder.full_name}</p>
+                    </div>
+                    <Badge 
+                      variant={index === 0 ? "default" : "secondary"}
+                      className={index === 0 ? "bg-amber-500 text-white" : ""}
+                    >
+                      {onboarder.referral_count}
                     </Badge>
                   </div>
-                  <h3 className="font-semibold truncate">{topOnboarder.full_name}</h3>
-                  <p className="text-sm text-muted-foreground">
-                    <span className="font-bold text-amber-600 dark:text-amber-400">{topOnboarder.referral_count}</span> users onboarded
-                  </p>
-                </div>
+                ))}
               </div>
             </CardContent>
           </Card>
