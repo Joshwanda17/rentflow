@@ -14,6 +14,7 @@ import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { ConnectionStatus } from "@/components/ConnectionStatus";
 import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 
 // Lazy load all routes
 const Index = lazy(() => import("./pages/Index"));
@@ -146,31 +147,33 @@ function AnimatedRoutes() {
 }
 
 const App = () => (
-  <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
-    <QueryClientProvider client={queryClient}>
-      <FontSizeProvider>
-        <HapticSettingsProvider>
-          <LanguageProvider>
-            <BrowserRouter>
-              <AuthProvider>
-                <CartProvider>
-                  <ComparisonProvider>
-                    <TooltipProvider delayDuration={300}>
-                      <ConnectionStatus />
-                      <PWAInstallPrompt />
-                      <Toaster />
-                      <Sonner />
-                      <AnimatedRoutes />
-                    </TooltipProvider>
-                  </ComparisonProvider>
-                </CartProvider>
-              </AuthProvider>
-            </BrowserRouter>
-          </LanguageProvider>
-        </HapticSettingsProvider>
-      </FontSizeProvider>
-    </QueryClientProvider>
-  </ThemeProvider>
+  <ChunkErrorBoundary>
+    <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
+      <QueryClientProvider client={queryClient}>
+        <FontSizeProvider>
+          <HapticSettingsProvider>
+            <LanguageProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <CartProvider>
+                    <ComparisonProvider>
+                      <TooltipProvider delayDuration={300}>
+                        <ConnectionStatus />
+                        <PWAInstallPrompt />
+                        <Toaster />
+                        <Sonner />
+                        <AnimatedRoutes />
+                      </TooltipProvider>
+                    </ComparisonProvider>
+                  </CartProvider>
+                </AuthProvider>
+              </BrowserRouter>
+            </LanguageProvider>
+          </HapticSettingsProvider>
+        </FontSizeProvider>
+      </QueryClientProvider>
+    </ThemeProvider>
+  </ChunkErrorBoundary>
 );
 
 export default App;
