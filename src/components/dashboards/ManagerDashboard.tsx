@@ -42,6 +42,7 @@ import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWid
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
+import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 
 interface ManagerDashboardProps {
   user: User;
@@ -57,6 +58,18 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
+  const [selectedUser, setSelectedUser] = useState<{
+    id: string;
+    full_name: string;
+    email: string;
+    phone: string;
+    avatar_url: string | null;
+    rent_discount_active: boolean;
+    monthly_rent: number | null;
+    roles: string[];
+    average_rating: number | null;
+    rating_count: number;
+  } | null>(null);
   const [pendingRequests, setPendingRequests] = useState(0);
   const [totalUsers, setTotalUsers] = useState(0);
   const [totalFacilitated, setTotalFacilitated] = useState(0);
@@ -133,6 +146,36 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setTopOnboarders(onboarders);
     
     setLoading(false);
+  };
+
+  const handleSelectOnboarder = async (userId: string) => {
+    // Fetch full user details including roles and ratings
+    const [profileRes, rolesRes, ratingsRes] = await Promise.all([
+      supabase.from('profiles').select('*').eq('id', userId).single(),
+      supabase.from('user_roles').select('role').eq('user_id', userId),
+      supabase.from('tenant_ratings').select('rating').eq('tenant_id', userId)
+    ]);
+
+    if (profileRes.data) {
+      const roles = (rolesRes.data || []).map(r => r.role);
+      const ratings = (ratingsRes.data || []).map(r => r.rating);
+      const avgRating = ratings.length > 0 
+        ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
+        : null;
+
+      setSelectedUser({
+        id: profileRes.data.id,
+        full_name: profileRes.data.full_name,
+        email: profileRes.data.email,
+        phone: profileRes.data.phone,
+        avatar_url: profileRes.data.avatar_url,
+        rent_discount_active: profileRes.data.rent_discount_active,
+        monthly_rent: profileRes.data.monthly_rent,
+        roles,
+        average_rating: avgRating,
+        rating_count: ratings.length
+      });
+    }
   };
 
   if (loading) {
@@ -232,10 +275,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               </div>
               <div className="space-y-2">
                 {topOnboarders.map((onboarder, index) => (
-                  <div 
+                  <button 
                     key={onboarder.id}
-                    className={`flex items-center gap-3 p-2 rounded-lg ${
-                      index === 0 ? 'bg-amber-500/10 border border-amber-500/20' : 'hover:bg-muted/50'
+                    onClick={() => handleSelectOnboarder(onboarder.id)}
+                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all active:scale-[0.98] ${
+                      index === 0 ? 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15' : 'hover:bg-muted/50'
                     }`}
                   >
                     <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
@@ -252,7 +296,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       fullName={onboarder.full_name} 
                       size="sm" 
                     />
-                    <div className="flex-1 min-w-0">
+                    <div className="flex-1 min-w-0 text-left">
                       <p className="text-sm font-medium truncate">{onboarder.full_name}</p>
                     </div>
                     <Badge 
@@ -261,7 +305,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     >
                       {onboarder.referral_count}
                     </Badge>
-                  </div>
+                  </button>
                 ))}
               </div>
             </CardContent>
@@ -486,6 +530,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <CreateUserInviteDialog 
         open={createUserInviteOpen} 
         onOpenChange={setCreateUserInviteOpen} 
+      />
+      
+      <UserDetailsDialog
+        user={selectedUser}
+        open={!!selectedUser}
+        onOpenChange={(open) => !open && setSelectedUser(null)}
       />
     </div>
   );
