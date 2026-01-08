@@ -1917,6 +1917,10 @@ export type Database = {
       }
     }
     Functions: {
+      create_direct_conversation: {
+        Args: { other_user_id: string }
+        Returns: string
+      }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

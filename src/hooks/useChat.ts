@@ -187,33 +187,17 @@ export function useChat() {
       }
     }
 
-    // Create new conversation
-    const { data: newConv, error: convError } = await supabase
-      .from('conversations')
-      .insert({})
-      .select()
-      .single();
+    // Create (or reuse) a direct conversation on the server to avoid RLS edge-cases
+    const { data: conversationId, error: convError } = await supabase
+      .rpc('create_direct_conversation', { other_user_id: otherUserId });
 
-    if (convError || !newConv) {
+    if (convError || !conversationId) {
       console.error('Failed to create conversation:', convError);
       return null;
     }
 
-    // Add both participants
-    const { error: partError } = await supabase
-      .from('conversation_participants')
-      .insert([
-        { conversation_id: newConv.id, user_id: user.id },
-        { conversation_id: newConv.id, user_id: otherUserId }
-      ]);
-
-    if (partError) {
-      console.error('Failed to add participants:', partError);
-      return null;
-    }
-
     await fetchConversations();
-    return newConv.id;
+    return conversationId;
   };
 
   useEffect(() => {
