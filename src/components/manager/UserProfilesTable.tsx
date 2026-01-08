@@ -7,9 +7,10 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
+import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
@@ -615,9 +616,21 @@ export default function UserProfilesTable() {
                           <WhatsAppPhoneLink phone={user.phone} size="sm" className="mt-0.5" />
                         </div>
                         
-                        {/* Arrow indicator */}
-                        <div className="shrink-0 p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
-                          <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                        {/* WhatsApp & Arrow */}
+                        <div className="shrink-0 flex items-center gap-1">
+                          <a
+                            href={getWhatsAppLink(user.phone)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            onClick={(e) => e.stopPropagation()}
+                            className="p-2 rounded-full bg-success/10 hover:bg-success/20 transition-colors"
+                            title={`Message ${user.full_name} on WhatsApp`}
+                          >
+                            <MessageCircle className="h-4 w-4 text-success" />
+                          </a>
+                          <div className="p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                          </div>
                         </div>
                       </div>
                       
