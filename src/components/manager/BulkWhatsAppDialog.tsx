@@ -17,8 +17,25 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   MessageCircle, Copy, ExternalLink, Check, Save, Trash2, 
-  FileText, Plus, X 
+  FileText, Plus, X, Tag
 } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+
+const TEMPLATE_CATEGORIES = [
+  { value: 'reminders', label: 'Reminders', color: 'bg-amber-500' },
+  { value: 'greetings', label: 'Greetings', color: 'bg-green-500' },
+  { value: 'follow-ups', label: 'Follow-ups', color: 'bg-blue-500' },
+  { value: 'promotions', label: 'Promotions', color: 'bg-purple-500' },
+  { value: 'support', label: 'Support', color: 'bg-rose-500' },
+  { value: 'general', label: 'General', color: 'bg-slate-500' },
+];
 import { toast } from 'sonner';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
 
@@ -57,6 +74,8 @@ export default function BulkWhatsAppDialog({
   const [newTemplateName, setNewTemplateName] = useState('');
   const [showSaveForm, setShowSaveForm] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [newTemplateCategory, setNewTemplateCategory] = useState('general');
+  const [filterCategory, setFilterCategory] = useState<string>('all');
 
   useEffect(() => {
     if (open) {
@@ -104,7 +123,7 @@ export default function BulkWhatsAppDialog({
         name: newTemplateName.trim(),
         content: message.trim(),
         created_by: user.id,
-        category: 'whatsapp'
+        category: newTemplateCategory
       });
 
     if (error) {
@@ -113,6 +132,7 @@ export default function BulkWhatsAppDialog({
     } else {
       toast.success('Template saved successfully');
       setNewTemplateName('');
+      setNewTemplateCategory('general');
       setShowSaveForm(false);
       fetchTemplates();
     }
@@ -244,33 +264,53 @@ export default function BulkWhatsAppDialog({
 
             {/* Save Template Form */}
             {showSaveForm && (
-              <div className="flex gap-2 p-3 bg-muted/50 rounded-lg">
-                <Input
-                  placeholder="Template name..."
-                  value={newTemplateName}
-                  onChange={(e) => setNewTemplateName(e.target.value)}
-                  className="flex-1 h-8"
-                  maxLength={50}
-                />
-                <Button
-                  size="sm"
-                  onClick={handleSaveTemplate}
-                  disabled={savingTemplate}
-                  className="h-8"
-                >
-                  {savingTemplate ? 'Saving...' : 'Save'}
-                </Button>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => {
-                    setShowSaveForm(false);
-                    setNewTemplateName('');
-                  }}
-                  className="h-8 px-2"
-                >
-                  <X className="h-4 w-4" />
-                </Button>
+              <div className="space-y-2 p-3 bg-muted/50 rounded-lg">
+                <div className="flex gap-2">
+                  <Input
+                    placeholder="Template name..."
+                    value={newTemplateName}
+                    onChange={(e) => setNewTemplateName(e.target.value)}
+                    className="flex-1 h-8"
+                    maxLength={50}
+                  />
+                  <Select value={newTemplateCategory} onValueChange={setNewTemplateCategory}>
+                    <SelectTrigger className="w-[130px] h-8">
+                      <SelectValue placeholder="Category" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {TEMPLATE_CATEGORIES.map((cat) => (
+                        <SelectItem key={cat.value} value={cat.value}>
+                          <div className="flex items-center gap-2">
+                            <div className={`h-2 w-2 rounded-full ${cat.color}`} />
+                            {cat.label}
+                          </div>
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex gap-2 justify-end">
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowSaveForm(false);
+                      setNewTemplateName('');
+                      setNewTemplateCategory('general');
+                    }}
+                    className="h-8"
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    size="sm"
+                    onClick={handleSaveTemplate}
+                    disabled={savingTemplate}
+                    className="h-8"
+                  >
+                    {savingTemplate ? 'Saving...' : 'Save Template'}
+                  </Button>
+                </div>
               </div>
             )}
 
@@ -342,8 +382,34 @@ export default function BulkWhatsAppDialog({
             </div>
           </TabsContent>
 
-          <TabsContent value="templates" className="flex-1 min-h-0 mt-4">
-            <ScrollArea className="h-[280px]">
+          <TabsContent value="templates" className="flex-1 min-h-0 mt-4 space-y-3">
+            {/* Category Filter */}
+            <div className="flex gap-2 flex-wrap">
+              <Badge
+                variant={filterCategory === 'all' ? 'default' : 'outline'}
+                className="cursor-pointer"
+                onClick={() => setFilterCategory('all')}
+              >
+                All ({templates.length})
+              </Badge>
+              {TEMPLATE_CATEGORIES.map((cat) => {
+                const count = templates.filter(t => t.category === cat.value).length;
+                if (count === 0) return null;
+                return (
+                  <Badge
+                    key={cat.value}
+                    variant={filterCategory === cat.value ? 'default' : 'outline'}
+                    className="cursor-pointer gap-1.5"
+                    onClick={() => setFilterCategory(cat.value)}
+                  >
+                    <div className={`h-2 w-2 rounded-full ${cat.color}`} />
+                    {cat.label} ({count})
+                  </Badge>
+                );
+              })}
+            </div>
+
+            <ScrollArea className="h-[240px]">
               {loadingTemplates ? (
                 <div className="flex items-center justify-center py-8 text-muted-foreground">
                   Loading templates...
@@ -358,39 +424,52 @@ export default function BulkWhatsAppDialog({
                 </div>
               ) : (
                 <div className="space-y-2 p-1">
-                  {templates.map((template) => (
-                    <div
-                      key={template.id}
-                      className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
-                    >
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <h4 className="font-medium text-sm">{template.name}</h4>
-                        <div className="flex items-center gap-1 shrink-0">
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleUseTemplate(template)}
-                            className="h-7 text-xs gap-1"
-                          >
-                            <Plus className="h-3 w-3" />
-                            Use
-                          </Button>
-                          <Button
-                            size="sm"
-                            variant="ghost"
-                            onClick={() => handleDeleteTemplate(template.id)}
-                            disabled={deletingId === template.id}
-                            className="h-7 px-2 text-destructive hover:text-destructive"
-                          >
-                            <Trash2 className="h-3 w-3" />
-                          </Button>
+                  {templates
+                    .filter(t => filterCategory === 'all' || t.category === filterCategory)
+                    .map((template) => {
+                      const categoryInfo = TEMPLATE_CATEGORIES.find(c => c.value === template.category);
+                      return (
+                        <div
+                          key={template.id}
+                          className="p-3 rounded-lg border bg-card hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-start justify-between gap-2 mb-2">
+                            <div className="flex items-center gap-2">
+                              <h4 className="font-medium text-sm">{template.name}</h4>
+                              {categoryInfo && (
+                                <Badge variant="secondary" className="text-[10px] h-5 gap-1">
+                                  <div className={`h-1.5 w-1.5 rounded-full ${categoryInfo.color}`} />
+                                  {categoryInfo.label}
+                                </Badge>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-1 shrink-0">
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleUseTemplate(template)}
+                                className="h-7 text-xs gap-1"
+                              >
+                                <Plus className="h-3 w-3" />
+                                Use
+                              </Button>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                onClick={() => handleDeleteTemplate(template.id)}
+                                disabled={deletingId === template.id}
+                                className="h-7 px-2 text-destructive hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          </div>
+                          <p className="text-xs text-muted-foreground line-clamp-2">
+                            {template.content}
+                          </p>
                         </div>
-                      </div>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
-                        {template.content}
-                      </p>
-                    </div>
-                  ))}
+                      );
+                    })}
                 </div>
               )}
             </ScrollArea>
