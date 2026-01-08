@@ -369,6 +369,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
       receivedCount: 0,
       orderCount: 0,
       repaymentCount: 0,
+      moneyIn: 0,
+      moneyOut: 0,
+      netBalance: 0,
     };
 
     activityLog.forEach(activity => {
@@ -376,30 +379,38 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
         case 'deposit':
           summary.totalDeposits += activity.amount;
           summary.depositCount++;
+          summary.moneyIn += activity.amount;
           break;
         case 'withdrawal':
           summary.totalWithdrawals += activity.amount;
           summary.withdrawalCount++;
+          summary.moneyOut += activity.amount;
           break;
         case 'transaction_sent':
           summary.totalSent += activity.amount;
           summary.sentCount++;
+          summary.moneyOut += activity.amount;
           break;
         case 'transaction_received':
           summary.totalReceived += activity.amount;
           summary.receivedCount++;
+          summary.moneyIn += activity.amount;
           break;
         case 'order':
           summary.totalOrders += activity.amount;
           summary.orderCount++;
+          summary.moneyOut += activity.amount;
           break;
         case 'repayment':
         case 'loan_repayment':
           summary.totalRepayments += activity.amount;
           summary.repaymentCount++;
+          summary.moneyOut += activity.amount;
           break;
       }
     });
+
+    summary.netBalance = summary.moneyIn - summary.moneyOut;
 
     return summary;
   }, [activityLog]);
@@ -716,92 +727,123 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
 
                 {/* Activity Summary Stats */}
                 {!activityLoading && activityLog.length > 0 && (
-                  <div className="grid grid-cols-3 gap-2 mb-4">
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'deposit' ? 'ring-2 ring-success' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'deposit' ? 'all' : 'deposit')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-success/10">
-                          <DownloadIcon className="h-3 w-3 text-success" />
+                  <>
+                    <div className="grid grid-cols-3 gap-2 mb-4">
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'deposit' ? 'ring-2 ring-success' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'deposit' ? 'all' : 'deposit')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-success/10">
+                            <DownloadIcon className="h-3 w-3 text-success" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Deposits ({activitySummary.depositCount})</p>
+                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalDeposits)}</p>
+                          </div>
                         </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Deposits ({activitySummary.depositCount})</p>
-                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalDeposits)}</p>
+                      </Card>
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-warning/5 ${activityTypeFilter === 'withdrawal' ? 'ring-2 ring-warning' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'withdrawal' ? 'all' : 'withdrawal')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-warning/10">
+                            <Send className="h-3 w-3 text-warning" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Withdrawals ({activitySummary.withdrawalCount})</p>
+                            <p className="text-xs font-semibold text-warning truncate">{formatUGX(activitySummary.totalWithdrawals)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-primary/5 ${activityTypeFilter === 'order' ? 'ring-2 ring-primary' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'order' ? 'all' : 'order')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-primary/10">
+                            <ShoppingCart className="h-3 w-3 text-primary" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Orders ({activitySummary.orderCount})</p>
+                            <p className="text-xs font-semibold text-primary truncate">{formatUGX(activitySummary.totalOrders)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-destructive/5 ${activityTypeFilter === 'transaction_sent' ? 'ring-2 ring-destructive' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_sent' ? 'all' : 'transaction_sent')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-destructive/10">
+                            <ArrowUpRight className="h-3 w-3 text-destructive" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Sent ({activitySummary.sentCount})</p>
+                            <p className="text-xs font-semibold text-destructive truncate">{formatUGX(activitySummary.totalSent)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'transaction_received' ? 'ring-2 ring-success' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_received' ? 'all' : 'transaction_received')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-success/10">
+                            <ArrowDownLeft className="h-3 w-3 text-success" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Received ({activitySummary.receivedCount})</p>
+                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalReceived)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                      <Card 
+                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'repayment' ? 'ring-2 ring-success' : ''}`}
+                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'repayment' ? 'all' : 'repayment')}
+                      >
+                        <div className="flex items-center gap-2">
+                          <div className="p-1.5 rounded-full bg-success/10">
+                            <CreditCard className="h-3 w-3 text-success" />
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[10px] text-muted-foreground truncate">Repayments ({activitySummary.repaymentCount})</p>
+                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalRepayments)}</p>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* Net Balance Indicator */}
+                    <Card className="p-3 mb-4 bg-muted/30">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-4">
+                          <div className="flex items-center gap-2">
+                            <ArrowDownLeft className="h-4 w-4 text-success" />
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Money In</p>
+                              <p className="text-sm font-semibold text-success">{formatUGX(activitySummary.moneyIn)}</p>
+                            </div>
+                          </div>
+                          <div className="h-8 w-px bg-border" />
+                          <div className="flex items-center gap-2">
+                            <ArrowUpRight className="h-4 w-4 text-destructive" />
+                            <div>
+                              <p className="text-[10px] text-muted-foreground">Money Out</p>
+                              <p className="text-sm font-semibold text-destructive">{formatUGX(activitySummary.moneyOut)}</p>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="text-right">
+                          <p className="text-[10px] text-muted-foreground">Net Balance</p>
+                          <p className={`text-sm font-bold ${activitySummary.netBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
+                            {activitySummary.netBalance >= 0 ? '+' : ''}{formatUGX(activitySummary.netBalance)}
+                          </p>
                         </div>
                       </div>
                     </Card>
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-warning/5 ${activityTypeFilter === 'withdrawal' ? 'ring-2 ring-warning' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'withdrawal' ? 'all' : 'withdrawal')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-warning/10">
-                          <Send className="h-3 w-3 text-warning" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Withdrawals ({activitySummary.withdrawalCount})</p>
-                          <p className="text-xs font-semibold text-warning truncate">{formatUGX(activitySummary.totalWithdrawals)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-primary/5 ${activityTypeFilter === 'order' ? 'ring-2 ring-primary' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'order' ? 'all' : 'order')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-primary/10">
-                          <ShoppingCart className="h-3 w-3 text-primary" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Orders ({activitySummary.orderCount})</p>
-                          <p className="text-xs font-semibold text-primary truncate">{formatUGX(activitySummary.totalOrders)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-destructive/5 ${activityTypeFilter === 'transaction_sent' ? 'ring-2 ring-destructive' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_sent' ? 'all' : 'transaction_sent')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-destructive/10">
-                          <ArrowUpRight className="h-3 w-3 text-destructive" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Sent ({activitySummary.sentCount})</p>
-                          <p className="text-xs font-semibold text-destructive truncate">{formatUGX(activitySummary.totalSent)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'transaction_received' ? 'ring-2 ring-success' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_received' ? 'all' : 'transaction_received')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-success/10">
-                          <ArrowDownLeft className="h-3 w-3 text-success" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Received ({activitySummary.receivedCount})</p>
-                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalReceived)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                    <Card 
-                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'repayment' ? 'ring-2 ring-success' : ''}`}
-                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'repayment' ? 'all' : 'repayment')}
-                    >
-                      <div className="flex items-center gap-2">
-                        <div className="p-1.5 rounded-full bg-success/10">
-                          <CreditCard className="h-3 w-3 text-success" />
-                        </div>
-                        <div className="min-w-0">
-                          <p className="text-[10px] text-muted-foreground truncate">Repayments ({activitySummary.repaymentCount})</p>
-                          <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalRepayments)}</p>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
+                  </>
                 )}
 
                 {/* Active filter indicator */}
