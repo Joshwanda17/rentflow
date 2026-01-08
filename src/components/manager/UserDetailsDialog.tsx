@@ -717,7 +717,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                 {/* Activity Summary Stats */}
                 {!activityLoading && activityLog.length > 0 && (
                   <div className="grid grid-cols-3 gap-2 mb-4">
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'deposit' ? 'ring-2 ring-success' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'deposit' ? 'all' : 'deposit')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-success/10">
                           <DownloadIcon className="h-3 w-3 text-success" />
@@ -728,7 +731,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-warning/5 ${activityTypeFilter === 'withdrawal' ? 'ring-2 ring-warning' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'withdrawal' ? 'all' : 'withdrawal')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-warning/10">
                           <Send className="h-3 w-3 text-warning" />
@@ -739,7 +745,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-primary/5 ${activityTypeFilter === 'order' ? 'ring-2 ring-primary' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'order' ? 'all' : 'order')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-primary/10">
                           <ShoppingCart className="h-3 w-3 text-primary" />
@@ -750,7 +759,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-destructive/5 ${activityTypeFilter === 'transaction_sent' ? 'ring-2 ring-destructive' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_sent' ? 'all' : 'transaction_sent')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-destructive/10">
                           <ArrowUpRight className="h-3 w-3 text-destructive" />
@@ -761,7 +773,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'transaction_received' ? 'ring-2 ring-success' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_received' ? 'all' : 'transaction_received')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-success/10">
                           <ArrowDownLeft className="h-3 w-3 text-success" />
@@ -772,7 +787,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                         </div>
                       </div>
                     </Card>
-                    <Card className="p-2.5">
+                    <Card 
+                      className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'repayment' ? 'ring-2 ring-success' : ''}`}
+                      onClick={() => setActivityTypeFilter(activityTypeFilter === 'repayment' ? 'all' : 'repayment')}
+                    >
                       <div className="flex items-center gap-2">
                         <div className="p-1.5 rounded-full bg-success/10">
                           <CreditCard className="h-3 w-3 text-success" />
