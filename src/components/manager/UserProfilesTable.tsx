@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -10,6 +10,7 @@ import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserC
 import { formatUGX } from '@/lib/rentCalculations';
 import UserDetailsDialog from './UserDetailsDialog';
 import { motion, AnimatePresence } from 'framer-motion';
+import { PullToRefresh } from '@/components/PullToRefresh';
 
 interface UserWithRating {
   id: string;
@@ -93,11 +94,15 @@ export default function UserProfilesTable() {
     setLoading(false);
   };
 
-  const handleRefresh = async () => {
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchUsers();
     setRefreshing(false);
-  };
+  }, []);
+
+  const handlePullToRefresh = useCallback(async () => {
+    await fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(u => {
     const matchesSearch = 
@@ -187,7 +192,7 @@ export default function UserProfilesTable() {
 
   return (
     <>
-      <div className="space-y-4">
+      <PullToRefresh onRefresh={handlePullToRefresh} className="space-y-4 max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-150px)]">
         {/* Modern Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -368,7 +373,7 @@ export default function UserProfilesTable() {
             )}
           </AnimatePresence>
         </div>
-      </div>
+      </PullToRefresh>
 
       <UserDetailsDialog
         open={dialogOpen}
