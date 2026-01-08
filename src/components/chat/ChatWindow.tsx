@@ -7,8 +7,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X } from 'lucide-react';
 import { format, isToday, isYesterday } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface ChatWindowProps {
   conversationId: string;
@@ -17,11 +18,24 @@ interface ChatWindowProps {
 
 export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
   const { user } = useAuth();
-  const { messages, loading, otherParticipant, sendMessage, handleTyping, typingUsers } = useConversation(conversationId);
+  const { 
+    messages, 
+    loading, 
+    otherParticipant, 
+    sendMessage, 
+    handleTyping, 
+    typingUsers,
+    editMessage,
+    deleteMessage,
+    canEditMessage
+  } = useConversation(conversationId);
   const [newMessage, setNewMessage] = useState('');
   const [sending, setSending] = useState(false);
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editContent, setEditContent] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const editInputRef = useRef<HTMLInputElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
@@ -48,6 +62,39 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
       e.preventDefault();
       handleSend();
     }
+  };
+
+  const startEditing = (msg: Message) => {
+    setEditingMessageId(msg.id);
+    setEditContent(msg.content);
+    setTimeout(() => editInputRef.current?.focus(), 0);
+  };
+
+  const cancelEditing = () => {
+    setEditingMessageId(null);
+    setEditContent('');
+  };
+
+  const handleEditSave = async () => {
+    if (!editingMessageId || !editContent.trim()) return;
+    
+    const success = await editMessage(editingMessageId, editContent);
+    if (success) {
+      cancelEditing();
+    }
+  };
+
+  const handleEditKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleEditSave();
+    } else if (e.key === 'Escape') {
+      cancelEditing();
+    }
+  };
+
+  const handleDeleteMessage = async (messageId: string) => {
+    await deleteMessage(messageId);
   };
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -180,10 +227,13 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
               <div className="space-y-3">
                 {group.messages.map((msg) => {
                   const isOwn = msg.sender_id === user?.id;
+                  const isEditing = editingMessageId === msg.id;
+                  const canEdit = isOwn && canEditMessage(msg);
+                  
                   return (
                     <div
                       key={msg.id}
-                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
+                      className={`flex ${isOwn ? 'justify-end' : 'justify-start'} group`}
                     >
                       <div className={`flex gap-2 max-w-[80%] ${isOwn ? 'flex-row-reverse' : ''}`}>
                         {!isOwn && msg.sender && (
@@ -194,7 +244,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                             </AvatarFallback>
                           </Avatar>
                         )}
-                        <div>
+                        <div className="relative">
                           {!isOwn && msg.sender && (
                             <div className="flex items-center gap-1 mb-1">
                               <span className="text-xs font-medium">{msg.sender.full_name}</span>
@@ -205,15 +255,61 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                               )}
                             </div>
                           )}
-                          <div
-                            className={`rounded-2xl px-4 py-2 ${
-                              isOwn
-                                ? 'bg-primary text-primary-foreground rounded-br-md'
-                                : 'bg-muted rounded-bl-md'
-                            }`}
-                          >
-                            <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
-                          </div>
+                          
+                          {isEditing ? (
+                            <div className="flex items-center gap-2">
+                              <Input
+                                ref={editInputRef}
+                                value={editContent}
+                                onChange={(e) => setEditContent(e.target.value)}
+                                onKeyDown={handleEditKeyPress}
+                                className="min-w-[200px]"
+                              />
+                              <Button size="icon" variant="ghost" onClick={handleEditSave} className="h-8 w-8">
+                                <Check className="h-4 w-4" />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={cancelEditing} className="h-8 w-8">
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ) : (
+                            <div
+                              className={cn(
+                                "rounded-2xl px-4 py-2",
+                                isOwn
+                                  ? 'bg-primary text-primary-foreground rounded-br-md'
+                                  : 'bg-muted rounded-bl-md'
+                              )}
+                            >
+                              <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
+                            </div>
+                          )}
+                          
+                          {/* Edit/Delete buttons for own messages */}
+                          {canEdit && !isEditing && (
+                            <div className={cn(
+                              "absolute top-0 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity",
+                              isOwn ? "right-full mr-2" : "left-full ml-2"
+                            )}>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => startEditing(msg)}
+                                className="h-6 w-6 text-muted-foreground hover:text-foreground"
+                              >
+                                <Pencil className="h-3 w-3" />
+                              </Button>
+                              <Button
+                                size="icon"
+                                variant="ghost"
+                                onClick={() => handleDeleteMessage(msg.id)}
+                                className="h-6 w-6 text-muted-foreground hover:text-destructive"
+                              >
+                                <Trash2 className="h-3 w-3" />
+                              </Button>
+                            </div>
+                          )}
+                          
                           <div className={`flex items-center gap-1 mt-1 ${isOwn ? 'justify-end' : ''}`}>
                             <p className="text-[10px] text-muted-foreground">
                               {formatMessageDate(msg.created_at)}
