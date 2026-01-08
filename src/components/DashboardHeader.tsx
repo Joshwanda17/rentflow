@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Menu, Settings, LogOut, Download } from 'lucide-react';
+import ChatButton from '@/components/chat/ChatButton';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationBell } from '@/components/NotificationBell';
@@ -93,6 +94,7 @@ export default function DashboardHeader({
                 </Button>
               )}
               <ShareAppButton />
+              <ChatButton />
               <NotificationBell />
               <ThemeToggle />
 
