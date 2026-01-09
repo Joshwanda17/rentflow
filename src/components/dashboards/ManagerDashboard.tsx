@@ -36,8 +36,21 @@ import {
   X,
   History,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Trash2,
+  Loader2
 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -125,6 +138,33 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     actual: number;
     achieved: boolean;
   }[]>([]);
+  const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+
+  const handleQuickDeleteUser = async (userId: string, userName: string) => {
+    setDeletingUserId(userId);
+    try {
+      // Delete user roles
+      await supabase.from('user_roles').delete().eq('user_id', userId);
+      
+      // Delete user wallet
+      await supabase.from('wallets').delete().eq('user_id', userId);
+      
+      // Delete user profile
+      const { error } = await supabase.from('profiles').delete().eq('id', userId);
+      
+      if (error) throw error;
+      
+      toast.success(`${userName} has been deleted`);
+      
+      // Refresh the list
+      fetchProductivityData();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
+    } finally {
+      setDeletingUserId(null);
+    }
+  };
 
   useEffect(() => {
     fetchData();
@@ -1075,65 +1115,102 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 </p>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {topOnboarders.map((onboarder, index) => (
-                    <button 
+                    <div 
                       key={onboarder.id}
-                      onClick={() => handleSelectOnboarder(onboarder.id)}
-                      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-[0.98] ${
+                      className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
                         index === 0 
                           ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/10 border-2 border-amber-500/40 shadow-md' 
                           : index === 1 
-                          ? 'bg-muted/60 border border-border hover:bg-muted' 
+                          ? 'bg-muted/60 border border-border' 
                           : index === 2 
-                          ? 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/15' 
-                          : 'hover:bg-muted/50 border border-transparent'
+                          ? 'bg-orange-500/10 border border-orange-500/20' 
+                          : 'border border-transparent hover:bg-muted/30'
                       }`}
                     >
-                      <div className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 shadow-sm"
-                        style={{
-                          backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
-                          color: index < 3 ? 'white' : 'inherit',
-                          border: index >= 3 ? '2px solid hsl(var(--border))' : 'none'
-                        }}
+                      <button 
+                        onClick={() => handleSelectOnboarder(onboarder.id)}
+                        className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.98] transition-transform"
                       >
-                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
-                      </div>
-                      <UserAvatar 
-                        avatarUrl={onboarder.avatar_url} 
-                        fullName={onboarder.full_name} 
-                        size="sm" 
-                      />
-                      <div className="flex-1 min-w-0 text-left">
-                        <p className={`font-medium truncate ${index === 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>
-                          {onboarder.full_name}
-                        </p>
-                        <div className="flex items-center gap-1 flex-wrap">
-                          {onboarder.roles && onboarder.roles.length > 0 ? (
-                            onboarder.roles.slice(0, 2).map((role) => (
-                              <Badge 
-                                key={role} 
-                                variant="outline" 
-                                className="text-[9px] px-1 py-0 capitalize"
-                              >
-                                {role}
-                              </Badge>
-                            ))
-                          ) : (
-                            <span className="text-[10px] text-muted-foreground">No role</span>
-                          )}
-                          {onboarder.roles && onboarder.roles.length > 2 && (
-                            <span className="text-[9px] text-muted-foreground">+{onboarder.roles.length - 2}</span>
-                          )}
+                        <div className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 shadow-sm"
+                          style={{
+                            backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
+                            color: index < 3 ? 'white' : 'inherit',
+                            border: index >= 3 ? '2px solid hsl(var(--border))' : 'none'
+                          }}
+                        >
+                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
                         </div>
-                      </div>
-                      <div className="text-right">
+                        <UserAvatar 
+                          avatarUrl={onboarder.avatar_url} 
+                          fullName={onboarder.full_name} 
+                          size="sm" 
+                        />
+                        <div className="flex-1 min-w-0 text-left">
+                          <p className={`font-medium truncate ${index === 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>
+                            {onboarder.full_name}
+                          </p>
+                          <div className="flex items-center gap-1 flex-wrap">
+                            {onboarder.roles && onboarder.roles.length > 0 ? (
+                              onboarder.roles.slice(0, 2).map((role) => (
+                                <Badge 
+                                  key={role} 
+                                  variant="outline" 
+                                  className="text-[9px] px-1 py-0 capitalize"
+                                >
+                                  {role}
+                                </Badge>
+                              ))
+                            ) : (
+                              <span className="text-[10px] text-muted-foreground">No role</span>
+                            )}
+                            {onboarder.roles && onboarder.roles.length > 2 && (
+                              <span className="text-[9px] text-muted-foreground">+{onboarder.roles.length - 2}</span>
+                            )}
+                          </div>
+                        </div>
                         <Badge 
                           variant={index === 0 ? "default" : "secondary"}
                           className={`text-sm px-3 py-1 ${index === 0 ? "bg-amber-500 text-white shadow-md" : ""}`}
                         >
                           {onboarder.referral_count} users
                         </Badge>
-                      </div>
-                    </button>
+                      </button>
+                      
+                      {/* Quick Delete Button */}
+                      <AlertDialog>
+                        <AlertDialogTrigger asChild>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 shrink-0 text-muted-foreground hover:text-destructive hover:bg-destructive/10"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            {deletingUserId === onboarder.id ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <Trash2 className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete <strong>{onboarder.full_name}</strong>? This will remove their profile, roles, and wallet. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={() => handleQuickDeleteUser(onboarder.id, onboarder.full_name)}
+                            >
+                              Delete
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </div>
                   ))}
                 </div>
 
