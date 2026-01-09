@@ -1360,44 +1360,48 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </Select>
                 </div>
 
+                {/* Activity Statistics */}
+                <div className="flex items-center gap-3 mb-3 p-2 rounded-lg bg-muted/50">
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
+                    <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'today').length}</span>
+                    <span className="text-muted-foreground">today</span>
+                  </div>
+                  <div className="h-4 w-px bg-border" />
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
+                    <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'week').length}</span>
+                    <span className="text-muted-foreground">this week</span>
+                  </div>
+                  <div className="h-4 w-px bg-border" />
+                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className="h-2.5 w-2.5 rounded-full bg-gray-400" />
+                    <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'inactive').length}</span>
+                    <span className="text-muted-foreground">inactive</span>
+                  </div>
+                </div>
+
                 {/* User Performance List Header */}
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    {userSearchQuery 
+                    {userSearchQuery || activityFilter !== 'all'
                       ? `${filteredOnboarders.length} of ${topOnboarders.length} users`
                       : `All Users (${topOnboarders.length})`
                     }
                   </p>
-                  <div className="flex items-center gap-3">
-                    {/* Activity Legend */}
-                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                      <span className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-green-500" />
-                        Today
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-yellow-500" />
-                        This week
-                      </span>
-                      <span className="flex items-center gap-1">
-                        <span className="h-2 w-2 rounded-full bg-gray-400" />
-                        Inactive
-                      </span>
-                    </div>
-                    {filteredOnboarders.length > 0 && (
-                      <button 
-                        onClick={toggleSelectAll}
-                        className="text-xs text-primary hover:underline flex items-center gap-1"
-                      >
-                        <Checkbox 
-                          checked={selectedUserIds.size === filteredOnboarders.length && filteredOnboarders.length > 0}
-                          className="h-3 w-3"
-                        />
-                        {selectedUserIds.size === filteredOnboarders.length ? 'Deselect All' : 'Select All'}
-                      </button>
-                    )}
-                  </div>
+                  {filteredOnboarders.length > 0 && (
+                    <button 
+                      onClick={toggleSelectAll}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Checkbox 
+                        checked={selectedUserIds.size === filteredOnboarders.length && filteredOnboarders.length > 0}
+                        className="h-3 w-3"
+                      />
+                      {selectedUserIds.size === filteredOnboarders.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
                 </div>
 
                 {/* Bulk Actions Bar */}
