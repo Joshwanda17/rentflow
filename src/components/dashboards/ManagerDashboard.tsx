@@ -536,6 +536,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         user={selectedUser}
         open={!!selectedUser}
         onOpenChange={(open) => !open && setSelectedUser(null)}
+        onRolesUpdated={() => fetchData()}
       />
     </div>
   );
