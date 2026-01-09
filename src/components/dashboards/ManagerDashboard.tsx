@@ -32,6 +32,8 @@ import {
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
+import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -90,6 +92,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     referral_count: number;
   }[]>([]);
   const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all'>('all');
+  const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -117,7 +120,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     // Query referrals with optional date filter
     let query = supabase
       .from('referrals')
-      .select('referrer_id');
+      .select('referrer_id, created_at');
     
     if (filterDate) {
       query = query.gte('created_at', filterDate);
@@ -127,6 +130,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     
     if (!referralsData || referralsData.length === 0) {
       setTopOnboarders([]);
+      setTrendData([]);
       return;
     }
     
@@ -144,6 +148,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     
     if (topReferrerIds.length === 0) {
       setTopOnboarders([]);
+      setTrendData([]);
       return;
     }
     
@@ -164,6 +169,47 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }).filter(o => o.referral_count > 0);
     
     setTopOnboarders(onboarders);
+
+    // Build trend data based on filter
+    const now = new Date();
+    let trendPoints: { date: string; count: number }[] = [];
+
+    if (productivityFilter === 'week') {
+      // Daily data for the past 7 days
+      const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
+      trendPoints = days.map(day => {
+        const dayStr = format(day, 'yyyy-MM-dd');
+        const count = referralsData.filter(r => 
+          format(new Date(r.created_at), 'yyyy-MM-dd') === dayStr
+        ).length;
+        return { date: format(day, 'EEE'), count };
+      });
+    } else if (productivityFilter === 'month') {
+      // Weekly data for the past month
+      const weeks = eachWeekOfInterval({ start: subMonths(now, 1), end: now }, { weekStartsOn: 1 });
+      trendPoints = weeks.map(weekStart => {
+        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
+        const count = referralsData.filter(r => {
+          const refDate = new Date(r.created_at);
+          return refDate >= weekStart && refDate <= weekEnd;
+        }).length;
+        return { date: format(weekStart, 'MMM d'), count };
+      });
+    } else {
+      // Monthly data for all time (last 6 months)
+      const months: { date: string; count: number }[] = [];
+      for (let i = 5; i >= 0; i--) {
+        const monthDate = subMonths(now, i);
+        const monthStr = format(monthDate, 'yyyy-MM');
+        const count = referralsData.filter(r => 
+          format(new Date(r.created_at), 'yyyy-MM') === monthStr
+        ).length;
+        months.push({ date: format(monthDate, 'MMM'), count });
+      }
+      trendPoints = months;
+    }
+
+    setTrendData(trendPoints);
   };
 
   const fetchData = async () => {
@@ -471,6 +517,57 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             
             {topOnboarders.length > 0 ? (
               <>
+                {/* Onboarding Trend Chart */}
+                {trendData.length > 0 && (
+                  <div className="mb-4 p-3 rounded-xl bg-amber-500/5 border border-amber-500/20">
+                    <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      Onboarding Trend
+                    </p>
+                    <div className="h-32">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={trendData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="onboardingGradient" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="rgb(245 158 11)" stopOpacity={0.4}/>
+                              <stop offset="95%" stopColor="rgb(245 158 11)" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <XAxis 
+                            dataKey="date" 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                          />
+                          <YAxis 
+                            axisLine={false} 
+                            tickLine={false} 
+                            tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip 
+                            contentStyle={{ 
+                              backgroundColor: 'hsl(var(--background))', 
+                              border: '1px solid hsl(var(--border))',
+                              borderRadius: '8px',
+                              fontSize: '12px'
+                            }}
+                            labelStyle={{ color: 'hsl(var(--foreground))' }}
+                          />
+                          <Area 
+                            type="monotone" 
+                            dataKey="count" 
+                            stroke="rgb(245 158 11)" 
+                            strokeWidth={2}
+                            fill="url(#onboardingGradient)" 
+                            name="Users Onboarded"
+                          />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                )}
+
                 {/* Summary Stats */}
                 <div className="grid grid-cols-2 gap-3 mb-4">
                   <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
