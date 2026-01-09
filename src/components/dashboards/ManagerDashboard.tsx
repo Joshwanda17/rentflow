@@ -40,7 +40,9 @@ import {
   Trash2,
   Loader2,
   Search,
-  ArrowUpDown
+  ArrowUpDown,
+  ChevronLeft,
+  ChevronRight
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -154,6 +156,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest'>('referrals');
+  const [currentPage, setCurrentPage] = useState(1);
+  const usersPerPage = 10;
 
   // Filter and sort users
   const filteredOnboarders = topOnboarders
@@ -172,6 +176,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           return 0;
       }
     });
+
+  // Pagination calculations
+  const totalPages = Math.ceil(filteredOnboarders.length / usersPerPage);
+  const paginatedOnboarders = filteredOnboarders.slice(
+    (currentPage - 1) * usersPerPage,
+    currentPage * usersPerPage
+  );
+
+  // Reset to page 1 when search/sort changes
+  const handleSearchChange = (value: string) => {
+    setUserSearchQuery(value);
+    setCurrentPage(1);
+  };
+
+  const handleSortChange = (value: typeof userSortBy) => {
+    setUserSortBy(value);
+    setCurrentPage(1);
+  };
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds(prev => {
@@ -1228,19 +1250,19 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     <Input
                       placeholder="Search users by name..."
                       value={userSearchQuery}
-                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      onChange={(e) => handleSearchChange(e.target.value)}
                       className="pl-9 h-9 text-sm"
                     />
                     {userSearchQuery && (
                       <button
-                        onClick={() => setUserSearchQuery('')}
+                        onClick={() => handleSearchChange('')}
                         className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       >
                         <X className="h-4 w-4" />
                       </button>
                     )}
                   </div>
-                  <Select value={userSortBy} onValueChange={(v) => setUserSortBy(v as typeof userSortBy)}>
+                  <Select value={userSortBy} onValueChange={(v) => handleSortChange(v as typeof userSortBy)}>
                     <SelectTrigger className="w-[130px] h-9 text-xs">
                       <ArrowUpDown className="h-3 w-3 mr-1" />
                       <SelectValue />
@@ -1378,18 +1400,20 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 )}
 
-                <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {filteredOnboarders.length > 0 ? filteredOnboarders.map((onboarder, index) => (
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                  {paginatedOnboarders.length > 0 ? paginatedOnboarders.map((onboarder, index) => {
+                    const globalIndex = (currentPage - 1) * usersPerPage + index;
+                    return (
                     <div 
                       key={onboarder.id}
                       className={`flex items-center gap-2 p-3 rounded-xl transition-all ${
                         selectedUserIds.has(onboarder.id) 
                           ? 'bg-primary/10 border-2 border-primary/40' 
-                          : index === 0 
+                          : globalIndex === 0 
                           ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/10 border-2 border-amber-500/40 shadow-md' 
-                          : index === 1 
+                          : globalIndex === 1 
                           ? 'bg-muted/60 border border-border' 
-                          : index === 2 
+                          : globalIndex === 2 
                           ? 'bg-orange-500/10 border border-orange-500/20' 
                           : 'border border-transparent hover:bg-muted/30'
                       }`}
@@ -1407,12 +1431,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       >
                         <div className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 shadow-sm"
                           style={{
-                            backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
-                            color: index < 3 ? 'white' : 'inherit',
-                            border: index >= 3 ? '2px solid hsl(var(--border))' : 'none'
+                            backgroundColor: globalIndex === 0 ? 'rgb(245 158 11)' : globalIndex === 1 ? 'rgb(156 163 175)' : globalIndex === 2 ? 'rgb(180 83 9)' : 'transparent',
+                            color: globalIndex < 3 ? 'white' : 'inherit',
+                            border: globalIndex >= 3 ? '2px solid hsl(var(--border))' : 'none'
                           }}
                         >
-                          {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                          {globalIndex === 0 ? '🥇' : globalIndex === 1 ? '🥈' : globalIndex === 2 ? '🥉' : globalIndex + 1}
                         </div>
                         <UserAvatar 
                           avatarUrl={onboarder.avatar_url} 
@@ -1485,13 +1509,46 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  )) : (
+                  );
+                  }) : (
                     <div className="text-center py-6 text-muted-foreground">
                       <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
                       <p className="text-sm">No users found matching "{userSearchQuery}"</p>
                     </div>
                   )}
                 </div>
+
+                {/* Pagination Controls */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
+                    <p className="text-xs text-muted-foreground">
+                      Showing {(currentPage - 1) * usersPerPage + 1}-{Math.min(currentPage * usersPerPage, filteredOnboarders.length)} of {filteredOnboarders.length}
+                    </p>
+                    <div className="flex items-center gap-1">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                      >
+                        <ChevronLeft className="h-4 w-4" />
+                      </Button>
+                      <span className="text-xs px-2">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 w-7 p-0"
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                      >
+                        <ChevronRight className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  </div>
+                )}
 
                 {/* Export Buttons */}
                 <div className="flex gap-2 mt-4 pt-4 border-t border-amber-500/20">
