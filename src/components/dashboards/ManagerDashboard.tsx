@@ -1364,24 +1364,51 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 </div>
 
                 {/* Activity Statistics */}
-                <div className="flex items-center gap-3 mb-3 p-2 rounded-lg bg-muted/50">
-                  <div className="flex items-center gap-1.5 text-xs">
+                <div className="flex items-center gap-1 mb-3">
+                  <button
+                    onClick={() => { setActivityFilter(activityFilter === 'today' ? 'all' : 'today'); setCurrentPage(1); }}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                      activityFilter === 'today' 
+                        ? 'bg-green-500/20 text-green-700 dark:text-green-300 ring-1 ring-green-500/30' 
+                        : 'bg-muted/50 hover:bg-muted'
+                    }`}
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-green-500" />
                     <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'today').length}</span>
-                    <span className="text-muted-foreground">today</span>
-                  </div>
-                  <div className="h-4 w-px bg-border" />
-                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className={activityFilter === 'today' ? '' : 'text-muted-foreground'}>today</span>
+                  </button>
+                  <button
+                    onClick={() => { setActivityFilter(activityFilter === 'week' ? 'all' : 'week'); setCurrentPage(1); }}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                      activityFilter === 'week' 
+                        ? 'bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 ring-1 ring-yellow-500/30' 
+                        : 'bg-muted/50 hover:bg-muted'
+                    }`}
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-yellow-500" />
                     <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'week').length}</span>
-                    <span className="text-muted-foreground">this week</span>
-                  </div>
-                  <div className="h-4 w-px bg-border" />
-                  <div className="flex items-center gap-1.5 text-xs">
+                    <span className={activityFilter === 'week' ? '' : 'text-muted-foreground'}>this week</span>
+                  </button>
+                  <button
+                    onClick={() => { setActivityFilter(activityFilter === 'inactive' ? 'all' : 'inactive'); setCurrentPage(1); }}
+                    className={`flex items-center gap-1.5 text-xs px-2.5 py-1.5 rounded-lg transition-colors ${
+                      activityFilter === 'inactive' 
+                        ? 'bg-gray-500/20 text-gray-700 dark:text-gray-300 ring-1 ring-gray-500/30' 
+                        : 'bg-muted/50 hover:bg-muted'
+                    }`}
+                  >
                     <span className="h-2.5 w-2.5 rounded-full bg-gray-400" />
                     <span className="font-medium">{topOnboarders.filter(u => getActivityStatus(u.updated_at) === 'inactive').length}</span>
-                    <span className="text-muted-foreground">inactive</span>
-                  </div>
+                    <span className={activityFilter === 'inactive' ? '' : 'text-muted-foreground'}>inactive</span>
+                  </button>
+                  {activityFilter !== 'all' && (
+                    <button
+                      onClick={() => { setActivityFilter('all'); setCurrentPage(1); }}
+                      className="text-xs text-muted-foreground hover:text-foreground ml-1"
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </button>
+                  )}
                 </div>
 
                 {/* User Performance List Header */}
