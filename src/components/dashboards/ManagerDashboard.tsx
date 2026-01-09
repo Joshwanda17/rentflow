@@ -63,7 +63,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth, formatDistanceToNow } from 'date-fns';
+import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth, formatDistanceToNow, isToday, isThisWeek } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -1443,11 +1443,30 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         >
                           {globalIndex === 0 ? '🥇' : globalIndex === 1 ? '🥈' : globalIndex === 2 ? '🥉' : globalIndex + 1}
                         </div>
-                        <UserAvatar 
-                          avatarUrl={onboarder.avatar_url} 
-                          fullName={onboarder.full_name} 
-                          size="sm" 
-                        />
+                        <div className="relative">
+                          <UserAvatar 
+                            avatarUrl={onboarder.avatar_url} 
+                            fullName={onboarder.full_name} 
+                            size="sm" 
+                          />
+                          {onboarder.updated_at && (() => {
+                            const lastActive = new Date(onboarder.updated_at);
+                            const isActiveToday = isToday(lastActive);
+                            const isActiveThisWeek = isThisWeek(lastActive, { weekStartsOn: 1 });
+                            return (
+                              <span 
+                                className={`absolute -bottom-0.5 -right-0.5 h-2.5 w-2.5 rounded-full border-2 border-background ${
+                                  isActiveToday 
+                                    ? 'bg-green-500' 
+                                    : isActiveThisWeek 
+                                      ? 'bg-yellow-500' 
+                                      : 'bg-gray-400'
+                                }`}
+                                title={isActiveToday ? 'Active today' : isActiveThisWeek ? 'Active this week' : 'Inactive'}
+                              />
+                            );
+                          })()}
+                        </div>
                         <div className="flex-1 min-w-0 text-left">
                           <p className={`font-medium truncate ${index === 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>
                             {onboarder.full_name}
