@@ -14,6 +14,7 @@ import {
   Download
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
+import { RentRequestButton } from '@/components/tenant/RentRequestButton';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
@@ -144,6 +145,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Wallet Card */}
         <WalletCard />
+
+        {/* Prominent Rent Request Button - Right below wallet */}
+        <RentRequestButton userId={user.id} onSuccess={fetchData} />
 
         {/* Quick Navigation Grid */}
         <QuickNavGrid 
