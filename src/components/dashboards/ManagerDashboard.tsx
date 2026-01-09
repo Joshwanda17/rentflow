@@ -157,12 +157,26 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
+  const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
+
+  // Helper to get activity status
+  const getActivityStatus = (updatedAt?: string): 'today' | 'week' | 'inactive' => {
+    if (!updatedAt) return 'inactive';
+    const lastActive = new Date(updatedAt);
+    if (isToday(lastActive)) return 'today';
+    if (isThisWeek(lastActive, { weekStartsOn: 1 })) return 'week';
+    return 'inactive';
+  };
 
   // Filter and sort users
   const filteredOnboarders = topOnboarders
     .filter(user => user.full_name.toLowerCase().includes(userSearchQuery.toLowerCase()))
+    .filter(user => {
+      if (activityFilter === 'all') return true;
+      return getActivityStatus(user.updated_at) === activityFilter;
+    })
     .sort((a, b) => {
       switch (userSortBy) {
         case 'name':
@@ -1296,6 +1310,38 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       </button>
                     )}
                   </div>
+                  <Select 
+                    value={activityFilter} 
+                    onValueChange={(v) => {
+                      setActivityFilter(v as typeof activityFilter);
+                      setCurrentPage(1);
+                    }}
+                  >
+                    <SelectTrigger className="w-[110px] h-9 text-xs">
+                      <SelectValue placeholder="Activity" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Activity</SelectItem>
+                      <SelectItem value="today">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-green-500" />
+                          Active Today
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="week">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                          This Week
+                        </span>
+                      </SelectItem>
+                      <SelectItem value="inactive">
+                        <span className="flex items-center gap-1.5">
+                          <span className="h-2 w-2 rounded-full bg-gray-400" />
+                          Inactive
+                        </span>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Select value={userSortBy} onValueChange={(v) => handleSortChange(v as typeof userSortBy)}>
                     <SelectTrigger className="w-[130px] h-9 text-xs">
                       <ArrowUpDown className="h-3 w-3 mr-1" />
