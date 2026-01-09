@@ -11,6 +11,7 @@ import {
   Banknote, 
   Receipt, 
   TrendingUp,
+  TrendingDown,
   ArrowRight,
   Sparkles,
   ShoppingCart,
@@ -27,7 +28,8 @@ import {
   Crown,
   Calendar,
   FileDown,
-  FileSpreadsheet
+  FileSpreadsheet,
+  Minus
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
@@ -93,6 +95,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   }[]>([]);
   const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all'>('all');
   const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
+  const [periodComparison, setPeriodComparison] = useState<{
+    currentTotal: number;
+    previousTotal: number;
+    percentChange: number;
+    currentRecruiters: number;
+    previousRecruiters: number;
+    recruitersChange: number;
+  } | null>(null);
 
   useEffect(() => {
     fetchData();
@@ -114,8 +124,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     return null;
   };
 
+  const getPreviousPeriodDates = (filter: 'week' | 'month' | 'all') => {
+    const now = new Date();
+    if (filter === 'week') {
+      const prevEnd = new Date(now);
+      prevEnd.setDate(prevEnd.getDate() - 7);
+      const prevStart = new Date(prevEnd);
+      prevStart.setDate(prevStart.getDate() - 7);
+      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
+    } else if (filter === 'month') {
+      const prevEnd = new Date(now);
+      prevEnd.setMonth(prevEnd.getMonth() - 1);
+      const prevStart = new Date(prevEnd);
+      prevStart.setMonth(prevStart.getMonth() - 1);
+      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
+    }
+    return null;
+  };
+
   const fetchProductivityData = async () => {
     const filterDate = getFilterDate(productivityFilter);
+    const previousPeriod = getPreviousPeriodDates(productivityFilter);
     
     // Query referrals with optional date filter
     let query = supabase
@@ -127,10 +156,35 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
     
     const { data: referralsData } = await query;
+
+    // Fetch previous period data for comparison
+    let previousReferralsData: { referrer_id: string }[] = [];
+    if (previousPeriod) {
+      const { data } = await supabase
+        .from('referrals')
+        .select('referrer_id')
+        .gte('created_at', previousPeriod.start)
+        .lt('created_at', previousPeriod.end);
+      previousReferralsData = data || [];
+    }
     
     if (!referralsData || referralsData.length === 0) {
       setTopOnboarders([]);
       setTrendData([]);
+      // Still calculate comparison if we have previous data
+      if (previousReferralsData.length > 0) {
+        const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
+        setPeriodComparison({
+          currentTotal: 0,
+          previousTotal: previousReferralsData.length,
+          percentChange: -100,
+          currentRecruiters: 0,
+          previousRecruiters: prevRecruiters,
+          recruitersChange: -100
+        });
+      } else {
+        setPeriodComparison(null);
+      }
       return;
     }
     
@@ -210,6 +264,33 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
 
     setTrendData(trendPoints);
+
+    // Calculate period comparison
+    if (productivityFilter !== 'all' && previousPeriod) {
+      const currentTotal = referralsData.length;
+      const previousTotal = previousReferralsData.length;
+      const currentRecruiters = Object.keys(referralCounts).length;
+      const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
+
+      const percentChange = previousTotal === 0 
+        ? (currentTotal > 0 ? 100 : 0)
+        : Math.round(((currentTotal - previousTotal) / previousTotal) * 100);
+      
+      const recruitersChange = prevRecruiters === 0 
+        ? (currentRecruiters > 0 ? 100 : 0)
+        : Math.round(((currentRecruiters - prevRecruiters) / prevRecruiters) * 100);
+
+      setPeriodComparison({
+        currentTotal,
+        previousTotal,
+        percentChange,
+        currentRecruiters,
+        previousRecruiters: prevRecruiters,
+        recruitersChange
+      });
+    } else {
+      setPeriodComparison(null);
+    }
   };
 
   const fetchData = async () => {
@@ -575,14 +656,64 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       <UserPlus className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                       <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Total Onboarded</span>
                     </div>
-                    <p className="text-xl font-bold">{topOnboarders.reduce((sum, o) => sum + o.referral_count, 0)}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold">{topOnboarders.reduce((sum, o) => sum + o.referral_count, 0)}</p>
+                      {periodComparison && productivityFilter !== 'all' && (
+                        <div className={`flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                          periodComparison.percentChange > 0 
+                            ? 'bg-success/20 text-success' 
+                            : periodComparison.percentChange < 0 
+                            ? 'bg-destructive/20 text-destructive' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {periodComparison.percentChange > 0 ? (
+                            <TrendingUp className="h-3 w-3" />
+                          ) : periodComparison.percentChange < 0 ? (
+                            <TrendingDown className="h-3 w-3" />
+                          ) : (
+                            <Minus className="h-3 w-3" />
+                          )}
+                          {periodComparison.percentChange > 0 ? '+' : ''}{periodComparison.percentChange}%
+                        </div>
+                      )}
+                    </div>
+                    {periodComparison && productivityFilter !== 'all' && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        vs {periodComparison.previousTotal} last {productivityFilter}
+                      </p>
+                    )}
                   </div>
                   <div className="p-3 rounded-xl bg-success/10 border border-success/20">
                     <div className="flex items-center gap-2 mb-1">
                       <UserCheck className="h-4 w-4 text-success" />
                       <span className="text-xs font-medium text-success">Active Recruiters</span>
                     </div>
-                    <p className="text-xl font-bold">{topOnboarders.length}</p>
+                    <div className="flex items-center gap-2">
+                      <p className="text-xl font-bold">{topOnboarders.length}</p>
+                      {periodComparison && productivityFilter !== 'all' && (
+                        <div className={`flex items-center gap-0.5 text-xs font-medium px-1.5 py-0.5 rounded-full ${
+                          periodComparison.recruitersChange > 0 
+                            ? 'bg-success/20 text-success' 
+                            : periodComparison.recruitersChange < 0 
+                            ? 'bg-destructive/20 text-destructive' 
+                            : 'bg-muted text-muted-foreground'
+                        }`}>
+                          {periodComparison.recruitersChange > 0 ? (
+                            <TrendingUp className="h-3 w-3" />
+                          ) : periodComparison.recruitersChange < 0 ? (
+                            <TrendingDown className="h-3 w-3" />
+                          ) : (
+                            <Minus className="h-3 w-3" />
+                          )}
+                          {periodComparison.recruitersChange > 0 ? '+' : ''}{periodComparison.recruitersChange}%
+                        </div>
+                      )}
+                    </div>
+                    {periodComparison && productivityFilter !== 'all' && (
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        vs {periodComparison.previousRecruiters} last {productivityFilter}
+                      </p>
+                    )}
                   </div>
                 </div>
 
