@@ -157,7 +157,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest'>('referrals');
   const [currentPage, setCurrentPage] = useState(1);
-  const usersPerPage = 10;
+  const [usersPerPage, setUsersPerPage] = useState(10);
 
   // Filter and sort users
   const filteredOnboarders = topOnboarders
@@ -1519,34 +1519,54 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 </div>
 
                 {/* Pagination Controls */}
-                {totalPages > 1 && (
+                {filteredOnboarders.length > 0 && (
                   <div className="flex items-center justify-between mt-3 pt-3 border-t border-border/50">
-                    <p className="text-xs text-muted-foreground">
-                      Showing {(currentPage - 1) * usersPerPage + 1}-{Math.min(currentPage * usersPerPage, filteredOnboarders.length)} of {filteredOnboarders.length}
-                    </p>
-                    <div className="flex items-center gap-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                        disabled={currentPage === 1}
+                    <div className="flex items-center gap-2">
+                      <p className="text-xs text-muted-foreground">
+                        Showing {(currentPage - 1) * usersPerPage + 1}-{Math.min(currentPage * usersPerPage, filteredOnboarders.length)} of {filteredOnboarders.length}
+                      </p>
+                      <Select 
+                        value={usersPerPage.toString()} 
+                        onValueChange={(v) => {
+                          setUsersPerPage(Number(v));
+                          setCurrentPage(1);
+                        }}
                       >
-                        <ChevronLeft className="h-4 w-4" />
-                      </Button>
-                      <span className="text-xs px-2">
-                        {currentPage} / {totalPages}
-                      </span>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-7 w-7 p-0"
-                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                        disabled={currentPage === totalPages}
-                      >
-                        <ChevronRight className="h-4 w-4" />
-                      </Button>
+                        <SelectTrigger className="h-7 w-[70px] text-xs">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="10">10</SelectItem>
+                          <SelectItem value="25">25</SelectItem>
+                          <SelectItem value="50">50</SelectItem>
+                        </SelectContent>
+                      </Select>
                     </div>
+                    {totalPages > 1 && (
+                      <div className="flex items-center gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                          disabled={currentPage === 1}
+                        >
+                          <ChevronLeft className="h-4 w-4" />
+                        </Button>
+                        <span className="text-xs px-2">
+                          {currentPage} / {totalPages}
+                        </span>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 w-7 p-0"
+                          onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                          disabled={currentPage === totalPages}
+                        >
+                          <ChevronRight className="h-4 w-4" />
+                        </Button>
+                      </div>
+                    )}
                   </div>
                 )}
 
