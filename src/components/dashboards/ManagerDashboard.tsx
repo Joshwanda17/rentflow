@@ -55,6 +55,8 @@ import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth } from 'date-fns';
@@ -139,6 +141,90 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     achieved: boolean;
   }[]>([]);
   const [deletingUserId, setDeletingUserId] = useState<string | null>(null);
+  const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkRoleDialogOpen, setBulkRoleDialogOpen] = useState(false);
+  const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
+
+  const toggleUserSelection = (userId: string) => {
+    setSelectedUserIds(prev => {
+      const newSet = new Set(prev);
+      if (newSet.has(userId)) {
+        newSet.delete(userId);
+      } else {
+        newSet.add(userId);
+      }
+      return newSet;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selectedUserIds.size === topOnboarders.length) {
+      setSelectedUserIds(new Set());
+    } else {
+      setSelectedUserIds(new Set(topOnboarders.map(o => o.id)));
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    setBulkActionLoading(true);
+    try {
+      const userIds = Array.from(selectedUserIds);
+      
+      // Delete roles for all selected users
+      await supabase.from('user_roles').delete().in('user_id', userIds);
+      
+      // Delete wallets for all selected users
+      await supabase.from('wallets').delete().in('user_id', userIds);
+      
+      // Delete profiles for all selected users
+      const { error } = await supabase.from('profiles').delete().in('id', userIds);
+      
+      if (error) throw error;
+      
+      toast.success(`${userIds.length} users deleted successfully`);
+      setSelectedUserIds(new Set());
+      setBulkDeleteDialogOpen(false);
+      fetchProductivityData();
+    } catch (error) {
+      console.error('Error bulk deleting users:', error);
+      toast.error('Failed to delete users');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
+
+  const handleBulkAssignRole = async () => {
+    if (!selectedBulkRole) {
+      toast.error('Please select a role');
+      return;
+    }
+    
+    setBulkActionLoading(true);
+    try {
+      const userIds = Array.from(selectedUserIds);
+      
+      // Insert roles for all selected users (ignore conflicts)
+      for (const userId of userIds) {
+        await supabase.from('user_roles').upsert(
+          { user_id: userId, role: selectedBulkRole },
+          { onConflict: 'user_id,role' }
+        );
+      }
+      
+      toast.success(`Role "${selectedBulkRole}" assigned to ${userIds.length} users`);
+      setSelectedUserIds(new Set());
+      setBulkRoleDialogOpen(false);
+      setSelectedBulkRole('');
+      fetchProductivityData();
+    } catch (error) {
+      console.error('Error assigning roles:', error);
+      toast.error('Failed to assign roles');
+    } finally {
+      setBulkActionLoading(false);
+    }
+  };
 
   const handleQuickDeleteUser = async (userId: string, userName: string) => {
     setDeletingUserId(userId);
@@ -1108,17 +1194,124 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 </div>
 
-                {/* User Performance List */}
-                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
-                  <Users className="h-3 w-3" />
-                  All Users ({topOnboarders.length})
-                </p>
+                {/* User Performance List Header */}
+                <div className="flex items-center justify-between mb-2">
+                  <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
+                    <Users className="h-3 w-3" />
+                    All Users ({topOnboarders.length})
+                  </p>
+                  {topOnboarders.length > 0 && (
+                    <button 
+                      onClick={toggleSelectAll}
+                      className="text-xs text-primary hover:underline flex items-center gap-1"
+                    >
+                      <Checkbox 
+                        checked={selectedUserIds.size === topOnboarders.length && topOnboarders.length > 0}
+                        className="h-3 w-3"
+                      />
+                      {selectedUserIds.size === topOnboarders.length ? 'Deselect All' : 'Select All'}
+                    </button>
+                  )}
+                </div>
+
+                {/* Bulk Actions Bar */}
+                {selectedUserIds.size > 0 && (
+                  <div className="mb-3 p-3 rounded-xl bg-primary/10 border border-primary/30 flex items-center justify-between gap-2">
+                    <span className="text-sm font-medium">
+                      {selectedUserIds.size} user{selectedUserIds.size > 1 ? 's' : ''} selected
+                    </span>
+                    <div className="flex items-center gap-2">
+                      {/* Bulk Assign Role */}
+                      <AlertDialog open={bulkRoleDialogOpen} onOpenChange={setBulkRoleDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="outline" size="sm" className="h-7 text-xs gap-1">
+                            <UserPlus className="h-3 w-3" />
+                            Assign Role
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Assign Role to {selectedUserIds.size} Users</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Select a role to assign to all selected users. Existing roles will be kept.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-4">
+                            <Select value={selectedBulkRole} onValueChange={(v) => setSelectedBulkRole(v as AppRole)}>
+                              <SelectTrigger>
+                                <SelectValue placeholder="Select a role" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="tenant">Tenant</SelectItem>
+                                <SelectItem value="agent">Agent</SelectItem>
+                                <SelectItem value="landlord">Landlord</SelectItem>
+                                <SelectItem value="supporter">Supporter</SelectItem>
+                                <SelectItem value="manager">Manager</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleBulkAssignRole}
+                              disabled={bulkActionLoading || !selectedBulkRole}
+                            >
+                              {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                              Assign Role
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      {/* Bulk Delete */}
+                      <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" size="sm" className="h-7 text-xs gap-1">
+                            <Trash2 className="h-3 w-3" />
+                            Delete
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete {selectedUserIds.size} Users</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              Are you sure you want to delete {selectedUserIds.size} users? This will remove their profiles, roles, and wallets. This action cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                              onClick={handleBulkDelete}
+                              disabled={bulkActionLoading}
+                            >
+                              {bulkActionLoading ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+                              Delete All
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+
+                      <Button 
+                        variant="ghost" 
+                        size="sm" 
+                        className="h-7 text-xs"
+                        onClick={() => setSelectedUserIds(new Set())}
+                      >
+                        Clear
+                      </Button>
+                    </div>
+                  </div>
+                )}
+
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {topOnboarders.map((onboarder, index) => (
                     <div 
                       key={onboarder.id}
-                      className={`flex items-center gap-3 p-3 rounded-xl transition-all ${
-                        index === 0 
+                      className={`flex items-center gap-2 p-3 rounded-xl transition-all ${
+                        selectedUserIds.has(onboarder.id) 
+                          ? 'bg-primary/10 border-2 border-primary/40' 
+                          : index === 0 
                           ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/10 border-2 border-amber-500/40 shadow-md' 
                           : index === 1 
                           ? 'bg-muted/60 border border-border' 
@@ -1127,6 +1320,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                           : 'border border-transparent hover:bg-muted/30'
                       }`}
                     >
+                      {/* Selection Checkbox */}
+                      <Checkbox
+                        checked={selectedUserIds.has(onboarder.id)}
+                        onCheckedChange={() => toggleUserSelection(onboarder.id)}
+                        className="shrink-0"
+                      />
+                      
                       <button 
                         onClick={() => handleSelectOnboarder(onboarder.id)}
                         className="flex items-center gap-3 flex-1 min-w-0 active:scale-[0.98] transition-transform"
