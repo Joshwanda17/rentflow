@@ -120,14 +120,13 @@ export function useNotifications() {
           setNotifications(prev => [newNotification, ...prev]);
           setUnreadCount(prev => prev + 1);
 
-          // Play appropriate sound based on notification type
+          // Play appropriate sound based on notification type (respects user preferences)
           if (newNotification.type === 'success' || newNotification.title.includes('Approved')) {
-            // Celebration sound for approvals!
             playCoinSound();
           } else if (newNotification.type === 'earning') {
             playCoinSound();
           } else {
-            playNotificationSound('chime');
+            playNotificationSound(); // Uses user's preferred sound type
           }
 
           // Show enhanced toast notification
