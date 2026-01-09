@@ -121,6 +121,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     id: string;
     full_name: string;
     email: string;
+    phone: string;
     avatar_url: string | null;
     referral_count: number;
     roles?: string[];
@@ -416,11 +417,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const referrerIds = Object.keys(referralCounts);
     
     // Fetch profiles for all referrers
-    let profiles: { id: string; full_name: string; email: string; avatar_url: string | null; created_at: string; updated_at: string }[] = [];
+    let profiles: { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; created_at: string; updated_at: string }[] = [];
     if (referrerIds.length > 0) {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, email, avatar_url, created_at, updated_at')
+        .select('id, full_name, email, phone, avatar_url, created_at, updated_at')
         .in('id', referrerIds);
       profiles = data || [];
     }
@@ -443,6 +444,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         id,
         full_name: profile?.full_name || 'Unknown',
         email: profile?.email || '',
+        phone: profile?.phone || '',
         avatar_url: profile?.avatar_url || null,
         referral_count: referralCounts[id] || 0,
         roles: userRolesMap[id] || [],
@@ -735,11 +737,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       return;
     }
 
-    const headers = ['Rank', 'Name', 'Email', 'Roles', 'Users Onboarded', 'Last Active'];
+    const headers = ['Rank', 'Name', 'Email', 'Phone', 'Roles', 'Users Onboarded', 'Last Active'];
     const rows = filteredOnboarders.map((o, i) => [
       i + 1,
       `"${o.full_name}"`,
       `"${o.email}"`,
+      `"${o.phone}"`,
       `"${o.roles?.join(', ') || 'No role'}"`,
       o.referral_count,
       o.updated_at ? format(new Date(o.updated_at), 'yyyy-MM-dd HH:mm') : 'N/A'
