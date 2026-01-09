@@ -63,7 +63,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth } from 'date-fns';
+import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth, formatDistanceToNow } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -124,6 +124,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     referral_count: number;
     roles?: string[];
     created_at?: string;
+    updated_at?: string;
   }[]>([]);
   const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all' | 'custom'>('all');
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
@@ -398,11 +399,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const referrerIds = Object.keys(referralCounts);
     
     // Fetch profiles for all referrers
-    let profiles: { id: string; full_name: string; avatar_url: string | null; created_at: string }[] = [];
+    let profiles: { id: string; full_name: string; avatar_url: string | null; created_at: string; updated_at: string }[] = [];
     if (referrerIds.length > 0) {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url, created_at')
+        .select('id, full_name, avatar_url, created_at, updated_at')
         .in('id', referrerIds);
       profiles = data || [];
     }
@@ -427,7 +428,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         avatar_url: profile?.avatar_url || null,
         referral_count: referralCounts[id] || 0,
         roles: userRolesMap[id] || [],
-        created_at: profile?.created_at || ''
+        created_at: profile?.created_at || '',
+        updated_at: profile?.updated_at || ''
       };
     }).sort((a, b) => b.referral_count - a.referral_count);
     
@@ -1465,6 +1467,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                               <span className="text-[9px] text-muted-foreground">+{onboarder.roles.length - 2}</span>
                             )}
                           </div>
+                          {onboarder.updated_at && (
+                            <p className="text-[10px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <Clock className="h-2.5 w-2.5" />
+                              {formatDistanceToNow(new Date(onboarder.updated_at), { addSuffix: true })}
+                            </p>
+                          )}
                         </div>
                         <Badge 
                           variant={index === 0 ? "default" : "secondary"}
