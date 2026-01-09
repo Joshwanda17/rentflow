@@ -167,6 +167,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const filterDate = getFilterDate(productivityFilter);
     const previousPeriod = getPreviousPeriodDates(productivityFilter);
     
+    // First, get all managers
+    const { data: managerRoles } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'manager');
+    
+    const managerIds = managerRoles?.map(r => r.user_id) || [];
+    
     // Query referrals with optional date filter
     let query = supabase
       .from('referrals')
@@ -189,61 +197,58 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       previousReferralsData = data || [];
     }
     
-    if (!referralsData || referralsData.length === 0) {
-      setTopOnboarders([]);
-      setTrendData([]);
-      // Still calculate comparison if we have previous data
-      if (previousReferralsData.length > 0) {
-        const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
-        setPeriodComparison({
-          currentTotal: 0,
-          previousTotal: previousReferralsData.length,
-          percentChange: -100,
-          currentRecruiters: 0,
-          previousRecruiters: prevRecruiters,
-          recruitersChange: -100
-        });
-      } else {
-        setPeriodComparison(null);
-      }
-      return;
-    }
-    
     // Count referrals per user
     const referralCounts: Record<string, number> = {};
-    referralsData.forEach(r => {
+    (referralsData || []).forEach(r => {
       referralCounts[r.referrer_id] = (referralCounts[r.referrer_id] || 0) + 1;
     });
     
-    // Get top 5 referrers
-    const topReferrerIds = Object.entries(referralCounts)
-      .sort(([, a], [, b]) => b - a)
-      .slice(0, 5)
-      .map(([id]) => id);
-    
-    if (topReferrerIds.length === 0) {
-      setTopOnboarders([]);
-      setTrendData([]);
-      return;
-    }
-    
-    // Fetch profiles for top referrers
+    // Fetch profiles for all managers
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url')
-      .in('id', topReferrerIds);
+      .in('id', managerIds);
     
-    const onboarders = topReferrerIds.map(id => {
+    // Build manager performance list (all managers, sorted by referral count)
+    const onboarders = managerIds.map(id => {
       const profile = profiles?.find(p => p.id === id);
       return {
         id,
         full_name: profile?.full_name || 'Unknown',
         avatar_url: profile?.avatar_url || null,
-        referral_count: referralCounts[id]
+        referral_count: referralCounts[id] || 0
       };
-    }).filter(o => o.referral_count > 0);
+    }).sort((a, b) => b.referral_count - a.referral_count);
     
     setTopOnboarders(onboarders);
+    
+    // Calculate comparison data
+    const currentTotal = onboarders.reduce((sum, o) => sum + o.referral_count, 0);
+    const activeRecruiters = onboarders.filter(o => o.referral_count > 0).length;
+    
+    if (previousPeriod && previousReferralsData.length > 0) {
+      const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
+      const prevTotal = previousReferralsData.length;
+      setPeriodComparison({
+        currentTotal,
+        previousTotal: prevTotal,
+        percentChange: prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : (currentTotal > 0 ? 100 : 0),
+        currentRecruiters: activeRecruiters,
+        previousRecruiters: prevRecruiters,
+        recruitersChange: prevRecruiters > 0 ? Math.round(((activeRecruiters - prevRecruiters) / prevRecruiters) * 100) : (activeRecruiters > 0 ? 100 : 0)
+      });
+    } else if (currentTotal > 0) {
+      setPeriodComparison({
+        currentTotal,
+        previousTotal: 0,
+        percentChange: 100,
+        currentRecruiters: activeRecruiters,
+        previousRecruiters: 0,
+        recruitersChange: 100
+      });
+    } else {
+      setPeriodComparison(null);
+    }
 
     // Build trend data based on filter
     const now = new Date();
@@ -697,7 +702,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         Leaderboard
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">Who onboarded the most users</p>
+                    <p className="text-sm text-muted-foreground">All managers and their onboarding performance</p>
                   </div>
                 </div>
               </div>
@@ -983,8 +988,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 </div>
 
-                {/* Leaderboard */}
-                <div className="space-y-2">
+                {/* Manager Performance List */}
+                <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
+                  <Users className="h-3 w-3" />
+                  All Managers ({topOnboarders.length})
+                </p>
+                <div className="space-y-2 max-h-80 overflow-y-auto">
                   {topOnboarders.map((onboarder, index) => (
                     <button 
                       key={onboarder.id}
@@ -1057,9 +1066,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               </>
             ) : (
               <div className="text-center py-6 text-muted-foreground">
-                <UserPlus className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="font-medium">No onboarding activity yet</p>
-                <p className="text-sm">Users who refer others will appear here</p>
+                <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">No managers found</p>
+                <p className="text-sm">Add users with the manager role to see their performance</p>
               </div>
             )}
           </CardContent>
