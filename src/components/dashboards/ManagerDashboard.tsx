@@ -33,7 +33,10 @@ import {
   Target,
   Edit3,
   Check,
-  X
+  X,
+  History,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
@@ -113,6 +116,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [monthlyProgress, setMonthlyProgress] = useState(0);
   const [isEditingTarget, setIsEditingTarget] = useState(false);
   const [targetInput, setTargetInput] = useState('');
+  const [showTargetHistory, setShowTargetHistory] = useState(false);
+  const [targetHistory, setTargetHistory] = useState<{
+    month: string;
+    target: number;
+    actual: number;
+    achieved: boolean;
+  }[]>([]);
 
   useEffect(() => {
     fetchData();
@@ -354,6 +364,50 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setMonthlyTarget(targetValue);
     setIsEditingTarget(false);
     toast.success('Monthly target updated!');
+  };
+
+  const fetchTargetHistory = async () => {
+    // Get all past targets
+    const { data: targets } = await supabase
+      .from('onboarding_targets')
+      .select('target_month, target_count')
+      .order('target_month', { ascending: false })
+      .limit(6);
+    
+    if (!targets || targets.length === 0) {
+      setTargetHistory([]);
+      return;
+    }
+    
+    // Fetch referrals for each month
+    const historyPromises = targets.map(async (target) => {
+      const monthStart = new Date(target.target_month);
+      const monthEnd = new Date(monthStart);
+      monthEnd.setMonth(monthEnd.getMonth() + 1);
+      
+      const { count } = await supabase
+        .from('referrals')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', monthStart.toISOString())
+        .lt('created_at', monthEnd.toISOString());
+      
+      return {
+        month: format(monthStart, 'MMM yyyy'),
+        target: target.target_count,
+        actual: count || 0,
+        achieved: (count || 0) >= target.target_count
+      };
+    });
+    
+    const history = await Promise.all(historyPromises);
+    setTargetHistory(history);
+  };
+
+  const toggleTargetHistory = () => {
+    if (!showTargetHistory) {
+      fetchTargetHistory();
+    }
+    setShowTargetHistory(!showTargetHistory);
   };
 
   const fetchData = async () => {
@@ -733,11 +787,70 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       : `${monthlyTarget - monthlyProgress} more to go for ${format(new Date(), 'MMMM')}`
                     }
                   </p>
+                  
+                  {/* History Toggle */}
+                  <button
+                    onClick={toggleTargetHistory}
+                    className="flex items-center gap-1 text-[10px] text-primary hover:underline mt-2"
+                  >
+                    <History className="h-3 w-3" />
+                    View History
+                    {showTargetHistory ? <ChevronUp className="h-3 w-3" /> : <ChevronDown className="h-3 w-3" />}
+                  </button>
                 </>
               ) : (
                 <p className="text-xs text-muted-foreground">
                   Set a monthly onboarding target to track progress
                 </p>
+              )}
+
+              {/* Target History */}
+              {showTargetHistory && (
+                <div className="mt-3 pt-3 border-t border-primary/20 space-y-2">
+                  <p className="text-xs font-medium text-primary flex items-center gap-1">
+                    <History className="h-3 w-3" />
+                    Performance History
+                  </p>
+                  {targetHistory.length > 0 ? (
+                    <div className="space-y-2">
+                      {targetHistory.map((item, idx) => (
+                        <div 
+                          key={idx} 
+                          className={`flex items-center justify-between p-2 rounded-lg text-xs ${
+                            item.achieved 
+                              ? 'bg-success/10 border border-success/20' 
+                              : 'bg-muted/50 border border-border'
+                          }`}
+                        >
+                          <div className="flex items-center gap-2">
+                            <span className={item.achieved ? 'text-success' : ''}>
+                              {item.achieved ? '✅' : '📊'}
+                            </span>
+                            <span className="font-medium">{item.month}</span>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="text-right">
+                              <span className={`font-bold ${item.achieved ? 'text-success' : ''}`}>
+                                {item.actual}
+                              </span>
+                              <span className="text-muted-foreground"> / {item.target}</span>
+                            </div>
+                            <Badge 
+                              variant={item.achieved ? "default" : "secondary"}
+                              className={`text-[10px] px-1.5 py-0 ${item.achieved ? 'bg-success' : ''}`}
+                            >
+                              {Math.round((item.actual / item.target) * 100)}%
+                            </Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <p className="text-xs text-muted-foreground text-center py-2">
+                      No historical data yet
+                    </p>
+                  )}
+                </div>
               )}
             </div>
             
