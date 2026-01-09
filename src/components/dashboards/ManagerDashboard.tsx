@@ -29,13 +29,19 @@ import {
   Calendar,
   FileDown,
   FileSpreadsheet,
-  Minus
+  Minus,
+  Target,
+  Edit3,
+  Check,
+  X
 } from 'lucide-react';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek } from 'date-fns';
+import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -103,9 +109,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     previousRecruiters: number;
     recruitersChange: number;
   } | null>(null);
+  const [monthlyTarget, setMonthlyTarget] = useState<number | null>(null);
+  const [monthlyProgress, setMonthlyProgress] = useState(0);
+  const [isEditingTarget, setIsEditingTarget] = useState(false);
+  const [targetInput, setTargetInput] = useState('');
 
   useEffect(() => {
     fetchData();
+    fetchMonthlyTarget();
   }, []);
 
   useEffect(() => {
@@ -291,6 +302,58 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     } else {
       setPeriodComparison(null);
     }
+  };
+
+  const fetchMonthlyTarget = async () => {
+    const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    
+    // Fetch target for current month
+    const { data: targetData } = await supabase
+      .from('onboarding_targets')
+      .select('target_count')
+      .eq('target_month', currentMonth)
+      .single();
+    
+    if (targetData) {
+      setMonthlyTarget(targetData.target_count);
+      setTargetInput(String(targetData.target_count));
+    }
+    
+    // Fetch this month's referrals count for progress
+    const monthStart = startOfMonth(new Date()).toISOString();
+    const { count } = await supabase
+      .from('referrals')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', monthStart);
+    
+    setMonthlyProgress(count || 0);
+  };
+
+  const handleSaveTarget = async () => {
+    const targetValue = parseInt(targetInput);
+    if (isNaN(targetValue) || targetValue <= 0) {
+      toast.error('Please enter a valid target number');
+      return;
+    }
+    
+    const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    
+    const { error } = await supabase
+      .from('onboarding_targets')
+      .upsert({
+        target_month: currentMonth,
+        target_count: targetValue,
+        set_by: user.id
+      }, { onConflict: 'target_month' });
+    
+    if (error) {
+      toast.error('Failed to save target');
+      return;
+    }
+    
+    setMonthlyTarget(targetValue);
+    setIsEditingTarget(false);
+    toast.success('Monthly target updated!');
   };
 
   const fetchData = async () => {
@@ -594,6 +657,88 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+            </div>
+
+            {/* Monthly Target Section */}
+            <div className="mb-4 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-primary/5 border border-primary/20">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Target className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-medium text-primary">Monthly Target</span>
+                </div>
+                {!isEditingTarget ? (
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    className="h-6 px-2 text-xs"
+                    onClick={() => setIsEditingTarget(true)}
+                  >
+                    <Edit3 className="h-3 w-3 mr-1" />
+                    {monthlyTarget ? 'Edit' : 'Set'}
+                  </Button>
+                ) : (
+                  <div className="flex items-center gap-1">
+                    <Input
+                      type="number"
+                      value={targetInput}
+                      onChange={(e) => setTargetInput(e.target.value)}
+                      placeholder="Enter target"
+                      className="h-6 w-20 text-xs px-2"
+                      min={1}
+                    />
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-success"
+                      onClick={handleSaveTarget}
+                    >
+                      <Check className="h-3 w-3" />
+                    </Button>
+                    <Button 
+                      variant="ghost" 
+                      size="sm" 
+                      className="h-6 w-6 p-0 text-destructive"
+                      onClick={() => {
+                        setIsEditingTarget(false);
+                        setTargetInput(monthlyTarget ? String(monthlyTarget) : '');
+                      }}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                )}
+              </div>
+              
+              {monthlyTarget ? (
+                <>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-lg font-bold">{monthlyProgress} / {monthlyTarget}</span>
+                    <span className={`text-xs font-medium ${
+                      monthlyProgress >= monthlyTarget 
+                        ? 'text-success' 
+                        : monthlyProgress >= monthlyTarget * 0.75 
+                        ? 'text-amber-500' 
+                        : 'text-muted-foreground'
+                    }`}>
+                      {Math.round((monthlyProgress / monthlyTarget) * 100)}%
+                    </span>
+                  </div>
+                  <Progress 
+                    value={Math.min((monthlyProgress / monthlyTarget) * 100, 100)} 
+                    className="h-2"
+                  />
+                  <p className="text-[10px] text-muted-foreground mt-1">
+                    {monthlyProgress >= monthlyTarget 
+                      ? '🎉 Target achieved!' 
+                      : `${monthlyTarget - monthlyProgress} more to go for ${format(new Date(), 'MMMM')}`
+                    }
+                  </p>
+                </>
+              ) : (
+                <p className="text-xs text-muted-foreground">
+                  Set a monthly onboarding target to track progress
+                </p>
+              )}
             </div>
             
             {topOnboarders.length > 0 ? (

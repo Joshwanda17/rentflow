@@ -826,6 +826,33 @@ export type Database = {
         }
         Relationships: []
       }
+      onboarding_targets: {
+        Row: {
+          created_at: string
+          id: string
+          set_by: string
+          target_count: number
+          target_month: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          set_by: string
+          target_count: number
+          target_month: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          set_by?: string
+          target_count?: number
+          target_month?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       platform_transactions: {
         Row: {
           amount: number
