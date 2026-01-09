@@ -1290,18 +1290,35 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       : `All Users (${topOnboarders.length})`
                     }
                   </p>
-                  {filteredOnboarders.length > 0 && (
-                    <button 
-                      onClick={toggleSelectAll}
-                      className="text-xs text-primary hover:underline flex items-center gap-1"
-                    >
-                      <Checkbox 
-                        checked={selectedUserIds.size === filteredOnboarders.length && filteredOnboarders.length > 0}
-                        className="h-3 w-3"
-                      />
-                      {selectedUserIds.size === filteredOnboarders.length ? 'Deselect All' : 'Select All'}
-                    </button>
-                  )}
+                  <div className="flex items-center gap-3">
+                    {/* Activity Legend */}
+                    <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-green-500" />
+                        Today
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-yellow-500" />
+                        This week
+                      </span>
+                      <span className="flex items-center gap-1">
+                        <span className="h-2 w-2 rounded-full bg-gray-400" />
+                        Inactive
+                      </span>
+                    </div>
+                    {filteredOnboarders.length > 0 && (
+                      <button 
+                        onClick={toggleSelectAll}
+                        className="text-xs text-primary hover:underline flex items-center gap-1"
+                      >
+                        <Checkbox 
+                          checked={selectedUserIds.size === filteredOnboarders.length && filteredOnboarders.length > 0}
+                          className="h-3 w-3"
+                        />
+                        {selectedUserIds.size === filteredOnboarders.length ? 'Deselect All' : 'Select All'}
+                      </button>
+                    )}
+                  </div>
                 </div>
 
                 {/* Bulk Actions Bar */}
