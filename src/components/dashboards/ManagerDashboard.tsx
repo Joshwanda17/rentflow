@@ -714,21 +714,32 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   const exportToCSV = () => {
-    if (topOnboarders.length === 0) {
+    if (filteredOnboarders.length === 0) {
       toast.error('No data to export');
       return;
     }
 
-    const headers = ['Rank', 'Name', 'Users Onboarded'];
-    const rows = topOnboarders.map((o, i) => [
+    const headers = ['Rank', 'Name', 'Roles', 'Users Onboarded', 'Last Active'];
+    const rows = filteredOnboarders.map((o, i) => [
       i + 1,
-      o.full_name,
-      o.referral_count
+      `"${o.full_name}"`,
+      `"${o.roles?.join(', ') || 'No role'}"`,
+      o.referral_count,
+      o.updated_at ? format(new Date(o.updated_at), 'yyyy-MM-dd HH:mm') : 'N/A'
     ]);
 
+    const filterInfo = userSearchQuery ? ` (filtered by "${userSearchQuery}")` : '';
+    const sortInfo = userSortBy === 'referrals' ? 'Most Referrals' : 
+                     userSortBy === 'name' ? 'Name (A-Z)' : 
+                     userSortBy === 'newest' ? 'Newest First' :
+                     userSortBy === 'oldest' ? 'Oldest First' :
+                     userSortBy === 'last_active' ? 'Recently Active' : '';
+
     const csvContent = [
-      `Manager Productivity Report - ${getFilterLabel()}`,
+      `User Productivity Report - ${getFilterLabel()}${filterInfo}`,
+      `Sorted by: ${sortInfo}`,
       `Generated: ${new Date().toLocaleDateString()}`,
+      `Total Users: ${filteredOnboarders.length}`,
       '',
       headers.join(','),
       ...rows.map(row => row.join(','))
@@ -738,14 +749,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `productivity-report-${productivityFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.download = `user-productivity-${productivityFilter}-${new Date().toISOString().split('T')[0]}.csv`;
     link.click();
     URL.revokeObjectURL(url);
-    toast.success('CSV exported successfully');
+    toast.success(`Exported ${filteredOnboarders.length} users to CSV`);
   };
 
   const exportToPDF = () => {
-    if (topOnboarders.length === 0) {
+    if (filteredOnboarders.length === 0) {
       toast.error('No data to export');
       return;
     }
@@ -756,58 +767,77 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     // Title
     doc.setFontSize(20);
     doc.setFont('helvetica', 'bold');
-    doc.text('Manager Productivity Report', pageWidth / 2, 20, { align: 'center' });
+    doc.text('User Productivity Report', pageWidth / 2, 20, { align: 'center' });
     
     // Subtitle
     doc.setFontSize(12);
     doc.setFont('helvetica', 'normal');
     doc.text(`Period: ${getFilterLabel()}`, pageWidth / 2, 30, { align: 'center' });
-    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 38, { align: 'center' });
+    if (userSearchQuery) {
+      doc.text(`Filter: "${userSearchQuery}"`, pageWidth / 2, 38, { align: 'center' });
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 46, { align: 'center' });
+    } else {
+      doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 38, { align: 'center' });
+    }
     
     // Summary stats
+    const summaryY = userSearchQuery ? 60 : 52;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Summary', 20, 55);
+    doc.text('Summary', 20, summaryY);
     
     doc.setFontSize(11);
     doc.setFont('helvetica', 'normal');
-    const totalOnboarded = topOnboarders.reduce((sum, o) => sum + o.referral_count, 0);
-    doc.text(`Total Users Onboarded: ${totalOnboarded}`, 20, 65);
-    doc.text(`Active Recruiters: ${topOnboarders.length}`, 20, 73);
+    const totalOnboarded = filteredOnboarders.reduce((sum, o) => sum + o.referral_count, 0);
+    doc.text(`Total Users Onboarded: ${totalOnboarded}`, 20, summaryY + 10);
+    doc.text(`Users in Report: ${filteredOnboarders.length}`, 20, summaryY + 18);
     
     // Leaderboard table
+    const tableStartY = summaryY + 35;
     doc.setFontSize(14);
     doc.setFont('helvetica', 'bold');
-    doc.text('Leaderboard', 20, 90);
+    doc.text('User List', 20, tableStartY);
     
     // Table header
-    doc.setFontSize(10);
+    doc.setFontSize(9);
     doc.setFont('helvetica', 'bold');
-    doc.text('Rank', 20, 100);
-    doc.text('Name', 50, 100);
-    doc.text('Users Onboarded', 140, 100);
+    doc.text('Rank', 20, tableStartY + 10);
+    doc.text('Name', 35, tableStartY + 10);
+    doc.text('Roles', 95, tableStartY + 10);
+    doc.text('Referrals', 145, tableStartY + 10);
+    doc.text('Last Active', 170, tableStartY + 10);
     
     // Table line
     doc.setDrawColor(200);
-    doc.line(20, 103, 190, 103);
+    doc.line(20, tableStartY + 13, 190, tableStartY + 13);
     
-    // Table rows
+    // Table rows (limit to prevent overflow)
     doc.setFont('helvetica', 'normal');
-    topOnboarders.forEach((onboarder, index) => {
-      const y = 112 + (index * 10);
-      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
+    doc.setFontSize(8);
+    const maxRows = Math.min(filteredOnboarders.length, 25);
+    filteredOnboarders.slice(0, maxRows).forEach((onboarder, index) => {
+      const y = tableStartY + 20 + (index * 8);
+      const medal = index === 0 ? '1st' : index === 1 ? '2nd' : index === 2 ? '3rd' : `${index + 1}`;
       doc.text(medal, 20, y);
-      doc.text(onboarder.full_name, 50, y);
-      doc.text(String(onboarder.referral_count), 140, y);
+      doc.text(onboarder.full_name.substring(0, 25), 35, y);
+      doc.text((onboarder.roles?.slice(0, 2).join(', ') || 'No role').substring(0, 20), 95, y);
+      doc.text(String(onboarder.referral_count), 145, y);
+      doc.text(onboarder.updated_at ? format(new Date(onboarder.updated_at), 'MMM d') : 'N/A', 170, y);
     });
+    
+    if (filteredOnboarders.length > maxRows) {
+      doc.setFontSize(9);
+      doc.setTextColor(100);
+      doc.text(`... and ${filteredOnboarders.length - maxRows} more users`, 20, tableStartY + 20 + (maxRows * 8) + 5);
+    }
     
     // Footer
     doc.setFontSize(8);
     doc.setTextColor(128);
-    doc.text('Welile Platform - Manager Productivity Report', pageWidth / 2, 280, { align: 'center' });
+    doc.text('Welile Platform - User Productivity Report', pageWidth / 2, 280, { align: 'center' });
     
-    doc.save(`productivity-report-${productivityFilter}-${new Date().toISOString().split('T')[0]}.pdf`);
-    toast.success('PDF exported successfully');
+    doc.save(`user-productivity-${productivityFilter}-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success(`Exported ${filteredOnboarders.length} users to PDF`);
   };
 
   if (loading) {
