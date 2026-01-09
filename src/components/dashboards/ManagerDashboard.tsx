@@ -42,7 +42,9 @@ import {
   Search,
   ArrowUpDown,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  Mail,
+  MessageCircle
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -1482,6 +1484,54 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                           </AlertDialogFooter>
                         </AlertDialogContent>
                       </AlertDialog>
+
+                      {/* Bulk Email */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-xs gap-1"
+                        onClick={() => {
+                          const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
+                          const emails = selectedUsers.map(u => u.email).filter(Boolean);
+                          if (emails.length === 0) {
+                            toast.error('No email addresses found for selected users');
+                            return;
+                          }
+                          window.location.href = `mailto:${emails.join(',')}?subject=Hello from Welile`;
+                          toast.success(`Opening email for ${emails.length} users`);
+                        }}
+                      >
+                        <Mail className="h-3 w-3" />
+                        Email
+                      </Button>
+
+                      {/* Bulk WhatsApp */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-xs gap-1 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                        onClick={() => {
+                          const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
+                          const phones = selectedUsers.map(u => u.phone).filter(Boolean);
+                          if (phones.length === 0) {
+                            toast.error('No phone numbers found for selected users');
+                            return;
+                          }
+                          if (phones.length === 1) {
+                            // Single user - open WhatsApp directly
+                            const phone = phones[0].replace(/\D/g, '');
+                            window.open(`https://wa.me/${phone}?text=Hello from Welile!`, '_blank');
+                          } else {
+                            // Multiple users - copy phones to clipboard
+                            const phoneList = phones.join('\n');
+                            navigator.clipboard.writeText(phoneList);
+                            toast.success(`${phones.length} phone numbers copied to clipboard`);
+                          }
+                        }}
+                      >
+                        <MessageCircle className="h-3 w-3" />
+                        WhatsApp
+                      </Button>
 
                       {/* Bulk Remove Role */}
                       <Button 
