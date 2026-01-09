@@ -156,7 +156,7 @@
       
       var currentProgress = 0;
       var appStartTime = Date.now();
-      var MIN_SPLASH_TIME = 7000; // 7 seconds
+      var MIN_SPLASH_TIME = 2000; // 2 seconds for fast loading
       var stageInterval = MIN_SPLASH_TIME / loadingStages.length;
       
       function updateProgress(progress, text) {
@@ -221,10 +221,10 @@
         }
       }
       
-      // Fallback: hide after 7.5 seconds even if app hasn't mounted
+      // Fallback: hide after 3 seconds even if app hasn't mounted
       setTimeout(function() {
         window.hideSplash();
-      }, 7500);
+      }, 3000);
     </script>
   </body>
 </html>
