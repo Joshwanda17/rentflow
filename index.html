@@ -124,9 +124,9 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Show splash screen for 3 seconds minimum
+      // Show splash screen for 7 seconds minimum
       var appStartTime = Date.now();
-      var MIN_SPLASH_TIME = 3000; // 3 seconds
+      var MIN_SPLASH_TIME = 7000; // 7 seconds
       
       window.hideSplash = function() {
         var elapsed = Date.now() - appStartTime;
@@ -143,10 +143,10 @@
         }, remaining);
       };
       
-      // Fallback: hide after 3.5 seconds even if app hasn't mounted
+      // Fallback: hide after 7.5 seconds even if app hasn't mounted
       setTimeout(function() {
         window.hideSplash();
-      }, 3500);
+      }, 7500);
     </script>
   </body>
 </html>
