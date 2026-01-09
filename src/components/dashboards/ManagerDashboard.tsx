@@ -61,6 +61,7 @@ import jsPDF from 'jspdf';
 import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -159,6 +160,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [bulkRemoveRoleDialogOpen, setBulkRemoveRoleDialogOpen] = useState(false);
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
+  const [whatsAppDialogOpen, setWhatsAppDialogOpen] = useState(false);
+  const [whatsAppMessage, setWhatsAppMessage] = useState('Hello! This is a message from Welile.');
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
@@ -1506,33 +1509,94 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       </Button>
 
                       {/* Bulk WhatsApp */}
-                      <Button 
-                        variant="outline" 
-                        size="sm" 
-                        className="h-7 text-xs gap-1 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
-                        onClick={() => {
-                          const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
-                          const phones = selectedUsers.map(u => u.phone).filter(Boolean);
-                          if (phones.length === 0) {
-                            toast.error('No phone numbers found for selected users');
-                            return;
-                          }
-                          if (phones.length === 1) {
-                            // Single user - open WhatsApp directly
-                            const phone = phones[0].replace(/\D/g, '');
-                            window.open(`https://wa.me/${phone}?text=Hello from Welile!`, '_blank');
-                          } else {
-                            // Multiple users - copy phones to clipboard
-                            const phoneList = phones.join('\n');
-                            navigator.clipboard.writeText(phoneList);
-                            toast.success(`${phones.length} phone numbers copied to clipboard`);
-                          }
-                        }}
-                      >
-                        <MessageCircle className="h-3 w-3" />
-                        WhatsApp
-                      </Button>
-
+                      <AlertDialog open={whatsAppDialogOpen} onOpenChange={setWhatsAppDialogOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button 
+                            variant="outline" 
+                            size="sm" 
+                            className="h-7 text-xs gap-1 text-green-600 border-green-200 hover:bg-green-50 dark:text-green-400 dark:border-green-800 dark:hover:bg-green-950"
+                            onClick={() => {
+                              const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
+                              const phones = selectedUsers.map(u => u.phone).filter(Boolean);
+                              if (phones.length === 0) {
+                                toast.error('No phone numbers found for selected users');
+                                return;
+                              }
+                              setWhatsAppDialogOpen(true);
+                            }}
+                          >
+                            <MessageCircle className="h-3 w-3" />
+                            WhatsApp
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle className="flex items-center gap-2">
+                              <MessageCircle className="h-5 w-5 text-green-600" />
+                              Send WhatsApp Message
+                            </AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {(() => {
+                                const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
+                                const phones = selectedUsers.map(u => u.phone).filter(Boolean);
+                                return phones.length === 1 
+                                  ? 'Customize your message before opening WhatsApp.'
+                                  : `Send to ${phones.length} users. Messages will open in separate tabs.`;
+                              })()}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <div className="py-4 space-y-3">
+                            <label className="text-sm font-medium">Message Template</label>
+                            <Textarea
+                              value={whatsAppMessage}
+                              onChange={(e) => setWhatsAppMessage(e.target.value)}
+                              placeholder="Enter your message..."
+                              className="min-h-[100px]"
+                              maxLength={1000}
+                            />
+                            <p className="text-xs text-muted-foreground">
+                              {whatsAppMessage.length}/1000 characters
+                            </p>
+                          </div>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => {
+                                const selectedUsers = filteredOnboarders.filter(u => selectedUserIds.has(u.id));
+                                const usersWithPhones = selectedUsers.filter(u => u.phone);
+                                const encodedMessage = encodeURIComponent(whatsAppMessage);
+                                
+                                if (usersWithPhones.length === 1) {
+                                  const phone = usersWithPhones[0].phone.replace(/\D/g, '');
+                                  window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+                                  toast.success('Opening WhatsApp...');
+                                } else {
+                                  // Open first 5 in new tabs, copy rest
+                                  const maxTabs = 5;
+                                  usersWithPhones.slice(0, maxTabs).forEach((user, index) => {
+                                    const phone = user.phone.replace(/\D/g, '');
+                                    setTimeout(() => {
+                                      window.open(`https://wa.me/${phone}?text=${encodedMessage}`, '_blank');
+                                    }, index * 500);
+                                  });
+                                  
+                                  if (usersWithPhones.length > maxTabs) {
+                                    const remaining = usersWithPhones.slice(maxTabs).map(u => u.phone).join('\n');
+                                    navigator.clipboard.writeText(remaining);
+                                    toast.success(`Opened ${maxTabs} chats. ${usersWithPhones.length - maxTabs} more numbers copied to clipboard.`);
+                                  } else {
+                                    toast.success(`Opening ${usersWithPhones.length} WhatsApp chats...`);
+                                  }
+                                }
+                              }}
+                            >
+                              <MessageCircle className="h-4 w-4 mr-2" />
+                              Send Messages
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
                       {/* Bulk Remove Role */}
                       <Button 
                         variant="outline" 
