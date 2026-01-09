@@ -28,6 +28,8 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import { QuickNavGrid } from '@/components/QuickNavGrid';
+import { WalletCard } from '@/components/wallet/WalletCard';
 
 interface TenantDashboardProps {
   user: User;
@@ -140,11 +142,26 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {addRoleComponent}
         </button>
 
+        {/* Wallet Card */}
+        <WalletCard />
+
+        {/* Quick Navigation Grid */}
+        <QuickNavGrid 
+          title="Quick Actions"
+          items={[
+            { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true), variant: 'primary' },
+            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
+            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
+            { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
+            { icon: History, label: 'History', onClick: () => navigate('/transactions') },
+            { icon: Calendar, label: 'Schedule', onClick: () => navigate('/payment-schedule') },
+            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
+            { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
+          ]}
+        />
+
         {/* PRIORITY 1: Receipt Submission Prompt */}
         <DashboardReceiptPrompt userId={user.id} />
-
-        {/* Food Shopping Loans */}
-        <FoodShoppingLoansSection />
 
         {/* Calculator Section - Only show when triggered */}
         {showCalculator && (
