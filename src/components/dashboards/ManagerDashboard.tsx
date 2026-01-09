@@ -260,57 +260,106 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </button>
 
-        {/* Top Onboarders Leaderboard */}
-        {topOnboarders.length > 0 && (
-          <Card className="border border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-background overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 mb-3">
-                <div className="p-2 rounded-lg bg-amber-500/20">
-                  <Crown className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+        {/* Manager Productivity - Top Onboarders Menu */}
+        <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg">
+          <CardContent className="p-5">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-amber-500/20 ring-2 ring-amber-500/30">
+                  <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                 </div>
-                <h3 className="font-semibold">Top Onboarders</h3>
-                <Badge variant="secondary" className="ml-auto text-xs">
-                  {topOnboarders.reduce((sum, o) => sum + o.referral_count, 0)} total
-                </Badge>
-              </div>
-              <div className="space-y-2">
-                {topOnboarders.map((onboarder, index) => (
-                  <button 
-                    key={onboarder.id}
-                    onClick={() => handleSelectOnboarder(onboarder.id)}
-                    className={`w-full flex items-center gap-3 p-2 rounded-lg transition-all active:scale-[0.98] ${
-                      index === 0 ? 'bg-amber-500/10 border border-amber-500/20 hover:bg-amber-500/15' : 'hover:bg-muted/50'
-                    }`}
-                  >
-                    <div className="flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold shrink-0"
-                      style={{
-                        backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
-                        color: index < 3 ? 'white' : 'inherit',
-                        border: index >= 3 ? '1px solid hsl(var(--border))' : 'none'
-                      }}
-                    >
-                      {index + 1}
-                    </div>
-                    <UserAvatar 
-                      avatarUrl={onboarder.avatar_url} 
-                      fullName={onboarder.full_name} 
-                      size="sm" 
-                    />
-                    <div className="flex-1 min-w-0 text-left">
-                      <p className="text-sm font-medium truncate">{onboarder.full_name}</p>
-                    </div>
-                    <Badge 
-                      variant={index === 0 ? "default" : "secondary"}
-                      className={index === 0 ? "bg-amber-500 text-white" : ""}
-                    >
-                      {onboarder.referral_count}
+                <div>
+                  <div className="flex items-center gap-2">
+                    <h3 className="font-bold text-lg">Manager Productivity</h3>
+                    <Badge className="bg-amber-500 text-white">
+                      <Crown className="h-3 w-3 mr-1" />
+                      Leaderboard
                     </Badge>
-                  </button>
-                ))}
+                  </div>
+                  <p className="text-sm text-muted-foreground">Who onboarded the most users</p>
+                </div>
               </div>
-            </CardContent>
-          </Card>
-        )}
+            </div>
+            
+            {topOnboarders.length > 0 ? (
+              <>
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 gap-3 mb-4">
+                  <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <UserPlus className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                      <span className="text-xs font-medium text-amber-600 dark:text-amber-400">Total Onboarded</span>
+                    </div>
+                    <p className="text-xl font-bold">{topOnboarders.reduce((sum, o) => sum + o.referral_count, 0)}</p>
+                  </div>
+                  <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <UserCheck className="h-4 w-4 text-success" />
+                      <span className="text-xs font-medium text-success">Active Recruiters</span>
+                    </div>
+                    <p className="text-xl font-bold">{topOnboarders.length}</p>
+                  </div>
+                </div>
+
+                {/* Leaderboard */}
+                <div className="space-y-2">
+                  {topOnboarders.map((onboarder, index) => (
+                    <button 
+                      key={onboarder.id}
+                      onClick={() => handleSelectOnboarder(onboarder.id)}
+                      className={`w-full flex items-center gap-3 p-3 rounded-xl transition-all active:scale-[0.98] ${
+                        index === 0 
+                          ? 'bg-gradient-to-r from-amber-500/20 to-amber-500/10 border-2 border-amber-500/40 shadow-md' 
+                          : index === 1 
+                          ? 'bg-muted/60 border border-border hover:bg-muted' 
+                          : index === 2 
+                          ? 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/15' 
+                          : 'hover:bg-muted/50 border border-transparent'
+                      }`}
+                    >
+                      <div className="flex items-center justify-center w-8 h-8 rounded-full text-sm font-bold shrink-0 shadow-sm"
+                        style={{
+                          backgroundColor: index === 0 ? 'rgb(245 158 11)' : index === 1 ? 'rgb(156 163 175)' : index === 2 ? 'rgb(180 83 9)' : 'transparent',
+                          color: index < 3 ? 'white' : 'inherit',
+                          border: index >= 3 ? '2px solid hsl(var(--border))' : 'none'
+                        }}
+                      >
+                        {index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : index + 1}
+                      </div>
+                      <UserAvatar 
+                        avatarUrl={onboarder.avatar_url} 
+                        fullName={onboarder.full_name} 
+                        size="sm" 
+                      />
+                      <div className="flex-1 min-w-0 text-left">
+                        <p className={`font-medium truncate ${index === 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>
+                          {onboarder.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {index === 0 ? '🏆 Top Performer' : `Rank #${index + 1}`}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <Badge 
+                          variant={index === 0 ? "default" : "secondary"}
+                          className={`text-sm px-3 py-1 ${index === 0 ? "bg-amber-500 text-white shadow-md" : ""}`}
+                        >
+                          {onboarder.referral_count} users
+                        </Badge>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-6 text-muted-foreground">
+                <UserPlus className="h-12 w-12 mx-auto mb-2 opacity-50" />
+                <p className="font-medium">No onboarding activity yet</p>
+                <p className="text-sm">Users who refer others will appear here</p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
 
         {/* User Profile Card - Clickable */}
         <button 
