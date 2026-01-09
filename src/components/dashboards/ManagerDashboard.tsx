@@ -102,7 +102,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     avatar_url: string | null;
     referral_count: number;
   }[]>([]);
-  const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all'>('all');
+  const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all' | 'custom'>('all');
+  const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
   const [trendData, setTrendData] = useState<{ date: string; count: number }[]>([]);
   const [periodComparison, setPeriodComparison] = useState<{
     currentTotal: number;
@@ -130,10 +131,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   }, []);
 
   useEffect(() => {
-    fetchProductivityData();
-  }, [productivityFilter]);
+    if (productivityFilter !== 'custom' || (customDateRange.start && customDateRange.end)) {
+      fetchProductivityData();
+    }
+  }, [productivityFilter, customDateRange]);
 
-  const getFilterDate = (filter: 'week' | 'month' | 'all') => {
+  const getFilterDate = (filter: 'week' | 'month' | 'all' | 'custom') => {
     const now = new Date();
     if (filter === 'week') {
       now.setDate(now.getDate() - 7);
@@ -141,11 +144,23 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     } else if (filter === 'month') {
       now.setMonth(now.getMonth() - 1);
       return now.toISOString();
+    } else if (filter === 'custom' && customDateRange.start) {
+      return customDateRange.start.toISOString();
     }
     return null;
   };
 
-  const getPreviousPeriodDates = (filter: 'week' | 'month' | 'all') => {
+  const getFilterEndDate = (filter: 'week' | 'month' | 'all' | 'custom') => {
+    if (filter === 'custom' && customDateRange.end) {
+      // Set to end of day
+      const endOfDay = new Date(customDateRange.end);
+      endOfDay.setHours(23, 59, 59, 999);
+      return endOfDay.toISOString();
+    }
+    return null;
+  };
+
+  const getPreviousPeriodDates = (filter: 'week' | 'month' | 'all' | 'custom') => {
     const now = new Date();
     if (filter === 'week') {
       const prevEnd = new Date(now);
@@ -159,12 +174,18 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       const prevStart = new Date(prevEnd);
       prevStart.setMonth(prevStart.getMonth() - 1);
       return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
+    } else if (filter === 'custom' && customDateRange.start && customDateRange.end) {
+      const duration = customDateRange.end.getTime() - customDateRange.start.getTime();
+      const prevEnd = new Date(customDateRange.start.getTime() - 1);
+      const prevStart = new Date(prevEnd.getTime() - duration);
+      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
     }
     return null;
   };
 
   const fetchProductivityData = async () => {
     const filterDate = getFilterDate(productivityFilter);
+    const filterEndDate = getFilterEndDate(productivityFilter);
     const previousPeriod = getPreviousPeriodDates(productivityFilter);
     
     // First, get all managers
@@ -182,6 +203,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     
     if (filterDate) {
       query = query.gte('created_at', filterDate);
+    }
+    if (filterEndDate) {
+      query = query.lte('created_at', filterEndDate);
     }
     
     const { data: referralsData } = await query;
@@ -708,22 +732,66 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               </div>
               
               {/* Date Filter */}
-              <Tabs value={productivityFilter} onValueChange={(v) => setProductivityFilter(v as 'week' | 'month' | 'all')} className="w-full">
-                <TabsList className="grid w-full grid-cols-3 h-9">
+              <Tabs value={productivityFilter} onValueChange={(v) => setProductivityFilter(v as 'week' | 'month' | 'all' | 'custom')} className="w-full">
+                <TabsList className="grid w-full grid-cols-4 h-9">
                   <TabsTrigger value="week" className="text-xs gap-1">
-                    <Calendar className="h-3 w-3" />
                     This Week
                   </TabsTrigger>
                   <TabsTrigger value="month" className="text-xs gap-1">
-                    <Calendar className="h-3 w-3" />
                     This Month
                   </TabsTrigger>
                   <TabsTrigger value="all" className="text-xs gap-1">
-                    <Calendar className="h-3 w-3" />
                     All Time
+                  </TabsTrigger>
+                  <TabsTrigger value="custom" className="text-xs gap-1">
+                    Custom
                   </TabsTrigger>
                 </TabsList>
               </Tabs>
+
+              {/* Custom Date Range Picker */}
+              {productivityFilter === 'custom' && (
+                <div className="mt-3 p-3 rounded-xl bg-muted/50 border border-border">
+                  <p className="text-xs font-medium mb-2 flex items-center gap-1">
+                    <Calendar className="h-3 w-3" />
+                    Select Date Range
+                  </p>
+                  <div className="flex gap-2 items-center">
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted-foreground mb-1 block">From</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-xs"
+                        value={customDateRange.start ? format(customDateRange.start, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => setCustomDateRange(prev => ({ 
+                          ...prev, 
+                          start: e.target.value ? new Date(e.target.value) : null 
+                        }))}
+                        max={customDateRange.end ? format(customDateRange.end, 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd')}
+                      />
+                    </div>
+                    <div className="flex-1">
+                      <label className="text-[10px] text-muted-foreground mb-1 block">To</label>
+                      <Input
+                        type="date"
+                        className="h-8 text-xs"
+                        value={customDateRange.end ? format(customDateRange.end, 'yyyy-MM-dd') : ''}
+                        onChange={(e) => setCustomDateRange(prev => ({ 
+                          ...prev, 
+                          end: e.target.value ? new Date(e.target.value) : null 
+                        }))}
+                        min={customDateRange.start ? format(customDateRange.start, 'yyyy-MM-dd') : undefined}
+                        max={format(new Date(), 'yyyy-MM-dd')}
+                      />
+                    </div>
+                  </div>
+                  {customDateRange.start && customDateRange.end && (
+                    <p className="text-[10px] text-muted-foreground mt-2">
+                      Showing data from {format(customDateRange.start, 'MMM d, yyyy')} to {format(customDateRange.end, 'MMM d, yyyy')}
+                    </p>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Monthly Target Section */}
