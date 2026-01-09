@@ -156,7 +156,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [bulkRemoveRoleDialogOpen, setBulkRemoveRoleDialogOpen] = useState(false);
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
-  const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest'>('referrals');
+  const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
 
@@ -173,6 +173,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           return (b.created_at || '').localeCompare(a.created_at || '');
         case 'oldest':
           return (a.created_at || '').localeCompare(b.created_at || '');
+        case 'last_active':
+          return (b.updated_at || '').localeCompare(a.updated_at || '');
         default:
           return 0;
       }
@@ -1271,6 +1273,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="referrals">Most Referrals</SelectItem>
+                      <SelectItem value="last_active">Recently Active</SelectItem>
                       <SelectItem value="name">Name (A-Z)</SelectItem>
                       <SelectItem value="newest">Newest First</SelectItem>
                       <SelectItem value="oldest">Oldest First</SelectItem>
