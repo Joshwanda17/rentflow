@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate, RotateCcw } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
@@ -63,6 +63,9 @@ export default function Settings() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [skipSplash, setSkipSplash] = useState(() => {
+    return localStorage.getItem('welile_skip_splash') === 'true';
+  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -626,6 +629,45 @@ export default function Settings() {
                       </Button>
                     </motion.div>
                   </div>
+                </div>
+              </div>
+
+              {/* Splash Screen Preference */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RotateCcw className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Splash Screen</p>
+                      <p className="text-sm text-muted-foreground">
+                        {skipSplash 
+                          ? 'Splash screen is currently skipped on startup' 
+                          : 'Splash screen shows on startup'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <Button
+                      variant={skipSplash ? "default" : "outline"}
+                      size="sm"
+                      onClick={() => {
+                        if (skipSplash) {
+                          localStorage.removeItem('welile_skip_splash');
+                          setSkipSplash(false);
+                          toast.success('Splash screen will show on next startup');
+                        } else {
+                          localStorage.setItem('welile_skip_splash', 'true');
+                          setSkipSplash(true);
+                          toast.success('Splash screen will be skipped');
+                        }
+                      }}
+                      className="gap-2"
+                    >
+                      <RotateCcw className="h-4 w-4" />
+                      {skipSplash ? 'Show Splash' : 'Skip Splash'}
+                    </Button>
+                  </motion.div>
                 </div>
               </div>
             </CardContent>
