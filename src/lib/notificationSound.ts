@@ -1,6 +1,8 @@
 // Simple notification sound using Web Audio API
 // No external dependencies required
 
+import { areNotificationSoundsEnabled, getNotificationSoundType } from '@/hooks/useAppPreferences';
+
 let audioContext: AudioContext | null = null;
 
 function getAudioContext(): AudioContext {
@@ -10,7 +12,16 @@ function getAudioContext(): AudioContext {
   return audioContext;
 }
 
-export function playNotificationSound(type: 'ding' | 'pop' | 'chime' = 'ding') {
+// Play notification sound respecting user preferences
+export function playNotificationSound(typeOverride?: 'ding' | 'pop' | 'chime') {
+  // Check if sounds are enabled
+  if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
+  // Use the user's preferred sound type, or override if specified
+  const type = typeOverride || getNotificationSoundType();
+
   try {
     const ctx = getAudioContext();
     
@@ -70,6 +81,11 @@ export function playNotificationSound(type: 'ding' | 'pop' | 'chime' = 'ding') {
 
 // Cash register / coin sound for claims
 export function playCoinSound() {
+  // Check if sounds are enabled
+  if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
   try {
     const ctx = getAudioContext();
     
@@ -107,6 +123,11 @@ export function playCoinSound() {
 
 // Urgency alert sound for low spots
 export function playUrgencySound() {
+  // Check if sounds are enabled
+  if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
   try {
     const ctx = getAudioContext();
     
