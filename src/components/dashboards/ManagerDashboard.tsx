@@ -78,6 +78,8 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
+import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
+import { UserMinus } from 'lucide-react';
 
 interface ManagerDashboardProps {
   user: User;
@@ -146,6 +148,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [bulkRoleDialogOpen, setBulkRoleDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
+  const [bulkRemoveRoleDialogOpen, setBulkRemoveRoleDialogOpen] = useState(false);
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
 
@@ -1292,6 +1295,17 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         </AlertDialogContent>
                       </AlertDialog>
 
+                      {/* Bulk Remove Role */}
+                      <Button 
+                        variant="outline" 
+                        size="sm" 
+                        className="h-7 text-xs gap-1"
+                        onClick={() => setBulkRemoveRoleDialogOpen(true)}
+                      >
+                        <UserMinus className="h-3 w-3" />
+                        Remove Role
+                      </Button>
+
                       {/* Bulk Delete */}
                       <AlertDialog open={bulkDeleteDialogOpen} onOpenChange={setBulkDeleteDialogOpen}>
                         <AlertDialogTrigger asChild>
@@ -1705,6 +1719,16 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         open={!!selectedUser}
         onOpenChange={(open) => !open && setSelectedUser(null)}
         onRolesUpdated={() => fetchData()}
+      />
+
+      <BulkRemoveRoleDialog
+        open={bulkRemoveRoleDialogOpen}
+        onOpenChange={setBulkRemoveRoleDialogOpen}
+        selectedUserIds={Array.from(selectedUserIds)}
+        onSuccess={() => {
+          setSelectedUserIds(new Set());
+          fetchData();
+        }}
       />
     </div>
   );
