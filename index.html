@@ -133,6 +133,17 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
+      // Check if user prefers to skip splash
+      var skipSplashPref = localStorage.getItem('welile_skip_splash') === 'true';
+      
+      if (skipSplashPref) {
+        // Immediately hide splash for returning users who skipped before
+        var loader = document.getElementById('app-loader');
+        if (loader) {
+          loader.style.display = 'none';
+        }
+      }
+      
       // Loading progress tracker
       var loadingStages = [
         { progress: 10, text: 'Initializing...' },
@@ -159,12 +170,14 @@
         currentProgress = progress;
       }
       
-      // Animate through loading stages
-      loadingStages.forEach(function(stage, index) {
-        setTimeout(function() {
-          updateProgress(stage.progress, stage.text);
-        }, stageInterval * index);
-      });
+      // Only animate if not skipping
+      if (!skipSplashPref) {
+        loadingStages.forEach(function(stage, index) {
+          setTimeout(function() {
+            updateProgress(stage.progress, stage.text);
+          }, stageInterval * index);
+        });
+      }
       
       window.hideSplash = function() {
         var elapsed = Date.now() - appStartTime;
@@ -186,12 +199,17 @@
         }, remaining);
       };
       
-      // Skip button function - immediately hide splash
+      // Skip button function - immediately hide splash and remember preference
       function skipSplash() {
         // Haptic feedback on mobile devices
         if (navigator.vibrate) {
           navigator.vibrate(15);
         }
+        
+        // Remember user preference to skip splash on future visits
+        try {
+          localStorage.setItem('welile_skip_splash', 'true');
+        } catch (e) {}
         
         updateProgress(100, 'Welcome!');
         var loader = document.getElementById('app-loader');
