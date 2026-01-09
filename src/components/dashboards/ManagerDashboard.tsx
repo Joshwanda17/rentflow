@@ -24,8 +24,10 @@ import {
   UserPlus,
   UserCheck,
   CalendarPlus,
-  Crown
+  Crown,
+  Calendar
 } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -83,10 +85,82 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     avatar_url: string | null;
     referral_count: number;
   }[]>([]);
+  const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all'>('all');
 
   useEffect(() => {
     fetchData();
   }, []);
+
+  useEffect(() => {
+    fetchProductivityData();
+  }, [productivityFilter]);
+
+  const getFilterDate = (filter: 'week' | 'month' | 'all') => {
+    const now = new Date();
+    if (filter === 'week') {
+      now.setDate(now.getDate() - 7);
+      return now.toISOString();
+    } else if (filter === 'month') {
+      now.setMonth(now.getMonth() - 1);
+      return now.toISOString();
+    }
+    return null;
+  };
+
+  const fetchProductivityData = async () => {
+    const filterDate = getFilterDate(productivityFilter);
+    
+    // Query referrals with optional date filter
+    let query = supabase
+      .from('referrals')
+      .select('referrer_id');
+    
+    if (filterDate) {
+      query = query.gte('created_at', filterDate);
+    }
+    
+    const { data: referralsData } = await query;
+    
+    if (!referralsData || referralsData.length === 0) {
+      setTopOnboarders([]);
+      return;
+    }
+    
+    // Count referrals per user
+    const referralCounts: Record<string, number> = {};
+    referralsData.forEach(r => {
+      referralCounts[r.referrer_id] = (referralCounts[r.referrer_id] || 0) + 1;
+    });
+    
+    // Get top 5 referrers
+    const topReferrerIds = Object.entries(referralCounts)
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([id]) => id);
+    
+    if (topReferrerIds.length === 0) {
+      setTopOnboarders([]);
+      return;
+    }
+    
+    // Fetch profiles for top referrers
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url')
+      .in('id', topReferrerIds);
+    
+    const onboarders = topReferrerIds.map(id => {
+      const profile = profiles?.find(p => p.id === id);
+      return {
+        id,
+        full_name: profile?.full_name || 'Unknown',
+        avatar_url: profile?.avatar_url || null,
+        referral_count: referralCounts[id]
+      };
+    }).filter(o => o.referral_count > 0);
+    
+    setTopOnboarders(onboarders);
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -96,7 +170,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
     const oneWeekAgoISO = oneWeekAgo.toISOString();
     
-    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes, topOnboarderRes] = await Promise.all([
+    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('id, status, rent_amount'),
@@ -112,12 +186,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       supabase
         .from('profiles')
         .select('id')
-        .gte('created_at', oneWeekAgoISO),
-      supabase
-        .from('referral_leaderboard')
-        .select('user_id, full_name, avatar_url, referral_count')
-        .order('referral_count', { ascending: false })
-        .limit(5)
+        .gte('created_at', oneWeekAgoISO)
     ]);
     
     const requests = requestsRes.data || [];
@@ -134,16 +203,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     setNewSignupsThisWeek(newUsersRes.data?.length || 0);
     setPendingOrders((ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length);
     setPendingLoans((loansRes.data || []).filter(l => l.status === 'pending').length);
-    
-    const onboarders = (topOnboarderRes.data || [])
-      .filter(o => o.referral_count > 0)
-      .map(o => ({
-        id: o.user_id,
-        full_name: o.full_name,
-        avatar_url: o.avatar_url,
-        referral_count: o.referral_count
-      }));
-    setTopOnboarders(onboarders);
     
     setLoading(false);
   };
@@ -263,22 +322,42 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg">
           <CardContent className="p-5">
-            <div className="flex items-center justify-between mb-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-amber-500/20 ring-2 ring-amber-500/30">
-                  <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
-                </div>
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h3 className="font-bold text-lg">Manager Productivity</h3>
-                    <Badge className="bg-amber-500 text-white">
-                      <Crown className="h-3 w-3 mr-1" />
-                      Leaderboard
-                    </Badge>
+            <div className="flex flex-col gap-3 mb-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-amber-500/20 ring-2 ring-amber-500/30">
+                    <Award className="h-6 w-6 text-amber-600 dark:text-amber-400" />
                   </div>
-                  <p className="text-sm text-muted-foreground">Who onboarded the most users</p>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <h3 className="font-bold text-lg">Manager Productivity</h3>
+                      <Badge className="bg-amber-500 text-white">
+                        <Crown className="h-3 w-3 mr-1" />
+                        Leaderboard
+                      </Badge>
+                    </div>
+                    <p className="text-sm text-muted-foreground">Who onboarded the most users</p>
+                  </div>
                 </div>
               </div>
+              
+              {/* Date Filter */}
+              <Tabs value={productivityFilter} onValueChange={(v) => setProductivityFilter(v as 'week' | 'month' | 'all')} className="w-full">
+                <TabsList className="grid w-full grid-cols-3 h-9">
+                  <TabsTrigger value="week" className="text-xs gap-1">
+                    <Calendar className="h-3 w-3" />
+                    This Week
+                  </TabsTrigger>
+                  <TabsTrigger value="month" className="text-xs gap-1">
+                    <Calendar className="h-3 w-3" />
+                    This Month
+                  </TabsTrigger>
+                  <TabsTrigger value="all" className="text-xs gap-1">
+                    <Calendar className="h-3 w-3" />
+                    All Time
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
             </div>
             
             {topOnboarders.length > 0 ? (
