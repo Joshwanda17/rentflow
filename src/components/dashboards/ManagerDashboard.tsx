@@ -39,7 +39,8 @@ import {
   ChevronUp,
   Trash2,
   Loader2,
-  Search
+  Search,
+  ArrowUpDown
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -120,6 +121,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     avatar_url: string | null;
     referral_count: number;
     roles?: string[];
+    created_at?: string;
   }[]>([]);
   const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all' | 'custom'>('all');
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
@@ -151,11 +153,25 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [bulkRemoveRoleDialogOpen, setBulkRemoveRoleDialogOpen] = useState(false);
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [userSearchQuery, setUserSearchQuery] = useState('');
+  const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest'>('referrals');
 
-  // Filter users based on search query
-  const filteredOnboarders = topOnboarders.filter(user => 
-    user.full_name.toLowerCase().includes(userSearchQuery.toLowerCase())
-  );
+  // Filter and sort users
+  const filteredOnboarders = topOnboarders
+    .filter(user => user.full_name.toLowerCase().includes(userSearchQuery.toLowerCase()))
+    .sort((a, b) => {
+      switch (userSortBy) {
+        case 'name':
+          return a.full_name.localeCompare(b.full_name);
+        case 'referrals':
+          return b.referral_count - a.referral_count;
+        case 'newest':
+          return (b.created_at || '').localeCompare(a.created_at || '');
+        case 'oldest':
+          return (a.created_at || '').localeCompare(b.created_at || '');
+        default:
+          return 0;
+      }
+    });
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds(prev => {
@@ -360,11 +376,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const referrerIds = Object.keys(referralCounts);
     
     // Fetch profiles for all referrers
-    let profiles: { id: string; full_name: string; avatar_url: string | null }[] = [];
+    let profiles: { id: string; full_name: string; avatar_url: string | null; created_at: string }[] = [];
     if (referrerIds.length > 0) {
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, avatar_url')
+        .select('id, full_name, avatar_url, created_at')
         .in('id', referrerIds);
       profiles = data || [];
     }
@@ -388,7 +404,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         full_name: profile?.full_name || 'Unknown',
         avatar_url: profile?.avatar_url || null,
         referral_count: referralCounts[id] || 0,
-        roles: userRolesMap[id] || []
+        roles: userRolesMap[id] || [],
+        created_at: profile?.created_at || ''
       };
     }).sort((a, b) => b.referral_count - a.referral_count);
     
@@ -1204,23 +1221,37 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 </div>
 
-                {/* Search Box */}
-                <div className="relative mb-3">
-                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    placeholder="Search users by name..."
-                    value={userSearchQuery}
-                    onChange={(e) => setUserSearchQuery(e.target.value)}
-                    className="pl-9 h-9 text-sm"
-                  />
-                  {userSearchQuery && (
-                    <button
-                      onClick={() => setUserSearchQuery('')}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
-                    >
-                      <X className="h-4 w-4" />
-                    </button>
-                  )}
+                {/* Search and Sort Controls */}
+                <div className="flex gap-2 mb-3">
+                  <div className="relative flex-1">
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      placeholder="Search users by name..."
+                      value={userSearchQuery}
+                      onChange={(e) => setUserSearchQuery(e.target.value)}
+                      className="pl-9 h-9 text-sm"
+                    />
+                    {userSearchQuery && (
+                      <button
+                        onClick={() => setUserSearchQuery('')}
+                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                      >
+                        <X className="h-4 w-4" />
+                      </button>
+                    )}
+                  </div>
+                  <Select value={userSortBy} onValueChange={(v) => setUserSortBy(v as typeof userSortBy)}>
+                    <SelectTrigger className="w-[130px] h-9 text-xs">
+                      <ArrowUpDown className="h-3 w-3 mr-1" />
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="referrals">Most Referrals</SelectItem>
+                      <SelectItem value="name">Name (A-Z)</SelectItem>
+                      <SelectItem value="newest">Newest First</SelectItem>
+                      <SelectItem value="oldest">Oldest First</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 {/* User Performance List Header */}
