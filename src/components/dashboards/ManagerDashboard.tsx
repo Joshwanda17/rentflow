@@ -594,7 +594,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     return <ManagerDashboardSkeleton />;
   }
 
+  const scrollToProductivity = () => {
+    const element = document.getElementById('productivity-section');
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  };
+
   const menuItems = [
+    { icon: Award, label: 'Productivity', onClick: scrollToProductivity },
     { icon: FileText, label: 'Rent Requests', onClick: () => navigate('/manager-access') },
     { icon: Banknote, label: 'Loan Applications', onClick: () => navigate('/manager-access?tab=loans') },
     { icon: ShoppingCart, label: 'Product Orders', onClick: () => navigate('/manager-access?tab=orders') },
@@ -673,7 +681,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </button>
 
         {/* Manager Productivity - Top Onboarders Menu */}
-        <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg">
+        <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">
           <CardContent className="p-5">
             <div className="flex flex-col gap-3 mb-4">
               <div className="flex items-center justify-between">
