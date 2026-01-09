@@ -1553,9 +1553,22 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         >
                           <ChevronLeft className="h-4 w-4" />
                         </Button>
-                        <span className="text-xs px-2">
-                          {currentPage} / {totalPages}
-                        </span>
+                        <div className="flex items-center gap-1">
+                          <Input
+                            type="number"
+                            min={1}
+                            max={totalPages}
+                            value={currentPage}
+                            onChange={(e) => {
+                              const page = parseInt(e.target.value);
+                              if (page >= 1 && page <= totalPages) {
+                                setCurrentPage(page);
+                              }
+                            }}
+                            className="h-7 w-12 text-xs text-center p-1"
+                          />
+                          <span className="text-xs text-muted-foreground">/ {totalPages}</span>
+                        </div>
                         <Button
                           variant="ghost"
                           size="sm"
