@@ -38,7 +38,8 @@ import {
   ChevronDown,
   ChevronUp,
   Trash2,
-  Loader2
+  Loader2,
+  Search
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -146,6 +147,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [bulkRoleDialogOpen, setBulkRoleDialogOpen] = useState(false);
   const [bulkDeleteDialogOpen, setBulkDeleteDialogOpen] = useState(false);
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
+  const [userSearchQuery, setUserSearchQuery] = useState('');
+
+  // Filter users based on search query
+  const filteredOnboarders = topOnboarders.filter(user => 
+    user.full_name.toLowerCase().includes(userSearchQuery.toLowerCase())
+  );
 
   const toggleUserSelection = (userId: string) => {
     setSelectedUserIds(prev => {
@@ -160,10 +167,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   const toggleSelectAll = () => {
-    if (selectedUserIds.size === topOnboarders.length) {
+    if (selectedUserIds.size === filteredOnboarders.length) {
       setSelectedUserIds(new Set());
     } else {
-      setSelectedUserIds(new Set(topOnboarders.map(o => o.id)));
+      setSelectedUserIds(new Set(filteredOnboarders.map(o => o.id)));
     }
   };
 
@@ -1194,22 +1201,44 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 </div>
 
+                {/* Search Box */}
+                <div className="relative mb-3">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    placeholder="Search users by name..."
+                    value={userSearchQuery}
+                    onChange={(e) => setUserSearchQuery(e.target.value)}
+                    className="pl-9 h-9 text-sm"
+                  />
+                  {userSearchQuery && (
+                    <button
+                      onClick={() => setUserSearchQuery('')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  )}
+                </div>
+
                 {/* User Performance List Header */}
                 <div className="flex items-center justify-between mb-2">
                   <p className="text-xs font-medium text-amber-600 dark:text-amber-400 flex items-center gap-1">
                     <Users className="h-3 w-3" />
-                    All Users ({topOnboarders.length})
+                    {userSearchQuery 
+                      ? `${filteredOnboarders.length} of ${topOnboarders.length} users`
+                      : `All Users (${topOnboarders.length})`
+                    }
                   </p>
-                  {topOnboarders.length > 0 && (
+                  {filteredOnboarders.length > 0 && (
                     <button 
                       onClick={toggleSelectAll}
                       className="text-xs text-primary hover:underline flex items-center gap-1"
                     >
                       <Checkbox 
-                        checked={selectedUserIds.size === topOnboarders.length && topOnboarders.length > 0}
+                        checked={selectedUserIds.size === filteredOnboarders.length && filteredOnboarders.length > 0}
                         className="h-3 w-3"
                       />
-                      {selectedUserIds.size === topOnboarders.length ? 'Deselect All' : 'Select All'}
+                      {selectedUserIds.size === filteredOnboarders.length ? 'Deselect All' : 'Select All'}
                     </button>
                   )}
                 </div>
@@ -1305,7 +1334,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 )}
 
                 <div className="space-y-2 max-h-80 overflow-y-auto">
-                  {topOnboarders.map((onboarder, index) => (
+                  {filteredOnboarders.length > 0 ? filteredOnboarders.map((onboarder, index) => (
                     <div 
                       key={onboarder.id}
                       className={`flex items-center gap-2 p-3 rounded-xl transition-all ${
@@ -1411,7 +1440,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         </AlertDialogContent>
                       </AlertDialog>
                     </div>
-                  ))}
+                  )) : (
+                    <div className="text-center py-6 text-muted-foreground">
+                      <Search className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p className="text-sm">No users found matching "{userSearchQuery}"</p>
+                    </div>
+                  )}
                 </div>
 
                 {/* Export Buttons */}
