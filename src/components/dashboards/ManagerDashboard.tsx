@@ -44,7 +44,9 @@ import {
   ChevronLeft,
   ChevronRight,
   Mail,
-  MessageCircle
+  MessageCircle,
+  Save,
+  BookmarkPlus
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -162,6 +164,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [selectedBulkRole, setSelectedBulkRole] = useState<AppRole | ''>('');
   const [whatsAppDialogOpen, setWhatsAppDialogOpen] = useState(false);
   const [whatsAppMessage, setWhatsAppMessage] = useState('Hello! This is a message from Welile.');
+  const [savedTemplates, setSavedTemplates] = useState<{ id: string; name: string; message: string }[]>(() => {
+    const stored = localStorage.getItem('whatsapp-templates');
+    return stored ? JSON.parse(stored) : [
+      { id: '1', name: 'Welcome', message: 'Hello! Welcome to Welile. We are excited to have you on board!' },
+      { id: '2', name: 'Reminder', message: 'Hi! This is a friendly reminder from Welile. Please check your dashboard for updates.' },
+    ];
+  });
+  const [newTemplateName, setNewTemplateName] = useState('');
+  const [showSaveTemplate, setShowSaveTemplate] = useState(false);
   const [userSearchQuery, setUserSearchQuery] = useState('');
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
@@ -1546,17 +1557,107 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                             </AlertDialogDescription>
                           </AlertDialogHeader>
                           <div className="py-4 space-y-3">
-                            <label className="text-sm font-medium">Message Template</label>
-                            <Textarea
-                              value={whatsAppMessage}
-                              onChange={(e) => setWhatsAppMessage(e.target.value)}
-                              placeholder="Enter your message..."
-                              className="min-h-[100px]"
-                              maxLength={1000}
-                            />
-                            <p className="text-xs text-muted-foreground">
-                              {whatsAppMessage.length}/1000 characters
-                            </p>
+                            {/* Saved Templates */}
+                            {savedTemplates.length > 0 && (
+                              <div className="space-y-2">
+                                <label className="text-sm font-medium">Saved Templates</label>
+                                <div className="flex flex-wrap gap-2">
+                                  {savedTemplates.map((template) => (
+                                    <div key={template.id} className="flex items-center gap-1">
+                                      <Button
+                                        variant="outline"
+                                        size="sm"
+                                        className="h-7 text-xs"
+                                        onClick={() => setWhatsAppMessage(template.message)}
+                                      >
+                                        {template.name}
+                                      </Button>
+                                      <button
+                                        onClick={() => {
+                                          const updated = savedTemplates.filter(t => t.id !== template.id);
+                                          setSavedTemplates(updated);
+                                          localStorage.setItem('whatsapp-templates', JSON.stringify(updated));
+                                          toast.success('Template deleted');
+                                        }}
+                                        className="text-muted-foreground hover:text-destructive p-1"
+                                      >
+                                        <X className="h-3 w-3" />
+                                      </button>
+                                    </div>
+                                  ))}
+                                </div>
+                              </div>
+                            )}
+
+                            <div className="space-y-2">
+                              <label className="text-sm font-medium">Message</label>
+                              <Textarea
+                                value={whatsAppMessage}
+                                onChange={(e) => setWhatsAppMessage(e.target.value)}
+                                placeholder="Enter your message..."
+                                className="min-h-[100px]"
+                                maxLength={1000}
+                              />
+                              <div className="flex items-center justify-between">
+                                <p className="text-xs text-muted-foreground">
+                                  {whatsAppMessage.length}/1000 characters
+                                </p>
+                                {!showSaveTemplate ? (
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-6 text-xs gap-1"
+                                    onClick={() => setShowSaveTemplate(true)}
+                                  >
+                                    <BookmarkPlus className="h-3 w-3" />
+                                    Save as template
+                                  </Button>
+                                ) : (
+                                  <div className="flex items-center gap-2">
+                                    <Input
+                                      value={newTemplateName}
+                                      onChange={(e) => setNewTemplateName(e.target.value)}
+                                      placeholder="Template name..."
+                                      className="h-6 text-xs w-32"
+                                      maxLength={20}
+                                    />
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      className="h-6 text-xs gap-1"
+                                      onClick={() => {
+                                        if (!newTemplateName.trim()) {
+                                          toast.error('Please enter a template name');
+                                          return;
+                                        }
+                                        const newTemplate = {
+                                          id: Date.now().toString(),
+                                          name: newTemplateName.trim(),
+                                          message: whatsAppMessage
+                                        };
+                                        const updated = [...savedTemplates, newTemplate];
+                                        setSavedTemplates(updated);
+                                        localStorage.setItem('whatsapp-templates', JSON.stringify(updated));
+                                        setNewTemplateName('');
+                                        setShowSaveTemplate(false);
+                                        toast.success('Template saved!');
+                                      }}
+                                    >
+                                      <Save className="h-3 w-3" />
+                                    </Button>
+                                    <button
+                                      onClick={() => {
+                                        setShowSaveTemplate(false);
+                                        setNewTemplateName('');
+                                      }}
+                                      className="text-muted-foreground hover:text-foreground"
+                                    >
+                                      <X className="h-3 w-3" />
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            </div>
                           </div>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
