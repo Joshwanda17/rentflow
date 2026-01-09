@@ -52,6 +52,9 @@
       .loader-progress-bar{height:100%;background:linear-gradient(90deg,#7c3aed,#a78bfa);border-radius:4px;width:0%;transition:width 0.3s ease-out}
       .loader-percentage{font-family:'Chewy',cursive;font-size:1.5rem;color:#7c3aed;margin-top:8px;font-weight:bold}
       .loader-text{font-size:0.75rem;color:#94a3b8;margin-top:4px}
+      .loader-skip{margin-top:20px;padding:8px 24px;background:transparent;border:1.5px solid rgba(124,58,237,0.4);border-radius:20px;color:#7c3aed;font-size:0.875rem;font-weight:500;cursor:pointer;transition:all 0.2s ease;opacity:0;animation:fade-up 0.6s ease-out 1s forwards}
+      .loader-skip:hover{background:rgba(124,58,237,0.1);border-color:#7c3aed;transform:scale(1.05)}
+      .loader-skip:active{transform:scale(0.98)}
       .loader-particles{position:absolute;inset:0;overflow:hidden;pointer-events:none}
       .particle{position:absolute;border-radius:50%;opacity:0;animation:particle-float 8s ease-in-out infinite}
       .particle:nth-child(1){width:80px;height:80px;background:radial-gradient(circle,rgba(124,58,237,0.3),transparent);top:10%;left:10%;animation-delay:0s}
@@ -83,6 +86,9 @@
         .particle:nth-child(4){background:radial-gradient(circle,rgba(124,58,237,0.2),transparent)}
         .particle:nth-child(5){background:radial-gradient(circle,rgba(167,139,250,0.25),transparent)}
         .particle:nth-child(6){background:radial-gradient(circle,rgba(124,58,237,0.3),transparent)}
+        .loader-skip{border-color:rgba(167,139,250,0.4);color:#a78bfa}
+        .loader-skip:hover{background:rgba(167,139,250,0.15);border-color:#a78bfa}
+        .loader-percentage{color:#a78bfa}
       }
       /* PWA standalone mode - extended splash */
       @media(display-mode:standalone){
@@ -121,6 +127,7 @@
           </div>
           <div class="loader-percentage" id="loader-percentage">0%</div>
           <div class="loader-text" id="loader-text">Initializing...</div>
+          <button class="loader-skip" id="skip-btn" onclick="skipSplash()">Skip</button>
         </div>
       </div>
     </div>
@@ -178,6 +185,18 @@
           }
         }, remaining);
       };
+      
+      // Skip button function - immediately hide splash
+      function skipSplash() {
+        updateProgress(100, 'Welcome!');
+        var loader = document.getElementById('app-loader');
+        if (loader) {
+          loader.classList.add('fade-out');
+          setTimeout(function() {
+            loader.style.display = 'none';
+          }, 400);
+        }
+      }
       
       // Fallback: hide after 7.5 seconds even if app hasn't mounted
       setTimeout(function() {
