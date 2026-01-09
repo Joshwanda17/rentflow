@@ -188,6 +188,11 @@
       
       // Skip button function - immediately hide splash
       function skipSplash() {
+        // Haptic feedback on mobile devices
+        if (navigator.vibrate) {
+          navigator.vibrate(15);
+        }
+        
         updateProgress(100, 'Welcome!');
         var loader = document.getElementById('app-loader');
         if (loader) {
