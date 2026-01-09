@@ -27,6 +27,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import { QuickNavGrid } from '@/components/QuickNavGrid';
 
 interface LandlordDashboardProps {
   user: User;
@@ -110,6 +111,19 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
         {/* Wallet Card */}
         <WalletCard />
+
+        {/* Quick Navigation Grid */}
+        <QuickNavGrid 
+          title="Quick Actions"
+          items={[
+            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts'), variant: 'primary' },
+            { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+            { icon: History, label: 'Payments', onClick: () => navigate('/transactions'), variant: 'success' },
+            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
+            { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
+            { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
+          ]}
+        />
 
         {/* Rent Income Card - Clickable */}
         <button 

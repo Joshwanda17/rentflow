@@ -39,6 +39,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import { QuickNavGrid } from '@/components/QuickNavGrid';
 
 interface AgentDashboardProps {
   user: User;
@@ -137,6 +138,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Wallet Card */}
         <WalletCard />
+
+        {/* Quick Navigation Grid */}
+        <QuickNavGrid 
+          title="Quick Actions"
+          items={[
+            { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' },
+            { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' },
+            { icon: UserPlus, label: 'Add Tenant', onClick: () => setRegisterTenantOpen(true), variant: 'primary' },
+            { icon: Building2, label: 'Add Landlord', onClick: () => setRegisterLandlordOpen(true) },
+            { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' },
+            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
+            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
+            { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' },
+          ]}
+        />
 
         {/* Earnings Card - Clickable */}
         <button 
