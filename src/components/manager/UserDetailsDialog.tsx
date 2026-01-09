@@ -21,12 +21,24 @@ import {
   User, Mail, Phone, Star, Banknote, CheckCircle, XCircle, 
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
-  Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter
+  Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
+  Shield, Plus, Trash2, UserCog, Loader2
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import StartChatButton from '@/components/chat/StartChatButton';
+import { toast } from 'sonner';
+
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+
+const allRoles: { value: AppRole; label: string; description: string; color: string }[] = [
+  { value: 'tenant', label: 'Tenant', description: 'Can request rent assistance', color: 'bg-primary/20 text-primary' },
+  { value: 'agent', label: 'Agent', description: 'Manages deposits & loans', color: 'bg-warning/20 text-warning' },
+  { value: 'landlord', label: 'Landlord', description: 'Receives rent payments', color: 'bg-chart-5/20 text-chart-5' },
+  { value: 'supporter', label: 'Supporter', description: 'Can invest & fund requests', color: 'bg-success/20 text-success' },
+  { value: 'manager', label: 'Manager', description: 'Full admin access', color: 'bg-destructive/20 text-destructive' },
+];
 
 interface InvestmentAccount {
   id: string;
@@ -61,9 +73,10 @@ interface UserDetailsDialogProps {
     average_rating: number | null;
     rating_count: number;
   } | null;
+  onRolesUpdated?: () => void;
 }
 
-export default function UserDetailsDialog({ open, onOpenChange, user }: UserDetailsDialogProps) {
+export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated }: UserDetailsDialogProps) {
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
@@ -75,13 +88,75 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
   });
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
-
+  const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [addingRole, setAddingRole] = useState<AppRole | null>(null);
+  const [removingRole, setRemovingRole] = useState<string | null>(null);
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
+      setUserRoles(user.roles);
     }
   }, [open, user]);
 
+  const handleAddRole = async (role: AppRole) => {
+    if (!user) return;
+    setAddingRole(role);
+    
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .insert({ user_id: user.id, role });
+      
+      if (error) {
+        if (error.code === '23505') {
+          toast.error('User already has this role');
+        } else {
+          throw error;
+        }
+      } else {
+        setUserRoles(prev => [...prev, role]);
+        toast.success(`Added "${role}" role to ${user.full_name}`);
+        onRolesUpdated?.();
+      }
+    } catch (error) {
+      console.error('Error adding role:', error);
+      toast.error('Failed to add role');
+    } finally {
+      setAddingRole(null);
+    }
+  };
+
+  const handleRemoveRole = async (role: AppRole) => {
+    if (!user) return;
+    
+    if (userRoles.length <= 1) {
+      toast.error('User must have at least one role');
+      return;
+    }
+    
+    setRemovingRole(role);
+    
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', user.id)
+        .eq('role', role);
+      
+      if (error) throw error;
+      
+      setUserRoles(prev => prev.filter(r => r !== role));
+      toast.success(`Removed "${role}" role from ${user.full_name}`);
+      onRolesUpdated?.();
+    } catch (error) {
+      console.error('Error removing role:', error);
+      toast.error('Failed to remove role');
+    } finally {
+      setRemovingRole(null);
+    }
+  };
+
+  const availableRolesToAdd = allRoles.filter(r => !userRoles.includes(r.value));
   const fetchUserDetails = async () => {
     if (!user) return;
     setLoading(true);
@@ -504,10 +579,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
 
         <Tabs defaultValue="overview" className="w-full">
           <div className="px-6 pt-4">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-3">
               <TabsTrigger value="overview" className="gap-2">
                 <User className="h-4 w-4" />
                 Overview
+              </TabsTrigger>
+              <TabsTrigger value="roles" className="gap-2">
+                <Shield className="h-4 w-4" />
+                Roles
               </TabsTrigger>
               <TabsTrigger value="activity" className="gap-2">
                 <Activity className="h-4 w-4" />
@@ -651,6 +730,108 @@ export default function UserDetailsDialog({ open, onOpenChange, user }: UserDeta
                     </div>
                   )}
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="roles" className="mt-0">
+              <div className="p-6 pt-4 space-y-6">
+                {/* Current Roles */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <UserCog className="h-4 w-4 text-primary" />
+                      Current Roles ({userRoles.length})
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {userRoles.length === 0 ? (
+                      <p className="text-sm text-muted-foreground">No roles assigned</p>
+                    ) : (
+                      <div className="space-y-2">
+                        {userRoles.map((role) => {
+                          const roleInfo = allRoles.find(r => r.value === role);
+                          return (
+                            <div 
+                              key={role}
+                              className="flex items-center justify-between p-3 rounded-xl border bg-card"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Badge className={roleInfo?.color || 'bg-muted'}>
+                                  {roleInfo?.label || role}
+                                </Badge>
+                                <span className="text-xs text-muted-foreground">
+                                  {roleInfo?.description}
+                                </span>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleRemoveRole(role as AppRole)}
+                                disabled={removingRole === role || userRoles.length <= 1}
+                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                              >
+                                {removingRole === role ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <Trash2 className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                    {userRoles.length <= 1 && (
+                      <p className="text-xs text-muted-foreground mt-2">
+                        User must have at least one role
+                      </p>
+                    )}
+                  </CardContent>
+                </Card>
+
+                {/* Add New Role */}
+                {availableRolesToAdd.length > 0 && (
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Plus className="h-4 w-4 text-success" />
+                        Add Role
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <div className="space-y-2">
+                        {availableRolesToAdd.map((role) => (
+                          <div 
+                            key={role.value}
+                            className="flex items-center justify-between p-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors"
+                          >
+                            <div className="flex items-center gap-3">
+                              <Badge variant="outline" className={role.color}>
+                                {role.label}
+                              </Badge>
+                              <span className="text-xs text-muted-foreground">
+                                {role.description}
+                              </span>
+                            </div>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => handleAddRole(role.value)}
+                              disabled={addingRole === role.value}
+                              className="text-success hover:text-success hover:bg-success/10"
+                            >
+                              {addingRole === role.value ? (
+                                <Loader2 className="h-4 w-4 animate-spin" />
+                              ) : (
+                                <Plus className="h-4 w-4" />
+                              )}
+                            </Button>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+                )}
               </div>
             </TabsContent>
 
