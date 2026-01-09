@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate, RotateCcw } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
@@ -23,6 +23,9 @@ import RentDiscountToggle from '@/components/tenant/RentDiscountToggle';
 import { useFontSize, fontSizeOptions } from '@/hooks/useFontSize';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { WalletCard } from '@/components/wallet/WalletCard';
+import { Switch } from '@/components/ui/switch';
+import { useAppPreferences } from '@/hooks/useAppPreferences';
+import { playNotificationSound } from '@/lib/notificationSound';
 
 interface Profile {
   id: string;
@@ -57,15 +60,13 @@ export default function Settings() {
   const { user, roles, addRole, loading: authLoading } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
+  const { preferences, updatePreference, resetPreferences } = useAppPreferences();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [skipSplash, setSkipSplash] = useState(() => {
-    return localStorage.getItem('welile_skip_splash') === 'true';
-  });
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -632,40 +633,136 @@ export default function Settings() {
                 </div>
               </div>
 
+              {/* Notification Sounds */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-2">
+                    <Volume2 className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Notification Sounds</p>
+                      <p className="text-sm text-muted-foreground">
+                        Play sounds for notifications and alerts
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={preferences.notificationSounds}
+                    onCheckedChange={(checked) => {
+                      updatePreference('notificationSounds', checked);
+                      if (checked) {
+                        playNotificationSound(preferences.notificationSoundType);
+                      }
+                      toast.success(checked ? 'Sounds enabled' : 'Sounds disabled');
+                    }}
+                  />
+                </div>
+                
+                {preferences.notificationSounds && (
+                  <div className="pt-4 border-t border-border/30">
+                    <p className="text-sm text-muted-foreground mb-3">Sound Type</p>
+                    <RadioGroup 
+                      value={preferences.notificationSoundType} 
+                      onValueChange={(value) => {
+                        updatePreference('notificationSoundType', value as 'ding' | 'pop' | 'chime');
+                        playNotificationSound(value as 'ding' | 'pop' | 'chime');
+                      }}
+                      className="grid grid-cols-3 gap-2"
+                    >
+                      {(['ding', 'pop', 'chime'] as const).map((soundType) => (
+                        <motion.div
+                          key={soundType}
+                          whileHover={{ scale: 1.02 }}
+                          whileTap={{ scale: 0.98 }}
+                        >
+                          <Label
+                            htmlFor={`sound-${soundType}`}
+                            className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
+                              preferences.notificationSoundType === soundType 
+                                ? 'border-primary bg-primary/10' 
+                                : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                            }`}
+                          >
+                            <RadioGroupItem value={soundType} id={`sound-${soundType}`} className="sr-only" />
+                            {soundType}
+                          </Label>
+                        </motion.div>
+                      ))}
+                    </RadioGroup>
+                  </div>
+                )}
+              </div>
+
+              {/* Remember Login */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <LogIn className="h-5 w-5 text-primary" />
+                    <div>
+                      <p className="font-medium">Remember Login</p>
+                      <p className="text-sm text-muted-foreground">
+                        Stay signed in between sessions
+                      </p>
+                    </div>
+                  </div>
+                  <Switch
+                    checked={preferences.rememberLogin}
+                    onCheckedChange={(checked) => {
+                      updatePreference('rememberLogin', checked);
+                      toast.success(checked ? 'Login will be remembered' : 'Login will not be remembered');
+                    }}
+                  />
+                </div>
+              </div>
+
               {/* Splash Screen Preference */}
               <div className="p-4 rounded-xl bg-background/50 border border-border/50">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-2">
                     <RotateCcw className="h-5 w-5 text-primary" />
                     <div>
-                      <p className="font-medium">Splash Screen</p>
+                      <p className="font-medium">Skip Splash Screen</p>
                       <p className="text-sm text-muted-foreground">
-                        {skipSplash 
-                          ? 'Splash screen is currently skipped on startup' 
+                        {preferences.skipSplash 
+                          ? 'Splash screen is skipped on startup' 
                           : 'Splash screen shows on startup'
                         }
                       </p>
                     </div>
                   </div>
+                  <Switch
+                    checked={preferences.skipSplash}
+                    onCheckedChange={(checked) => {
+                      updatePreference('skipSplash', checked);
+                      toast.success(checked ? 'Splash screen will be skipped' : 'Splash screen will show');
+                    }}
+                  />
+                </div>
+              </div>
+
+              {/* Reset All Preferences */}
+              <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <RefreshCw className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Reset Preferences</p>
+                      <p className="text-sm text-muted-foreground">
+                        Restore all settings to defaults
+                      </p>
+                    </div>
+                  </div>
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
                     <Button
-                      variant={skipSplash ? "default" : "outline"}
+                      variant="outline"
                       size="sm"
                       onClick={() => {
-                        if (skipSplash) {
-                          localStorage.removeItem('welile_skip_splash');
-                          setSkipSplash(false);
-                          toast.success('Splash screen will show on next startup');
-                        } else {
-                          localStorage.setItem('welile_skip_splash', 'true');
-                          setSkipSplash(true);
-                          toast.success('Splash screen will be skipped');
-                        }
+                        resetPreferences();
+                        toast.success('Preferences reset to defaults');
                       }}
                       className="gap-2"
                     >
-                      <RotateCcw className="h-4 w-4" />
-                      {skipSplash ? 'Show Splash' : 'Skip Splash'}
+                      <RefreshCw className="h-4 w-4" />
+                      Reset
                     </Button>
                   </motion.div>
                 </div>
