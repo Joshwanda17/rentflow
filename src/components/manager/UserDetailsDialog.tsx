@@ -6,6 +6,17 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -14,6 +25,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
@@ -22,7 +35,7 @@ import {
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
-  Shield, Plus, Trash2, UserCog, Loader2
+  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -74,9 +87,11 @@ interface UserDetailsDialogProps {
     rating_count: number;
   } | null;
   onRolesUpdated?: () => void;
+  onUserDeleted?: () => void;
+  onUserUpdated?: () => void;
 }
 
-export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated }: UserDetailsDialogProps) {
+export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
@@ -91,10 +106,27 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [userRoles, setUserRoles] = useState<string[]>([]);
   const [addingRole, setAddingRole] = useState<AppRole | null>(null);
   const [removingRole, setRemovingRole] = useState<string | null>(null);
+  
+  // Edit profile state
+  const [editForm, setEditForm] = useState({
+    full_name: '',
+    email: '',
+    phone: '',
+    monthly_rent: ''
+  });
+  const [savingProfile, setSavingProfile] = useState(false);
+  const [deletingUser, setDeletingUser] = useState(false);
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
       setUserRoles(user.roles);
+      setEditForm({
+        full_name: user.full_name,
+        email: user.email,
+        phone: user.phone,
+        monthly_rent: user.monthly_rent?.toString() || ''
+      });
     }
   }, [open, user]);
 
@@ -157,6 +189,70 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   };
 
   const availableRolesToAdd = allRoles.filter(r => !userRoles.includes(r.value));
+
+  const handleSaveProfile = async () => {
+    if (!user) return;
+    setSavingProfile(true);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          full_name: editForm.full_name,
+          email: editForm.email,
+          phone: editForm.phone,
+          monthly_rent: editForm.monthly_rent ? parseFloat(editForm.monthly_rent) : null
+        })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      toast.success('Profile updated successfully');
+      onUserUpdated?.();
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast.error('Failed to update profile');
+    } finally {
+      setSavingProfile(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!user) return;
+    setDeletingUser(true);
+    
+    try {
+      // Delete user roles first
+      await supabase
+        .from('user_roles')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Delete wallet
+      await supabase
+        .from('wallets')
+        .delete()
+        .eq('user_id', user.id);
+      
+      // Delete profile
+      const { error } = await supabase
+        .from('profiles')
+        .delete()
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      toast.success(`User "${user.full_name}" has been deleted`);
+      setDeleteConfirmOpen(false);
+      onOpenChange(false);
+      onUserDeleted?.();
+    } catch (error) {
+      console.error('Error deleting user:', error);
+      toast.error('Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
+  };
   const fetchUserDetails = async () => {
     if (!user) return;
     setLoading(true);
@@ -579,18 +675,22 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
         <Tabs defaultValue="overview" className="w-full">
           <div className="px-6 pt-4">
-            <TabsList className="grid w-full grid-cols-3">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="overview" className="gap-2">
                 <User className="h-4 w-4" />
-                Overview
+                <span className="hidden sm:inline">Overview</span>
+              </TabsTrigger>
+              <TabsTrigger value="edit" className="gap-2">
+                <Pencil className="h-4 w-4" />
+                <span className="hidden sm:inline">Edit</span>
               </TabsTrigger>
               <TabsTrigger value="roles" className="gap-2">
                 <Shield className="h-4 w-4" />
-                Roles
+                <span className="hidden sm:inline">Roles</span>
               </TabsTrigger>
               <TabsTrigger value="activity" className="gap-2">
                 <Activity className="h-4 w-4" />
-                Activity
+                <span className="hidden sm:inline">Activity</span>
               </TabsTrigger>
             </TabsList>
           </div>
@@ -730,6 +830,130 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </div>
                   )}
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="edit" className="mt-0">
+              <div className="p-6 pt-4 space-y-6">
+                {/* Edit Profile Form */}
+                <Card>
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Pencil className="h-4 w-4 text-primary" />
+                      Edit Profile
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0 space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-name">Full Name</Label>
+                      <Input
+                        id="edit-name"
+                        value={editForm.full_name}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                        placeholder="Enter full name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-email">Email</Label>
+                      <Input
+                        id="edit-email"
+                        type="email"
+                        value={editForm.email}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                        placeholder="Enter email"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-phone">Phone</Label>
+                      <Input
+                        id="edit-phone"
+                        value={editForm.phone}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                        placeholder="Enter phone number"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="edit-rent">Monthly Rent (UGX)</Label>
+                      <Input
+                        id="edit-rent"
+                        type="number"
+                        value={editForm.monthly_rent}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))}
+                        placeholder="Enter monthly rent amount"
+                      />
+                    </div>
+                    <Button 
+                      onClick={handleSaveProfile} 
+                      disabled={savingProfile}
+                      className="w-full"
+                    >
+                      {savingProfile ? (
+                        <>
+                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                          Saving...
+                        </>
+                      ) : (
+                        <>
+                          <CheckCircle className="h-4 w-4 mr-2" />
+                          Save Changes
+                        </>
+                      )}
+                    </Button>
+                  </CardContent>
+                </Card>
+
+                <Separator />
+
+                {/* Danger Zone */}
+                <Card className="border-destructive/50">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+                      <AlertTriangle className="h-4 w-4" />
+                      Danger Zone
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    <p className="text-sm text-muted-foreground mb-4">
+                      Deleting this user will permanently remove their profile, wallet, roles, and all associated data. This action cannot be undone.
+                    </p>
+                    <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                      <AlertDialogTrigger asChild>
+                        <Button variant="destructive" className="w-full">
+                          <Trash2 className="h-4 w-4 mr-2" />
+                          Delete User
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                          <AlertDialogDescription>
+                            This will permanently delete <strong>{user.full_name}</strong> and all their data including wallet balance, roles, and transaction history. This action cannot be undone.
+                          </AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction
+                            onClick={handleDeleteUser}
+                            disabled={deletingUser}
+                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          >
+                            {deletingUser ? (
+                              <>
+                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                                Deleting...
+                              </>
+                            ) : (
+                              <>
+                                <Trash2 className="h-4 w-4 mr-2" />
+                                Delete User
+                              </>
+                            )}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                  </CardContent>
+                </Card>
               </div>
             </TabsContent>
 

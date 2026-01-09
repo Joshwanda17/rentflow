@@ -685,6 +685,8 @@ export default function UserProfilesTable() {
         onOpenChange={setDialogOpen}
         user={selectedUser}
         onRolesUpdated={handleRefresh}
+        onUserDeleted={handleRefresh}
+        onUserUpdated={handleRefresh}
       />
 
       <BulkNotificationDialog
