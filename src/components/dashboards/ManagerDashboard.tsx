@@ -101,6 +101,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     full_name: string;
     avatar_url: string | null;
     referral_count: number;
+    roles?: string[];
   }[]>([]);
   const [productivityFilter, setProductivityFilter] = useState<'week' | 'month' | 'all' | 'custom'>('all');
   const [customDateRange, setCustomDateRange] = useState<{ start: Date | null; end: Date | null }>({ start: null, end: null });
@@ -188,14 +189,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const filterEndDate = getFilterEndDate(productivityFilter);
     const previousPeriod = getPreviousPeriodDates(productivityFilter);
     
-    // First, get all managers
-    const { data: managerRoles } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'manager');
-    
-    const managerIds = managerRoles?.map(r => r.user_id) || [];
-    
     // Query referrals with optional date filter
     let query = supabase
       .from('referrals')
@@ -227,20 +220,39 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       referralCounts[r.referrer_id] = (referralCounts[r.referrer_id] || 0) + 1;
     });
     
-    // Fetch profiles for all managers
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, avatar_url')
-      .in('id', managerIds);
+    // Get all unique referrer IDs (users who have referred others)
+    const referrerIds = Object.keys(referralCounts);
     
-    // Build manager performance list (all managers, sorted by referral count)
-    const onboarders = managerIds.map(id => {
-      const profile = profiles?.find(p => p.id === id);
+    // Fetch profiles for all referrers
+    let profiles: { id: string; full_name: string; avatar_url: string | null }[] = [];
+    if (referrerIds.length > 0) {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', referrerIds);
+      profiles = data || [];
+    }
+    
+    // Also fetch all user roles to show their role badges
+    const { data: userRolesData } = await supabase
+      .from('user_roles')
+      .select('user_id, role');
+    
+    const userRolesMap: Record<string, string[]> = {};
+    (userRolesData || []).forEach(r => {
+      if (!userRolesMap[r.user_id]) userRolesMap[r.user_id] = [];
+      userRolesMap[r.user_id].push(r.role);
+    });
+    
+    // Build performance list (all users who have referred, sorted by count)
+    const onboarders = referrerIds.map(id => {
+      const profile = profiles.find(p => p.id === id);
       return {
         id,
         full_name: profile?.full_name || 'Unknown',
         avatar_url: profile?.avatar_url || null,
-        referral_count: referralCounts[id] || 0
+        referral_count: referralCounts[id] || 0,
+        roles: userRolesMap[id] || []
       };
     }).sort((a, b) => b.referral_count - a.referral_count);
     
@@ -720,13 +732,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg">Manager Productivity</h3>
+                      <h3 className="font-bold text-lg">User Productivity</h3>
                       <Badge className="bg-amber-500 text-white">
                         <Crown className="h-3 w-3 mr-1" />
                         Leaderboard
                       </Badge>
                     </div>
-                    <p className="text-sm text-muted-foreground">All managers and their onboarding performance</p>
+                    <p className="text-sm text-muted-foreground">All users and their onboarding performance</p>
                   </div>
                 </div>
               </div>
@@ -1056,10 +1068,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 </div>
 
-                {/* Manager Performance List */}
+                {/* User Performance List */}
                 <p className="text-xs font-medium text-amber-600 dark:text-amber-400 mb-2 flex items-center gap-1">
                   <Users className="h-3 w-3" />
-                  All Managers ({topOnboarders.length})
+                  All Users ({topOnboarders.length})
                 </p>
                 <div className="space-y-2 max-h-80 overflow-y-auto">
                   {topOnboarders.map((onboarder, index) => (
@@ -1094,9 +1106,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                         <p className={`font-medium truncate ${index === 0 ? 'text-amber-700 dark:text-amber-300' : ''}`}>
                           {onboarder.full_name}
                         </p>
-                        <p className="text-xs text-muted-foreground">
-                          {index === 0 ? '🏆 Top Performer' : `Rank #${index + 1}`}
-                        </p>
+                        <div className="flex items-center gap-1 flex-wrap">
+                          {onboarder.roles && onboarder.roles.length > 0 ? (
+                            onboarder.roles.slice(0, 2).map((role) => (
+                              <Badge 
+                                key={role} 
+                                variant="outline" 
+                                className="text-[9px] px-1 py-0 capitalize"
+                              >
+                                {role}
+                              </Badge>
+                            ))
+                          ) : (
+                            <span className="text-[10px] text-muted-foreground">No role</span>
+                          )}
+                          {onboarder.roles && onboarder.roles.length > 2 && (
+                            <span className="text-[9px] text-muted-foreground">+{onboarder.roles.length - 2}</span>
+                          )}
+                        </div>
                       </div>
                       <div className="text-right">
                         <Badge 
@@ -1135,8 +1162,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             ) : (
               <div className="text-center py-6 text-muted-foreground">
                 <Users className="h-12 w-12 mx-auto mb-2 opacity-50" />
-                <p className="font-medium">No managers found</p>
-                <p className="text-sm">Add users with the manager role to see their performance</p>
+                <p className="font-medium">No referrals yet</p>
+                <p className="text-sm">Users who onboard others will appear here</p>
               </div>
             )}
           </CardContent>
