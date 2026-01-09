@@ -25,8 +25,12 @@ import {
   UserCheck,
   CalendarPlus,
   Crown,
-  Calendar
+  Calendar,
+  FileDown,
+  FileSpreadsheet
 } from 'lucide-react';
+import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -237,6 +241,111 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
   };
 
+  const getFilterLabel = () => {
+    switch (productivityFilter) {
+      case 'week': return 'This Week';
+      case 'month': return 'This Month';
+      default: return 'All Time';
+    }
+  };
+
+  const exportToCSV = () => {
+    if (topOnboarders.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const headers = ['Rank', 'Name', 'Users Onboarded'];
+    const rows = topOnboarders.map((o, i) => [
+      i + 1,
+      o.full_name,
+      o.referral_count
+    ]);
+
+    const csvContent = [
+      `Manager Productivity Report - ${getFilterLabel()}`,
+      `Generated: ${new Date().toLocaleDateString()}`,
+      '',
+      headers.join(','),
+      ...rows.map(row => row.join(','))
+    ].join('\n');
+
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `productivity-report-${productivityFilter}-${new Date().toISOString().split('T')[0]}.csv`;
+    link.click();
+    URL.revokeObjectURL(url);
+    toast.success('CSV exported successfully');
+  };
+
+  const exportToPDF = () => {
+    if (topOnboarders.length === 0) {
+      toast.error('No data to export');
+      return;
+    }
+
+    const doc = new jsPDF();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    
+    // Title
+    doc.setFontSize(20);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Manager Productivity Report', pageWidth / 2, 20, { align: 'center' });
+    
+    // Subtitle
+    doc.setFontSize(12);
+    doc.setFont('helvetica', 'normal');
+    doc.text(`Period: ${getFilterLabel()}`, pageWidth / 2, 30, { align: 'center' });
+    doc.text(`Generated: ${new Date().toLocaleDateString()}`, pageWidth / 2, 38, { align: 'center' });
+    
+    // Summary stats
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Summary', 20, 55);
+    
+    doc.setFontSize(11);
+    doc.setFont('helvetica', 'normal');
+    const totalOnboarded = topOnboarders.reduce((sum, o) => sum + o.referral_count, 0);
+    doc.text(`Total Users Onboarded: ${totalOnboarded}`, 20, 65);
+    doc.text(`Active Recruiters: ${topOnboarders.length}`, 20, 73);
+    
+    // Leaderboard table
+    doc.setFontSize(14);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Leaderboard', 20, 90);
+    
+    // Table header
+    doc.setFontSize(10);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Rank', 20, 100);
+    doc.text('Name', 50, 100);
+    doc.text('Users Onboarded', 140, 100);
+    
+    // Table line
+    doc.setDrawColor(200);
+    doc.line(20, 103, 190, 103);
+    
+    // Table rows
+    doc.setFont('helvetica', 'normal');
+    topOnboarders.forEach((onboarder, index) => {
+      const y = 112 + (index * 10);
+      const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : `${index + 1}`;
+      doc.text(medal, 20, y);
+      doc.text(onboarder.full_name, 50, y);
+      doc.text(String(onboarder.referral_count), 140, y);
+    });
+    
+    // Footer
+    doc.setFontSize(8);
+    doc.setTextColor(128);
+    doc.text('Welile Platform - Manager Productivity Report', pageWidth / 2, 280, { align: 'center' });
+    
+    doc.save(`productivity-report-${productivityFilter}-${new Date().toISOString().split('T')[0]}.pdf`);
+    toast.success('PDF exported successfully');
+  };
+
   if (loading) {
     return <ManagerDashboardSkeleton />;
   }
@@ -428,6 +537,28 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                       </div>
                     </button>
                   ))}
+                </div>
+
+                {/* Export Buttons */}
+                <div className="flex gap-2 mt-4 pt-4 border-t border-amber-500/20">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 gap-2"
+                    onClick={exportToCSV}
+                  >
+                    <FileSpreadsheet className="h-4 w-4" />
+                    Export CSV
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="flex-1 gap-2"
+                    onClick={exportToPDF}
+                  >
+                    <FileDown className="h-4 w-4" />
+                    Export PDF
+                  </Button>
                 </div>
               </>
             ) : (
