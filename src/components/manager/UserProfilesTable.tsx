@@ -384,301 +384,306 @@ export default function UserProfilesTable() {
 
   return (
     <>
-      <PullToRefresh onRefresh={handlePullToRefresh} className="space-y-4 max-h-[calc(100vh-200px)] md:max-h-[calc(100vh-150px)]">
-        {/* Modern Header */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary/10">
-              <Users className="h-6 w-6 text-primary" />
+      <div className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)]">
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-20 bg-background pb-3 space-y-3">
+          {/* Modern Header */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10">
+                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-bold">Users</h2>
+                <p className="text-xs sm:text-sm text-muted-foreground">{users.length} registered</p>
+              </div>
             </div>
-            <div>
-              <h2 className="text-xl font-bold">Users</h2>
-              <p className="text-sm text-muted-foreground">{users.length} registered</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-1">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleExportCSV}
-              className="rounded-full"
-              title="Export to CSV"
-            >
-              <Download className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleExportPDF}
-              disabled={exporting}
-              className="rounded-full"
-              title="Export to PDF"
-            >
-              <FileText className={`h-5 w-5 ${exporting ? 'animate-pulse' : ''}`} />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleRefresh}
-              disabled={refreshing}
-              className="rounded-full"
-            >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
-            </Button>
-          </div>
-        </div>
-
-        {/* Modern Search Bar */}
-        <div className="relative">
-          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-          <Input
-            placeholder="Search by name, email, or phone..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-12 pr-10 h-12 rounded-xl bg-muted/50 border-0 text-base focus-visible:ring-2 focus-visible:ring-primary"
-          />
-          {searchTerm && (
-            <button
-              onClick={() => setSearchTerm('')}
-              className="absolute right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
-            >
-              <X className="h-4 w-4 text-muted-foreground" />
-            </button>
-          )}
-        </div>
-
-        {/* Role Filter Pills - Horizontal Scroll */}
-        <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-4 px-4">
-          {roleFilters.map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => setRoleFilter(filter.value)}
-              className={`shrink-0 px-4 py-2 rounded-full text-sm font-medium transition-all ${
-                roleFilter === filter.value
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'bg-muted/50 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              {filter.label}
-              <span className={`ml-1.5 ${roleFilter === filter.value ? 'opacity-90' : 'opacity-60'}`}>
-                {filter.count}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        {/* Sort & Results Row */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={toggleSelectAll}
-              className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-            >
-              {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
-                <CheckSquare className="h-4 w-4 text-primary" />
-              ) : (
-                <Square className="h-4 w-4" />
-              )}
-              <span className="hidden sm:inline">
-                {selectedUserIds.size > 0 ? `${selectedUserIds.size} selected` : 'Select all'}
-              </span>
-            </button>
-            <span className="text-sm text-muted-foreground">
-              {filteredUsers.length === users.length 
-                ? `${users.length} users` 
-                : `${filteredUsers.length} of ${users.length} users`
-              }
-            </span>
-          </div>
-          
-          {/* Sort Dropdown */}
-          <div className="relative">
-            <button
-              onClick={() => setShowSortMenu(!showSortMenu)}
-              className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-muted/50 hover:bg-muted text-sm font-medium transition-colors"
-            >
-              <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
-              <span className="hidden sm:inline">{currentSortLabel}</span>
-            </button>
-            
-            {/* Sort Menu */}
-            <AnimatePresence>
-              {showSortMenu && (
-                <>
-                  {/* Backdrop */}
-                  <div 
-                    className="fixed inset-0 z-40" 
-                    onClick={() => setShowSortMenu(false)} 
-                  />
-                  
-                  <motion.div
-                    initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                    animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                    transition={{ duration: 0.15 }}
-                    className="absolute right-0 top-full mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden min-w-[180px]"
-                  >
-                    <div className="p-1">
-                      {sortOptions.map((option) => {
-                        const Icon = option.icon;
-                        return (
-                          <button
-                            key={option.value}
-                            onClick={() => {
-                              setSortBy(option.value);
-                              setShowSortMenu(false);
-                            }}
-                            className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm transition-colors ${
-                              sortBy === option.value
-                                ? 'bg-primary/10 text-primary font-medium'
-                                : 'text-foreground hover:bg-muted'
-                            }`}
-                          >
-                            <Icon className="h-4 w-4" />
-                            {option.label}
-                            {sortBy === option.value && (
-                              <CheckCircle className="h-4 w-4 ml-auto" />
-                            )}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </motion.div>
-                </>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
-
-        {/* User List */}
-        <div ref={tableRef} className="space-y-3">
-          <AnimatePresence mode="popLayout">
-            {filteredUsers.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center py-12"
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExportCSV}
+                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
+                title="Export to CSV"
               >
-                <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-                  <Users className="h-8 w-8 text-muted-foreground" />
-                </div>
-                <p className="font-medium text-muted-foreground">No users found</p>
-                <p className="text-sm text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
-              </motion.div>
-            ) : (
-              filteredUsers.map((user, index) => (
-                <motion.div
-                  key={user.id}
+                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleExportPDF}
+                disabled={exporting}
+                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
+                title="Export to PDF"
+              >
+                <FileText className={`h-4 w-4 sm:h-5 sm:w-5 ${exporting ? 'animate-pulse' : ''}`} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleRefresh}
+                disabled={refreshing}
+                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
+              >
+                <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
+          </div>
+
+          {/* Modern Search Bar */}
+          <div className="relative">
+            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+            <Input
+              placeholder="Search name, email, phone..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="pl-10 sm:pl-12 pr-10 h-10 sm:h-12 rounded-xl bg-muted/50 border-0 text-sm sm:text-base focus-visible:ring-2 focus-visible:ring-primary"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
+              >
+                <X className="h-4 w-4 text-muted-foreground" />
+              </button>
+            )}
+          </div>
+
+          {/* Role Filter Pills - Horizontal Scroll */}
+          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+            {roleFilters.map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => setRoleFilter(filter.value)}
+                className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
+                  roleFilter === filter.value
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {filter.label}
+                <span className={`ml-1 sm:ml-1.5 ${roleFilter === filter.value ? 'opacity-90' : 'opacity-60'}`}>
+                  {filter.count}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          {/* Sort & Results Row */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <button
+                onClick={toggleSelectAll}
+                className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
+              >
+                {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
+                  <CheckSquare className="h-4 w-4 text-primary" />
+                ) : (
+                  <Square className="h-4 w-4" />
+                )}
+                <span>
+                  {selectedUserIds.size > 0 ? `${selectedUserIds.size} sel.` : 'All'}
+                </span>
+              </button>
+              <span className="text-xs sm:text-sm text-muted-foreground">
+                {filteredUsers.length === users.length 
+                  ? `${users.length} users` 
+                  : `${filteredUsers.length}/${users.length}`
+                }
+              </span>
+            </div>
+            
+            {/* Sort Dropdown */}
+            <div className="relative">
+              <button
+                onClick={() => setShowSortMenu(!showSortMenu)}
+                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-muted/50 hover:bg-muted text-xs sm:text-sm font-medium transition-colors"
+              >
+                <ArrowUpDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
+                <span className="hidden xs:inline sm:inline">{currentSortLabel}</span>
+              </button>
+              
+              {/* Sort Menu */}
+              <AnimatePresence>
+                {showSortMenu && (
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setShowSortMenu(false)} 
+                    />
+                    
+                    <motion.div
+                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 top-full mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden min-w-[160px] sm:min-w-[180px]"
+                    >
+                      <div className="p-1">
+                        {sortOptions.map((option) => {
+                          const Icon = option.icon;
+                          return (
+                            <button
+                              key={option.value}
+                              onClick={() => {
+                                setSortBy(option.value);
+                                setShowSortMenu(false);
+                              }}
+                              className={`w-full flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-colors ${
+                                sortBy === option.value
+                                  ? 'bg-primary/10 text-primary font-medium'
+                                  : 'text-foreground hover:bg-muted'
+                              }`}
+                            >
+                              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
+                              {option.label}
+                              {sortBy === option.value && (
+                                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-auto" />
+                              )}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
+          </div>
+        </div>
+
+        {/* Scrollable User List */}
+        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-24">
+          <div ref={tableRef} className="space-y-2 sm:space-y-3">
+            <AnimatePresence mode="popLayout">
+              {filteredUsers.length === 0 ? (
+                <motion.div 
                   initial={{ opacity: 0, y: 20 }}
                   animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: index * 0.02 }}
-                  onClick={() => handleUserClick(user)}
-                  className={`group relative bg-card rounded-2xl border p-4 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer ${
-                    selectedUserIds.has(user.id) 
-                      ? 'border-primary/50 bg-primary/5' 
-                      : 'border-border/50 hover:border-primary/30'
-                  }`}
+                  className="text-center py-12"
                 >
-                  <div className="flex items-start gap-3">
-                    {/* Checkbox */}
-                    <div 
-                      className="shrink-0 pt-1"
-                      onClick={(e) => toggleUserSelection(user.id, e)}
-                    >
-                      <Checkbox
-                        checked={selectedUserIds.has(user.id)}
-                        className="h-5 w-5 rounded-md"
-                      />
-                    </div>
-                    
-                    {/* Avatar */}
-                    <div className="relative shrink-0">
-                      <Avatar className="h-12 w-12 border-2 border-background shadow-md">
-                        <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-semibold">
-                          {getInitials(user.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {user.rent_discount_active && (
-                        <div className="absolute -bottom-1 -right-1 p-1 rounded-full bg-success text-success-foreground">
-                          <CheckCircle className="h-3 w-3" />
-                        </div>
-                      )}
-                    </div>
-                    
-                    {/* User Info */}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="font-semibold text-base truncate group-hover:text-primary transition-colors">
-                            {user.full_name}
-                          </h3>
-                          <p className="text-sm text-muted-foreground truncate">{user.email}</p>
-                          <WhatsAppPhoneLink phone={user.phone} size="sm" className="mt-0.5" />
-                        </div>
-                        
-                        {/* WhatsApp & Arrow */}
-                        <div className="shrink-0 flex items-center gap-1">
-                          <a
-                            href={getWhatsAppLink(user.phone)}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            onClick={(e) => e.stopPropagation()}
-                            className="p-2 rounded-full bg-success/10 hover:bg-success/20 transition-colors"
-                            title={`Message ${user.full_name} on WhatsApp`}
-                          >
-                            <MessageCircle className="h-4 w-4 text-success" />
-                          </a>
-                          <div className="p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
-                            <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                          </div>
-                        </div>
+                  <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
+                    <Users className="h-8 w-8 text-muted-foreground" />
+                  </div>
+                  <p className="font-medium text-muted-foreground">No users found</p>
+                  <p className="text-sm text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
+                </motion.div>
+              ) : (
+                filteredUsers.map((user, index) => (
+                  <motion.div
+                    key={user.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95 }}
+                    transition={{ delay: Math.min(index * 0.02, 0.3) }}
+                    onClick={() => handleUserClick(user)}
+                    className={`group relative bg-card rounded-xl sm:rounded-2xl border p-3 sm:p-4 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer ${
+                      selectedUserIds.has(user.id) 
+                        ? 'border-primary/50 bg-primary/5' 
+                        : 'border-border/50 hover:border-primary/30'
+                    }`}
+                  >
+                    <div className="flex items-start gap-2 sm:gap-3">
+                      {/* Checkbox */}
+                      <div 
+                        className="shrink-0 pt-0.5 sm:pt-1"
+                        onClick={(e) => toggleUserSelection(user.id, e)}
+                      >
+                        <Checkbox
+                          checked={selectedUserIds.has(user.id)}
+                          className="h-4 w-4 sm:h-5 sm:w-5 rounded-md"
+                        />
                       </div>
                       
-                      {/* Roles */}
-                      <div className="flex items-center gap-1.5 mt-2 flex-wrap">
-                        {user.roles.map((role) => (
-                          <Badge 
-                            key={role} 
-                            variant="outline"
-                            className={`text-xs font-medium ${getRoleBadgeColor(role)}`}
-                          >
-                            {role}
-                          </Badge>
-                        ))}
-                      </div>
-                      
-                      {/* Rating & Rent - Bottom Row */}
-                      <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/50">
-                        <div className="flex items-center gap-3">
-                          {user.rating_count > 0 ? (
-                            <div className="flex items-center gap-1.5">
-                              {renderStars(user.average_rating || 0)}
-                              <span className="text-xs text-muted-foreground font-medium">
-                                {user.average_rating?.toFixed(1)}
-                              </span>
-                            </div>
-                          ) : (
-                            <span className="text-xs text-muted-foreground/60">No ratings</span>
-                          )}
-                        </div>
-                        
-                        {user.monthly_rent && (
-                          <div className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
-                            <Banknote className="h-3.5 w-3.5" />
-                            {formatUGX(user.monthly_rent)}/mo
+                      {/* Avatar */}
+                      <div className="relative shrink-0">
+                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-background shadow-md">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs sm:text-sm">
+                            {getInitials(user.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        {user.rent_discount_active && (
+                          <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 p-0.5 sm:p-1 rounded-full bg-success text-success-foreground">
+                            <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                           </div>
                         )}
                       </div>
+                      
+                      {/* User Info */}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between gap-1 sm:gap-2">
+                          <div className="min-w-0 flex-1">
+                            <h3 className="font-semibold text-sm sm:text-base truncate group-hover:text-primary transition-colors">
+                              {user.full_name}
+                            </h3>
+                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
+                            <WhatsAppPhoneLink phone={user.phone} size="sm" className="mt-0.5 text-xs" />
+                          </div>
+                          
+                          {/* WhatsApp & Arrow */}
+                          <div className="shrink-0 flex items-center gap-0.5 sm:gap-1">
+                            <a
+                              href={getWhatsAppLink(user.phone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="p-1.5 sm:p-2 rounded-full bg-success/10 hover:bg-success/20 transition-colors"
+                              title={`Message ${user.full_name} on WhatsApp`}
+                            >
+                              <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
+                            </a>
+                            <div className="p-1.5 sm:p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
+                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-primary transition-colors" />
+                            </div>
+                          </div>
+                        </div>
+                        
+                        {/* Roles */}
+                        <div className="flex items-center gap-1 sm:gap-1.5 mt-1.5 sm:mt-2 flex-wrap">
+                          {user.roles.map((role) => (
+                            <Badge 
+                              key={role} 
+                              variant="outline"
+                              className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0 ${getRoleBadgeColor(role)}`}
+                            >
+                              {role}
+                            </Badge>
+                          ))}
+                        </div>
+                        
+                        {/* Rating & Rent - Bottom Row */}
+                        <div className="flex items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/50">
+                          <div className="flex items-center gap-2 sm:gap-3">
+                            {user.rating_count > 0 ? (
+                              <div className="flex items-center gap-1 sm:gap-1.5">
+                                {renderStars(user.average_rating || 0)}
+                                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
+                                  {user.average_rating?.toFixed(1)}
+                                </span>
+                              </div>
+                            ) : (
+                              <span className="text-[10px] sm:text-xs text-muted-foreground/60">No ratings</span>
+                            )}
+                          </div>
+                          
+                          {user.monthly_rent && (
+                            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-muted-foreground">
+                              <Banknote className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
+                              <span className="truncate max-w-[80px] sm:max-w-none">{formatUGX(user.monthly_rent)}/mo</span>
+                            </div>
+                          )}
+                        </div>
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </AnimatePresence>
-        </div>
-      </PullToRefresh>
+                  </motion.div>
+                ))
+              )}
+            </AnimatePresence>
+          </div>
+        </PullToRefresh>
+      </div>
 
       <UserDetailsDialog
         open={dialogOpen}
