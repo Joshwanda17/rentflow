@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw } from 'lucide-react';
+import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 interface UserInvite {
@@ -38,6 +39,7 @@ const roleConfig: Record<string, { label: string; icon: React.ElementType; color
 };
 
 export function AgentInvitesList() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
   const [invites, setInvites] = useState<UserInvite[]>([]);
@@ -111,6 +113,10 @@ Just click the link and enter your password to get started!`;
     );
   }
 
+  // Only show first 3 invites
+  const displayedInvites = invites.slice(0, 3);
+  const hasMore = invites.length > 3;
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -119,9 +125,15 @@ Just click the link and enter your password to get started!`;
             <Users className="h-5 w-5 text-primary" />
             My Registered Users
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={fetchInvites}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex gap-1">
+            <Button variant="ghost" size="icon" onClick={fetchInvites}>
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            <Button variant="ghost" size="sm" onClick={() => navigate('/agent-registrations')}>
+              View All
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          </div>
         </div>
         
         {/* Stats */}
@@ -145,7 +157,8 @@ Just click the link and enter your password to get started!`;
             <p className="text-sm">Use "Add User" to register tenants or landlords</p>
           </div>
         ) : (
-          invites.map((invite) => {
+          <>
+            {displayedInvites.map((invite) => {
             const config = roleConfig[invite.role] || roleConfig.tenant;
             const RoleIcon = config.icon;
             const isPending = invite.status === 'pending';
@@ -206,9 +219,21 @@ Just click the link and enter your password to get started!`;
                 </div>
               </div>
             );
-          })
-        )}
-      </CardContent>
+          })}
+          
+          {hasMore && (
+            <Button 
+              variant="ghost" 
+              className="w-full text-muted-foreground"
+              onClick={() => navigate('/agent-registrations')}
+            >
+              View all {invites.length} registrations
+              <ChevronRight className="h-4 w-4 ml-1" />
+            </Button>
+          )}
+        </>
+      )}
+    </CardContent>
     </Card>
   );
 }
