@@ -3,7 +3,7 @@ import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Download, Share2, Users, TrendingUp, Trophy, Target, CheckCircle2, MessageCircle } from "lucide-react";
+import { Download, Share2, Users, TrendingUp, Trophy, Target, CheckCircle2, MessageCircle, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
@@ -291,6 +291,18 @@ export function ShareablePerformanceCard({
               >
                 <Download className="h-4 w-4 mr-2" />
                 {isGenerating ? '...' : 'Download'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={async () => {
+                  const message = getWhatsAppMessage().replace(/\*/g, ''); // Remove markdown formatting
+                  await navigator.clipboard.writeText(message);
+                  toast.success("Copied to clipboard!");
+                }}
+              >
+                <Copy className="h-4 w-4 mr-2" />
+                Copy
               </Button>
               <Button
                 variant="outline"
