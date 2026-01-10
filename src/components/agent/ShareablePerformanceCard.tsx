@@ -3,7 +3,7 @@ import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Download, Share2, Users, TrendingUp, Trophy, Target, CheckCircle2 } from "lucide-react";
+import { Download, Share2, Users, TrendingUp, Trophy, Target, CheckCircle2, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
 
@@ -113,6 +113,35 @@ export function ShareablePerformanceCard({
     } finally {
       setIsGenerating(false);
     }
+  };
+
+  const getWhatsAppMessage = () => {
+    let message = `🚀 *My Welile Agent Performance*\n\n`;
+    
+    if (leaderboardRank) {
+      if (leaderboardRank === 1) message += `🥇 *#1 Top Agent!*\n\n`;
+      else if (leaderboardRank === 2) message += `🥈 *#2 Agent!*\n\n`;
+      else if (leaderboardRank === 3) message += `🥉 *#3 Agent!*\n\n`;
+      else if (leaderboardRank <= 10) message += `🏆 *Top 10 Agent!*\n\n`;
+    }
+    
+    message += `📊 *Stats:*\n`;
+    message += `✅ ${stats.total} total registrations\n`;
+    message += `🎯 ${stats.activated} activated users\n`;
+    message += `📈 ${stats.conversionRate}% conversion rate\n`;
+    message += `👥 ${stats.tenants} tenants | 🏠 ${stats.landlords} landlords\n\n`;
+    message += `💼 Want to become a Welile agent? Join me!\n`;
+    message += `🔗 https://welile.com`;
+    
+    return message;
+  };
+
+  const handleWhatsAppShare = () => {
+    const message = getWhatsAppMessage();
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `https://wa.me/?text=${encodedMessage}`;
+    window.open(whatsappUrl, '_blank');
+    toast.success("Opening WhatsApp...");
   };
 
   const getRankBadge = () => {
@@ -242,24 +271,37 @@ export function ShareablePerformanceCard({
           </div>
 
           {/* Action buttons */}
-          <div className="p-4 pt-0 flex gap-3">
+          <div className="p-4 pt-0 space-y-2">
+            {/* WhatsApp - Primary action */}
             <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleDownload}
-              disabled={isGenerating}
+              className="w-full bg-[#25D366] hover:bg-[#128C7E] text-white"
+              onClick={handleWhatsAppShare}
             >
-              <Download className="h-4 w-4 mr-2" />
-              {isGenerating ? 'Generating...' : 'Download'}
+              <MessageCircle className="h-4 w-4 mr-2" />
+              Share on WhatsApp
             </Button>
-            <Button
-              className="flex-1"
-              onClick={handleShare}
-              disabled={isGenerating}
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
+            
+            {/* Secondary actions */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleDownload}
+                disabled={isGenerating}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                {isGenerating ? '...' : 'Download'}
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={handleShare}
+                disabled={isGenerating}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                More
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
