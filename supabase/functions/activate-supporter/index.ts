@@ -133,6 +133,7 @@ Deno.serve(async (req) => {
       tenant: 'Tenant',
       agent: 'Agent', 
       supporter: 'Supporter',
+      landlord: 'Landlord',
     };
 
     // Notify the manager
