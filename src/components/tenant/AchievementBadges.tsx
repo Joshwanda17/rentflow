@@ -1,10 +1,13 @@
 import { useState, useEffect } from "react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Flame, Star, Sparkles, Award, Target, Zap, Crown } from "lucide-react";
+import { Trophy, Flame, Star, Sparkles, Award, Target, Zap, Crown, Share2 } from "lucide-react";
 import { format } from "date-fns";
+import { ShareableAchievementCard } from "./ShareableAchievementCard";
+import { useProfile } from "@/hooks/useProfile";
 
 interface Achievement {
   key: string;
@@ -105,6 +108,8 @@ export function AchievementBadges({ userId }: AchievementBadgesProps) {
   const [userAchievements, setUserAchievements] = useState<UserAchievement[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedAchievement, setSelectedAchievement] = useState<Achievement | null>(null);
+  const [shareAchievement, setShareAchievement] = useState<{ key: string; unlockedAt: string } | null>(null);
+  const { profile } = useProfile();
 
   useEffect(() => {
     const fetchAchievements = async () => {
@@ -256,9 +261,30 @@ export function AchievementBadges({ userId }: AchievementBadgesProps) {
                   </p>
                   
                   {isUnlocked(selectedAchievement.key) ? (
-                    <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
-                      ✓ Unlocked on {getUnlockDate(selectedAchievement.key)}
-                    </Badge>
+                    <div className="space-y-3">
+                      <Badge className="bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400">
+                        ✓ Unlocked on {getUnlockDate(selectedAchievement.key)}
+                      </Badge>
+                      <Button
+                        size="sm"
+                        className="w-full mt-3"
+                        onClick={() => {
+                          const achievement = userAchievements.find(
+                            (a) => a.achievement_key === selectedAchievement.key
+                          );
+                          if (achievement) {
+                            setShareAchievement({
+                              key: achievement.achievement_key,
+                              unlockedAt: achievement.unlocked_at,
+                            });
+                            setSelectedAchievement(null);
+                          }
+                        }}
+                      >
+                        <Share2 className="h-4 w-4 mr-2" />
+                        Share Achievement
+                      </Button>
+                    </div>
                   ) : (
                     <div className="space-y-2">
                       <Badge variant="outline" className="text-muted-foreground">
@@ -274,6 +300,17 @@ export function AchievementBadges({ userId }: AchievementBadgesProps) {
             </motion.div>
           )}
         </AnimatePresence>
+
+        {/* Shareable Achievement Card */}
+        {shareAchievement && (
+          <ShareableAchievementCard
+            achievementKey={shareAchievement.key}
+            unlockedAt={shareAchievement.unlockedAt}
+            userName={profile?.full_name || "Welile User"}
+            open={!!shareAchievement}
+            onOpenChange={(open) => !open && setShareAchievement(null)}
+          />
+        )}
       </CardContent>
     </Card>
   );
