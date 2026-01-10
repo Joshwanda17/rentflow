@@ -886,6 +886,54 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_confirmations: {
+        Row: {
+          admin_note: string | null
+          amount: number
+          created_at: string
+          dashboard_type: string
+          id: string
+          payment_partner: string
+          processed_at: string | null
+          processed_by: string | null
+          screenshot_url: string | null
+          status: string
+          transaction_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          admin_note?: string | null
+          amount: number
+          created_at?: string
+          dashboard_type: string
+          id?: string
+          payment_partner: string
+          processed_at?: string | null
+          processed_by?: string | null
+          screenshot_url?: string | null
+          status?: string
+          transaction_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          admin_note?: string | null
+          amount?: number
+          created_at?: string
+          dashboard_type?: string
+          id?: string
+          payment_partner?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          screenshot_url?: string | null
+          status?: string
+          transaction_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       platform_transactions: {
         Row: {
           amount: number

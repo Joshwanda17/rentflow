@@ -15,7 +15,8 @@ import {
   Menu,
   ChevronDown,
   ChevronUp,
-  Wallet
+  Wallet,
+  CreditCard
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
@@ -40,6 +41,8 @@ import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
 import { PaymentStreakCalendar } from '@/components/tenant/PaymentStreakCalendar';
 import { AchievementBadges } from '@/components/tenant/AchievementBadges';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
+import PaymentPartnersCard from '@/components/payments/PaymentPartnersCard';
 
 interface TenantDashboardProps {
   user: User;
@@ -80,6 +83,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -116,6 +120,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
   const menuItems = [
     { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true) },
+    { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true) },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: ShoppingBag, label: 'Marketplace', onClick: () => navigate('/marketplace'), separator: true },
@@ -165,8 +170,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           title="Quick Actions"
           items={[
             { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true), variant: 'primary' },
+            { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true), variant: 'warning' },
             { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
-            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
             { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
           ]}
         />
@@ -264,6 +269,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <WalletCard />
         </DialogContent>
       </Dialog>
+      
+      {/* Payment Partners Dialog */}
+      <PaymentPartnersDialog 
+        open={showPaymentPartners} 
+        onOpenChange={setShowPaymentPartners}
+        dashboardType="tenant"
+        title="Pay Rent via Mobile Money"
+      />
       
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
