@@ -1,6 +1,6 @@
 // Welile Service Worker - Offline Support for 40M+ African Users
-// NOTE: Avoid cache-first for JS chunks to prevent "Invalid hook call" / mixed-bundle issues after deploys.
-const CACHE_NAME = 'welile-v2';
+// Auto-update enabled: all devices update automatically when new version is deployed
+const CACHE_NAME = 'welile-v3';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to cache immediately on install
@@ -10,18 +10,19 @@ const PRECACHE_ASSETS = [
   '/favicon.png',
 ];
 
-// Install event - cache critical assets
+// Install event - cache critical assets and skip waiting immediately
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => {
+      // IMPORTANT: Skip waiting immediately to activate new version
       return self.skipWaiting();
     })
   );
 });
 
-// Activate event - clean old caches
+// Activate event - clean old caches and claim all clients immediately
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -31,7 +32,15 @@ self.addEventListener('activate', (event) => {
           .map((name) => caches.delete(name))
       );
     }).then(() => {
+      // IMPORTANT: Take control of all clients immediately
       return self.clients.claim();
+    }).then(() => {
+      // Notify all clients about the update
+      return self.clients.matchAll().then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
+        });
+      });
     })
   );
 });
@@ -165,6 +174,10 @@ async function syncPendingRequests() {
 
 // Listen for messages from the app
 self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  // Legacy support
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
   }
