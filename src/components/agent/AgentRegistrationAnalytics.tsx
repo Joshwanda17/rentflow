@@ -6,14 +6,16 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { 
   Users, Building2, TrendingUp, TrendingDown, 
-  CheckCircle2, Clock, Target, Percent
+  CheckCircle2, Clock, Target, Percent, ArrowRight, 
+  Calendar, Minus
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
   BarChart, Bar
 } from 'recharts';
-import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth, subMonths, endOfMonth } from 'date-fns';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AgentGoalCard } from './AgentGoalCard';
 import { AgentLeaderboard } from './AgentLeaderboard';
 
@@ -29,6 +31,23 @@ interface RegistrationStats {
   weeklyGrowth: number;
 }
 
+interface PeriodComparison {
+  current: {
+    registrations: number;
+    activations: number;
+    tenants: number;
+    landlords: number;
+    conversionRate: number;
+  };
+  previous: {
+    registrations: number;
+    activations: number;
+    tenants: number;
+    landlords: number;
+    conversionRate: number;
+  };
+}
+
 interface DailyData {
   date: string;
   registrations: number;
@@ -37,6 +56,59 @@ interface DailyData {
 
 const COLORS = ['hsl(var(--success))', 'hsl(var(--warning))'];
 const ROLE_COLORS = ['hsl(var(--primary))', 'hsl(var(--chart-2))'];
+
+// Helper component for comparison rows
+function ComparisonRow({ 
+  label, 
+  icon, 
+  previous, 
+  current, 
+  isPercentage = false 
+}: { 
+  label: string; 
+  icon: React.ReactNode; 
+  previous: number; 
+  current: number;
+  isPercentage?: boolean;
+}) {
+  const change = previous > 0 
+    ? Math.round(((current - previous) / previous) * 100) 
+    : current > 0 ? 100 : 0;
+  
+  const formatValue = (val: number) => isPercentage ? `${val}%` : val;
+  
+  return (
+    <div className="flex items-center justify-between p-2 rounded-lg bg-muted/30">
+      <div className="flex items-center gap-2">
+        <div className="text-muted-foreground">{icon}</div>
+        <span className="text-sm font-medium">{label}</span>
+      </div>
+      <div className="flex items-center gap-3">
+        <span className="text-sm text-muted-foreground">{formatValue(previous)}</span>
+        <ArrowRight className="h-3 w-3 text-muted-foreground" />
+        <span className="text-sm font-bold">{formatValue(current)}</span>
+        {change !== 0 ? (
+          <Badge 
+            variant="outline" 
+            className={`gap-0.5 text-xs ${
+              change > 0 
+                ? 'bg-success/10 text-success border-success/20' 
+                : 'bg-destructive/10 text-destructive border-destructive/20'
+            }`}
+          >
+            {change > 0 ? <TrendingUp className="h-3 w-3" /> : <TrendingDown className="h-3 w-3" />}
+            {change > 0 ? '+' : ''}{change}%
+          </Badge>
+        ) : (
+          <Badge variant="outline" className="gap-0.5 text-xs bg-muted/50 text-muted-foreground border-muted">
+            <Minus className="h-3 w-3" />
+            0%
+          </Badge>
+        )}
+      </div>
+    </div>
+  );
+}
 
 export function AgentRegistrationAnalytics() {
   const { user } = useAuth();
@@ -53,12 +125,79 @@ export function AgentRegistrationAnalytics() {
     weeklyGrowth: 0,
   });
   const [dailyData, setDailyData] = useState<DailyData[]>([]);
+  const [comparisonPeriod, setComparisonPeriod] = useState<'week' | 'month'>('week');
+  const [comparison, setComparison] = useState<PeriodComparison>({
+    current: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
+    previous: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
+  });
 
   useEffect(() => {
     if (user) {
       fetchAnalytics();
     }
   }, [user]);
+
+  // Calculate period comparison whenever data or period changes
+  useEffect(() => {
+    if (!user) return;
+    
+    const calculateComparison = async () => {
+      try {
+        const { data: invites } = await supabase
+          .from('supporter_invites')
+          .select('*')
+          .eq('created_by', user.id)
+          .in('role', ['tenant', 'landlord']);
+
+        const allInvites = invites || [];
+        const now = new Date();
+        
+        let currentStart: Date, currentEnd: Date, previousStart: Date, previousEnd: Date;
+        
+        if (comparisonPeriod === 'week') {
+          currentEnd = now;
+          currentStart = subDays(startOfDay(now), 7);
+          previousEnd = currentStart;
+          previousStart = subDays(currentStart, 7);
+        } else {
+          // Month comparison
+          currentStart = startOfMonth(now);
+          currentEnd = now;
+          const prevMonth = subMonths(now, 1);
+          previousStart = startOfMonth(prevMonth);
+          previousEnd = endOfMonth(prevMonth);
+        }
+
+        const filterByPeriod = (start: Date, end: Date) => {
+          return allInvites.filter(i => {
+            const date = new Date(i.created_at);
+            return date >= start && date <= end;
+          });
+        };
+
+        const currentInvites = filterByPeriod(currentStart, currentEnd);
+        const previousInvites = filterByPeriod(previousStart, previousEnd);
+
+        const calculateMetrics = (invites: typeof allInvites) => {
+          const registrations = invites.length;
+          const activations = invites.filter(i => i.status === 'activated').length;
+          const tenants = invites.filter(i => i.role === 'tenant').length;
+          const landlords = invites.filter(i => i.role === 'landlord').length;
+          const conversionRate = registrations > 0 ? Math.round((activations / registrations) * 100) : 0;
+          return { registrations, activations, tenants, landlords, conversionRate };
+        };
+
+        setComparison({
+          current: calculateMetrics(currentInvites),
+          previous: calculateMetrics(previousInvites),
+        });
+      } catch (error) {
+        console.error('Error calculating comparison:', error);
+      }
+    };
+
+    calculateComparison();
+  }, [user, comparisonPeriod]);
 
   const fetchAnalytics = async () => {
     if (!user) return;
@@ -426,6 +565,76 @@ export function AgentRegistrationAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Period Comparison */}
+      <Card>
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-primary" />
+              Performance Comparison
+            </CardTitle>
+            <ToggleGroup
+              type="single"
+              value={comparisonPeriod}
+              onValueChange={(value) => value && setComparisonPeriod(value as 'week' | 'month')}
+              className="h-7"
+            >
+              <ToggleGroupItem value="week" className="text-xs px-2 h-7">
+                Weekly
+              </ToggleGroupItem>
+              <ToggleGroupItem value="month" className="text-xs px-2 h-7">
+                Monthly
+              </ToggleGroupItem>
+            </ToggleGroup>
+          </div>
+        </CardHeader>
+        <CardContent className="pt-0">
+          <div className="flex items-center justify-center gap-4 mb-4">
+            <Badge variant="outline" className="text-xs">
+              Previous {comparisonPeriod === 'week' ? 'Week' : 'Month'}
+            </Badge>
+            <ArrowRight className="h-4 w-4 text-muted-foreground" />
+            <Badge variant="default" className="text-xs">
+              Current {comparisonPeriod === 'week' ? 'Week' : 'Month'}
+            </Badge>
+          </div>
+          
+          <div className="space-y-3">
+            <ComparisonRow 
+              label="Registrations"
+              icon={<Users className="h-4 w-4" />}
+              previous={comparison.previous.registrations}
+              current={comparison.current.registrations}
+            />
+            <ComparisonRow 
+              label="Activations"
+              icon={<CheckCircle2 className="h-4 w-4" />}
+              previous={comparison.previous.activations}
+              current={comparison.current.activations}
+            />
+            <ComparisonRow 
+              label="Tenants"
+              icon={<Users className="h-4 w-4" />}
+              previous={comparison.previous.tenants}
+              current={comparison.current.tenants}
+            />
+            <ComparisonRow 
+              label="Landlords"
+              icon={<Building2 className="h-4 w-4" />}
+              previous={comparison.previous.landlords}
+              current={comparison.current.landlords}
+            />
+            <ComparisonRow 
+              label="Conversion Rate"
+              icon={<Percent className="h-4 w-4" />}
+              previous={comparison.previous.conversionRate}
+              current={comparison.current.conversionRate}
+              isPercentage
+            />
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Agent Leaderboard */}
       <AgentLeaderboard />
