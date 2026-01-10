@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 
@@ -14,32 +14,22 @@ interface CreateUserInviteDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type UserRole = 'tenant' | 'agent' | 'supporter' | 'landlord';
+type UserRole = 'tenant' | 'landlord';
 
-const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string }> = {
+const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string; emoji: string }> = {
   tenant: {
     label: 'Tenant',
     icon: Users,
     description: 'Rent payer who can request rent assistance',
     color: 'text-blue-500',
+    emoji: '🏠',
   },
   landlord: {
     label: 'Landlord',
-    icon: Briefcase,
+    icon: Building2,
     description: 'Property owner who receives rent payments',
     color: 'text-emerald-500',
-  },
-  agent: {
-    label: 'Agent',
-    icon: Briefcase,
-    description: 'Field agent who registers tenants & manages deposits',
-    color: 'text-amber-500',
-  },
-  supporter: {
-    label: 'Supporter',
-    icon: Heart,
-    description: 'Investor who funds rent requests & earns returns',
-    color: 'text-rose-500',
+    emoji: '🏢',
   },
 };
 
@@ -121,23 +111,13 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
     return `${window.location.origin}/activate-supporter?token=${createdInvite.token}`;
   };
 
-  const getRoleEmoji = (role: UserRole) => {
-    switch (role) {
-      case 'tenant': return '🏠';
-      case 'landlord': return '🏢';
-      case 'agent': return '💼';
-      case 'supporter': return '💰';
-    }
-  };
-
   const getWhatsAppMessage = () => {
     if (!createdInvite) return '';
-    const roleEmoji = getRoleEmoji(createdInvite.role);
-    const roleLabel = roleConfig[createdInvite.role].label;
+    const config = roleConfig[createdInvite.role];
     
-    return `${roleEmoji} Welcome to Welile, ${createdInvite.fullName}!
+    return `${config.emoji} Welcome to Welile, ${createdInvite.fullName}!
 
-You've been invited to join as a ${roleLabel}!
+You've been invited to join as a ${config.label}!
 
 🔐 Your password: ${createdInvite.password}
 
@@ -165,7 +145,7 @@ Password: ${createdInvite?.password}`;
     setFormData({ email: '', fullName: '', phone: '', password: '' });
     setCreatedInvite(null);
     setCopied(false);
-    setSelectedRole('supporter');
+    setSelectedRole('tenant');
     onOpenChange(false);
   };
 
@@ -177,18 +157,18 @@ Password: ${createdInvite?.password}`;
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
-            {createdInvite ? 'Share Activation Link' : 'Create User Account'}
+            {createdInvite ? 'Share Activation Link' : 'Register New User'}
           </DialogTitle>
           <DialogDescription>
             {createdInvite 
               ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()} to activate their account`
-              : 'Create a new user account and share the activation link'}
+              : 'Create a new tenant or landlord account and share the activation link'}
           </DialogDescription>
         </DialogHeader>
 
         {!createdInvite ? (
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Role Selection */}
+            {/* Role Selection - Simplified for agents */}
             <div className="space-y-2">
               <Label>Select Role</Label>
               <ToggleGroup 
@@ -300,7 +280,7 @@ Password: ${createdInvite?.password}`;
             <Card className="bg-muted/50">
               <CardContent className="pt-4 space-y-3">
                 <div className="flex items-center gap-2">
-                  <span className="text-2xl">{getRoleEmoji(createdInvite.role)}</span>
+                  <span className="text-2xl">{roleConfig[createdInvite.role].emoji}</span>
                   <div>
                     <p className="font-medium">{createdInvite.fullName}</p>
                     <p className="text-sm text-muted-foreground">{roleConfig[createdInvite.role].label}</p>
@@ -332,7 +312,7 @@ Password: ${createdInvite?.password}`;
             </Button>
 
             <Button variant="outline" onClick={handleClose} className="w-full">
-              Create Another
+              Register Another
             </Button>
           </div>
         )}
@@ -340,3 +320,5 @@ Password: ${createdInvite?.password}`;
     </Dialog>
   );
 }
+
+export default CreateUserInviteDialog;

@@ -31,8 +31,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
-import RegisterTenantDialog from '@/components/agent/RegisterTenantDialog';
-import RegisterLandlordDialog from '@/components/agent/RegisterLandlordDialog';
+import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -59,8 +58,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [loading, setLoading] = useState(true);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
-  const [registerTenantOpen, setRegisterTenantOpen] = useState(false);
-  const [registerLandlordOpen, setRegisterLandlordOpen] = useState(false);
+  const [registerUserOpen, setRegisterUserOpen] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -96,8 +94,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const menuItems = [
     { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
     { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true) },
-    { icon: UserPlus, label: 'Register Tenant', onClick: () => setRegisterTenantOpen(true) },
-    { icon: Building2, label: 'Register Landlord', onClick: () => setRegisterLandlordOpen(true), separator: true },
+    { icon: UserPlus, label: 'Register User', onClick: () => setRegisterUserOpen(true), separator: true },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
@@ -145,12 +142,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           items={[
             { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' },
             { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' },
-            { icon: UserPlus, label: 'Add Tenant', onClick: () => setRegisterTenantOpen(true), variant: 'primary' },
-            { icon: Building2, label: 'Add Landlord', onClick: () => setRegisterLandlordOpen(true) },
+            { icon: UserPlus, label: 'Add User', onClick: () => setRegisterUserOpen(true), variant: 'primary' },
             { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' },
             { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
             { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
             { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' },
+            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
           ]}
         />
 
@@ -238,8 +235,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
-      <RegisterTenantDialog open={registerTenantOpen} onOpenChange={setRegisterTenantOpen} />
-      <RegisterLandlordDialog open={registerLandlordOpen} onOpenChange={setRegisterLandlordOpen} />
+      <CreateUserInviteDialog open={registerUserOpen} onOpenChange={setRegisterUserOpen} />
       
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
