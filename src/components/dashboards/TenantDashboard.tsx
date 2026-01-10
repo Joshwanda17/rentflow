@@ -14,7 +14,8 @@ import {
   Download,
   Menu,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Wallet
 } from 'lucide-react';
 import RentCalculator from '@/components/tenant/RentCalculator';
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
@@ -28,7 +29,6 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
@@ -36,6 +36,8 @@ import { QuickNavGrid } from '@/components/QuickNavGrid';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TenantDashboardProps {
   user: User;
@@ -75,6 +77,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [loading, setLoading] = useState(true);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [showMoreActions, setShowMoreActions] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -149,10 +152,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {addRoleComponent}
         </button>
 
-        {/* Wallet Card */}
-        <WalletCard />
+        {/* Rent Access Limit Card - Featured prominently */}
+        <RentAccessLimitCard userId={user.id} />
 
-        {/* Prominent Rent Request Button - Right below wallet */}
+        {/* Prominent Rent Request Button - Right below limit card */}
         <RentRequestButton userId={user.id} onSuccess={fetchData} />
 
         {/* Primary Quick Actions - Always visible */}
@@ -160,8 +163,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           title="Quick Actions"
           items={[
             { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true), variant: 'primary' },
+            { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
             { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
-            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
             { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
           ]}
         />
@@ -187,6 +190,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <CollapsibleContent className="mt-2 animate-accordion-down">
             <QuickNavGrid 
               items={[
+                { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
                 { icon: History, label: 'History', onClick: () => navigate('/transactions') },
                 { icon: Calendar, label: 'Schedule', onClick: () => navigate('/payment-schedule') },
                 { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
@@ -242,6 +246,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       </button>
       
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
+      
+      {/* Wallet Dialog */}
+      <Dialog open={showWallet} onOpenChange={setShowWallet}>
+        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>My Wallet</DialogTitle>
+          </DialogHeader>
+          <WalletCard />
+        </DialogContent>
+      </Dialog>
       
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
