@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Users, Building2, TrendingUp, TrendingDown, 
   CheckCircle2, Clock, Target, Percent, ArrowRight, 
-  Calendar, Minus, Download, FileText, FileSpreadsheet
+  Calendar, Minus, FileText, FileSpreadsheet, Share2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { exportToCSV, exportToPDF } from '@/lib/exportUtils';
@@ -21,6 +21,8 @@ import { format, subDays, startOfDay, eachDayOfInterval, startOfMonth, subMonths
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 import { AgentGoalCard } from './AgentGoalCard';
 import { AgentLeaderboard } from './AgentLeaderboard';
+import { ShareablePerformanceCard } from './ShareablePerformanceCard';
+import { useProfile } from '@/hooks/useProfile';
 
 interface RegistrationStats {
   total: number;
@@ -115,8 +117,10 @@ function ComparisonRow({
 
 export function AgentRegistrationAnalytics() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
+  const [showShareCard, setShowShareCard] = useState(false);
   const reportRef = useRef<HTMLDivElement>(null);
   const [stats, setStats] = useState<RegistrationStats>({
     total: 0,
@@ -372,8 +376,17 @@ export function AgentRegistrationAnalytics() {
 
   return (
     <div className="space-y-4">
-      {/* Export Buttons */}
+      {/* Export & Share Buttons */}
       <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setShowShareCard(true)}
+          className="gap-1.5"
+        >
+          <Share2 className="h-4 w-4" />
+          Share
+        </Button>
         <Button
           variant="outline"
           size="sm"
@@ -394,6 +407,14 @@ export function AgentRegistrationAnalytics() {
           {exporting ? 'Exporting...' : 'PDF'}
         </Button>
       </div>
+
+      {/* Shareable Performance Card Dialog */}
+      <ShareablePerformanceCard
+        stats={stats}
+        userName={profile?.full_name || 'Agent'}
+        open={showShareCard}
+        onOpenChange={setShowShareCard}
+      />
 
       {/* Report Content for PDF export */}
       <div ref={reportRef} className="space-y-4">
