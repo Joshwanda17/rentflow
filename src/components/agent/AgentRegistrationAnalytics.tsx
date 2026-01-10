@@ -15,6 +15,7 @@ import {
 } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
 import { AgentGoalCard } from './AgentGoalCard';
+import { AgentLeaderboard } from './AgentLeaderboard';
 
 interface RegistrationStats {
   total: number;
@@ -425,6 +426,9 @@ export function AgentRegistrationAnalytics() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Agent Leaderboard */}
+      <AgentLeaderboard />
     </div>
   );
 }
