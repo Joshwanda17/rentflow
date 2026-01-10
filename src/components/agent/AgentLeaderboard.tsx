@@ -5,8 +5,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Trophy, Medal, Award, TrendingUp, Users, Crown } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Trophy, Medal, Award, TrendingUp, Users, Crown, Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { subDays, startOfMonth, startOfWeek, format } from 'date-fns';
+
+type TimePeriod = 'week' | 'month' | 'all';
 
 interface LeaderboardEntry {
   agent_id: string;
@@ -21,21 +25,54 @@ interface LeaderboardEntry {
 export function AgentLeaderboard() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [timePeriod, setTimePeriod] = useState<TimePeriod>('month');
   const [leaderboard, setLeaderboard] = useState<LeaderboardEntry[]>([]);
   const [currentUserRank, setCurrentUserRank] = useState<LeaderboardEntry | null>(null);
 
   useEffect(() => {
     fetchLeaderboard();
-  }, [user]);
+  }, [user, timePeriod]);
+
+  const getDateFilter = (): Date | null => {
+    const now = new Date();
+    switch (timePeriod) {
+      case 'week':
+        return startOfWeek(now, { weekStartsOn: 1 }); // Monday
+      case 'month':
+        return startOfMonth(now);
+      case 'all':
+      default:
+        return null;
+    }
+  };
+
+  const getPeriodLabel = (): string => {
+    switch (timePeriod) {
+      case 'week':
+        return `This Week (${format(startOfWeek(new Date(), { weekStartsOn: 1 }), 'MMM d')} - Now)`;
+      case 'month':
+        return format(new Date(), 'MMMM yyyy');
+      case 'all':
+        return 'All Time';
+    }
+  };
 
   const fetchLeaderboard = async () => {
     setLoading(true);
     try {
-      // Get all agent invites grouped by agent
-      const { data: invites, error } = await supabase
+      const dateFilter = getDateFilter();
+      
+      // Build query
+      let query = supabase
         .from('supporter_invites')
-        .select('created_by, status, role')
+        .select('created_by, status, role, created_at')
         .in('role', ['tenant', 'landlord']);
+
+      if (dateFilter) {
+        query = query.gte('created_at', dateFilter.toISOString());
+      }
+
+      const { data: invites, error } = await query;
 
       if (error) throw error;
 
@@ -56,6 +93,7 @@ export function AgentLeaderboard() {
       
       if (agentIds.length === 0) {
         setLeaderboard([]);
+        setCurrentUserRank(null);
         setLoading(false);
         return;
       }
@@ -129,15 +167,43 @@ export function AgentLeaderboard() {
     }
   };
 
+  const renderHeader = () => (
+    <CardHeader className="pb-3">
+      <div className="flex flex-col gap-3">
+        <CardTitle className="text-base flex items-center gap-2">
+          <Trophy className="h-4 w-4 text-primary" />
+          Top Agents Leaderboard
+        </CardTitle>
+        <div className="flex flex-col gap-2">
+          <ToggleGroup
+            type="single"
+            value={timePeriod}
+            onValueChange={(value) => value && setTimePeriod(value as TimePeriod)}
+            className="justify-start"
+          >
+            <ToggleGroupItem value="week" size="sm" className="text-xs px-3">
+              This Week
+            </ToggleGroupItem>
+            <ToggleGroupItem value="month" size="sm" className="text-xs px-3">
+              This Month
+            </ToggleGroupItem>
+            <ToggleGroupItem value="all" size="sm" className="text-xs px-3">
+              All Time
+            </ToggleGroupItem>
+          </ToggleGroup>
+          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <Calendar className="h-3 w-3" />
+            {getPeriodLabel()}
+          </div>
+        </div>
+      </div>
+    </CardHeader>
+  );
+
   if (loading) {
     return (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-primary" />
-            Top Agents Leaderboard
-          </CardTitle>
-        </CardHeader>
+        {renderHeader()}
         <CardContent className="space-y-3">
           {[1, 2, 3, 4, 5].map(i => (
             <Skeleton key={i} className="h-14 w-full rounded-lg" />
@@ -150,16 +216,11 @@ export function AgentLeaderboard() {
   if (leaderboard.length === 0) {
     return (
       <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Trophy className="h-4 w-4 text-primary" />
-            Top Agents Leaderboard
-          </CardTitle>
-        </CardHeader>
+        {renderHeader()}
         <CardContent>
           <div className="text-center py-8 text-muted-foreground">
             <Users className="h-12 w-12 mx-auto mb-3 opacity-50" />
-            <p className="text-sm">No registrations yet</p>
+            <p className="text-sm">No registrations {timePeriod === 'all' ? 'yet' : 'this ' + timePeriod}</p>
             <p className="text-xs mt-1">Be the first to register users!</p>
           </div>
         </CardContent>
@@ -169,12 +230,7 @@ export function AgentLeaderboard() {
 
   return (
     <Card>
-      <CardHeader className="pb-3">
-        <CardTitle className="text-base flex items-center gap-2">
-          <Trophy className="h-4 w-4 text-primary" />
-          Top Agents Leaderboard
-        </CardTitle>
-      </CardHeader>
+      {renderHeader()}
       <CardContent className="space-y-2">
         {leaderboard.map((entry) => (
           <div
