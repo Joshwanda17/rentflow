@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -11,15 +11,17 @@ import { useToast } from '@/hooks/use-toast';
 import { 
   Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, 
   RefreshCw, ArrowLeft, Search, Filter, UserPlus, Calendar,
-  Phone, Mail, ChevronDown
+  Phone, Mail, ChevronDown, Download, FileText, FileSpreadsheet
 } from 'lucide-react';
 import { format, formatDistanceToNow } from 'date-fns';
 import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
+import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
+  DropdownMenuSeparator,
 } from '@/components/ui/dropdown-menu';
 import {
   Collapsible,
@@ -63,12 +65,14 @@ export default function AgentRegistrations() {
   const { toast } = useToast();
   const [invites, setInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'activated'>('all');
   const [roleFilter, setRoleFilter] = useState<'all' | 'tenant' | 'landlord'>('all');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const exportRef = useRef<HTMLDivElement>(null);
 
   const fetchInvites = async () => {
     if (!user) return;
@@ -144,6 +148,48 @@ Just click the link and enter your password to get started!`;
   const tenantCount = invites.filter(i => i.role === 'tenant').length;
   const landlordCount = invites.filter(i => i.role === 'landlord').length;
 
+  const handleExportCSV = () => {
+    if (filteredInvites.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+
+    const data = {
+      headers: ['Name', 'Email', 'Phone', 'Role', 'Status', 'Registered Date', 'Activated Date'],
+      rows: filteredInvites.map(invite => [
+        invite.full_name,
+        invite.email,
+        invite.phone,
+        roleConfig[invite.role]?.label || invite.role,
+        invite.status === 'activated' ? 'Active' : 'Pending',
+        formatDateForExport(invite.created_at),
+        invite.activated_at ? formatDateForExport(invite.activated_at) : 'N/A',
+      ]),
+    };
+
+    exportToCSV(data, 'agent_registrations');
+    toast({ title: '✅ CSV exported successfully!' });
+  };
+
+  const handleExportPDF = async () => {
+    if (filteredInvites.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+
+    if (!exportRef.current) return;
+
+    setExporting(true);
+    try {
+      await exportToPDF(exportRef.current, 'agent_registrations', 'My Registered Users');
+      toast({ title: '✅ PDF exported successfully!' });
+    } catch (error) {
+      toast({ title: 'Export failed', description: 'Please try again', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       {/* Header */}
@@ -159,6 +205,24 @@ Just click the link and enter your password to get started!`;
             </div>
           </div>
           <div className="flex gap-2">
+            {/* Export Menu */}
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" disabled={exporting || filteredInvites.length === 0}>
+                  <Download className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem onClick={handleExportCSV}>
+                  <FileSpreadsheet className="h-4 w-4 mr-2" />
+                  Export as CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF}>
+                  <FileText className="h-4 w-4 mr-2" />
+                  Export as PDF
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
             <Button variant="ghost" size="icon" onClick={fetchInvites}>
               <RefreshCw className="h-4 w-4" />
             </Button>
@@ -228,7 +292,7 @@ Just click the link and enter your password to get started!`;
       </div>
 
       {/* Content */}
-      <div className="p-4 space-y-3">
+      <div ref={exportRef} className="p-4 space-y-3">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
             <Skeleton key={i} className="h-24 w-full rounded-xl" />
@@ -250,7 +314,19 @@ Just click the link and enter your password to get started!`;
             </CardContent>
           </Card>
         ) : (
-          filteredInvites.map((invite) => {
+          <div className="space-y-3">
+            {/* Export Summary Header - visible in PDF */}
+            <div className="hidden print:block mb-4 p-4 border rounded-lg bg-muted/30">
+              <h2 className="font-bold text-lg mb-2">Registration Summary</h2>
+              <div className="grid grid-cols-4 gap-2 text-sm">
+                <div>Total: {filteredInvites.length}</div>
+                <div>Pending: {pendingCount}</div>
+                <div>Active: {activatedCount}</div>
+                <div>Tenants: {tenantCount} | Landlords: {landlordCount}</div>
+              </div>
+            </div>
+            
+            {filteredInvites.map((invite) => {
             const config = roleConfig[invite.role] || roleConfig.tenant;
             const RoleIcon = config.icon;
             const isPending = invite.status === 'pending';
@@ -357,7 +433,8 @@ Just click the link and enter your password to get started!`;
                 </Card>
               </Collapsible>
             );
-          })
+          })}
+          </div>
         )}
       </div>
 
