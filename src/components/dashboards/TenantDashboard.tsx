@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
 import { PaymentStreakCalendar } from '@/components/tenant/PaymentStreakCalendar';
+import { AchievementBadges } from '@/components/tenant/AchievementBadges';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 interface TenantDashboardProps {
@@ -204,6 +205,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* Payment Streak Calendar */}
         <PaymentStreakCalendar userId={user.id} />
+
+        {/* Achievement Badges */}
+        <AchievementBadges userId={user.id} />
 
         {/* PRIORITY 1: Receipt Submission Prompt */}
         <DashboardReceiptPrompt userId={user.id} />
