@@ -32,6 +32,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
+import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -220,6 +221,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
+
+        {/* Registered Users List */}
+        <AgentInvitesList />
 
         {/* Food Shopping Loans */}
         <FoodShoppingLoansSection />
