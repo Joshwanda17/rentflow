@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -7,8 +7,11 @@ import { Badge } from '@/components/ui/badge';
 import { 
   Users, Building2, TrendingUp, TrendingDown, 
   CheckCircle2, Clock, Target, Percent, ArrowRight, 
-  Calendar, Minus
+  Calendar, Minus, Download, FileText, FileSpreadsheet
 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { exportToCSV, exportToPDF } from '@/lib/exportUtils';
+import { toast } from 'sonner';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
   Tooltip, ResponsiveContainer, PieChart, Pie, Cell,
@@ -113,6 +116,8 @@ function ComparisonRow({
 export function AgentRegistrationAnalytics() {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [stats, setStats] = useState<RegistrationStats>({
     total: 0,
     pending: 0,
@@ -130,6 +135,61 @@ export function AgentRegistrationAnalytics() {
     current: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
     previous: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
   });
+
+  const handleExportCSV = () => {
+    try {
+      const data = {
+        headers: ['Metric', 'Value'],
+        rows: [
+          ['Total Registered', stats.total],
+          ['Activated', stats.activated],
+          ['Pending', stats.pending],
+          ['Tenants', stats.tenants],
+          ['Landlords', stats.landlords],
+          ['Conversion Rate', `${stats.conversionRate}%`],
+          ['This Week', stats.thisWeek],
+          ['Last Week', stats.lastWeek],
+          ['Weekly Growth', `${stats.weeklyGrowth}%`],
+          ['', ''],
+          ['--- Daily Data (Last 14 Days) ---', ''],
+          ['Date', 'Registrations', 'Activations'],
+          ...dailyData.map(d => [d.date, d.registrations, d.activations]),
+          ['', ''],
+          ['--- Period Comparison ---', ''],
+          ['Metric', 'Previous Period', 'Current Period', 'Change'],
+          ['Registrations', comparison.previous.registrations, comparison.current.registrations, 
+            `${comparison.previous.registrations > 0 ? Math.round(((comparison.current.registrations - comparison.previous.registrations) / comparison.previous.registrations) * 100) : 0}%`],
+          ['Activations', comparison.previous.activations, comparison.current.activations,
+            `${comparison.previous.activations > 0 ? Math.round(((comparison.current.activations - comparison.previous.activations) / comparison.previous.activations) * 100) : 0}%`],
+          ['Tenants', comparison.previous.tenants, comparison.current.tenants,
+            `${comparison.previous.tenants > 0 ? Math.round(((comparison.current.tenants - comparison.previous.tenants) / comparison.previous.tenants) * 100) : 0}%`],
+          ['Landlords', comparison.previous.landlords, comparison.current.landlords,
+            `${comparison.previous.landlords > 0 ? Math.round(((comparison.current.landlords - comparison.previous.landlords) / comparison.previous.landlords) * 100) : 0}%`],
+        ] as (string | number)[][],
+      };
+      
+      exportToCSV(data, 'agent_performance_report');
+      toast.success('CSV report downloaded');
+    } catch (error) {
+      console.error('CSV export failed:', error);
+      toast.error('Failed to export CSV');
+    }
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportRef.current) return;
+    
+    setExporting(true);
+    try {
+      await exportToPDF(reportRef.current, 'agent_performance_report', 'Agent Performance Report');
+      toast.success('PDF report downloaded');
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   useEffect(() => {
     if (user) {
@@ -312,9 +372,34 @@ export function AgentRegistrationAnalytics() {
 
   return (
     <div className="space-y-4">
-      {/* Monthly Goal Card */}
-      <AgentGoalCard />
-      <div className="grid grid-cols-2 gap-3">
+      {/* Export Buttons */}
+      <div className="flex items-center justify-end gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportCSV}
+          className="gap-1.5"
+        >
+          <FileSpreadsheet className="h-4 w-4" />
+          CSV
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={handleExportPDF}
+          disabled={exporting}
+          className="gap-1.5"
+        >
+          <FileText className="h-4 w-4" />
+          {exporting ? 'Exporting...' : 'PDF'}
+        </Button>
+      </div>
+
+      {/* Report Content for PDF export */}
+      <div ref={reportRef} className="space-y-4">
+        {/* Monthly Goal Card */}
+        <AgentGoalCard />
+        <div className="grid grid-cols-2 gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-background">
           <CardContent className="p-4">
             <div className="flex items-center justify-between">
@@ -638,6 +723,7 @@ export function AgentRegistrationAnalytics() {
 
       {/* Agent Leaderboard */}
       <AgentLeaderboard />
+      </div>
     </div>
   );
 }
