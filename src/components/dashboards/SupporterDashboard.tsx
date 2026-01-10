@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Menu, Receipt, History, Share2, Users, Coins,
-  BarChart3, FileText, Sparkles, ArrowUpRight, Zap, Target, Download
+  BarChart3, FileText, Sparkles, ArrowUpRight, Zap, Target, Download, CreditCard
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +39,7 @@ import { SupporterReferralStats } from '@/components/supporter/SupporterReferral
 import { SupporterLeaderboard } from '@/components/supporter/SupporterLeaderboard';
 import { useWallet } from '@/hooks/useWallet';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -88,6 +89,7 @@ export default function SupporterDashboard({
   const [selectedAccountForFunding, setSelectedAccountForFunding] = useState<InvestmentAccount | null>(null);
   const [selectedAccountForWithdraw, setSelectedAccountForWithdraw] = useState<InvestmentAccount | null>(null);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<InvestmentAccount | null>(null);
+  const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
 
@@ -451,6 +453,7 @@ export default function SupporterDashboard({
   };
 
   const menuItems = [
+    { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
     { icon: BarChart3, label: 'Investment Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
     { icon: Target, label: 'Investment Goals', onClick: () => document.getElementById('goals-section')?.scrollIntoView({ behavior: 'smooth' }) },
     { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
@@ -817,6 +820,14 @@ export default function SupporterDashboard({
             handleWithdrawAccountClick(selectedAccountForDetails);
           }
         }}
+      />
+      
+      {/* Payment Partners Dialog */}
+      <PaymentPartnersDialog 
+        open={showPaymentPartners} 
+        onOpenChange={setShowPaymentPartners}
+        dashboardType="supporter"
+        title="Add Investment via Mobile Money"
       />
       
       <FloatingShareButton />
