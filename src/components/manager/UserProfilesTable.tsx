@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -16,11 +16,14 @@ import BulkNotificationDialog from './BulkNotificationDialog';
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from './BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from './BulkWhatsAppDialog';
+import { QuickUserActions } from './QuickUserActions';
+import { ManagerTip } from './ManagerTip';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { hapticTap } from '@/lib/haptics';
 
 interface UserWithRating {
   id: string;
@@ -307,15 +310,17 @@ export default function UserProfilesTable() {
 
   const currentSortLabel = sortOptions.find(s => s.value === sortBy)?.label || 'Sort';
 
+  const roleColors: Record<string, { bg: string; text: string; border: string }> = {
+    tenant: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
+    agent: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
+    supporter: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
+    landlord: { bg: 'bg-purple-500/15', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/30' },
+    manager: { bg: 'bg-rose-500/15', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/30' },
+  };
+
   const getRoleBadgeColor = (role: string) => {
-    const colors: Record<string, string> = {
-      tenant: 'bg-primary/15 text-primary border-primary/30',
-      agent: 'bg-warning/15 text-warning border-warning/30',
-      supporter: 'bg-success/15 text-success border-success/30',
-      landlord: 'bg-chart-5/15 text-chart-5 border-chart-5/30',
-      manager: 'bg-destructive/15 text-destructive border-destructive/30'
-    };
-    return colors[role] || 'bg-muted text-muted-foreground';
+    const colors = roleColors[role] || { bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' };
+    return `${colors.bg} ${colors.text} ${colors.border}`;
   };
 
   const getInitials = (name: string) => {
@@ -385,170 +390,131 @@ export default function UserProfilesTable() {
   return (
     <>
       <div className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)]">
-        {/* Sticky Header Section */}
-        <div className="sticky top-0 z-20 bg-background pb-3 space-y-3">
-          {/* Modern Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <div className="p-2 sm:p-2.5 rounded-xl bg-primary/10">
-                <Users className="h-5 w-5 sm:h-6 sm:w-6 text-primary" />
-              </div>
-              <div>
-                <h2 className="text-lg sm:text-xl font-bold">Users</h2>
-                <p className="text-xs sm:text-sm text-muted-foreground">{users.length} registered</p>
-              </div>
-            </div>
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleExportCSV}
-                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
-                title="Export to CSV"
-              >
-                <Download className="h-4 w-4 sm:h-5 sm:w-5" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleExportPDF}
-                disabled={exporting}
-                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
-                title="Export to PDF"
-              >
-                <FileText className={`h-4 w-4 sm:h-5 sm:w-5 ${exporting ? 'animate-pulse' : ''}`} />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleRefresh}
-                disabled={refreshing}
-                className="rounded-full h-9 w-9 sm:h-10 sm:w-10"
-              >
-                <RefreshCw className={`h-4 w-4 sm:h-5 sm:w-5 ${refreshing ? 'animate-spin' : ''}`} />
-              </Button>
-            </div>
-          </div>
+        {/* Tips for managers */}
+        <ManagerTip />
 
-          {/* Modern Search Bar */}
+        {/* Quick Actions Card */}
+        <div className="mt-3">
+          <QuickUserActions
+            totalUsers={users.length}
+            selectedCount={selectedUserIds.size}
+            onNotifyAll={() => {
+              if (selectedUserIds.size === 0) {
+                // Select all first
+                setSelectedUserIds(new Set(filteredUsers.map(u => u.id)));
+              }
+              setBulkNotificationOpen(true);
+            }}
+            onWhatsAppAll={() => {
+              if (selectedUserIds.size === 0) {
+                setSelectedUserIds(new Set(filteredUsers.map(u => u.id)));
+              }
+              setBulkWhatsAppOpen(true);
+            }}
+            onExport={handleExportCSV}
+            onAddUser={() => toast.info('Navigate to Dashboard to add new users')}
+          />
+        </div>
+
+        {/* Sticky Header Section */}
+        <div className="sticky top-0 z-20 bg-background pb-3 pt-3 space-y-3">
+          {/* Modern Search Bar - Larger for easy touch */}
           <div className="relative">
-            <Search className="absolute left-3 sm:left-4 top-1/2 -translate-y-1/2 h-4 w-4 sm:h-5 sm:w-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
             <Input
-              placeholder="Search name, email, phone..."
+              placeholder="🔍 Search by name or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10 sm:pl-12 pr-10 h-10 sm:h-12 rounded-xl bg-muted/50 border-0 text-sm sm:text-base focus-visible:ring-2 focus-visible:ring-primary"
+              className="pl-12 pr-12 h-14 rounded-2xl bg-muted/50 border-2 border-border/50 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-3 sm:right-4 top-1/2 -translate-y-1/2 p-1 rounded-full hover:bg-muted"
+                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted active:scale-95"
               >
-                <X className="h-4 w-4 text-muted-foreground" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             )}
           </div>
 
-          {/* Role Filter Pills - Horizontal Scroll */}
-          <div className="flex gap-1.5 sm:gap-2 overflow-x-auto pb-1 scrollbar-hide -mx-1 px-1">
+          {/* Role Filter Pills - Larger touch targets */}
+          <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
             {roleFilters.map((filter) => (
               <button
                 key={filter.value}
-                onClick={() => setRoleFilter(filter.value)}
-                className={`shrink-0 px-3 sm:px-4 py-1.5 sm:py-2 rounded-full text-xs sm:text-sm font-medium transition-all ${
+                onClick={() => {
+                  hapticTap();
+                  setRoleFilter(filter.value);
+                }}
+                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
                   roleFilter === filter.value
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-muted/50 text-muted-foreground hover:bg-muted'
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted'
                 }`}
               >
                 {filter.label}
-                <span className={`ml-1 sm:ml-1.5 ${roleFilter === filter.value ? 'opacity-90' : 'opacity-60'}`}>
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                  roleFilter === filter.value 
+                    ? 'bg-primary-foreground/20' 
+                    : 'bg-background/50'
+                }`}>
                   {filter.count}
                 </span>
               </button>
             ))}
           </div>
 
-          {/* Sort & Results Row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2 sm:gap-3">
-              <button
-                onClick={toggleSelectAll}
-                className="flex items-center gap-1.5 sm:gap-2 text-xs sm:text-sm text-muted-foreground hover:text-foreground transition-colors"
-              >
-                {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
-                  <CheckSquare className="h-4 w-4 text-primary" />
-                ) : (
-                  <Square className="h-4 w-4" />
-                )}
-                <span>
-                  {selectedUserIds.size > 0 ? `${selectedUserIds.size} sel.` : 'All'}
-                </span>
-              </button>
-              <span className="text-xs sm:text-sm text-muted-foreground">
-                {filteredUsers.length === users.length 
-                  ? `${users.length} users` 
-                  : `${filteredUsers.length}/${users.length}`
-                }
+          {/* Results & Sort Row */}
+          <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2">
+            <button
+              onClick={() => {
+                hapticTap();
+                toggleSelectAll();
+              }}
+              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+            >
+              {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
+                <CheckSquare className="h-5 w-5 text-primary" />
+              ) : (
+                <Square className="h-5 w-5" />
+              )}
+              <span>
+                {selectedUserIds.size > 0 ? `${selectedUserIds.size} selected` : 'Select all'}
               </span>
-            </div>
-            
-            {/* Sort Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setShowSortMenu(!showSortMenu)}
-                className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1 sm:py-1.5 rounded-lg bg-muted/50 hover:bg-muted text-xs sm:text-sm font-medium transition-colors"
-              >
-                <ArrowUpDown className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground" />
-                <span className="hidden xs:inline sm:inline">{currentSortLabel}</span>
-              </button>
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-muted-foreground font-medium">
+                {filteredUsers.length} users
+              </span>
               
-              {/* Sort Menu */}
-              <AnimatePresence>
-                {showSortMenu && (
-                  <>
-                    {/* Backdrop */}
-                    <div 
-                      className="fixed inset-0 z-40" 
-                      onClick={() => setShowSortMenu(false)} 
-                    />
-                    
-                    <motion.div
-                      initial={{ opacity: 0, y: -10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: -10, scale: 0.95 }}
-                      transition={{ duration: 0.15 }}
-                      className="absolute right-0 top-full mt-2 z-50 bg-popover border border-border rounded-xl shadow-xl overflow-hidden min-w-[160px] sm:min-w-[180px]"
-                    >
-                      <div className="p-1">
-                        {sortOptions.map((option) => {
-                          const Icon = option.icon;
-                          return (
-                            <button
-                              key={option.value}
-                              onClick={() => {
-                                setSortBy(option.value);
-                                setShowSortMenu(false);
-                              }}
-                              className={`w-full flex items-center gap-2 sm:gap-3 px-2.5 sm:px-3 py-2 sm:py-2.5 rounded-lg text-xs sm:text-sm transition-colors ${
-                                sortBy === option.value
-                                  ? 'bg-primary/10 text-primary font-medium'
-                                  : 'text-foreground hover:bg-muted'
-                              }`}
-                            >
-                              <Icon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
-                              {option.label}
-                              {sortBy === option.value && (
-                                <CheckCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 ml-auto" />
-                              )}
-                            </button>
-                          );
-                        })}
-                      </div>
-                    </motion.div>
-                  </>
-                )}
-              </AnimatePresence>
+              {/* Sort Dropdown */}
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button variant="ghost" size="sm" className="gap-1.5 h-9">
+                    <ArrowUpDown className="h-4 w-4" />
+                    <span className="hidden sm:inline">{currentSortLabel}</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-48">
+                  {sortOptions.map((option) => {
+                    const Icon = option.icon;
+                    return (
+                      <DropdownMenuItem
+                        key={option.value}
+                        onClick={() => setSortBy(option.value)}
+                        className={sortBy === option.value ? 'bg-primary/10' : ''}
+                      >
+                        <Icon className="h-4 w-4 mr-2" />
+                        {option.label}
+                        {sortBy === option.value && (
+                          <CheckCircle className="h-4 w-4 ml-auto text-primary" />
+                        )}
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
             </div>
           </div>
         </div>
@@ -573,109 +539,117 @@ export default function UserProfilesTable() {
                 filteredUsers.map((user, index) => (
                   <motion.div
                     key={user.id}
-                    initial={{ opacity: 0, y: 20 }}
+                    initial={{ opacity: 0, y: 15 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: Math.min(index * 0.02, 0.3) }}
+                    transition={{ delay: Math.min(index * 0.03, 0.2) }}
                     onClick={() => handleUserClick(user)}
-                    className={`group relative bg-card rounded-xl sm:rounded-2xl border p-3 sm:p-4 hover:shadow-lg hover:shadow-primary/5 active:scale-[0.99] transition-all cursor-pointer ${
+                    className={`relative bg-card rounded-2xl border-2 p-4 transition-all active:scale-[0.98] cursor-pointer ${
                       selectedUserIds.has(user.id) 
-                        ? 'border-primary/50 bg-primary/5' 
-                        : 'border-border/50 hover:border-primary/30'
+                        ? 'border-primary shadow-lg shadow-primary/10' 
+                        : 'border-border/50 hover:border-primary/40 hover:shadow-md'
                     }`}
                   >
-                    <div className="flex items-start gap-2 sm:gap-3">
-                      {/* Checkbox */}
-                      <div 
-                        className="shrink-0 pt-0.5 sm:pt-1"
-                        onClick={(e) => toggleUserSelection(user.id, e)}
-                      >
+                    {/* Selection Checkbox - Large touch target */}
+                    <div 
+                      className="absolute left-3 top-3 z-10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap();
+                        toggleUserSelection(user.id, e);
+                      }}
+                    >
+                      <div className={`p-1.5 rounded-lg transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary/20' : 'bg-muted/50'}`}>
                         <Checkbox
                           checked={selectedUserIds.has(user.id)}
-                          className="h-4 w-4 sm:h-5 sm:w-5 rounded-md"
+                          className="h-5 w-5 rounded-md"
                         />
                       </div>
-                      
-                      {/* Avatar */}
-                      <div className="relative shrink-0">
-                        <Avatar className="h-10 w-10 sm:h-12 sm:w-12 border-2 border-background shadow-md">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs sm:text-sm">
-                            {getInitials(user.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        {user.rent_discount_active && (
-                          <div className="absolute -bottom-0.5 -right-0.5 sm:-bottom-1 sm:-right-1 p-0.5 sm:p-1 rounded-full bg-success text-success-foreground">
-                            <CheckCircle className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                          </div>
-                        )}
-                      </div>
-                      
-                      {/* User Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-start justify-between gap-1 sm:gap-2">
-                          <div className="min-w-0 flex-1">
-                            <h3 className="font-semibold text-sm sm:text-base truncate group-hover:text-primary transition-colors">
-                              {user.full_name}
-                            </h3>
-                            <p className="text-xs sm:text-sm text-muted-foreground truncate">{user.email}</p>
-                            <WhatsAppPhoneLink phone={user.phone} size="sm" className="mt-0.5 text-xs" />
-                          </div>
-                          
-                          {/* WhatsApp & Arrow */}
-                          <div className="shrink-0 flex items-center gap-0.5 sm:gap-1">
-                            <a
-                              href={getWhatsAppLink(user.phone)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={(e) => e.stopPropagation()}
-                              className="p-1.5 sm:p-2 rounded-full bg-success/10 hover:bg-success/20 transition-colors"
-                              title={`Message ${user.full_name} on WhatsApp`}
-                            >
-                              <MessageCircle className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-success" />
-                            </a>
-                            <div className="p-1.5 sm:p-2 rounded-full bg-muted/50 group-hover:bg-primary/10 transition-colors">
-                              <ChevronRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-muted-foreground group-hover:text-primary transition-colors" />
-                            </div>
-                          </div>
+                    </div>
+
+                    {/* Verified Badge */}
+                    {user.rent_discount_active && (
+                      <div className="absolute right-3 top-3">
+                        <div className="p-1.5 rounded-full bg-success/20">
+                          <CheckCircle className="h-4 w-4 text-success" />
                         </div>
+                      </div>
+                    )}
+
+                    {/* User Info */}
+                    <div className="flex items-start gap-3 pl-10">
+                      <Avatar className="h-14 w-14 border-2 border-background shadow-lg shrink-0">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+
+                      <div className="flex-1 min-w-0">
+                        <h3 className="font-bold text-base truncate pr-8">{user.full_name}</h3>
+                        <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
                         
                         {/* Roles */}
-                        <div className="flex items-center gap-1 sm:gap-1.5 mt-1.5 sm:mt-2 flex-wrap">
+                        <div className="flex flex-wrap gap-1.5 mt-2">
                           {user.roles.map((role) => (
                             <Badge 
                               key={role} 
                               variant="outline"
-                              className={`text-[10px] sm:text-xs font-medium px-1.5 sm:px-2 py-0 ${getRoleBadgeColor(role)}`}
+                              className={`text-xs font-semibold px-2 py-0.5 ${getRoleBadgeColor(role)}`}
                             >
                               {role}
                             </Badge>
                           ))}
                         </div>
-                        
-                        {/* Rating & Rent - Bottom Row */}
-                        <div className="flex items-center justify-between mt-1.5 sm:mt-2 pt-1.5 sm:pt-2 border-t border-border/50">
-                          <div className="flex items-center gap-2 sm:gap-3">
-                            {user.rating_count > 0 ? (
-                              <div className="flex items-center gap-1 sm:gap-1.5">
-                                {renderStars(user.average_rating || 0)}
-                                <span className="text-[10px] sm:text-xs text-muted-foreground font-medium">
-                                  {user.average_rating?.toFixed(1)}
-                                </span>
-                              </div>
-                            ) : (
-                              <span className="text-[10px] sm:text-xs text-muted-foreground/60">No ratings</span>
-                            )}
+
+                        {/* Rating */}
+                        {user.rating_count > 0 && (
+                          <div className="flex items-center gap-1 mt-2">
+                            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
+                            <span className="text-xs font-medium">{user.average_rating?.toFixed(1)}</span>
+                            <span className="text-xs text-muted-foreground">({user.rating_count})</span>
                           </div>
-                          
-                          {user.monthly_rent && (
-                            <div className="flex items-center gap-1 sm:gap-1.5 text-[10px] sm:text-xs font-medium text-muted-foreground">
-                              <Banknote className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
-                              <span className="truncate max-w-[80px] sm:max-w-none">{formatUGX(user.monthly_rent)}/mo</span>
-                            </div>
-                          )}
-                        </div>
+                        )}
                       </div>
+                    </div>
+
+                    {/* Action Buttons - Large and Clear */}
+                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap();
+                          window.open(getWhatsAppLink(user.phone), '_blank');
+                        }}
+                        className="flex-1 h-11 gap-2 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold"
+                      >
+                        <MessageCircle className="h-5 w-5" />
+                        WhatsApp
+                      </Button>
+                      
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap();
+                          window.location.href = `tel:${user.phone}`;
+                        }}
+                        className="flex-1 h-11 gap-2 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary font-semibold"
+                      >
+                        <Phone className="h-5 w-5" />
+                        Call
+                      </Button>
+                      
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-11 w-11 rounded-xl bg-muted/50 hover:bg-muted shrink-0"
+                      >
+                        <ChevronRight className="h-5 w-5" />
+                      </Button>
                     </div>
                   </motion.div>
                 ))
