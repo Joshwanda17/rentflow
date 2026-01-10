@@ -33,6 +33,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
 import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
+import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -151,6 +152,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
           ]}
         />
+
+        {/* Monthly Goal Progress */}
+        <AgentGoalProgress />
 
         {/* Earnings Card - Clickable */}
         <button 
