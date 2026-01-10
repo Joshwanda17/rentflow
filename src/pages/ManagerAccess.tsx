@@ -31,7 +31,8 @@ import {
   Package,
   Filter,
   CalendarIcon,
-  Wallet
+  Wallet,
+  Activity
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -41,6 +42,7 @@ import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { DepositRequestsManager } from '@/components/manager/DepositRequestsManager';
+import { ActivityManager } from '@/components/manager/ActivityManager';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -612,6 +614,10 @@ export default function ManagerAccess() {
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList className="w-full h-auto flex-wrap gap-1 bg-muted/50 p-1">
+            <TabsTrigger value="activities" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <Activity className="h-3.5 w-3.5" />
+              Activities
+            </TabsTrigger>
             <TabsTrigger value="rent-requests" className="gap-1.5 text-xs flex-1 min-w-[100px]">
               <FileText className="h-3.5 w-3.5" />
               <span className="hidden sm:inline">Rent</span> Requests
@@ -645,6 +651,10 @@ export default function ManagerAccess() {
               Investments
             </TabsTrigger>
           </TabsList>
+
+          <TabsContent value="activities" className="mt-4">
+            <ActivityManager />
+          </TabsContent>
 
           <TabsContent value="rent-requests" className="mt-4">
             <RentRequestsManager />
