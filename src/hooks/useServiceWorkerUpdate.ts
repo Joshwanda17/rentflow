@@ -76,20 +76,29 @@ export function useServiceWorkerUpdate() {
       reg.addEventListener("updatefound", onUpdateFound);
     });
 
-    // Check for updates more frequently (every 30 seconds)
+    // Check for updates every 10 seconds for faster propagation
     const checkForUpdates = () => {
       registration?.update().catch(() => {});
     };
     
-    const interval = setInterval(checkForUpdates, 30 * 1000);
+    // Initial check immediately
+    setTimeout(checkForUpdates, 1000);
     
-    // Also check when the page becomes visible
+    const interval = setInterval(checkForUpdates, 10 * 1000);
+    
+    // Also check when the page becomes visible or gains focus
     const onVisibilityChange = () => {
       if (document.visibilityState === "visible") {
         checkForUpdates();
       }
     };
+    
+    const onFocus = () => {
+      checkForUpdates();
+    };
+    
     document.addEventListener("visibilitychange", onVisibilityChange);
+    window.addEventListener("focus", onFocus);
 
     // Check for version mismatch on focus (for cross-tab updates)
     const storedBuildTime = localStorage.getItem("welile_build_time");
@@ -107,6 +116,7 @@ export function useServiceWorkerUpdate() {
       navigator.serviceWorker.removeEventListener("controllerchange", onControllerChange);
       registration?.removeEventListener("updatefound", onUpdateFound);
       document.removeEventListener("visibilitychange", onVisibilityChange);
+      window.removeEventListener("focus", onFocus);
       clearInterval(interval);
     };
   }, [handleUpdate, activateWaitingWorker]);
