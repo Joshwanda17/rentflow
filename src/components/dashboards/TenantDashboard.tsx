@@ -189,7 +189,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               )}
             </Button>
           </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 animate-accordion-down">
+          <CollapsibleContent className="mt-2 space-y-4 animate-accordion-down">
             <QuickNavGrid 
               items={[
                 { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
@@ -200,14 +200,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
               ]}
             />
+
+            {/* Payment Streak Calendar */}
+            <PaymentStreakCalendar userId={user.id} />
+
+            {/* Achievement Badges */}
+            <AchievementBadges userId={user.id} />
           </CollapsibleContent>
         </Collapsible>
-
-        {/* Payment Streak Calendar */}
-        <PaymentStreakCalendar userId={user.id} />
-
-        {/* Achievement Badges */}
-        <AchievementBadges userId={user.id} />
 
         {/* PRIORITY 1: Receipt Submission Prompt */}
         <DashboardReceiptPrompt userId={user.id} />
