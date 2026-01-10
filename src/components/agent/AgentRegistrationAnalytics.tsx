@@ -14,6 +14,7 @@ import {
   BarChart, Bar
 } from 'recharts';
 import { format, subDays, startOfDay, eachDayOfInterval } from 'date-fns';
+import { AgentGoalCard } from './AgentGoalCard';
 
 interface RegistrationStats {
   total: number;
@@ -171,7 +172,8 @@ export function AgentRegistrationAnalytics() {
 
   return (
     <div className="space-y-4">
-      {/* Key Metrics */}
+      {/* Monthly Goal Card */}
+      <AgentGoalCard />
       <div className="grid grid-cols-2 gap-3">
         <Card className="bg-gradient-to-br from-primary/10 to-background">
           <CardContent className="p-4">
