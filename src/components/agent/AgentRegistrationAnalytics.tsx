@@ -121,6 +121,7 @@ export function AgentRegistrationAnalytics() {
   const [loading, setLoading] = useState(true);
   const [exporting, setExporting] = useState(false);
   const [showShareCard, setShowShareCard] = useState(false);
+  const [leaderboardRank, setLeaderboardRank] = useState<number | undefined>(undefined);
   const reportRef = useRef<HTMLDivElement>(null);
   const [stats, setStats] = useState<RegistrationStats>({
     total: 0,
@@ -139,6 +140,40 @@ export function AgentRegistrationAnalytics() {
     current: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
     previous: { registrations: 0, activations: 0, tenants: 0, landlords: 0, conversionRate: 0 },
   });
+
+  // Fetch leaderboard rank for the current user
+  const fetchLeaderboardRank = async () => {
+    if (!user) return;
+    
+    try {
+      // Fetch all invites to calculate ranks
+      const { data: invites } = await supabase
+        .from('supporter_invites')
+        .select('created_by, status')
+        .in('role', ['tenant', 'landlord']);
+
+      if (!invites) return;
+
+      // Aggregate by agent
+      const agentStats = new Map<string, number>();
+      invites.forEach(invite => {
+        const current = agentStats.get(invite.created_by) || 0;
+        agentStats.set(invite.created_by, current + 1);
+      });
+
+      // Sort by total registrations to get rankings
+      const sortedAgents = Array.from(agentStats.entries())
+        .sort((a, b) => b[1] - a[1]);
+
+      // Find current user's rank
+      const userRankIndex = sortedAgents.findIndex(([id]) => id === user.id);
+      if (userRankIndex !== -1) {
+        setLeaderboardRank(userRankIndex + 1);
+      }
+    } catch (error) {
+      console.error('Error fetching leaderboard rank:', error);
+    }
+  };
 
   const handleExportCSV = () => {
     try {
@@ -198,6 +233,7 @@ export function AgentRegistrationAnalytics() {
   useEffect(() => {
     if (user) {
       fetchAnalytics();
+      fetchLeaderboardRank();
     }
   }, [user]);
 
@@ -414,6 +450,7 @@ export function AgentRegistrationAnalytics() {
         userName={profile?.full_name || 'Agent'}
         open={showShareCard}
         onOpenChange={setShowShareCard}
+        leaderboardRank={leaderboardRank}
       />
 
       {/* Report Content for PDF export */}
