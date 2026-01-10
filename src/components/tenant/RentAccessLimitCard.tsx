@@ -1,23 +1,30 @@
 import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Star, Zap, Shield, Target } from 'lucide-react';
+import { Wallet, Flame, TrendingUp, ChevronRight } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 
 interface RentAccessLimitCardProps {
   userId: string;
 }
 
-const MAX_LIMIT = 5000000; // UGX 5,000,000 maximum
+const MAX_LIMIT = 5000000;
+
+// Format to short form like "2.5M" or "500K"
+const formatShort = (amount: number): string => {
+  if (amount >= 1000000) {
+    return `${(amount / 1000000).toFixed(1).replace(/\.0$/, '')}M`;
+  }
+  if (amount >= 1000) {
+    return `${(amount / 1000).toFixed(0)}K`;
+  }
+  return amount.toString();
+};
 
 export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
   const [limit, setLimit] = useState({
     availableLimit: 0,
     usedLimit: 0,
-    totalVerified: 0,
   });
   const [streak, setStreak] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -28,10 +35,9 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
 
   const fetchLimitData = async () => {
     try {
-      // Fetch loan limit
       const { data: limitData } = await supabase
         .from('loan_limits')
-        .select('*')
+        .select('available_limit, used_limit')
         .eq('user_id', userId)
         .single();
 
@@ -39,11 +45,9 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
         setLimit({
           availableLimit: limitData.available_limit,
           usedLimit: limitData.used_limit,
-          totalVerified: limitData.total_verified_amount,
         });
       }
 
-      // Calculate payment streak from repayments
       const { data: repayments } = await supabase
         .from('repayments')
         .select('payment_date')
@@ -52,7 +56,6 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
         .limit(30);
 
       if (repayments && repayments.length > 0) {
-        // Count consecutive days with payments
         let consecutiveDays = 0;
         const today = new Date();
         today.setHours(0, 0, 0, 0);
@@ -79,27 +82,26 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
     }
   };
 
-  const progressPercentage = (limit.availableLimit / MAX_LIMIT) * 100;
   const remainingLimit = limit.availableLimit - limit.usedLimit;
+  const usagePercentage = limit.availableLimit > 0 
+    ? ((remainingLimit) / limit.availableLimit) * 100 
+    : 0;
 
-  const getLevelInfo = () => {
-    if (limit.availableLimit >= 4000000) return { level: 'Platinum', color: 'text-purple-300', icon: Shield };
-    if (limit.availableLimit >= 2000000) return { level: 'Gold', color: 'text-yellow-400', icon: Star };
-    if (limit.availableLimit >= 1000000) return { level: 'Silver', color: 'text-gray-300', icon: Zap };
-    return { level: 'Bronze', color: 'text-orange-400', icon: Target };
-  };
-
-  const levelInfo = getLevelInfo();
-  const LevelIcon = levelInfo.icon;
+  // Calculate ring properties
+  const radius = 40;
+  const circumference = 2 * Math.PI * radius;
+  const strokeDashoffset = circumference - (usagePercentage / 100) * circumference;
 
   if (loading) {
     return (
-      <Card className="bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 border-0 shadow-xl">
-        <CardContent className="p-6">
-          <div className="animate-pulse space-y-4">
-            <div className="h-4 bg-white/20 rounded w-1/2"></div>
-            <div className="h-8 bg-white/20 rounded w-3/4"></div>
-            <div className="h-2 bg-white/20 rounded"></div>
+      <Card className="bg-gradient-to-br from-primary/90 to-primary border-0 shadow-xl">
+        <CardContent className="p-4">
+          <div className="animate-pulse flex items-center gap-4">
+            <div className="w-24 h-24 bg-white/20 rounded-full" />
+            <div className="flex-1 space-y-3">
+              <div className="h-4 bg-white/20 rounded w-1/2" />
+              <div className="h-8 bg-white/20 rounded w-3/4" />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -110,101 +112,89 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      transition={{ duration: 0.4 }}
     >
-      <Card className="bg-gradient-to-br from-purple-600 via-purple-700 to-indigo-800 border-0 shadow-2xl overflow-hidden relative">
-        {/* Decorative elements */}
-        <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/2" />
-        <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-        
-        <CardContent className="p-6 relative z-10">
-          {/* Header */}
-          <div className="flex items-center justify-between mb-4">
-            <div className="flex items-center gap-2">
-              <div className="p-2 bg-white/10 rounded-lg">
-                <TrendingUp className="h-5 w-5 text-white" />
+      <Card className="bg-gradient-to-br from-primary via-primary/95 to-primary/80 border-0 shadow-2xl overflow-hidden">
+        <CardContent className="p-4">
+          <div className="flex items-center gap-4">
+            {/* Circular Progress Ring */}
+            <div className="relative flex-shrink-0">
+              <svg width="96" height="96" className="transform -rotate-90">
+                {/* Background ring */}
+                <circle
+                  cx="48"
+                  cy="48"
+                  r={radius}
+                  stroke="rgba(255,255,255,0.2)"
+                  strokeWidth="8"
+                  fill="none"
+                />
+                {/* Progress ring */}
+                <motion.circle
+                  cx="48"
+                  cy="48"
+                  r={radius}
+                  stroke="white"
+                  strokeWidth="8"
+                  fill="none"
+                  strokeLinecap="round"
+                  strokeDasharray={circumference}
+                  initial={{ strokeDashoffset: circumference }}
+                  animate={{ strokeDashoffset }}
+                  transition={{ duration: 1, ease: "easeOut" }}
+                />
+              </svg>
+              {/* Center content */}
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <Wallet className="h-5 w-5 text-white/80 mb-0.5" />
+                <span className="text-white font-bold text-lg leading-none">
+                  {formatShort(remainingLimit)}
+                </span>
               </div>
-              <div>
-                <p className="text-purple-200 text-sm font-medium">Rent Access Limit</p>
-                <p className="text-white/60 text-xs">Pay on time to increase</p>
+            </div>
+
+            {/* Main Info */}
+            <div className="flex-1 min-w-0">
+              <p className="text-white/70 text-xs font-medium uppercase tracking-wide mb-1">
+                Available to Use
+              </p>
+              <p className="text-white text-2xl font-bold leading-tight mb-2">
+                UGX {formatShort(remainingLimit)}
+              </p>
+              
+              {/* Quick Stats Row */}
+              <div className="flex items-center gap-3">
+                {streak > 0 && (
+                  <div className="flex items-center gap-1 bg-white/15 rounded-full px-2 py-1">
+                    <Flame className="h-3.5 w-3.5 text-orange-300" />
+                    <span className="text-white text-xs font-semibold">{streak}</span>
+                  </div>
+                )}
+                <div className="flex items-center gap-1 bg-white/15 rounded-full px-2 py-1">
+                  <TrendingUp className="h-3.5 w-3.5 text-green-300" />
+                  <span className="text-white text-xs font-semibold">
+                    {formatShort(limit.availableLimit)}
+                  </span>
+                </div>
               </div>
             </div>
-            <Badge className={`${levelInfo.color} bg-white/10 border-0 flex items-center gap-1`}>
-              <LevelIcon className="h-3 w-3" />
-              {levelInfo.level}
-            </Badge>
+
+            {/* Arrow indicator */}
+            <ChevronRight className="h-5 w-5 text-white/40 flex-shrink-0" />
           </div>
 
-          {/* Main Amount */}
-          <div className="mb-6">
-            <div className="flex items-baseline gap-2">
-              <span className="text-3xl font-bold text-white">
-                {formatUGX(remainingLimit)}
-              </span>
-              <span className="text-purple-200 text-sm">available</span>
-            </div>
-            <p className="text-purple-300 text-xs mt-1">
-              of {formatUGX(limit.availableLimit)} total limit
-            </p>
-          </div>
-
-          {/* Progress to max limit */}
-          <div className="space-y-2 mb-4">
-            <div className="flex justify-between text-xs">
-              <span className="text-purple-200">Progress to max limit</span>
-              <span className="text-white font-medium">{progressPercentage.toFixed(0)}%</span>
-            </div>
-            <Progress 
-              value={progressPercentage} 
-              className="h-2 bg-white/20"
-            />
-            <p className="text-purple-300 text-xs text-right">
-              Max: {formatUGX(MAX_LIMIT)}
-            </p>
-          </div>
-
-          {/* Stats Row */}
-          <div className="grid grid-cols-3 gap-3 pt-4 border-t border-white/10">
-            <div className="text-center">
-              <p className="text-white font-semibold text-lg">{streak}</p>
-              <p className="text-purple-200 text-xs">Day Streak</p>
-            </div>
-            <div className="text-center border-x border-white/10">
-              <p className="text-white font-semibold text-lg">
-                {formatUGX(limit.usedLimit).replace('UGX', '').trim()}
-              </p>
-              <p className="text-purple-200 text-xs">In Use</p>
-            </div>
-            <div className="text-center">
-              <p className="text-white font-semibold text-lg">
-                {formatUGX(limit.totalVerified).replace('UGX', '').trim()}
-              </p>
-              <p className="text-purple-200 text-xs">Verified</p>
-            </div>
-          </div>
-
-          {/* Motivation message */}
-          {streak > 0 && (
+          {/* Simple tip - only show when no streak */}
+          {streak === 0 && (
             <motion.div 
-              initial={{ opacity: 0, scale: 0.9 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mt-4 p-3 bg-white/10 rounded-lg flex items-center gap-2"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.5 }}
+              className="mt-3 pt-3 border-t border-white/10"
             >
-              <Star className="h-4 w-4 text-yellow-400" />
-              <p className="text-white text-sm">
-                {streak >= 7 
-                  ? `Amazing! ${streak} days streak! Your limit is growing!` 
-                  : `Keep it up! ${7 - streak} more days for bonus increase!`}
+              <p className="text-white/60 text-xs text-center">
+                💡 Pay on time to grow your limit
               </p>
             </motion.div>
-          )}
-
-          {streak === 0 && (
-            <div className="mt-4 p-3 bg-white/10 rounded-lg">
-              <p className="text-purple-200 text-sm text-center">
-                💡 Make daily payments on time to increase your limit!
-              </p>
-            </div>
           )}
         </CardContent>
       </Card>
