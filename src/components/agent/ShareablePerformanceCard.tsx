@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Download, Share2, Users, TrendingUp, Trophy, Target, CheckCircle2, MessageCircle, Copy } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import { QRCodeSVG } from "qrcode.react";
 
 interface PerformanceStats {
   total: number;
@@ -251,17 +252,29 @@ export function ShareablePerformanceCard({
                   </div>
                 </div>
 
-                {/* Footer */}
+                {/* Footer with QR Code */}
                 <div className="mt-auto pt-4 border-t border-white/10">
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <p className="text-white/60 text-xs">Agent</p>
                       <p className="font-semibold text-sm">{userName}</p>
+                      <p className="text-white/60 text-xs mt-1">{format(new Date(), "MMM yyyy")}</p>
                     </div>
-                    <div className="text-right">
-                      <p className="text-white/60 text-xs">{format(new Date(), "MMM yyyy")}</p>
-                      <div className="bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 mt-1">
-                        <span className="text-xs font-medium">welile.com</span>
+                    <div className="flex items-center gap-2">
+                      <div className="text-right mr-2">
+                        <p className="text-white/60 text-[10px]">Scan to join</p>
+                        <div className="bg-white/20 backdrop-blur-sm rounded-full px-2 py-0.5 mt-0.5">
+                          <span className="text-[10px] font-medium">welile.com</span>
+                        </div>
+                      </div>
+                      <div className="bg-white p-1.5 rounded-lg">
+                        <QRCodeSVG 
+                          value="https://welile.com/become-agent" 
+                          size={48}
+                          level="M"
+                          bgColor="#ffffff"
+                          fgColor="#0f172a"
+                        />
                       </div>
                     </div>
                   </div>
