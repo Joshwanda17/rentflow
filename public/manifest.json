@@ -64,5 +64,29 @@
     }
   ],
   "categories": ["finance", "business"],
-  "prefer_related_applications": false
+  "prefer_related_applications": false,
+  "permissions": [
+    "geolocation",
+    "notifications"
+  ],
+  "protocol_handlers": [
+    {
+      "protocol": "tel",
+      "url": "/call?number=%s"
+    },
+    {
+      "protocol": "sms",
+      "url": "/sms?number=%s"
+    }
+  ],
+  "share_target": {
+    "action": "/share",
+    "method": "POST",
+    "enctype": "multipart/form-data",
+    "params": {
+      "title": "title",
+      "text": "text",
+      "url": "url"
+    }
+  }
 }
