@@ -87,6 +87,7 @@ import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDia
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
+import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 import { UserMinus } from 'lucide-react';
 
 interface ManagerDashboardProps {
@@ -2226,6 +2227,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           fetchData();
         }}
       />
+
+      {/* Mobile Quick Actions Menu - Always visible for easy navigation */}
+      <MobileManagerMenu onScrollToProductivity={scrollToProductivity} />
     </div>
   );
 }
