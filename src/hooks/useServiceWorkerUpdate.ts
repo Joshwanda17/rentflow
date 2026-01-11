@@ -10,7 +10,7 @@ export function useServiceWorkerUpdate() {
     if (isReloading.current) return;
     isReloading.current = true;
 
-    // Clear caches and reload
+    // Clear caches and reload silently
     if ("caches" in window) {
       caches.keys().then((keys) => {
         Promise.all(keys.filter((k) => k.startsWith("welile-")).map((k) => caches.delete(k)));
@@ -31,17 +31,13 @@ export function useServiceWorkerUpdate() {
     let registration: ServiceWorkerRegistration | null = null;
     let refreshing = false;
 
-    // Auto-refresh when new service worker takes control
+    // Auto-refresh immediately when new service worker takes control
     const onControllerChange = () => {
       if (refreshing) return;
       refreshing = true;
       
-      toast.success("App updated!", {
-        description: "Refreshing to apply changes...",
-        duration: 2000,
-      });
-      
-      setTimeout(() => handleUpdate(), 1500);
+      // Silent auto-update - just refresh without user interaction
+      handleUpdate();
     };
 
     const onUpdateFound = () => {
@@ -51,13 +47,7 @@ export function useServiceWorkerUpdate() {
 
       newWorker.addEventListener("statechange", () => {
         if (newWorker.state === "installed" && navigator.serviceWorker.controller) {
-          // Auto-activate the new worker immediately
-          toast.info("New version available", {
-            description: "Updating automatically...",
-            duration: 2000,
-          });
-          
-          // Tell the waiting worker to skip waiting and become active
+          // Auto-activate the new worker immediately without prompt
           activateWaitingWorker(registration!);
         }
       });
@@ -76,15 +66,15 @@ export function useServiceWorkerUpdate() {
       reg.addEventListener("updatefound", onUpdateFound);
     });
 
-    // Check for updates every 10 seconds for faster propagation
+    // Check for updates every 5 seconds for instant propagation
     const checkForUpdates = () => {
       registration?.update().catch(() => {});
     };
     
-    // Initial check immediately
-    setTimeout(checkForUpdates, 1000);
+    // Check immediately on load
+    checkForUpdates();
     
-    const interval = setInterval(checkForUpdates, 10 * 1000);
+    const interval = setInterval(checkForUpdates, 5 * 1000);
     
     // Also check when the page becomes visible or gains focus
     const onVisibilityChange = () => {
@@ -100,12 +90,12 @@ export function useServiceWorkerUpdate() {
     document.addEventListener("visibilitychange", onVisibilityChange);
     window.addEventListener("focus", onFocus);
 
-    // Check for version mismatch on focus (for cross-tab updates)
+    // Check for version mismatch on load (for cross-tab/device updates)
     const storedBuildTime = localStorage.getItem("welile_build_time");
     const currentBuildTime = String(__BUILD_TIME__);
     
     if (storedBuildTime && storedBuildTime !== currentBuildTime) {
-      // New version detected, trigger update
+      // New version detected, trigger update immediately
       localStorage.setItem("welile_build_time", currentBuildTime);
       handleUpdate();
     } else {
