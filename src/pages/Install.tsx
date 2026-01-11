@@ -8,32 +8,44 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Install() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
+  const { user, loading } = useAuth();
   
   const appUrl = window.location.origin;
   const installUrl = `${appUrl}/install`;
 
-  // Redirect to auth if app is installed
+  // Redirect based on auth status if app is installed
   useEffect(() => {
-    if (isInstalled) {
-      // Small delay to show success before redirect
+    if (isInstalled && !loading) {
       const timer = setTimeout(() => {
-        navigate('/auth', { replace: true });
+        if (user) {
+          // User is logged in, go to dashboard
+          navigate('/dashboard', { replace: true });
+        } else {
+          // Not logged in, go to auth
+          navigate('/auth', { replace: true });
+        }
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isInstalled, navigate]);
+  }, [isInstalled, user, loading, navigate]);
 
   const handleInstallClick = async () => {
     if (isInstallable) {
       const installed = await promptInstall();
       if (installed) {
-        toast.success('App installed! Redirecting to login...');
-        navigate('/auth', { replace: true });
+        if (user) {
+          toast.success('App installed! Opening dashboard...');
+          navigate('/dashboard', { replace: true });
+        } else {
+          toast.success('App installed! Redirecting to login...');
+          navigate('/auth', { replace: true });
+        }
       }
     }
   };
