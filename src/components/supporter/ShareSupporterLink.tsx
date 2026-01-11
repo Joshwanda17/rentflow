@@ -54,9 +54,9 @@ export function ShareSupporterLink({ className, variant = 'outline', size = 'def
     };
   }, [user]);
 
-  // Include referrer ID in the link
+  // Include referrer ID in the link - shorter format
   const shareLink = user 
-    ? `${window.location.origin}/become-supporter?ref=${user.id}`
+    ? `${window.location.origin}/join?s=${user.id}`
     : `${window.location.origin}/become-supporter`;
   
   const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns! 

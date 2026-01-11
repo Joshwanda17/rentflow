@@ -118,7 +118,7 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
 
   const getShareLink = () => {
     if (!createdInvite) return '';
-    return `${window.location.origin}/activate-supporter?token=${createdInvite.token}`;
+    return `${window.location.origin}/join?t=${createdInvite.token}`;
   };
 
   const getRoleEmoji = (role: UserRole) => {

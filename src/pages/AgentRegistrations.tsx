@@ -118,7 +118,7 @@ export default function AgentRegistrations() {
   });
 
   const getShareLink = (token: string) => {
-    return `${window.location.origin}/activate-supporter?token=${token}`;
+    return `${window.location.origin}/join?t=${token}`;
   };
 
   const handleCopyLink = async (invite: UserInvite) => {
