@@ -15,7 +15,7 @@ interface PaymentPartnerCardProps {
 const PARTNER_DATA = {
   mtn: {
     name: 'MTN MoMo',
-    merchantId: '09077',
+    merchantId: '090777',
     ussd: '*165*3#',
     dialString: 'tel:*165*3%23',
     bgColor: 'bg-[#FFCC00]',
@@ -25,7 +25,7 @@ const PARTNER_DATA = {
     steps: [
       'Dial *165*3#',
       'Choose "Pay with MoMo"',
-      'Enter Merchant ID: 09077',
+      'Enter Merchant ID: 090777',
       'Enter Amount',
       'Enter PIN and confirm'
     ]
