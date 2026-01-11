@@ -96,6 +96,7 @@ export default function SupporterDashboard({
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
   const [viewAgreementTab, setViewAgreementTab] = useState<'summary' | 'full'>('summary');
+  const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess } = useConfetti();
@@ -110,12 +111,25 @@ export default function SupporterDashboard({
 
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   
+  // Track local acceptance state - once accepted, never show agreement UI again in this session
+  const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
+  
   // Show agreement modal on first load if not accepted
   useEffect(() => {
-    if (hasAccepted === false && !agreementLoading) {
+    if (hasAccepted === false && !agreementLoading && localHasAccepted !== true) {
       setShowAgreementModal(true);
     }
-  }, [hasAccepted, agreementLoading]);
+  }, [hasAccepted, agreementLoading, localHasAccepted]);
+
+  // Handle agreement acceptance
+  const handleAcceptAgreement = async (): Promise<boolean> => {
+    const success = await acceptAgreement();
+    if (success) {
+      setLocalHasAccepted(true);
+      setShowAgreementModal(false);
+    }
+    return success;
+  };
 
   useEffect(() => {
     fetchData();
@@ -407,8 +421,8 @@ export default function SupporterDashboard({
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
         
-        {/* Agreement Banner - Show if not accepted */}
-        {hasAccepted === false && (
+        {/* Agreement Banner - Show only if not accepted */}
+        {!effectiveHasAccepted && (
           <SupporterAgreementBanner onReviewClick={() => setShowAgreementModal(true)} />
         )}
         
@@ -446,7 +460,7 @@ export default function SupporterDashboard({
             { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
             { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
             // Agreement items - only show if accepted
-            ...(hasAccepted ? [
+            ...(effectiveHasAccepted ? [
               { icon: ScrollText, label: 'Quick Terms', onClick: () => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); } },
               { icon: FileText, label: 'Full Agreement', onClick: () => { setViewAgreementTab('full'); setShowViewAgreementModal(true); } },
             ] : []),
@@ -463,10 +477,10 @@ export default function SupporterDashboard({
 
         {/* Tenants Needing Help */}
         <div id="tenants-section" className="relative">
-          {hasAccepted === false && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
+          {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <SimpleTenantsList
             requests={availableRequests}
-            onFund={hasAccepted ? fundRequest : () => setShowAgreementModal(true)}
+            onFund={effectiveHasAccepted ? fundRequest : () => setShowAgreementModal(true)}
             loading={loading}
           />
         </div>
@@ -591,7 +605,7 @@ export default function SupporterDashboard({
       <SupporterAgreementModal
         open={showAgreementModal}
         onOpenChange={setShowAgreementModal}
-        onAccept={acceptAgreement}
+        onAccept={handleAcceptAgreement}
         loading={agreementLoading}
       />
       
