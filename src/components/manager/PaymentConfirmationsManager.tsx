@@ -52,6 +52,7 @@ export default function PaymentConfirmationsManager() {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
   const [selectedConfirmation, setSelectedConfirmation] = useState<PaymentConfirmation | null>(null);
   const [adminNote, setAdminNote] = useState('');
   const [processing, setProcessing] = useState(false);
@@ -161,7 +162,22 @@ export default function PaymentConfirmationsManager() {
     }
   };
 
+  // Helper to check time mismatch (used in filtering and display)
+  const hasTimeMismatch = (conf: PaymentConfirmation) => {
+    if (!conf.transaction_date) return false;
+    const transactionTime = new Date(conf.transaction_date);
+    const submissionTime = new Date(conf.created_at);
+    const hoursDiff = Math.abs(differenceInHours(submissionTime, transactionTime));
+    return hoursDiff >= 2;
+  };
+
   const filteredConfirmations = confirmations.filter(conf => {
+    // Apply flagged filter first
+    if (showFlaggedOnly && !hasTimeMismatch(conf)) {
+      return false;
+    }
+    
+    // Then apply search filter
     if (!searchTerm) return true;
     const term = searchTerm.toLowerCase();
     return (
@@ -170,6 +186,8 @@ export default function PaymentConfirmationsManager() {
       conf.profile?.phone?.includes(term)
     );
   });
+
+  const flaggedCount = confirmations.filter(hasTimeMismatch).length;
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -238,7 +256,7 @@ export default function PaymentConfirmationsManager() {
             className="pl-9"
           />
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           {(['all', 'pending', 'approved', 'rejected'] as const).map((status) => (
             <Button
               key={status}
@@ -250,6 +268,25 @@ export default function PaymentConfirmationsManager() {
               {status}
             </Button>
           ))}
+          <Button
+            variant={showFlaggedOnly ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setShowFlaggedOnly(!showFlaggedOnly)}
+            className={cn(
+              showFlaggedOnly && "bg-destructive hover:bg-destructive/90"
+            )}
+          >
+            <AlertTriangle className="w-3.5 h-3.5 mr-1" />
+            Flagged
+            {flaggedCount > 0 && (
+              <span className={cn(
+                "ml-1.5 px-1.5 py-0.5 rounded-full text-xs",
+                showFlaggedOnly ? "bg-white/20" : "bg-destructive/10 text-destructive"
+              )}>
+                {flaggedCount}
+              </span>
+            )}
+          </Button>
         </div>
       </div>
 
