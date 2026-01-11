@@ -83,13 +83,47 @@ export default function BecomeSupporter() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
-      // Create referral record if there's a referrer
+      // Create referral records if there's a referrer
       const storedReferrerId = localStorage.getItem('supporter_referrer_id');
-      if (storedReferrerId && user) {
+      if (storedReferrerId && user && storedReferrerId !== user.id) {
+        // Create supporter-specific referral
         await supabase.from('supporter_referrals').insert({
           referrer_id: storedReferrerId,
           referred_id: user.id,
+          bonus_amount: 500,
         });
+        
+        // Create general referral record and credit bonus
+        await supabase.from('referrals').insert({
+          referrer_id: storedReferrerId,
+          referred_id: user.id,
+          bonus_amount: 100,
+          credited: true,
+          credited_at: new Date().toISOString(),
+        });
+
+        // Credit the referrer's wallet with UGX 100
+        const { data: walletData } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', storedReferrerId)
+          .single();
+
+        if (walletData) {
+          await supabase
+            .from('wallets')
+            .update({ balance: walletData.balance + 100 })
+            .eq('user_id', storedReferrerId);
+        }
+
+        // Notify the referrer
+        await supabase.from('notifications').insert({
+          user_id: storedReferrerId,
+          title: '🎉 New Supporter Joined!',
+          message: `Someone you referred just became a Supporter! You earned UGX 100.`,
+          type: 'success',
+        });
+
         localStorage.removeItem('supporter_referrer_id');
       }
       
