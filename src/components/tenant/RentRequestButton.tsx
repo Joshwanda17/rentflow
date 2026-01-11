@@ -269,41 +269,26 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                   <motion.div
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
-                    className="p-4 rounded-xl bg-gradient-to-br from-secondary/50 to-secondary/30 space-y-3"
+                    className="p-4 rounded-xl bg-gradient-to-br from-secondary/50 to-secondary/30"
                   >
-                    <div className="flex items-center gap-2 mb-2">
+                    <div className="flex items-center gap-2 mb-3">
                       <Info className="h-4 w-4 text-primary" />
-                      <span className="font-semibold text-sm">Repayment Breakdown</span>
+                      <span className="font-semibold text-sm">Your Repayment Plan</span>
                     </div>
                     
-                    <div className="space-y-2 text-sm">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Rent Amount:</span>
-                        <span className="font-mono font-medium">{formatUGX(calculation.rentAmount)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Access Fee ({calculation.accessFeeRate.toFixed(0)}%):</span>
-                        <span className="font-mono font-medium">{formatUGX(calculation.accessFee)}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Registration Fee:</span>
-                        <span className="font-mono font-medium">{formatUGX(calculation.requestFee)}</span>
-                      </div>
-                      <Separator className="my-2" />
-                      <div className="flex justify-between text-base">
-                        <span className="font-semibold">Total Repayment:</span>
-                        <span className="font-mono font-bold">{formatUGX(calculation.totalRepayment)}</span>
-                      </div>
+                    <div className="flex justify-between items-center text-sm mb-3">
+                      <span className="text-muted-foreground">Rent Amount:</span>
+                      <span className="font-mono font-medium">{formatUGX(calculation.rentAmount)}</span>
                     </div>
 
-                    {/* Daily Repayment Highlight */}
-                    <div className="mt-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                    {/* Daily Repayment Highlight - Main Focus */}
+                    <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-muted-foreground">Daily Payment</p>
-                          <p className="text-xl font-bold text-primary font-mono">{formatUGX(calculation.dailyRepayment)}</p>
+                          <p className="text-2xl font-bold text-primary font-mono">{formatUGX(calculation.dailyRepayment)}</p>
                         </div>
-                        <Badge variant="secondary" className="text-xs">
+                        <Badge variant="secondary" className="text-sm">
                           For {calculation.durationDays} days
                         </Badge>
                       </div>
