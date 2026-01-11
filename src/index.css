@@ -359,12 +359,28 @@
 
   /* WhatsApp FAB */
   .wa-fab {
-    @apply fixed bottom-20 right-4 md:bottom-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-40;
-    box-shadow: 0 4px 12px hsl(var(--primary) / 0.4);
+    @apply fixed bottom-24 right-4 md:bottom-6 w-14 h-14 rounded-full bg-primary text-primary-foreground shadow-lg flex items-center justify-center z-50;
+    box-shadow: 0 4px 16px hsl(var(--primary) / 0.4);
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
+    user-select: none;
+  }
+
+  .wa-fab:hover {
+    transform: scale(1.05);
+    box-shadow: 0 6px 20px hsl(var(--primary) / 0.5);
   }
 
   .wa-fab:active {
     transform: scale(0.95);
+  }
+
+  /* Ensure buttons have good touch targets */
+  .touch-target {
+    min-height: 44px;
+    min-width: 44px;
+    -webkit-tap-highlight-color: transparent;
+    touch-action: manipulation;
   }
 }
 

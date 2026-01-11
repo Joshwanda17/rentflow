@@ -214,10 +214,12 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       
       {/* Floating Action Button - Pay Rent */}
       <button 
+        type="button"
         onClick={() => setShowPayLandlord(true)}
         className="wa-fab"
+        aria-label="Pay Rent"
       >
-        <Home className="h-6 w-6" />
+        <Home className="h-6 w-6 pointer-events-none" />
       </button>
       
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
