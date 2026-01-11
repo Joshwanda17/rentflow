@@ -233,22 +233,30 @@ export function RentRequestsManager() {
                       {getStatusBadge(request.status)}
                     </div>
 
-                    <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
                       <div className="p-2 rounded-lg bg-secondary/50">
-                        <p className="text-muted-foreground">Rent Amount</p>
+                        <p className="text-muted-foreground text-xs">Rent Amount</p>
                         <p className="font-bold">{formatUGX(request.rent_amount)}</p>
                       </div>
                       <div className="p-2 rounded-lg bg-secondary/50">
-                        <p className="text-muted-foreground">Duration</p>
+                        <p className="text-muted-foreground text-xs">Access Fee</p>
+                        <p className="font-bold">{formatUGX(request.access_fee)}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-secondary/50">
+                        <p className="text-muted-foreground text-xs">Registration Fee</p>
+                        <p className="font-bold">{formatUGX(request.request_fee)}</p>
+                      </div>
+                      <div className="p-2 rounded-lg bg-secondary/50">
+                        <p className="text-muted-foreground text-xs">Duration</p>
                         <p className="font-bold">{request.duration_days} days</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-secondary/50">
-                        <p className="text-muted-foreground">Total Repayment</p>
-                        <p className="font-bold">{formatUGX(request.total_repayment)}</p>
+                      <div className="p-2 rounded-lg bg-primary/10 border border-primary/20">
+                        <p className="text-muted-foreground text-xs">Total Repayment</p>
+                        <p className="font-bold text-primary">{formatUGX(request.total_repayment)}</p>
                       </div>
-                      <div className="p-2 rounded-lg bg-secondary/50">
-                        <p className="text-muted-foreground">Daily Payment</p>
-                        <p className="font-bold">{formatUGX(request.daily_repayment)}</p>
+                      <div className="p-2 rounded-lg bg-success/10 border border-success/20">
+                        <p className="text-muted-foreground text-xs">Daily Payment</p>
+                        <p className="font-bold text-success">{formatUGX(request.daily_repayment)}</p>
                       </div>
                     </div>
 
