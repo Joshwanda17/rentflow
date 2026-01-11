@@ -8,6 +8,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
+import { CurrencyProvider } from "@/hooks/useCurrency";
 import { CartProvider } from "@/hooks/useCart";
 import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { FontSizeProvider } from "@/hooks/useFontSize";
@@ -162,22 +163,24 @@ const App = () => (
         <FontSizeProvider>
           <HapticSettingsProvider>
             <LanguageProvider>
-              <BrowserRouter>
-                <AuthProvider>
-                  <CartProvider>
-                    <ComparisonProvider>
-                      <TooltipProvider delayDuration={300}>
-                        <ConnectionStatus />
-                        <PWAInstallPrompt />
-                        <WhatsNewModal />
-                        <Toaster />
-                        <Sonner />
-                        <AnimatedRoutes />
-                      </TooltipProvider>
-                    </ComparisonProvider>
-                  </CartProvider>
-                </AuthProvider>
-              </BrowserRouter>
+              <CurrencyProvider>
+                <BrowserRouter>
+                  <AuthProvider>
+                    <CartProvider>
+                      <ComparisonProvider>
+                        <TooltipProvider delayDuration={300}>
+                          <ConnectionStatus />
+                          <PWAInstallPrompt />
+                          <WhatsNewModal />
+                          <Toaster />
+                          <Sonner />
+                          <AnimatedRoutes />
+                        </TooltipProvider>
+                      </ComparisonProvider>
+                    </CartProvider>
+                  </AuthProvider>
+                </BrowserRouter>
+              </CurrencyProvider>
             </LanguageProvider>
           </HapticSettingsProvider>
         </FontSizeProvider>

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
-import { motion, useSpring, useTransform } from 'framer-motion';
+import { motion, useSpring } from 'framer-motion';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface AnimatedBalanceProps {
   value: number;
@@ -9,6 +10,7 @@ interface AnimatedBalanceProps {
 export function AnimatedBalance({ value, className = '' }: AnimatedBalanceProps) {
   const [displayValue, setDisplayValue] = useState(value);
   const prevValue = useRef(value);
+  const { formatAmount, formatAmountCompact, currency } = useCurrency();
   
   // Spring animation for smooth number transitions
   const springValue = useSpring(value, {
@@ -29,17 +31,11 @@ export function AnimatedBalance({ value, className = '' }: AnimatedBalanceProps)
   }, [springValue]);
 
   const formatBalance = (amount: number) => {
+    // Use compact format for large numbers
     if (amount >= 1000000) {
-      return `UGX ${(amount / 1000000).toFixed(1)}M`;
+      return formatAmountCompact(amount);
     }
-    if (amount >= 1000) {
-      return `UGX ${(amount / 1000).toFixed(0)}K`;
-    }
-    return new Intl.NumberFormat('en-UG', {
-      style: 'currency',
-      currency: 'UGX',
-      minimumFractionDigits: 0,
-    }).format(amount);
+    return formatAmount(amount);
   };
 
   const isIncreasing = value > prevValue.current;
@@ -57,7 +53,7 @@ export function AnimatedBalance({ value, className = '' }: AnimatedBalanceProps)
         color: isIncreasing ? ['inherit', 'hsl(var(--success))', 'inherit'] : undefined
       }}
       transition={{ duration: 0.3 }}
-      key={value}
+      key={`${value}-${currency.code}`}
     >
       {formatBalance(displayValue)}
     </motion.span>
