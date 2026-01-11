@@ -4,10 +4,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Loader2, Receipt, CheckCircle } from 'lucide-react';
+import { Upload, Loader2, Receipt, CheckCircle, Calendar, Clock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { format } from 'date-fns';
 
 interface PaymentConfirmationFormProps {
   dashboardType: 'tenant' | 'supporter';
@@ -19,6 +20,8 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
   const [amount, setAmount] = useState('');
   const [partner, setPartner] = useState<'mtn' | 'airtel' | ''>('');
   const [transactionId, setTransactionId] = useState('');
+  const [transactionDate, setTransactionDate] = useState(format(new Date(), 'yyyy-MM-dd'));
+  const [transactionTime, setTransactionTime] = useState(format(new Date(), 'HH:mm'));
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -80,6 +83,9 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       const isAutoVerified = !!matchingRecord;
       const confirmationStatus = isAutoVerified ? 'approved' : 'pending';
 
+      // Combine date and time into a full timestamp
+      const transactionDateTime = new Date(`${transactionDate}T${transactionTime}:00`);
+
       // Insert payment confirmation
       const { data: newConfirmation, error } = await supabase
         .from('payment_confirmations')
@@ -89,6 +95,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
           payment_partner: partner,
           amount: parseFloat(amount),
           transaction_id: transactionId.trim(),
+          transaction_date: transactionDateTime.toISOString(),
           screenshot_url: screenshotUrl,
           status: confirmationStatus,
           admin_note: isAutoVerified ? 'Auto-verified: Transaction ID matched manager records' : null,
@@ -145,6 +152,8 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         setAmount('');
         setPartner('');
         setTransactionId('');
+        setTransactionDate(format(new Date(), 'yyyy-MM-dd'));
+        setTransactionTime(format(new Date(), 'HH:mm'));
         setScreenshot(null);
         setScreenshotPreview(null);
         setSubmitted(false);
@@ -217,6 +226,36 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
               onChange={(e) => setTransactionId(e.target.value)}
               required
             />
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-2">
+              <Label htmlFor="transactionDate" className="flex items-center gap-1">
+                <Calendar className="w-3.5 h-3.5" />
+                Transaction Date *
+              </Label>
+              <Input
+                id="transactionDate"
+                type="date"
+                value={transactionDate}
+                onChange={(e) => setTransactionDate(e.target.value)}
+                max={format(new Date(), 'yyyy-MM-dd')}
+                required
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="transactionTime" className="flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Transaction Time *
+              </Label>
+              <Input
+                id="transactionTime"
+                type="time"
+                value={transactionTime}
+                onChange={(e) => setTransactionTime(e.target.value)}
+                required
+              />
+            </div>
           </div>
 
           <div className="space-y-2">
