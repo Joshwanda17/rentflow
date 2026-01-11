@@ -41,6 +41,15 @@ import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 
+// Agreement components
+import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
+import { 
+  SupporterAgreementBanner, 
+  SupporterAgreementModal, 
+  SupporterAgreementCard,
+  LockedOverlay 
+} from '@/components/supporter/agreement';
+
 interface SupporterDashboardProps {
   user: User;
   signOut: () => Promise<void>;
@@ -83,11 +92,27 @@ export default function SupporterDashboard({
   const [selectedAccountForWithdraw, setSelectedAccountForWithdraw] = useState<InvestmentAccount | null>(null);
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<InvestmentAccount | null>(null);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess } = useConfetti();
+  
+  // Agreement status
+  const { 
+    hasAccepted, 
+    acceptance, 
+    loading: agreementLoading, 
+    acceptAgreement 
+  } = useSupporterAgreement();
 
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  
+  // Show agreement modal on first load if not accepted
+  useEffect(() => {
+    if (hasAccepted === false && !agreementLoading) {
+      setShowAgreementModal(true);
+    }
+  }, [hasAccepted, agreementLoading]);
 
   useEffect(() => {
     fetchData();
@@ -379,6 +404,19 @@ export default function SupporterDashboard({
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
         
+        {/* Agreement Banner - Show if not accepted */}
+        {hasAccepted === false && (
+          <SupporterAgreementBanner onReviewClick={() => setShowAgreementModal(true)} />
+        )}
+        
+        {/* Agreement Card - Always visible */}
+        <SupporterAgreementCard
+          hasAccepted={hasAccepted === true}
+          acceptedAt={acceptance?.accepted_at}
+          onReviewClick={() => setShowAgreementModal(true)}
+          loading={agreementLoading}
+        />
+        
         {/* Welcome Message */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -424,10 +462,11 @@ export default function SupporterDashboard({
         />
 
         {/* Tenants Needing Help */}
-        <div id="tenants-section">
+        <div id="tenants-section" className="relative">
+          {hasAccepted === false && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <SimpleTenantsList
             requests={availableRequests}
-            onFund={fundRequest}
+            onFund={hasAccepted ? fundRequest : () => setShowAgreementModal(true)}
             loading={loading}
           />
         </div>
@@ -546,6 +585,14 @@ export default function SupporterDashboard({
         onOpenChange={setShowPaymentPartners}
         dashboardType="supporter"
         title="Add Investment via Mobile Money"
+      />
+      
+      {/* Agreement Modal */}
+      <SupporterAgreementModal
+        open={showAgreementModal}
+        onOpenChange={setShowAgreementModal}
+        onAccept={acceptAgreement}
+        loading={agreementLoading}
       />
       
       <FloatingShareButton />
