@@ -59,21 +59,16 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
 
         {calculation && (
           <div className="mt-4 p-4 rounded-lg bg-secondary/50 space-y-3">
-            <div className="grid grid-cols-2 gap-4 text-sm">
-              <div><span className="text-muted-foreground">Rent Amount:</span></div>
-              <div className="text-right font-mono">{formatUGX(calculation.rentAmount)}</div>
-              
-              <div><span className="text-muted-foreground">Access Fee ({calculation.accessFeeRate.toFixed(0)}%):</span></div>
-              <div className="text-right font-mono">{formatUGX(calculation.accessFee)}</div>
-              
-              <div><span className="text-muted-foreground">Request Fee:</span></div>
-              <div className="text-right font-mono">{formatUGX(calculation.requestFee)}</div>
-              
-              <div className="border-t border-border pt-2"><span className="font-medium">Total Repayment:</span></div>
-              <div className="text-right font-mono font-bold border-t border-border pt-2">{formatUGX(calculation.totalRepayment)}</div>
-              
-              <div><span className="text-primary font-medium">Daily Payment:</span></div>
-              <div className="text-right font-mono font-bold text-primary">{formatUGX(calculation.dailyRepayment)}</div>
+            <div className="flex justify-between items-center text-sm mb-2">
+              <span className="text-muted-foreground">Rent Amount:</span>
+              <span className="font-mono font-medium">{formatUGX(calculation.rentAmount)}</span>
+            </div>
+            
+            <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
+              <div className="text-center">
+                <p className="text-xs text-muted-foreground mb-1">Daily Payment for {calculation.durationDays} days</p>
+                <p className="text-2xl font-bold text-primary font-mono">{formatUGX(calculation.dailyRepayment)}</p>
+              </div>
             </div>
             
             <Button onClick={onProceed} className="w-full mt-4">

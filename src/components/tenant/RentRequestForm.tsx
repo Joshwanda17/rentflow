@@ -117,8 +117,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
           </div>
 
           {calc && (
-            <div className="p-3 rounded-lg bg-primary/10 text-sm">
-              Total: {formatUGX(calc.totalRepayment)} • Daily: {formatUGX(calc.dailyRepayment)}
+            <div className="p-3 rounded-lg bg-primary/10 text-center">
+              <p className="text-xs text-muted-foreground">Daily Payment for {calc.durationDays} days</p>
+              <p className="text-xl font-bold text-primary font-mono">{formatUGX(calc.dailyRepayment)}</p>
             </div>
           )}
 
