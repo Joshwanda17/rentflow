@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
-  Calculator, Target, ChevronRight, Sparkles
+  Calculator, Target, ChevronRight, Sparkles, Store, Users
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -39,6 +39,7 @@ import { SimpleInvestmentCard } from '@/components/supporter/SimpleInvestmentCar
 import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
 import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
+import { QuickNavGrid } from '@/components/QuickNavGrid';
 
 interface SupporterDashboardProps {
   user: User;
@@ -399,6 +400,21 @@ export default function SupporterDashboard({
           ]}
         />
 
+        {/* Quick Navigation Grid */}
+        <QuickNavGrid
+          title="Quick Actions"
+          items={[
+            { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
+            { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
+            { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Target, label: 'Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
+            { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
+            { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
+            { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
+          ]}
+        />
+
         {/* Main Investment Card */}
         <SimpleInvestmentCard
           totalInvested={totalInvested}
@@ -408,11 +424,13 @@ export default function SupporterDashboard({
         />
 
         {/* Tenants Needing Help */}
-        <SimpleTenantsList
-          requests={availableRequests}
-          onFund={fundRequest}
-          loading={loading}
-        />
+        <div id="tenants-section">
+          <SimpleTenantsList
+            requests={availableRequests}
+            onFund={fundRequest}
+            loading={loading}
+          />
+        </div>
 
         {/* My Accounts */}
         <div id="accounts-section">
