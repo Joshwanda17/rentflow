@@ -1,5 +1,5 @@
 import React from 'react';
-import { Globe, DollarSign } from 'lucide-react';
+import { Globe } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -38,26 +38,26 @@ export const LocaleSwitcher: React.FC<LocaleSwitcherProps> = ({
       <Popover>
         <PopoverTrigger asChild>
           <Button 
-            variant="outline" 
+            variant="ghost" 
             size="sm" 
-            className={`gap-2 ${className}`}
+            className={`gap-1.5 h-8 px-2 rounded-lg ${className}`}
             aria-label="Locale settings"
           >
-            <Globe className="h-4 w-4" />
-            <span className="hidden sm:inline">{languageFlags[language]}</span>
-            <span className="hidden sm:inline">{currency.symbol}</span>
+            <Globe className="h-3.5 w-3.5" />
+            <span className="text-xs font-medium">{languageFlags[language]}</span>
+            <span className="text-[10px] opacity-75">{currency.code}</span>
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-auto p-4" align="end">
-          <div className="space-y-4">
+        <PopoverContent className="w-72 p-4 rounded-2xl shadow-xl border-border/50" align="end">
+          <div className="space-y-5">
             <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 block">
                 Language
               </label>
               <LanguageSwitcher />
             </div>
-            <div>
-              <label className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2 block">
+            <div className="border-t border-border/50 pt-4">
+              <label className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-2.5 block">
                 Currency
               </label>
               <CurrencySwitcher />

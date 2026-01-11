@@ -99,49 +99,50 @@ export function WalletCard() {
   return (
     <>
       <PullToRefresh onRefresh={handleRefresh}>
-        <Card className="overflow-hidden border-border">
+        <Card className="overflow-hidden border-border/50 shadow-lg rounded-2xl">
         {/* Header with gradient */}
-        <div className="bg-primary p-4 sm:p-5 text-primary-foreground">
-          <div className="flex items-center justify-between mb-3">
-            <div className="flex items-center gap-2">
+        <div className="bg-gradient-to-br from-primary via-primary to-primary/85 p-4 sm:p-5 text-primary-foreground">
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-2.5">
               <motion.div 
-                className="p-2 rounded-lg bg-primary-foreground/10"
+                className="p-2.5 rounded-xl bg-primary-foreground/15 backdrop-blur-sm"
                 whileHover={{ scale: 1.1, rotate: 5 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Wallet className="h-5 w-5" />
               </motion.div>
-              <span className="font-semibold text-sm">Wallet</span>
+              <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet</span>
             </div>
             <Button 
               variant="ghost" 
               size="icon" 
-              className="relative h-10 w-10 text-primary-foreground hover:bg-primary-foreground/10"
+              className="relative h-10 w-10 text-primary-foreground hover:bg-primary-foreground/15 rounded-xl"
               onClick={() => setPendingOpen(true)}
             >
               <Bell className="h-5 w-5" />
               {pendingCount > 0 && (
-                <Badge className="absolute -top-0.5 -right-0.5 h-5 w-5 p-0 flex items-center justify-center text-xs bg-warning text-warning-foreground">
+                <Badge className="absolute -top-0.5 -right-0.5 h-5 w-5 p-0 flex items-center justify-center text-xs bg-warning text-warning-foreground animate-pulse">
                   {pendingCount}
                 </Badge>
               )}
             </Button>
           </div>
           
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <UserAvatar 
               avatarUrl={profile?.avatar_url} 
               fullName={profile?.full_name} 
               size="md" 
             />
             <div className="flex-1">
-              <p className="text-sm opacity-90 truncate">{profile?.full_name || 'User'}</p>
+              <p className="text-sm opacity-80 truncate font-medium">{profile?.full_name || 'User'}</p>
               <AnimatedBalance 
                 value={wallet?.balance || 0} 
                 className="text-3xl sm:text-2xl font-bold tracking-tight mt-0.5 block"
               />
             </div>
           </div>
+
 
           {/* Quick Stats Row */}
           {transactions.length > 0 && (
@@ -181,39 +182,39 @@ export function WalletCard() {
           )}
         </div>
         
-        <CardContent className="p-3 sm:p-4 space-y-3">
+        <CardContent className="p-3.5 sm:p-4 space-y-3.5">
           {/* Action buttons - Large touch targets */}
-          <div className="grid grid-cols-3 gap-2">
+          <div className="grid grid-cols-3 gap-2.5">
             <Button 
               onClick={() => setSendOpen(true)} 
-              className="flex-col gap-1 h-auto py-3 active:scale-95"
+              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all shadow-sm hover:shadow-md"
             >
               <Send className="h-5 w-5" />
-              <span className="text-xs font-medium">Send</span>
+              <span className="text-xs font-semibold tracking-wide">Send</span>
             </Button>
             <Button 
               onClick={() => setRequestOpen(true)} 
               variant="secondary"
-              className="flex-col gap-1 h-auto py-3 active:scale-95"
+              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all"
             >
               <HandCoins className="h-5 w-5" />
-              <span className="text-xs font-medium">Request</span>
+              <span className="text-xs font-semibold tracking-wide">Request</span>
             </Button>
             <Button 
               onClick={() => setDepositOpen(true)} 
               variant="outline" 
-              className="flex-col gap-1 h-auto py-3 active:scale-95"
+              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all border-border/60"
             >
               <Plus className="h-5 w-5" />
-              <span className="text-xs font-medium">Add</span>
+              <span className="text-xs font-semibold tracking-wide">Add</span>
             </Button>
           </div>
 
           {/* Recent transactions - Simplified */}
           {transactions.length > 0 && (
-            <div className="pt-2 border-t border-border">
-              <div className="flex items-center justify-between mb-2">
-                <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Recent</p>
+            <div className="pt-3 border-t border-border/50">
+              <div className="flex items-center justify-between mb-2.5">
+                <p className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest">Recent</p>
                 <Button 
                   variant="ghost" 
                   size="sm" 

@@ -14,9 +14,17 @@ export default {
     },
     extend: {
       fontFamily: {
-        sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
-        display: ['Inter', '-apple-system', 'sans-serif'],
-        mono: ['SF Mono', 'JetBrains Mono', 'ui-monospace', 'monospace'],
+        sans: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'system-ui', 'sans-serif'],
+        display: ['Plus Jakarta Sans', 'Inter', '-apple-system', 'sans-serif'],
+        mono: ['JetBrains Mono', 'SF Mono', 'ui-monospace', 'monospace'],
+      },
+      letterSpacing: {
+        tighter: '-0.04em',
+        tight: '-0.02em',
+        normal: '0',
+        wide: '0.02em',
+        wider: '0.04em',
+        widest: '0.08em',
       },
       fontSize: {
         'xs': ['0.75rem', { lineHeight: '1rem' }],
