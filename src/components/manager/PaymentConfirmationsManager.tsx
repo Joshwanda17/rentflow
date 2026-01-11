@@ -24,8 +24,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, differenceInHours } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { AlertTriangle } from 'lucide-react';
 
 interface PaymentConfirmation {
   id: string;
@@ -188,6 +189,30 @@ export default function PaymentConfirmationsManager() {
     return <Badge className="bg-[#ED1C24] text-white">Airtel</Badge>;
   };
 
+  // Check if transaction date differs significantly from submission date (more than 2 hours)
+  const getTimeMismatchInfo = (conf: PaymentConfirmation) => {
+    if (!conf.transaction_date) return null;
+    
+    const transactionTime = new Date(conf.transaction_date);
+    const submissionTime = new Date(conf.created_at);
+    const hoursDiff = Math.abs(differenceInHours(submissionTime, transactionTime));
+    
+    if (hoursDiff >= 24) {
+      return { 
+        level: 'high' as const, 
+        message: `${Math.floor(hoursDiff / 24)} day(s) between transaction and submission`,
+        hours: hoursDiff 
+      };
+    } else if (hoursDiff >= 2) {
+      return { 
+        level: 'medium' as const, 
+        message: `${hoursDiff} hours between transaction and submission`,
+        hours: hoursDiff 
+      };
+    }
+    return null;
+  };
+
   return (
     <div className="space-y-4">
       {/* Header */}
@@ -283,6 +308,26 @@ export default function PaymentConfirmationsManager() {
                         <Badge variant="outline" className="capitalize text-xs">
                           {conf.dashboard_type}
                         </Badge>
+                        {(() => {
+                          const mismatch = getTimeMismatchInfo(conf);
+                          if (mismatch) {
+                            return (
+                              <Badge 
+                                variant="outline" 
+                                className={cn(
+                                  "text-xs",
+                                  mismatch.level === 'high' 
+                                    ? "border-destructive text-destructive bg-destructive/10" 
+                                    : "border-warning text-warning bg-warning/10"
+                                )}
+                              >
+                                <AlertTriangle className="w-3 h-3 mr-1" />
+                                {mismatch.level === 'high' ? 'Late Submit' : 'Delayed'}
+                              </Badge>
+                            );
+                          }
+                          return null;
+                        })()}
                       </div>
                       <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                         <span className="font-mono">{conf.transaction_id}</span>
@@ -359,6 +404,30 @@ export default function PaymentConfirmationsManager() {
                   <p className="text-sm">{format(new Date(selectedConfirmation.created_at), 'PPp')}</p>
                 </div>
               </div>
+
+              {/* Time Mismatch Warning */}
+              {(() => {
+                const mismatch = getTimeMismatchInfo(selectedConfirmation);
+                if (mismatch) {
+                  return (
+                    <div className={cn(
+                      "flex items-start gap-2 p-3 rounded-lg border",
+                      mismatch.level === 'high' 
+                        ? "bg-destructive/10 border-destructive/30 text-destructive" 
+                        : "bg-warning/10 border-warning/30 text-warning"
+                    )}>
+                      <AlertTriangle className="w-4 h-4 mt-0.5 shrink-0" />
+                      <div className="text-sm">
+                        <p className="font-medium">
+                          {mismatch.level === 'high' ? '⚠️ Significant Time Gap' : '⚡ Delayed Submission'}
+                        </p>
+                        <p className="text-xs opacity-80 mt-0.5">{mismatch.message}</p>
+                      </div>
+                    </div>
+                  );
+                }
+                return null;
+              })()}
 
               {/* Screenshot */}
               {selectedConfirmation.screenshot_url && (
