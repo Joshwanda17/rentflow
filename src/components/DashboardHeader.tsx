@@ -8,12 +8,13 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { Menu, Settings, LogOut, Download } from 'lucide-react';
+import { Menu, Settings, LogOut, Download, Globe } from 'lucide-react';
 import ChatButton from '@/components/chat/ChatButton';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { NotificationBell } from '@/components/NotificationBell';
 import { ShareAppButton } from '@/components/ShareAppButton';
+import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import IOSInstallGuide from '@/components/IOSInstallGuide';
@@ -60,19 +61,19 @@ export default function DashboardHeader({
 
   return (
     <>
-      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary via-primary to-primary/95 shadow-md">
-        <div className="px-4 py-3">
+      <header className="sticky top-0 z-50 bg-gradient-to-r from-primary via-primary to-primary/90 shadow-lg backdrop-blur-sm border-b border-primary/20">
+        <div className="px-4 py-2.5">
           <div className="flex items-center justify-between">
             {/* Left: Logo & Role */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2.5">
               <span 
-                className="text-xl font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
+                className="text-lg font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
                 style={{ fontFamily: "'Chewy', cursive" }}
                 onClick={() => navigate('/')}
               >
                 Welile
               </span>
-              <div className="h-5 w-px bg-white/20" />
+              <div className="h-4 w-px bg-white/25 rounded-full" />
               <RoleSwitcher
                 currentRole={currentRole}
                 availableRoles={availableRoles}
@@ -87,12 +88,13 @@ export default function DashboardHeader({
                   variant="ghost"
                   size="sm"
                   onClick={handleInstallClick}
-                  className="h-8 px-2.5 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium"
+                  className="h-8 px-2 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium rounded-lg"
                 >
-                  <Download className="h-4 w-4" />
+                  <Download className="h-3.5 w-3.5" />
                   <span className="hidden sm:inline">Install</span>
                 </Button>
               )}
+              <LocaleSwitcher variant="combined" className="text-white border-white/20 hover:bg-white/10" />
               <ShareAppButton />
               <ChatButton />
               <NotificationBell />
