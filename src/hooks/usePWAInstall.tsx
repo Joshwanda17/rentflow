@@ -55,6 +55,9 @@ export function usePWAInstall() {
       if (outcome === 'accepted') {
         setIsInstalled(true);
         setIsInstallable(false);
+        // Store that installation was completed for redirect logic
+        localStorage.setItem('welile_pwa_installed', 'true');
+        localStorage.setItem('welile_pwa_installed_at', Date.now().toString());
       }
       
       setDeferredPrompt(null);

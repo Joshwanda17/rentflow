@@ -3,12 +3,16 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Download, X, Plus, Square, ArrowDown, Smartphone } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { toast } from 'sonner';
 
 export default function PWAInstallPrompt() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [isFromLink, setIsFromLink] = useState(false);
+  const navigate = useNavigate();
+  const location = useLocation();
 
   // Check if user came from a shared link (referrer, UTM params, or specific routes)
   useEffect(() => {
@@ -74,6 +78,11 @@ export default function PWAInstallPrompt() {
     const success = await promptInstall();
     if (success) {
       setShowPrompt(false);
+      toast.success('App installed! Redirecting to login...');
+      // Redirect to auth page after installation
+      setTimeout(() => {
+        navigate('/auth', { replace: true });
+      }, 1000);
     }
   };
 
@@ -81,6 +90,22 @@ export default function PWAInstallPrompt() {
     setShowPrompt(false);
     setShowIOSGuide(false);
   };
+
+  // Check if just installed and redirect to auth
+  useEffect(() => {
+    const justInstalled = localStorage.getItem('welile_pwa_installed');
+    const installedAt = localStorage.getItem('welile_pwa_installed_at');
+    
+    if (justInstalled === 'true' && installedAt) {
+      const installedTime = parseInt(installedAt, 10);
+      const now = Date.now();
+      // If installed within last 30 seconds, redirect to auth
+      if (now - installedTime < 30000 && location.pathname !== '/auth') {
+        localStorage.removeItem('welile_pwa_installed_at'); // Clear to prevent repeated redirects
+        navigate('/auth', { replace: true });
+      }
+    }
+  }, [navigate, location.pathname]);
 
   if (isInstalled) return null;
 
