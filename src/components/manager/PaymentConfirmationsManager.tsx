@@ -34,6 +34,7 @@ interface PaymentConfirmation {
   payment_partner: string;
   amount: number;
   transaction_id: string;
+  transaction_date: string | null;
   screenshot_url: string | null;
   status: string;
   admin_note: string | null;
@@ -286,7 +287,14 @@ export default function PaymentConfirmationsManager() {
                       <div className="flex items-center gap-3 text-sm text-muted-foreground mt-1">
                         <span className="font-mono">{conf.transaction_id}</span>
                         <span>•</span>
-                        <span>{format(new Date(conf.created_at), 'MMM d, h:mm a')}</span>
+                        {conf.transaction_date ? (
+                          <span className="flex items-center gap-1">
+                            <Clock className="w-3 h-3" />
+                            {format(new Date(conf.transaction_date), 'MMM d, h:mm a')}
+                          </span>
+                        ) : (
+                          <span>{format(new Date(conf.created_at), 'MMM d, h:mm a')}</span>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
@@ -338,6 +346,15 @@ export default function PaymentConfirmationsManager() {
                   <p className="font-mono text-sm">{selectedConfirmation.transaction_id}</p>
                 </div>
                 <div className="space-y-1">
+                  <p className="text-xs text-muted-foreground">Transaction Date/Time</p>
+                  <p className="text-sm flex items-center gap-1">
+                    <Calendar className="w-3.5 h-3.5 text-muted-foreground" />
+                    {selectedConfirmation.transaction_date 
+                      ? format(new Date(selectedConfirmation.transaction_date), 'PPp')
+                      : 'Not specified'}
+                  </p>
+                </div>
+                <div className="space-y-1 col-span-2">
                   <p className="text-xs text-muted-foreground">Submitted</p>
                   <p className="text-sm">{format(new Date(selectedConfirmation.created_at), 'PPp')}</p>
                 </div>
