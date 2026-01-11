@@ -135,98 +135,52 @@
     </div>
     <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Check if user prefers to skip splash
-      var skipSplashPref = localStorage.getItem('welile_skip_splash') === 'true';
+      // Fast loading - skip splash for returning users
+      var skipSplash = localStorage.getItem('welile_visited') === 'true';
+      var loader = document.getElementById('app-loader');
       
-      if (skipSplashPref) {
-        // Immediately hide splash for returning users who skipped before
-        var loader = document.getElementById('app-loader');
-        if (loader) {
-          loader.style.display = 'none';
-        }
+      if (skipSplash && loader) {
+        loader.style.display = 'none';
+      } else {
+        // First visit - show brief splash
+        try { localStorage.setItem('welile_visited', 'true'); } catch(e) {}
       }
       
-      // Loading progress tracker
-      var loadingStages = [
-        { progress: 10, text: 'Initializing...' },
-        { progress: 25, text: 'Loading assets...' },
-        { progress: 45, text: 'Connecting to server...' },
-        { progress: 65, text: 'Preparing interface...' },
-        { progress: 85, text: 'Almost ready...' },
-        { progress: 100, text: 'Welcome!' }
+      // Simple progress animation (500ms total)
+      var stages = [
+        { p: 30, t: 'Loading...' },
+        { p: 70, t: 'Almost ready...' },
+        { p: 100, t: 'Welcome!' }
       ];
       
-      var currentProgress = 0;
-      var appStartTime = Date.now();
-      var MIN_SPLASH_TIME = 2000; // 2 seconds for fast loading
-      var stageInterval = MIN_SPLASH_TIME / loadingStages.length;
-      
-      function updateProgress(progress, text) {
-        var progressBar = document.getElementById('progress-bar');
-        var percentageEl = document.getElementById('loader-percentage');
-        var textEl = document.getElementById('loader-text');
-        
-        if (progressBar) progressBar.style.width = progress + '%';
-        if (percentageEl) percentageEl.textContent = progress + '%';
-        if (textEl) textEl.textContent = text;
-        currentProgress = progress;
-      }
-      
-      // Only animate if not skipping
-      if (!skipSplashPref) {
-        loadingStages.forEach(function(stage, index) {
+      if (!skipSplash) {
+        stages.forEach(function(s, i) {
           setTimeout(function() {
-            updateProgress(stage.progress, stage.text);
-          }, stageInterval * index);
+            var bar = document.getElementById('progress-bar');
+            var pct = document.getElementById('loader-percentage');
+            var txt = document.getElementById('loader-text');
+            if (bar) bar.style.width = s.p + '%';
+            if (pct) pct.textContent = s.p + '%';
+            if (txt) txt.textContent = s.t;
+          }, i * 150);
         });
       }
       
       window.hideSplash = function() {
-        var elapsed = Date.now() - appStartTime;
-        var remaining = Math.max(0, MIN_SPLASH_TIME - elapsed);
-        
-        // Ensure we show 100% before hiding
-        if (currentProgress < 100) {
-          updateProgress(100, 'Welcome!');
+        var l = document.getElementById('app-loader');
+        if (l) {
+          l.classList.add('fade-out');
+          setTimeout(function() { l.style.display = 'none'; }, 300);
         }
-        
-        setTimeout(function() {
-          var loader = document.getElementById('app-loader');
-          if (loader) {
-            loader.classList.add('fade-out');
-            setTimeout(function() {
-              loader.style.display = 'none';
-            }, 400);
-          }
-        }, remaining);
       };
       
-      // Skip button function - immediately hide splash and remember preference
       function skipSplash() {
-        // Haptic feedback on mobile devices
-        if (navigator.vibrate) {
-          navigator.vibrate(15);
-        }
-        
-        // Remember user preference to skip splash on future visits
-        try {
-          localStorage.setItem('welile_skip_splash', 'true');
-        } catch (e) {}
-        
-        updateProgress(100, 'Welcome!');
-        var loader = document.getElementById('app-loader');
-        if (loader) {
-          loader.classList.add('fade-out');
-          setTimeout(function() {
-            loader.style.display = 'none';
-          }, 400);
-        }
+        if (navigator.vibrate) navigator.vibrate(10);
+        window.hideSplash();
       }
       
-      // Fallback: hide after 3 seconds even if app hasn't mounted
-      setTimeout(function() {
-        window.hideSplash();
-      }, 3000);
+      // Fast fallback - hide after 800ms max
+      setTimeout(window.hideSplash, 800);
     </script>
   </body>
 </html>
