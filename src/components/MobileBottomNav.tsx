@@ -27,10 +27,10 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       active: location.pathname === '/marketplace'
     },
     { 
-      href: '/', 
+      href: '/dashboard', 
       icon: Home, 
       label: 'Home',
-      active: location.pathname === '/'
+      active: location.pathname === '/dashboard'
     },
     { 
       href: '/referrals', 
