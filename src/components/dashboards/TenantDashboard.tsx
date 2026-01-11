@@ -12,9 +12,6 @@ import {
   Users,
   Calendar,
   Download,
-  Menu,
-  ChevronDown,
-  ChevronUp,
   Wallet,
   CreditCard
 } from 'lucide-react';
@@ -33,10 +30,8 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
-import { QuickNavGrid } from '@/components/QuickNavGrid';
+import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { WalletCard } from '@/components/wallet/WalletCard';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
 import { PaymentStreakCalendar } from '@/components/tenant/PaymentStreakCalendar';
 import { AchievementBadges } from '@/components/tenant/AchievementBadges';
@@ -81,7 +76,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
-  const [showMoreActions, setShowMoreActions] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const { toast } = useToast();
@@ -165,54 +159,22 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Prominent Rent Request Button - Right below limit card */}
         <RentRequestButton userId={user.id} onSuccess={fetchData} />
 
-        {/* Primary Quick Actions - Always visible */}
-        <QuickNavGrid 
-          title="Quick Actions"
+        {/* Collapsible Quick Actions */}
+        <CollapsibleQuickNav 
+          buttonLabel="Quick Actions"
           items={[
             { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true), variant: 'primary' },
             { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true), variant: 'warning' },
             { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
             { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
+            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
+            { icon: History, label: 'History', onClick: () => navigate('/transactions') },
+            { icon: Calendar, label: 'Schedule', onClick: () => navigate('/payment-schedule') },
+            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
+            { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
+            { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
           ]}
         />
-
-        {/* Collapsible More Actions */}
-        <Collapsible open={showMoreActions} onOpenChange={setShowMoreActions}>
-          <CollapsibleTrigger asChild>
-            <Button 
-              variant="outline" 
-              className="w-full flex items-center justify-between gap-2 h-12"
-            >
-              <div className="flex items-center gap-2">
-                <Menu className="h-4 w-4" />
-                <span>More Actions</span>
-              </div>
-              {showMoreActions ? (
-                <ChevronUp className="h-4 w-4" />
-              ) : (
-                <ChevronDown className="h-4 w-4" />
-              )}
-            </Button>
-          </CollapsibleTrigger>
-          <CollapsibleContent className="mt-2 space-y-4 animate-accordion-down">
-            <QuickNavGrid 
-              items={[
-                { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
-                { icon: History, label: 'History', onClick: () => navigate('/transactions') },
-                { icon: Calendar, label: 'Schedule', onClick: () => navigate('/payment-schedule') },
-                { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
-                { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
-                { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
-              ]}
-            />
-
-            {/* Payment Streak Calendar */}
-            <PaymentStreakCalendar userId={user.id} />
-
-            {/* Achievement Badges */}
-            <AchievementBadges userId={user.id} />
-          </CollapsibleContent>
-        </Collapsible>
 
         {/* PRIORITY 1: Receipt Submission Prompt */}
         <DashboardReceiptPrompt userId={user.id} />
