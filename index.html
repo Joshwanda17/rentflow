@@ -15,8 +15,10 @@
     <link rel="preconnect" href="https://wirntoujqoyjobfhyelc.supabase.co" crossorigin>
     <link rel="dns-prefetch" href="https://wirntoujqoyjobfhyelc.supabase.co">
     
-    <!-- Premium Fonts -->
-    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&family=Chewy&display=swap" rel="stylesheet">
+    <!-- Fonts - Async loading for performance -->
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&family=Chewy&display=swap" rel="stylesheet"></noscript>
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
@@ -133,54 +135,34 @@
         </div>
       </div>
     </div>
-    <script type="module" src="/src/main.tsx"></script>
     <script>
-      // Fast loading - skip splash for returning users
-      var skipSplash = localStorage.getItem('welile_visited') === 'true';
-      var loader = document.getElementById('app-loader');
-      
-      if (skipSplash && loader) {
-        loader.style.display = 'none';
-      } else {
-        // First visit - show brief splash
-        try { localStorage.setItem('welile_visited', 'true'); } catch(e) {}
-      }
-      
-      // Simple progress animation (500ms total)
-      var stages = [
-        { p: 30, t: 'Loading...' },
-        { p: 70, t: 'Almost ready...' },
-        { p: 100, t: 'Welcome!' }
-      ];
-      
-      if (!skipSplash) {
-        stages.forEach(function(s, i) {
-          setTimeout(function() {
-            var bar = document.getElementById('progress-bar');
-            var pct = document.getElementById('loader-percentage');
-            var txt = document.getElementById('loader-text');
-            if (bar) bar.style.width = s.p + '%';
-            if (pct) pct.textContent = s.p + '%';
-            if (txt) txt.textContent = s.t;
-          }, i * 150);
-        });
-      }
-      
-      window.hideSplash = function() {
+      // Instant loading for returning users
+      (function(){
+        var skip = localStorage.getItem('welile_visited') === 'true';
         var l = document.getElementById('app-loader');
-        if (l) {
-          l.classList.add('fade-out');
-          setTimeout(function() { l.style.display = 'none'; }, 300);
-        }
-      };
-      
-      function skipSplash() {
-        if (navigator.vibrate) navigator.vibrate(10);
-        window.hideSplash();
-      }
-      
-      // Fast fallback - hide after 800ms max
-      setTimeout(window.hideSplash, 800);
+        if (skip && l) { l.remove(); return; }
+        try { localStorage.setItem('welile_visited', 'true'); } catch(e){}
+        
+        // Quick progress for first visit only
+        var bar = document.getElementById('progress-bar');
+        var pct = document.getElementById('loader-percentage');
+        var txt = document.getElementById('loader-text');
+        var steps = [[30,'Loading...'],[70,'Almost ready...'],[100,'Welcome!']];
+        steps.forEach(function(s,i){
+          setTimeout(function(){
+            if(bar) bar.style.width = s[0]+'%';
+            if(pct) pct.textContent = s[0]+'%';
+            if(txt) txt.textContent = s[1];
+          }, i*100);
+        });
+        
+        window.hideSplash = function(){
+          if(l){ l.classList.add('fade-out'); setTimeout(function(){ l.remove(); },200); }
+        };
+        window.skipSplash = function(){ if(navigator.vibrate)navigator.vibrate(10); window.hideSplash(); };
+        setTimeout(window.hideSplash, 500);
+      })();
     </script>
+    <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

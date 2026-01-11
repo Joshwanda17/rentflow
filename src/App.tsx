@@ -1,7 +1,4 @@
-import { lazy, Suspense, memo } from "react";
-import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
+import { lazy, Suspense, memo, useEffect } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -9,17 +6,21 @@ import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
-import { CartProvider } from "@/hooks/useCart";
-import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
-import { ConnectionStatus } from "@/components/ConnectionStatus";
-import PWAInstallPrompt from "@/components/PWAInstallPrompt";
+import { CartProvider } from "@/hooks/useCart";
+import { ComparisonProvider } from "@/hooks/useProductComparison";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
-import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
-import { WhatsNewModal } from "@/components/WhatsNewModal";
 
-// Lazy load all routes
+// Lazy load non-critical UI components
+const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
+const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
+const ConnectionStatus = lazy(() => import("@/components/ConnectionStatus").then(m => ({ default: m.ConnectionStatus })));
+const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
+const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
+
+// Lazy load routes
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -102,8 +103,10 @@ const pageTransition = {
 function AnimatedRoutes() {
   const location = useLocation();
   
-  // Listen for service worker updates
-  useServiceWorkerUpdate();
+  // Lazy load service worker hook
+  useEffect(() => {
+    import("@/hooks/useServiceWorkerUpdate");
+  }, []);
   
   return (
     <AnimatePresence mode="wait" initial={false}>
@@ -169,11 +172,13 @@ const App = () => (
                     <CartProvider>
                       <ComparisonProvider>
                         <TooltipProvider delayDuration={300}>
-                          <ConnectionStatus />
-                          <PWAInstallPrompt />
-                          <WhatsNewModal />
-                          <Toaster />
-                          <Sonner />
+                          <Suspense fallback={null}>
+                            <ConnectionStatus />
+                            <PWAInstallPrompt />
+                            <WhatsNewModal />
+                            <Toaster />
+                            <Sonner />
+                          </Suspense>
                           <AnimatedRoutes />
                         </TooltipProvider>
                       </ComparisonProvider>
