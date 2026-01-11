@@ -64,7 +64,7 @@ export function ShareSupporterLink({ className, variant = 'outline', size = 'def
 💰 Help tenants pay rent while growing your investment
 📈 Guaranteed monthly interest payments
 🔒 Secure and flexible withdrawals
-🎁 Make your first investment and I earn a bonus!
+🎁 Sign up using my link and I earn a bonus!
 
 Start investing today: ${shareLink}`;
 
