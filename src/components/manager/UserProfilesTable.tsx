@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -37,6 +37,9 @@ interface UserWithRating {
   average_rating: number | null;
   rating_count: number;
   created_at: string;
+  country: string | null;
+  city: string | null;
+  country_code: string | null;
 }
 
 type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
@@ -70,10 +73,10 @@ export default function UserProfilesTable() {
   const fetchUsers = async () => {
     setLoading(true);
 
-    // Fetch profiles
+    // Fetch profiles with location data
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at')
+      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -114,7 +117,10 @@ export default function UserProfilesTable() {
         roles: userRoles,
         average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
         rating_count: ratingInfo?.count || 0,
-        created_at: p.created_at
+        created_at: p.created_at,
+        country: p.country || null,
+        city: p.city || null,
+        country_code: p.country_code || null
       };
     });
 
@@ -138,11 +144,13 @@ export default function UserProfilesTable() {
       return;
     }
 
-    const headers = ['Name', 'Email', 'Phone', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
+    const headers = ['Name', 'Email', 'Phone', 'Country', 'City', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
     const rows = filteredUsers.map(user => [
       user.full_name,
       user.email,
       user.phone,
+      user.country || 'Unknown',
+      user.city || 'Unknown',
       user.roles.join(', '),
       user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
       user.monthly_rent ? user.monthly_rent : 'N/A',
@@ -227,11 +235,13 @@ export default function UserProfilesTable() {
       return;
     }
 
-    const headers = ['Name', 'Email', 'Phone', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
+    const headers = ['Name', 'Email', 'Phone', 'Country', 'City', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
     const rows = selected.map(user => [
       user.full_name,
       user.email,
       user.phone,
+      user.country || 'Unknown',
+      user.city || 'Unknown',
       user.roles.join(', '),
       user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
       user.monthly_rent ? user.monthly_rent : 'N/A',
@@ -588,6 +598,21 @@ export default function UserProfilesTable() {
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-base truncate pr-8">{user.full_name}</h3>
                         <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
+                        
+                        {/* Location */}
+                        {(user.country || user.city) && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <MapPin className="h-3 w-3 text-muted-foreground" />
+                            <span className="text-xs text-muted-foreground truncate">
+                              {user.city && user.country 
+                                ? `${user.city}, ${user.country}` 
+                                : user.country || user.city}
+                              {user.country_code && (
+                                <span className="ml-1 opacity-70">({user.country_code})</span>
+                              )}
+                            </span>
+                          </div>
+                        )}
                         
                         {/* Roles */}
                         <div className="flex flex-wrap gap-1.5 mt-2">

@@ -9,6 +9,8 @@ import { useToast } from '@/hooks/use-toast';
 import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { z } from 'zod';
+import { supabase } from '@/integrations/supabase/client';
+import { getLocationData } from '@/hooks/useGeolocation';
 
 const signUpSchema = z.object({
   email: z.string().email('Please enter a valid email'),
@@ -90,6 +92,23 @@ export default function Auth() {
           toast({ title: 'Sign Up Failed', description: error.message, variant: 'destructive' });
         } else {
           toast({ title: 'Account Created!', description: 'Welcome to Welile' });
+          
+          // Get and save user location in the background
+          getLocationData().then(async (locationData) => {
+            if (locationData.country || locationData.city) {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                await supabase
+                  .from('profiles')
+                  .update({
+                    country: locationData.country,
+                    city: locationData.city,
+                    country_code: locationData.countryCode
+                  })
+                  .eq('id', user.id);
+              }
+            }
+          }).catch(console.error);
         }
       } else {
         const validation = signInSchema.safeParse({ email, password });
@@ -102,6 +121,23 @@ export default function Auth() {
         const { error } = await signIn(email, password);
         if (error) {
           toast({ title: 'Sign In Failed', description: error.message, variant: 'destructive' });
+        } else {
+          // Update location on sign in (in background)
+          getLocationData().then(async (locationData) => {
+            if (locationData.country || locationData.city) {
+              const { data: { user } } = await supabase.auth.getUser();
+              if (user) {
+                await supabase
+                  .from('profiles')
+                  .update({
+                    country: locationData.country,
+                    city: locationData.city,
+                    country_code: locationData.countryCode
+                  })
+                  .eq('id', user.id);
+              }
+            }
+          }).catch(console.error);
         }
       }
     } catch {
