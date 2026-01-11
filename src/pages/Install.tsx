@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { QRCodeSVG } from 'qrcode.react';
 import { Share2, Download, Smartphone, Apple, Copy, Check, ArrowLeft, Square, ArrowDown, Plus } from 'lucide-react';
@@ -7,13 +7,36 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'sonner';
+import { usePWAInstall } from '@/hooks/usePWAInstall';
 
 export default function Install() {
   const navigate = useNavigate();
   const [copied, setCopied] = useState(false);
+  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
   
   const appUrl = window.location.origin;
   const installUrl = `${appUrl}/install`;
+
+  // Redirect to auth if app is installed
+  useEffect(() => {
+    if (isInstalled) {
+      // Small delay to show success before redirect
+      const timer = setTimeout(() => {
+        navigate('/auth', { replace: true });
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isInstalled, navigate]);
+
+  const handleInstallClick = async () => {
+    if (isInstallable) {
+      const installed = await promptInstall();
+      if (installed) {
+        toast.success('App installed! Redirecting to login...');
+        navigate('/auth', { replace: true });
+      }
+    }
+  };
 
   const handleShare = async () => {
     if (navigator.share) {
@@ -55,6 +78,19 @@ export default function Install() {
       </header>
 
       <main className="container max-w-lg mx-auto px-4 py-8 space-y-8">
+        {/* Installed Success Message */}
+        {isInstalled && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.9 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-green-500/10 border border-green-500/30 rounded-2xl p-6 text-center"
+          >
+            <div className="text-4xl mb-3">🎉</div>
+            <h3 className="font-bold text-green-600 dark:text-green-400 text-lg">App Installed!</h3>
+            <p className="text-sm text-muted-foreground mt-1">Redirecting to login...</p>
+          </motion.div>
+        )}
+
         {/* Hero Section */}
         <motion.div 
           initial={{ opacity: 0, y: 20 }}
@@ -68,6 +104,14 @@ export default function Install() {
             <h2 className="text-2xl font-bold" style={{ fontFamily: 'Chewy, cursive' }}>Welile.com</h2>
             <p className="text-muted-foreground">Africa's Rent Facilitation Platform</p>
           </div>
+          
+          {/* Direct Install Button for Android */}
+          {isInstallable && !isInstalled && (
+            <Button onClick={handleInstallClick} size="lg" className="gap-2 mt-4">
+              <Download className="h-5 w-5" />
+              Install App Now
+            </Button>
+          )}
         </motion.div>
 
         {/* QR Code Card */}
