@@ -7,6 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Checkbox } from '@/components/ui/checkbox';
 import { 
   CheckCircle, 
   XCircle, 
@@ -22,7 +23,8 @@ import {
   ImageIcon,
   ArrowUpDown,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  CheckCheck
 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,6 +64,8 @@ export default function PaymentConfirmationsManager() {
   const [adminNote, setAdminNote] = useState('');
   const [processing, setProcessing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkProcessing, setBulkProcessing] = useState(false);
 
   // Helper to get time gap in hours
   const getTimeGapHours = (conf: PaymentConfirmation) => {
@@ -175,6 +179,95 @@ export default function PaymentConfirmationsManager() {
     }
   };
 
+  // Bulk process multiple confirmations
+  const handleBulkProcess = async (action: 'approve' | 'reject') => {
+    if (selectedIds.size === 0 || !user) return;
+    
+    const pendingSelected = sortedConfirmations.filter(
+      conf => selectedIds.has(conf.id) && conf.status === 'pending'
+    );
+    
+    if (pendingSelected.length === 0) {
+      toast.error('No pending confirmations selected');
+      return;
+    }
+
+    setBulkProcessing(true);
+    let successCount = 0;
+    let failCount = 0;
+
+    try {
+      for (const conf of pendingSelected) {
+        try {
+          // Update confirmation status
+          const { error } = await supabase
+            .from('payment_confirmations')
+            .update({
+              status: action === 'approve' ? 'approved' : 'rejected',
+              admin_note: action === 'reject' ? 'Bulk rejected by manager' : null,
+              processed_by: user.id,
+              processed_at: new Date().toISOString()
+            })
+            .eq('id', conf.id);
+
+          if (error) throw error;
+
+          // If approved, credit the user's wallet
+          if (action === 'approve') {
+            const { data: walletData } = await supabase
+              .from('wallets')
+              .select('balance')
+              .eq('user_id', conf.user_id)
+              .single();
+
+            if (walletData) {
+              await supabase
+                .from('wallets')
+                .update({ balance: walletData.balance + conf.amount })
+                .eq('user_id', conf.user_id);
+            }
+
+            await supabase.from('notifications').insert({
+              user_id: conf.user_id,
+              title: '✅ Payment Approved!',
+              message: `Your payment of UGX ${conf.amount.toLocaleString()} has been verified and added to your wallet.`,
+              type: 'success',
+              metadata: { amount: conf.amount, confirmation_id: conf.id }
+            });
+          } else {
+            await supabase.from('notifications').insert({
+              user_id: conf.user_id,
+              title: '❌ Payment Rejected',
+              message: 'Your payment confirmation was not approved. Please contact support.',
+              type: 'warning',
+              metadata: { confirmation_id: conf.id }
+            });
+          }
+
+          successCount++;
+        } catch (err) {
+          console.error(`Error processing ${conf.id}:`, err);
+          failCount++;
+        }
+      }
+
+      if (successCount > 0) {
+        toast.success(`${successCount} payment(s) ${action === 'approve' ? 'approved' : 'rejected'} successfully`);
+      }
+      if (failCount > 0) {
+        toast.error(`${failCount} payment(s) failed to process`);
+      }
+
+      setSelectedIds(new Set());
+      fetchConfirmations();
+    } catch (error: any) {
+      console.error('Bulk processing error:', error);
+      toast.error('Failed to process payments');
+    } finally {
+      setBulkProcessing(false);
+    }
+  };
+
   // Helper to check time mismatch (used in filtering and display)
   const hasTimeMismatch = (conf: PaymentConfirmation) => {
     if (!conf.transaction_date) return false;
@@ -219,6 +312,29 @@ export default function PaymentConfirmationsManager() {
         return 0;
     }
   });
+
+  // Selection helpers (must be after sortedConfirmations)
+  const pendingInView = sortedConfirmations.filter(c => c.status === 'pending');
+  const allPendingSelected = pendingInView.length > 0 && pendingInView.every(c => selectedIds.has(c.id));
+  const somePendingSelected = pendingInView.some(c => selectedIds.has(c.id));
+
+  const toggleSelectAll = () => {
+    if (allPendingSelected) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(pendingInView.map(c => c.id)));
+    }
+  };
+
+  const toggleSelect = (id: string) => {
+    const newSelected = new Set(selectedIds);
+    if (newSelected.has(id)) {
+      newSelected.delete(id);
+    } else {
+      newSelected.add(id);
+    }
+    setSelectedIds(newSelected);
+  };
 
   const getStatusBadge = (status: string) => {
     switch (status) {
@@ -362,8 +478,66 @@ export default function PaymentConfirmationsManager() {
         </span>
       </div>
 
+      {/* Bulk Actions Bar */}
+      {pendingInView.length > 0 && (
+        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg border">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              id="select-all"
+              checked={allPendingSelected}
+              onCheckedChange={toggleSelectAll}
+              className="data-[state=checked]:bg-primary"
+            />
+            <label htmlFor="select-all" className="text-sm font-medium cursor-pointer">
+              {allPendingSelected ? 'Deselect All' : 'Select All Pending'}
+            </label>
+          </div>
+          
+          {selectedIds.size > 0 && (
+            <>
+              <div className="h-4 w-px bg-border" />
+              <span className="text-sm text-muted-foreground">
+                {selectedIds.size} selected
+              </span>
+              <div className="flex-1" />
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() => handleBulkProcess('reject')}
+                disabled={bulkProcessing}
+                className="border-destructive text-destructive hover:bg-destructive/10"
+              >
+                {bulkProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <XCircle className="w-4 h-4 mr-1" />
+                    Reject All
+                  </>
+                )}
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => handleBulkProcess('approve')}
+                disabled={bulkProcessing}
+                className="bg-success hover:bg-success/90"
+              >
+                {bulkProcessing ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <CheckCheck className="w-4 h-4 mr-1" />
+                    Approve All
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+        </div>
+      )}
+
       {/* Confirmations List */}
-      <ScrollArea className="h-[calc(100vh-280px)]">
+      <ScrollArea className="h-[calc(100vh-320px)]">
         <div className="space-y-3 pr-4">
           {loading ? (
             Array.from({ length: 5 }).map((_, i) => (
@@ -393,12 +567,23 @@ export default function PaymentConfirmationsManager() {
                 key={conf.id} 
                 className={cn(
                   'cursor-pointer hover:shadow-md transition-shadow',
-                  conf.status === 'pending' && 'border-warning/50 bg-warning/5'
+                  conf.status === 'pending' && 'border-warning/50 bg-warning/5',
+                  selectedIds.has(conf.id) && 'ring-2 ring-primary'
                 )}
                 onClick={() => setSelectedConfirmation(conf)}
               >
                 <CardContent className="p-4">
                   <div className="flex items-start gap-3">
+                    {/* Checkbox for pending items */}
+                    {conf.status === 'pending' && (
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <Checkbox
+                          checked={selectedIds.has(conf.id)}
+                          onCheckedChange={() => toggleSelect(conf.id)}
+                          className="mt-2 data-[state=checked]:bg-primary"
+                        />
+                      </div>
+                    )}
                     <div className={cn(
                       'w-10 h-10 rounded-full flex items-center justify-center',
                       conf.payment_partner === 'mtn' ? 'bg-[#FFCC00]' : 'bg-[#ED1C24]'
