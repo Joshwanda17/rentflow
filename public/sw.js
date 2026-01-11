@@ -1,6 +1,6 @@
-// Welile Service Worker - Offline Support for 40M+ African Users
-// Auto-update enabled: all devices update automatically when new version is deployed
-const CACHE_NAME = 'welile-v3';
+// Welile Service Worker - Instant Auto-Updates for All Devices
+// Version check happens every 5 seconds, updates apply immediately
+const CACHE_NAME = 'welile-v4';
 const OFFLINE_URL = '/offline.html';
 
 // Assets to cache immediately on install
@@ -8,15 +8,19 @@ const PRECACHE_ASSETS = [
   '/',
   '/offline.html',
   '/favicon.png',
+  '/welile-logo.png',
+  '/manifest.json'
 ];
 
 // Install event - cache critical assets and skip waiting immediately
 self.addEventListener('install', (event) => {
+  console.log('[SW] Installing new version...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       return cache.addAll(PRECACHE_ASSETS);
     }).then(() => {
-      // IMPORTANT: Skip waiting immediately to activate new version
+      // CRITICAL: Skip waiting immediately to activate new version
+      console.log('[SW] Skipping waiting...');
       return self.skipWaiting();
     })
   );
@@ -24,19 +28,25 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean old caches and claim all clients immediately
 self.addEventListener('activate', (event) => {
+  console.log('[SW] Activating new version...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
           .filter((name) => name.startsWith('welile-') && name !== CACHE_NAME)
-          .map((name) => caches.delete(name))
+          .map((name) => {
+            console.log('[SW] Deleting old cache:', name);
+            return caches.delete(name);
+          })
       );
     }).then(() => {
-      // IMPORTANT: Take control of all clients immediately
+      // CRITICAL: Take control of all clients immediately
+      console.log('[SW] Claiming clients...');
       return self.clients.claim();
     }).then(() => {
-      // Notify all clients about the update
-      return self.clients.matchAll().then((clients) => {
+      // Notify all clients about the update - this triggers automatic refresh
+      return self.clients.matchAll({ type: 'window' }).then((clients) => {
+        console.log('[SW] Notifying', clients.length, 'clients about update');
         clients.forEach((client) => {
           client.postMessage({ type: 'SW_UPDATED', version: CACHE_NAME });
         });
@@ -45,7 +55,7 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - keep HTML network-first; keep JS network-first to avoid stale chunk mixing
+// Fetch event - Network-first for fresh content
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -87,7 +97,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // IMPORTANT: Scripts should be network-first (Vite chunk hashes change on deploy)
+  // Scripts should be network-first (Vite chunk hashes change on deploy)
   if (request.destination === 'script') {
     event.respondWith(
       fetch(request)
@@ -105,7 +115,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For other static assets, use cache-first
+  // For other static assets, use cache-first with background update
   if (
     request.destination === 'style' ||
     request.destination === 'image' ||
@@ -175,6 +185,7 @@ async function syncPendingRequests() {
 // Listen for messages from the app
 self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'SKIP_WAITING') {
+    console.log('[SW] Received SKIP_WAITING message');
     self.skipWaiting();
   }
   // Legacy support
