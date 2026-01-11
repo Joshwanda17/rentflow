@@ -184,9 +184,10 @@ import { QUICK_SUMMARY_CONTENT, FULL_AGREEMENT_CONTENT } from './AgreementConten
 interface SupporterAgreementViewModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  defaultTab?: 'summary' | 'full';
 }
 
-function SupporterAgreementViewModal({ open, onOpenChange }: SupporterAgreementViewModalProps) {
+export function SupporterAgreementViewModal({ open, onOpenChange, defaultTab = 'summary' }: SupporterAgreementViewModalProps) {
   const effectiveDate = format(new Date(), 'MMMM d, yyyy');
 
   const handleDownloadPDF = () => {
@@ -269,7 +270,7 @@ ${FULL_AGREEMENT_CONTENT}
 
         {/* Tabs */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <Tabs defaultValue="summary" className="flex-1 flex flex-col min-h-0">
+          <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-4 sm:px-6 pt-4 shrink-0">
               <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="summary" className="gap-1.5 text-xs sm:text-sm">
