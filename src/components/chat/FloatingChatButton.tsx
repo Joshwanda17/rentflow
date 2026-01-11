@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion, AnimatePresence, useDragControls, PanInfo } from 'framer-motion';
 import { MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,14 +9,38 @@ import { hapticTap } from '@/lib/haptics';
 import { PresenceProvider } from '@/hooks/usePresence';
 import ChatDrawer from './ChatDrawer';
 
+const STORAGE_KEY = 'floating-chat-position';
+
+interface Position {
+  x: number;
+  y: number;
+}
+
 export default function FloatingChatButton() {
   const location = useLocation();
   const { user } = useAuth();
   const [unreadCount, setUnreadCount] = useState(0);
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
+  const [isDragging, setIsDragging] = useState(false);
+  const constraintsRef = useRef<HTMLDivElement>(null);
+  const dragControls = useDragControls();
 
   // Don't show on chat page
   const isOnChatPage = location.pathname === '/chat';
+
+  // Load saved position on mount
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        setPosition(parsed);
+      }
+    } catch {
+      // Ignore parse errors
+    }
+  }, []);
 
   useEffect(() => {
     if (!user) return;
@@ -72,32 +96,68 @@ export default function FloatingChatButton() {
   }, [user]);
 
   const handleClick = () => {
-    hapticTap();
-    setDrawerOpen(true);
+    // Only open drawer if not dragging
+    if (!isDragging) {
+      hapticTap();
+      setDrawerOpen(true);
+    }
+  };
+
+  const handleDragStart = () => {
+    setIsDragging(true);
+  };
+
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    // Small delay to prevent click after drag
+    setTimeout(() => setIsDragging(false), 100);
+    
+    // Save the new position
+    const newPosition = {
+      x: position.x + info.offset.x,
+      y: position.y + info.offset.y
+    };
+    setPosition(newPosition);
+    
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(newPosition));
+    } catch {
+      // Ignore storage errors
+    }
   };
 
   if (isOnChatPage || !user) return null;
 
   return (
     <PresenceProvider>
+      {/* Drag constraints - full viewport */}
+      <div 
+        ref={constraintsRef} 
+        className="fixed inset-0 pointer-events-none z-[59]"
+      />
+      
       <motion.button
-        initial={{ scale: 0, opacity: 0 }}
+        drag
+        dragControls={dragControls}
+        dragConstraints={constraintsRef}
+        dragElastic={0.1}
+        dragMomentum={false}
+        onDragStart={handleDragStart}
+        onDragEnd={handleDragEnd}
+        initial={{ scale: 0, opacity: 0, x: position.x, y: position.y }}
         animate={{ 
           scale: 1, 
           opacity: 1,
-          y: unreadCount > 0 ? [0, -8, 0] : 0
+          x: position.x,
+          y: position.y
         }}
         transition={{
-          y: {
-            repeat: unreadCount > 0 ? Infinity : 0,
-            repeatDelay: 2,
-            duration: 0.5,
-            ease: "easeInOut"
-          }
+          type: "spring",
+          stiffness: 300,
+          damping: 25
         }}
-        exit={{ scale: 0, opacity: 0 }}
-        whileHover={{ scale: 1.15 }}
-        whileTap={{ scale: 0.9 }}
+        whileHover={{ scale: isDragging ? 1 : 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        whileDrag={{ scale: 1.15, cursor: 'grabbing' }}
         onClick={handleClick}
         className={cn(
           "fixed top-20 md:top-6 right-4 md:right-8 z-[60]",
@@ -106,14 +166,15 @@ export default function FloatingChatButton() {
           "text-primary-foreground",
           "shadow-2xl shadow-primary/50",
           "flex items-center justify-center",
-          "transition-all duration-300",
+          "transition-shadow duration-300",
           "hover:shadow-primary/70 hover:shadow-2xl",
           "focus:outline-none focus:ring-4 focus:ring-primary/50 focus:ring-offset-2",
-          "border-2 border-primary-foreground/30"
+          "border-2 border-primary-foreground/30",
+          "cursor-grab active:cursor-grabbing touch-none"
         )}
-        aria-label="Open chat"
+        aria-label="Open chat (drag to move)"
       >
-        <MessageCircle className="h-6 w-6 md:h-7 md:w-7" strokeWidth={2.5} />
+        <MessageCircle className="h-6 w-6 md:h-7 md:w-7 pointer-events-none" strokeWidth={2.5} />
 
         {/* Unread badge */}
         <AnimatePresence>
@@ -130,7 +191,7 @@ export default function FloatingChatButton() {
                 "text-sm font-bold",
                 "flex items-center justify-center",
                 "border-2 border-background",
-                "shadow-lg"
+                "shadow-lg pointer-events-none"
               )}
             >
               {unreadCount > 99 ? '99+' : unreadCount}
@@ -140,11 +201,11 @@ export default function FloatingChatButton() {
 
         {/* Pulse animation for unread */}
         {unreadCount > 0 && (
-          <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25" />
+          <span className="absolute inset-0 rounded-full bg-primary animate-ping opacity-25 pointer-events-none" />
         )}
 
         {/* Glow effect */}
-        <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10" />
+        <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10 pointer-events-none" />
       </motion.button>
 
       <ChatDrawer open={drawerOpen} onOpenChange={setDrawerOpen} />
