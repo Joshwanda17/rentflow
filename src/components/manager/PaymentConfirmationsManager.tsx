@@ -19,8 +19,12 @@ import {
   Calendar,
   Receipt,
   Loader2,
-  ImageIcon
+  ImageIcon,
+  ArrowUpDown,
+  ArrowUp,
+  ArrowDown
 } from 'lucide-react';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -53,10 +57,19 @@ export default function PaymentConfirmationsManager() {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
   const [showFlaggedOnly, setShowFlaggedOnly] = useState(false);
+  const [sortBy, setSortBy] = useState<'date-desc' | 'date-asc' | 'amount-desc' | 'amount-asc' | 'gap-desc'>('date-desc');
   const [selectedConfirmation, setSelectedConfirmation] = useState<PaymentConfirmation | null>(null);
   const [adminNote, setAdminNote] = useState('');
   const [processing, setProcessing] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+
+  // Helper to get time gap in hours
+  const getTimeGapHours = (conf: PaymentConfirmation) => {
+    if (!conf.transaction_date) return 0;
+    const transactionTime = new Date(conf.transaction_date);
+    const submissionTime = new Date(conf.created_at);
+    return Math.abs(differenceInHours(submissionTime, transactionTime));
+  };
 
   const fetchConfirmations = async () => {
     setLoading(true);
@@ -189,6 +202,24 @@ export default function PaymentConfirmationsManager() {
 
   const flaggedCount = confirmations.filter(hasTimeMismatch).length;
 
+  // Apply sorting
+  const sortedConfirmations = [...filteredConfirmations].sort((a, b) => {
+    switch (sortBy) {
+      case 'date-desc':
+        return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+      case 'date-asc':
+        return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+      case 'amount-desc':
+        return b.amount - a.amount;
+      case 'amount-asc':
+        return a.amount - b.amount;
+      case 'gap-desc':
+        return getTimeGapHours(b) - getTimeGapHours(a);
+      default:
+        return 0;
+    }
+  });
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
@@ -290,6 +321,47 @@ export default function PaymentConfirmationsManager() {
         </div>
       </div>
 
+      {/* Sorting */}
+      <div className="flex items-center gap-2">
+        <ArrowUpDown className="w-4 h-4 text-muted-foreground" />
+        <span className="text-sm text-muted-foreground">Sort by:</span>
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as typeof sortBy)}>
+          <SelectTrigger className="w-[180px] h-8">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="date-desc">
+              <span className="flex items-center gap-2">
+                <ArrowDown className="w-3 h-3" /> Newest First
+              </span>
+            </SelectItem>
+            <SelectItem value="date-asc">
+              <span className="flex items-center gap-2">
+                <ArrowUp className="w-3 h-3" /> Oldest First
+              </span>
+            </SelectItem>
+            <SelectItem value="amount-desc">
+              <span className="flex items-center gap-2">
+                <ArrowDown className="w-3 h-3" /> Highest Amount
+              </span>
+            </SelectItem>
+            <SelectItem value="amount-asc">
+              <span className="flex items-center gap-2">
+                <ArrowUp className="w-3 h-3" /> Lowest Amount
+              </span>
+            </SelectItem>
+            <SelectItem value="gap-desc">
+              <span className="flex items-center gap-2">
+                <AlertTriangle className="w-3 h-3" /> Largest Time Gap
+              </span>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+        <span className="text-xs text-muted-foreground ml-2">
+          {sortedConfirmations.length} result{sortedConfirmations.length !== 1 ? 's' : ''}
+        </span>
+      </div>
+
       {/* Confirmations List */}
       <ScrollArea className="h-[calc(100vh-280px)]">
         <div className="space-y-3 pr-4">
@@ -308,7 +380,7 @@ export default function PaymentConfirmationsManager() {
                 </CardContent>
               </Card>
             ))
-          ) : filteredConfirmations.length === 0 ? (
+          ) : sortedConfirmations.length === 0 ? (
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <Receipt className="w-12 h-12 mx-auto mb-3 opacity-50" />
@@ -316,7 +388,7 @@ export default function PaymentConfirmationsManager() {
               </CardContent>
             </Card>
           ) : (
-            filteredConfirmations.map((conf) => (
+            sortedConfirmations.map((conf) => (
               <Card 
                 key={conf.id} 
                 className={cn(
