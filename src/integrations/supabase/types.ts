@@ -696,6 +696,56 @@ export type Database = {
         }
         Relationships: []
       }
+      manager_recorded_transactions: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          matched: boolean | null
+          matched_at: string | null
+          matched_confirmation_id: string | null
+          notes: string | null
+          payment_partner: string
+          recorded_by: string
+          sender_phone: string | null
+          transaction_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          matched?: boolean | null
+          matched_at?: string | null
+          matched_confirmation_id?: string | null
+          notes?: string | null
+          payment_partner: string
+          recorded_by: string
+          sender_phone?: string | null
+          transaction_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          matched?: boolean | null
+          matched_at?: string | null
+          matched_confirmation_id?: string | null
+          notes?: string | null
+          payment_partner?: string
+          recorded_by?: string
+          sender_phone?: string | null
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_recorded_transactions_matched_confirmation_id_fkey"
+            columns: ["matched_confirmation_id"]
+            isOneToOne: false
+            referencedRelation: "payment_confirmations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       message_reactions: {
         Row: {
           created_at: string

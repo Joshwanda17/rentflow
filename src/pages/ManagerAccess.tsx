@@ -32,7 +32,8 @@ import {
   Filter,
   CalendarIcon,
   Wallet,
-  Activity
+  Activity,
+  CreditCard
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -43,6 +44,8 @@ import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { DepositRequestsManager } from '@/components/manager/DepositRequestsManager';
 import { ActivityManager } from '@/components/manager/ActivityManager';
+import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
+import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -650,6 +653,10 @@ export default function ManagerAccess() {
               <Wallet className="h-3.5 w-3.5" />
               Investments
             </TabsTrigger>
+            <TabsTrigger value="payments" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <CreditCard className="h-3.5 w-3.5" />
+              Payments
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities" className="mt-4">
@@ -686,6 +693,13 @@ export default function ManagerAccess() {
 
           <TabsContent value="investments" className="mt-4">
             <InvestmentAccountsManager />
+          </TabsContent>
+
+          <TabsContent value="payments" className="mt-4">
+            <div className="grid gap-4 lg:grid-cols-2">
+              <RecordMerchantPayment />
+              <PaymentConfirmationsManager />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
