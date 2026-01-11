@@ -52,6 +52,7 @@ const Install = lazy(() => import('./pages/Install'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 const Chat = lazy(() => import('./pages/Chat'));
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
+const Join = lazy(() => import('./pages/Join'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -151,6 +152,7 @@ function AnimatedRoutes() {
             <Route path="/activate-supporter" element={<ActivateSupporter />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/agent-registrations" element={<AgentRegistrations />} />
+            <Route path="/join" element={<Join />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>

@@ -49,7 +49,7 @@ export default function Referrals() {
   const [loading, setLoading] = useState(true);
   const [copied, setCopied] = useState(false);
 
-  const referralLink = user ? `${window.location.origin}/auth?ref=${user.id}` : '';
+  const referralLink = user ? `${window.location.origin}/join?r=${user.id}` : '';
 
   useEffect(() => {
     if (!user) return;

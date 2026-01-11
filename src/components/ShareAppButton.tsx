@@ -16,9 +16,9 @@ export function ShareAppButton() {
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
 
-  // Generate referral link with user's ID
+  // Generate referral link with user's ID - shorter format
   const referralLink = user 
-    ? `${window.location.origin}/auth?ref=${user.id}`
+    ? `${window.location.origin}/join?r=${user.id}`
     : window.location.origin;
   
   const shareMessage = `🏠 Hey! I'm using Welile to manage my rent payments and build credit through shopping. It's super easy! Join using my link and we both get rewarded: ${referralLink}`;
