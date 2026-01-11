@@ -40,7 +40,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
-import { QuickNavGrid } from '@/components/QuickNavGrid';
+import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 
 interface AgentDashboardProps {
   user: User;
@@ -138,9 +138,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Wallet Card */}
         <WalletCard />
 
-        {/* Quick Navigation Grid */}
-        <QuickNavGrid 
-          title="Quick Actions"
+        {/* Collapsible Quick Navigation */}
+        <CollapsibleQuickNav 
+          buttonLabel="Quick Actions"
           items={[
             { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' },
             { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' },

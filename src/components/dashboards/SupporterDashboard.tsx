@@ -39,7 +39,7 @@ import { SimpleInvestmentCard } from '@/components/supporter/SimpleInvestmentCar
 import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
 import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
-import { QuickNavGrid } from '@/components/QuickNavGrid';
+import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 
 interface SupporterDashboardProps {
   user: User;
@@ -400,9 +400,9 @@ export default function SupporterDashboard({
           ]}
         />
 
-        {/* Quick Navigation Grid */}
-        <QuickNavGrid
-          title="Quick Actions"
+        {/* Collapsible Quick Navigation */}
+        <CollapsibleQuickNav
+          buttonLabel="Quick Actions"
           items={[
             { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
             { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
