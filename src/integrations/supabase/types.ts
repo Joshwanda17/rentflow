@@ -948,6 +948,7 @@ export type Database = {
           processed_by: string | null
           screenshot_url: string | null
           status: string
+          transaction_date: string | null
           transaction_id: string
           updated_at: string
           user_id: string
@@ -963,6 +964,7 @@ export type Database = {
           processed_by?: string | null
           screenshot_url?: string | null
           status?: string
+          transaction_date?: string | null
           transaction_id: string
           updated_at?: string
           user_id: string
@@ -978,6 +980,7 @@ export type Database = {
           processed_by?: string | null
           screenshot_url?: string | null
           status?: string
+          transaction_date?: string | null
           transaction_id?: string
           updated_at?: string
           user_id?: string
