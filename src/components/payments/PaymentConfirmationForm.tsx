@@ -68,22 +68,77 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         }
       }
 
+      // Check if this transaction ID was already recorded by a manager (auto-verify)
+      const { data: matchingRecord } = await supabase
+        .from('manager_recorded_transactions')
+        .select('id, amount')
+        .ilike('transaction_id', transactionId.trim())
+        .eq('payment_partner', partner)
+        .eq('matched', false)
+        .single();
+
+      const isAutoVerified = !!matchingRecord;
+      const confirmationStatus = isAutoVerified ? 'approved' : 'pending';
+
       // Insert payment confirmation
-      const { error } = await supabase
+      const { data: newConfirmation, error } = await supabase
         .from('payment_confirmations')
         .insert({
           user_id: user.id,
           dashboard_type: dashboardType,
           payment_partner: partner,
           amount: parseFloat(amount),
-          transaction_id: transactionId,
-          screenshot_url: screenshotUrl
-        });
+          transaction_id: transactionId.trim(),
+          screenshot_url: screenshotUrl,
+          status: confirmationStatus,
+          admin_note: isAutoVerified ? 'Auto-verified: Transaction ID matched manager records' : null,
+          processed_at: isAutoVerified ? new Date().toISOString() : null
+        })
+        .select()
+        .single();
 
       if (error) throw error;
 
-      setSubmitted(true);
-      toast.success('Payment confirmation submitted! We\'ll verify shortly.');
+      // If auto-verified, update the manager record and credit wallet
+      if (isAutoVerified && matchingRecord && newConfirmation) {
+        // Mark the manager record as matched
+        await supabase
+          .from('manager_recorded_transactions')
+          .update({
+            matched: true,
+            matched_confirmation_id: newConfirmation.id,
+            matched_at: new Date().toISOString()
+          })
+          .eq('id', matchingRecord.id);
+
+        // Credit user's wallet
+        const { data: walletData } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .single();
+
+        if (walletData) {
+          await supabase
+            .from('wallets')
+            .update({ balance: walletData.balance + parseFloat(amount) })
+            .eq('user_id', user.id);
+        }
+
+        // Create success notification
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: '✅ Payment Auto-Verified!',
+          message: `Your payment of UGX ${parseFloat(amount).toLocaleString()} has been automatically verified and added to your wallet.`,
+          type: 'success'
+        });
+
+        setSubmitted(true);
+        toast.success('🎉 Payment verified automatically! Funds added to wallet.');
+      } else {
+        setSubmitted(true);
+        toast.success('Payment confirmation submitted! We\'ll verify shortly.');
+      }
       
       // Reset form after delay
       setTimeout(() => {
