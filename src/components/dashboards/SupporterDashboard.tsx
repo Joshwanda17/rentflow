@@ -9,7 +9,8 @@ import { Badge } from '@/components/ui/badge';
 import { 
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
-  Calculator, Target, ChevronRight, Sparkles, Store, Users
+  Calculator, Target, ChevronRight, Sparkles, Store, Users,
+  FileText, ScrollText
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -46,9 +47,9 @@ import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { 
   SupporterAgreementBanner, 
   SupporterAgreementModal, 
-  SupporterAgreementCard,
   LockedOverlay 
 } from '@/components/supporter/agreement';
+import { SupporterAgreementViewModal } from '@/components/supporter/agreement/SupporterAgreementCard';
 
 interface SupporterDashboardProps {
   user: User;
@@ -93,6 +94,8 @@ export default function SupporterDashboard({
   const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<InvestmentAccount | null>(null);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
+  const [viewAgreementTab, setViewAgreementTab] = useState<'summary' | 'full'>('summary');
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess } = useConfetti();
@@ -409,14 +412,6 @@ export default function SupporterDashboard({
           <SupporterAgreementBanner onReviewClick={() => setShowAgreementModal(true)} />
         )}
         
-        {/* Agreement Card - Always visible */}
-        <SupporterAgreementCard
-          hasAccepted={hasAccepted === true}
-          acceptedAt={acceptance?.accepted_at}
-          onReviewClick={() => setShowAgreementModal(true)}
-          loading={agreementLoading}
-        />
-        
         {/* Welcome Message */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -450,6 +445,11 @@ export default function SupporterDashboard({
             { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
             { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
             { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
+            // Agreement items - only show if accepted
+            ...(hasAccepted ? [
+              { icon: ScrollText, label: 'Quick Terms', onClick: () => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); } },
+              { icon: FileText, label: 'Full Agreement', onClick: () => { setViewAgreementTab('full'); setShowViewAgreementModal(true); } },
+            ] : []),
           ]}
         />
 
@@ -593,6 +593,13 @@ export default function SupporterDashboard({
         onOpenChange={setShowAgreementModal}
         onAccept={acceptAgreement}
         loading={agreementLoading}
+      />
+      
+      {/* Agreement View Modal (for viewing after acceptance) */}
+      <SupporterAgreementViewModal
+        open={showViewAgreementModal}
+        onOpenChange={setShowViewAgreementModal}
+        defaultTab={viewAgreementTab}
       />
       
       <FloatingShareButton />
