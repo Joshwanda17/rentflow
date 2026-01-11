@@ -46,19 +46,22 @@ export function CollapsibleQuickNav({
     <div className="space-y-3">
       {/* Toggle Button */}
       <motion.button
+        type="button"
         onClick={handleToggle}
         className={cn(
-          "w-full flex items-center justify-between gap-3 p-3.5 rounded-2xl border transition-all active:scale-[0.98] shadow-sm",
+          "w-full flex items-center justify-between gap-3 p-4 rounded-2xl border transition-all shadow-sm select-none",
+          "min-h-[56px] touch-action-manipulation",
           isOpen 
-            ? "bg-primary/8 border-primary/25 text-primary shadow-md" 
-            : "bg-card border-border/60 hover:border-primary/25 hover:bg-accent/20"
+            ? "bg-primary/10 border-primary/30 text-primary shadow-md" 
+            : "bg-card border-border/60 hover:border-primary/30 hover:bg-accent/30 active:bg-accent/50"
         )}
         whileTap={{ scale: 0.98 }}
+        style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="flex items-center gap-3">
           <div className={cn(
             "p-2.5 rounded-xl transition-all duration-200",
-            isOpen ? "bg-primary/15 shadow-inner" : "bg-muted/60"
+            isOpen ? "bg-primary/20 shadow-inner" : "bg-muted/70"
           )}>
             {isOpen ? (
               <X className="h-5 w-5" />
@@ -77,8 +80,8 @@ export function CollapsibleQuickNav({
           animate={{ rotate: isOpen ? 180 : 0 }}
           transition={{ duration: 0.2 }}
           className={cn(
-            "h-8 w-8 rounded-xl flex items-center justify-center transition-all",
-            isOpen ? "bg-primary text-primary-foreground shadow-md" : "bg-muted/60"
+            "h-9 w-9 rounded-xl flex items-center justify-center transition-all",
+            isOpen ? "bg-primary text-primary-foreground shadow-md" : "bg-muted/70"
           )}
         >
           <span className="text-xs font-bold">{items.length}</span>
@@ -105,17 +108,24 @@ export function CollapsibleQuickNav({
                   return (
                     <motion.button
                       key={item.label}
+                      type="button"
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       transition={{ delay: index * 0.025, type: 'spring', stiffness: 300, damping: 25 }}
-                      onClick={() => handleClick(item.onClick)}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        handleClick(item.onClick);
+                      }}
                       className={cn(
-                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border/40 transition-all active:scale-95 shadow-sm hover:shadow-md",
+                        "flex flex-col items-center justify-center gap-2 p-3 rounded-xl border border-border/40 transition-all shadow-sm hover:shadow-md select-none",
+                        "min-h-[72px] touch-action-manipulation active:scale-95 active:opacity-80",
                         variantStyles[variant]
                       )}
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
                     >
-                      <Icon className="h-5 w-5" />
-                      <span className="text-[10px] font-semibold text-center leading-tight line-clamp-2 tracking-wide">
+                      <Icon className="h-5 w-5 pointer-events-none" />
+                      <span className="text-[10px] font-semibold text-center leading-tight line-clamp-2 tracking-wide pointer-events-none">
                         {item.label}
                       </span>
                     </motion.button>

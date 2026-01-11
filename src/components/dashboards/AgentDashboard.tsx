@@ -235,10 +235,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       {/* FAB for quick deposit */}
       <button 
+        type="button"
         onClick={() => setDepositOpen(true)}
         className="wa-fab"
+        aria-label="Deposit for User"
       >
-        <ArrowDownCircle className="h-6 w-6" />
+        <ArrowDownCircle className="h-6 w-6 pointer-events-none" />
       </button>
       
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />

@@ -6,7 +6,7 @@ import { cn } from "@/lib/utils";
 import { hapticTap } from "@/lib/haptics";
 
 const buttonVariants = cva(
-  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97]",
+  "inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-xl text-sm font-semibold ring-offset-background transition-all duration-200 ease-out focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring/30 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0 active:scale-[0.97] select-none",
   {
     variants: {
       variant: {
@@ -21,13 +21,13 @@ const buttonVariants = cva(
         soft: "bg-primary/10 text-primary hover:bg-primary/15 active:bg-primary/20",
       },
       size: {
-        default: "h-10 px-4 py-2",
-        sm: "h-9 rounded-lg px-3 text-xs",
-        lg: "h-11 rounded-xl px-6",
-        xl: "h-12 rounded-2xl px-8 text-base",
-        icon: "h-10 w-10",
-        "icon-sm": "h-8 w-8 rounded-lg",
-        "icon-lg": "h-12 w-12 rounded-xl",
+        default: "h-11 px-5 py-2.5 min-h-[44px]",
+        sm: "h-9 rounded-lg px-3 text-xs min-h-[36px]",
+        lg: "h-12 rounded-xl px-6 min-h-[48px]",
+        xl: "h-14 rounded-2xl px-8 text-base min-h-[56px]",
+        icon: "h-11 w-11 min-h-[44px] min-w-[44px]",
+        "icon-sm": "h-9 w-9 rounded-lg min-h-[36px] min-w-[36px]",
+        "icon-lg": "h-12 w-12 rounded-xl min-h-[48px] min-w-[48px]",
       },
     },
     defaultVariants: {
@@ -60,6 +60,7 @@ const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
         className={cn(buttonVariants({ variant, size, className }))} 
         ref={ref} 
         onClick={asChild ? onClick : handleClick}
+        style={{ WebkitTapHighlightColor: 'transparent', touchAction: 'manipulation' }}
         {...props} 
       />
     );
