@@ -25,6 +25,7 @@ interface SupporterInvite {
 
 const roleConfig: Record<string, { label: string; emoji: string; color: string }> = {
   tenant: { label: 'Tenant', emoji: '🏠', color: 'text-blue-500' },
+  landlord: { label: 'Landlord', emoji: '🏢', color: 'text-emerald-500' },
   agent: { label: 'Agent', emoji: '💼', color: 'text-amber-500' },
   supporter: { label: 'Supporter', emoji: '💰', color: 'text-rose-500' },
 };
@@ -174,6 +175,7 @@ Just click the link and enter your password to get started!`;
               <SelectContent>
                 <SelectItem value="all">All Roles</SelectItem>
                 <SelectItem value="tenant">🏠 Tenant</SelectItem>
+                <SelectItem value="landlord">🏢 Landlord</SelectItem>
                 <SelectItem value="agent">💼 Agent</SelectItem>
                 <SelectItem value="supporter">💰 Supporter</SelectItem>
               </SelectContent>
