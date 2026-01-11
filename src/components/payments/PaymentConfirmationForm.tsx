@@ -8,7 +8,7 @@ import { Upload, Loader2, Receipt, CheckCircle, Calendar, Clock } from 'lucide-r
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { format } from 'date-fns';
+import { format, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
 
 interface PaymentConfirmationFormProps {
   dashboardType: 'tenant' | 'supporter';
@@ -39,11 +39,31 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
     }
   };
 
+  const validateTransactionDate = () => {
+    const transactionDateTime = new Date(`${transactionDate}T${transactionTime}:00`);
+    const now = new Date();
+    const sevenDaysAgo = startOfDay(subDays(now, 7));
+    
+    if (isBefore(transactionDateTime, sevenDaysAgo)) {
+      return { valid: false, message: 'Transaction date cannot be more than 7 days ago' };
+    }
+    if (isAfter(transactionDateTime, now)) {
+      return { valid: false, message: 'Transaction date cannot be in the future' };
+    }
+    return { valid: true, message: '' };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
     if (!user || !amount || !partner || !transactionId) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    const dateValidation = validateTransactionDate();
+    if (!dateValidation.valid) {
+      toast.error(dateValidation.message);
       return;
     }
 
@@ -239,9 +259,11 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
                 type="date"
                 value={transactionDate}
                 onChange={(e) => setTransactionDate(e.target.value)}
+                min={format(subDays(new Date(), 7), 'yyyy-MM-dd')}
                 max={format(new Date(), 'yyyy-MM-dd')}
                 required
               />
+              <p className="text-xs text-muted-foreground">Within last 7 days only</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="transactionTime" className="flex items-center gap-1">
