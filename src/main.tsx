@@ -1,39 +1,32 @@
-import React from "react";
 import { createRoot } from "react-dom/client";
-import App from "./App.tsx";
-import "./index.css";
 
-// Immediately hide splash - app is ready
-const hideSplash = (window as any).hideSplash;
-if (hideSplash) hideSplash();
+// Hide splash immediately
+(window as any).hideSplash?.();
 
-// Mount app immediately
-createRoot(document.getElementById('root')!).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);
-
-// Handle stale chunk errors gracefully
-const handleChunkError = () => {
-  const tried = sessionStorage.getItem('chunk_retry');
-  if (!tried) {
-    sessionStorage.setItem('chunk_retry', '1');
-    window.location.reload();
-  }
-};
-
-window.addEventListener('vite:preloadError', handleChunkError);
-window.addEventListener('unhandledrejection', (e) => {
-  if (String((e as any).reason?.message || '').includes('dynamically imported')) {
-    handleChunkError();
-  }
+// Mount app - import CSS and App concurrently
+Promise.all([
+  import("./index.css"),
+  import("./App.tsx")
+]).then(([, { default: App }]) => {
+  createRoot(document.getElementById('root')!).render(<App />);
 });
 
-// Register service worker (production only, after load)
+// Chunk error recovery
+const handleChunkError = () => {
+  if (!sessionStorage.getItem('chunk_retry')) {
+    sessionStorage.setItem('chunk_retry', '1');
+    location.reload();
+  }
+};
+addEventListener('vite:preloadError', handleChunkError);
+addEventListener('unhandledrejection', e => {
+  if (String((e as any).reason?.message || '').includes('dynamically imported')) handleChunkError();
+});
+
+// Service worker (production only, idle time)
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
-  });
+  'requestIdleCallback' in window 
+    ? requestIdleCallback(() => navigator.serviceWorker.register('/sw.js').catch(() => {}))
+    : setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 2000);
 }
 
