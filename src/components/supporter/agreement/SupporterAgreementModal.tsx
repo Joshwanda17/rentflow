@@ -74,10 +74,6 @@ export function SupporterAgreementModal({
       setActiveTab('full');
       return;
     }
-    
-    if (!isChecked) {
-      return;
-    }
 
     setIsAccepting(true);
     const success = await onAccept();
@@ -86,6 +82,27 @@ export function SupporterAgreementModal({
     if (success) {
       hapticSuccess();
       onOpenChange(false);
+    }
+  };
+
+  // Auto-accept when checkbox is checked (if user has scrolled to bottom)
+  const handleCheckboxChange = async (checked: boolean) => {
+    setIsChecked(checked);
+    
+    if (checked && hasScrolledToBottom) {
+      // Automatically trigger acceptance
+      setIsAccepting(true);
+      const success = await onAccept();
+      setIsAccepting(false);
+      
+      if (success) {
+        hapticSuccess();
+        onOpenChange(false);
+      }
+    } else if (checked && !hasScrolledToBottom) {
+      // Prompt user to scroll first
+      setShowScrollPrompt(true);
+      setActiveTab('full');
     }
   };
 
@@ -376,7 +393,8 @@ ${FULL_AGREEMENT_CONTENT}
             <Checkbox
               id="accept-terms"
               checked={isChecked}
-              onCheckedChange={(checked) => setIsChecked(checked === true)}
+              onCheckedChange={handleCheckboxChange}
+              disabled={isAccepting || loading}
               className={cn("mt-0.5", isChecked && "data-[state=checked]:bg-success data-[state=checked]:border-success")}
             />
             <div className="flex-1">
