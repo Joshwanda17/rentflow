@@ -81,15 +81,20 @@ export default function RecordMerchantPayment() {
 
     setIsSubmitting(true);
     try {
+      // Normalize transaction ID for comparison
+      const normalizedTxId = transactionId.trim().toUpperCase();
+      
       // Check if transaction ID already exists
-      const { data: existing } = await supabase
+      const { data: existingRecords } = await supabase
         .from('manager_recorded_transactions')
-        .select('id')
-        .ilike('transaction_id', transactionId.trim())
-        .eq('payment_partner', partner)
-        .single();
+        .select('id, transaction_id')
+        .eq('payment_partner', partner);
 
-      if (existing) {
+      const existingMatch = existingRecords?.find(
+        record => record.transaction_id.trim().toUpperCase() === normalizedTxId
+      );
+
+      if (existingMatch) {
         toast.error('This transaction ID has already been recorded');
         setIsSubmitting(false);
         return;
@@ -112,13 +117,16 @@ export default function RecordMerchantPayment() {
       if (error) throw error;
 
       // Try to auto-match with pending payment confirmations
-      const { data: matchingConfirmation } = await supabase
+      const { data: pendingConfirmations } = await supabase
         .from('payment_confirmations')
-        .select('id, user_id, amount')
-        .ilike('transaction_id', transactionId.trim())
+        .select('id, user_id, amount, transaction_id')
         .eq('payment_partner', partner)
-        .eq('status', 'pending')
-        .single();
+        .eq('status', 'pending');
+
+      // Find matching confirmation with normalized comparison
+      const matchingConfirmation = pendingConfirmations?.find(
+        conf => conf.transaction_id.trim().toUpperCase() === normalizedTxId
+      ) || null;
 
       if (matchingConfirmation) {
         // Auto-approve the confirmation
@@ -147,7 +155,7 @@ export default function RecordMerchantPayment() {
           .from('wallets')
           .select('balance')
           .eq('user_id', matchingConfirmation.user_id)
-          .single();
+          .maybeSingle();
 
         if (walletData) {
           await supabase

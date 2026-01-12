@@ -92,15 +92,42 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       }
 
       // Check if this transaction ID was already recorded by a manager (auto-verify)
+      // Normalize transaction ID for matching (trim and case-insensitive)
+      const normalizedTxId = transactionId.trim().toUpperCase();
       const { data: matchingRecord } = await supabase
         .from('manager_recorded_transactions')
         .select('id, amount')
-        .ilike('transaction_id', transactionId.trim())
-        .eq('payment_partner', partner)
         .eq('matched', false)
-        .single();
+        .eq('payment_partner', partner)
+        .maybeSingle();
+      
+      // Check for match with normalized comparison
+      let foundMatch = null;
+      if (!matchingRecord) {
+        // Try to find any unmatched record with matching transaction ID
+        const { data: allUnmatched } = await supabase
+          .from('manager_recorded_transactions')
+          .select('id, amount, transaction_id')
+          .eq('payment_partner', partner)
+          .eq('matched', false);
+        
+        foundMatch = allUnmatched?.find(
+          record => record.transaction_id.trim().toUpperCase() === normalizedTxId
+        ) || null;
+      } else if (matchingRecord) {
+        // Check if single result matches
+        const { data: checkRecord } = await supabase
+          .from('manager_recorded_transactions')
+          .select('id, amount, transaction_id')
+          .eq('id', matchingRecord.id)
+          .maybeSingle();
+        
+        if (checkRecord && checkRecord.transaction_id.trim().toUpperCase() === normalizedTxId) {
+          foundMatch = checkRecord;
+        }
+      }
 
-      const isAutoVerified = !!matchingRecord;
+      const isAutoVerified = !!foundMatch;
       const confirmationStatus = isAutoVerified ? 'approved' : 'pending';
 
       // Combine date and time into a full timestamp
@@ -127,7 +154,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       if (error) throw error;
 
       // If auto-verified, update the manager record and credit wallet
-      if (isAutoVerified && matchingRecord && newConfirmation) {
+      if (isAutoVerified && foundMatch && newConfirmation) {
         // Mark the manager record as matched
         await supabase
           .from('manager_recorded_transactions')
@@ -136,14 +163,14 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
             matched_confirmation_id: newConfirmation.id,
             matched_at: new Date().toISOString()
           })
-          .eq('id', matchingRecord.id);
+          .eq('id', foundMatch.id);
 
         // Credit user's wallet
         const { data: walletData } = await supabase
           .from('wallets')
           .select('balance')
           .eq('user_id', user.id)
-          .single();
+          .maybeSingle();
 
         if (walletData) {
           await supabase
