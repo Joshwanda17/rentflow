@@ -2085,6 +2085,25 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </button>
 
+        {/* Prominent Financial Dashboard Button */}
+        <button 
+          onClick={() => navigate('/manager-access?tab=financials')}
+          className="w-full p-5 rounded-2xl bg-gradient-to-r from-chart-1 to-chart-2 text-white hover:opacity-90 active:scale-[0.99] transition-all shadow-lg"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="p-3 rounded-xl bg-white/20">
+                <ChartBar className="h-7 w-7" />
+              </div>
+              <div className="text-left">
+                <p className="font-bold text-lg">Financial Dashboard</p>
+                <p className="text-sm opacity-90">View all financial metrics & reports</p>
+              </div>
+            </div>
+            <ArrowRight className="h-6 w-6" />
+          </div>
+        </button>
+
         {/* Prominent Create Receipts Button */}
         <button 
           onClick={() => navigate('/manager-access?tab=receipts')}
@@ -2124,7 +2143,18 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </Button>
 
         {/* Quick Actions Grid */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-3">
+          <button 
+            onClick={() => navigate('/manager-access?tab=financials')}
+            className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
+          >
+            <div className="p-2 rounded-lg bg-chart-1/10 w-fit mb-2">
+              <ChartBar className="h-5 w-5 text-chart-1" />
+            </div>
+            <p className="font-semibold text-sm">Finances</p>
+            <p className="text-xs text-muted-foreground">Reports</p>
+          </button>
+          
           <button 
             onClick={() => navigate('/manager-access?tab=users')}
             className="p-4 rounded-xl bg-card border border-border/50 hover:bg-muted/50 active:scale-[0.98] transition-all text-left"
@@ -2178,6 +2208,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       {/* Floating Action Button */}
       <FloatingActionButton 
         actions={[
+          {
+            icon: ChartBar,
+            label: 'Financial Dashboard',
+            onClick: () => navigate('/manager-access?tab=financials'),
+          },
           {
             icon: FileText,
             label: 'Rent Requests',
