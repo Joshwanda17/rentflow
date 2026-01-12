@@ -1759,6 +1759,39 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agreement_version: string
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          status: string
+          tenant_id: string
+        }
+        Insert: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          tenant_id: string
+        }
+        Update: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          status?: string
+          tenant_id?: string
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string

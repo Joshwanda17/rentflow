@@ -38,6 +38,13 @@ import { AchievementBadges } from '@/components/tenant/AchievementBadges';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import PaymentPartnersCard from '@/components/payments/PaymentPartnersCard';
+import { 
+  TenantAgreementButton, 
+  TenantAgreementNotice, 
+  TenantAgreementModal,
+  LockedActionTooltip 
+} from '@/components/tenant/agreement';
+import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 
 interface TenantDashboardProps {
   user: User;
@@ -78,8 +85,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [isAcceptingAgreement, setIsAcceptingAgreement] = useState(false);
   const { toast } = useToast();
+  const { isAccepted: hasAcceptedTerms, isLoading: agreementLoading, acceptAgreement } = useTenantAgreement();
 
+  const handleAcceptAgreement = async () => {
+    setIsAcceptingAgreement(true);
+    try {
+      return await acceptAgreement();
+    } finally {
+      setIsAcceptingAgreement(false);
+    }
+  };
   useEffect(() => {
     fetchData();
   }, []);
@@ -136,6 +154,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
+        {/* Terms Acceptance Notice - Shows only when not accepted */}
+        <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+
         {/* User Profile Card - Clickable */}
         <button 
           onClick={() => navigate('/settings')}
@@ -150,21 +171,36 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               Tap to view profile
             </p>
           </div>
-          {addRoleComponent}
+          <div className="flex items-center gap-2">
+            <TenantAgreementButton />
+            {addRoleComponent}
+          </div>
         </button>
 
         {/* Rent Access Limit Card - Featured prominently */}
         <RentAccessLimitCard userId={user.id} />
 
-        {/* Prominent Rent Request Button - Right below limit card */}
-        <RentRequestButton userId={user.id} onSuccess={fetchData} />
+        {/* Prominent Rent Request Button - Right below limit card (locked if terms not accepted) */}
+        <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
+          <RentRequestButton userId={user.id} onSuccess={fetchData} />
+        </LockedActionTooltip>
 
         {/* Collapsible Quick Actions */}
         <CollapsibleQuickNav 
           buttonLabel="Quick Actions"
           items={[
-            { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true), variant: 'primary' },
-            { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true), variant: 'warning' },
+            { 
+              icon: Home, 
+              label: 'Pay Rent', 
+              onClick: hasAcceptedTerms ? () => setShowPayLandlord(true) : () => setShowAgreementModal(true), 
+              variant: 'primary' 
+            },
+            { 
+              icon: CreditCard, 
+              label: 'Pay Welile', 
+              onClick: hasAcceptedTerms ? () => setShowPaymentPartners(true) : () => setShowAgreementModal(true), 
+              variant: 'warning' 
+            },
             { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
             { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
             { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
@@ -212,10 +248,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         )}
       </main>
       
-      {/* Floating Action Button - Pay Rent */}
+      {/* Floating Action Button - Pay Rent (opens terms if not accepted) */}
       <button 
         type="button"
-        onClick={() => setShowPayLandlord(true)}
+        onClick={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
         className="wa-fab"
         aria-label="Pay Rent"
       >
@@ -240,6 +276,14 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onOpenChange={setShowPaymentPartners}
         dashboardType="tenant"
         title="Pay Rent via Mobile Money"
+      />
+
+      {/* Tenant Agreement Modal */}
+      <TenantAgreementModal
+        isOpen={showAgreementModal}
+        onClose={() => setShowAgreementModal(false)}
+        onAccept={handleAcceptAgreement}
+        isAccepting={isAcceptingAgreement}
       />
       
       <FloatingShareButton />
