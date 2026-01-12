@@ -468,7 +468,7 @@ export default function UserProfilesTable() {
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-120px)] sm:h-[calc(100vh-140px)]">
+      <div className="flex flex-col h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] min-h-0">
         {/* Tips for managers */}
         <ManagerTip />
 
@@ -635,8 +635,8 @@ export default function UserProfilesTable() {
         </div>
 
         {/* Scrollable User List */}
-        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-24">
-          <div ref={tableRef} className="space-y-2 sm:space-y-3">
+        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-32 overscroll-contain touch-pan-y">
+          <div ref={tableRef} className="space-y-2 sm:space-y-3 pb-8">
             <AnimatePresence mode="popLayout">
               {filteredUsers.length === 0 ? (
                 <motion.div 
