@@ -37,12 +37,15 @@ serve(async (req) => {
       );
     }
 
-    const managerId = user.id;
-    const { rent_request_id, action } = await req.json();
+    const approverId = user.id;
+    const { rent_request_id, action, approval_comment } = await req.json();
 
-    console.log(`Manager ${managerId} ${action} rent request ${rent_request_id}`);
+    // Default action to 'approve' if not specified (backwards compatibility)
+    const requestAction = action || 'approve';
 
-    if (!rent_request_id || !action) {
+    console.log(`User ${approverId} ${requestAction} rent request ${rent_request_id}`);
+
+    if (!rent_request_id) {
       return new Response(
         JSON.stringify({ error: 'Invalid request parameters' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -51,17 +54,19 @@ serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify manager role
-    const { data: managerRole } = await adminClient
+    // Check if user is a manager or agent
+    const { data: userRoles } = await adminClient
       .from('user_roles')
       .select('role')
-      .eq('user_id', managerId)
-      .eq('role', 'manager')
-      .maybeSingle();
+      .eq('user_id', approverId);
 
-    if (!managerRole) {
+    const roles = userRoles?.map(r => r.role) || [];
+    const isManager = roles.includes('manager');
+    const isAgent = roles.includes('agent');
+
+    if (!isManager && !isAgent) {
       return new Response(
-        JSON.stringify({ error: 'Only managers can approve requests' }),
+        JSON.stringify({ error: 'Only managers and agents can approve/reject requests' }),
         { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
@@ -87,19 +92,21 @@ serve(async (req) => {
       );
     }
 
-    if (action === 'approve') {
-      // Update rent request status
+    if (requestAction === 'approve') {
+      // Update rent request status with approval comment
       await adminClient
         .from('rent_requests')
         .update({
           status: 'approved',
-          approved_by: managerId,
+          approved_by: approverId,
           approved_at: new Date().toISOString(),
+          approval_comment: approval_comment || null,
         })
         .eq('id', rent_request_id);
 
-      // Pay agent approval bonus if agent exists
-      if (rentRequest.agent_id) {
+      // Pay agent approval bonus if agent exists and approver is a manager
+      // (agents don't get bonus for their own approvals)
+      if (rentRequest.agent_id && isManager) {
         // Get or create agent wallet
         let { data: agentWallet } = await adminClient
           .from('wallets')
@@ -155,13 +162,21 @@ serve(async (req) => {
         console.log(`Agent ${rentRequest.agent_id} received UGX ${AGENT_APPROVAL_BONUS} bonus`);
       }
 
+      // Get approver name
+      const { data: approverProfile } = await adminClient
+        .from('profiles')
+        .select('full_name')
+        .eq('id', approverId)
+        .single();
+
       // Notify tenant
+      const approverRole = isManager ? 'manager' : 'agent';
       await adminClient
         .from('notifications')
         .insert({
           user_id: rentRequest.tenant_id,
           title: 'Rent Request Approved!',
-          message: `Your rent request for UGX ${rentRequest.rent_amount.toLocaleString()} has been approved. Awaiting supporter funding.`,
+          message: `Your rent request for UGX ${rentRequest.rent_amount.toLocaleString()} has been approved by ${approverProfile?.full_name || approverRole}. Awaiting supporter funding.${approval_comment ? ` Note: ${approval_comment}` : ''}`,
           type: 'success',
         });
 
@@ -169,12 +184,12 @@ serve(async (req) => {
         JSON.stringify({
           success: true,
           message: 'Rent request approved successfully',
-          agent_bonus_paid: rentRequest.agent_id ? AGENT_APPROVAL_BONUS : 0,
+          agent_bonus_paid: rentRequest.agent_id && isManager ? AGENT_APPROVAL_BONUS : 0,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
 
-    } else if (action === 'reject') {
+    } else if (requestAction === 'reject') {
       await adminClient
         .from('rent_requests')
         .update({ status: 'rejected' })

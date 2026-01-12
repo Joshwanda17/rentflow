@@ -39,6 +39,9 @@ interface RentRequest {
   created_at: string;
   tenant_id: string;
   landlord_id: string;
+  approval_comment: string | null;
+  rejected_reason: string | null;
+  approved_by: string | null;
   tenant?: { full_name: string; phone: string };
   landlord?: { name: string; property_address: string };
 }
@@ -49,7 +52,9 @@ export function RentRequestsManager() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
+  const [approveDialog, setApproveDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [rejectReason, setRejectReason] = useState('');
+  const [approvalComment, setApprovalComment] = useState('');
 
   useEffect(() => {
     fetchRequests();
@@ -91,29 +96,47 @@ export function RentRequestsManager() {
     setLoading(false);
   };
 
-  const handleApprove = async (requestId: string) => {
-    setProcessing(requestId);
+  const handleApprove = async () => {
+    if (!approveDialog.requestId) return;
+    setProcessing(approveDialog.requestId);
     
     const { error } = await supabase.functions.invoke('approve-rent-request', {
-      body: { rent_request_id: requestId }
+      body: { 
+        rent_request_id: approveDialog.requestId,
+        approval_comment: approvalComment || null
+      }
     });
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       toast({ title: 'Request Approved', description: 'Rent request has been approved for funding' });
+      setApproveDialog({ open: false, requestId: null });
+      setApprovalComment('');
       fetchRequests();
     }
     setProcessing(null);
   };
 
+  const openApproveDialog = (requestId: string) => {
+    setApproveDialog({ open: true, requestId });
+    setApprovalComment('');
+  };
+
   const handleReject = async () => {
     if (!rejectDialog.requestId) return;
+    if (!rejectReason.trim()) {
+      toast({ title: 'Error', description: 'Please provide a reason for rejection', variant: 'destructive' });
+      return;
+    }
     setProcessing(rejectDialog.requestId);
 
     const { error } = await supabase
       .from('rent_requests')
-      .update({ status: 'rejected' })
+      .update({ 
+        status: 'rejected',
+        rejected_reason: rejectReason
+      })
       .eq('id', rejectDialog.requestId);
 
     if (error) {
@@ -278,7 +301,7 @@ export function RentRequestsManager() {
                         </Button>
                         <Button
                           size="sm"
-                          onClick={() => handleApprove(request.id)}
+                          onClick={() => openApproveDialog(request.id)}
                           disabled={processing === request.id}
                         >
                           {processing === request.id ? (
@@ -328,17 +351,43 @@ export function RentRequestsManager() {
         </div>
       </div>
 
+      {/* Approve Dialog */}
+      <Dialog open={approveDialog.open} onOpenChange={(open) => setApproveDialog({ open, requestId: open ? approveDialog.requestId : null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Approve Request</DialogTitle>
+            <DialogDescription>
+              Add an optional comment for this approval.
+            </DialogDescription>
+          </DialogHeader>
+          <Textarea
+            placeholder="Comment (optional)"
+            value={approvalComment}
+            onChange={(e) => setApprovalComment(e.target.value)}
+          />
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setApproveDialog({ open: false, requestId: null })}>
+              Cancel
+            </Button>
+            <Button onClick={handleApprove} disabled={processing !== null}>
+              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+              Approve Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* Reject Dialog */}
       <Dialog open={rejectDialog.open} onOpenChange={(open) => setRejectDialog({ open, requestId: open ? rejectDialog.requestId : null })}>
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Reject Request</DialogTitle>
             <DialogDescription>
-              Are you sure you want to reject this rent request?
+              Please provide a reason for rejection.
             </DialogDescription>
           </DialogHeader>
           <Textarea
-            placeholder="Reason for rejection (optional)"
+            placeholder="Reason for rejection (required)"
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
           />
@@ -346,7 +395,7 @@ export function RentRequestsManager() {
             <Button variant="outline" onClick={() => setRejectDialog({ open: false, requestId: null })}>
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={processing !== null}>
+            <Button variant="destructive" onClick={handleReject} disabled={processing !== null || !rejectReason.trim()}>
               {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
               Reject Request
             </Button>

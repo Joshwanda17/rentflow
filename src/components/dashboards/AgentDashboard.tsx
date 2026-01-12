@@ -35,6 +35,7 @@ import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog'
 import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
 import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
+import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -272,6 +273,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
+
+        {/* Rent Requests - Agents can approve/reject */}
+        <AgentRentRequestsManager />
 
         {/* Registered Users List */}
         <AgentInvitesList />
