@@ -130,6 +130,12 @@ export default function SupporterDashboard({
     if (success) {
       setLocalHasAccepted(true);
       setShowAgreementModal(false);
+      // Scroll to top and show welcome message
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      toast({
+        title: '🎉 Welcome to Welile Supporters!',
+        description: 'Terms accepted. You can now start investing and helping tenants.',
+      });
     }
     return success;
   };
