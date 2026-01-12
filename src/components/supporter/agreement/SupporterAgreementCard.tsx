@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -24,6 +24,7 @@ export function SupporterAgreementCard({
   loading = false
 }: SupporterAgreementCardProps) {
   const [showViewModal, setShowViewModal] = useState(false);
+  const [viewModalTab, setViewModalTab] = useState<'summary' | 'full'>('summary');
 
   if (loading) {
     return (
@@ -80,7 +81,7 @@ export function SupporterAgreementCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowViewModal(true)}
+                    onClick={() => { setViewModalTab('summary'); setShowViewModal(true); }}
                     className="gap-1.5 text-xs h-8 bg-background/50 hover:bg-background"
                   >
                     <ScrollText className="h-3.5 w-3.5" />
@@ -89,7 +90,7 @@ export function SupporterAgreementCard({
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setShowViewModal(true)}
+                    onClick={() => { setViewModalTab('full'); setShowViewModal(true); }}
                     className="gap-1.5 text-xs h-8 bg-background/50 hover:bg-background"
                   >
                     <FileCheck className="h-3.5 w-3.5" />
@@ -114,6 +115,7 @@ export function SupporterAgreementCard({
         <SupporterAgreementViewModal
           open={showViewModal}
           onOpenChange={setShowViewModal}
+          defaultTab={viewModalTab}
         />
       </>
     );
@@ -188,7 +190,15 @@ interface SupporterAgreementViewModalProps {
 }
 
 export function SupporterAgreementViewModal({ open, onOpenChange, defaultTab = 'summary' }: SupporterAgreementViewModalProps) {
+  const [activeTab, setActiveTab] = useState<string>(defaultTab);
   const effectiveDate = format(new Date(), 'MMMM d, yyyy');
+
+  // Reset tab when modal opens with new defaultTab
+  useEffect(() => {
+    if (open) {
+      setActiveTab(defaultTab);
+    }
+  }, [open, defaultTab]);
 
   const handleDownloadPDF = () => {
     const content = `
@@ -270,7 +280,7 @@ ${FULL_AGREEMENT_CONTENT}
 
         {/* Tabs */}
         <div className="flex-1 flex flex-col min-h-0 overflow-hidden">
-          <Tabs defaultValue={defaultTab} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-4 sm:px-6 pt-4 shrink-0">
               <TabsList className="w-full grid grid-cols-2">
                 <TabsTrigger value="summary" className="gap-1.5 text-xs sm:text-sm">

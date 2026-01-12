@@ -443,15 +443,27 @@ export default function SupporterDashboard({
           
           {/* Easy Agreement Access */}
           {effectiveHasAccepted ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
-              className="mt-2 text-xs text-muted-foreground hover:text-primary gap-1.5"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              View My Agreement
-            </Button>
+            <div className="flex items-center justify-center gap-3 mt-2">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+                className="text-xs text-muted-foreground hover:text-primary gap-1.5"
+              >
+                <ScrollText className="h-3.5 w-3.5" />
+                Summary
+              </Button>
+              <span className="text-muted-foreground/50">•</span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => { setViewAgreementTab('full'); setShowViewAgreementModal(true); }}
+                className="text-xs text-muted-foreground hover:text-primary gap-1.5"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Full Agreement
+              </Button>
+            </div>
           ) : (
             <Button
               variant="outline"
