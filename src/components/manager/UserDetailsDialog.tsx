@@ -7,6 +7,12 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import {
   AlertDialog,
   AlertDialogAction,
   AlertDialogCancel,
@@ -35,13 +41,14 @@ import {
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
-  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight
+  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import StartChatButton from '@/components/chat/StartChatButton';
 import { toast } from 'sonner';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -93,6 +100,7 @@ interface UserDetailsDialogProps {
 }
 
 export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpdated, onUserDeleted, onUserUpdated }: UserDetailsDialogProps) {
+  const isMobile = useIsMobile();
   const [investmentAccounts, setInvestmentAccounts] = useState<InvestmentAccount[]>([]);
   const [walletBalance, setWalletBalance] = useState<number>(0);
   const [activityLog, setActivityLog] = useState<ActivityItem[]>([]);
@@ -109,6 +117,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [addingRole, setAddingRole] = useState<AppRole | null>(null);
   const [removingRole, setRemovingRole] = useState<string | null>(null);
   const [togglingRole, setTogglingRole] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
   
   // Edit profile state
   const [editForm, setEditForm] = useState({
@@ -775,48 +784,551 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
   if (!user) return null;
 
+  // Shared header component
+  const UserHeader = () => (
+    <div className="flex items-center gap-3">
+      <Avatar className={`${isMobile ? 'h-14 w-14' : 'h-12 w-12'}`}>
+        <AvatarImage src={user.avatar_url || undefined} />
+        <AvatarFallback className="text-lg">{getInitials(user.full_name)}</AvatarFallback>
+      </Avatar>
+      <div className="flex-1 min-w-0">
+        <p className={`${isMobile ? 'text-xl' : 'text-lg'} font-semibold truncate`}>{user.full_name}</p>
+        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+          {user.roles.map((role) => (
+            <Badge key={role} className={`text-xs ${getRoleBadgeColor(role)}`}>
+              {role}
+            </Badge>
+          ))}
+        </div>
+      </div>
+    </div>
+  );
+
+  // Shared tabs component
+  const TabsNavigation = () => (
+    <TabsList className={`grid w-full grid-cols-4 ${isMobile ? 'h-12' : ''}`}>
+      <TabsTrigger value="overview" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
+        <User className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
+        <span className={isMobile ? '' : 'hidden sm:inline'}>Overview</span>
+      </TabsTrigger>
+      <TabsTrigger value="edit" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
+        <Pencil className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
+        <span className={isMobile ? '' : 'hidden sm:inline'}>Edit</span>
+      </TabsTrigger>
+      <TabsTrigger value="roles" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
+        <Shield className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
+        <span className={isMobile ? '' : 'hidden sm:inline'}>Roles</span>
+      </TabsTrigger>
+      <TabsTrigger value="activity" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
+        <Activity className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
+        <span className={isMobile ? '' : 'hidden sm:inline'}>Activity</span>
+      </TabsTrigger>
+    </TabsList>
+  );
+
+  // Mobile version uses Sheet for full-screen experience
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={onOpenChange}>
+        <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 flex flex-col">
+          {/* Fixed Header */}
+          <SheetHeader className="p-4 pb-0 shrink-0">
+            <div className="flex items-center gap-3 mb-3">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => onOpenChange(false)}
+                className="h-10 w-10 rounded-full"
+              >
+                <ChevronLeft className="h-5 w-5" />
+              </Button>
+              <SheetTitle className="flex-1">
+                <UserHeader />
+              </SheetTitle>
+            </div>
+          </SheetHeader>
+
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+            <div className="px-4 pt-2 shrink-0">
+              <TabsNavigation />
+            </div>
+
+            {/* Scrollable Content */}
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-8">
+              <TabsContent value="overview" className="mt-0">
+                <div className="p-4 space-y-5">
+                  {/* Contact Info */}
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <User className="h-4 w-4 text-primary" />
+                        Contact Information
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="grid gap-4 pt-0">
+                      <div className="flex items-center gap-3">
+                        <Mail className="h-4 w-4 text-muted-foreground" />
+                        <a href={`mailto:${user.email}`} className="text-sm text-primary hover:underline truncate">
+                          {user.email}
+                        </a>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <Phone className="h-4 w-4 text-muted-foreground" />
+                        <WhatsAppPhoneLink phone={user.phone} />
+                      </div>
+                      <StartChatButton 
+                        userId={user.id} 
+                        userName={user.full_name}
+                        variant="default"
+                        className="w-full h-12"
+                      />
+                    </CardContent>
+                  </Card>
+
+                  {/* Financial Summary */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Wallet className="h-3 w-3" />
+                        Wallet
+                      </div>
+                      <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
+                    </Card>
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <PiggyBank className="h-3 w-3" />
+                        Invested
+                      </div>
+                      <p className="font-semibold text-sm">{formatUGX(totalInvested)}</p>
+                    </Card>
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Banknote className="h-3 w-3" />
+                        Monthly Rent
+                      </div>
+                      <p className="font-semibold text-sm">{user.monthly_rent ? formatUGX(user.monthly_rent) : 'N/A'}</p>
+                    </Card>
+                    <Card className="p-3">
+                      <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+                        <Star className="h-3 w-3" />
+                        Rating
+                      </div>
+                      {user.rating_count > 0 ? (
+                        <div className="flex items-center gap-1">
+                          {renderStars(user.average_rating || 0)}
+                          <span className="text-xs text-muted-foreground">({user.rating_count})</span>
+                        </div>
+                      ) : (
+                        <p className="font-semibold text-sm text-muted-foreground">No ratings</p>
+                      )}
+                    </Card>
+                  </div>
+
+                  {/* Verification Status */}
+                  <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
+                    <CardContent className="p-4">
+                      <div className="flex items-center justify-between gap-3">
+                        <div className="flex items-center gap-3 flex-1 min-w-0">
+                          {verificationStatus ? (
+                            <>
+                              <div className="p-2 rounded-full bg-success/20 shrink-0">
+                                <CheckCircle className="h-5 w-5 text-success" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-success">Verified</p>
+                                <p className="text-xs text-muted-foreground truncate">User is approved</p>
+                              </div>
+                            </>
+                          ) : (
+                            <>
+                              <div className="p-2 rounded-full bg-warning/20 shrink-0">
+                                <XCircle className="h-5 w-5 text-warning" />
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-semibold text-warning">Pending</p>
+                                <p className="text-xs text-muted-foreground truncate">Needs verification</p>
+                              </div>
+                            </>
+                          )}
+                        </div>
+                        {!verificationStatus ? (
+                          <Button
+                            size="sm"
+                            variant="default"
+                            onClick={handleApproveUser}
+                            disabled={approvingUser}
+                            className="gap-1 h-10 shrink-0"
+                          >
+                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+                            Approve
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={handleRejectUser}
+                            disabled={rejectingUser}
+                            className="gap-1 h-10 shrink-0"
+                          >
+                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Status Badges */}
+                  {user.rent_discount_active && (
+                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                      <CheckCircle className="h-3 w-3 mr-1" />
+                      Rent Discount Active
+                    </Badge>
+                  )}
+
+                  {/* Investment Accounts */}
+                  <div>
+                    <h3 className="font-semibold flex items-center gap-2 mb-3">
+                      <TrendingUp className="h-5 w-5 text-primary" />
+                      Investment Accounts ({investmentAccounts.length})
+                    </h3>
+                    {loading ? (
+                      <div className="space-y-3">
+                        {[1, 2].map(i => <Skeleton key={i} className="h-20 w-full" />)}
+                      </div>
+                    ) : investmentAccounts.length === 0 ? (
+                      <Card className="p-6 text-center">
+                        <PiggyBank className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                        <p className="text-muted-foreground">No investment accounts yet</p>
+                      </Card>
+                    ) : (
+                      <div className="space-y-3">
+                        {investmentAccounts.map((account) => (
+                          <Card key={account.id} className="overflow-hidden">
+                            <div className="h-1" style={{ backgroundColor: account.color }} />
+                            <CardContent className="p-4">
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="font-medium">{account.name}</p>
+                                  <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
+                                    <Calendar className="h-3 w-3" />
+                                    {format(new Date(account.created_at), 'MMM d, yyyy')}
+                                  </div>
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold">{formatUGX(account.balance)}</p>
+                                  <div className="mt-1">{getStatusBadge(account.status)}</div>
+                                </div>
+                              </div>
+                            </CardContent>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="edit" className="mt-0">
+                <div className="p-4 space-y-5">
+                  {/* Edit Profile Form */}
+                  <Card>
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Pencil className="h-4 w-4 text-primary" />
+                        Edit Profile
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0 space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-name-mobile">Full Name</Label>
+                        <Input
+                          id="edit-name-mobile"
+                          value={editForm.full_name}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
+                          placeholder="Enter full name"
+                          className="h-12 text-base"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-email-mobile">Email</Label>
+                        <Input
+                          id="edit-email-mobile"
+                          type="email"
+                          value={editForm.email}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
+                          placeholder="Enter email"
+                          className="h-12 text-base"
+                          inputMode="email"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-phone-mobile">Phone</Label>
+                        <Input
+                          id="edit-phone-mobile"
+                          value={editForm.phone}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
+                          placeholder="Enter phone number"
+                          className="h-12 text-base"
+                          inputMode="tel"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="edit-rent-mobile">Monthly Rent (UGX)</Label>
+                        <Input
+                          id="edit-rent-mobile"
+                          type="number"
+                          value={editForm.monthly_rent}
+                          onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))}
+                          placeholder="Enter monthly rent"
+                          className="h-12 text-base"
+                          inputMode="numeric"
+                        />
+                      </div>
+                      <Button onClick={handleSaveProfile} disabled={savingProfile} className="w-full h-12">
+                        {savingProfile ? (
+                          <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</>
+                        ) : (
+                          <><CheckCircle className="h-4 w-4 mr-2" />Save Changes</>
+                        )}
+                      </Button>
+                    </CardContent>
+                  </Card>
+
+                  <Separator />
+
+                  {/* Danger Zone */}
+                  <Card className="border-destructive/50">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2 text-destructive">
+                        <AlertTriangle className="h-4 w-4" />
+                        Danger Zone
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-sm text-muted-foreground mb-4">
+                        Permanently delete this user and all their data.
+                      </p>
+                      <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant="destructive" className="w-full h-12">
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete User
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>Delete User?</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              This will permanently delete <strong>{user.full_name}</strong> and all their data. This cannot be undone.
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction
+                              onClick={handleDeleteUser}
+                              disabled={deletingUser}
+                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                            >
+                              {deletingUser ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete</>}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                    </CardContent>
+                  </Card>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="roles" className="mt-0">
+                <div className="p-4 space-y-5">
+                  {/* Dashboard Access Control */}
+                  <Card className="border-primary/20">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Dashboard Access
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      <p className="text-xs text-muted-foreground mb-4">
+                        Toggle which dashboards this user can access.
+                      </p>
+                      {userRoles.length === 0 ? (
+                        <p className="text-sm text-muted-foreground">No roles assigned</p>
+                      ) : (
+                        <div className="space-y-3">
+                          {userRoles.map((role) => {
+                            const roleInfo = allRoles.find(r => r.value === role);
+                            const isEnabled = roleEnabledStatus[role] ?? true;
+                            const enabledCount = Object.values(roleEnabledStatus).filter(Boolean).length;
+                            const canDisable = enabledCount > 1 || !isEnabled;
+                            
+                            return (
+                              <div 
+                                key={role}
+                                className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                                  isEnabled ? 'bg-card border-border' : 'bg-muted/30 border-muted opacity-60'
+                                }`}
+                              >
+                                <div className="flex items-center gap-3 flex-1 min-w-0">
+                                  <Badge className={`${roleInfo?.color || 'bg-muted'} ${!isEnabled ? 'opacity-50' : ''}`}>
+                                    {roleInfo?.label || role}
+                                  </Badge>
+                                  <span className={`text-xs font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
+                                    {isEnabled ? '✓ Active' : '✗ Disabled'}
+                                  </span>
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleToggleRoleEnabled(role as AppRole)}
+                                    disabled={togglingRole === role || (!canDisable && isEnabled)}
+                                    className={`h-10 w-10 p-0 ${isEnabled ? 'text-success' : 'text-muted-foreground'}`}
+                                  >
+                                    {togglingRole === role ? (
+                                      <Loader2 className="h-5 w-5 animate-spin" />
+                                    ) : isEnabled ? (
+                                      <ToggleRight className="h-6 w-6" />
+                                    ) : (
+                                      <ToggleLeft className="h-6 w-6" />
+                                    )}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleRemoveRole(role as AppRole)}
+                                    disabled={removingRole === role || userRoles.length <= 1}
+                                    className="text-destructive h-10 w-10 p-0"
+                                  >
+                                    {removingRole === role ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                  </Button>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Add New Role */}
+                  {availableRolesToAdd.length > 0 && (
+                    <Card>
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Plus className="h-4 w-4 text-success" />
+                          Add Role
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        <div className="space-y-2">
+                          {availableRolesToAdd.map((role) => (
+                            <div 
+                              key={role.value}
+                              className="flex items-center justify-between p-4 rounded-xl border bg-muted/30"
+                            >
+                              <Badge variant="outline" className={role.color}>
+                                {role.label}
+                              </Badge>
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => handleAddRole(role.value)}
+                                disabled={addingRole === role.value}
+                                className="text-success h-10 w-10 p-0"
+                              >
+                                {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      </CardContent>
+                    </Card>
+                  )}
+                </div>
+              </TabsContent>
+
+              <TabsContent value="activity" className="mt-0">
+                <div className="p-4">
+                  <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+                    <h3 className="font-semibold flex items-center gap-2">
+                      <Activity className="h-5 w-5 text-primary" />
+                      Activity
+                    </h3>
+                    <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
+                      <SelectTrigger className="w-[120px] h-10">
+                        <SelectValue placeholder="All Types" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {activityTypeOptions.map((option) => (
+                          <SelectItem key={option.value} value={option.value}>
+                            {option.label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  {activityLoading ? (
+                    <div className="space-y-3">
+                      {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
+                    </div>
+                  ) : filteredActivityLog.length === 0 ? (
+                    <Card className="p-8 text-center">
+                      <Activity className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                      <p className="text-muted-foreground">No activity found</p>
+                    </Card>
+                  ) : (
+                    <div className="space-y-2">
+                      {filteredActivityLog.map((activity) => (
+                        <Card key={activity.id} className="p-3">
+                          <div className="flex items-start gap-3">
+                            <div className="p-2 rounded-full bg-muted shrink-0">
+                              {getActivityIcon(activity.type)}
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-sm font-medium truncate">{activity.description}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
+                                  </p>
+                                </div>
+                                <span className={`text-sm font-semibold shrink-0 ${getActivityColor(activity.type)}`}>
+                                  {activity.type === 'transaction_sent' || activity.type === 'withdrawal' || activity.type === 'order' ? '-' : '+'}
+                                  {formatUGX(activity.amount)}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </TabsContent>
+            </div>
+          </Tabs>
+        </SheetContent>
+      </Sheet>
+    );
+  }
+
+  // Desktop version uses Dialog
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-2xl max-h-[90vh] p-0">
         <DialogHeader className="p-6 pb-0">
-          <DialogTitle className="flex items-center gap-3">
-            <Avatar className="h-12 w-12">
-              <AvatarImage src={user.avatar_url || undefined} />
-              <AvatarFallback className="text-lg">{getInitials(user.full_name)}</AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="text-xl">{user.full_name}</p>
-              <div className="flex items-center gap-2 mt-1">
-                {user.roles.map((role) => (
-                  <Badge key={role} className={`text-xs ${getRoleBadgeColor(role)}`}>
-                    {role}
-                  </Badge>
-                ))}
-              </div>
-            </div>
+          <DialogTitle>
+            <UserHeader />
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs defaultValue="overview" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <div className="px-6 pt-4">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="overview" className="gap-2">
-                <User className="h-4 w-4" />
-                <span className="hidden sm:inline">Overview</span>
-              </TabsTrigger>
-              <TabsTrigger value="edit" className="gap-2">
-                <Pencil className="h-4 w-4" />
-                <span className="hidden sm:inline">Edit</span>
-              </TabsTrigger>
-              <TabsTrigger value="roles" className="gap-2">
-                <Shield className="h-4 w-4" />
-                <span className="hidden sm:inline">Roles</span>
-              </TabsTrigger>
-              <TabsTrigger value="activity" className="gap-2">
-                <Activity className="h-4 w-4" />
-                <span className="hidden sm:inline">Activity</span>
-              </TabsTrigger>
-            </TabsList>
+            <TabsNavigation />
           </div>
 
           <ScrollArea className="max-h-[60vh]">
@@ -833,10 +1345,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   <CardContent className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-0">
                     <div className="flex items-center gap-3">
                       <Mail className="h-4 w-4 text-muted-foreground" />
-                      <a 
-                        href={`mailto:${user.email}`}
-                        className="text-sm text-primary hover:underline"
-                      >
+                      <a href={`mailto:${user.email}`} className="text-sm text-primary hover:underline">
                         {user.email}
                       </a>
                     </div>
@@ -845,12 +1354,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       <WhatsAppPhoneLink phone={user.phone} />
                     </div>
                     <div className="flex items-center gap-3 md:col-span-2">
-                      <StartChatButton 
-                        userId={user.id} 
-                        userName={user.full_name}
-                        variant="default"
-                        className="w-full md:w-auto"
-                      />
+                      <StartChatButton userId={user.id} userName={user.full_name} variant="default" className="w-full md:w-auto" />
                     </div>
                   </CardContent>
                 </Card>
@@ -858,99 +1362,52 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 {/* Financial Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <Wallet className="h-3 w-3" />
-                      Wallet
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet</div>
                     <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
                   </Card>
                   <Card className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <PiggyBank className="h-3 w-3" />
-                      Invested
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><PiggyBank className="h-3 w-3" />Invested</div>
                     <p className="font-semibold text-sm">{formatUGX(totalInvested)}</p>
                   </Card>
                   <Card className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <Banknote className="h-3 w-3" />
-                      Monthly Rent
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Banknote className="h-3 w-3" />Monthly Rent</div>
                     <p className="font-semibold text-sm">{user.monthly_rent ? formatUGX(user.monthly_rent) : 'N/A'}</p>
                   </Card>
                   <Card className="p-3">
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
-                      <Star className="h-3 w-3" />
-                      Rating
-                    </div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Star className="h-3 w-3" />Rating</div>
                     {user.rating_count > 0 ? (
-                      <div className="flex items-center gap-1">
-                        {renderStars(user.average_rating || 0)}
-                        <span className="text-xs text-muted-foreground">({user.rating_count})</span>
-                      </div>
+                      <div className="flex items-center gap-1">{renderStars(user.average_rating || 0)}<span className="text-xs text-muted-foreground">({user.rating_count})</span></div>
                     ) : (
                       <p className="font-semibold text-sm text-muted-foreground">No ratings</p>
                     )}
                   </Card>
                 </div>
 
-                {/* Verification Status & Actions */}
+                {/* Verification Status */}
                 <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
                   <CardContent className="p-4">
                     <div className="flex items-center justify-between gap-4 flex-wrap">
                       <div className="flex items-center gap-3">
                         {verificationStatus ? (
                           <>
-                            <div className="p-2 rounded-full bg-success/20">
-                              <CheckCircle className="h-5 w-5 text-success" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-success">Verified User</p>
-                              <p className="text-xs text-muted-foreground">This user is approved and can access all features</p>
-                            </div>
+                            <div className="p-2 rounded-full bg-success/20"><CheckCircle className="h-5 w-5 text-success" /></div>
+                            <div><p className="font-semibold text-success">Verified User</p><p className="text-xs text-muted-foreground">Approved and can access all features</p></div>
                           </>
                         ) : (
                           <>
-                            <div className="p-2 rounded-full bg-warning/20">
-                              <XCircle className="h-5 w-5 text-warning" />
-                            </div>
-                            <div>
-                              <p className="font-semibold text-warning">Pending Verification</p>
-                              <p className="text-xs text-muted-foreground">This user needs to be verified</p>
-                            </div>
+                            <div className="p-2 rounded-full bg-warning/20"><XCircle className="h-5 w-5 text-warning" /></div>
+                            <div><p className="font-semibold text-warning">Pending Verification</p><p className="text-xs text-muted-foreground">This user needs to be verified</p></div>
                           </>
                         )}
                       </div>
                       <div className="flex gap-2">
                         {!verificationStatus ? (
-                          <Button
-                            size="sm"
-                            variant="success"
-                            onClick={handleApproveUser}
-                            disabled={approvingUser}
-                            className="gap-2"
-                          >
-                            {approvingUser ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <CheckCircle className="h-4 w-4" />
-                            )}
-                            Approve
+                          <Button size="sm" variant="default" onClick={handleApproveUser} disabled={approvingUser} className="gap-2">
+                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}Approve
                           </Button>
                         ) : (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={handleRejectUser}
-                            disabled={rejectingUser}
-                            className="gap-2"
-                          >
-                            {rejectingUser ? (
-                              <Loader2 className="h-4 w-4 animate-spin" />
-                            ) : (
-                              <XCircle className="h-4 w-4" />
-                            )}
-                            Revoke
+                          <Button size="sm" variant="destructive" onClick={handleRejectUser} disabled={rejectingUser} className="gap-2">
+                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}Revoke
                           </Button>
                         )}
                       </div>
@@ -958,59 +1415,30 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   </CardContent>
                 </Card>
 
-                {/* Status Badges */}
-                <div className="flex items-center gap-3 flex-wrap">
-                  {user.rent_discount_active && (
-                    <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
-                      <CheckCircle className="h-3 w-3 mr-1" />
-                      Rent Discount Active
-                    </Badge>
-                  )}
-                </div>
+                {user.rent_discount_active && (
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
+                    <CheckCircle className="h-3 w-3 mr-1" />Rent Discount Active
+                  </Badge>
+                )}
 
                 <Separator />
 
                 {/* Investment Accounts */}
                 <div>
-                  <h3 className="font-semibold flex items-center gap-2 mb-4">
-                    <TrendingUp className="h-5 w-5 text-primary" />
-                    Investment Accounts ({investmentAccounts.length})
-                  </h3>
-
+                  <h3 className="font-semibold flex items-center gap-2 mb-4"><TrendingUp className="h-5 w-5 text-primary" />Investment Accounts ({investmentAccounts.length})</h3>
                   {loading ? (
-                    <div className="space-y-3">
-                      {[1, 2].map(i => (
-                        <Skeleton key={i} className="h-20 w-full" />
-                      ))}
-                    </div>
+                    <div className="space-y-3">{[1, 2].map(i => <Skeleton key={i} className="h-20 w-full" />)}</div>
                   ) : investmentAccounts.length === 0 ? (
-                    <Card className="p-6 text-center">
-                      <PiggyBank className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No investment accounts yet</p>
-                    </Card>
+                    <Card className="p-6 text-center"><PiggyBank className="h-10 w-10 mx-auto text-muted-foreground mb-2" /><p className="text-muted-foreground">No investment accounts yet</p></Card>
                   ) : (
                     <div className="space-y-3">
                       {investmentAccounts.map((account) => (
                         <Card key={account.id} className="overflow-hidden">
-                          <div 
-                            className="h-1"
-                            style={{ backgroundColor: account.color }}
-                          />
+                          <div className="h-1" style={{ backgroundColor: account.color }} />
                           <CardContent className="p-4">
                             <div className="flex items-center justify-between">
-                              <div>
-                                <p className="font-medium">{account.name}</p>
-                                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-1">
-                                  <Calendar className="h-3 w-3" />
-                                  Created {format(new Date(account.created_at), 'MMM d, yyyy')}
-                                </div>
-                              </div>
-                              <div className="text-right">
-                                <p className="font-semibold">{formatUGX(account.balance)}</p>
-                                <div className="mt-1">
-                                  {getStatusBadge(account.status)}
-                                </div>
-                              </div>
+                              <div><p className="font-medium">{account.name}</p><div className="flex items-center gap-2 text-xs text-muted-foreground mt-1"><Calendar className="h-3 w-3" />Created {format(new Date(account.created_at), 'MMM d, yyyy')}</div></div>
+                              <div className="text-right"><p className="font-semibold">{formatUGX(account.balance)}</p><div className="mt-1">{getStatusBadge(account.status)}</div></div>
                             </div>
                           </CardContent>
                         </Card>
@@ -1023,121 +1451,26 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
             <TabsContent value="edit" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
-                {/* Edit Profile Form */}
                 <Card>
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Pencil className="h-4 w-4 text-primary" />
-                      Edit Profile
-                    </CardTitle>
-                  </CardHeader>
+                  <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2"><Pencil className="h-4 w-4 text-primary" />Edit Profile</CardTitle></CardHeader>
                   <CardContent className="pt-0 space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-name">Full Name</Label>
-                      <Input
-                        id="edit-name"
-                        value={editForm.full_name}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))}
-                        placeholder="Enter full name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-email">Email</Label>
-                      <Input
-                        id="edit-email"
-                        type="email"
-                        value={editForm.email}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))}
-                        placeholder="Enter email"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-phone">Phone</Label>
-                      <Input
-                        id="edit-phone"
-                        value={editForm.phone}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))}
-                        placeholder="Enter phone number"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="edit-rent">Monthly Rent (UGX)</Label>
-                      <Input
-                        id="edit-rent"
-                        type="number"
-                        value={editForm.monthly_rent}
-                        onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))}
-                        placeholder="Enter monthly rent amount"
-                      />
-                    </div>
-                    <Button 
-                      onClick={handleSaveProfile} 
-                      disabled={savingProfile}
-                      className="w-full"
-                    >
-                      {savingProfile ? (
-                        <>
-                          <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                          Saving...
-                        </>
-                      ) : (
-                        <>
-                          <CheckCircle className="h-4 w-4 mr-2" />
-                          Save Changes
-                        </>
-                      )}
-                    </Button>
+                    <div className="space-y-2"><Label htmlFor="edit-name">Full Name</Label><Input id="edit-name" value={editForm.full_name} onChange={(e) => setEditForm(prev => ({ ...prev, full_name: e.target.value }))} placeholder="Enter full name" /></div>
+                    <div className="space-y-2"><Label htmlFor="edit-email">Email</Label><Input id="edit-email" type="email" value={editForm.email} onChange={(e) => setEditForm(prev => ({ ...prev, email: e.target.value }))} placeholder="Enter email" /></div>
+                    <div className="space-y-2"><Label htmlFor="edit-phone">Phone</Label><Input id="edit-phone" value={editForm.phone} onChange={(e) => setEditForm(prev => ({ ...prev, phone: e.target.value }))} placeholder="Enter phone number" /></div>
+                    <div className="space-y-2"><Label htmlFor="edit-rent">Monthly Rent (UGX)</Label><Input id="edit-rent" type="number" value={editForm.monthly_rent} onChange={(e) => setEditForm(prev => ({ ...prev, monthly_rent: e.target.value }))} placeholder="Enter monthly rent amount" /></div>
+                    <Button onClick={handleSaveProfile} disabled={savingProfile} className="w-full">{savingProfile ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Saving...</> : <><CheckCircle className="h-4 w-4 mr-2" />Save Changes</>}</Button>
                   </CardContent>
                 </Card>
-
                 <Separator />
-
-                {/* Danger Zone */}
                 <Card className="border-destructive/50">
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2 text-destructive">
-                      <AlertTriangle className="h-4 w-4" />
-                      Danger Zone
-                    </CardTitle>
-                  </CardHeader>
+                  <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2 text-destructive"><AlertTriangle className="h-4 w-4" />Danger Zone</CardTitle></CardHeader>
                   <CardContent className="pt-0">
-                    <p className="text-sm text-muted-foreground mb-4">
-                      Deleting this user will permanently remove their profile, wallet, roles, and all associated data. This action cannot be undone.
-                    </p>
+                    <p className="text-sm text-muted-foreground mb-4">Permanently delete this user and all their data.</p>
                     <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                      <AlertDialogTrigger asChild>
-                        <Button variant="destructive" className="w-full">
-                          <Trash2 className="h-4 w-4 mr-2" />
-                          Delete User
-                        </Button>
-                      </AlertDialogTrigger>
+                      <AlertDialogTrigger asChild><Button variant="destructive" className="w-full"><Trash2 className="h-4 w-4 mr-2" />Delete User</Button></AlertDialogTrigger>
                       <AlertDialogContent>
-                        <AlertDialogHeader>
-                          <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            This will permanently delete <strong>{user.full_name}</strong> and all their data including wallet balance, roles, and transaction history. This action cannot be undone.
-                          </AlertDialogDescription>
-                        </AlertDialogHeader>
-                        <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction
-                            onClick={handleDeleteUser}
-                            disabled={deletingUser}
-                            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                          >
-                            {deletingUser ? (
-                              <>
-                                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                                Deleting...
-                              </>
-                            ) : (
-                              <>
-                                <Trash2 className="h-4 w-4 mr-2" />
-                                Delete User
-                              </>
-                            )}
-                          </AlertDialogAction>
-                        </AlertDialogFooter>
+                        <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete <strong>{user.full_name}</strong> and all their data. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
+                        <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteUser} disabled={deletingUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{deletingUser ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete User</>}</AlertDialogAction></AlertDialogFooter>
                       </AlertDialogContent>
                     </AlertDialog>
                   </CardContent>
@@ -1147,18 +1480,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
             <TabsContent value="roles" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
-                {/* Dashboard Access Control */}
                 <Card className="border-primary/20">
-                  <CardHeader className="py-3">
-                    <CardTitle className="text-sm flex items-center gap-2">
-                      <Shield className="h-4 w-4 text-primary" />
-                      Dashboard Access Control
-                    </CardTitle>
-                  </CardHeader>
+                  <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2"><Shield className="h-4 w-4 text-primary" />Dashboard Access Control</CardTitle></CardHeader>
                   <CardContent className="pt-0">
-                    <p className="text-xs text-muted-foreground mb-4">
-                      Toggle which dashboards this user can access. Disabled dashboards will not appear in their role switcher.
-                    </p>
+                    <p className="text-xs text-muted-foreground mb-4">Toggle which dashboards this user can access.</p>
                     {userRoles.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No roles assigned</p>
                     ) : (
@@ -1168,59 +1493,21 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                           const isEnabled = roleEnabledStatus[role] ?? true;
                           const enabledCount = Object.values(roleEnabledStatus).filter(Boolean).length;
                           const canDisable = enabledCount > 1 || !isEnabled;
-                          
                           return (
-                            <div 
-                              key={role}
-                              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                                isEnabled 
-                                  ? 'bg-card border-border' 
-                                  : 'bg-muted/30 border-muted opacity-60'
-                              }`}
-                            >
+                            <div key={role} className={`flex items-center justify-between p-4 rounded-xl border transition-all ${isEnabled ? 'bg-card border-border' : 'bg-muted/30 border-muted opacity-60'}`}>
                               <div className="flex items-center gap-3 flex-1 min-w-0">
-                                <Badge className={`${roleInfo?.color || 'bg-muted'} ${!isEnabled ? 'opacity-50' : ''}`}>
-                                  {roleInfo?.label || role}
-                                </Badge>
+                                <Badge className={`${roleInfo?.color || 'bg-muted'} ${!isEnabled ? 'opacity-50' : ''}`}>{roleInfo?.label || role}</Badge>
                                 <div className="flex flex-col min-w-0">
-                                  <span className="text-xs text-muted-foreground truncate">
-                                    {roleInfo?.description}
-                                  </span>
-                                  <span className={`text-xs font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
-                                    {isEnabled ? '✓ Can access this dashboard' : '✗ Dashboard access disabled'}
-                                  </span>
+                                  <span className="text-xs text-muted-foreground truncate">{roleInfo?.description}</span>
+                                  <span className={`text-xs font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>{isEnabled ? '✓ Can access' : '✗ Disabled'}</span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2 shrink-0">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleToggleRoleEnabled(role as AppRole)}
-                                  disabled={togglingRole === role || (!canDisable && isEnabled)}
-                                  className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}
-                                  title={isEnabled ? 'Click to disable dashboard access' : 'Click to enable dashboard access'}
-                                >
-                                  {togglingRole === role ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : isEnabled ? (
-                                    <ToggleRight className="h-5 w-5" />
-                                  ) : (
-                                    <ToggleLeft className="h-5 w-5" />
-                                  )}
+                                <Button variant="ghost" size="sm" onClick={() => handleToggleRoleEnabled(role as AppRole)} disabled={togglingRole === role || (!canDisable && isEnabled)} className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}>
+                                  {togglingRole === role ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
                                 </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleRemoveRole(role as AppRole)}
-                                  disabled={removingRole === role || userRoles.length <= 1}
-                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
-                                  title="Remove role completely"
-                                >
-                                  {removingRole === role ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" />
-                                  ) : (
-                                    <Trash2 className="h-4 w-4" />
-                                  )}
+                                <Button variant="ghost" size="sm" onClick={() => handleRemoveRole(role as AppRole)} disabled={removingRole === role || userRoles.length <= 1} className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0">
+                                  {removingRole === role ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
                                 </Button>
                               </div>
                             </div>
@@ -1228,55 +1515,18 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                         })}
                       </div>
                     )}
-                    {userRoles.length <= 1 && (
-                      <p className="text-xs text-muted-foreground mt-3">
-                        ⚠️ User must have at least one role. Add another role before removing this one.
-                      </p>
-                    )}
-                    {Object.values(roleEnabledStatus).filter(Boolean).length <= 1 && (
-                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
-                        ⚠️ User must have at least one enabled dashboard.
-                      </p>
-                    )}
                   </CardContent>
                 </Card>
-
-                {/* Add New Role */}
                 {availableRolesToAdd.length > 0 && (
                   <Card>
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Plus className="h-4 w-4 text-success" />
-                        Add Role
-                      </CardTitle>
-                    </CardHeader>
+                    <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2"><Plus className="h-4 w-4 text-success" />Add Role</CardTitle></CardHeader>
                     <CardContent className="pt-0">
                       <div className="space-y-2">
                         {availableRolesToAdd.map((role) => (
-                          <div 
-                            key={role.value}
-                            className="flex items-center justify-between p-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors"
-                          >
-                            <div className="flex items-center gap-3">
-                              <Badge variant="outline" className={role.color}>
-                                {role.label}
-                              </Badge>
-                              <span className="text-xs text-muted-foreground">
-                                {role.description}
-                              </span>
-                            </div>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => handleAddRole(role.value)}
-                              disabled={addingRole === role.value}
-                              className="text-success hover:text-success hover:bg-success/10"
-                            >
-                              {addingRole === role.value ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <Plus className="h-4 w-4" />
-                              )}
+                          <div key={role.value} className="flex items-center justify-between p-3 rounded-xl border bg-muted/30 hover:bg-muted/50 transition-colors">
+                            <div className="flex items-center gap-3"><Badge variant="outline" className={role.color}>{role.label}</Badge><span className="text-xs text-muted-foreground">{role.description}</span></div>
+                            <Button variant="ghost" size="sm" onClick={() => handleAddRole(role.value)} disabled={addingRole === role.value} className="text-success hover:text-success hover:bg-success/10">
+                              {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-4 w-4" />}
                             </Button>
                           </div>
                         ))}
@@ -1290,296 +1540,33 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             <TabsContent value="activity" className="mt-0">
               <div className="p-6 pt-4">
                 <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <h3 className="font-semibold flex items-center gap-2">
-                    <Activity className="h-5 w-5 text-primary" />
-                    Activity Log
-                  </h3>
-                  
-                  <div className="flex items-center gap-2">
-                    {/* Activity Type Filter */}
-                    <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
-                      <SelectTrigger className={`w-[130px] h-8 text-xs ${activityTypeFilter !== 'all' ? 'border-primary text-primary' : ''}`}>
-                        <SelectValue placeholder="All Types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activityTypeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value} className="text-xs">
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-
-                    {/* Date Filter */}
-                    <Popover open={showDatePicker} onOpenChange={setShowDatePicker}>
-                      <PopoverTrigger asChild>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className={`gap-2 h-8 ${(dateRange.from || dateRange.to) ? 'border-primary text-primary' : ''}`}
-                        >
-                          <CalendarDays className="h-4 w-4" />
-                          {dateRange.from ? (
-                            dateRange.to ? (
-                              <span className="text-xs">
-                                {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
-                              </span>
-                            ) : (
-                              <span className="text-xs">From {format(dateRange.from, 'MMM d')}</span>
-                            )
-                          ) : (
-                            <span className="text-xs">Date</span>
-                          )}
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent className="w-auto p-0" align="end">
-                        <div className="p-3 border-b space-y-2">
-                          <p className="text-sm font-medium">Quick select</p>
-                          <div className="flex flex-wrap gap-1">
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(7)}>
-                              Last 7 days
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(30)}>
-                              Last 30 days
-                            </Button>
-                            <Button size="sm" variant="ghost" className="h-7 text-xs" onClick={() => setQuickDateRange(90)}>
-                              Last 90 days
-                            </Button>
-                          </div>
-                        </div>
-                        <CalendarComponent
-                          mode="range"
-                          selected={{ from: dateRange.from, to: dateRange.to }}
-                          onSelect={(range) => setDateRange({ from: range?.from, to: range?.to })}
-                          numberOfMonths={1}
-                          disabled={{ after: new Date() }}
-                        />
-                        {(dateRange.from || dateRange.to) && (
-                          <div className="p-3 border-t">
-                            <Button size="sm" variant="ghost" className="w-full gap-2" onClick={clearDateRange}>
-                              <X className="h-4 w-4" />
-                              Clear date filter
-                            </Button>
-                          </div>
-                        )}
-                      </PopoverContent>
-                    </Popover>
-                  </div>
+                  <h3 className="font-semibold flex items-center gap-2"><Activity className="h-5 w-5 text-primary" />Activity Log</h3>
+                  <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
+                    <SelectTrigger className={`w-[130px] h-8 text-xs ${activityTypeFilter !== 'all' ? 'border-primary text-primary' : ''}`}>
+                      <SelectValue placeholder="All Types" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {activityTypeOptions.map((option) => (<SelectItem key={option.value} value={option.value} className="text-xs">{option.label}</SelectItem>))}
+                    </SelectContent>
+                  </Select>
                 </div>
-
-                {/* Activity Summary Stats */}
-                {!activityLoading && activityLog.length > 0 && (
-                  <>
-                    <div className="grid grid-cols-3 gap-2 mb-4">
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'deposit' ? 'ring-2 ring-success' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'deposit' ? 'all' : 'deposit')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-success/10">
-                            <DownloadIcon className="h-3 w-3 text-success" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Deposits ({activitySummary.depositCount})</p>
-                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalDeposits)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-warning/5 ${activityTypeFilter === 'withdrawal' ? 'ring-2 ring-warning' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'withdrawal' ? 'all' : 'withdrawal')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-warning/10">
-                            <Send className="h-3 w-3 text-warning" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Withdrawals ({activitySummary.withdrawalCount})</p>
-                            <p className="text-xs font-semibold text-warning truncate">{formatUGX(activitySummary.totalWithdrawals)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-primary/5 ${activityTypeFilter === 'order' ? 'ring-2 ring-primary' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'order' ? 'all' : 'order')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-primary/10">
-                            <ShoppingCart className="h-3 w-3 text-primary" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Orders ({activitySummary.orderCount})</p>
-                            <p className="text-xs font-semibold text-primary truncate">{formatUGX(activitySummary.totalOrders)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-destructive/5 ${activityTypeFilter === 'transaction_sent' ? 'ring-2 ring-destructive' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_sent' ? 'all' : 'transaction_sent')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-destructive/10">
-                            <ArrowUpRight className="h-3 w-3 text-destructive" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Sent ({activitySummary.sentCount})</p>
-                            <p className="text-xs font-semibold text-destructive truncate">{formatUGX(activitySummary.totalSent)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'transaction_received' ? 'ring-2 ring-success' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'transaction_received' ? 'all' : 'transaction_received')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-success/10">
-                            <ArrowDownLeft className="h-3 w-3 text-success" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Received ({activitySummary.receivedCount})</p>
-                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalReceived)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                      <Card 
-                        className={`p-2.5 cursor-pointer transition-all hover:bg-success/5 ${activityTypeFilter === 'repayment' ? 'ring-2 ring-success' : ''}`}
-                        onClick={() => setActivityTypeFilter(activityTypeFilter === 'repayment' ? 'all' : 'repayment')}
-                      >
-                        <div className="flex items-center gap-2">
-                          <div className="p-1.5 rounded-full bg-success/10">
-                            <CreditCard className="h-3 w-3 text-success" />
-                          </div>
-                          <div className="min-w-0">
-                            <p className="text-[10px] text-muted-foreground truncate">Repayments ({activitySummary.repaymentCount})</p>
-                            <p className="text-xs font-semibold text-success truncate">{formatUGX(activitySummary.totalRepayments)}</p>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
-
-                    {/* Net Balance Indicator */}
-                    <Card className="p-3 mb-4 bg-muted/30">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-4">
-                          <div className="flex items-center gap-2">
-                            <ArrowDownLeft className="h-4 w-4 text-success" />
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Money In</p>
-                              <p className="text-sm font-semibold text-success">{formatUGX(activitySummary.moneyIn)}</p>
-                            </div>
-                          </div>
-                          <div className="h-8 w-px bg-border" />
-                          <div className="flex items-center gap-2">
-                            <ArrowUpRight className="h-4 w-4 text-destructive" />
-                            <div>
-                              <p className="text-[10px] text-muted-foreground">Money Out</p>
-                              <p className="text-sm font-semibold text-destructive">{formatUGX(activitySummary.moneyOut)}</p>
-                            </div>
-                          </div>
-                        </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-muted-foreground">Net Balance</p>
-                          <p className={`text-sm font-bold ${activitySummary.netBalance >= 0 ? 'text-success' : 'text-destructive'}`}>
-                            {activitySummary.netBalance >= 0 ? '+' : ''}{formatUGX(activitySummary.netBalance)}
-                          </p>
-                        </div>
-                      </div>
-                      
-                      {/* Money Flow Progress Bar */}
-                      {(activitySummary.moneyIn > 0 || activitySummary.moneyOut > 0) && (
-                        <div className="mt-3">
-                          <div className="flex justify-between text-[10px] text-muted-foreground mb-1">
-                            <span>
-                              {Math.round((activitySummary.moneyIn / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100)}% In
-                            </span>
-                            <span>
-                              {Math.round((activitySummary.moneyOut / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100)}% Out
-                            </span>
-                          </div>
-                          <div className="h-2 rounded-full bg-muted overflow-hidden flex">
-                            <div 
-                              className="h-full bg-success transition-all duration-300"
-                              style={{ 
-                                width: `${(activitySummary.moneyIn / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100}%` 
-                              }}
-                            />
-                            <div 
-                              className="h-full bg-destructive transition-all duration-300"
-                              style={{ 
-                                width: `${(activitySummary.moneyOut / (activitySummary.moneyIn + activitySummary.moneyOut)) * 100}%` 
-                              }}
-                            />
-                          </div>
-                        </div>
-                      )}
-                    </Card>
-                  </>
-                )}
-
-                {/* Active filter indicator */}
-                {(dateRange.from || dateRange.to || activityTypeFilter !== 'all') && (
-                  <div className="flex items-center justify-between gap-2 mb-3">
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <Filter className="h-3 w-3" />
-                      <span>
-                        Showing {filteredActivityLog.length} of {activityLog.length} activities
-                        {activityTypeFilter !== 'all' && (
-                          <> • {activityTypeOptions.find(o => o.value === activityTypeFilter)?.label}</>
-                        )}
-                        {dateRange.from && dateRange.to && (
-                          <> • {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}</>
-                        )}
-                      </span>
-                    </div>
-                    <Button variant="ghost" size="sm" className="h-6 text-xs px-2" onClick={clearAllFilters}>
-                      Clear all
-                    </Button>
-                  </div>
-                )}
-
                 {activityLoading ? (
-                  <div className="space-y-3">
-                    {[1, 2, 3, 4, 5].map(i => (
-                      <Skeleton key={i} className="h-16 w-full" />
-                    ))}
-                  </div>
-                ) : activityLog.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <Activity className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No activity recorded yet</p>
-                  </Card>
+                  <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
                 ) : filteredActivityLog.length === 0 ? (
-                  <Card className="p-8 text-center">
-                    <Filter className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                    <p className="text-muted-foreground">No activity matches the selected filters</p>
-                    <Button variant="link" size="sm" onClick={clearAllFilters} className="mt-2">
-                      Clear all filters
-                    </Button>
-                  </Card>
+                  <Card className="p-8 text-center"><Activity className="h-10 w-10 mx-auto text-muted-foreground mb-2" /><p className="text-muted-foreground">No activity recorded yet</p></Card>
                 ) : (
                   <div className="space-y-2">
                     {filteredActivityLog.map((activity) => (
                       <Card key={activity.id} className="p-3">
                         <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-full bg-muted shrink-0">
-                            {getActivityIcon(activity.type)}
-                          </div>
+                          <div className="p-2 rounded-full bg-muted shrink-0">{getActivityIcon(activity.type)}</div>
                           <div className="flex-1 min-w-0">
                             <div className="flex items-start justify-between gap-2">
                               <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">
-                                  {activity.description}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                                  <span className="mx-1">•</span>
-                                  {format(new Date(activity.created_at), 'MMM d, yyyy')}
-                                </p>
+                                <p className="text-sm font-medium truncate">{activity.description}</p>
+                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}<span className="mx-1">•</span>{format(new Date(activity.created_at), 'MMM d, yyyy')}</p>
                               </div>
-                              <span className={`text-sm font-semibold shrink-0 ${getActivityColor(activity.type)}`}>
-                                {activity.type === 'transaction_sent' || activity.type === 'withdrawal' || activity.type === 'order' ? '-' : '+'}
-                                {formatUGX(activity.amount)}
-                              </span>
+                              <span className={`text-sm font-semibold shrink-0 ${getActivityColor(activity.type)}`}>{activity.type === 'transaction_sent' || activity.type === 'withdrawal' || activity.type === 'order' ? '-' : '+'}{formatUGX(activity.amount)}</span>
                             </div>
                           </div>
                         </div>
