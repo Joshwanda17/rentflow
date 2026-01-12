@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface CreateUserInviteDialogProps {
   open: boolean;
@@ -16,35 +17,40 @@ interface CreateUserInviteDialogProps {
 
 type UserRole = 'tenant' | 'agent' | 'supporter' | 'landlord';
 
-const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string }> = {
+const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string; bgColor: string }> = {
   tenant: {
     label: 'Tenant',
     icon: Users,
     description: 'Rent payer who can request rent assistance',
     color: 'text-blue-500',
+    bgColor: 'bg-blue-500/10 border-blue-500/30',
   },
   landlord: {
     label: 'Landlord',
     icon: Briefcase,
     description: 'Property owner who receives rent payments',
     color: 'text-emerald-500',
+    bgColor: 'bg-emerald-500/10 border-emerald-500/30',
   },
   agent: {
     label: 'Agent',
     icon: Briefcase,
     description: 'Field agent who registers tenants & manages deposits',
     color: 'text-amber-500',
+    bgColor: 'bg-amber-500/10 border-amber-500/30',
   },
   supporter: {
     label: 'Supporter',
     icon: Heart,
     description: 'Investor who funds rent requests & earns returns',
     color: 'text-rose-500',
+    bgColor: 'bg-rose-500/10 border-rose-500/30',
   },
 };
 
 export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteDialogProps) {
   const { toast } = useToast();
+  const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -70,6 +76,13 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
     }
     setFormData(prev => ({ ...prev, password }));
   };
+
+  // Auto-generate password when dialog opens
+  useEffect(() => {
+    if (open && !formData.password) {
+      generatePassword();
+    }
+  }, [open]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -165,11 +178,209 @@ Password: ${createdInvite?.password}`;
     setFormData({ email: '', fullName: '', phone: '', password: '' });
     setCreatedInvite(null);
     setCopied(false);
-    setSelectedRole('supporter');
+    setSelectedRole('tenant');
     onOpenChange(false);
   };
 
   const RoleIcon = roleConfig[selectedRole].icon;
+
+  const FormContent = () => (
+    <form onSubmit={handleSubmit} className="space-y-5">
+      {/* Role Selection - Large touch targets */}
+      <div className="space-y-3">
+        <Label className="text-base font-medium">Select Role</Label>
+        <div className="grid grid-cols-2 gap-3">
+          {(Object.keys(roleConfig) as UserRole[]).map((role) => {
+            const config = roleConfig[role];
+            const Icon = config.icon;
+            const isSelected = selectedRole === role;
+            return (
+              <button
+                key={role}
+                type="button"
+                onClick={() => setSelectedRole(role)}
+                className={`flex flex-col items-center justify-center p-4 rounded-xl border-2 transition-all active:scale-95 ${
+                  isSelected 
+                    ? `${config.bgColor} border-current` 
+                    : 'bg-muted/30 border-transparent hover:bg-muted/50'
+                }`}
+              >
+                <Icon className={`h-7 w-7 mb-2 ${isSelected ? config.color : 'text-muted-foreground'}`} />
+                <span className={`text-sm font-medium ${isSelected ? config.color : 'text-foreground'}`}>
+                  {config.label}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-sm text-muted-foreground text-center">{roleConfig[selectedRole].description}</p>
+      </div>
+
+      {/* Form fields with larger inputs */}
+      <div className="space-y-4">
+        <div className="space-y-2">
+          <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
+          <Input
+            id="fullName"
+            placeholder="Enter user's full name"
+            value={formData.fullName}
+            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
+            required
+            className="h-12 text-base"
+            autoComplete="name"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+          <Input
+            id="email"
+            type="email"
+            placeholder="user@example.com"
+            value={formData.email}
+            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
+            required
+            className="h-12 text-base"
+            autoComplete="email"
+            inputMode="email"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
+          <Input
+            id="phone"
+            placeholder="0700000000"
+            value={formData.phone}
+            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+            required
+            className="h-12 text-base"
+            autoComplete="tel"
+            inputMode="tel"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <Label htmlFor="password" className="text-sm font-medium">Temporary Password</Label>
+            <Button 
+              type="button" 
+              variant="ghost" 
+              size="sm" 
+              onClick={generatePassword}
+              className="h-8 text-xs gap-1"
+            >
+              <Sparkles className="h-3 w-3" />
+              New
+            </Button>
+          </div>
+          <div className="relative">
+            <Input
+              id="password"
+              type={showPassword ? 'text' : 'password'}
+              placeholder="Password"
+              value={formData.password}
+              onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
+              required
+              minLength={6}
+              className="h-12 text-base pr-12"
+            />
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className="absolute right-1 top-1/2 -translate-y-1/2 h-10 w-10"
+              onClick={() => setShowPassword(!showPassword)}
+            >
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+            </Button>
+          </div>
+          <p className="text-xs text-muted-foreground">
+            This password will be shared with the user
+          </p>
+        </div>
+      </div>
+
+      <Button type="submit" className="w-full h-12 text-base font-medium" disabled={isLoading}>
+        {isLoading ? (
+          <>
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            Creating...
+          </>
+        ) : (
+          <>
+            <RoleIcon className={`h-5 w-5 mr-2 ${roleConfig[selectedRole].color}`} />
+            Create {roleConfig[selectedRole].label}
+          </>
+        )}
+      </Button>
+    </form>
+  );
+
+  const SuccessContent = () => (
+    <div className="space-y-5">
+      <Card className="bg-muted/50">
+        <CardContent className="pt-5 space-y-4">
+          <div className="flex items-center gap-3">
+            <span className="text-3xl">{getRoleEmoji(createdInvite!.role)}</span>
+            <div>
+              <p className="font-semibold text-lg">{createdInvite!.fullName}</p>
+              <p className="text-sm text-muted-foreground">{roleConfig[createdInvite!.role].label}</p>
+            </div>
+          </div>
+          <div className="bg-background rounded-lg p-3">
+            <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
+            <p className="font-mono font-bold text-lg">{createdInvite!.password}</p>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="space-y-2">
+        <Label className="text-sm font-medium">Activation Link</Label>
+        <div className="flex gap-2">
+          <Input value={getShareLink()} readOnly className="h-12 text-sm" />
+          <Button variant="outline" size="icon" onClick={handleCopyLink} className="h-12 w-12 shrink-0">
+            {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
+          </Button>
+        </div>
+      </div>
+
+      <Button 
+        onClick={handleShareWhatsApp} 
+        className="w-full h-14 text-base font-medium bg-green-600 hover:bg-green-700"
+      >
+        <Share2 className="h-5 w-5 mr-2" />
+        Share on WhatsApp
+      </Button>
+
+      <Button variant="outline" onClick={handleClose} className="w-full h-12 text-base">
+        Create Another
+      </Button>
+    </div>
+  );
+
+  // Use Sheet for mobile, Dialog for desktop
+  if (isMobile) {
+    return (
+      <Sheet open={open} onOpenChange={handleClose}>
+        <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl overflow-y-auto pb-safe">
+          <SheetHeader className="pb-4">
+            <SheetTitle className="flex items-center gap-2 text-lg">
+              <UserPlus className="h-5 w-5 text-primary" />
+              {createdInvite ? 'Share Activation Link' : 'Create User Account'}
+            </SheetTitle>
+            <SheetDescription>
+              {createdInvite 
+                ? `Share this link with the ${roleConfig[createdInvite.role].label.toLowerCase()}`
+                : 'Create a new user account'}
+            </SheetDescription>
+          </SheetHeader>
+          
+          {!createdInvite ? <FormContent /> : <SuccessContent />}
+        </SheetContent>
+      </Sheet>
+    );
+  }
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -186,156 +397,7 @@ Password: ${createdInvite?.password}`;
           </DialogDescription>
         </DialogHeader>
 
-        {!createdInvite ? (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Role Selection */}
-            <div className="space-y-2">
-              <Label>Select Role</Label>
-              <ToggleGroup 
-                type="single" 
-                value={selectedRole} 
-                onValueChange={(v) => v && setSelectedRole(v as UserRole)}
-                className="justify-start"
-              >
-                {(Object.keys(roleConfig) as UserRole[]).map((role) => {
-                  const config = roleConfig[role];
-                  const Icon = config.icon;
-                  return (
-                    <ToggleGroupItem 
-                      key={role} 
-                      value={role}
-                      className="flex-1 flex-col h-auto py-3 gap-1 data-[state=on]:bg-primary/10 data-[state=on]:border-primary"
-                    >
-                      <Icon className={`h-5 w-5 ${config.color}`} />
-                      <span className="text-xs font-medium">{config.label}</span>
-                    </ToggleGroupItem>
-                  );
-                })}
-              </ToggleGroup>
-              <p className="text-xs text-muted-foreground">{roleConfig[selectedRole].description}</p>
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="fullName">Full Name</Label>
-              <Input
-                id="fullName"
-                placeholder="Enter user's full name"
-                value={formData.fullName}
-                onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="email">Email</Label>
-              <Input
-                id="email"
-                type="email"
-                placeholder="user@example.com"
-                value={formData.email}
-                onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="phone">Phone Number</Label>
-              <Input
-                id="phone"
-                placeholder="0700000000"
-                value={formData.phone}
-                onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-                required
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="password">Temporary Password</Label>
-              <div className="flex gap-2">
-                <div className="relative flex-1">
-                  <Input
-                    id="password"
-                    type={showPassword ? 'text' : 'password'}
-                    placeholder="Create a password"
-                    value={formData.password}
-                    onChange={(e) => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                    required
-                    minLength={6}
-                  />
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    className="absolute right-0 top-0 h-full"
-                    onClick={() => setShowPassword(!showPassword)}
-                  >
-                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                  </Button>
-                </div>
-                <Button type="button" variant="outline" onClick={generatePassword}>
-                  Generate
-                </Button>
-              </div>
-              <p className="text-xs text-muted-foreground">
-                This password will be shared with the user
-              </p>
-            </div>
-
-            <Button type="submit" className="w-full" disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Creating...
-                </>
-              ) : (
-                <>
-                  <RoleIcon className={`h-4 w-4 mr-2 ${roleConfig[selectedRole].color}`} />
-                  Create {roleConfig[selectedRole].label} Account
-                </>
-              )}
-            </Button>
-          </form>
-        ) : (
-          <div className="space-y-4">
-            <Card className="bg-muted/50">
-              <CardContent className="pt-4 space-y-3">
-                <div className="flex items-center gap-2">
-                  <span className="text-2xl">{getRoleEmoji(createdInvite.role)}</span>
-                  <div>
-                    <p className="font-medium">{createdInvite.fullName}</p>
-                    <p className="text-sm text-muted-foreground">{roleConfig[createdInvite.role].label}</p>
-                  </div>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Temporary Password</p>
-                  <p className="font-mono font-medium">{createdInvite.password}</p>
-                </div>
-              </CardContent>
-            </Card>
-
-            <div className="space-y-2">
-              <Label>Activation Link</Label>
-              <div className="flex gap-2">
-                <Input value={getShareLink()} readOnly className="text-xs" />
-                <Button variant="outline" size="icon" onClick={handleCopyLink}>
-                  {copied ? <Check className="h-4 w-4 text-green-500" /> : <Copy className="h-4 w-4" />}
-                </Button>
-              </div>
-            </div>
-
-            <Button 
-              onClick={handleShareWhatsApp} 
-              className="w-full bg-green-600 hover:bg-green-700"
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share on WhatsApp
-            </Button>
-
-            <Button variant="outline" onClick={handleClose} className="w-full">
-              Create Another
-            </Button>
-          </div>
-        )}
+        {!createdInvite ? <FormContent /> : <SuccessContent />}
       </DialogContent>
     </Dialog>
   );
