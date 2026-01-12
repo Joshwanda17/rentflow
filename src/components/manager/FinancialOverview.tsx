@@ -220,17 +220,20 @@ export function FinancialOverview() {
     return 'All Time';
   };
 
-  if (loading && !metrics) {
+  if (loading || !metrics) {
     return (
-      <Card className="glass-card">
-        <CardContent className="py-8 text-center text-muted-foreground">
-          Loading financial metrics...
-        </CardContent>
-      </Card>
+      <div className="space-y-4">
+        <Card className="glass-card">
+          <CardContent className="py-8 text-center text-muted-foreground">
+            <div className="flex flex-col items-center gap-3">
+              <div className="h-8 w-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <p>Loading financial metrics...</p>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
     );
   }
-
-  if (!metrics) return null;
 
   return (
     <div className="space-y-4">
