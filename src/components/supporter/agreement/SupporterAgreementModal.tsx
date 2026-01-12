@@ -34,7 +34,7 @@ export function SupporterAgreementModal({
   onAccept,
   loading = false
 }: SupporterAgreementModalProps) {
-  const [activeTab, setActiveTab] = useState<string>('summary');
+  const [activeTab, setActiveTab] = useState<string>('full');
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [isChecked, setIsChecked] = useState(false);
   const [showScrollPrompt, setShowScrollPrompt] = useState(false);
@@ -46,7 +46,7 @@ export function SupporterAgreementModal({
   // Reset state when modal opens
   useEffect(() => {
     if (open) {
-      setActiveTab('summary');
+      setActiveTab('full');
       setHasScrolledToBottom(false);
       setIsChecked(false);
       setShowScrollPrompt(false);
