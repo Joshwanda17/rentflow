@@ -113,7 +113,7 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
       <motion.button
         onClick={isOpen ? handleClose : handleOpen}
         className={cn(
-          "md:hidden fixed bottom-24 right-4 z-[60] p-4 rounded-full shadow-2xl transition-colors",
+          "fixed bottom-24 right-4 z-[60] p-4 rounded-full shadow-2xl transition-colors",
           isOpen 
             ? "bg-destructive text-destructive-foreground" 
             : "bg-primary text-primary-foreground"
@@ -136,7 +136,7 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             onClick={handleClose}
-            className="md:hidden fixed inset-0 bg-black/60 backdrop-blur-sm z-[55]"
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[55]"
           />
         )}
       </AnimatePresence>
@@ -149,7 +149,7 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="md:hidden fixed bottom-40 left-4 right-4 z-[60] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden"
+            className="fixed bottom-40 left-4 right-4 z-[60] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-w-md mx-auto"
           >
             {/* Header */}
             <div className="p-4 bg-primary/10 border-b border-border">
