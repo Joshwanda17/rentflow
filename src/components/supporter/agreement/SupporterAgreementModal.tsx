@@ -363,20 +363,44 @@ ${FULL_AGREEMENT_CONTENT}
           </div>
 
           {/* Checkbox */}
-          <div className="flex items-start gap-3 p-3 rounded-lg bg-background border border-border">
+          <motion.div 
+            className={cn(
+              "flex items-start gap-3 p-3 rounded-lg border transition-all duration-300",
+              isChecked 
+                ? "bg-success/10 border-success/50 ring-2 ring-success/20" 
+                : "bg-background border-border"
+            )}
+            animate={isChecked ? { scale: [1, 1.02, 1] } : {}}
+            transition={{ duration: 0.3 }}
+          >
             <Checkbox
               id="accept-terms"
               checked={isChecked}
               onCheckedChange={(checked) => setIsChecked(checked === true)}
-              className="mt-0.5"
+              className={cn("mt-0.5", isChecked && "data-[state=checked]:bg-success data-[state=checked]:border-success")}
             />
-            <label
-              htmlFor="accept-terms"
-              className="text-xs sm:text-sm text-foreground cursor-pointer leading-relaxed"
-            >
-              I have read and agree to the <span className="font-semibold">Welile Tenant Supporter Terms & Conditions</span> (12-Month Contract), including the <span className="font-semibold text-primary">90-day withdrawal notice policy</span> and the <span className="font-semibold text-primary">Principal & Outcome Assurance Framework</span>.
-            </label>
-          </div>
+            <div className="flex-1">
+              <label
+                htmlFor="accept-terms"
+                className="text-xs sm:text-sm text-foreground cursor-pointer leading-relaxed block"
+              >
+                I have read and agree to the <span className="font-semibold">Welile Tenant Supporter Terms & Conditions</span> (12-Month Contract), including the <span className="font-semibold text-primary">90-day withdrawal notice policy</span> and the <span className="font-semibold text-primary">Principal & Outcome Assurance Framework</span>.
+              </label>
+              <AnimatePresence>
+                {isChecked && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="flex items-center gap-1.5 mt-2 text-success font-medium text-xs"
+                  >
+                    <CheckCircle2 className="h-3.5 w-3.5" />
+                    <span>Agreement accepted! Click the button below to continue.</span>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          </motion.div>
 
           {/* Accept Button */}
           <Button
