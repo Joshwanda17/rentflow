@@ -34,6 +34,7 @@ interface UserWithRating {
   rent_discount_active: boolean;
   monthly_rent: number | null;
   roles: string[];
+  roleEnabledStatus: Record<string, boolean>;
   average_rating: number | null;
   rating_count: number;
   created_at: string;
@@ -85,11 +86,11 @@ export default function UserProfilesTable() {
       return;
     }
 
-    // Fetch roles
+    // Fetch roles with enabled status
     const userIds = profiles?.map(p => p.id) || [];
     const { data: rolesData } = await supabase
       .from('user_roles')
-      .select('user_id, role')
+      .select('user_id, role, enabled')
       .in('user_id', userIds);
 
     // Fetch ratings
@@ -109,12 +110,18 @@ export default function UserProfilesTable() {
 
     // Combine data
     const usersWithRatings: UserWithRating[] = (profiles || []).map(p => {
-      const userRoles = rolesData?.filter(r => r.user_id === p.id).map(r => r.role) || [];
+      const userRolesData = rolesData?.filter(r => r.user_id === p.id) || [];
+      const userRoles = userRolesData.map(r => r.role);
+      const roleEnabledStatus: Record<string, boolean> = {};
+      userRolesData.forEach(r => {
+        roleEnabledStatus[r.role] = r.enabled;
+      });
       const ratingInfo = ratingsByTenant.get(p.id);
       
       return {
         ...p,
         roles: userRoles,
+        roleEnabledStatus,
         average_rating: ratingInfo ? ratingInfo.sum / ratingInfo.count : null,
         rating_count: ratingInfo?.count || 0,
         created_at: p.created_at,
@@ -616,15 +623,20 @@ export default function UserProfilesTable() {
                         
                         {/* Roles */}
                         <div className="flex flex-wrap gap-1.5 mt-2">
-                          {user.roles.map((role) => (
-                            <Badge 
-                              key={role} 
-                              variant="outline"
-                              className={`text-xs font-semibold px-2 py-0.5 ${getRoleBadgeColor(role)}`}
-                            >
-                              {role}
-                            </Badge>
-                          ))}
+                          {user.roles.map((role) => {
+                            const isEnabled = user.roleEnabledStatus[role] ?? true;
+                            return (
+                              <Badge 
+                                key={role} 
+                                variant="outline"
+                                className={`text-xs font-semibold px-2 py-0.5 ${getRoleBadgeColor(role)} ${!isEnabled ? 'opacity-40 line-through' : ''}`}
+                                title={isEnabled ? `${role} dashboard enabled` : `${role} dashboard disabled by manager`}
+                              >
+                                {role}
+                                {!isEnabled && <span className="ml-1">🚫</span>}
+                              </Badge>
+                            );
+                          })}
                         </div>
 
                         {/* Rating */}

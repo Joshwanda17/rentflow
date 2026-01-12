@@ -59,10 +59,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserRoles = async (userId: string) => {
+    // Only fetch roles that are enabled (not restricted by manager)
     const { data, error } = await supabase
       .from('user_roles')
-      .select('role')
-      .eq('user_id', userId);
+      .select('role, enabled')
+      .eq('user_id', userId)
+      .eq('enabled', true);
     
     if (!error && data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
