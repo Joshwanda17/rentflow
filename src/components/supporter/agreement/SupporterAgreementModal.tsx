@@ -164,7 +164,7 @@ ${FULL_AGREEMENT_CONTENT}
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl h-[90vh] max-h-[800px] flex flex-col p-0 gap-0 overflow-hidden">
+      <DialogContent className="max-w-2xl h-[95vh] max-h-[900px] flex flex-col p-0 gap-0 overflow-hidden sm:rounded-xl"  >
         {/* Header */}
         <DialogHeader className="px-4 sm:px-6 pt-5 pb-4 border-b border-border shrink-0">
           <div className="flex items-start gap-3">
@@ -246,8 +246,12 @@ ${FULL_AGREEMENT_CONTENT}
               </ScrollArea>
             </TabsContent>
 
-            <TabsContent value="full" className="flex-1 min-h-0 mt-0 px-4 sm:px-6 data-[state=inactive]:hidden">
-              <div 
+            <TabsContent value="full" className="flex-1 min-h-0 mt-0 px-4 sm:px-6 data-[state=inactive]:hidden relative">
+              {/* Scroll indicator at top */}
+              {!hasScrolledToBottom && (
+                <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
+              )}
+              <div
                 ref={fullAgreementRef}
                 onScroll={handleScroll}
                 className="h-full overflow-y-auto pr-4 py-4"
@@ -314,12 +318,29 @@ ${FULL_AGREEMENT_CONTENT}
                   </div>
                 </div>
               </div>
+              {/* Scroll indicator at bottom */}
+              {!hasScrolledToBottom && (
+                <motion.div 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-2 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent"
+                >
+                  <motion.div
+                    animate={{ y: [0, 5, 0] }}
+                    transition={{ repeat: Infinity, duration: 1.5 }}
+                    className="flex flex-col items-center text-muted-foreground"
+                  >
+                    <ChevronRight className="h-5 w-5 rotate-90" />
+                    <span className="text-xs font-medium">Scroll to continue</span>
+                  </motion.div>
+                </motion.div>
+              )}
             </TabsContent>
           </Tabs>
         </div>
 
         {/* Footer Actions */}
-        <div className="shrink-0 border-t border-border bg-muted/30 p-4 sm:p-5 space-y-4">
+        <div className="shrink-0 border-t border-border bg-muted/30 p-3 sm:p-4 space-y-3">
           {/* Scroll Prompt */}
           <AnimatePresence>
             {showScrollPrompt && !hasScrolledToBottom && (
