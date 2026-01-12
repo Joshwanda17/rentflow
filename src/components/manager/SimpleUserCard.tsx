@@ -112,7 +112,16 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, index }: S
         </Avatar>
 
         <div className="flex-1 min-w-0">
-          <h3 className="font-bold text-base truncate pr-8">{user.full_name}</h3>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              hapticTap();
+              onClick();
+            }}
+            className="font-bold text-base truncate pr-8 text-primary hover:underline underline-offset-2 text-left w-full"
+          >
+            {user.full_name}
+          </button>
           <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
           
           {/* Roles */}
