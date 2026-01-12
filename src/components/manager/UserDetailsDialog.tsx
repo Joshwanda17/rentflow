@@ -85,6 +85,7 @@ interface UserDetailsDialogProps {
     roles: string[];
     average_rating: number | null;
     rating_count: number;
+    verified?: boolean;
   } | null;
   onRolesUpdated?: () => void;
   onUserDeleted?: () => void;
@@ -119,10 +120,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [savingProfile, setSavingProfile] = useState(false);
   const [deletingUser, setDeletingUser] = useState(false);
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState<boolean>(false);
+  const [approvingUser, setApprovingUser] = useState(false);
+  const [rejectingUser, setRejectingUser] = useState(false);
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
       fetchUserRolesWithStatus();
+      fetchVerificationStatus();
       setEditForm({
         full_name: user.full_name,
         email: user.email,
@@ -131,6 +136,66 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       });
     }
   }, [open, user]);
+
+  const fetchVerificationStatus = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('verified')
+      .eq('id', user.id)
+      .single();
+    
+    if (!error && data) {
+      setVerificationStatus(data.verified);
+    }
+  };
+
+  const handleApproveUser = async () => {
+    if (!user) return;
+    setApprovingUser(true);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ verified: true })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setVerificationStatus(true);
+      toast.success(`${user.full_name} has been approved and verified`);
+      onUserUpdated?.();
+    } catch (error) {
+      console.error('Error approving user:', error);
+      toast.error('Failed to approve user');
+    } finally {
+      setApprovingUser(false);
+    }
+  };
+
+  const handleRejectUser = async () => {
+    if (!user) return;
+    setRejectingUser(true);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ verified: false })
+        .eq('id', user.id);
+      
+      if (error) throw error;
+      
+      setVerificationStatus(false);
+      toast.success(`${user.full_name} verification has been revoked`);
+      onUserUpdated?.();
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      toast.error('Failed to reject user');
+    } finally {
+      setRejectingUser(false);
+    }
+  };
 
   const fetchUserRolesWithStatus = async () => {
     if (!user) return;
@@ -828,6 +893,70 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     )}
                   </Card>
                 </div>
+
+                {/* Verification Status & Actions */}
+                <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between gap-4 flex-wrap">
+                      <div className="flex items-center gap-3">
+                        {verificationStatus ? (
+                          <>
+                            <div className="p-2 rounded-full bg-success/20">
+                              <CheckCircle className="h-5 w-5 text-success" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-success">Verified User</p>
+                              <p className="text-xs text-muted-foreground">This user is approved and can access all features</p>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <div className="p-2 rounded-full bg-warning/20">
+                              <XCircle className="h-5 w-5 text-warning" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-warning">Pending Verification</p>
+                              <p className="text-xs text-muted-foreground">This user needs to be verified</p>
+                            </div>
+                          </>
+                        )}
+                      </div>
+                      <div className="flex gap-2">
+                        {!verificationStatus ? (
+                          <Button
+                            size="sm"
+                            variant="success"
+                            onClick={handleApproveUser}
+                            disabled={approvingUser}
+                            className="gap-2"
+                          >
+                            {approvingUser ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <CheckCircle className="h-4 w-4" />
+                            )}
+                            Approve
+                          </Button>
+                        ) : (
+                          <Button
+                            size="sm"
+                            variant="destructive"
+                            onClick={handleRejectUser}
+                            disabled={rejectingUser}
+                            className="gap-2"
+                          >
+                            {rejectingUser ? (
+                              <Loader2 className="h-4 w-4 animate-spin" />
+                            ) : (
+                              <XCircle className="h-4 w-4" />
+                            )}
+                            Revoke
+                          </Button>
+                        )}
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
 
                 {/* Status Badges */}
                 <div className="flex items-center gap-3 flex-wrap">
