@@ -26,9 +26,9 @@ const menuItems = [
   { 
     icon: Users, 
     label: 'Users', 
-    path: '/manager-access?tab=users',
+    path: '/users',
     color: 'bg-blue-500',
-    description: 'View & manage users'
+    description: 'Manage all users'
   },
   { 
     icon: FileText, 
