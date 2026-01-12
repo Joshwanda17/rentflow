@@ -440,6 +440,29 @@ export default function SupporterDashboard({
             Welcome, {profile?.full_name?.split(' ')[0] || 'Supporter'} 👋
           </h1>
           <p className="text-sm text-muted-foreground">Earn 15% monthly by helping tenants</p>
+          
+          {/* Easy Agreement Access */}
+          {effectiveHasAccepted ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+              className="mt-2 text-xs text-muted-foreground hover:text-primary gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              View My Agreement
+            </Button>
+          ) : (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowAgreementModal(true)}
+              className="mt-2 text-xs border-warning text-warning hover:bg-warning/10 gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Accept Terms to Continue
+            </Button>
+          )}
         </motion.div>
 
         {/* Quick Stats */}
