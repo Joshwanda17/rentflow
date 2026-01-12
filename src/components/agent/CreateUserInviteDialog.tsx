@@ -12,6 +12,7 @@ import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
 interface CreateUserInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  onSuccess?: () => void;
 }
 
 type UserRole = 'tenant' | 'landlord';
@@ -33,7 +34,7 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; des
   },
 };
 
-export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteDialogProps) {
+export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: CreateUserInviteDialogProps) {
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
@@ -95,6 +96,9 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
         title: `✅ ${roleConfig[selectedRole].label} Invite Created!`,
         description: 'Share the activation link with the user.',
       });
+
+      // Call onSuccess callback if provided
+      onSuccess?.();
     } catch (error: any) {
       toast({
         title: 'Error',

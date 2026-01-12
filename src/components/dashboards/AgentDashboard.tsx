@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { 
   Users, 
   Coins, 
@@ -15,11 +15,12 @@ import {
   Share2, 
   History,
   TrendingUp,
-  ArrowRight,
-  Package,
   Download,
-  Building2,
-  UserPlus
+  UserPlus,
+  Wallet,
+  Menu,
+  Sparkles,
+  ChevronRight
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -41,6 +42,8 @@ import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import { motion } from 'framer-motion';
+import { hapticTap } from '@/lib/haptics';
 
 interface AgentDashboardProps {
   user: User;
@@ -54,13 +57,14 @@ interface AgentDashboardProps {
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const { totalEarnings } = useAgentEarnings();
+  const { totalEarnings, refreshEarnings } = useAgentEarnings();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
 
   useEffect(() => {
     fetchData();
@@ -90,7 +94,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }
 
   const handleRefresh = async () => {
-    await fetchData();
+    await Promise.all([fetchData(), refreshEarnings()]);
+  };
+
+  const handleRegisterUser = () => {
+    hapticTap();
+    setRegisterUserOpen(true);
+  };
+
+  const handleViewWallet = () => {
+    hapticTap();
+    setShowWallet(!showWallet);
   };
 
   const menuItems = [
@@ -107,6 +121,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
+  // Other actions for the collapsible menu
+  const otherActions = [
+    { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' as const },
+    { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' as const },
+    { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' as const },
+    { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
+    { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
+    { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' as const },
+    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
+    { icon: History, label: 'History', onClick: () => navigate('/transactions') },
+  ];
+
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
       <DashboardHeader
@@ -117,111 +143,132 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      <main className="px-4 py-4 space-y-4 animate-fade-in">
-        {/* User Profile Card - Clickable */}
-        <button 
-          onClick={() => navigate('/settings')}
-          className="w-full wa-list-item rounded-xl border border-border/50 shadow-sm hover:bg-muted/50 active:scale-[0.99] transition-all"
-        >
-          <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-          <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate">
-              {profile?.full_name || 'Agent'}
-            </h2>
-            <p className="text-sm text-muted-foreground truncate">
-              Tap to view profile
-            </p>
+      <main className="px-4 py-4 space-y-5 animate-fade-in">
+        {/* Agent Welcome & Stats Header */}
+        <div className="flex items-center gap-3">
+          <button 
+            onClick={() => navigate('/settings')}
+            className="shrink-0"
+          >
+            <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="font-bold text-xl truncate">
+              {profile?.full_name?.split(' ')[0] || 'Agent'}
+            </h1>
+            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+              <span className="flex items-center gap-1">
+                <Coins className="h-3.5 w-3.5 text-success" />
+                {formatUGX(totalEarnings)}
+              </span>
+              <span>•</span>
+              <span>{tenantsCount + referralCount} users</span>
+            </div>
           </div>
           {addRoleComponent}
+        </div>
+
+        {/* Two Main Action Buttons - Hero Section */}
+        <div className="grid grid-cols-2 gap-3">
+          {/* Register User - Primary Action */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleRegisterUser}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-5 text-primary-foreground shadow-lg shadow-primary/25 active:shadow-md transition-shadow"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            
+            <div className="relative z-10 flex flex-col items-center text-center gap-3">
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <UserPlus className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="font-bold text-base">Register User</p>
+                <p className="text-xs opacity-80 mt-0.5">Earn commission</p>
+              </div>
+            </div>
+            
+            <Sparkles className="absolute top-3 right-3 h-4 w-4 opacity-60" />
+          </motion.button>
+
+          {/* View Wallet - Secondary Action */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={handleViewWallet}
+            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-success via-success to-success/80 p-5 text-success-foreground shadow-lg shadow-success/25 active:shadow-md transition-shadow"
+          >
+            <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+            <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
+            
+            <div className="relative z-10 flex flex-col items-center text-center gap-3">
+              <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
+                <Wallet className="h-7 w-7" />
+              </div>
+              <div>
+                <p className="font-bold text-base">My Wallet</p>
+                <p className="text-xs opacity-80 mt-0.5">View balance</p>
+              </div>
+            </div>
+            
+            <Coins className="absolute top-3 right-3 h-4 w-4 opacity-60" />
+          </motion.button>
+        </div>
+
+        {/* Expandable Wallet Section */}
+        {showWallet && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            <WalletCard />
+          </motion.div>
+        )}
+
+        {/* Quick Earnings Indicator - Compact */}
+        <button 
+          onClick={() => navigate('/earnings')}
+          className="w-full"
+        >
+          <Card className="border border-success/30 bg-success/5 hover:bg-success/10 transition-colors">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2.5 rounded-xl bg-success/15">
+                    <TrendingUp className="h-5 w-5 text-success" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-success text-lg">{formatUGX(totalEarnings)}</p>
+                    <p className="text-xs text-muted-foreground">Total Earnings</p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-4 text-sm">
+                  <div className="text-center">
+                    <p className="font-bold">{tenantsCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Tenants</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="font-bold">{referralCount}</p>
+                    <p className="text-[10px] text-muted-foreground">Referrals</p>
+                  </div>
+                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </button>
-
-        {/* Wallet Card */}
-        <WalletCard />
-
-        {/* Collapsible Quick Navigation */}
-        <CollapsibleQuickNav 
-          buttonLabel="Quick Actions"
-          items={[
-            { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' },
-            { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' },
-            { icon: UserPlus, label: 'Add User', onClick: () => setRegisterUserOpen(true), variant: 'primary' },
-            { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' },
-            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
-            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
-            { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' },
-            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
-          ]}
-        />
 
         {/* Monthly Goal Progress */}
         <AgentGoalProgress />
 
-        {/* Earnings Card - Clickable */}
-        <button 
-          onClick={() => navigate('/earnings')}
-          className="w-full text-left block"
-        >
-          <Card className="border-2 border-success/30 bg-gradient-to-br from-success/5 via-background to-warning/5 hover:shadow-lg active:scale-[0.99] transition-all cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-start justify-between mb-4">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-success/20 ring-2 ring-success/30">
-                    <Coins className="h-6 w-6 text-success" />
-                  </div>
-                  <div>
-                    <h3 className="font-bold text-lg">Your Earnings</h3>
-                    <p className="text-sm text-muted-foreground">Tap to view details</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </div>
-
-              <div className="grid grid-cols-3 gap-3">
-                <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
-                  <p className="text-xl font-bold text-success">{formatUGX(totalEarnings)}</p>
-                  <p className="text-xs text-muted-foreground">Total</p>
-                </div>
-                <div className="p-3 rounded-xl bg-primary/10 border border-primary/20 text-center">
-                  <p className="text-lg font-bold">{tenantsCount}</p>
-                  <p className="text-xs text-muted-foreground">Tenants</p>
-                </div>
-                <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 text-center">
-                  <p className="text-lg font-bold">{referralCount}</p>
-                  <p className="text-xs text-muted-foreground">Referrals</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </button>
-
-        {/* My Shop Card - Clickable */}
-        <button 
-          onClick={() => navigate('/marketplace')}
-          className="w-full text-left block"
-        >
-          <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-success/5 hover:shadow-lg active:scale-[0.99] transition-all cursor-pointer">
-            <CardContent className="p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-primary/20 ring-2 ring-primary/30">
-                    <Store className="h-6 w-6 text-primary" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-bold text-lg">My Shop</h3>
-                      <Badge className="bg-primary/20 text-primary border-primary/30 gap-1">
-                        <Package className="h-3 w-3" />
-                        Manage
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">Tap to manage products & orders</p>
-                  </div>
-                </div>
-                <ArrowRight className="h-5 w-5 text-muted-foreground" />
-              </div>
-            </CardContent>
-          </Card>
-        </button>
+        {/* More Actions - Hidden in Collapsible Menu */}
+        <CollapsibleQuickNav 
+          buttonLabel="More Actions"
+          title="All Features"
+          items={otherActions}
+        />
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
@@ -233,19 +280,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <FoodShoppingLoansSection />
       </main>
       
-      {/* FAB for quick deposit */}
-      <button 
-        type="button"
-        onClick={() => setDepositOpen(true)}
-        className="wa-fab"
-        aria-label="Deposit for User"
-      >
-        <ArrowDownCircle className="h-6 w-6 pointer-events-none" />
-      </button>
-      
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
-      <CreateUserInviteDialog open={registerUserOpen} onOpenChange={setRegisterUserOpen} />
+      <CreateUserInviteDialog 
+        open={registerUserOpen} 
+        onOpenChange={setRegisterUserOpen}
+        onSuccess={() => {
+          fetchData();
+          refreshEarnings();
+        }}
+      />
       
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
