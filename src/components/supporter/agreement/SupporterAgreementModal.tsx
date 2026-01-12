@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -12,10 +12,10 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { 
-  FileText, Download, Printer, CheckCircle2, AlertCircle, 
-  Shield, Clock, ChevronRight, Loader2, FileCheck
+  FileText, Download, Printer, CheckCircle2, 
+  Shield, Clock, Loader2, FileCheck
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import { QUICK_SUMMARY_CONTENT, FULL_AGREEMENT_CONTENT } from './AgreementContent';
 import { cn } from '@/lib/utils';
@@ -35,9 +35,6 @@ export function SupporterAgreementModal({
   loading = false
 }: SupporterAgreementModalProps) {
   const [activeTab, setActiveTab] = useState<string>('full');
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
-  const [showScrollPrompt, setShowScrollPrompt] = useState(false);
   const [isAccepting, setIsAccepting] = useState(false);
   const fullAgreementRef = useRef<HTMLDivElement>(null);
 
@@ -47,50 +44,12 @@ export function SupporterAgreementModal({
   useEffect(() => {
     if (open) {
       setActiveTab('full');
-      setHasScrolledToBottom(false);
-      setIsChecked(false);
-      setShowScrollPrompt(false);
     }
   }, [open]);
 
-  const handleScroll = useCallback((e: React.UIEvent<HTMLDivElement>) => {
-    const element = e.currentTarget;
-    const scrollTop = element.scrollTop;
-    const scrollHeight = element.scrollHeight;
-    const clientHeight = element.clientHeight;
-    
-    // Consider scrolled to bottom if within 50px of bottom
-    const isAtBottom = scrollHeight - scrollTop - clientHeight < 50;
-    
-    if (isAtBottom && activeTab === 'full') {
-      setHasScrolledToBottom(true);
-      setShowScrollPrompt(false);
-    }
-  }, [activeTab]);
-
-  const handleAcceptClick = async () => {
-    if (!hasScrolledToBottom) {
-      setShowScrollPrompt(true);
-      setActiveTab('full');
-      return;
-    }
-
-    setIsAccepting(true);
-    const success = await onAccept();
-    setIsAccepting(false);
-    
-    if (success) {
-      hapticSuccess();
-      onOpenChange(false);
-    }
-  };
-
-  // Auto-accept when checkbox is checked (if user has scrolled to bottom)
+  // Auto-accept when checkbox is checked - no scroll requirement
   const handleCheckboxChange = async (checked: boolean) => {
-    setIsChecked(checked);
-    
-    if (checked && hasScrolledToBottom) {
-      // Automatically trigger acceptance
+    if (checked) {
       setIsAccepting(true);
       const success = await onAccept();
       setIsAccepting(false);
@@ -99,10 +58,6 @@ export function SupporterAgreementModal({
         hapticSuccess();
         onOpenChange(false);
       }
-    } else if (checked && !hasScrolledToBottom) {
-      // Prompt user to scroll first
-      setShowScrollPrompt(true);
-      setActiveTab('full');
     }
   };
 
@@ -160,7 +115,7 @@ ${FULL_AGREEMENT_CONTENT}
     }
   };
 
-  const canAccept = hasScrolledToBottom && isChecked;
+  
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -203,11 +158,6 @@ ${FULL_AGREEMENT_CONTENT}
                 <TabsTrigger value="full" className="gap-1.5 text-xs sm:text-sm">
                   <FileCheck className="h-3.5 w-3.5" />
                   Full Agreement
-                  {!hasScrolledToBottom && (
-                    <Badge variant="outline" className="ml-1 text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
-                      Read Required
-                    </Badge>
-                  )}
                 </TabsTrigger>
               </TabsList>
             </div>
@@ -247,13 +197,8 @@ ${FULL_AGREEMENT_CONTENT}
             </TabsContent>
 
             <TabsContent value="full" className="flex-1 min-h-0 mt-0 px-4 sm:px-6 data-[state=inactive]:hidden relative">
-              {/* Scroll indicator at top */}
-              {!hasScrolledToBottom && (
-                <div className="absolute top-0 left-0 right-0 h-8 bg-gradient-to-b from-background to-transparent z-10 pointer-events-none" />
-              )}
               <div
                 ref={fullAgreementRef}
-                onScroll={handleScroll}
                 className="h-full overflow-y-auto pr-4 py-4"
               >
                 <div className="prose prose-sm max-w-none">
@@ -313,165 +258,72 @@ ${FULL_AGREEMENT_CONTENT}
                       End of Agreement
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      You have read the complete agreement
+                      You have reached the end of the agreement
                     </p>
                   </div>
                 </div>
               </div>
-              {/* Scroll indicator at bottom */}
-              {!hasScrolledToBottom && (
-                <motion.div 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  className="absolute bottom-0 left-0 right-0 flex flex-col items-center pb-2 pt-6 bg-gradient-to-t from-background via-background/90 to-transparent"
-                >
-                  <motion.div
-                    animate={{ y: [0, 5, 0] }}
-                    transition={{ repeat: Infinity, duration: 1.5 }}
-                    className="flex flex-col items-center text-muted-foreground"
-                  >
-                    <ChevronRight className="h-5 w-5 rotate-90" />
-                    <span className="text-xs font-medium">Scroll to continue</span>
-                  </motion.div>
-                </motion.div>
-              )}
             </TabsContent>
           </Tabs>
         </div>
 
-        {/* Footer Actions */}
+        {/* Footer Actions - Simplified with prominent checkbox */}
         <div className="shrink-0 border-t border-border bg-muted/30 p-3 sm:p-4 space-y-3">
-          {/* Scroll Prompt */}
-          <AnimatePresence>
-            {showScrollPrompt && !hasScrolledToBottom && (
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -10 }}
-                className="flex items-center gap-2 p-3 rounded-lg bg-warning/10 border border-warning/30"
-              >
-                <AlertCircle className="h-4 w-4 text-warning shrink-0" />
-                <p className="text-xs sm:text-sm text-warning font-medium">
-                  Please scroll to the bottom of the Full Agreement to accept.
-                </p>
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  onClick={() => setActiveTab('full')}
-                  className="ml-auto text-xs gap-1 text-warning hover:text-warning hover:bg-warning/10"
-                >
-                  View Full Agreement
-                  <ChevronRight className="h-3 w-3" />
-                </Button>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          {/* Download/Print Actions */}
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handleDownloadPDF}
-              className="gap-1.5 text-xs"
-            >
-              <Download className="h-3.5 w-3.5" />
-              Download
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={handlePrint}
-              className="gap-1.5 text-xs"
-            >
-              <Printer className="h-3.5 w-3.5" />
-              Print
-            </Button>
-            
-            {hasScrolledToBottom && (
-              <motion.div
-                initial={{ opacity: 0, scale: 0.9 }}
-                animate={{ opacity: 1, scale: 1 }}
-                className="ml-auto flex items-center gap-1.5 text-xs text-success font-medium"
-              >
-                <CheckCircle2 className="h-3.5 w-3.5" />
-                <span className="hidden sm:inline">Full Agreement Read</span>
-              </motion.div>
-            )}
-          </div>
-
-          {/* Checkbox */}
+          {/* Prominent Accept Checkbox - Main Action */}
           <motion.div 
-            className={cn(
-              "flex items-start gap-3 p-3 rounded-lg border transition-all duration-300",
-              isChecked 
-                ? "bg-success/10 border-success/50 ring-2 ring-success/20" 
-                : "bg-background border-border"
-            )}
-            animate={isChecked ? { scale: [1, 1.02, 1] } : {}}
-            transition={{ duration: 0.3 }}
+            className="flex items-start gap-3 p-4 rounded-xl border-2 border-primary/30 bg-primary/5 cursor-pointer hover:bg-primary/10 transition-colors"
+            whileTap={{ scale: 0.98 }}
+            onClick={() => !isAccepting && !loading && handleCheckboxChange(true)}
           >
             <Checkbox
               id="accept-terms"
-              checked={isChecked}
+              checked={false}
               onCheckedChange={handleCheckboxChange}
               disabled={isAccepting || loading}
-              className={cn("mt-0.5", isChecked && "data-[state=checked]:bg-success data-[state=checked]:border-success")}
+              className="mt-0.5 h-5 w-5 border-2 border-primary"
             />
             <div className="flex-1">
               <label
                 htmlFor="accept-terms"
-                className="text-xs sm:text-sm text-foreground cursor-pointer leading-relaxed block"
+                className="text-sm font-medium text-foreground cursor-pointer leading-relaxed block"
               >
-                I have read and agree to the <span className="font-semibold">Welile Tenant Supporter Terms & Conditions</span> (12-Month Contract), including the <span className="font-semibold text-primary">90-day withdrawal notice policy</span> and the <span className="font-semibold text-primary">Principal & Outcome Assurance Framework</span>.
+                I have read and agree to the <span className="font-bold text-primary">Welile Tenant Supporter Terms & Conditions</span>
               </label>
-              <AnimatePresence>
-                {isChecked && (
-                  <motion.div
-                    initial={{ opacity: 0, height: 0 }}
-                    animate={{ opacity: 1, height: 'auto' }}
-                    exit={{ opacity: 0, height: 0 }}
-                    className="flex items-center gap-1.5 mt-2 text-success font-medium text-xs"
-                  >
-                    <CheckCircle2 className="h-3.5 w-3.5" />
-                    <span>Agreement accepted! Click the button below to continue.</span>
-                  </motion.div>
-                )}
-              </AnimatePresence>
+              <p className="text-xs text-muted-foreground mt-1">
+                12-Month Contract • 90-day withdrawal notice • Principal & Outcome Assurance
+              </p>
+              {isAccepting && (
+                <div className="flex items-center gap-2 mt-2 text-primary">
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  <span className="text-sm font-medium">Accepting agreement...</span>
+                </div>
+              )}
             </div>
+            <CheckCircle2 className="h-6 w-6 text-primary/50 shrink-0" />
           </motion.div>
 
-          {/* Accept Button */}
-          <Button
-            onClick={handleAcceptClick}
-            disabled={!canAccept || isAccepting || loading}
-            className={cn(
-              "w-full h-12 font-bold text-sm gap-2 transition-all",
-              canAccept 
-                ? "bg-success hover:bg-success/90 shadow-lg shadow-success/25" 
-                : "bg-muted text-muted-foreground"
-            )}
-          >
-            {isAccepting || loading ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Accepting...
-              </>
-            ) : (
-              <>
-                <CheckCircle2 className="h-4 w-4" />
-                Accept & Continue
-              </>
-            )}
-          </Button>
-
-          {!canAccept && !showScrollPrompt && (
-            <p className="text-xs text-center text-muted-foreground">
-              {!hasScrolledToBottom 
-                ? 'You must read the full agreement before accepting' 
-                : 'Please check the box above to accept'}
-            </p>
-          )}
+          {/* Secondary Actions */}
+          <div className="flex items-center justify-center gap-2 pt-1">
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handleDownloadPDF}
+              className="gap-1.5 text-xs text-muted-foreground"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Download
+            </Button>
+            <span className="text-muted-foreground/30">•</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={handlePrint}
+              className="gap-1.5 text-xs text-muted-foreground"
+            >
+              <Printer className="h-3.5 w-3.5" />
+              Print
+            </Button>
+          </div>
         </div>
       </DialogContent>
     </Dialog>
