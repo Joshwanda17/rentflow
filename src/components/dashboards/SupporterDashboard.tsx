@@ -10,7 +10,7 @@ import {
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Target, ChevronRight, Sparkles, Store, Users,
-  FileText, ScrollText
+  FileText, ScrollText, BarChart3
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -41,6 +41,8 @@ import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
 import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Agreement components
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
@@ -97,6 +99,7 @@ export default function SupporterDashboard({
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
   const [viewAgreementTab, setViewAgreementTab] = useState<'summary' | 'full'>('summary');
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
+  const [showCalculator, setShowCalculator] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess } = useConfetti();
@@ -448,6 +451,8 @@ export default function SupporterDashboard({
           items={[
             { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
             { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
+            { icon: Calculator, label: 'ROI Calculator', onClick: () => setShowCalculator(true) },
+            { icon: BarChart3, label: 'Projections', onClick: () => setShowCalculator(true) },
             { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
             { icon: Target, label: 'Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
             { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
@@ -612,6 +617,21 @@ export default function SupporterDashboard({
         onOpenChange={setShowViewAgreementModal}
         defaultTab={viewAgreementTab}
       />
+      
+      {/* Investment Calculator Dialog */}
+      <Dialog open={showCalculator} onOpenChange={setShowCalculator}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <Calculator className="h-5 w-5 text-primary" />
+              Investment Calculator & ROI Projections
+            </DialogTitle>
+          </DialogHeader>
+          <div className="p-4 pt-0">
+            <InvestmentCalculator />
+          </div>
+        </DialogContent>
+      </Dialog>
       
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
