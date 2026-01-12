@@ -42,6 +42,7 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
@@ -296,6 +297,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
       
       <FloatingShareButton />
+      <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );

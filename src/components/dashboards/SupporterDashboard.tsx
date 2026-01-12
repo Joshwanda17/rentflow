@@ -33,6 +33,7 @@ import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialo
 import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
 import { useWallet } from '@/hooks/useWallet';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import MobileQuickMenu from '@/components/MobileQuickMenu';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 
 // Simple components
@@ -675,6 +676,7 @@ export default function SupporterDashboard({
       </Dialog>
       
       <FloatingShareButton />
+      <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );
