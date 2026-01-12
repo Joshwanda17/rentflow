@@ -45,7 +45,7 @@ interface MenuItem {
 // Role-specific menu configurations
 const menuConfigs: Record<AppRole, MenuItem[]> = {
   manager: [
-    { icon: Users, label: 'Users', path: '/manager-access?tab=users', color: 'bg-blue-500', description: 'View & manage users' },
+    { icon: Users, label: 'Users', path: '/users', color: 'bg-blue-500', description: 'Manage all users' },
     { icon: FileText, label: 'Rent', path: '/manager-access', color: 'bg-green-500', description: 'Rent requests' },
     { icon: Banknote, label: 'Loans', path: '/manager-access?tab=loans', color: 'bg-orange-500', description: 'Loan applications' },
     { icon: ShoppingCart, label: 'Orders', path: '/manager-access?tab=orders', color: 'bg-purple-500', description: 'Product orders' },
