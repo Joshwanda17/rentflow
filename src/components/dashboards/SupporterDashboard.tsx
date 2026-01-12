@@ -421,11 +421,6 @@ export default function SupporterDashboard({
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
         
-        {/* Agreement Banner - Show only if not accepted */}
-        {!effectiveHasAccepted && (
-          <SupporterAgreementBanner onReviewClick={() => setShowAgreementModal(true)} />
-        )}
-        
         {/* Welcome Message */}
         <motion.div
           initial={{ opacity: 0, y: -10 }}
@@ -459,11 +454,13 @@ export default function SupporterDashboard({
             { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
             { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
             { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
-            // Agreement items - only show if accepted
-            ...(effectiveHasAccepted ? [
+            // Agreement action - show "Accept" if not accepted, otherwise view options
+            ...(!effectiveHasAccepted ? [
+              { icon: FileText, label: 'Accept Terms', onClick: () => setShowAgreementModal(true), variant: 'warning' as const },
+            ] : [
               { icon: ScrollText, label: 'Quick Terms', onClick: () => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); } },
               { icon: FileText, label: 'Full Agreement', onClick: () => { setViewAgreementTab('full'); setShowViewAgreementModal(true); } },
-            ] : []),
+            ]),
           ]}
         />
 
