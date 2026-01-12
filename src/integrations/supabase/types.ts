@@ -1437,6 +1437,7 @@ export type Database = {
         Row: {
           access_fee: number
           agent_id: string | null
+          approval_comment: string | null
           approved_at: string | null
           approved_by: string | null
           created_at: string
@@ -1447,6 +1448,7 @@ export type Database = {
           id: string
           landlord_id: string
           lc1_id: string
+          rejected_reason: string | null
           rent_amount: number
           request_fee: number
           status: string | null
@@ -1458,6 +1460,7 @@ export type Database = {
         Insert: {
           access_fee: number
           agent_id?: string | null
+          approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
@@ -1468,6 +1471,7 @@ export type Database = {
           id?: string
           landlord_id: string
           lc1_id: string
+          rejected_reason?: string | null
           rent_amount: number
           request_fee: number
           status?: string | null
@@ -1479,6 +1483,7 @@ export type Database = {
         Update: {
           access_fee?: number
           agent_id?: string | null
+          approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
           created_at?: string
@@ -1489,6 +1494,7 @@ export type Database = {
           id?: string
           landlord_id?: string
           lc1_id?: string
+          rejected_reason?: string | null
           rent_amount?: number
           request_fee?: number
           status?: string | null
