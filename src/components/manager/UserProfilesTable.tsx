@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -41,10 +41,12 @@ interface UserWithRating {
   country: string | null;
   city: string | null;
   country_code: string | null;
+  verified: boolean;
 }
 
 type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low';
+type VerificationFilter = 'all' | 'verified' | 'pending';
 
 
 export default function UserProfilesTable() {
@@ -54,6 +56,7 @@ export default function UserProfilesTable() {
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
+  const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [showSortMenu, setShowSortMenu] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
@@ -64,6 +67,7 @@ export default function UserProfilesTable() {
   const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [exportingSelected, setExportingSelected] = useState(false);
+  const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
 
@@ -74,10 +78,10 @@ export default function UserProfilesTable() {
   const fetchUsers = async () => {
     setLoading(true);
 
-    // Fetch profiles with location data
+    // Fetch profiles with location data and verified status
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code')
+      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -127,7 +131,8 @@ export default function UserProfilesTable() {
         created_at: p.created_at,
         country: p.country || null,
         city: p.city || null,
-        country_code: p.country_code || null
+        country_code: p.country_code || null,
+        verified: p.verified || false
       };
     });
 
@@ -313,8 +318,65 @@ export default function UserProfilesTable() {
     
     const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
     
-    return matchesSearch && matchesRole;
+    const matchesVerification = 
+      verificationFilter === 'all' || 
+      (verificationFilter === 'verified' && u.verified) ||
+      (verificationFilter === 'pending' && !u.verified);
+    
+    return matchesSearch && matchesRole && matchesVerification;
   }));
+
+  const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setApprovingUserId(userId);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ verified: true })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, verified: true } : u
+      ));
+      
+      toast.success(`${userName} has been approved`);
+    } catch (error) {
+      console.error('Error approving user:', error);
+      toast.error('Failed to approve user');
+    } finally {
+      setApprovingUserId(null);
+    }
+  };
+
+  const handleRejectUser = async (userId: string, userName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setApprovingUserId(userId);
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ verified: false })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, verified: false } : u
+      ));
+      
+      toast.success(`${userName} verification revoked`);
+    } catch (error) {
+      console.error('Error rejecting user:', error);
+      toast.error('Failed to reject user');
+    } finally {
+      setApprovingUserId(null);
+    }
+  };
 
   const sortOptions: { value: SortOption; label: string; icon: typeof ArrowUp }[] = [
     { value: 'newest', label: 'Newest first', icon: ArrowDown },
@@ -479,6 +541,42 @@ export default function UserProfilesTable() {
                 </span>
               </button>
             ))}
+            
+            {/* Separator */}
+            <div className="h-6 w-px bg-border shrink-0 mx-1" />
+            
+            {/* Verification Filter Pills */}
+            {[
+              { value: 'all' as VerificationFilter, label: 'All Status', count: users.length },
+              { value: 'verified' as VerificationFilter, label: '✓ Verified', count: users.filter(u => u.verified).length },
+              { value: 'pending' as VerificationFilter, label: '⏳ Pending', count: users.filter(u => !u.verified).length },
+            ].map((filter) => (
+              <button
+                key={filter.value}
+                onClick={() => {
+                  hapticTap();
+                  setVerificationFilter(filter.value);
+                }}
+                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                  verificationFilter === filter.value
+                    ? filter.value === 'verified' 
+                      ? 'bg-success text-success-foreground shadow-lg shadow-success/25'
+                      : filter.value === 'pending'
+                      ? 'bg-warning text-warning-foreground shadow-lg shadow-warning/25'
+                      : 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
+                    : 'bg-muted/70 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                {filter.label}
+                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                  verificationFilter === filter.value 
+                    ? 'bg-background/20' 
+                    : 'bg-background/50'
+                }`}>
+                  {filter.count}
+                </span>
+              </button>
+            ))}
           </div>
 
           {/* Results & Sort Row */}
@@ -585,13 +683,17 @@ export default function UserProfilesTable() {
                     </div>
 
                     {/* Verified Badge */}
-                    {user.rent_discount_active && (
-                      <div className="absolute right-3 top-3">
-                        <div className="p-1.5 rounded-full bg-success/20">
+                    <div className="absolute right-3 top-3">
+                      {user.verified ? (
+                        <div className="p-1.5 rounded-full bg-success/20" title="Verified">
                           <CheckCircle className="h-4 w-4 text-success" />
                         </div>
-                      </div>
-                    )}
+                      ) : (
+                        <div className="p-1.5 rounded-full bg-warning/20" title="Pending Verification">
+                          <XCircle className="h-4 w-4 text-warning" />
+                        </div>
+                      )}
+                    </div>
 
                     {/* User Info */}
                     <div className="flex items-start gap-3 pl-10">
@@ -652,6 +754,39 @@ export default function UserProfilesTable() {
 
                     {/* Action Buttons - Large and Clear */}
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+                      {/* Approve/Reject Buttons */}
+                      {!user.verified ? (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => handleApproveUser(user.id, user.full_name, e)}
+                          disabled={approvingUserId === user.id}
+                          className="flex-1 h-11 gap-2 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold"
+                        >
+                          {approvingUserId === user.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <CheckCircle className="h-5 w-5" />
+                          )}
+                          Approve
+                        </Button>
+                      ) : (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={(e) => handleRejectUser(user.id, user.full_name, e)}
+                          disabled={approvingUserId === user.id}
+                          className="flex-1 h-11 gap-2 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive font-semibold"
+                        >
+                          {approvingUserId === user.id ? (
+                            <Loader2 className="h-5 w-5 animate-spin" />
+                          ) : (
+                            <XCircle className="h-5 w-5" />
+                          )}
+                          Revoke
+                        </Button>
+                      )}
+                      
                       <Button
                         variant="outline"
                         size="sm"
@@ -660,10 +795,9 @@ export default function UserProfilesTable() {
                           hapticTap();
                           window.open(getWhatsAppLink(user.phone), '_blank');
                         }}
-                        className="flex-1 h-11 gap-2 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold"
+                        className="h-11 w-11 p-0 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success shrink-0"
                       >
                         <MessageCircle className="h-5 w-5" />
-                        WhatsApp
                       </Button>
                       
                       <Button
@@ -674,10 +808,9 @@ export default function UserProfilesTable() {
                           hapticTap();
                           window.location.href = `tel:${user.phone}`;
                         }}
-                        className="flex-1 h-11 gap-2 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary font-semibold"
+                        className="h-11 w-11 p-0 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary shrink-0"
                       >
                         <Phone className="h-5 w-5" />
-                        Call
                       </Button>
                       
                       <Button

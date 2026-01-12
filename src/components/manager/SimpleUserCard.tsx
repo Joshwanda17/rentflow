@@ -8,7 +8,8 @@ import {
   UserCog, 
   ChevronRight,
   Star,
-  CheckCircle2
+  CheckCircle2,
+  XCircle
 } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -25,6 +26,7 @@ interface SimpleUserCardProps {
     average_rating: number | null;
     rating_count: number;
     rent_discount_active?: boolean;
+    verified?: boolean;
   };
   isSelected: boolean;
   onSelect: (id: string) => void;
@@ -94,13 +96,17 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, index }: S
       </div>
 
       {/* Verified Badge */}
-      {user.rent_discount_active && (
-        <div className="absolute right-3 top-3">
-          <div className="p-1.5 rounded-full bg-success/20">
+      <div className="absolute right-3 top-3">
+        {user.verified ? (
+          <div className="p-1.5 rounded-full bg-success/20" title="Verified">
             <CheckCircle2 className="h-4 w-4 text-success" />
           </div>
-        </div>
-      )}
+        ) : (
+          <div className="p-1.5 rounded-full bg-warning/20" title="Pending Verification">
+            <XCircle className="h-4 w-4 text-warning" />
+          </div>
+        )}
+      </div>
 
       {/* User Info */}
       <div className="flex items-start gap-3 pl-8">
