@@ -186,6 +186,31 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           <RentRequestButton userId={user.id} onSuccess={fetchData} />
         </LockedActionTooltip>
 
+        {/* Pay Welile Button - Prominent placement right below Request Rent */}
+        <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
+          <button
+            onClick={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
+            className="w-full overflow-hidden border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-background to-amber-500/5 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
+          >
+            <div className="w-full p-4 flex items-center gap-4 hover:bg-amber-500/5 transition-colors group">
+              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+                <CreditCard className="h-7 w-7 text-white" />
+              </div>
+              <div className="flex-1 text-left">
+                <h3 className="text-lg font-bold text-foreground">Pay Welile</h3>
+                <p className="text-sm text-muted-foreground">
+                  Make payments via Mobile Money
+                </p>
+              </div>
+              <div className="h-6 w-6 text-amber-500 group-hover:translate-x-1 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </div>
+            </div>
+          </button>
+        </LockedActionTooltip>
+
         {/* Collapsible Quick Actions */}
         <CollapsibleQuickNav 
           buttonLabel="Quick Actions"
