@@ -30,6 +30,7 @@ import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeleto
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
@@ -287,6 +288,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       />
       
       <FloatingShareButton />
+      <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );

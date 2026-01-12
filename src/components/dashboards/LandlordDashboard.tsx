@@ -28,6 +28,7 @@ import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
 import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import MobileQuickMenu from '@/components/MobileQuickMenu';
 
 interface LandlordDashboardProps {
   user: User;
@@ -173,6 +174,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       </main>
       
       <FloatingShareButton />
+      <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </PullToRefresh>
   );
