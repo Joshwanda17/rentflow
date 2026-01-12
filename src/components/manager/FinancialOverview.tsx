@@ -44,6 +44,7 @@ type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year' | 'cus
 export function FinancialOverview() {
   const [metrics, setMetrics] = useState<FinancialMetrics | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
@@ -89,125 +90,155 @@ export function FinancialOverview() {
 
   const fetchMetrics = async () => {
     setLoading(true);
+    setError(null);
 
-    // Build date filter
-    const buildDateFilter = (query: any, dateColumn: string = 'created_at') => {
-      if (startDate) {
-        query = query.gte(dateColumn, startDate.toISOString());
-      }
-      if (endDate) {
-        query = query.lte(dateColumn, endDate.toISOString());
-      }
-      return query;
-    };
+    try {
+      // Build date filter
+      const buildDateFilter = (query: any, dateColumn: string = 'created_at') => {
+        if (startDate) {
+          query = query.gte(dateColumn, startDate.toISOString());
+        }
+        if (endDate) {
+          query = query.lte(dateColumn, endDate.toISOString());
+        }
+        return query;
+      };
 
-    // Wallets don't have date filter (current balances)
-    const walletsQuery = supabase.from('wallets').select('balance');
-    
-    // Apply date filters to transactional data
-    let depositsQuery = supabase.from('wallet_deposits').select('amount, created_at');
-    let withdrawalsQuery = supabase.from('wallet_withdrawals').select('amount, created_at');
-    let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
-    let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
-    let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
-    let platformTxQuery = supabase.from('platform_transactions').select('amount, direction, transaction_type, created_at');
-    let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
-    let productsQuery = supabase.from('products').select('id');
-    
-    if (startDate || endDate) {
-      depositsQuery = buildDateFilter(depositsQuery);
-      withdrawalsQuery = buildDateFilter(withdrawalsQuery);
-      transfersQuery = buildDateFilter(transfersQuery);
-      earningsQuery = buildDateFilter(earningsQuery);
-      requestsQuery = buildDateFilter(requestsQuery);
-      platformTxQuery = buildDateFilter(platformTxQuery);
-      ordersQuery = buildDateFilter(ordersQuery);
+      // Wallets don't have date filter (current balances)
+      const walletsQuery = supabase.from('wallets').select('balance');
+
+      // Apply date filters to transactional data
+      let depositsQuery = supabase.from('wallet_deposits').select('amount, created_at');
+      let withdrawalsQuery = supabase.from('wallet_withdrawals').select('amount, created_at');
+      let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
+      let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
+      let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
+      let platformTxQuery = supabase.from('platform_transactions').select('amount, direction, transaction_type, created_at');
+      let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
+      let productsQuery = supabase.from('products').select('id');
+
+      if (startDate || endDate) {
+        depositsQuery = buildDateFilter(depositsQuery);
+        withdrawalsQuery = buildDateFilter(withdrawalsQuery);
+        transfersQuery = buildDateFilter(transfersQuery);
+        earningsQuery = buildDateFilter(earningsQuery);
+        requestsQuery = buildDateFilter(requestsQuery);
+        platformTxQuery = buildDateFilter(platformTxQuery);
+        ordersQuery = buildDateFilter(ordersQuery);
+      }
+
+      const [
+        walletsRes,
+        depositsRes,
+        withdrawalsRes,
+        transfersRes,
+        earningsRes,
+        requestsRes,
+        platformTxRes,
+        rolesRes,
+        ordersRes,
+        productsRes,
+      ] = await Promise.all([
+        walletsQuery,
+        depositsQuery,
+        withdrawalsQuery,
+        transfersQuery,
+        earningsQuery,
+        requestsQuery,
+        platformTxQuery,
+        supabase.from('user_roles').select('role'),
+        ordersQuery,
+        productsQuery,
+      ]);
+
+      const errors = [
+        walletsRes.error,
+        depositsRes.error,
+        withdrawalsRes.error,
+        transfersRes.error,
+        earningsRes.error,
+        requestsRes.error,
+        platformTxRes.error,
+        rolesRes.error,
+        ordersRes.error,
+        productsRes.error,
+      ].filter(Boolean);
+
+      if (errors.length > 0) {
+        console.error('FinancialOverview fetchMetrics errors:', errors);
+        throw new Error('Not allowed to load some financial tables.');
+      }
+
+      const wallets = walletsRes.data || [];
+      const deposits = depositsRes.data || [];
+      const withdrawals = withdrawalsRes.data || [];
+      const transfers = transfersRes.data || [];
+      const earnings = earningsRes.data || [];
+      const requests = requestsRes.data || [];
+      const roles = rolesRes.data || [];
+      const orders = ordersRes.data || [];
+      const products = productsRes.data || [];
+
+      const totalWalletBalances = wallets.reduce((sum, w) => sum + Number(w.balance), 0);
+      const totalDeposits = deposits.reduce((sum, d) => sum + Number(d.amount), 0);
+      const totalWithdrawals = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
+      const totalTransfers = transfers.reduce((sum, t) => sum + Number(t.amount), 0);
+
+      const totalAgentEarnings = earnings.reduce((sum, e) => sum + Number(e.amount), 0);
+      const totalCommissions = earnings
+        .filter((e) => e.earning_type === 'commission')
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+      const totalBonuses = earnings
+        .filter((e) => e.earning_type === 'approval_bonus')
+        .reduce((sum, e) => sum + Number(e.amount), 0);
+
+      const completedRequests = requests.filter((r) => ['funded', 'disbursed', 'completed'].includes(r.status));
+      const totalRentFacilitated = completedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
+      const totalPlatformFees = completedRequests.reduce(
+        (sum, r) => sum + Number(r.access_fee) + Number(r.request_fee),
+        0
+      );
+
+      const activeRequests = requests.filter((r) => ['funded', 'disbursed'].includes(r.status));
+      const pendingRepayments = activeRequests.reduce((sum, r) => sum + Number(r.total_repayment), 0);
+
+      // Marketplace metrics
+      const totalMarketplaceSales = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
+      const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
+      const marketplaceOrderCount = orders.length;
+      const marketplaceProductCount = products.length;
+
+      const userCount = roles.length;
+      const agentCount = roles.filter((r) => r.role === 'agent').length;
+      const tenantCount = roles.filter((r) => r.role === 'tenant').length;
+      const supporterCount = roles.filter((r) => r.role === 'supporter').length;
+
+      setMetrics({
+        totalWalletBalances,
+        totalDeposits,
+        totalWithdrawals,
+        totalTransfers,
+        totalAgentEarnings,
+        totalCommissions,
+        totalBonuses,
+        totalRentFacilitated,
+        totalPlatformFees,
+        pendingRepayments,
+        userCount,
+        agentCount,
+        tenantCount,
+        supporterCount,
+        totalMarketplaceSales,
+        totalMarketplaceCommissions,
+        marketplaceOrderCount,
+        marketplaceProductCount,
+      });
+    } catch (e: any) {
+      console.error('FinancialOverview fetchMetrics failed:', e);
+      setError(e?.message || 'Failed to load financial dashboard');
+    } finally {
+      setLoading(false);
     }
-
-    const [
-      walletsRes,
-      depositsRes,
-      withdrawalsRes,
-      transfersRes,
-      earningsRes,
-      requestsRes,
-      platformTxRes,
-      rolesRes,
-      ordersRes,
-      productsRes
-    ] = await Promise.all([
-      walletsQuery,
-      depositsQuery,
-      withdrawalsQuery,
-      transfersQuery,
-      earningsQuery,
-      requestsQuery,
-      platformTxQuery,
-      supabase.from('user_roles').select('role'),
-      ordersQuery,
-      productsQuery
-    ]);
-
-    const wallets = walletsRes.data || [];
-    const deposits = depositsRes.data || [];
-    const withdrawals = withdrawalsRes.data || [];
-    const transfers = transfersRes.data || [];
-    const earnings = earningsRes.data || [];
-    const requests = requestsRes.data || [];
-    const platformTx = platformTxRes.data || [];
-    const roles = rolesRes.data || [];
-    const orders = ordersRes.data || [];
-    const products = productsRes.data || [];
-
-    const totalWalletBalances = wallets.reduce((sum, w) => sum + Number(w.balance), 0);
-    const totalDeposits = deposits.reduce((sum, d) => sum + Number(d.amount), 0);
-    const totalWithdrawals = withdrawals.reduce((sum, w) => sum + Number(w.amount), 0);
-    const totalTransfers = transfers.reduce((sum, t) => sum + Number(t.amount), 0);
-    
-    const totalAgentEarnings = earnings.reduce((sum, e) => sum + Number(e.amount), 0);
-    const totalCommissions = earnings.filter(e => e.earning_type === 'commission').reduce((sum, e) => sum + Number(e.amount), 0);
-    const totalBonuses = earnings.filter(e => e.earning_type === 'approval_bonus').reduce((sum, e) => sum + Number(e.amount), 0);
-
-    const completedRequests = requests.filter(r => ['funded', 'disbursed', 'completed'].includes(r.status));
-    const totalRentFacilitated = completedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
-    const totalPlatformFees = completedRequests.reduce((sum, r) => sum + Number(r.access_fee) + Number(r.request_fee), 0);
-    
-    const activeRequests = requests.filter(r => ['funded', 'disbursed'].includes(r.status));
-    const pendingRepayments = activeRequests.reduce((sum, r) => sum + Number(r.total_repayment), 0);
-
-    // Marketplace metrics
-    const totalMarketplaceSales = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
-    const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
-    const marketplaceOrderCount = orders.length;
-    const marketplaceProductCount = products.length;
-
-    const userCount = new Set(roles.map(r => r.role)).size > 0 ? roles.length : 0;
-    const agentCount = roles.filter(r => r.role === 'agent').length;
-    const tenantCount = roles.filter(r => r.role === 'tenant').length;
-    const supporterCount = roles.filter(r => r.role === 'supporter').length;
-
-    setMetrics({
-      totalWalletBalances,
-      totalDeposits,
-      totalWithdrawals,
-      totalTransfers,
-      totalAgentEarnings,
-      totalCommissions,
-      totalBonuses,
-      totalRentFacilitated,
-      totalPlatformFees,
-      pendingRepayments,
-      userCount,
-      agentCount,
-      tenantCount,
-      supporterCount,
-      totalMarketplaceSales,
-      totalMarketplaceCommissions,
-      marketplaceOrderCount,
-      marketplaceProductCount
-    });
-
-    setLoading(false);
   };
 
   const getDateRangeLabel = () => {
@@ -219,6 +250,22 @@ export function FinancialOverview() {
     if (endDate) return `Until ${format(endDate, 'MMM d, yyyy')}`;
     return 'All Time';
   };
+
+  if (error) {
+    return (
+      <div className="space-y-4">
+        <Card className="glass-card">
+          <CardContent className="py-8 text-center">
+            <div className="mx-auto max-w-md space-y-3">
+              <p className="font-semibold">Financial dashboard failed to load</p>
+              <p className="text-sm text-muted-foreground">{error}</p>
+              <Button variant="outline" onClick={fetchMetrics}>Try again</Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
 
   if (loading || !metrics) {
     return (
