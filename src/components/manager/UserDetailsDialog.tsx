@@ -35,7 +35,7 @@ import {
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
-  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle
+  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -104,8 +104,10 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [showDatePicker, setShowDatePicker] = useState(false);
   const [activityTypeFilter, setActivityTypeFilter] = useState<string>('all');
   const [userRoles, setUserRoles] = useState<string[]>([]);
+  const [roleEnabledStatus, setRoleEnabledStatus] = useState<Record<string, boolean>>({});
   const [addingRole, setAddingRole] = useState<AppRole | null>(null);
   const [removingRole, setRemovingRole] = useState<string | null>(null);
+  const [togglingRole, setTogglingRole] = useState<string | null>(null);
   
   // Edit profile state
   const [editForm, setEditForm] = useState({
@@ -120,7 +122,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
-      setUserRoles(user.roles);
+      fetchUserRolesWithStatus();
       setEditForm({
         full_name: user.full_name,
         email: user.email,
@@ -129,6 +131,25 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       });
     }
   }, [open, user]);
+
+  const fetchUserRolesWithStatus = async () => {
+    if (!user) return;
+    
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role, enabled')
+      .eq('user_id', user.id);
+    
+    if (!error && data) {
+      const roles = data.map(r => r.role);
+      const enabledMap: Record<string, boolean> = {};
+      data.forEach(r => {
+        enabledMap[r.role] = r.enabled;
+      });
+      setUserRoles(roles);
+      setRoleEnabledStatus(enabledMap);
+    }
+  };
 
   const handleAddRole = async (role: AppRole) => {
     if (!user) return;
@@ -185,6 +206,44 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       toast.error('Failed to remove role');
     } finally {
       setRemovingRole(null);
+    }
+  };
+
+  const handleToggleRoleEnabled = async (role: AppRole) => {
+    if (!user) return;
+    
+    const currentEnabled = roleEnabledStatus[role] ?? true;
+    const newEnabled = !currentEnabled;
+    
+    // Check if this would disable all enabled roles
+    const enabledRolesCount = Object.entries(roleEnabledStatus).filter(([r, enabled]) => enabled && r !== role).length;
+    if (!newEnabled && enabledRolesCount === 0) {
+      toast.error('User must have at least one enabled dashboard');
+      return;
+    }
+    
+    setTogglingRole(role);
+    
+    try {
+      const { error } = await supabase
+        .from('user_roles')
+        .update({ enabled: newEnabled })
+        .eq('user_id', user.id)
+        .eq('role', role);
+      
+      if (error) throw error;
+      
+      setRoleEnabledStatus(prev => ({ ...prev, [role]: newEnabled }));
+      toast.success(newEnabled 
+        ? `Enabled "${role}" dashboard for ${user.full_name}` 
+        : `Disabled "${role}" dashboard for ${user.full_name}`
+      );
+      onRolesUpdated?.();
+    } catch (error) {
+      console.error('Error toggling role:', error);
+      toast.error('Failed to update dashboard access');
+    } finally {
+      setTogglingRole(null);
     }
   };
 
@@ -959,55 +1018,95 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
             <TabsContent value="roles" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
-                {/* Current Roles */}
-                <Card>
+                {/* Dashboard Access Control */}
+                <Card className="border-primary/20">
                   <CardHeader className="py-3">
                     <CardTitle className="text-sm flex items-center gap-2">
-                      <UserCog className="h-4 w-4 text-primary" />
-                      Current Roles ({userRoles.length})
+                      <Shield className="h-4 w-4 text-primary" />
+                      Dashboard Access Control
                     </CardTitle>
                   </CardHeader>
                   <CardContent className="pt-0">
+                    <p className="text-xs text-muted-foreground mb-4">
+                      Toggle which dashboards this user can access. Disabled dashboards will not appear in their role switcher.
+                    </p>
                     {userRoles.length === 0 ? (
                       <p className="text-sm text-muted-foreground">No roles assigned</p>
                     ) : (
-                      <div className="space-y-2">
+                      <div className="space-y-3">
                         {userRoles.map((role) => {
                           const roleInfo = allRoles.find(r => r.value === role);
+                          const isEnabled = roleEnabledStatus[role] ?? true;
+                          const enabledCount = Object.values(roleEnabledStatus).filter(Boolean).length;
+                          const canDisable = enabledCount > 1 || !isEnabled;
+                          
                           return (
                             <div 
                               key={role}
-                              className="flex items-center justify-between p-3 rounded-xl border bg-card"
+                              className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
+                                isEnabled 
+                                  ? 'bg-card border-border' 
+                                  : 'bg-muted/30 border-muted opacity-60'
+                              }`}
                             >
-                              <div className="flex items-center gap-3">
-                                <Badge className={roleInfo?.color || 'bg-muted'}>
+                              <div className="flex items-center gap-3 flex-1 min-w-0">
+                                <Badge className={`${roleInfo?.color || 'bg-muted'} ${!isEnabled ? 'opacity-50' : ''}`}>
                                   {roleInfo?.label || role}
                                 </Badge>
-                                <span className="text-xs text-muted-foreground">
-                                  {roleInfo?.description}
-                                </span>
+                                <div className="flex flex-col min-w-0">
+                                  <span className="text-xs text-muted-foreground truncate">
+                                    {roleInfo?.description}
+                                  </span>
+                                  <span className={`text-xs font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
+                                    {isEnabled ? '✓ Can access this dashboard' : '✗ Dashboard access disabled'}
+                                  </span>
+                                </div>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleRemoveRole(role as AppRole)}
-                                disabled={removingRole === role || userRoles.length <= 1}
-                                className="text-destructive hover:text-destructive hover:bg-destructive/10"
-                              >
-                                {removingRole === role ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <Trash2 className="h-4 w-4" />
-                                )}
-                              </Button>
+                              <div className="flex items-center gap-2 shrink-0">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleToggleRoleEnabled(role as AppRole)}
+                                  disabled={togglingRole === role || (!canDisable && isEnabled)}
+                                  className={`h-8 px-3 ${isEnabled ? 'text-success hover:bg-success/10' : 'text-muted-foreground hover:bg-muted'}`}
+                                  title={isEnabled ? 'Click to disable dashboard access' : 'Click to enable dashboard access'}
+                                >
+                                  {togglingRole === role ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : isEnabled ? (
+                                    <ToggleRight className="h-5 w-5" />
+                                  ) : (
+                                    <ToggleLeft className="h-5 w-5" />
+                                  )}
+                                </Button>
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={() => handleRemoveRole(role as AppRole)}
+                                  disabled={removingRole === role || userRoles.length <= 1}
+                                  className="text-destructive hover:text-destructive hover:bg-destructive/10 h-8 w-8 p-0"
+                                  title="Remove role completely"
+                                >
+                                  {removingRole === role ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <Trash2 className="h-4 w-4" />
+                                  )}
+                                </Button>
+                              </div>
                             </div>
                           );
                         })}
                       </div>
                     )}
                     {userRoles.length <= 1 && (
-                      <p className="text-xs text-muted-foreground mt-2">
-                        User must have at least one role
+                      <p className="text-xs text-muted-foreground mt-3">
+                        ⚠️ User must have at least one role. Add another role before removing this one.
+                      </p>
+                    )}
+                    {Object.values(roleEnabledStatus).filter(Boolean).length <= 1 && (
+                      <p className="text-xs text-amber-600 dark:text-amber-400 mt-3">
+                        ⚠️ User must have at least one enabled dashboard.
                       </p>
                     )}
                   </CardContent>
