@@ -109,11 +109,11 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
 
   return (
     <>
-      {/* Floating Menu Button - Always visible on mobile */}
+      {/* Floating Menu Button - Extra large for easy tapping */}
       <motion.button
         onClick={isOpen ? handleClose : handleOpen}
         className={cn(
-          "fixed bottom-24 right-4 z-[60] p-4 rounded-full shadow-2xl transition-colors",
+          "fixed bottom-24 right-4 z-[60] p-5 rounded-full shadow-2xl transition-colors touch-manipulation",
           isOpen 
             ? "bg-destructive text-destructive-foreground" 
             : "bg-primary text-primary-foreground"
@@ -122,9 +122,9 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
         animate={{ rotate: isOpen ? 90 : 0 }}
       >
         {isOpen ? (
-          <X className="h-6 w-6" />
+          <X className="h-7 w-7" />
         ) : (
-          <Menu className="h-6 w-6" />
+          <Menu className="h-7 w-7" />
         )}
       </motion.button>
 
@@ -141,7 +141,7 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
         )}
       </AnimatePresence>
 
-      {/* Menu Panel */}
+      {/* Menu Panel - Larger items for easy tapping */}
       <AnimatePresence>
         {isOpen && (
           <motion.div
@@ -149,18 +149,18 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 100, scale: 0.9 }}
             transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed bottom-40 left-4 right-4 z-[60] bg-card rounded-3xl shadow-2xl border border-border overflow-hidden max-w-md mx-auto"
+            className="fixed bottom-40 left-3 right-3 z-[60] bg-card rounded-3xl shadow-2xl border-2 border-border overflow-hidden max-w-md mx-auto"
           >
             {/* Header */}
             <div className="p-4 bg-primary/10 border-b border-border">
-              <h3 className="font-bold text-lg text-center">Manager Quick Actions</h3>
-              <p className="text-xs text-muted-foreground text-center mt-1">
-                Tap any item to navigate
+              <h3 className="font-bold text-xl text-center">⚡ Quick Actions</h3>
+              <p className="text-sm text-muted-foreground text-center mt-1">
+                Tap any icon to go
               </p>
             </div>
 
-            {/* Grid of Actions */}
-            <div className="p-4 grid grid-cols-4 gap-3">
+            {/* Grid of Actions - Large icons */}
+            <div className="p-3 grid grid-cols-4 gap-2">
               {menuItems.map((item, index) => (
                 <motion.button
                   key={item.path}
@@ -168,33 +168,33 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleItemClick(item.path)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-muted/50 hover:bg-muted active:scale-95 transition-all"
+                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-muted/50 hover:bg-muted active:scale-90 transition-all touch-manipulation min-h-[80px]"
                 >
-                  <div className={cn("p-2.5 rounded-xl", item.color)}>
-                    <item.icon className="h-5 w-5 text-white" />
+                  <div className={cn("p-3 rounded-2xl shadow-lg", item.color)}>
+                    <item.icon className="h-6 w-6 text-white" />
                   </div>
-                  <span className="text-xs font-medium text-center leading-tight">
+                  <span className="text-xs font-bold text-center leading-tight">
                     {item.label}
                   </span>
                 </motion.button>
               ))}
             </div>
 
-            {/* Bottom Actions */}
-            <div className="p-4 border-t border-border bg-muted/30 flex gap-2">
+            {/* Bottom Actions - Large buttons */}
+            <div className="p-3 border-t border-border bg-muted/30 flex gap-2">
               <button
                 onClick={handleProductivity}
-                className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-medium active:scale-95 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold active:scale-95 transition-all touch-manipulation"
               >
-                <Award className="h-5 w-5" />
-                <span className="text-sm">Productivity</span>
+                <Award className="h-6 w-6" />
+                <span className="text-base">📊 Stats</span>
               </button>
               <button
                 onClick={() => handleItemClick('/install')}
-                className="flex-1 flex items-center justify-center gap-2 p-3 rounded-xl bg-primary/20 text-primary font-medium active:scale-95 transition-all"
+                className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl bg-primary/20 text-primary font-bold active:scale-95 transition-all touch-manipulation"
               >
-                <Download className="h-5 w-5" />
-                <span className="text-sm">Share App</span>
+                <Download className="h-6 w-6" />
+                <span className="text-base">📤 Share</span>
               </button>
             </div>
           </motion.div>
