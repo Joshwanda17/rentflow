@@ -12,17 +12,18 @@ import {
   Calculator, 
   MapPin, 
   User, 
-  Phone, 
   Building2,
   CheckCircle2,
   ArrowRight,
   Loader2,
   Info
 } from 'lucide-react';
-import { calculateRentRepayment, formatUGX, RentCalculation } from '@/lib/rentCalculations';
+import { calculateRentRepayment, RentCalculation } from '@/lib/rentCalculations';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCurrency } from '@/hooks/useCurrency';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 interface RentRequestButtonProps {
   userId: string;
@@ -33,6 +34,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
   const [isOpen, setIsOpen] = useState(false);
   const [step, setStep] = useState<'calculate' | 'details' | 'confirm'>('calculate');
   const { toast } = useToast();
+  const { formatAmount, currency } = useCurrency();
   
   // Calculator state
   const [rentAmount, setRentAmount] = useState('');
@@ -195,9 +197,12 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       <Dialog open={isOpen} onOpenChange={setIsOpen}>
         <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-primary" />
-              Request Rent Assistance
+            <DialogTitle className="flex items-center justify-between">
+              <span className="flex items-center gap-2">
+                <HandCoins className="h-5 w-5 text-primary" />
+                Request Rent Assistance
+              </span>
+              <CurrencySwitcher variant="compact" />
             </DialogTitle>
             <DialogDescription>
               {step === 'calculate' && 'Enter your rent amount to see the repayment breakdown'}
@@ -235,7 +240,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                   <div className="space-y-2">
                     <Label className="flex items-center gap-2">
                       <Calculator className="h-4 w-4" />
-                      Rent Amount (UGX)
+                      Rent Amount ({currency.code})
                     </Label>
                     <Input
                       type="text"
@@ -278,7 +283,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                     
                     <div className="flex justify-between items-center text-sm mb-3">
                       <span className="text-muted-foreground">Rent Amount:</span>
-                      <span className="font-mono font-medium">{formatUGX(calculation.rentAmount)}</span>
+                      <span className="font-mono font-medium">{formatAmount(calculation.rentAmount)}</span>
                     </div>
 
                     {/* Daily Repayment Highlight - Main Focus */}
@@ -286,7 +291,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                       <div className="flex items-center justify-between">
                         <div>
                           <p className="text-xs text-muted-foreground">Daily Payment</p>
-                          <p className="text-2xl font-bold text-primary font-mono">{formatUGX(calculation.dailyRepayment)}</p>
+                          <p className="text-2xl font-bold text-primary font-mono">{formatAmount(calculation.dailyRepayment)}</p>
                         </div>
                         <Badge variant="secondary" className="text-sm">
                           For {calculation.durationDays} days
@@ -446,7 +451,7 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                   <div className="space-y-2 text-sm">
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Rent Amount:</span>
-                      <span className="font-mono font-semibold">{formatUGX(calculation.rentAmount)}</span>
+                      <span className="font-mono font-semibold">{formatAmount(calculation.rentAmount)}</span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Duration:</span>
@@ -454,11 +459,11 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                     </div>
                     <div className="flex justify-between">
                       <span className="text-muted-foreground">Total Repayment:</span>
-                      <span className="font-mono font-semibold">{formatUGX(calculation.totalRepayment)}</span>
+                      <span className="font-mono font-semibold">{formatAmount(calculation.totalRepayment)}</span>
                     </div>
                     <div className="flex justify-between text-primary">
                       <span className="font-medium">Daily Payment:</span>
-                      <span className="font-mono font-bold">{formatUGX(calculation.dailyRepayment)}</span>
+                      <span className="font-mono font-bold">{formatAmount(calculation.dailyRepayment)}</span>
                     </div>
                   </div>
 

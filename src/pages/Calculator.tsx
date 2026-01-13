@@ -10,10 +10,11 @@ import {
   TrendingUp, Target, ChevronLeft, Download, Share2, 
   RefreshCw, Calculator, Sparkles, ArrowUp
 } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
+import { useCurrency } from '@/hooks/useCurrency';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 const ROI_RATE = 0.15; // 15% per month
 
@@ -27,6 +28,7 @@ interface MonthlyProjection {
 
 export default function CalculatorPage() {
   const navigate = useNavigate();
+  const { formatAmount, currency } = useCurrency();
   const [desiredEarnings, setDesiredEarnings] = useState(150000);
   const [duration, setDuration] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
@@ -65,13 +67,13 @@ export default function CalculatorPage() {
 
   const handleShareWhatsApp = () => {
     const message = `💰 *Welile Investment Projection*\n\n` +
-      `📊 Investment: ${formatUGX(calculations.requiredInvestment)}\n` +
+      `📊 Investment: ${formatAmount(calculations.requiredInvestment)}\n` +
       `📈 Monthly ROI: 15%\n` +
       `⏱️ Duration: ${duration} months\n` +
       `${isCompounding ? '🔄 Compounding: Yes\n' : ''}\n` +
       `✨ *Results:*\n` +
-      `💵 Total Earnings: ${formatUGX(finalProjection?.totalEarnings || 0)}\n` +
-      `🏦 Final Balance: ${formatUGX(finalProjection?.balance || 0)}\n\n` +
+      `💵 Total Earnings: ${formatAmount(finalProjection?.totalEarnings || 0)}\n` +
+      `🏦 Final Balance: ${formatAmount(finalProjection?.balance || 0)}\n\n` +
       `Start investing today at Welile! 🚀`;
     
     const encodedMessage = encodeURIComponent(message);
@@ -105,6 +107,7 @@ export default function CalculatorPage() {
               ROI Calculator
             </h1>
           </div>
+          <CurrencySwitcher variant="compact" />
         </div>
       </div>
 
@@ -136,7 +139,7 @@ export default function CalculatorPage() {
                 </Label>
                 <div className="relative">
                   <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm text-muted-foreground font-semibold">
-                    UGX
+                    {currency.symbol}
                   </span>
                   <Input
                     type="text"
@@ -214,7 +217,7 @@ export default function CalculatorPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-base font-black leading-tight"
                 >
-                  {formatUGX(calculations.requiredInvestment)}
+                  {formatAmount(calculations.requiredInvestment)}
                 </motion.p>
               </AnimatePresence>
             </CardContent>
@@ -235,7 +238,7 @@ export default function CalculatorPage() {
                   animate={{ opacity: 1, scale: 1 }}
                   className="text-base font-black text-success leading-tight"
                 >
-                  {formatUGX(isCompounding ? finalProjection?.totalEarnings || 0 : calculations.monthlyReturn)}
+                  {formatAmount(isCompounding ? finalProjection?.totalEarnings || 0 : calculations.monthlyReturn)}
                 </motion.p>
               </AnimatePresence>
             </CardContent>
@@ -299,7 +302,7 @@ export default function CalculatorPage() {
                   <div className="grid grid-cols-3 gap-2 p-3 border-b bg-muted/30">
                     <div className="text-center p-2 rounded-lg bg-primary/10">
                       <p className="text-[9px] text-muted-foreground">Investment</p>
-                      <p className="text-xs font-bold text-primary">{formatUGX(calculations.requiredInvestment)}</p>
+                      <p className="text-xs font-bold text-primary">{formatAmount(calculations.requiredInvestment)}</p>
                     </div>
                     <div className="text-center p-2 rounded-lg bg-success/10">
                       <p className="text-[9px] text-muted-foreground">ROI</p>
@@ -325,8 +328,8 @@ export default function CalculatorPage() {
                         {projections.map((row, i) => (
                           <tr key={row.month} className={i % 2 === 0 ? 'bg-muted/20' : ''}>
                             <td className="py-2 px-3 font-medium">Month {row.month}</td>
-                            <td className="py-2 px-3 text-right text-success">+{formatUGX(row.earnings)}</td>
-                            <td className="py-2 px-3 text-right font-semibold">{formatUGX(row.totalEarnings)}</td>
+                            <td className="py-2 px-3 text-right text-success">+{formatAmount(row.earnings)}</td>
+                            <td className="py-2 px-3 text-right font-semibold">{formatAmount(row.totalEarnings)}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -337,11 +340,11 @@ export default function CalculatorPage() {
                   <div className="p-4 bg-gradient-to-r from-success/10 to-success/5 border-t">
                     <div className="flex justify-between items-center">
                       <span className="font-semibold">Final Balance</span>
-                      <span className="text-lg font-black text-success">{formatUGX(finalProjection?.balance || 0)}</span>
+                      <span className="text-lg font-black text-success">{formatAmount(finalProjection?.balance || 0)}</span>
                     </div>
                     <div className="flex justify-between items-center mt-1">
                       <span className="text-sm text-muted-foreground">Total Earnings</span>
-                      <span className="font-bold text-success">{formatUGX(finalProjection?.totalEarnings || 0)}</span>
+                      <span className="font-bold text-success">{formatAmount(finalProjection?.totalEarnings || 0)}</span>
                     </div>
                   </div>
                 </CardContent>
