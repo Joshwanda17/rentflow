@@ -5,13 +5,16 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Calculator } from 'lucide-react';
-import { calculateRentRepayment, formatUGX, RentCalculation } from '@/lib/rentCalculations';
+import { calculateRentRepayment, RentCalculation } from '@/lib/rentCalculations';
+import { useCurrency } from '@/hooks/useCurrency';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 interface RentCalculatorProps {
   onProceed: () => void;
 }
 
 export default function RentCalculator({ onProceed }: RentCalculatorProps) {
+  const { formatAmount, currency } = useCurrency();
   const [rentAmount, setRentAmount] = useState('');
   const [duration, setDuration] = useState<'30' | '60' | '90'>('30');
   const [calculation, setCalculation] = useState<RentCalculation | null>(null);
@@ -26,15 +29,18 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
   return (
     <Card className="glass-card glow-primary">
       <CardHeader>
-        <CardTitle className="flex items-center gap-2">
-          <Calculator className="h-5 w-5 text-primary" />
-          Rent Repayment Calculator
+        <CardTitle className="flex items-center justify-between">
+          <span className="flex items-center gap-2">
+            <Calculator className="h-5 w-5 text-primary" />
+            Rent Repayment Calculator
+          </span>
+          <CurrencySwitcher variant="compact" />
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Rent Amount (UGX)</Label>
+            <Label>Rent Amount ({currency.code})</Label>
             <Input
               type="text"
               value={rentAmount}
@@ -61,13 +67,13 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
           <div className="mt-4 p-4 rounded-lg bg-secondary/50 space-y-3">
             <div className="flex justify-between items-center text-sm mb-2">
               <span className="text-muted-foreground">Rent Amount:</span>
-              <span className="font-mono font-medium">{formatUGX(calculation.rentAmount)}</span>
+              <span className="font-mono font-medium">{formatAmount(calculation.rentAmount)}</span>
             </div>
             
             <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
               <div className="text-center">
                 <p className="text-xs text-muted-foreground mb-1">Daily Payment for {calculation.durationDays} days</p>
-                <p className="text-2xl font-bold text-primary font-mono">{formatUGX(calculation.dailyRepayment)}</p>
+                <p className="text-2xl font-bold text-primary font-mono">{formatAmount(calculation.dailyRepayment)}</p>
               </div>
             </div>
             
