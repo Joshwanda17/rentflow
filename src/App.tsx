@@ -19,6 +19,7 @@ const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default:
 const ConnectionStatus = lazy(() => import("@/components/ConnectionStatus").then(m => ({ default: m.ConnectionStatus })));
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
+const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
 
 // Lazy load routes
 const Index = lazy(() => import("./pages/Index"));
@@ -182,6 +183,7 @@ const App = () => (
                             <ConnectionStatus />
                             <PWAInstallPrompt />
                             <WhatsNewModal />
+                            <GlobalSettingsToolbar />
                             <Toaster />
                             <Sonner />
                           </Suspense>
