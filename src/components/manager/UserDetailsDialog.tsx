@@ -41,7 +41,8 @@ import {
   Calendar, Wallet, TrendingUp, PiggyBank, Clock, Activity,
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
-  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft
+  Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
+  FileText
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -49,6 +50,9 @@ import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import StartChatButton from '@/components/chat/StartChatButton';
 import { toast } from 'sonner';
 import { useIsMobile } from '@/hooks/use-mobile';
+import UserRentSection from './user-details/UserRentSection';
+import UserInvestmentsSection from './user-details/UserInvestmentsSection';
+import UserTermsSection from './user-details/UserTermsSection';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -804,26 +808,40 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     </div>
   );
 
-  // Shared tabs component
+  // Shared tabs component - now with 7 tabs using horizontal scroll on mobile
   const TabsNavigation = () => (
-    <TabsList className={`grid w-full grid-cols-4 ${isMobile ? 'h-12' : ''}`}>
-      <TabsTrigger value="overview" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
-        <User className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
-        <span className={isMobile ? '' : 'hidden sm:inline'}>Overview</span>
-      </TabsTrigger>
-      <TabsTrigger value="edit" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
-        <Pencil className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
-        <span className={isMobile ? '' : 'hidden sm:inline'}>Edit</span>
-      </TabsTrigger>
-      <TabsTrigger value="roles" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
-        <Shield className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
-        <span className={isMobile ? '' : 'hidden sm:inline'}>Roles</span>
-      </TabsTrigger>
-      <TabsTrigger value="activity" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px]' : 'gap-2'}`}>
-        <Activity className={isMobile ? 'h-4 w-4' : 'h-4 w-4'} />
-        <span className={isMobile ? '' : 'hidden sm:inline'}>Activity</span>
-      </TabsTrigger>
-    </TabsList>
+    <div className={isMobile ? 'overflow-x-auto -mx-4 px-4 pb-2' : ''}>
+      <TabsList className={`${isMobile ? 'inline-flex w-auto min-w-full gap-1 h-12' : 'grid w-full grid-cols-7'}`}>
+        <TabsTrigger value="overview" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <User className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Overview</span>
+        </TabsTrigger>
+        <TabsTrigger value="rent" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <Home className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Rent</span>
+        </TabsTrigger>
+        <TabsTrigger value="invest" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <PiggyBank className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Invest</span>
+        </TabsTrigger>
+        <TabsTrigger value="terms" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <FileText className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Terms</span>
+        </TabsTrigger>
+        <TabsTrigger value="activity" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <Activity className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Activity</span>
+        </TabsTrigger>
+        <TabsTrigger value="roles" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <Shield className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Roles</span>
+        </TabsTrigger>
+        <TabsTrigger value="edit" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
+          <Pencil className="h-4 w-4" />
+          <span className={isMobile ? '' : 'hidden sm:inline'}>Edit</span>
+        </TabsTrigger>
+      </TabsList>
+    </div>
   );
 
   // Mobile version uses Sheet for full-screen experience
@@ -1026,6 +1044,24 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       </div>
                     )}
                   </div>
+                </div>
+              </TabsContent>
+
+              <TabsContent value="rent" className="mt-0">
+                <div className="p-4">
+                  <UserRentSection userId={user.id} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="invest" className="mt-0">
+                <div className="p-4">
+                  <UserInvestmentsSection userId={user.id} />
+                </div>
+              </TabsContent>
+
+              <TabsContent value="terms" className="mt-0">
+                <div className="p-4">
+                  <UserTermsSection userId={user.id} userRoles={userRoles} />
                 </div>
               </TabsContent>
 
@@ -1446,6 +1482,24 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </div>
                   )}
                 </div>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="rent" className="mt-0">
+              <div className="p-6 pt-4">
+                <UserRentSection userId={user.id} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="invest" className="mt-0">
+              <div className="p-6 pt-4">
+                <UserInvestmentsSection userId={user.id} />
+              </div>
+            </TabsContent>
+
+            <TabsContent value="terms" className="mt-0">
+              <div className="p-6 pt-4">
+                <UserTermsSection userId={user.id} userRoles={userRoles} />
               </div>
             </TabsContent>
 
