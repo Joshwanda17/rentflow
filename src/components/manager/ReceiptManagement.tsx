@@ -897,33 +897,48 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
 
         <TabsContent value="user-receipts" className="space-y-4">
           <Card>
-            <CardHeader className="flex flex-row items-center justify-between">
-              <CardTitle className="text-lg">User Submitted Receipts</CardTitle>
-              <Button variant="outline" size="sm" onClick={handleExportUserReceipts} className="gap-2">
+            <CardHeader className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <CardTitle className="text-lg flex items-center gap-2">
+                  <Users className="h-5 w-5 text-primary" />
+                  User Submitted Receipts
+                </CardTitle>
+                <CardDescription className="mt-1">
+                  {pendingUserReceipts.length} pending • {verifiedUserReceipts.length} verified
+                </CardDescription>
+              </div>
+              <Button variant="outline" size="sm" onClick={handleExportUserReceipts} className="gap-2 touch-manipulation">
                 <FileSpreadsheet className="h-4 w-4" />
-                Export CSV
+                Export
               </Button>
             </CardHeader>
             <CardContent>
               {userReceipts.length === 0 ? (
-                <p className="text-center text-muted-foreground py-8">No receipts submitted yet</p>
+                <div className="text-center py-12">
+                  <Receipt className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                  <p className="text-muted-foreground font-medium">No receipts submitted yet</p>
+                  <p className="text-sm text-muted-foreground mt-1">
+                    Users can submit receipts from their dashboard
+                  </p>
+                </div>
               ) : (
                 <div className="space-y-3">
                   {userReceipts.map((receipt) => (
                     <div 
                       key={receipt.id} 
-                      className={`p-4 rounded-xl border ${
+                      className={`p-4 rounded-xl border transition-all ${
                         receipt.verified 
                           ? 'bg-success/5 border-success/20' 
                           : receipt.rejection_reason 
                             ? 'bg-destructive/5 border-destructive/20'
-                            : 'bg-secondary/30 border-border/50'
+                            : 'bg-warning/5 border-warning/20'
                       }`}
                     >
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <code className="text-sm font-mono bg-background/50 px-2 py-0.5 rounded">
+                      <div className="flex flex-col gap-3">
+                        {/* Header Row */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <code className="text-sm font-mono bg-background/80 px-2 py-1 rounded font-bold">
                               {receipt.receipt_numbers?.receipt_code || 'N/A'}
                             </code>
                             {receipt.verified ? (
@@ -937,22 +952,144 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
                                 Rejected
                               </Badge>
                             ) : (
-                              <Badge variant="warning">Pending</Badge>
+                              <Badge variant="warning" className="gap-1 animate-pulse">
+                                <Clock className="h-3 w-3" />
+                                Pending
+                              </Badge>
                             )}
                           </div>
-                          <p className="text-sm font-medium">{receipt.profiles?.full_name || 'Unknown User'}</p>
-                          <p className="text-xs text-muted-foreground">{receipt.profiles?.phone}</p>
-                          <p className="text-sm text-muted-foreground mt-1">{receipt.receipt_numbers?.vendors?.name}</p>
+                          <div className="text-right">
+                            <p className="font-bold text-lg">{formatUGX(receipt.claimed_amount)}</p>
+                          </div>
                         </div>
-                        <div className="text-right">
-                          <p className="font-semibold">{formatUGX(receipt.claimed_amount)}</p>
-                          {receipt.receipt_numbers?.vendor_amount && (
-                            <p className="text-xs text-muted-foreground">
-                              Vendor: {formatUGX(receipt.receipt_numbers.vendor_amount)}
-                            </p>
+                        
+                        {/* User & Vendor Info */}
+                        <div className="grid grid-cols-2 gap-3 text-sm">
+                          <div>
+                            <p className="text-xs text-muted-foreground">User</p>
+                            <p className="font-medium">{receipt.profiles?.full_name || 'Unknown'}</p>
+                            <p className="text-xs text-muted-foreground">{receipt.profiles?.phone}</p>
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground">Vendor</p>
+                            <p className="font-medium">{receipt.receipt_numbers?.vendors?.name || 'N/A'}</p>
+                            {receipt.receipt_numbers?.vendor_amount && (
+                              <p className="text-xs text-muted-foreground">
+                                Amount: {formatUGX(receipt.receipt_numbers.vendor_amount)}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Items Description */}
+                        {receipt.items_description && (
+                          <div className="text-sm p-2 bg-background/50 rounded-lg">
+                            <p className="text-xs text-muted-foreground mb-1">Items</p>
+                            <p className="text-foreground">{receipt.items_description}</p>
+                          </div>
+                        )}
+
+                        {/* Loan Contribution & Actions */}
+                        <div className="flex items-center justify-between pt-2 border-t border-border/50">
+                          <div>
+                            {receipt.loan_contribution ? (
+                              <p className="text-sm text-success font-medium">
+                                +{formatUGX(receipt.loan_contribution)} loan limit
+                              </p>
+                            ) : (
+                              <p className="text-xs text-muted-foreground">
+                                {new Date(receipt.created_at).toLocaleDateString()}
+                              </p>
+                            )}
+                          </div>
+                          
+                          {/* Action Buttons for Pending Receipts */}
+                          {!receipt.verified && !receipt.rejection_reason && (
+                            <div className="flex gap-2">
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="gap-1 h-8 text-destructive border-destructive/30 hover:bg-destructive/10 touch-manipulation"
+                                onClick={async () => {
+                                  const reason = prompt('Rejection reason:');
+                                  if (reason) {
+                                    const { error } = await supabase
+                                      .from('user_receipts')
+                                      .update({ rejection_reason: reason })
+                                      .eq('id', receipt.id);
+                                    if (error) {
+                                      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                    } else {
+                                      toast({ title: 'Receipt Rejected' });
+                                      fetchData();
+                                    }
+                                  }
+                                }}
+                              >
+                                <XCircle className="h-3.5 w-3.5" />
+                                Reject
+                              </Button>
+                              <Button
+                                size="sm"
+                                className="gap-1 h-8 bg-success hover:bg-success/90 touch-manipulation"
+                                onClick={async () => {
+                                  // Calculate loan contribution (10% of claimed amount)
+                                  const contribution = Math.round(receipt.claimed_amount * 0.1);
+                                  
+                                  const { error } = await supabase
+                                    .from('user_receipts')
+                                    .update({ 
+                                      verified: true,
+                                      loan_contribution: contribution
+                                    })
+                                    .eq('id', receipt.id);
+                                    
+                                  if (error) {
+                                    toast({ title: 'Error', description: error.message, variant: 'destructive' });
+                                  } else {
+                                    // Also update user's loan limit
+                                    const { data: existingLimit } = await supabase
+                                      .from('loan_limits')
+                                      .select('*')
+                                      .eq('user_id', receipt.user_id)
+                                      .single();
+                                    
+                                    if (existingLimit) {
+                                      await supabase
+                                        .from('loan_limits')
+                                        .update({
+                                          available_limit: existingLimit.available_limit + contribution,
+                                          total_verified_amount: existingLimit.total_verified_amount + receipt.claimed_amount
+                                        })
+                                        .eq('user_id', receipt.user_id);
+                                    } else {
+                                      await supabase
+                                        .from('loan_limits')
+                                        .insert({
+                                          user_id: receipt.user_id,
+                                          available_limit: contribution,
+                                          total_verified_amount: receipt.claimed_amount
+                                        });
+                                    }
+                                    
+                                    toast({ 
+                                      title: 'Receipt Verified!', 
+                                      description: `+${formatUGX(contribution)} added to loan limit` 
+                                    });
+                                    fetchData();
+                                  }
+                                }}
+                              >
+                                <CheckCircle className="h-3.5 w-3.5" />
+                                Verify
+                              </Button>
+                            </div>
                           )}
-                          {receipt.loan_contribution && (
-                            <p className="text-xs text-success">+{formatUGX(receipt.loan_contribution)}</p>
+                          
+                          {receipt.rejection_reason && (
+                            <p className="text-xs text-destructive max-w-[200px] truncate">
+                              Reason: {receipt.rejection_reason}
+                            </p>
                           )}
                         </div>
                       </div>

@@ -85,7 +85,7 @@ export function MobileQuickActions({
     {
       icon: Receipt,
       label: 'Receipts',
-      sublabel: 'Manage',
+      sublabel: 'User submissions',
       path: '/manager-access?tab=receipts',
       color: 'text-purple-600 dark:text-purple-400',
       bgColor: 'bg-purple-500/15 hover:bg-purple-500/25'
