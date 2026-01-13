@@ -8,6 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { useCurrency } from '@/hooks/useCurrency';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
@@ -183,6 +185,14 @@ export default function Auth() {
             <WelileLogo linkToHome={false} />
           </div>
           <p className="text-muted-foreground">Rent Facilitation Platform</p>
+          
+          {/* Currency Selector */}
+          <div className="flex items-center justify-center mt-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 border border-border/50">
+              <span className="text-xs text-muted-foreground">Currency:</span>
+              <CurrencySwitcher variant="compact" />
+            </div>
+          </div>
         </div>
 
         {referralId && (

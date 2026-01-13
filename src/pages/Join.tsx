@@ -4,6 +4,7 @@ import { Loader2, UserPlus, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/components/WelileLogo';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 /**
  * Universal Join Page - Handles all invite and referral links
@@ -66,6 +67,14 @@ export default function Join() {
           <CardDescription>
             Join our platform to access rent support, invest as a supporter, or manage properties.
           </CardDescription>
+          
+          {/* Currency Selector */}
+          <div className="flex items-center justify-center mt-4">
+            <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border/50">
+              <span className="text-xs text-muted-foreground">Currency:</span>
+              <CurrencySwitcher variant="compact" />
+            </div>
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           <Link to="/auth" className="block">

@@ -10,6 +10,8 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle, Gift } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { useCurrency } from '@/hooks/useCurrency';
 import { motion } from 'framer-motion';
 import { z } from 'zod';
 
@@ -215,6 +217,15 @@ export default function BecomeSupporter() {
             <div className="flex items-center justify-center mb-4">
               <WelileLogo linkToHome={false} />
             </div>
+            
+            {/* Currency Selector */}
+            <div className="flex items-center justify-center mb-4">
+              <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-card/50 border border-border/50">
+                <span className="text-xs text-muted-foreground">Currency:</span>
+                <CurrencySwitcher variant="compact" />
+              </div>
+            </div>
+            
             <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-success/10 border border-success/20 mb-4">
               <Sparkles className="h-4 w-4 text-success" />
               <span className="text-sm font-medium text-success">Become a Tenant Supporter</span>
