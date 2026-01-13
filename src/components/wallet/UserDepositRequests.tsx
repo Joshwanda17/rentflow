@@ -104,11 +104,11 @@ export function UserDepositRequests() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'approved':
-        return <Badge variant="default" className="bg-success/10 text-success border-success/20">Approved</Badge>;
+        return <span><Badge variant="default" className="bg-success/10 text-success border-success/20">Approved</Badge></span>;
       case 'rejected':
-        return <Badge variant="destructive">Rejected</Badge>;
+        return <span><Badge variant="destructive">Rejected</Badge></span>;
       default:
-        return <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge>;
+        return <span><Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 border-yellow-500/20">Pending</Badge></span>;
     }
   };
 
