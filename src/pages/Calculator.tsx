@@ -107,7 +107,7 @@ export default function CalculatorPage() {
               ROI Calculator
             </h1>
           </div>
-          <CurrencySwitcher variant="compact" />
+          <CurrencySwitcher />
         </div>
       </div>
 
