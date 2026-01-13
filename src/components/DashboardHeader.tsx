@@ -18,6 +18,7 @@ import { LocaleSwitcher } from '@/components/LocaleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import IOSInstallGuide from '@/components/IOSInstallGuide';
+import { cn } from '@/lib/utils';
 
 interface MenuItemConfig {
   icon: React.ComponentType<{ className?: string }>;
@@ -62,10 +63,10 @@ export default function DashboardHeader({
   return (
     <>
       <header className="sticky top-0 z-50 bg-gradient-to-r from-primary via-primary to-primary/90 shadow-lg backdrop-blur-sm border-b border-primary/20">
-        <div className="px-4 py-2.5">
+        <div className="px-3 py-2">
           <div className="flex items-center justify-between">
-            {/* Left: Logo & Role */}
-            <div className="flex items-center gap-2.5">
+            {/* Left: Logo & Role - Compact */}
+            <div className="flex items-center gap-2">
               <span 
                 className="text-lg font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
                 style={{ fontFamily: "'Chewy', cursive" }}
@@ -73,27 +74,29 @@ export default function DashboardHeader({
               >
                 Welile
               </span>
-              <div className="h-4 w-px bg-white/25 rounded-full" />
-              <RoleSwitcher
-                currentRole={currentRole}
-                availableRoles={availableRoles}
-                onRoleChange={onRoleChange}
-              />
+              <div className="h-4 w-px bg-white/25 rounded-full hidden sm:block" />
+              <div className="hidden sm:block">
+                <RoleSwitcher
+                  currentRole={currentRole}
+                  availableRoles={availableRoles}
+                  onRoleChange={onRoleChange}
+                />
+              </div>
             </div>
 
-            {/* Right: Actions - Mobile Optimized */}
-            <div className="flex items-center gap-0.5 sm:gap-1">
-              {/* Hidden on mobile, shown on larger screens */}
-              <div className="hidden sm:flex items-center gap-0.5">
+            {/* Right: Actions - Mobile Optimized with larger touch targets */}
+            <div className="flex items-center gap-1">
+              {/* Desktop only items */}
+              <div className="hidden sm:flex items-center gap-1">
                 {showInstallButton && (
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={handleInstallClick}
-                    className="h-8 px-2 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium rounded-lg"
+                    className="h-9 px-3 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium rounded-xl"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    <span className="hidden sm:inline">Install</span>
+                    <Download className="h-4 w-4" />
+                    <span>Install</span>
                   </Button>
                 )}
                 <LocaleSwitcher variant="combined" className="text-white border-white/20 hover:bg-white/10" />
@@ -101,70 +104,100 @@ export default function DashboardHeader({
                 <ChatButton />
               </div>
               
-              {/* Always visible on all screens */}
+              {/* Always visible - with larger touch targets for mobile */}
               <NotificationBell />
               <ThemeToggle />
 
+              {/* Main Menu Button - Extra large for mobile */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 min-w-[36px] text-white/90 hover:text-white hover:bg-white/10"
+                    className="h-11 w-11 min-w-[44px] min-h-[44px] text-white/90 hover:text-white hover:bg-white/15 rounded-xl touch-manipulation"
                   >
-                    <Menu className="h-5 w-5" />
+                    <Menu className="h-6 w-6" />
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
                   align="end" 
-                  className="w-56 bg-background/95 backdrop-blur-lg border shadow-xl"
+                  className="w-64 bg-background/98 backdrop-blur-xl border-2 shadow-2xl rounded-2xl p-1"
                 >
+                  {/* Mobile Role Switcher */}
+                  <div className="sm:hidden p-2 mb-1">
+                    <p className="text-xs text-muted-foreground mb-2 font-medium">Switch Role</p>
+                    <RoleSwitcher
+                      currentRole={currentRole}
+                      availableRoles={availableRoles}
+                      onRoleChange={onRoleChange}
+                    />
+                  </div>
+                  
                   {/* Mobile-only menu items */}
                   <div className="sm:hidden">
+                    <DropdownMenuSeparator />
                     {showInstallButton && (
                       <DropdownMenuItem
                         onClick={handleInstallClick}
-                        className="gap-3 cursor-pointer"
+                        className="gap-3 cursor-pointer py-3.5 px-3 rounded-xl text-base font-medium touch-manipulation"
                       >
-                        <Download className="h-4 w-4" />
+                        <div className="p-2 rounded-lg bg-primary/10">
+                          <Download className="h-5 w-5 text-primary" />
+                        </div>
                         Install App
                       </DropdownMenuItem>
                     )}
                     <DropdownMenuItem
                       onClick={() => navigate('/chat')}
-                      className="gap-3 cursor-pointer"
+                      className="gap-3 cursor-pointer py-3.5 px-3 rounded-xl text-base font-medium touch-manipulation"
                     >
-                      <Globe className="h-4 w-4" />
+                      <div className="p-2 rounded-lg bg-success/10">
+                        <Globe className="h-5 w-5 text-success" />
+                      </div>
                       Messages
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                   </div>
                   
+                  {/* Menu items with larger touch targets */}
                   {menuItems.map((item, index) => (
                     <div key={index}>
                       {item.separator && index > 0 && <DropdownMenuSeparator />}
                       <DropdownMenuItem
                         onClick={item.onClick}
-                        className={`gap-3 cursor-pointer ${item.destructive ? 'text-destructive' : ''}`}
+                        className={cn(
+                          "gap-3 cursor-pointer py-3.5 px-3 rounded-xl text-base font-medium touch-manipulation",
+                          item.destructive ? 'text-destructive' : ''
+                        )}
                       >
-                        <item.icon className="h-4 w-4" />
+                        <div className={cn(
+                          "p-2 rounded-lg",
+                          item.destructive ? "bg-destructive/10" : "bg-muted"
+                        )}>
+                          <item.icon className={cn("h-5 w-5", item.destructive && "text-destructive")} />
+                        </div>
                         {item.label}
                       </DropdownMenuItem>
                     </div>
                   ))}
+                  
                   <DropdownMenuSeparator />
                   <DropdownMenuItem 
                     onClick={() => navigate('/settings')} 
-                    className="gap-3 cursor-pointer"
+                    className="gap-3 cursor-pointer py-3.5 px-3 rounded-xl text-base font-medium touch-manipulation"
                   >
-                    <Settings className="h-4 w-4" />
+                    <div className="p-2 rounded-lg bg-muted">
+                      <Settings className="h-5 w-5" />
+                    </div>
                     Settings
                   </DropdownMenuItem>
                   <DropdownMenuItem 
                     onClick={onSignOut} 
-                    className="gap-3 cursor-pointer text-destructive"
+                    className="gap-3 cursor-pointer py-3.5 px-3 rounded-xl text-base font-medium text-destructive touch-manipulation"
                   >
-                    <LogOut className="h-4 w-4" />
+                    <div className="p-2 rounded-lg bg-destructive/10">
+                      <LogOut className="h-5 w-5 text-destructive" />
+                    </div>
                     Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>

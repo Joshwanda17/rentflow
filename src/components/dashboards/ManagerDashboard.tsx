@@ -88,6 +88,7 @@ import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList'
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
+import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
 import { UserMinus } from 'lucide-react';
 
 interface ManagerDashboardProps {
@@ -912,60 +913,50 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         menuItems={menuItems}
       />
 
-      <main className="px-4 py-4 space-y-4 animate-fade-in">
-        {/* PROMINENT User Management Card - First item */}
-        <button 
-          onClick={() => navigate('/manager-access?tab=users')}
-          className="w-full text-left block"
-        >
-          <Card className="border-2 border-primary bg-gradient-to-br from-primary/10 via-primary/5 to-background hover:shadow-xl active:scale-[0.99] transition-all cursor-pointer overflow-hidden relative">
-            <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-            <div className="absolute bottom-0 left-0 w-24 h-24 bg-primary/5 rounded-full translate-y-1/2 -translate-x-1/2" />
-            <CardContent className="p-5 relative">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-4">
-                  <div className="p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg">
-                    <Users className="h-8 w-8" />
-                  </div>
-                  <div>
-                    <div className="flex items-center gap-2 mb-1">
-                      <h3 className="font-bold text-xl">User Management</h3>
-                      <Badge className="bg-primary text-primary-foreground">
-                        {totalUsers}
-                      </Badge>
-                    </div>
-                    <p className="text-sm text-muted-foreground">View, search & manage all users</p>
-                  </div>
+      <main className="px-3 py-3 space-y-3 animate-fade-in">
+        {/* Mobile Quick Actions Grid - Shows on all screens but optimized for mobile */}
+        <div className="block">
+          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
+            <Sparkles className="h-5 w-5 text-primary" />
+            Quick Actions
+          </h2>
+          <MobileQuickActions
+            pendingRequests={pendingRequests}
+            pendingLoans={pendingLoans}
+            pendingOrders={pendingOrders}
+            totalUsers={totalUsers}
+          />
+        </div>
+
+        {/* Stats Summary - Larger cards for mobile */}
+        <div className="grid grid-cols-2 gap-3">
+          <Card className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-success/20">
+                  <UserCheck className="h-6 w-6 text-success" />
                 </div>
-                <div className="p-3 rounded-full bg-primary/10">
-                  <ArrowRight className="h-6 w-6 text-primary" />
-                </div>
-              </div>
-              
-              {/* Quick Stats Row */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-success/10 border border-success/20">
-                  <div className="p-2 rounded-lg bg-success/20">
-                    <UserCheck className="h-4 w-4 text-success" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-success">{activeUsers}</p>
-                    <p className="text-xs text-muted-foreground">Active users</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-3 p-3 rounded-xl bg-chart-5/10 border border-chart-5/20">
-                  <div className="p-2 rounded-lg bg-chart-5/20">
-                    <CalendarPlus className="h-4 w-4 text-chart-5" />
-                  </div>
-                  <div>
-                    <p className="text-lg font-bold text-chart-5">{newSignupsThisWeek}</p>
-                    <p className="text-xs text-muted-foreground">New this week</p>
-                  </div>
+                <div>
+                  <p className="text-2xl font-bold text-success">{activeUsers}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Active</p>
                 </div>
               </div>
             </CardContent>
           </Card>
-        </button>
+          <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/10 to-background touch-manipulation">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-primary/20">
+                  <CalendarPlus className="h-6 w-6 text-primary" />
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-primary">{newSignupsThisWeek}</p>
+                  <p className="text-xs text-muted-foreground font-medium">This week</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </div>
 
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">

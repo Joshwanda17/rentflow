@@ -78,56 +78,61 @@ export function NotificationBell() {
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon" className="relative text-white/90 hover:text-white hover:bg-white/10">
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          className="relative h-11 w-11 min-w-[44px] min-h-[44px] text-white/90 hover:text-white hover:bg-white/15 rounded-xl touch-manipulation"
+        >
           <Bell className="h-5 w-5" />
           {unreadCount > 0 && (
             <Badge 
-              className="absolute -top-1 -right-1 h-5 w-5 flex items-center justify-center p-0 text-xs bg-white text-primary"
+              className="absolute -top-0.5 -right-0.5 h-5 min-w-[20px] flex items-center justify-center px-1 text-xs font-bold bg-white text-primary animate-pulse"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="flex items-center justify-between p-3 border-b">
-          <h4 className="font-semibold">Notifications</h4>
+      <PopoverContent className="w-80 p-0 rounded-2xl border-2" align="end">
+        <div className="flex items-center justify-between p-4 border-b bg-muted/30">
+          <h4 className="font-bold text-lg">🔔 Notifications</h4>
           {unreadCount > 0 && (
-            <Button variant="ghost" size="sm" onClick={markAllAsRead}>
+            <Button variant="ghost" size="sm" onClick={markAllAsRead} className="text-xs font-semibold">
               Mark all read
             </Button>
           )}
         </div>
         <ScrollArea className="h-80">
           {notifications.length === 0 ? (
-            <div className="p-4 text-center text-muted-foreground">
-              No notifications yet
+            <div className="p-6 text-center">
+              <span className="text-4xl mb-2 block">📭</span>
+              <p className="text-muted-foreground font-medium">No notifications yet</p>
             </div>
           ) : (
             <div className="divide-y">
               {notifications.map((notification) => (
                 <div
                   key={notification.id}
-                  className={`p-3 cursor-pointer hover:bg-secondary/50 transition-colors ${
+                  className={`p-4 cursor-pointer hover:bg-secondary/50 transition-colors touch-manipulation active:bg-secondary ${
                     !notification.read ? 'bg-primary/5' : ''
                   }`}
                   onClick={() => handleNotificationClick(notification)}
                 >
-                  <div className="flex gap-2">
-                    <span className="text-lg">{getTypeIcon(notification.type)}</span>
+                  <div className="flex gap-3">
+                    <span className="text-2xl">{getTypeIcon(notification.type)}</span>
                     <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-medium ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                      <p className={`text-sm font-bold ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
                         {notification.title}
                       </p>
-                      <p className="text-xs text-muted-foreground line-clamp-2">
+                      <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
                         {notification.message}
                       </p>
-                      <p className="text-xs text-muted-foreground mt-1">
+                      <p className="text-xs text-muted-foreground mt-1.5 font-medium">
                         {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                       </p>
                     </div>
                     {!notification.read && (
-                      <div className="w-2 h-2 bg-primary rounded-full mt-1.5" />
+                      <div className="w-2.5 h-2.5 bg-primary rounded-full mt-1.5 animate-pulse" />
                     )}
                   </div>
                 </div>
