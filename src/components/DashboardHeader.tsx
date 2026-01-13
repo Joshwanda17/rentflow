@@ -81,22 +81,27 @@ export default function DashboardHeader({
               />
             </div>
 
-            {/* Right: Actions */}
-            <div className="flex items-center gap-0.5">
-              {showInstallButton && (
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={handleInstallClick}
-                  className="h-8 px-2 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium rounded-lg"
-                >
-                  <Download className="h-3.5 w-3.5" />
-                  <span className="hidden sm:inline">Install</span>
-                </Button>
-              )}
-              <LocaleSwitcher variant="combined" className="text-white border-white/20 hover:bg-white/10" />
-              <ShareAppButton />
-              <ChatButton />
+            {/* Right: Actions - Mobile Optimized */}
+            <div className="flex items-center gap-0.5 sm:gap-1">
+              {/* Hidden on mobile, shown on larger screens */}
+              <div className="hidden sm:flex items-center gap-0.5">
+                {showInstallButton && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleInstallClick}
+                    className="h-8 px-2 text-white/90 hover:text-white hover:bg-white/10 gap-1.5 text-xs font-medium rounded-lg"
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    <span className="hidden sm:inline">Install</span>
+                  </Button>
+                )}
+                <LocaleSwitcher variant="combined" className="text-white border-white/20 hover:bg-white/10" />
+                <ShareAppButton />
+                <ChatButton />
+              </div>
+              
+              {/* Always visible on all screens */}
               <NotificationBell />
               <ThemeToggle />
 
@@ -105,7 +110,7 @@ export default function DashboardHeader({
                   <Button 
                     variant="ghost" 
                     size="icon" 
-                    className="h-9 w-9 text-white/90 hover:text-white hover:bg-white/10"
+                    className="h-9 w-9 min-w-[36px] text-white/90 hover:text-white hover:bg-white/10"
                   >
                     <Menu className="h-5 w-5" />
                   </Button>
@@ -114,6 +119,27 @@ export default function DashboardHeader({
                   align="end" 
                   className="w-56 bg-background/95 backdrop-blur-lg border shadow-xl"
                 >
+                  {/* Mobile-only menu items */}
+                  <div className="sm:hidden">
+                    {showInstallButton && (
+                      <DropdownMenuItem
+                        onClick={handleInstallClick}
+                        className="gap-3 cursor-pointer"
+                      >
+                        <Download className="h-4 w-4" />
+                        Install App
+                      </DropdownMenuItem>
+                    )}
+                    <DropdownMenuItem
+                      onClick={() => navigate('/chat')}
+                      className="gap-3 cursor-pointer"
+                    >
+                      <Globe className="h-4 w-4" />
+                      Messages
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                  </div>
+                  
                   {menuItems.map((item, index) => (
                     <div key={index}>
                       {item.separator && index > 0 && <DropdownMenuSeparator />}
