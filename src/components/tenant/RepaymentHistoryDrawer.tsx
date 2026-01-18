@@ -21,11 +21,14 @@ import {
   Clock,
   CalendarDays,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  Ban,
+  Coins
 } from 'lucide-react';
 import { format, differenceInDays, addDays, isBefore, isToday, isSameDay } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 interface RentRequest {
   id: string;
@@ -46,6 +49,17 @@ interface Repayment {
   rent_request_id: string;
 }
 
+interface LateFee {
+  id: string;
+  loan_id: string;
+  borrower_id: string;
+  fee_amount: number;
+  days_overdue: number;
+  applied_at: string;
+  paid: boolean;
+  paid_at: string | null;
+}
+
 interface RepaymentHistoryDrawerProps {
   userId: string;
 }
@@ -55,11 +69,16 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const [loading, setLoading] = useState(false);
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
+  const [lateFees, setLateFees] = useState<LateFee[]>([]);
+
+  // Late fee configuration (5% per missed day, can be fetched from DB if needed)
+  const LATE_FEE_RATE = 0.05; // 5% per day
+  const GRACE_PERIOD_DAYS = 0; // No grace period
 
   const fetchData = async () => {
     setLoading(true);
     
-    const [requestsResult, paymentsResult] = await Promise.all([
+    const [requestsResult, paymentsResult, lateFeesResult] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('*')
@@ -70,11 +89,17 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
         .from('repayments')
         .select('*')
         .eq('tenant_id', userId)
-        .order('payment_date', { ascending: false })
+        .order('payment_date', { ascending: false }),
+      supabase
+        .from('late_fees')
+        .select('*')
+        .eq('borrower_id', userId)
+        .order('applied_at', { ascending: false })
     ]);
     
     setRentRequests(requestsResult.data || []);
     setRepayments(paymentsResult.data || []);
+    setLateFees(lateFeesResult.data || []);
     setLoading(false);
   };
 
@@ -106,6 +131,41 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
       remainingBalance: Number(request.total_repayment) - totalRepaid,
       progressPercent: (totalRepaid / Number(request.total_repayment)) * 100
     };
+  };
+
+  // Calculate late fees for a request based on missed days
+  const calculateLateFees = (request: RentRequest) => {
+    const stats = calculateMissedPayments(request);
+    if (!stats || stats.missedDays <= GRACE_PERIOD_DAYS) return null;
+    
+    const effectiveMissedDays = stats.missedDays - GRACE_PERIOD_DAYS;
+    const dailyFee = Number(request.daily_repayment) * LATE_FEE_RATE;
+    
+    // Calculate compounding late fees
+    let accumulatedFees = 0;
+    for (let i = 1; i <= effectiveMissedDays; i++) {
+      accumulatedFees += dailyFee * i; // Increases each day
+    }
+    
+    // Also check for recorded late fees in DB
+    const dbLateFees = lateFees.filter(lf => !lf.paid);
+    const unpaidDbFees = dbLateFees.reduce((sum, lf) => sum + Number(lf.fee_amount), 0);
+    
+    return {
+      missedDays: effectiveMissedDays,
+      dailyFeeRate: dailyFee,
+      accumulatedFees: Math.max(accumulatedFees, unpaidDbFees),
+      unpaidDbFees,
+      hasRecordedFees: dbLateFees.length > 0
+    };
+  };
+
+  // Get total unpaid late fees
+  const getTotalUnpaidLateFees = () => {
+    return activeRequests.reduce((total, request) => {
+      const fees = calculateLateFees(request);
+      return total + (fees?.accumulatedFees || 0);
+    }, 0);
   };
 
   // Generate repayment schedule for a request
@@ -145,6 +205,10 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const totalMissedPayments = activeRequests.reduce((total, request) => {
     const stats = calculateMissedPayments(request);
     return total + (stats?.missedDays || 0);
+  }, 0);
+  const totalLateFees = activeRequests.reduce((total, request) => {
+    const fees = calculateLateFees(request);
+    return total + (fees?.accumulatedFees || 0);
   }, 0);
 
   return (
@@ -398,9 +462,29 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
                 </div>
               ) : (
                 <div className="space-y-4">
+                  {/* Late Fee Warning Banner */}
+                  {totalLateFees > 0 && (
+                    <Alert variant="destructive" className="border-destructive/50 bg-destructive/10">
+                      <Ban className="h-4 w-4" />
+                      <AlertTitle className="flex items-center gap-2">
+                        Late Fee Penalty
+                        <Badge variant="destructive" className="font-mono">
+                          {formatUGX(totalLateFees)}
+                        </Badge>
+                      </AlertTitle>
+                      <AlertDescription className="text-xs mt-1">
+                        You have accumulated late fees due to missed payments. Pay your overdue balance to stop further penalties.
+                        <span className="block mt-1 text-destructive/80">
+                          Rate: 5% of daily repayment per missed day (compounding)
+                        </span>
+                      </AlertDescription>
+                    </Alert>
+                  )}
+                  
                   {activeRequests.map((request) => {
                     const schedule = generateSchedule(request);
                     const stats = calculateMissedPayments(request);
+                    const lateFeeStats = calculateLateFees(request);
                     
                     return (
                       <Collapsible key={request.id} defaultOpen>
@@ -427,7 +511,28 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
                           </CollapsibleTrigger>
                           
                           <CollapsibleContent>
-                            <div className="mt-4 pt-4 border-t border-border space-y-2">
+                            <div className="mt-4 pt-4 border-t border-border space-y-3">
+                              {/* Late Fee Warning for this request */}
+                              {lateFeeStats && lateFeeStats.accumulatedFees > 0 && (
+                                <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/30">
+                                  <div className="flex items-start gap-2">
+                                    <Coins className="h-4 w-4 text-destructive mt-0.5 shrink-0" />
+                                    <div className="flex-1 min-w-0">
+                                      <div className="flex items-center justify-between gap-2">
+                                        <span className="text-sm font-medium text-destructive">Late Fees</span>
+                                        <span className="font-mono text-sm font-bold text-destructive">
+                                          {formatUGX(lateFeeStats.accumulatedFees)}
+                                        </span>
+                                      </div>
+                                      <p className="text-xs text-muted-foreground mt-1">
+                                        {lateFeeStats.missedDays} day(s) overdue × {formatUGX(lateFeeStats.dailyFeeRate)}/day (compounding)
+                                      </p>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Schedule Legend */}
                               {/* Schedule Legend */}
                               <div className="flex flex-wrap gap-3 text-xs mb-3">
                                 <div className="flex items-center gap-1">
