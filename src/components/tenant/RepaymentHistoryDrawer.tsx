@@ -18,9 +18,14 @@ import {
   AlertTriangle, 
   Calendar,
   TrendingUp,
-  Clock
+  Clock,
+  CalendarDays,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
-import { format, differenceInDays, isBefore } from 'date-fns';
+import { format, differenceInDays, addDays, isBefore, isToday, isSameDay } from 'date-fns';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface RentRequest {
   id: string;
@@ -103,6 +108,38 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
     };
   };
 
+  // Generate repayment schedule for a request
+  const generateSchedule = (request: RentRequest) => {
+    if (!request.disbursed_at) return [];
+    
+    const disbursedDate = new Date(request.disbursed_at);
+    const schedule = [];
+    const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
+    
+    for (let i = 1; i <= request.duration_days; i++) {
+      const dueDate = addDays(disbursedDate, i);
+      const dailyAmount = Number(request.daily_repayment);
+      
+      // Check if payment was made for this day
+      const paymentForDay = requestRepayments.find(r => 
+        isSameDay(new Date(r.payment_date), dueDate)
+      );
+      
+      const isPast = isBefore(dueDate, new Date()) && !isToday(dueDate);
+      const isCurrentDay = isToday(dueDate);
+      
+      schedule.push({
+        day: i,
+        dueDate,
+        amount: dailyAmount,
+        status: paymentForDay ? 'paid' : (isPast ? 'missed' : (isCurrentDay ? 'due_today' : 'upcoming')),
+        paidAmount: paymentForDay ? Number(paymentForDay.amount) : 0
+      });
+    }
+    
+    return schedule;
+  };
+
   const activeRequests = rentRequests.filter(r => r.status === 'disbursed');
   const completedRequests = rentRequests.filter(r => r.status === 'completed');
   const totalMissedPayments = activeRequests.reduce((total, request) => {
@@ -135,196 +172,348 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
           </SheetTitle>
         </SheetHeader>
         
-        <ScrollArea className="h-[calc(85vh-80px)] pr-4">
-          {loading ? (
-            <div className="space-y-4">
-              {[1, 2, 3].map((i) => (
-                <div key={i} className="p-4 rounded-lg border border-border">
-                  <Skeleton className="h-4 w-32 mb-2" />
-                  <Skeleton className="h-6 w-24 mb-3" />
-                  <Skeleton className="h-2 w-full" />
+        <Tabs defaultValue="history" className="h-[calc(85vh-80px)]">
+          <TabsList className="grid w-full grid-cols-2 mb-4">
+            <TabsTrigger value="history" className="gap-1.5">
+              <History className="h-4 w-4" />
+              History
+            </TabsTrigger>
+            <TabsTrigger value="schedule" className="gap-1.5">
+              <CalendarDays className="h-4 w-4" />
+              Schedule
+            </TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="history" className="mt-0 h-[calc(100%-48px)]">
+            <ScrollArea className="h-full pr-4">
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 rounded-lg border border-border">
+                      <Skeleton className="h-4 w-32 mb-2" />
+                      <Skeleton className="h-6 w-24 mb-3" />
+                      <Skeleton className="h-2 w-full" />
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {/* Missed Payments Summary */}
-              {totalMissedPayments > 0 && (
-                <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertTriangle className="h-5 w-5 text-destructive" />
-                    <h3 className="font-semibold text-destructive">Missed Payments</h3>
-                  </div>
-                  <p className="text-sm text-muted-foreground">
-                    You have missed approximately {totalMissedPayments} day(s) of payments. 
-                    Please catch up to stay on track.
-                  </p>
-                </div>
-              )}
+              ) : (
+                <div className="space-y-6">
+                  {/* Missed Payments Summary */}
+                  {totalMissedPayments > 0 && (
+                    <div className="p-4 rounded-xl bg-destructive/10 border border-destructive/30">
+                      <div className="flex items-center gap-2 mb-2">
+                        <AlertTriangle className="h-5 w-5 text-destructive" />
+                        <h3 className="font-semibold text-destructive">Missed Payments</h3>
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        You have missed approximately {totalMissedPayments} day(s) of payments. 
+                        Please catch up to stay on track.
+                      </p>
+                    </div>
+                  )}
 
-              {/* Active Requests */}
-              {activeRequests.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Clock className="h-4 w-4" />
-                    Active Repayments
-                  </h3>
-                  {activeRequests.map((request) => {
-                    const stats = calculateMissedPayments(request);
-                    const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
-                    
-                    return (
-                      <div 
-                        key={request.id} 
-                        className="p-4 rounded-xl border border-border bg-card"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(request.created_at), 'MMM d, yyyy')}
-                          </span>
-                          {stats && stats.missedDays > 0 ? (
-                            <Badge variant="destructive" className="gap-1">
-                              <AlertTriangle className="h-3 w-3" />
-                              {stats.missedDays} days behind
-                            </Badge>
-                          ) : (
-                            <Badge variant="success" className="gap-1">
-                              <CheckCircle2 className="h-3 w-3" />
-                              On track
-                            </Badge>
-                          )}
-                        </div>
+                  {/* Active Requests */}
+                  {activeRequests.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Clock className="h-4 w-4" />
+                        Active Repayments
+                      </h3>
+                      {activeRequests.map((request) => {
+                        const stats = calculateMissedPayments(request);
+                        const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
                         
-                        <div className="space-y-2">
-                          <div className="flex justify-between">
-                            <span className="text-sm">Total to repay</span>
-                            <span className="font-mono font-medium">
-                              {formatUGX(Number(request.total_repayment))}
-                            </span>
-                          </div>
-                          {stats && (
-                            <>
-                              <div className="h-2 rounded-full bg-secondary overflow-hidden">
-                                <div 
-                                  className="h-full bg-primary rounded-full transition-all"
-                                  style={{ width: `${stats.progressPercent}%` }}
-                                />
+                        return (
+                          <div 
+                            key={request.id} 
+                            className="p-4 rounded-xl border border-border bg-card"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(request.created_at), 'MMM d, yyyy')}
+                              </span>
+                              {stats && stats.missedDays > 0 ? (
+                                <Badge variant="destructive" className="gap-1">
+                                  <AlertTriangle className="h-3 w-3" />
+                                  {stats.missedDays} days behind
+                                </Badge>
+                              ) : (
+                                <Badge variant="success" className="gap-1">
+                                  <CheckCircle2 className="h-3 w-3" />
+                                  On track
+                                </Badge>
+                              )}
+                            </div>
+                            
+                            <div className="space-y-2">
+                              <div className="flex justify-between">
+                                <span className="text-sm">Total to repay</span>
+                                <span className="font-mono font-medium">
+                                  {formatUGX(Number(request.total_repayment))}
+                                </span>
                               </div>
-                              <div className="flex justify-between text-xs text-muted-foreground">
-                                <span>Paid: {formatUGX(stats.totalRepaid)}</span>
-                                <span>Remaining: {formatUGX(stats.remainingBalance)}</span>
-                              </div>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Recent payments for this request */}
-                        {requestRepayments.length > 0 && (
-                          <div className="mt-3 pt-3 border-t border-border">
-                            <p className="text-xs text-muted-foreground mb-2">Recent payments:</p>
-                            <div className="space-y-1.5">
-                              {requestRepayments.slice(0, 3).map((payment) => (
-                                <div 
-                                  key={payment.id}
-                                  className="flex items-center justify-between text-sm py-1 px-2 rounded bg-secondary/50"
-                                >
-                                  <div className="flex items-center gap-2">
-                                    <CheckCircle2 className="h-3.5 w-3.5 text-success" />
-                                    <span className="font-mono">{formatUGX(Number(payment.amount))}</span>
+                              {stats && (
+                                <>
+                                  <div className="h-2 rounded-full bg-secondary overflow-hidden">
+                                    <div 
+                                      className="h-full bg-primary rounded-full transition-all"
+                                      style={{ width: `${stats.progressPercent}%` }}
+                                    />
                                   </div>
-                                  <span className="text-xs text-muted-foreground">
-                                    {format(new Date(payment.payment_date), 'MMM d')}
-                                  </span>
+                                  <div className="flex justify-between text-xs text-muted-foreground">
+                                    <span>Paid: {formatUGX(stats.totalRepaid)}</span>
+                                    <span>Remaining: {formatUGX(stats.remainingBalance)}</span>
+                                  </div>
+                                </>
+                              )}
+                            </div>
+
+                            {/* Recent payments for this request */}
+                            {requestRepayments.length > 0 && (
+                              <div className="mt-3 pt-3 border-t border-border">
+                                <p className="text-xs text-muted-foreground mb-2">Recent payments:</p>
+                                <div className="space-y-1.5">
+                                  {requestRepayments.slice(0, 3).map((payment) => (
+                                    <div 
+                                      key={payment.id}
+                                      className="flex items-center justify-between text-sm py-1 px-2 rounded bg-secondary/50"
+                                    >
+                                      <div className="flex items-center gap-2">
+                                        <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                                        <span className="font-mono">{formatUGX(Number(payment.amount))}</span>
+                                      </div>
+                                      <span className="text-xs text-muted-foreground">
+                                        {format(new Date(payment.payment_date), 'MMM d')}
+                                      </span>
+                                    </div>
+                                  ))}
                                 </div>
-                              ))}
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+
+                  {/* Completed Requests */}
+                  {completedRequests.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <CheckCircle2 className="h-4 w-4" />
+                        Completed
+                      </h3>
+                      {completedRequests.map((request) => {
+                        const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
+                        const totalRepaid = requestRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
+                        
+                        return (
+                          <div 
+                            key={request.id} 
+                            className="p-4 rounded-xl border border-border bg-card/50"
+                          >
+                            <div className="flex items-center justify-between mb-2">
+                              <span className="text-sm text-muted-foreground">
+                                {format(new Date(request.created_at), 'MMM d, yyyy')}
+                              </span>
+                              <Badge variant="outline" className="text-success border-success/30">
+                                Completed
+                              </Badge>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-sm">Amount repaid</span>
+                              <span className="font-mono font-medium text-success">
+                                {formatUGX(totalRepaid)}
+                              </span>
                             </div>
                           </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
+                        );
+                      })}
+                    </div>
+                  )}
 
-              {/* Completed Requests */}
-              {completedRequests.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4" />
-                    Completed
-                  </h3>
-                  {completedRequests.map((request) => {
-                    const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
-                    const totalRepaid = requestRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
-                    
-                    return (
-                      <div 
-                        key={request.id} 
-                        className="p-4 rounded-xl border border-border bg-card/50"
-                      >
-                        <div className="flex items-center justify-between mb-2">
-                          <span className="text-sm text-muted-foreground">
-                            {format(new Date(request.created_at), 'MMM d, yyyy')}
-                          </span>
-                          <Badge variant="outline" className="text-success border-success/30">
-                            Completed
-                          </Badge>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm">Amount repaid</span>
-                          <span className="font-mono font-medium text-success">
-                            {formatUGX(totalRepaid)}
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-
-              {/* All Payments History */}
-              {repayments.length > 0 && (
-                <div className="space-y-3">
-                  <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-                    <Calendar className="h-4 w-4" />
-                    All Payments
-                  </h3>
-                  <div className="space-y-2">
-                    {repayments.slice(0, 20).map((payment) => (
-                      <div 
-                        key={payment.id}
-                        className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
-                      >
-                        <div className="flex items-center gap-3">
-                          <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center">
-                            <CheckCircle2 className="h-4 w-4 text-success" />
+                  {/* All Payments History */}
+                  {repayments.length > 0 && (
+                    <div className="space-y-3">
+                      <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                        <Calendar className="h-4 w-4" />
+                        All Payments
+                      </h3>
+                      <div className="space-y-2">
+                        {repayments.slice(0, 20).map((payment) => (
+                          <div 
+                            key={payment.id}
+                            className="flex items-center justify-between p-3 rounded-lg bg-secondary/30 border border-border/50"
+                          >
+                            <div className="flex items-center gap-3">
+                              <div className="h-8 w-8 rounded-full bg-success/10 flex items-center justify-center">
+                                <CheckCircle2 className="h-4 w-4 text-success" />
+                              </div>
+                              <div>
+                                <p className="font-mono font-medium">{formatUGX(Number(payment.amount))}</p>
+                                <p className="text-xs text-muted-foreground">
+                                  {format(new Date(payment.payment_date), 'MMMM d, yyyy')}
+                                </p>
+                              </div>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-mono font-medium">{formatUGX(Number(payment.amount))}</p>
-                            <p className="text-xs text-muted-foreground">
-                              {format(new Date(payment.payment_date), 'MMMM d, yyyy')}
-                            </p>
-                          </div>
-                        </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    </div>
+                  )}
+
+                  {/* Empty State */}
+                  {rentRequests.length === 0 && repayments.length === 0 && (
+                    <div className="text-center py-12">
+                      <TrendingUp className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                      <h3 className="font-medium text-muted-foreground mb-1">No repayment history</h3>
+                      <p className="text-sm text-muted-foreground/70">
+                        Your payment history will appear here once you start making repayments.
+                      </p>
+                    </div>
+                  )}
                 </div>
               )}
-
-              {/* Empty State */}
-              {rentRequests.length === 0 && repayments.length === 0 && (
+            </ScrollArea>
+          </TabsContent>
+          
+          <TabsContent value="schedule" className="mt-0 h-[calc(100%-48px)]">
+            <ScrollArea className="h-full pr-4">
+              {loading ? (
+                <div className="space-y-4">
+                  {[1, 2, 3].map((i) => (
+                    <div key={i} className="p-4 rounded-lg border border-border">
+                      <Skeleton className="h-4 w-32 mb-2" />
+                      <Skeleton className="h-20 w-full" />
+                    </div>
+                  ))}
+                </div>
+              ) : activeRequests.length === 0 ? (
                 <div className="text-center py-12">
-                  <TrendingUp className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
-                  <h3 className="font-medium text-muted-foreground mb-1">No repayment history</h3>
+                  <CalendarDays className="h-12 w-12 text-muted-foreground/30 mx-auto mb-4" />
+                  <h3 className="font-medium text-muted-foreground mb-1">No active schedule</h3>
                   <p className="text-sm text-muted-foreground/70">
-                    Your payment history will appear here once you start making repayments.
+                    Your repayment schedule will appear here once you have an active rent request.
                   </p>
                 </div>
+              ) : (
+                <div className="space-y-4">
+                  {activeRequests.map((request) => {
+                    const schedule = generateSchedule(request);
+                    const stats = calculateMissedPayments(request);
+                    
+                    return (
+                      <Collapsible key={request.id} defaultOpen>
+                        <div className="p-4 rounded-xl border border-border bg-card">
+                          <CollapsibleTrigger className="w-full">
+                            <div className="flex items-center justify-between">
+                              <div className="text-left">
+                                <p className="font-medium">
+                                  {formatUGX(Number(request.rent_amount))} Rent
+                                </p>
+                                <p className="text-xs text-muted-foreground">
+                                  {request.duration_days} days • {formatUGX(Number(request.daily_repayment))}/day
+                                </p>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                {stats && (
+                                  <span className="text-xs text-muted-foreground">
+                                    {Math.round(stats.progressPercent)}% done
+                                  </span>
+                                )}
+                                <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                              </div>
+                            </div>
+                          </CollapsibleTrigger>
+                          
+                          <CollapsibleContent>
+                            <div className="mt-4 pt-4 border-t border-border space-y-2">
+                              {/* Schedule Legend */}
+                              <div className="flex flex-wrap gap-3 text-xs mb-3">
+                                <div className="flex items-center gap-1">
+                                  <div className="h-2.5 w-2.5 rounded-full bg-success" />
+                                  <span className="text-muted-foreground">Paid</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="h-2.5 w-2.5 rounded-full bg-destructive" />
+                                  <span className="text-muted-foreground">Missed</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="h-2.5 w-2.5 rounded-full bg-warning" />
+                                  <span className="text-muted-foreground">Today</span>
+                                </div>
+                                <div className="flex items-center gap-1">
+                                  <div className="h-2.5 w-2.5 rounded-full bg-muted" />
+                                  <span className="text-muted-foreground">Upcoming</span>
+                                </div>
+                              </div>
+                              
+                              {/* Schedule Grid */}
+                              <div className="grid grid-cols-7 gap-1.5">
+                                {schedule.map((item) => (
+                                  <div
+                                    key={item.day}
+                                    className={`
+                                      relative p-1.5 rounded text-center text-xs
+                                      ${item.status === 'paid' ? 'bg-success/20 text-success border border-success/30' : ''}
+                                      ${item.status === 'missed' ? 'bg-destructive/20 text-destructive border border-destructive/30' : ''}
+                                      ${item.status === 'due_today' ? 'bg-warning/20 text-warning-foreground border-2 border-warning' : ''}
+                                      ${item.status === 'upcoming' ? 'bg-muted/50 text-muted-foreground border border-border' : ''}
+                                    `}
+                                    title={`Day ${item.day}: ${format(item.dueDate, 'MMM d')} - ${formatUGX(item.amount)}`}
+                                  >
+                                    <span className="font-medium">{item.day}</span>
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              {/* Detailed Schedule List */}
+                              <div className="mt-4 space-y-1.5 max-h-48 overflow-y-auto">
+                                {schedule.map((item) => (
+                                  <div
+                                    key={item.day}
+                                    className={`
+                                      flex items-center justify-between p-2 rounded-lg text-sm
+                                      ${item.status === 'paid' ? 'bg-success/10' : ''}
+                                      ${item.status === 'missed' ? 'bg-destructive/10' : ''}
+                                      ${item.status === 'due_today' ? 'bg-warning/10 ring-1 ring-warning' : ''}
+                                      ${item.status === 'upcoming' ? 'bg-muted/30' : ''}
+                                    `}
+                                  >
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-medium w-8">D{item.day}</span>
+                                      <span className="text-muted-foreground">
+                                        {format(item.dueDate, 'EEE, MMM d')}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-2">
+                                      <span className="font-mono text-xs">
+                                        {formatUGX(item.amount)}
+                                      </span>
+                                      {item.status === 'paid' && (
+                                        <CheckCircle2 className="h-4 w-4 text-success" />
+                                      )}
+                                      {item.status === 'missed' && (
+                                        <AlertTriangle className="h-4 w-4 text-destructive" />
+                                      )}
+                                      {item.status === 'due_today' && (
+                                        <Clock className="h-4 w-4 text-warning" />
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          </CollapsibleContent>
+                        </div>
+                      </Collapsible>
+                    );
+                  })}
+                </div>
               )}
-            </div>
-          )}
-        </ScrollArea>
+            </ScrollArea>
+          </TabsContent>
+        </Tabs>
       </SheetContent>
     </Sheet>
   );
