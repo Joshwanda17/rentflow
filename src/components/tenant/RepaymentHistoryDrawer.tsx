@@ -90,6 +90,8 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const [selectedRequest, setSelectedRequest] = useState<RentRequest | null>(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [submittingPayment, setSubmittingPayment] = useState(false);
+  const [walletBalance, setWalletBalance] = useState<number | null>(null);
+  const [loadingWallet, setLoadingWallet] = useState(false);
   
   const { toast } = useToast();
 
@@ -229,11 +231,25 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
     return Number(request.total_repayment) - totalRepaid;
   };
 
+  // Fetch wallet balance
+  const fetchWalletBalance = async () => {
+    setLoadingWallet(true);
+    const { data } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', userId)
+      .maybeSingle();
+    
+    setWalletBalance(data?.balance ?? 0);
+    setLoadingWallet(false);
+  };
+
   // Open payment dialog
   const openPaymentDialog = (request: RentRequest) => {
     setSelectedRequest(request);
     setPaymentAmount(String(request.daily_repayment));
     setPaymentDialogOpen(true);
+    fetchWalletBalance();
   };
 
   // Handle payment submission
@@ -768,6 +784,33 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
             
             {selectedRequest && (
               <div className="space-y-4 py-2">
+                {/* Wallet Balance */}
+                <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Wallet className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">Wallet Balance</span>
+                    </div>
+                    {loadingWallet ? (
+                      <Skeleton className="h-5 w-24" />
+                    ) : (
+                      <span className="font-mono font-bold text-primary">
+                        {formatUGX(walletBalance ?? 0)}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Insufficient Balance Warning */}
+                {!loadingWallet && walletBalance !== null && parseFloat(paymentAmount || '0') > walletBalance && (
+                  <Alert variant="destructive" className="py-2">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription className="text-xs">
+                      Insufficient wallet balance. You need {formatUGX(parseFloat(paymentAmount || '0') - walletBalance)} more.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
                 {/* Payment Summary */}
                 <div className="p-3 rounded-lg bg-secondary/50 space-y-2">
                   <div className="flex justify-between text-sm">
@@ -820,10 +863,11 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
                   <Button
                     variant="outline"
                     size="sm"
-                    onClick={() => setPaymentAmount(String(getRemainingBalance(selectedRequest)))}
+                    onClick={() => setPaymentAmount(String(Math.min(getRemainingBalance(selectedRequest), walletBalance ?? 0)))}
                     className="text-xs"
+                    disabled={!walletBalance}
                   >
-                    Full Balance
+                    Max Affordable
                   </Button>
                 </div>
               </div>
@@ -839,7 +883,12 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
               </Button>
               <Button
                 onClick={handleSubmitPayment}
-                disabled={submittingPayment || !paymentAmount}
+                disabled={
+                  submittingPayment || 
+                  !paymentAmount || 
+                  loadingWallet ||
+                  (walletBalance !== null && parseFloat(paymentAmount || '0') > walletBalance)
+                }
                 className="gap-2"
               >
                 {submittingPayment ? (
