@@ -235,15 +235,28 @@ export function AgentRentRequestsManager() {
         />
       </div>
       
-      <div className="flex gap-3">
-        <Button variant="outline" onClick={closeDialog} className="flex-1">
+      <div className="flex gap-3 pt-2">
+        <Button 
+          variant="outline" 
+          onClick={closeDialog} 
+          className="flex-1 min-h-[48px]"
+          type="button"
+        >
           Cancel
         </Button>
         <Button 
-          onClick={actionType === 'approve' ? handleApprove : handleReject}
+          onClick={(e) => {
+            e.preventDefault();
+            if (actionType === 'approve') {
+              handleApprove();
+            } else {
+              handleReject();
+            }
+          }}
           disabled={processing === selectedRequest?.id || (actionType === 'reject' && !comment.trim())}
           variant={actionType === 'approve' ? 'success' : 'destructive'}
-          className="flex-1 gap-2"
+          className="flex-1 gap-2 min-h-[48px]"
+          type="button"
         >
           {processing === selectedRequest?.id ? (
             <Loader2 className="h-4 w-4 animate-spin" />
@@ -363,21 +376,31 @@ export function AgentRentRequestsManager() {
                         </p>
                       </div>
                       
-                      <div className="flex flex-col gap-2">
+                      <div className="flex flex-col gap-2 shrink-0">
                         <Button
-                          size="sm"
+                          size="default"
                           variant="success"
-                          onClick={() => openAction(request, 'approve')}
-                          className="gap-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openAction(request, 'approve');
+                          }}
+                          className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
+                          type="button"
                         >
                           <CheckCircle className="h-4 w-4" />
                           Approve
                         </Button>
                         <Button
-                          size="sm"
+                          size="default"
                           variant="destructive"
-                          onClick={() => openAction(request, 'reject')}
-                          className="gap-1"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openAction(request, 'reject');
+                          }}
+                          className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
+                          type="button"
                         >
                           <XCircle className="h-4 w-4" />
                           Reject
