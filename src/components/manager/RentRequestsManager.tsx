@@ -290,19 +290,31 @@ export function RentRequestsManager() {
                       </div>
                       <div className="flex gap-2">
                         <Button
-                          size="sm"
+                          size="default"
                           variant="outline"
-                          onClick={() => setRejectDialog({ open: true, requestId: request.id })}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setRejectDialog({ open: true, requestId: request.id });
+                          }}
                           disabled={processing === request.id}
-                          className="text-destructive border-destructive/30 hover:bg-destructive/10"
+                          className="text-destructive border-destructive/30 hover:bg-destructive/10 min-h-[44px] touch-manipulation"
+                          type="button"
                         >
                           <XCircle className="h-4 w-4 mr-1" />
                           Reject
                         </Button>
                         <Button
-                          size="sm"
-                          onClick={() => openApproveDialog(request.id)}
+                          size="default"
+                          variant="success"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            openApproveDialog(request.id);
+                          }}
                           disabled={processing === request.id}
+                          className="min-h-[44px] touch-manipulation"
+                          type="button"
                         >
                           {processing === request.id ? (
                             <Loader2 className="h-4 w-4 animate-spin mr-1" />
@@ -365,11 +377,25 @@ export function RentRequestsManager() {
             value={approvalComment}
             onChange={(e) => setApprovalComment(e.target.value)}
           />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setApproveDialog({ open: false, requestId: null })}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setApproveDialog({ open: false, requestId: null })}
+              className="min-h-[44px]"
+              type="button"
+            >
               Cancel
             </Button>
-            <Button onClick={handleApprove} disabled={processing !== null}>
+            <Button 
+              variant="success"
+              onClick={(e) => {
+                e.preventDefault();
+                handleApprove();
+              }} 
+              disabled={processing !== null}
+              className="min-h-[44px]"
+              type="button"
+            >
               {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <CheckCircle className="h-4 w-4 mr-1" />}
               Approve Request
             </Button>
@@ -391,12 +417,26 @@ export function RentRequestsManager() {
             value={rejectReason}
             onChange={(e) => setRejectReason(e.target.value)}
           />
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setRejectDialog({ open: false, requestId: null })}>
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setRejectDialog({ open: false, requestId: null })}
+              className="min-h-[44px]"
+              type="button"
+            >
               Cancel
             </Button>
-            <Button variant="destructive" onClick={handleReject} disabled={processing !== null || !rejectReason.trim()}>
-              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : null}
+            <Button 
+              variant="destructive" 
+              onClick={(e) => {
+                e.preventDefault();
+                handleReject();
+              }} 
+              disabled={processing !== null || !rejectReason.trim()}
+              className="min-h-[44px]"
+              type="button"
+            >
+              {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <XCircle className="h-4 w-4 mr-1" />}
               Reject Request
             </Button>
           </DialogFooter>
