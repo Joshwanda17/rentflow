@@ -36,13 +36,15 @@ import {
   Coins,
   Wallet,
   Loader2,
-  CreditCard
+  CreditCard,
+  Plus
 } from 'lucide-react';
 import { format, differenceInDays, addDays, isBefore, isToday, isSameDay } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useToast } from '@/hooks/use-toast';
+import DepositFlow from '@/components/payments/DepositFlow';
 
 interface RentRequest {
   id: string;
@@ -92,6 +94,7 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const [submittingPayment, setSubmittingPayment] = useState(false);
   const [walletBalance, setWalletBalance] = useState<number | null>(null);
   const [loadingWallet, setLoadingWallet] = useState(false);
+  const [depositFlowOpen, setDepositFlowOpen] = useState(false);
   
   const { toast } = useToast();
 
@@ -801,12 +804,23 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
                   </div>
                 </div>
 
-                {/* Insufficient Balance Warning */}
+                {/* Insufficient Balance Warning with Deposit Link */}
                 {!loadingWallet && walletBalance !== null && parseFloat(paymentAmount || '0') > walletBalance && (
                   <Alert variant="destructive" className="py-2">
                     <AlertTriangle className="h-4 w-4" />
-                    <AlertDescription className="text-xs">
-                      Insufficient wallet balance. You need {formatUGX(parseFloat(paymentAmount || '0') - walletBalance)} more.
+                    <AlertDescription className="text-xs flex items-center justify-between gap-2">
+                      <span>
+                        Insufficient balance. Need {formatUGX(parseFloat(paymentAmount || '0') - walletBalance)} more.
+                      </span>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="h-7 text-xs border-destructive/50 hover:bg-destructive/10"
+                        onClick={() => setDepositFlowOpen(true)}
+                      >
+                        <Plus className="h-3 w-3 mr-1" />
+                        Deposit
+                      </Button>
                     </AlertDescription>
                   </Alert>
                 )}
@@ -906,6 +920,19 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
             </DialogFooter>
           </DialogContent>
         </Dialog>
+
+        {/* Deposit Flow */}
+        <DepositFlow 
+          open={depositFlowOpen} 
+          onOpenChange={(open) => {
+            setDepositFlowOpen(open);
+            if (!open) {
+              // Refresh wallet balance after deposit flow closes
+              fetchWalletBalance();
+            }
+          }} 
+          walletBalance={walletBalance ?? 0}
+        />
       </SheetContent>
     </Sheet>
   );
