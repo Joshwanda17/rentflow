@@ -47,6 +47,7 @@ import {
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { RepaymentHistoryDrawer } from '@/components/tenant/RepaymentHistoryDrawer';
+import RepaymentSection from '@/components/tenant/RepaymentSection';
 
 interface TenantDashboardProps {
   user: User;
@@ -295,6 +296,15 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             <DialogTitle>My Wallet</DialogTitle>
           </DialogHeader>
           <WalletCard />
+          {/* Repayment Section - Visible after wallet */}
+          <div className="mt-4">
+            <RepaymentSection 
+              userId={user.id}
+              activeRequest={rentRequests.find(r => r.status === 'disbursed')}
+              repayments={repayments}
+              onRepaymentSuccess={fetchData}
+            />
+          </div>
         </DialogContent>
       </Dialog>
       
