@@ -4,6 +4,8 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { 
   Sheet, 
   SheetContent, 
@@ -11,6 +13,14 @@ import {
   SheetTitle, 
   SheetTrigger 
 } from '@/components/ui/sheet';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { formatUGX } from '@/lib/rentCalculations';
 import { 
   History, 
@@ -23,12 +33,16 @@ import {
   ChevronDown,
   ChevronUp,
   Ban,
-  Coins
+  Coins,
+  Wallet,
+  Loader2,
+  CreditCard
 } from 'lucide-react';
 import { format, differenceInDays, addDays, isBefore, isToday, isSameDay } from 'date-fns';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { useToast } from '@/hooks/use-toast';
 
 interface RentRequest {
   id: string;
@@ -70,6 +84,14 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [lateFees, setLateFees] = useState<LateFee[]>([]);
+  
+  // Payment dialog state
+  const [paymentDialogOpen, setPaymentDialogOpen] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<RentRequest | null>(null);
+  const [paymentAmount, setPaymentAmount] = useState('');
+  const [submittingPayment, setSubmittingPayment] = useState(false);
+  
+  const { toast } = useToast();
 
   // Late fee configuration (5% per missed day, can be fetched from DB if needed)
   const LATE_FEE_RATE = 0.05; // 5% per day
@@ -198,6 +220,99 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
     }
     
     return schedule;
+  };
+
+  // Calculate remaining balance for a request
+  const getRemainingBalance = (request: RentRequest) => {
+    const requestRepayments = repayments.filter(r => r.rent_request_id === request.id);
+    const totalRepaid = requestRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
+    return Number(request.total_repayment) - totalRepaid;
+  };
+
+  // Open payment dialog
+  const openPaymentDialog = (request: RentRequest) => {
+    setSelectedRequest(request);
+    setPaymentAmount(String(request.daily_repayment));
+    setPaymentDialogOpen(true);
+  };
+
+  // Handle payment submission
+  const handleSubmitPayment = async () => {
+    if (!selectedRequest) return;
+    
+    const amount = parseFloat(paymentAmount);
+    const remainingBalance = getRemainingBalance(selectedRequest);
+    
+    if (isNaN(amount) || amount <= 0) {
+      toast({
+        title: 'Invalid Amount',
+        description: 'Please enter a valid payment amount',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (amount > remainingBalance) {
+      toast({
+        title: 'Amount Exceeds Balance',
+        description: `Maximum payment is ${formatUGX(remainingBalance)}`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    setSubmittingPayment(true);
+
+    try {
+      // Insert repayment
+      const { error: repaymentError } = await supabase
+        .from('repayments')
+        .insert({
+          rent_request_id: selectedRequest.id,
+          tenant_id: userId,
+          amount: amount
+        });
+
+      if (repaymentError) throw repaymentError;
+
+      // Record platform transaction
+      await supabase
+        .from('platform_transactions')
+        .insert({
+          rent_request_id: selectedRequest.id,
+          user_id: userId,
+          amount: amount,
+          direction: 'inflow',
+          transaction_type: 'tenant_repayment',
+          description: `Tenant repayment of ${formatUGX(amount)}`
+        });
+
+      // Check if fully repaid
+      if (amount >= remainingBalance) {
+        await supabase
+          .from('rent_requests')
+          .update({ status: 'completed' })
+          .eq('id', selectedRequest.id);
+      }
+
+      toast({
+        title: 'Payment Recorded',
+        description: `Successfully recorded payment of ${formatUGX(amount)}`
+      });
+
+      setPaymentDialogOpen(false);
+      setPaymentAmount('');
+      setSelectedRequest(null);
+      fetchData(); // Refresh data
+    } catch (error: any) {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to record payment',
+        variant: 'destructive'
+      });
+    } finally {
+      setSubmittingPayment(false);
+    }
   };
 
   const activeRequests = rentRequests.filter(r => r.status === 'disbursed');
@@ -608,6 +723,24 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
                                   </div>
                                 ))}
                               </div>
+                              
+                              {/* Make Payment Button */}
+                              <div className="mt-4 pt-3 border-t border-border">
+                                <Button
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    openPaymentDialog(request);
+                                  }}
+                                  className="w-full gap-2"
+                                  size="default"
+                                >
+                                  <CreditCard className="h-4 w-4" />
+                                  Make Payment
+                                </Button>
+                                <p className="text-xs text-center text-muted-foreground mt-2">
+                                  Remaining: {formatUGX(getRemainingBalance(request))}
+                                </p>
+                              </div>
                             </div>
                           </CollapsibleContent>
                         </div>
@@ -619,6 +752,111 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
             </ScrollArea>
           </TabsContent>
         </Tabs>
+        
+        {/* Payment Dialog */}
+        <Dialog open={paymentDialogOpen} onOpenChange={setPaymentDialogOpen}>
+          <DialogContent className="sm:max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <Wallet className="h-5 w-5 text-primary" />
+                Make a Payment
+              </DialogTitle>
+              <DialogDescription>
+                Enter the amount you want to pay towards your rent repayment.
+              </DialogDescription>
+            </DialogHeader>
+            
+            {selectedRequest && (
+              <div className="space-y-4 py-2">
+                {/* Payment Summary */}
+                <div className="p-3 rounded-lg bg-secondary/50 space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Daily Target</span>
+                    <span className="font-mono font-medium">
+                      {formatUGX(Number(selectedRequest.daily_repayment))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Remaining Balance</span>
+                    <span className="font-mono font-medium">
+                      {formatUGX(getRemainingBalance(selectedRequest))}
+                    </span>
+                  </div>
+                </div>
+                
+                {/* Amount Input */}
+                <div className="space-y-2">
+                  <Label htmlFor="payment-amount">Payment Amount (UGX)</Label>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    placeholder="Enter amount"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    min="1"
+                    max={getRemainingBalance(selectedRequest)}
+                    className="font-mono"
+                  />
+                </div>
+                
+                {/* Quick Amount Buttons */}
+                <div className="flex flex-wrap gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaymentAmount(String(selectedRequest.daily_repayment))}
+                    className="text-xs"
+                  >
+                    Daily ({formatUGX(Number(selectedRequest.daily_repayment))})
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaymentAmount(String(Number(selectedRequest.daily_repayment) * 7))}
+                    className="text-xs"
+                  >
+                    Weekly
+                  </Button>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setPaymentAmount(String(getRemainingBalance(selectedRequest)))}
+                    className="text-xs"
+                  >
+                    Full Balance
+                  </Button>
+                </div>
+              </div>
+            )}
+            
+            <DialogFooter className="gap-2 sm:gap-0">
+              <Button
+                variant="outline"
+                onClick={() => setPaymentDialogOpen(false)}
+                disabled={submittingPayment}
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSubmitPayment}
+                disabled={submittingPayment || !paymentAmount}
+                className="gap-2"
+              >
+                {submittingPayment ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    Confirm Payment
+                  </>
+                )}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </SheetContent>
     </Sheet>
   );
