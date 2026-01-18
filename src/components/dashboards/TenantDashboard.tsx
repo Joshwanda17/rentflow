@@ -46,6 +46,7 @@ import {
   LockedActionTooltip 
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
+import { RepaymentHistoryDrawer } from '@/components/tenant/RepaymentHistoryDrawer';
 
 interface TenantDashboardProps {
   user: User;
@@ -173,6 +174,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </p>
           </div>
           <div className="flex items-center gap-2">
+            <RepaymentHistoryDrawer userId={user.id} />
             <TenantAgreementButton />
             {addRoleComponent}
           </div>
