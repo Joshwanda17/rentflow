@@ -1,19 +1,19 @@
 project_id = "wirntoujqoyjobfhyelc"
 
 [functions.wallet-transfer]
-verify_jwt = true
+verify_jwt = false
 
 [functions.agent-deposit]
-verify_jwt = true
+verify_jwt = false
 
 [functions.agent-withdrawal]
-verify_jwt = true
+verify_jwt = false
 
 [functions.approve-rent-request]
-verify_jwt = true
+verify_jwt = false
 
 [functions.product-purchase]
-verify_jwt = true
+verify_jwt = false
 
 [functions.vendor-login]
 verify_jwt = false
@@ -22,7 +22,7 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.approve-loan-application]
-verify_jwt = true
+verify_jwt = false
 
 [functions.loan-reminders]
 verify_jwt = false
@@ -34,4 +34,19 @@ verify_jwt = false
 verify_jwt = false
 
 [functions.rent-reminders]
+verify_jwt = false
+
+[functions.payment-reminder]
+verify_jwt = false
+
+[functions.process-investment-interest]
+verify_jwt = false
+
+[functions.create-supporter-invite]
+verify_jwt = false
+
+[functions.activate-supporter]
+verify_jwt = false
+
+[functions.scan-receipt]
 verify_jwt = false
