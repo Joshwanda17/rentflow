@@ -1675,6 +1675,39 @@ export type Database = {
           },
         ]
       }
+      subagent_team_goals: {
+        Row: {
+          agent_id: string
+          created_at: string
+          goal_month: string
+          id: string
+          notes: string | null
+          target_earnings: number
+          target_registrations: number
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          goal_month: string
+          id?: string
+          notes?: string | null
+          target_earnings?: number
+          target_registrations?: number
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          goal_month?: string
+          id?: string
+          notes?: string | null
+          target_earnings?: number
+          target_registrations?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       supporter_agreement_acceptance: {
         Row: {
           accepted_at: string
