@@ -65,7 +65,7 @@ export default function DashboardHeader({
       <header className="sticky top-0 z-50 bg-gradient-to-r from-primary via-primary to-primary/90 shadow-lg backdrop-blur-sm border-b border-primary/20">
         <div className="px-3 py-2">
           <div className="flex items-center justify-between">
-            {/* Left: Logo & Role - Compact */}
+            {/* Left: Logo & Role Switcher - Always visible */}
             <div className="flex items-center gap-2">
               <span 
                 className="text-lg font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
@@ -74,14 +74,17 @@ export default function DashboardHeader({
               >
                 Welile
               </span>
-              <div className="h-4 w-px bg-white/25 rounded-full hidden sm:block" />
-              <div className="hidden sm:block">
-                <RoleSwitcher
-                  currentRole={currentRole}
-                  availableRoles={availableRoles}
-                  onRoleChange={onRoleChange}
-                />
-              </div>
+              {/* Role Switcher - ALWAYS visible on all screen sizes */}
+              {availableRoles.length > 1 && (
+                <>
+                  <div className="h-4 w-px bg-white/25 rounded-full" />
+                  <RoleSwitcher
+                    currentRole={currentRole}
+                    availableRoles={availableRoles}
+                    onRoleChange={onRoleChange}
+                  />
+                </>
+              )}
             </div>
 
             {/* Right: Actions - Mobile Optimized with larger touch targets */}
@@ -123,15 +126,7 @@ export default function DashboardHeader({
                   align="end" 
                   className="w-64 bg-background/98 backdrop-blur-xl border-2 shadow-2xl rounded-2xl p-1"
                 >
-                  {/* Mobile Role Switcher */}
-                  <div className="sm:hidden p-2 mb-1">
-                    <p className="text-xs text-muted-foreground mb-2 font-medium">Switch Role</p>
-                    <RoleSwitcher
-                      currentRole={currentRole}
-                      availableRoles={availableRoles}
-                      onRoleChange={onRoleChange}
-                    />
-                  </div>
+                  {/* Mobile-only menu items - Role switcher now always visible in header */}
                   
                   {/* Mobile-only menu items */}
                   <div className="sm:hidden">

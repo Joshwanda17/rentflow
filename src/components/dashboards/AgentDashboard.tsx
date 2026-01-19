@@ -47,6 +47,7 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { motion } from 'framer-motion';
+import RoleSwitcher from '@/components/RoleSwitcher';
 import { hapticTap } from '@/lib/haptics';
 
 interface AgentDashboardProps {
@@ -148,6 +149,16 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
 
       <main className="px-4 py-4 space-y-5 animate-fade-in">
+        {/* Role Switcher - Prominent placement for multi-role users */}
+        {availableRoles.length > 1 && (
+          <RoleSwitcher
+            currentRole={currentRole}
+            availableRoles={availableRoles}
+            onRoleChange={onRoleChange}
+            variant="prominent"
+          />
+        )}
+
         {/* Agent Welcome & Stats Header */}
         <div className="flex items-center gap-3">
           <button 

@@ -32,6 +32,7 @@ import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import RoleSwitcher from '@/components/RoleSwitcher';
 import { WalletCard } from '@/components/wallet/WalletCard';
 import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
 import { PaymentStreakCalendar } from '@/components/tenant/PaymentStreakCalendar';
@@ -200,6 +201,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               onRepaymentSuccess={fetchData}
             />
           </div>
+        )}
+
+        {/* Role Switcher - Prominent placement for multi-role users */}
+        {availableRoles.length > 1 && (
+          <RoleSwitcher
+            currentRole={currentRole}
+            availableRoles={availableRoles}
+            onRoleChange={onRoleChange}
+            variant="prominent"
+          />
         )}
 
         {/* User Profile Card - Clickable */}
