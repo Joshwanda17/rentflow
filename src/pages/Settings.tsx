@@ -28,6 +28,7 @@ import { useAppPreferences } from '@/hooks/useAppPreferences';
 import { playNotificationSound } from '@/lib/notificationSound';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { TenantAgreementModal } from '@/components/tenant/agreement';
+import { usePushNotifications } from '@/hooks/usePushNotifications';
 
 interface Profile {
   id: string;
@@ -64,6 +65,7 @@ export default function Settings() {
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
   const { isAccepted: hasAcceptedTerms, acceptance, acceptAgreement } = useTenantAgreement();
+  const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: subscribePush, unsubscribe: unsubscribePush, loading: pushLoading } = usePushNotifications();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -682,6 +684,43 @@ export default function Settings() {
                   </div>
                 </div>
               </div>
+
+              {/* Push Notifications */}
+              {pushSupported && (
+                <div className="p-4 rounded-xl bg-background/50 border border-border/50">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <Bell className="h-5 w-5 text-primary" />
+                      <div>
+                        <p className="font-medium">Push Notifications</p>
+                        <p className="text-sm text-muted-foreground">
+                          {pushSubscribed 
+                            ? 'Receive alerts even when the app is closed' 
+                            : pushPermission === 'denied' 
+                              ? 'Notifications blocked in browser settings'
+                              : 'Get instant updates on your device'}
+                        </p>
+                      </div>
+                    </div>
+                    <Switch
+                      checked={pushSubscribed}
+                      disabled={pushLoading || pushPermission === 'denied'}
+                      onCheckedChange={async (checked) => {
+                        if (checked) {
+                          await subscribePush();
+                        } else {
+                          await unsubscribePush();
+                        }
+                      }}
+                    />
+                  </div>
+                  {pushPermission === 'denied' && (
+                    <p className="text-xs text-destructive mt-2">
+                      To enable notifications, please allow them in your browser settings.
+                    </p>
+                  )}
+                </div>
+              )}
 
               {/* Notification Sounds */}
               <div className="p-4 rounded-xl bg-background/50 border border-border/50">

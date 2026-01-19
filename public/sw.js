@@ -193,3 +193,76 @@ self.addEventListener('message', (event) => {
     self.skipWaiting();
   }
 });
+
+// Push notification event - show notification to user
+self.addEventListener('push', (event) => {
+  console.log('[SW] Push received:', event);
+  
+  let data = { title: 'Welile', body: 'You have a new notification', icon: '/welile-logo.png' };
+  
+  try {
+    if (event.data) {
+      data = event.data.json();
+    }
+  } catch (e) {
+    console.error('[SW] Error parsing push data:', e);
+  }
+
+  const options = {
+    body: data.body || data.message || 'You have a new notification',
+    icon: data.icon || '/welile-logo.png',
+    badge: '/welile-logo.png',
+    vibrate: [100, 50, 100],
+    data: {
+      url: data.url || '/dashboard',
+      notificationId: data.notificationId,
+      ...data
+    },
+    actions: [
+      { action: 'open', title: 'Open' },
+      { action: 'dismiss', title: 'Dismiss' }
+    ],
+    requireInteraction: data.type === 'error' || data.type === 'warning',
+    tag: data.notificationId || 'welile-notification',
+    renotify: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title || 'Welile', options)
+  );
+});
+
+// Notification click event - open app or specific page
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Notification clicked:', event.notification.tag);
+  
+  event.notification.close();
+
+  if (event.action === 'dismiss') {
+    return;
+  }
+
+  const urlToOpen = event.notification.data?.url || '/dashboard';
+
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      // Check if there's already an open window
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.focus();
+          client.navigate(urlToOpen);
+          return;
+        }
+      }
+      // Open new window if none exists
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
+});
+
+// Notification close event
+self.addEventListener('notificationclose', (event) => {
+  console.log('[SW] Notification closed:', event.notification.tag);
+});
