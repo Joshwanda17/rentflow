@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -6,6 +6,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { 
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { 
   ArrowLeft, 
   Users, 
@@ -16,11 +22,16 @@ import {
   Coins,
   Target,
   ChevronRight,
-  BarChart3
+  BarChart3,
+  Download,
+  FileText,
+  FileSpreadsheet
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfMonth, endOfMonth, subMonths } from 'date-fns';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { exportToCSV, exportToPDF, formatNumberForExport, formatDateForExport } from '@/lib/exportUtils';
+import { useToast } from '@/hooks/use-toast';
 import {
   BarChart,
   Bar,
@@ -61,12 +72,15 @@ const COLORS = ['hsl(var(--primary))', 'hsl(var(--success))', 'hsl(var(--warning
 
 export default function SubAgentAnalytics() {
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { user, loading: authLoading } = useAuth();
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [selectedSubAgent, setSelectedSubAgent] = useState<SubAgent | null>(null);
   const [registerDialogOpen, setRegisterDialogOpen] = useState(false);
   const [totalEarningsFromSubAgents, setTotalEarningsFromSubAgents] = useState(0);
+  const reportRef = useRef<HTMLDivElement>(null);
   const [monthlyData, setMonthlyData] = useState<MonthlyData[]>([]);
 
   useEffect(() => {
@@ -232,6 +246,106 @@ export default function SubAgentAnalytics() {
     }
   };
 
+  const handleExportCSV = () => {
+    if (subAgents.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+
+    const headers = [
+      'Sub-Agent Name',
+      'Phone',
+      'Joined Date',
+      'Total Tenants',
+      'Your 1% Earnings (UGX)',
+    ];
+
+    const rows = subAgents.map(sa => [
+      sa.profile?.full_name || 'Unknown',
+      sa.profile?.phone || '',
+      formatDateForExport(sa.created_at),
+      sa.tenantsCount,
+      sa.totalEarnings,
+    ]);
+
+    // Add summary row
+    rows.push([
+      'TOTAL',
+      '',
+      '',
+      subAgents.reduce((sum, sa) => sum + sa.tenantsCount, 0),
+      totalEarningsFromSubAgents,
+    ]);
+
+    exportToCSV({ headers, rows }, 'sub_agent_performance_report');
+    toast({ title: '✅ CSV exported successfully!' });
+  };
+
+  const handleExportDetailedCSV = () => {
+    if (subAgents.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+
+    const headers = [
+      'Sub-Agent Name',
+      'Tenant Name',
+      'Total Repaid by Tenant (UGX)',
+      'Your 1% Share (UGX)',
+    ];
+
+    const rows: (string | number)[][] = [];
+
+    subAgents.forEach(sa => {
+      if (sa.tenants.length > 0) {
+        sa.tenants.forEach(tenant => {
+          rows.push([
+            sa.profile?.full_name || 'Unknown',
+            tenant.name,
+            tenant.totalRepaid,
+            Math.round(tenant.totalRepaid * 0.01),
+          ]);
+        });
+      } else {
+        rows.push([
+          sa.profile?.full_name || 'Unknown',
+          'No tenants yet',
+          0,
+          0,
+        ]);
+      }
+    });
+
+    exportToCSV({ headers, rows }, 'sub_agent_tenant_breakdown');
+    toast({ title: '✅ Detailed CSV exported successfully!' });
+  };
+
+  const handleExportPDF = async () => {
+    if (!reportRef.current || subAgents.length === 0) {
+      toast({ title: 'No data to export', variant: 'destructive' });
+      return;
+    }
+
+    setExporting(true);
+    try {
+      await exportToPDF(
+        reportRef.current,
+        'sub_agent_performance_report',
+        'Sub-Agent Performance Report'
+      );
+      toast({ title: '✅ PDF exported successfully!' });
+    } catch (error) {
+      console.error('PDF export failed:', error);
+      toast({ 
+        title: 'Export failed', 
+        description: 'Try using CSV export instead',
+        variant: 'destructive' 
+      });
+    } finally {
+      setExporting(false);
+    }
+  };
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
@@ -258,6 +372,36 @@ export default function SubAgentAnalytics() {
             <h1 className="font-bold text-lg">Sub-Agent Analytics</h1>
             <p className="text-xs text-muted-foreground">Track your team performance</p>
           </div>
+          
+          {subAgents.length > 0 && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" size="sm" className="gap-1" disabled={exporting}>
+                  {exporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  Export
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={handleExportCSV} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-green-600" />
+                  Summary CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportDetailedCSV} className="gap-2">
+                  <FileSpreadsheet className="h-4 w-4 text-blue-600" />
+                  Detailed CSV (Tenants)
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportPDF} className="gap-2">
+                  <FileText className="h-4 w-4 text-red-600" />
+                  PDF Report
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+          
           <Button onClick={() => setRegisterDialogOpen(true)} size="sm" className="gap-1">
             <UserPlus className="h-4 w-4" />
             Add
@@ -283,7 +427,7 @@ export default function SubAgentAnalytics() {
             </CardContent>
           </Card>
         ) : (
-          <>
+          <div ref={reportRef}>
             {/* Overview Stats */}
             <div className="grid grid-cols-3 gap-3">
               <Card className="bg-gradient-to-br from-orange-500/10 to-amber-500/10 border-orange-500/20">
@@ -435,7 +579,7 @@ export default function SubAgentAnalytics() {
                 ))}
               </CardContent>
             </Card>
-          </>
+          </div>
         )}
       </main>
 
