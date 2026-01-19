@@ -165,7 +165,7 @@ Password: ${createdInvite?.password}`;
 
   const RoleIcon = roleConfig[selectedRole].icon;
 
-  const FormContent = () => (
+  const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Role Selection - Large touch-friendly cards */}
       <div className="space-y-3">
@@ -209,7 +209,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
             required
             className="h-12 text-base rounded-xl"
-            autoComplete="name"
+            autoComplete="off"
           />
         </div>
 
@@ -223,7 +223,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
             required
             className="h-12 text-base rounded-xl"
-            autoComplete="email"
+            autoComplete="off"
             inputMode="email"
           />
         </div>
@@ -237,7 +237,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
             required
             className="h-12 text-base rounded-xl"
-            autoComplete="tel"
+            autoComplete="off"
             inputMode="tel"
           />
         </div>
@@ -266,6 +266,7 @@ Password: ${createdInvite?.password}`;
               required
               minLength={6}
               className="h-12 text-base pr-12 rounded-xl"
+              autoComplete="off"
             />
             <Button
               type="button"
@@ -299,20 +300,20 @@ Password: ${createdInvite?.password}`;
     </form>
   );
 
-  const SuccessContent = () => (
+  const successContent = (
     <div className="space-y-5">
       <Card className="bg-gradient-to-br from-primary/5 to-primary/10 border-primary/20">
         <CardContent className="pt-5 space-y-4">
           <div className="flex items-center gap-3">
-            <span className="text-4xl">{roleConfig[createdInvite!.role].emoji}</span>
+            <span className="text-4xl">{createdInvite ? roleConfig[createdInvite.role].emoji : ''}</span>
             <div>
-              <p className="font-bold text-xl">{createdInvite!.fullName}</p>
-              <p className="text-sm text-muted-foreground">{roleConfig[createdInvite!.role].label} Account</p>
+              <p className="font-bold text-xl">{createdInvite?.fullName}</p>
+              <p className="text-sm text-muted-foreground">{createdInvite ? roleConfig[createdInvite.role].label : ''} Account</p>
             </div>
           </div>
           <div className="bg-background rounded-xl p-4">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
-            <p className="font-mono font-bold text-xl tracking-wider">{createdInvite!.password}</p>
+            <p className="font-mono font-bold text-xl tracking-wider">{createdInvite?.password}</p>
           </div>
         </CardContent>
       </Card>
@@ -358,7 +359,7 @@ Password: ${createdInvite?.password}`;
             </SheetDescription>
           </SheetHeader>
           
-          {!createdInvite ? <FormContent /> : <SuccessContent />}
+          {!createdInvite ? formContent : successContent}
         </SheetContent>
       </Sheet>
     );
@@ -379,7 +380,7 @@ Password: ${createdInvite?.password}`;
           </DialogDescription>
         </DialogHeader>
 
-        {!createdInvite ? <FormContent /> : <SuccessContent />}
+        {!createdInvite ? formContent : successContent}
       </DialogContent>
     </Dialog>
   );
