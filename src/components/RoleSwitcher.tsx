@@ -58,16 +58,6 @@ export default function RoleSwitcher({ currentRole, availableRoles, onRoleChange
   
   const currentConfig = roleConfig[currentRole];
 
-  // For single role, show a simple badge
-  if (availableRoles.length <= 1) {
-    return (
-      <Badge className="bg-white/20 text-white border-white/30 py-1.5 px-3 text-sm">
-        <span className="mr-1.5">{currentConfig.emoji}</span>
-        <span>{currentConfig.label}</span>
-      </Badge>
-    );
-  }
-
   // Prominent variant - Large, eye-catching button for dashboard body
   if (variant === 'prominent') {
     return (

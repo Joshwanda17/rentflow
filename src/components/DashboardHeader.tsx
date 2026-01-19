@@ -75,16 +75,12 @@ export default function DashboardHeader({
                 Welile
               </span>
               {/* Role Switcher - ALWAYS visible on all screen sizes */}
-              {availableRoles.length > 1 && (
-                <>
-                  <div className="h-4 w-px bg-white/25 rounded-full" />
-                  <RoleSwitcher
-                    currentRole={currentRole}
-                    availableRoles={availableRoles}
-                    onRoleChange={onRoleChange}
-                  />
-                </>
-              )}
+              <div className="h-4 w-px bg-white/25 rounded-full" />
+              <RoleSwitcher
+                currentRole={currentRole}
+                availableRoles={availableRoles}
+                onRoleChange={onRoleChange}
+              />
             </div>
 
             {/* Right: Actions - Mobile Optimized with larger touch targets */}
