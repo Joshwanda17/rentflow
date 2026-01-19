@@ -14,7 +14,7 @@ import { useToast } from '@/hooks/use-toast';
 import { Plus, Home, Users, Wallet, Building2, Shield, Check } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 
-const MANAGER_ACCESS_CODE = 'MYPART@WELILE';
+const MANAGER_ACCESS_CODE = 'Manager@welile';
 
 interface AddRoleDialogProps {
   availableRoles: AppRole[];

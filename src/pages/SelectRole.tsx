@@ -10,7 +10,7 @@ import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft } from 'lucide
 import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
 
-const MANAGER_ACCESS_CODE = 'MYPART@WELILE';
+const MANAGER_ACCESS_CODE = 'Manager@welile';
 
 interface RoleOption {
   value: AppRole;
