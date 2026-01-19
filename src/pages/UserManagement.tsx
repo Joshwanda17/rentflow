@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
   Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText
+  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
@@ -43,6 +43,7 @@ interface UserWithRating {
   city: string | null;
   country_code: string | null;
   verified: boolean;
+  subagent_count: number;
 }
 
 type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
@@ -96,14 +97,29 @@ export default function UserManagement() {
     }
 
     const userIds = profiles?.map(p => p.id) || [];
-    const { data: rolesData } = await supabase
-      .from('user_roles')
-      .select('user_id, role, enabled')
-      .in('user_id', userIds);
+    
+    const [rolesRes, ratingsRes, subagentsRes] = await Promise.all([
+      supabase
+        .from('user_roles')
+        .select('user_id, role, enabled')
+        .in('user_id', userIds),
+      supabase
+        .from('tenant_ratings')
+        .select('tenant_id, rating'),
+      supabase
+        .from('agent_subagents')
+        .select('parent_agent_id')
+    ]);
 
-    const { data: ratingsData } = await supabase
-      .from('tenant_ratings')
-      .select('tenant_id, rating');
+    const rolesData = rolesRes.data;
+    const ratingsData = ratingsRes.data;
+    
+    // Count subagents per parent agent
+    const subagentCountByAgent = new Map<string, number>();
+    (subagentsRes.data || []).forEach(s => {
+      const current = subagentCountByAgent.get(s.parent_agent_id) || 0;
+      subagentCountByAgent.set(s.parent_agent_id, current + 1);
+    });
 
     const ratingsByTenant = new Map<string, { sum: number; count: number }>();
     (ratingsData || []).forEach(r => {
@@ -133,7 +149,8 @@ export default function UserManagement() {
         country: p.country || null,
         city: p.city || null,
         country_code: p.country_code || null,
-        verified: p.verified || false
+        verified: p.verified || false,
+        subagent_count: subagentCountByAgent.get(p.id) || 0
       };
     });
 
@@ -596,6 +613,17 @@ export default function UserManagement() {
                             </Badge>
                           );
                         })}
+                        
+                        {/* Sub-agents count badge for agents */}
+                        {user.roles.includes('agent') && user.subagent_count > 0 && (
+                          <Badge 
+                            variant="outline"
+                            className="text-xs font-semibold px-2.5 py-1 bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                          >
+                            <UsersRound className="h-3 w-3 mr-1" />
+                            {user.subagent_count} sub-agent{user.subagent_count !== 1 ? 's' : ''}
+                          </Badge>
+                        )}
                       </div>
 
                       {/* Rating */}
