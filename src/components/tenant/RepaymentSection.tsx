@@ -96,18 +96,25 @@ export default function RepaymentSection({
   const activeRemaining = activeRequest ? Number(activeRequest.total_repayment) - activeRepaid : 0;
   const activeProgress = activeRequest ? (activeRepaid / Number(activeRequest.total_repayment)) * 100 : 0;
 
+  // Use disbursed_at if available, otherwise fall back to created_at for older records
+  const getStartDate = (request: RentRequest) => {
+    return request.disbursed_at || request.created_at;
+  };
+
   // Calculate days and status for active request
-  const daysElapsed = activeRequest?.disbursed_at 
-    ? differenceInDays(new Date(), new Date(activeRequest.disbursed_at))
+  const daysElapsed = activeRequest
+    ? differenceInDays(new Date(), new Date(getStartDate(activeRequest)))
     : 0;
-  const expectedPayments = activeRequest ? daysElapsed * Number(activeRequest.daily_repayment) : 0;
+  const expectedPayments = activeRequest ? Math.max(0, daysElapsed) * Number(activeRequest.daily_repayment) : 0;
   const paymentStatus = activeRepaid >= expectedPayments ? 'on-track' : 'behind';
 
   // Generate schedule with paid/missed/upcoming days
   const scheduleData = useMemo(() => {
-    if (!activeRequest?.disbursed_at) return { days: [], paidDays: 0, missedDays: 0, upcomingDays: 0 };
+    if (!activeRequest) return { days: [], paidDays: 0, missedDays: 0, upcomingDays: 0 };
 
-    const startDate = startOfDay(new Date(activeRequest.disbursed_at));
+    // Fall back to created_at if disbursed_at is not available (for older records)
+    const requestStartDate = getStartDate(activeRequest);
+    const startDate = startOfDay(new Date(requestStartDate));
     const endDate = new Date(startDate);
     endDate.setDate(endDate.getDate() + activeRequest.duration_days - 1);
     const today = startOfDay(new Date());
