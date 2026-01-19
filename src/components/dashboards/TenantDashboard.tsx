@@ -90,6 +90,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [isAcceptingAgreement, setIsAcceptingAgreement] = useState(false);
+  const [showRepaymentSchedule, setShowRepaymentSchedule] = useState(false);
   const { toast } = useToast();
   const { isAccepted: hasAcceptedTerms, isLoading: agreementLoading, acceptAgreement } = useTenantAgreement();
 
@@ -134,16 +135,16 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   };
 
   const menuItems = [
+    { icon: Calendar, label: 'Payments', onClick: () => setShowRepaymentSchedule(true) },
     { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true) },
     { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true) },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: ShoppingBag, label: 'Marketplace', onClick: () => navigate('/marketplace'), separator: true },
     { icon: History, label: 'Transaction History', onClick: () => navigate('/transactions') },
-    { icon: Calendar, label: 'Payment Schedule', onClick: () => navigate('/payment-schedule') },
     { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals'), separator: true },
     { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
-    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
+    { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
   ];
 
   return (
@@ -159,6 +160,18 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       <main className="px-4 py-4 space-y-4 animate-fade-in">
         {/* Terms Acceptance Notice - Shows only when not accepted */}
         <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+
+        {/* Repayment Schedule - Shown when toggled, at the TOP */}
+        {showRepaymentSchedule && (
+          <div className="animate-fade-in">
+            <RepaymentSection 
+              userId={user.id}
+              activeRequest={rentRequests.find(r => r.status === 'disbursed')}
+              repayments={repayments}
+              onRepaymentSuccess={fetchData}
+            />
+          </div>
+        )}
 
         {/* User Profile Card - Clickable */}
         <button 
@@ -231,10 +244,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               variant: 'warning' 
             },
             { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
+            { icon: Calendar, label: 'Payments', onClick: () => setShowRepaymentSchedule(prev => !prev) },
             { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
             { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
             { icon: History, label: 'History', onClick: () => navigate('/transactions') },
-            { icon: Calendar, label: 'Schedule', onClick: () => navigate('/payment-schedule') },
             { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
             { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
             { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
