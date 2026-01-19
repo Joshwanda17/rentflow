@@ -89,6 +89,7 @@ import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
+import RoleSwitcher from '@/components/RoleSwitcher';
 import { UserMinus } from 'lucide-react';
 
 interface ManagerDashboardProps {
@@ -914,6 +915,16 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       />
 
       <main className="px-3 py-3 space-y-3 animate-fade-in">
+        {/* Role Switcher - Prominent placement for multi-role users */}
+        {availableRoles.length > 1 && (
+          <RoleSwitcher
+            currentRole={currentRole}
+            availableRoles={availableRoles}
+            onRoleChange={onRoleChange}
+            variant="prominent"
+          />
+        )}
+
         {/* Mobile Quick Actions Grid - Shows on all screens but optimized for mobile */}
         <div className="block">
           <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
