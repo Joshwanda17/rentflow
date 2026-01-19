@@ -8,6 +8,8 @@ import { RepaymentHistoryDrawer } from './RepaymentHistoryDrawer';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { differenceInDays, format, eachDayOfInterval, isSameDay, startOfDay } from 'date-fns';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 interface RentRequest {
@@ -270,58 +272,105 @@ export default function RepaymentSection({
             </Card>
           )}
 
-          {/* Day-by-Day Calendar Grid */}
+          {/* Day-by-Day Table Breakdown */}
           {activeRequest && scheduleData.days.length > 0 && (
             <Card className="glass-card">
               <CardHeader className="pb-2">
                 <CardTitle className="text-base flex items-center gap-2">
                   <CalendarDays className="h-4 w-4 text-primary" />
-                  Payment Calendar
+                  Payment Schedule Breakdown
                 </CardTitle>
                 <CardDescription className="text-xs">
-                  {activeRequest.duration_days} day repayment period
+                  {activeRequest.duration_days} day repayment period • Daily: {formatUGX(Number(activeRequest.daily_repayment))}
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-7 gap-1.5">
-                  {scheduleData.days.map((day, index) => (
-                    <div
-                      key={index}
-                      className={`aspect-square rounded-md flex flex-col items-center justify-center text-xs p-1 ${
-                        day.status === 'paid' 
-                          ? 'bg-success/20 text-success border border-success/30' 
-                          : day.status === 'missed'
-                          ? 'bg-destructive/20 text-destructive border border-destructive/30'
-                          : day.status === 'today'
-                          ? 'bg-primary/20 text-primary border-2 border-primary ring-2 ring-primary/20'
-                          : 'bg-muted/50 text-muted-foreground border border-border/50'
-                      }`}
-                    >
-                      <span className="font-medium">{format(day.date, 'd')}</span>
-                      {day.status === 'paid' && <CheckCircle2 className="h-3 w-3 mt-0.5" />}
-                      {day.status === 'missed' && <XCircle className="h-3 w-3 mt-0.5" />}
-                      {day.status === 'today' && <span className="text-[10px]">Today</span>}
-                    </div>
-                  ))}
-                </div>
+              <CardContent className="p-0">
+                <ScrollArea className="h-[400px]">
+                  <Table>
+                    <TableHeader className="sticky top-0 bg-card z-10">
+                      <TableRow>
+                        <TableHead className="text-xs">Day</TableHead>
+                        <TableHead className="text-xs">Date</TableHead>
+                        <TableHead className="text-xs">Status</TableHead>
+                        <TableHead className="text-xs text-right">Expected</TableHead>
+                        <TableHead className="text-xs text-right">Paid</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {scheduleData.days.map((day, index) => (
+                        <TableRow 
+                          key={index}
+                          className={
+                            day.status === 'paid' 
+                              ? 'bg-success/5' 
+                              : day.status === 'missed'
+                              ? 'bg-destructive/5'
+                              : day.status === 'today'
+                              ? 'bg-primary/10'
+                              : ''
+                          }
+                        >
+                          <TableCell className="font-medium text-sm py-2">
+                            Day {index + 1}
+                          </TableCell>
+                          <TableCell className="text-sm py-2">
+                            {format(day.date, 'MMM d, yyyy')}
+                          </TableCell>
+                          <TableCell className="py-2">
+                            {day.status === 'paid' && (
+                              <Badge variant="default" className="bg-success text-success-foreground text-xs gap-1">
+                                <CheckCircle2 className="h-3 w-3" />
+                                Paid
+                              </Badge>
+                            )}
+                            {day.status === 'missed' && (
+                              <Badge variant="destructive" className="text-xs gap-1">
+                                <XCircle className="h-3 w-3" />
+                                Missed
+                              </Badge>
+                            )}
+                            {day.status === 'today' && (
+                              <Badge variant="default" className="text-xs gap-1">
+                                <Clock className="h-3 w-3" />
+                                Due Today
+                              </Badge>
+                            )}
+                            {day.status === 'upcoming' && (
+                              <Badge variant="secondary" className="text-xs gap-1">
+                                <Calendar className="h-3 w-3" />
+                                Upcoming
+                              </Badge>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm py-2">
+                            {formatUGX(Number(activeRequest.daily_repayment))}
+                          </TableCell>
+                          <TableCell className="text-right font-mono text-sm py-2">
+                            {day.amount && day.amount > 0 ? (
+                              <span className="text-success font-semibold">{formatUGX(day.amount)}</span>
+                            ) : (
+                              <span className="text-muted-foreground">—</span>
+                            )}
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </ScrollArea>
                 
                 {/* Legend */}
-                <div className="flex flex-wrap gap-3 mt-4 pt-3 border-t text-xs">
+                <div className="flex flex-wrap gap-3 p-4 border-t text-xs">
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-success/20 border border-success/30" />
-                    <span className="text-muted-foreground">Paid</span>
+                    <Badge variant="default" className="bg-success text-success-foreground text-[10px] h-5">Paid</Badge>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-destructive/20 border border-destructive/30" />
-                    <span className="text-muted-foreground">Missed</span>
+                    <Badge variant="destructive" className="text-[10px] h-5">Missed</Badge>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-primary/20 border-2 border-primary" />
-                    <span className="text-muted-foreground">Today</span>
+                    <Badge variant="default" className="text-[10px] h-5">Due Today</Badge>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <div className="w-3 h-3 rounded bg-muted/50 border border-border/50" />
-                    <span className="text-muted-foreground">Upcoming</span>
+                    <Badge variant="secondary" className="text-[10px] h-5">Upcoming</Badge>
                   </div>
                 </div>
               </CardContent>
