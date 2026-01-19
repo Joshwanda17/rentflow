@@ -184,7 +184,7 @@ Password: ${createdInvite?.password}`;
 
   const RoleIcon = roleConfig[selectedRole].icon;
 
-  const FormContent = () => (
+  const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Role Selection - Large touch targets */}
       <div className="space-y-3">
@@ -227,7 +227,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
             required
             className="h-12 text-base"
-            autoComplete="name"
+            autoComplete="off"
           />
         </div>
 
@@ -241,7 +241,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
             required
             className="h-12 text-base"
-            autoComplete="email"
+            autoComplete="off"
             inputMode="email"
           />
         </div>
@@ -255,7 +255,7 @@ Password: ${createdInvite?.password}`;
             onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
             required
             className="h-12 text-base"
-            autoComplete="tel"
+            autoComplete="off"
             inputMode="tel"
           />
         </div>
@@ -284,6 +284,7 @@ Password: ${createdInvite?.password}`;
               required
               minLength={6}
               className="h-12 text-base pr-12"
+              autoComplete="off"
             />
             <Button
               type="button"
@@ -317,20 +318,20 @@ Password: ${createdInvite?.password}`;
     </form>
   );
 
-  const SuccessContent = () => (
+  const successContent = (
     <div className="space-y-5">
       <Card className="bg-muted/50">
         <CardContent className="pt-5 space-y-4">
           <div className="flex items-center gap-3">
             <span className="text-3xl">{getRoleEmoji(createdInvite!.role)}</span>
             <div>
-              <p className="font-semibold text-lg">{createdInvite!.fullName}</p>
-              <p className="text-sm text-muted-foreground">{roleConfig[createdInvite!.role].label}</p>
+              <p className="font-semibold text-lg">{createdInvite?.fullName}</p>
+              <p className="text-sm text-muted-foreground">{createdInvite ? roleConfig[createdInvite.role].label : ''}</p>
             </div>
           </div>
           <div className="bg-background rounded-lg p-3">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
-            <p className="font-mono font-bold text-lg">{createdInvite!.password}</p>
+            <p className="font-mono font-bold text-lg">{createdInvite?.password}</p>
           </div>
         </CardContent>
       </Card>
@@ -376,7 +377,7 @@ Password: ${createdInvite?.password}`;
             </SheetDescription>
           </SheetHeader>
           
-          {!createdInvite ? <FormContent /> : <SuccessContent />}
+          {!createdInvite ? formContent : successContent}
         </SheetContent>
       </Sheet>
     );
@@ -397,7 +398,7 @@ Password: ${createdInvite?.password}`;
           </DialogDescription>
         </DialogHeader>
 
-        {!createdInvite ? <FormContent /> : <SuccessContent />}
+        {!createdInvite ? formContent : successContent}
       </DialogContent>
     </Dialog>
   );
