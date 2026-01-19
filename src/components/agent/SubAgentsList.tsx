@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Users, TrendingUp, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Users, TrendingUp, Loader2, ChevronRight, BarChart3 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface SubAgent {
@@ -20,6 +22,7 @@ interface SubAgent {
 }
 
 export function SubAgentsList() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [loading, setLoading] = useState(true);
@@ -131,16 +134,19 @@ export function SubAgentsList() {
   }
 
   return (
-    <Card>
+    <Card className="cursor-pointer hover:border-orange-500/50 transition-colors" onClick={() => navigate('/sub-agents')}>
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between text-base">
           <div className="flex items-center gap-2">
             <Users className="h-5 w-5 text-orange-500" />
             My Sub-Agents
           </div>
-          <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
-            {subAgents.length} agent{subAgents.length !== 1 ? 's' : ''}
-          </Badge>
+          <div className="flex items-center gap-2">
+            <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+              {subAgents.length} agent{subAgents.length !== 1 ? 's' : ''}
+            </Badge>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </div>
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -176,6 +182,18 @@ export function SubAgentsList() {
             </div>
           </div>
         ))}
+        
+        <Button 
+          variant="ghost" 
+          className="w-full gap-2 text-orange-600 hover:text-orange-700 hover:bg-orange-500/10"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/sub-agents');
+          }}
+        >
+          <BarChart3 className="h-4 w-4" />
+          View Full Analytics
+        </Button>
       </CardContent>
     </Card>
   );

@@ -53,6 +53,7 @@ const Install = lazy(() => import('./pages/Install'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 const Chat = lazy(() => import('./pages/Chat'));
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
+const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
 const Calculator = lazy(() => import('./pages/Calculator'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
@@ -155,6 +156,7 @@ function AnimatedRoutes() {
             <Route path="/activate-supporter" element={<ActivateSupporter />} />
             <Route path="/chat" element={<Chat />} />
             <Route path="/agent-registrations" element={<AgentRegistrations />} />
+            <Route path="/sub-agents" element={<SubAgentAnalytics />} />
             <Route path="/join" element={<Join />} />
             <Route path="/calculator" element={<Calculator />} />
             <Route path="/users" element={<UserManagement />} />
