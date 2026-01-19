@@ -42,7 +42,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText
+  FileText, UsersRound
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -80,6 +80,18 @@ interface ActivityItem {
   description: string;
   created_at: string;
   metadata?: Record<string, unknown>;
+}
+
+interface SubAgent {
+  id: string;
+  sub_agent_id: string;
+  created_at: string;
+  profile?: {
+    full_name: string;
+    phone: string;
+    avatar_url: string | null;
+  };
+  tenants_count: number;
 }
 
 interface UserDetailsDialogProps {
@@ -136,11 +148,18 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [verificationStatus, setVerificationStatus] = useState<boolean>(false);
   const [approvingUser, setApprovingUser] = useState(false);
   const [rejectingUser, setRejectingUser] = useState(false);
+  const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
+  const [subAgentsLoading, setSubAgentsLoading] = useState(false);
+  
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
       fetchUserRolesWithStatus();
       fetchVerificationStatus();
+      // Fetch subagents if user is an agent
+      if (user.roles.includes('agent')) {
+        fetchSubAgents();
+      }
       setEditForm({
         full_name: user.full_name,
         email: user.email,
@@ -161,6 +180,59 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     
     if (!error && data) {
       setVerificationStatus(data.verified);
+    }
+  };
+
+  const fetchSubAgents = async () => {
+    if (!user) return;
+    setSubAgentsLoading(true);
+    
+    try {
+      // Fetch subagents for this agent
+      const { data: subAgentsData, error } = await supabase
+        .from('agent_subagents')
+        .select('*')
+        .eq('parent_agent_id', user.id)
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!subAgentsData || subAgentsData.length === 0) {
+        setSubAgents([]);
+        setSubAgentsLoading(false);
+        return;
+      }
+
+      // Fetch profiles for subagents
+      const subAgentIds = subAgentsData.map(sa => sa.sub_agent_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone, avatar_url')
+        .in('id', subAgentIds);
+
+      // Count tenants per subagent
+      const tenantsCountBySubAgent: Record<string, number> = {};
+      for (const subAgentId of subAgentIds) {
+        const { count } = await supabase
+          .from('rent_requests')
+          .select('id', { count: 'exact', head: true })
+          .eq('agent_id', subAgentId);
+        
+        tenantsCountBySubAgent[subAgentId] = count || 0;
+      }
+
+      // Combine data
+      const enrichedSubAgents: SubAgent[] = subAgentsData.map(sa => ({
+        ...sa,
+        profile: profiles?.find(p => p.id === sa.sub_agent_id),
+        tenants_count: tenantsCountBySubAgent[sa.sub_agent_id] || 0,
+      }));
+
+      setSubAgents(enrichedSubAgents);
+    } catch (error) {
+      console.error('Error fetching subagents:', error);
+    } finally {
+      setSubAgentsLoading(false);
     }
   };
 
@@ -1283,6 +1355,55 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       </CardContent>
                     </Card>
                   )}
+
+                  {/* Sub-Agents Section - Only for agents */}
+                  {userRoles.includes('agent') && (
+                    <Card className="border-orange-500/30">
+                      <CardHeader className="py-3">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <UsersRound className="h-4 w-4 text-orange-500" />
+                          Sub-Agents ({subAgents.length})
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent className="pt-0">
+                        {subAgentsLoading ? (
+                          <div className="space-y-2">
+                            {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+                          </div>
+                        ) : subAgents.length === 0 ? (
+                          <div className="text-center py-6">
+                            <UsersRound className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                            <p className="text-sm text-muted-foreground">No sub-agents registered</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-2">
+                            {subAgents.map((subAgent) => (
+                              <div 
+                                key={subAgent.id}
+                                className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border"
+                              >
+                                <div className="flex items-center gap-3">
+                                  <Avatar className="h-10 w-10 border">
+                                    <AvatarImage src={subAgent.profile?.avatar_url || undefined} />
+                                    <AvatarFallback className="bg-orange-500/20 text-orange-600 text-sm font-bold">
+                                      {subAgent.profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                                    </AvatarFallback>
+                                  </Avatar>
+                                  <div>
+                                    <p className="font-medium text-sm">{subAgent.profile?.full_name || 'Unknown'}</p>
+                                    <p className="text-xs text-muted-foreground">{subAgent.profile?.phone}</p>
+                                  </div>
+                                </div>
+                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                  {subAgent.tenants_count} tenant{subAgent.tenants_count !== 1 ? 's' : ''}
+                                </Badge>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </CardContent>
+                    </Card>
+                  )}
                 </div>
               </TabsContent>
 
@@ -1584,6 +1705,55 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                           </div>
                         ))}
                       </div>
+                    </CardContent>
+                  </Card>
+                )}
+                
+                {/* Sub-Agents Section - Only for agents */}
+                {userRoles.includes('agent') && (
+                  <Card className="border-orange-500/30">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <UsersRound className="h-4 w-4 text-orange-500" />
+                        Sub-Agents ({subAgents.length})
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {subAgentsLoading ? (
+                        <div className="space-y-2">
+                          {[1, 2].map(i => <Skeleton key={i} className="h-14 w-full" />)}
+                        </div>
+                      ) : subAgents.length === 0 ? (
+                        <div className="text-center py-6">
+                          <UsersRound className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
+                          <p className="text-sm text-muted-foreground">No sub-agents registered</p>
+                        </div>
+                      ) : (
+                        <div className="grid gap-2 md:grid-cols-2">
+                          {subAgents.map((subAgent) => (
+                            <div 
+                              key={subAgent.id}
+                              className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border"
+                            >
+                              <div className="flex items-center gap-3">
+                                <Avatar className="h-10 w-10 border">
+                                  <AvatarImage src={subAgent.profile?.avatar_url || undefined} />
+                                  <AvatarFallback className="bg-orange-500/20 text-orange-600 text-sm font-bold">
+                                    {subAgent.profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
+                                  </AvatarFallback>
+                                </Avatar>
+                                <div>
+                                  <p className="font-medium text-sm">{subAgent.profile?.full_name || 'Unknown'}</p>
+                                  <p className="text-xs text-muted-foreground">{subAgent.profile?.phone}</p>
+                                </div>
+                              </div>
+                              <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                {subAgent.tenants_count} tenant{subAgent.tenants_count !== 1 ? 's' : ''}
+                              </Badge>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </CardContent>
                   </Card>
                 )}
