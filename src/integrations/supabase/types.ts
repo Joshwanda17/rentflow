@@ -80,6 +80,27 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_subagents: {
+        Row: {
+          created_at: string
+          id: string
+          parent_agent_id: string
+          sub_agent_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          parent_agent_id: string
+          sub_agent_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          parent_agent_id?: string
+          sub_agent_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_type: string
