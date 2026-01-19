@@ -9,11 +9,13 @@ import {
   Wallet,
   TrendingUp,
   UserPlus,
-  ChevronRight
+  ChevronRight,
+  Megaphone
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { hapticTap } from '@/lib/haptics';
+import BroadcastNotificationDialog from './BroadcastNotificationDialog';
 import { cn } from '@/lib/utils';
 
 interface QuickAction {
@@ -161,28 +163,49 @@ export function MobileQuickActions({
           })}
         </div>
 
-        {/* Extra Quick Add User Button */}
-        <motion.button
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-          onClick={() => {
-            hapticTap();
-            navigate('/manager-access?tab=users&action=add');
-          }}
-          className="mt-3 w-full flex items-center justify-between p-4 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98]"
-        >
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-primary text-primary-foreground">
-              <UserPlus className="h-6 w-6" />
+        {/* Broadcast & Add User Buttons */}
+        <div className="mt-3 grid grid-cols-2 gap-2">
+          {/* Broadcast Notification Button */}
+          <BroadcastNotificationDialog 
+            trigger={
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+                onClick={() => hapticTap()}
+                className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-orange-500/20 via-orange-500/15 to-orange-500/10 border-2 border-orange-500/30 touch-manipulation active:scale-[0.98]"
+              >
+                <div className="p-2 rounded-xl bg-orange-500 text-white">
+                  <Megaphone className="h-5 w-5" />
+                </div>
+                <div className="text-left">
+                  <p className="text-sm font-bold text-orange-600 dark:text-orange-400">Broadcast</p>
+                  <p className="text-[10px] text-muted-foreground">Notify all</p>
+                </div>
+              </motion.button>
+            }
+          />
+
+          {/* Add User Button */}
+          <motion.button
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.35 }}
+            onClick={() => {
+              hapticTap();
+              navigate('/manager-access?tab=users&action=add');
+            }}
+            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98]"
+          >
+            <div className="p-2 rounded-xl bg-primary text-primary-foreground">
+              <UserPlus className="h-5 w-5" />
             </div>
             <div className="text-left">
-              <p className="text-base font-bold text-primary">Add New User</p>
-              <p className="text-xs text-muted-foreground">Invite or register</p>
+              <p className="text-sm font-bold text-primary">Add User</p>
+              <p className="text-[10px] text-muted-foreground">Invite new</p>
             </div>
-          </div>
-          <ChevronRight className="h-6 w-6 text-primary" />
-        </motion.button>
+          </motion.button>
+        </div>
       </CardContent>
     </Card>
   );
