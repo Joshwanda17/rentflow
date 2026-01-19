@@ -161,7 +161,36 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Terms Acceptance Notice - Shows only when not accepted */}
         <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
 
-        {/* Repayment Schedule - Shown when toggled, at the TOP */}
+        {/* Repayment Schedule Button - Prominent placement above profile */}
+        <button
+          onClick={() => setShowRepaymentSchedule(prev => !prev)}
+          className={`w-full overflow-hidden border-2 ${showRepaymentSchedule ? 'border-primary bg-primary/10' : 'border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5'} shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl`}
+        >
+          <div className="w-full p-4 flex items-center gap-4 hover:bg-primary/5 transition-colors group">
+            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
+              <Calendar className="h-7 w-7 text-primary-foreground" />
+            </div>
+            <div className="flex-1 text-left">
+              <h3 className="text-lg font-bold text-foreground">Repayment Schedule</h3>
+              <p className="text-sm text-muted-foreground">
+                View payment history, missed & paid days
+              </p>
+            </div>
+            <div className={`h-6 w-6 text-primary transition-transform ${showRepaymentSchedule ? 'rotate-180' : 'group-hover:translate-x-1'}`}>
+              {showRepaymentSchedule ? (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
+                </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              )}
+            </div>
+          </div>
+        </button>
+
+        {/* Repayment Schedule - Shown when toggled */}
         {showRepaymentSchedule && (
           <div className="animate-fade-in">
             <RepaymentSection 
@@ -184,11 +213,10 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               {profile?.full_name || 'Welcome'}
             </h2>
             <p className="text-sm text-muted-foreground truncate">
-              Tap to view profile
+              Profile Information
             </p>
           </div>
           <div className="flex items-center gap-2">
-            <RepaymentHistoryDrawer userId={user.id} />
             <TenantAgreementButton />
             {addRoleComponent}
           </div>
