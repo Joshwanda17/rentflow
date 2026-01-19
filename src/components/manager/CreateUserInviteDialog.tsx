@@ -318,20 +318,20 @@ Password: ${createdInvite?.password}`;
     </form>
   );
 
-  const successContent = (
+  const successContent = createdInvite ? (
     <div className="space-y-5">
       <Card className="bg-muted/50">
         <CardContent className="pt-5 space-y-4">
           <div className="flex items-center gap-3">
-            <span className="text-3xl">{getRoleEmoji(createdInvite!.role)}</span>
+            <span className="text-3xl">{getRoleEmoji(createdInvite.role)}</span>
             <div>
-              <p className="font-semibold text-lg">{createdInvite?.fullName}</p>
-              <p className="text-sm text-muted-foreground">{createdInvite ? roleConfig[createdInvite.role].label : ''}</p>
+              <p className="font-semibold text-lg">{createdInvite.fullName}</p>
+              <p className="text-sm text-muted-foreground">{roleConfig[createdInvite.role].label}</p>
             </div>
           </div>
           <div className="bg-background rounded-lg p-3">
             <p className="text-sm text-muted-foreground mb-1">Temporary Password</p>
-            <p className="font-mono font-bold text-lg">{createdInvite?.password}</p>
+            <p className="font-mono font-bold text-lg">{createdInvite.password}</p>
           </div>
         </CardContent>
       </Card>
@@ -358,7 +358,7 @@ Password: ${createdInvite?.password}`;
         Create Another
       </Button>
     </div>
-  );
+  ) : null;
 
   // Use Sheet for mobile, Dialog for desktop
   if (isMobile) {
