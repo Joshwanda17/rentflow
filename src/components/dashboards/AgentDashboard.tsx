@@ -33,8 +33,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
-import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
-import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
@@ -69,9 +68,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
-  const [registerSubAgentOpen, setRegisterSubAgentOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
-
   useEffect(() => {
     fetchData();
   }, []);
@@ -114,10 +111,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const menuItems = [
-    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
-    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true) },
     { icon: UserPlus, label: 'Register User', onClick: () => setRegisterUserOpen(true) },
-    { icon: UsersRound, label: 'Register Sub-Agent', onClick: () => setRegisterSubAgentOpen(true), separator: true },
+    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
+    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true), separator: true },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
@@ -130,10 +126,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Other actions for the collapsible menu
   const otherActions = [
-    { icon: UsersRound, label: 'Sub-Agent', onClick: () => setRegisterSubAgentOpen(true), variant: 'warning' as const },
+    { icon: UserPlus, label: 'Register', onClick: () => setRegisterUserOpen(true), variant: 'primary' as const },
     { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' as const },
     { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'default' as const },
-    { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' as const },
+    { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'warning' as const },
     { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
     { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' as const },
@@ -296,17 +292,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
-      <CreateUserInviteDialog 
+      <UnifiedRegistrationDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
-        onSuccess={() => {
-          fetchData();
-          refreshEarnings();
-        }}
-      />
-      <RegisterSubAgentDialog
-        open={registerSubAgentOpen}
-        onOpenChange={setRegisterSubAgentOpen}
         onSuccess={() => {
           fetchData();
           refreshEarnings();
