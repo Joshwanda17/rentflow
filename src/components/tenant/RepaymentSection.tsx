@@ -1,13 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
 import { Progress } from '@/components/ui/progress';
-import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, TrendingUp, Calendar, CheckCircle2 } from 'lucide-react';
+import { Wallet, TrendingUp, Calendar, CheckCircle2, History, Clock, AlertTriangle } from 'lucide-react';
+import { RepaymentHistoryDrawer } from './RepaymentHistoryDrawer';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { differenceInDays } from 'date-fns';
 
 interface RentRequest {
   id: string;
@@ -30,250 +31,210 @@ interface Repayment {
 
 interface RepaymentSectionProps {
   userId: string;
-  activeRequest: RentRequest | undefined;
-  repayments: Repayment[];
-  onRepaymentSuccess: () => void;
+  activeRequest?: RentRequest;
+  repayments?: Repayment[];
+  onRepaymentSuccess?: () => void;
 }
 
 export default function RepaymentSection({ 
   userId, 
-  activeRequest, 
-  repayments,
+  activeRequest: propActiveRequest, 
+  repayments: propRepayments,
   onRepaymentSuccess 
 }: RepaymentSectionProps) {
-  const [amount, setAmount] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  const { toast } = useToast();
+  const [loading, setLoading] = useState(true);
+  const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
+  const [repayments, setRepayments] = useState<Repayment[]>([]);
 
-  if (!activeRequest || activeRequest.status !== 'disbursed') {
+  // Fetch all rent requests and repayments for this tenant
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      
+      const [requestsRes, repaymentsRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id, rent_amount, duration_days, total_repayment, daily_repayment, status, created_at, disbursed_at')
+          .eq('tenant_id', userId)
+          .in('status', ['disbursed', 'completed', 'approved', 'funded'])
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('repayments')
+          .select('*')
+          .eq('tenant_id', userId)
+          .order('payment_date', { ascending: false })
+      ]);
+
+      if (requestsRes.data) setRentRequests(requestsRes.data);
+      if (repaymentsRes.data) setRepayments(repaymentsRes.data);
+      
+      setLoading(false);
+    };
+
+    fetchData();
+  }, [userId]);
+
+  // Use props if provided, otherwise use fetched data
+  const allRepayments = propRepayments || repayments;
+  const activeRequest = propActiveRequest || rentRequests.find(r => r.status === 'disbursed');
+  const completedRequests = rentRequests.filter(r => r.status === 'completed');
+
+  // Calculate totals across all requests
+  const totalPaid = allRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
+  const activeRequestRepayments = activeRequest 
+    ? allRepayments.filter(r => r.rent_request_id === activeRequest.id)
+    : [];
+  const activeRepaid = activeRequestRepayments.reduce((sum, r) => sum + Number(r.amount), 0);
+  const activeRemaining = activeRequest ? Number(activeRequest.total_repayment) - activeRepaid : 0;
+  const activeProgress = activeRequest ? (activeRepaid / Number(activeRequest.total_repayment)) * 100 : 0;
+
+  // Calculate days and status for active request
+  const daysElapsed = activeRequest?.disbursed_at 
+    ? differenceInDays(new Date(), new Date(activeRequest.disbursed_at))
+    : 0;
+  const expectedPayments = activeRequest ? daysElapsed * Number(activeRequest.daily_repayment) : 0;
+  const paymentStatus = activeRepaid >= expectedPayments ? 'on-track' : 'behind';
+
+  if (loading) {
     return (
       <Card className="glass-card">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-primary" />
-            Repayments
+            <Calendar className="h-5 w-5 text-primary" />
+            Repayment Schedule
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground">
-            {!activeRequest 
-              ? "No active rent request. Submit a request to get started."
-              : "Your rent request is being processed. You can make repayments once the funds have been disbursed to your landlord."
-            }
-          </p>
+        <CardContent className="space-y-3">
+          <Skeleton className="h-4 w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-4 w-2/3" />
         </CardContent>
       </Card>
     );
   }
 
-  const totalRepaid = repayments
-    .filter(r => r.rent_request_id === activeRequest.id)
-    .reduce((sum, r) => sum + Number(r.amount), 0);
-  const remainingBalance = Number(activeRequest.total_repayment) - totalRepaid;
-  const progressPercent = (totalRepaid / Number(activeRequest.total_repayment)) * 100;
-  const daysElapsed = activeRequest.disbursed_at 
-    ? Math.floor((Date.now() - new Date(activeRequest.disbursed_at).getTime()) / (1000 * 60 * 60 * 24))
-    : 0;
-  const expectedPayments = daysElapsed * Number(activeRequest.daily_repayment);
-  const paymentStatus = totalRepaid >= expectedPayments ? 'on-track' : 'behind';
-
-  const handleSubmitRepayment = async () => {
-    const paymentAmount = parseFloat(amount);
-    
-    if (isNaN(paymentAmount) || paymentAmount <= 0) {
-      toast({
-        title: 'Invalid Amount',
-        description: 'Please enter a valid payment amount',
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    if (paymentAmount > remainingBalance) {
-      toast({
-        title: 'Amount Exceeds Balance',
-        description: `Maximum payment amount is ${formatUGX(remainingBalance)}`,
-        variant: 'destructive'
-      });
-      return;
-    }
-
-    setSubmitting(true);
-
-    try {
-      // Insert repayment
-      const { error: repaymentError } = await supabase
-        .from('repayments')
-        .insert({
-          rent_request_id: activeRequest.id,
-          tenant_id: userId,
-          amount: paymentAmount
-        });
-
-      if (repaymentError) throw repaymentError;
-
-      // Record platform transaction (tenant_repayment)
-      await supabase
-        .from('platform_transactions')
-        .insert({
-          rent_request_id: activeRequest.id,
-          user_id: userId,
-          amount: paymentAmount,
-          direction: 'inflow',
-          transaction_type: 'tenant_repayment',
-          description: `Tenant repayment of ${formatUGX(paymentAmount)}`
-        });
-
-      // Check if fully repaid
-      if (paymentAmount >= remainingBalance) {
-        await supabase
-          .from('rent_requests')
-          .update({ status: 'completed' })
-          .eq('id', activeRequest.id);
-      }
-
-      toast({
-        title: 'Payment Recorded',
-        description: `Successfully recorded payment of ${formatUGX(paymentAmount)}`
-      });
-
-      setAmount('');
-      onRepaymentSuccess();
-    } catch (error: any) {
-      toast({
-        title: 'Error',
-        description: error.message || 'Failed to record payment',
-        variant: 'destructive'
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const requestRepayments = repayments.filter(r => r.rent_request_id === activeRequest.id);
-
-  return (
-    <div className="space-y-4">
-      {/* Repayment Progress Card */}
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <TrendingUp className="h-5 w-5 text-primary" />
-            Repayment Progress
-          </CardTitle>
-          <CardDescription>
-            Track your daily repayment progress
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted-foreground">Progress</span>
-              <span className="font-medium">{progressPercent.toFixed(1)}%</span>
-            </div>
-            <Progress value={progressPercent} className="h-3" />
-            <div className="flex justify-between text-xs text-muted-foreground">
-              <span>Paid: {formatUGX(totalRepaid)}</span>
-              <span>Remaining: {formatUGX(remainingBalance)}</span>
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-4 pt-2">
-            <div className="p-3 rounded-lg bg-secondary/50">
-              <p className="text-xs text-muted-foreground">Daily Target</p>
-              <p className="font-mono font-semibold">{formatUGX(Number(activeRequest.daily_repayment))}</p>
-            </div>
-            <div className="p-3 rounded-lg bg-secondary/50">
-              <p className="text-xs text-muted-foreground">Status</p>
-              <p className={`font-semibold ${paymentStatus === 'on-track' ? 'text-success' : 'text-warning'}`}>
-                {paymentStatus === 'on-track' ? 'On Track' : 'Behind Schedule'}
-              </p>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Make Payment Card */}
-      <Card className="glass-card">
-        <CardHeader>
-          <CardTitle className="text-lg flex items-center gap-2">
-            <Wallet className="h-5 w-5 text-primary" />
-            Make a Payment
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="space-y-2">
-            <Label htmlFor="amount">Payment Amount (UGX)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder={`Suggested: ${Number(activeRequest.daily_repayment).toLocaleString()}`}
-              value={amount}
-              onChange={(e) => setAmount(e.target.value)}
-              min="1"
-              max={remainingBalance}
-            />
-            <p className="text-xs text-muted-foreground">
-              Remaining balance: {formatUGX(remainingBalance)}
-            </p>
-          </div>
-
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAmount(String(activeRequest.daily_repayment))}
-            >
-              Daily ({formatUGX(Number(activeRequest.daily_repayment))})
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setAmount(String(remainingBalance))}
-            >
-              Full Balance
-            </Button>
-          </div>
-
-          <Button 
-            onClick={handleSubmitRepayment} 
-            disabled={submitting || !amount}
-            className="w-full"
-          >
-            {submitting ? 'Processing...' : 'Record Payment'}
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Payment History */}
+  // No requests at all
+  if (rentRequests.length === 0 && !propActiveRequest) {
+    return (
       <Card className="glass-card">
         <CardHeader>
           <CardTitle className="text-lg flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            Payment History
+            Repayment Schedule
           </CardTitle>
         </CardHeader>
         <CardContent>
-          {requestRepayments.length === 0 ? (
-            <p className="text-muted-foreground text-sm">No payments recorded yet.</p>
-          ) : (
-            <div className="space-y-2 max-h-64 overflow-y-auto">
-              {requestRepayments.map((payment) => (
-                <div 
-                  key={payment.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-secondary/50"
-                >
-                  <div className="flex items-center gap-2">
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                    <div>
-                      <p className="font-medium font-mono">{formatUGX(Number(payment.amount))}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {new Date(payment.payment_date).toLocaleDateString()}
-                      </p>
-                    </div>
+          <div className="text-center py-4">
+            <Clock className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
+            <p className="text-muted-foreground text-sm">
+              No repayment schedule yet. Submit a rent request to get started.
+            </p>
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <div className="space-y-4">
+      {/* Summary Card - Always Visible */}
+      <Card className="glass-card">
+        <CardHeader className="pb-2">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg flex items-center gap-2">
+              <Calendar className="h-5 w-5 text-primary" />
+              Repayment Schedule
+            </CardTitle>
+            <RepaymentHistoryDrawer userId={userId} />
+          </div>
+          <CardDescription>
+            Your rent repayment overview
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          {/* Quick Stats */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="p-3 rounded-lg bg-primary/10 border border-primary/20">
+              <p className="text-xs text-muted-foreground">Total Paid</p>
+              <p className="font-mono font-bold text-primary">{formatUGX(totalPaid)}</p>
+            </div>
+            <div className="p-3 rounded-lg bg-secondary/50">
+              <p className="text-xs text-muted-foreground">Completed Loans</p>
+              <p className="font-mono font-bold">{completedRequests.length}</p>
+            </div>
+          </div>
+
+          {/* Active Request Progress */}
+          {activeRequest && (
+            <div className="space-y-3 pt-2 border-t">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium">Active Repayment</span>
+                <Badge variant={paymentStatus === 'on-track' ? 'default' : 'destructive'} className="text-xs">
+                  {paymentStatus === 'on-track' ? 'On Track' : 'Behind'}
+                </Badge>
+              </div>
+              
+              <div className="space-y-2">
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Progress: {activeProgress.toFixed(0)}%</span>
+                  <span>{formatUGX(activeRepaid)} / {formatUGX(Number(activeRequest.total_repayment))}</span>
+                </div>
+                <Progress value={activeProgress} className="h-2" />
+              </div>
+
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="flex items-center gap-1.5 p-2 rounded bg-secondary/50">
+                  <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                  <div>
+                    <span className="text-muted-foreground">Daily: </span>
+                    <span className="font-mono font-medium">{formatUGX(Number(activeRequest.daily_repayment))}</span>
                   </div>
                 </div>
-              ))}
+                <div className="flex items-center gap-1.5 p-2 rounded bg-secondary/50">
+                  <Wallet className="h-3.5 w-3.5 text-primary" />
+                  <div>
+                    <span className="text-muted-foreground">Left: </span>
+                    <span className="font-mono font-medium">{formatUGX(activeRemaining)}</span>
+                  </div>
+                </div>
+              </div>
+
+              {paymentStatus === 'behind' && (
+                <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-xs">
+                  <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                  <span className="text-destructive">
+                    You're behind by {formatUGX(expectedPayments - activeRepaid)}
+                  </span>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Recent Payments */}
+          {allRepayments.length > 0 && (
+            <div className="pt-2 border-t">
+              <p className="text-xs font-medium text-muted-foreground mb-2">Recent Payments</p>
+              <div className="space-y-1.5 max-h-32 overflow-y-auto">
+                {allRepayments.slice(0, 3).map((payment) => (
+                  <div 
+                    key={payment.id}
+                    className="flex items-center justify-between p-2 rounded bg-secondary/30 text-xs"
+                  >
+                    <div className="flex items-center gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 text-success" />
+                      <span className="font-mono font-medium">{formatUGX(Number(payment.amount))}</span>
+                    </div>
+                    <span className="text-muted-foreground">
+                      {new Date(payment.payment_date).toLocaleDateString()}
+                    </span>
+                  </div>
+                ))}
+              </div>
+              {allRepayments.length > 3 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  +{allRepayments.length - 3} more payments
+                </p>
+              )}
             </div>
           )}
         </CardContent>
