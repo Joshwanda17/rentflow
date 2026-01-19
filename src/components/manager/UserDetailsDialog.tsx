@@ -848,7 +848,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={onOpenChange}>
-        <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 flex flex-col">
+        <SheetContent side="bottom" className="h-[95vh] rounded-t-3xl p-0 flex flex-col overflow-hidden">
           {/* Fixed Header */}
           <SheetHeader className="p-4 pb-0 shrink-0">
             <div className="flex items-center gap-3 mb-3">
@@ -866,13 +866,13 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="px-4 pt-2 shrink-0">
               <TabsNavigation />
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-8">
+            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
               <TabsContent value="overview" className="mt-0">
                 <div className="p-4 space-y-5">
                   {/* Contact Info */}
@@ -1352,22 +1352,21 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     );
   }
 
-  // Desktop version uses Dialog
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0">
-        <DialogHeader className="p-6 pb-0">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+        <DialogHeader className="p-6 pb-0 shrink-0">
           <DialogTitle>
             <UserHeader />
           </DialogTitle>
         </DialogHeader>
 
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-          <div className="px-6 pt-4">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
+          <div className="px-6 pt-4 shrink-0">
             <TabsNavigation />
           </div>
 
-          <ScrollArea className="max-h-[60vh]">
+          <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: 'calc(90vh - 200px)' }}>
             <TabsContent value="overview" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
                 {/* Contact Info */}
