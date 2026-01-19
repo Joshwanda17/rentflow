@@ -50,6 +50,24 @@ Deno.serve(async (req) => {
 
     const userRole = invite.role || 'supporter';
 
+    // Check if the creator is an agent (for sub-agent creation)
+    let isSubAgent = false;
+    let parentAgentId: string | null = null;
+    
+    if (userRole === 'agent') {
+      const { data: creatorRoles } = await adminClient
+        .from("user_roles")
+        .select("role")
+        .eq("user_id", invite.created_by)
+        .eq("role", "agent")
+        .single();
+      
+      if (creatorRoles) {
+        isSubAgent = true;
+        parentAgentId = invite.created_by;
+      }
+    }
+
     // Create the user account
     const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
       email: invite.email,
@@ -83,6 +101,22 @@ Deno.serve(async (req) => {
       console.error("Role error:", roleError);
     }
 
+    // If this is a sub-agent, create the sub-agent relationship
+    if (isSubAgent && parentAgentId) {
+      const { error: subAgentError } = await adminClient
+        .from("agent_subagents")
+        .insert({
+          parent_agent_id: parentAgentId,
+          sub_agent_id: authData.user.id,
+        });
+
+      if (subAgentError) {
+        console.error("Sub-agent relationship error:", subAgentError);
+      } else {
+        console.log(`Created sub-agent relationship: ${authData.user.id} under ${parentAgentId}`);
+      }
+    }
+
     // Update invite status
     await adminClient
       .from("supporter_invites")
@@ -104,18 +138,21 @@ Deno.serve(async (req) => {
         });
     }
 
+    // Determine referral bonus - UGX 500 for direct registrations (via invite link)
+    const referralBonus = 500;
+
     // Create general referral record for all roles
     await adminClient
       .from("referrals")
       .insert({
         referrer_id: invite.created_by,
         referred_id: authData.user.id,
-        bonus_amount: 100,
+        bonus_amount: referralBonus,
         credited: true,
         credited_at: new Date().toISOString(),
       });
 
-    // Credit manager's wallet for the referral
+    // Credit creator's wallet for the referral
     const { data: walletData } = await adminClient
       .from("wallets")
       .select("balance")
@@ -125,8 +162,28 @@ Deno.serve(async (req) => {
     if (walletData) {
       await adminClient
         .from("wallets")
-        .update({ balance: walletData.balance + 100 })
+        .update({ balance: walletData.balance + referralBonus })
         .eq("user_id", invite.created_by);
+    }
+
+    // Also credit agent_earnings for agents
+    const { data: creatorIsAgent } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", invite.created_by)
+      .eq("role", "agent")
+      .single();
+
+    if (creatorIsAgent) {
+      await adminClient
+        .from("agent_earnings")
+        .insert({
+          agent_id: invite.created_by,
+          amount: referralBonus,
+          earning_type: 'referral_bonus',
+          description: isSubAgent ? 'Sub-agent registration bonus' : 'New member registration bonus',
+          source_user_id: authData.user.id,
+        });
     }
 
     const roleLabels: Record<string, string> = {
@@ -136,24 +193,27 @@ Deno.serve(async (req) => {
       landlord: 'Landlord',
     };
 
-    // Notify the manager
+    // Notify the creator
     await adminClient
       .from("notifications")
       .insert({
         user_id: invite.created_by,
-        title: `🎉 ${roleLabels[userRole]} Activated!`,
-        message: `${invite.full_name} has activated their ${userRole} account! You earned UGX 100 referral bonus.`,
+        title: `🎉 ${isSubAgent ? 'Sub-Agent' : roleLabels[userRole]} Activated!`,
+        message: isSubAgent 
+          ? `${invite.full_name} has joined your team as a sub-agent! You'll earn 1% of their tenants' repayments.`
+          : `${invite.full_name} has activated their ${userRole} account! You earned UGX ${referralBonus} referral bonus.`,
         type: "success",
-        metadata: { user_id: authData.user.id, invite_id: invite.id, role: userRole },
+        metadata: { user_id: authData.user.id, invite_id: invite.id, role: userRole, is_sub_agent: isSubAgent },
       });
 
-    console.log(`Activated ${userRole} account for ${invite.email}`);
+    console.log(`Activated ${isSubAgent ? 'sub-agent' : userRole} account for ${invite.email}`);
 
     return new Response(JSON.stringify({ 
       success: true,
       message: "Account activated successfully! You can now log in.",
       email: invite.email,
       role: userRole,
+      isSubAgent,
     }), {
       status: 200,
       headers: { ...corsHeaders, "Content-Type": "application/json" },

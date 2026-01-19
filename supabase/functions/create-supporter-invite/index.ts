@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
 
     const creatorRole = roleData[0].role;
 
-    const { email, fullName, phone, password, role = 'tenant' } = await req.json();
+    const { email, fullName, phone, password, role = 'tenant', isSubAgent = false } = await req.json();
 
     if (!email || !fullName || !phone || !password) {
       return new Response(JSON.stringify({ error: "Missing required fields" }), {
@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Agents can only create tenant and landlord accounts
-    if (creatorRole === 'agent' && !['tenant', 'landlord'].includes(role)) {
-      return new Response(JSON.stringify({ error: "Agents can only create tenant and landlord accounts" }), {
+    // Agents can only create tenant, landlord, and agent (sub-agent) accounts
+    if (creatorRole === 'agent' && !['tenant', 'landlord', 'agent'].includes(role)) {
+      return new Response(JSON.stringify({ error: "Agents can only create tenant, landlord, and sub-agent accounts" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -128,7 +128,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}`);
+    // If this is a sub-agent being created by an agent, store the relationship info
+    // The actual relationship will be created when the sub-agent activates their account
+    // We'll store this in the invite metadata for now
+    let subAgentParentId: string | null = null;
+    if (creatorRole === 'agent' && role === 'agent' && isSubAgent) {
+      subAgentParentId = user.id;
+      console.log(`Creating sub-agent invite for ${email} with parent agent ${user.id}`);
+    }
+
+    console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${subAgentParentId ? ' (sub-agent)' : ''}`);
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -138,6 +147,7 @@ Deno.serve(async (req) => {
         email: invite.email,
         full_name: invite.full_name,
         role: invite.role,
+        parent_agent_id: subAgentParentId,
       }
     }), {
       status: 200,

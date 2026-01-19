@@ -20,7 +20,8 @@ import {
   Wallet,
   Menu,
   Sparkles,
-  ChevronRight
+  ChevronRight,
+  UsersRound
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -33,9 +34,11 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { CreateUserInviteDialog } from '@/components/agent/CreateUserInviteDialog';
+import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
+import { SubAgentsList } from '@/components/agent/SubAgentsList';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -66,6 +69,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
+  const [registerSubAgentOpen, setRegisterSubAgentOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
 
   useEffect(() => {
@@ -112,7 +116,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const menuItems = [
     { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
     { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true) },
-    { icon: UserPlus, label: 'Register User', onClick: () => setRegisterUserOpen(true), separator: true },
+    { icon: UserPlus, label: 'Register User', onClick: () => setRegisterUserOpen(true) },
+    { icon: UsersRound, label: 'Register Sub-Agent', onClick: () => setRegisterSubAgentOpen(true), separator: true },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
@@ -125,8 +130,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   // Other actions for the collapsible menu
   const otherActions = [
+    { icon: UsersRound, label: 'Sub-Agent', onClick: () => setRegisterSubAgentOpen(true), variant: 'warning' as const },
     { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' as const },
-    { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'warning' as const },
+    { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'default' as const },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'primary' as const },
     { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
@@ -278,6 +284,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Rent Requests - Agents can approve/reject */}
         <AgentRentRequestsManager />
 
+        {/* Sub-Agents List */}
+        <SubAgentsList />
+
         {/* Registered Users List */}
         <AgentInvitesList />
 
@@ -290,6 +299,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <CreateUserInviteDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
+        onSuccess={() => {
+          fetchData();
+          refreshEarnings();
+        }}
+      />
+      <RegisterSubAgentDialog
+        open={registerSubAgentOpen}
+        onOpenChange={setRegisterSubAgentOpen}
         onSuccess={() => {
           fetchData();
           refreshEarnings();
