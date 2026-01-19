@@ -146,6 +146,22 @@ export function useNotifications() {
               }
             } : undefined,
           });
+
+          // Also show native browser notification if permission granted
+          if ('Notification' in window && Notification.permission === 'granted') {
+            try {
+              new Notification(newNotification.title, {
+                body: newNotification.message,
+                icon: '/welile-logo.png',
+                badge: '/welile-logo.png',
+                tag: newNotification.id,
+                requireInteraction: newNotification.type === 'error' || newNotification.type === 'warning'
+              });
+            } catch (e) {
+              // Native notifications may not be supported in all contexts
+              console.log('Native notification not available:', e);
+            }
+          }
         }
       )
       .subscribe();
