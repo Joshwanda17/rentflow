@@ -4,7 +4,7 @@ import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown } from 'lucide-react';
+import { Wallet, Send, Plus, ArrowUpRight, ArrowDownLeft, HandCoins, Bell, History, TrendingUp, TrendingDown, ArrowDownToLine } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { SendMoneyDialog } from './SendMoneyDialog';
 import { DepositDialog } from './DepositDialog';
@@ -12,6 +12,8 @@ import { RequestMoneyDialog } from './RequestMoneyDialog';
 import { PendingRequestsDialog } from './PendingRequestsDialog';
 import { TransactionReceipt } from './TransactionReceipt';
 import { UserDepositRequests } from './UserDepositRequests';
+import { WithdrawRequestDialog } from './WithdrawRequestDialog';
+import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,6 +31,7 @@ export function WalletCard() {
   const [depositOpen, setDepositOpen] = useState(false);
   const [requestOpen, setRequestOpen] = useState(false);
   const [pendingOpen, setPendingOpen] = useState(false);
+  const [withdrawOpen, setWithdrawOpen] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
@@ -184,29 +187,37 @@ export function WalletCard() {
         
         <CardContent className="p-3.5 sm:p-4 space-y-3.5">
           {/* Action buttons - Large touch targets */}
-          <div className="grid grid-cols-3 gap-2.5">
+          <div className="grid grid-cols-4 gap-2">
             <Button 
               onClick={() => setSendOpen(true)} 
-              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all shadow-sm hover:shadow-md"
+              className="flex-col gap-1 h-auto py-3 rounded-xl active:scale-95 transition-all shadow-sm hover:shadow-md"
             >
-              <Send className="h-5 w-5" />
-              <span className="text-xs font-semibold tracking-wide">Send</span>
+              <Send className="h-4 w-4" />
+              <span className="text-[10px] font-semibold tracking-wide">Send</span>
             </Button>
             <Button 
               onClick={() => setRequestOpen(true)} 
               variant="secondary"
-              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all"
+              className="flex-col gap-1 h-auto py-3 rounded-xl active:scale-95 transition-all"
             >
-              <HandCoins className="h-5 w-5" />
-              <span className="text-xs font-semibold tracking-wide">Request</span>
+              <HandCoins className="h-4 w-4" />
+              <span className="text-[10px] font-semibold tracking-wide">Request</span>
             </Button>
             <Button 
               onClick={() => setDepositOpen(true)} 
               variant="outline" 
-              className="flex-col gap-1.5 h-auto py-3.5 rounded-xl active:scale-95 transition-all border-border/60"
+              className="flex-col gap-1 h-auto py-3 rounded-xl active:scale-95 transition-all border-border/60"
             >
-              <Plus className="h-5 w-5" />
-              <span className="text-xs font-semibold tracking-wide">Add</span>
+              <Plus className="h-4 w-4" />
+              <span className="text-[10px] font-semibold tracking-wide">Add</span>
+            </Button>
+            <Button 
+              onClick={() => setWithdrawOpen(true)} 
+              variant="outline" 
+              className="flex-col gap-1 h-auto py-3 rounded-xl active:scale-95 transition-all border-warning/50 text-warning hover:bg-warning/10"
+            >
+              <ArrowDownToLine className="h-4 w-4" />
+              <span className="text-[10px] font-semibold tracking-wide">Withdraw</span>
             </Button>
           </div>
 
@@ -265,8 +276,9 @@ export function WalletCard() {
       </Card>
       </PullToRefresh>
 
-      {/* User's Deposit Requests */}
+      {/* User's Requests */}
       <UserDepositRequests />
+      <UserWithdrawalRequests />
 
       <SendMoneyDialog open={sendOpen} onOpenChange={setSendOpen} />
       <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
@@ -276,6 +288,12 @@ export function WalletCard() {
         onSuccess={fetchPendingCount}
       />
       <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
+      <WithdrawRequestDialog 
+        open={withdrawOpen} 
+        onOpenChange={setWithdrawOpen} 
+        walletBalance={wallet?.balance || 0}
+        onSuccess={refreshWallet}
+      />
       <TransactionReceipt 
         open={receiptOpen} 
         onOpenChange={setReceiptOpen} 

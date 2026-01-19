@@ -91,6 +91,7 @@ import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { UserMinus } from 'lucide-react';
+import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 
 interface ManagerDashboardProps {
   user: User;
@@ -938,6 +939,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             totalUsers={totalUsers}
           />
         </div>
+
+        {/* Withdrawal Requests - Priority Section for Manager */}
+        <WithdrawalRequestsManager />
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
