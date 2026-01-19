@@ -2215,6 +2215,42 @@ export type Database = {
           },
         ]
       }
+      withdrawal_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       referral_leaderboard: {
