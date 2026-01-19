@@ -105,6 +105,25 @@ export default function BroadcastNotificationDialog({ trigger }: BroadcastNotifi
         }
       }
 
+      // Also send push notifications to all devices
+      try {
+        await supabase.functions.invoke('send-push-notification', {
+          body: {
+            all: true,
+            payload: {
+              title: title.trim(),
+              body: message.trim(),
+              type,
+              icon: '/welile-logo.png',
+              url: '/dashboard'
+            }
+          }
+        });
+      } catch (pushError) {
+        console.log('Push notification send attempted:', pushError);
+        // Don't fail the whole operation if push fails
+      }
+
       toast.success(`Notification broadcasted to ${successCount} users!`, {
         icon: <Megaphone className="h-4 w-4" />,
       });

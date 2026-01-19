@@ -8,6 +8,7 @@ import LandlordDashboard from '@/components/dashboards/LandlordDashboard';
 import ManagerDashboard from '@/components/dashboards/ManagerDashboard';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
+import { PushNotificationPrompt } from '@/components/PushNotificationPrompt';
 import { Loader2 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 
@@ -72,6 +73,7 @@ export default function Dashboard() {
     <>
       {renderDashboard()}
       <FloatingChatButton />
+      <PushNotificationPrompt />
     </>
   );
 }
