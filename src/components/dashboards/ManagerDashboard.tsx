@@ -46,7 +46,8 @@ import {
   Mail,
   MessageCircle,
   Save,
-  BookmarkPlus
+  BookmarkPlus,
+  Shield
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -102,10 +103,29 @@ interface ManagerDashboardProps {
   addRoleComponent: ReactNode;
 }
 
+const MANAGER_ACCESS_CODE = 'Manager@welile';
+
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const [loading, setLoading] = useState(true);
+  const [accessVerified, setAccessVerified] = useState(() => {
+    // Check if already verified in this session
+    return sessionStorage.getItem('manager_access_verified') === 'true';
+  });
+  const [accessCodeInput, setAccessCodeInput] = useState('');
+  const [accessError, setAccessError] = useState(false);
+
+  const handleAccessCodeSubmit = () => {
+    if (accessCodeInput === MANAGER_ACCESS_CODE) {
+      setAccessVerified(true);
+      sessionStorage.setItem('manager_access_verified', 'true');
+      setAccessError(false);
+    } else {
+      setAccessError(true);
+      toast.error('Invalid access code');
+    }
+  };
   const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
   const [selectedUser, setSelectedUser] = useState<{
     id: string;
@@ -882,6 +902,66 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
   if (loading) {
     return <ManagerDashboardSkeleton />;
+  }
+
+  // Access code gate - show before dashboard content
+  if (!accessVerified) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardContent className="p-6 space-y-6">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                <Shield className="h-8 w-8 text-primary" />
+              </div>
+              <h2 className="text-2xl font-bold">Manager Access</h2>
+              <p className="text-muted-foreground">
+                Enter the manager access code to view the dashboard
+              </p>
+            </div>
+            
+            <div className="space-y-4">
+              <div className="space-y-2">
+                <Input
+                  type="password"
+                  placeholder="Enter access code"
+                  value={accessCodeInput}
+                  onChange={(e) => {
+                    setAccessCodeInput(e.target.value);
+                    setAccessError(false);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleAccessCodeSubmit();
+                    }
+                  }}
+                  className={accessError ? 'border-destructive' : ''}
+                />
+                {accessError && (
+                  <p className="text-sm text-destructive">Invalid access code. Please try again.</p>
+                )}
+              </div>
+              
+              <Button 
+                onClick={handleAccessCodeSubmit} 
+                className="w-full"
+                size="lg"
+              >
+                Access Dashboard
+              </Button>
+              
+              <Button 
+                variant="ghost" 
+                className="w-full"
+                onClick={() => onRoleChange(availableRoles.find(r => r !== 'manager') || 'tenant')}
+              >
+                Switch to Another Role
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   const scrollToProductivity = () => {
