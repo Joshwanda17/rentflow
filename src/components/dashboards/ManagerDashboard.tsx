@@ -900,11 +900,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     toast.success(`Exported ${filteredOnboarders.length} users to PDF`);
   };
 
-  if (loading) {
-    return <ManagerDashboardSkeleton />;
-  }
-
-  // Access code gate - show before dashboard content
+  // Access code gate - show BEFORE loading check
   if (!accessVerified) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
@@ -962,6 +958,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </Card>
       </div>
     );
+  }
+
+  if (loading) {
+    return <ManagerDashboardSkeleton />;
   }
 
   const scrollToProductivity = () => {
