@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useEffect, ReactNode, useCallback } from 'react';
 
 export interface Currency {
   code: string;
@@ -9,68 +9,86 @@ export interface Currency {
   rate: number; // Exchange rate relative to UGX (base)
 }
 
-// Comprehensive list of world currencies with exchange rates relative to UGX
-export const currencies: Currency[] = [
+// Base currencies with default rates (will be updated with live rates)
+const baseCurrencies: Omit<Currency, 'rate'>[] = [
   // Africa
-  { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', flag: '🇺🇬', locale: 'en-UG', rate: 1 },
-  { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', flag: '🇰🇪', locale: 'en-KE', rate: 0.029 },
-  { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', flag: '🇹🇿', locale: 'sw-TZ', rate: 0.69 },
-  { code: 'RWF', symbol: 'FRw', name: 'Rwandan Franc', flag: '🇷🇼', locale: 'rw-RW', rate: 0.35 },
-  { code: 'ETB', symbol: 'Br', name: 'Ethiopian Birr', flag: '🇪🇹', locale: 'am-ET', rate: 0.015 },
-  { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', flag: '🇳🇬', locale: 'en-NG', rate: 0.42 },
-  { code: 'GHS', symbol: 'GH₵', name: 'Ghanaian Cedi', flag: '🇬🇭', locale: 'en-GH', rate: 0.0035 },
-  { code: 'ZAR', symbol: 'R', name: 'South African Rand', flag: '🇿🇦', locale: 'en-ZA', rate: 0.0048 },
-  { code: 'EGP', symbol: 'E£', name: 'Egyptian Pound', flag: '🇪🇬', locale: 'ar-EG', rate: 0.013 },
-  { code: 'MAD', symbol: 'DH', name: 'Moroccan Dirham', flag: '🇲🇦', locale: 'ar-MA', rate: 0.0027 },
-  { code: 'XOF', symbol: 'CFA', name: 'West African CFA Franc', flag: '🇸🇳', locale: 'fr-SN', rate: 0.16 },
-  { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA Franc', flag: '🇨🇲', locale: 'fr-CM', rate: 0.16 },
+  { code: 'UGX', symbol: 'USh', name: 'Ugandan Shilling', flag: '🇺🇬', locale: 'en-UG' },
+  { code: 'KES', symbol: 'KSh', name: 'Kenyan Shilling', flag: '🇰🇪', locale: 'en-KE' },
+  { code: 'TZS', symbol: 'TSh', name: 'Tanzanian Shilling', flag: '🇹🇿', locale: 'sw-TZ' },
+  { code: 'RWF', symbol: 'FRw', name: 'Rwandan Franc', flag: '🇷🇼', locale: 'rw-RW' },
+  { code: 'ETB', symbol: 'Br', name: 'Ethiopian Birr', flag: '🇪🇹', locale: 'am-ET' },
+  { code: 'NGN', symbol: '₦', name: 'Nigerian Naira', flag: '🇳🇬', locale: 'en-NG' },
+  { code: 'GHS', symbol: 'GH₵', name: 'Ghanaian Cedi', flag: '🇬🇭', locale: 'en-GH' },
+  { code: 'ZAR', symbol: 'R', name: 'South African Rand', flag: '🇿🇦', locale: 'en-ZA' },
+  { code: 'EGP', symbol: 'E£', name: 'Egyptian Pound', flag: '🇪🇬', locale: 'ar-EG' },
+  { code: 'MAD', symbol: 'DH', name: 'Moroccan Dirham', flag: '🇲🇦', locale: 'ar-MA' },
+  { code: 'XOF', symbol: 'CFA', name: 'West African CFA Franc', flag: '🇸🇳', locale: 'fr-SN' },
+  { code: 'XAF', symbol: 'FCFA', name: 'Central African CFA Franc', flag: '🇨🇲', locale: 'fr-CM' },
   
   // Americas
-  { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸', locale: 'en-US', rate: 0.00027 },
-  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', flag: '🇨🇦', locale: 'en-CA', rate: 0.00037 },
-  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', flag: '🇲🇽', locale: 'es-MX', rate: 0.0046 },
-  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', flag: '🇧🇷', locale: 'pt-BR', rate: 0.0013 },
-  { code: 'ARS', symbol: 'AR$', name: 'Argentine Peso', flag: '🇦🇷', locale: 'es-AR', rate: 0.24 },
-  { code: 'COP', symbol: 'CO$', name: 'Colombian Peso', flag: '🇨🇴', locale: 'es-CO', rate: 1.1 },
+  { code: 'USD', symbol: '$', name: 'US Dollar', flag: '🇺🇸', locale: 'en-US' },
+  { code: 'CAD', symbol: 'C$', name: 'Canadian Dollar', flag: '🇨🇦', locale: 'en-CA' },
+  { code: 'MXN', symbol: 'MX$', name: 'Mexican Peso', flag: '🇲🇽', locale: 'es-MX' },
+  { code: 'BRL', symbol: 'R$', name: 'Brazilian Real', flag: '🇧🇷', locale: 'pt-BR' },
+  { code: 'ARS', symbol: 'AR$', name: 'Argentine Peso', flag: '🇦🇷', locale: 'es-AR' },
+  { code: 'COP', symbol: 'CO$', name: 'Colombian Peso', flag: '🇨🇴', locale: 'es-CO' },
   
   // Europe
-  { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺', locale: 'de-DE', rate: 0.00025 },
-  { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧', locale: 'en-GB', rate: 0.00021 },
-  { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc', flag: '🇨🇭', locale: 'de-CH', rate: 0.00024 },
-  { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', flag: '🇸🇪', locale: 'sv-SE', rate: 0.0028 },
-  { code: 'NOK', symbol: 'kr', name: 'Norwegian Krone', flag: '🇳🇴', locale: 'nb-NO', rate: 0.0029 },
-  { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', flag: '🇵🇱', locale: 'pl-PL', rate: 0.0011 },
-  { code: 'TRY', symbol: '₺', name: 'Turkish Lira', flag: '🇹🇷', locale: 'tr-TR', rate: 0.0092 },
-  { code: 'RUB', symbol: '₽', name: 'Russian Ruble', flag: '🇷🇺', locale: 'ru-RU', rate: 0.024 },
-  { code: 'UAH', symbol: '₴', name: 'Ukrainian Hryvnia', flag: '🇺🇦', locale: 'uk-UA', rate: 0.011 },
+  { code: 'EUR', symbol: '€', name: 'Euro', flag: '🇪🇺', locale: 'de-DE' },
+  { code: 'GBP', symbol: '£', name: 'British Pound', flag: '🇬🇧', locale: 'en-GB' },
+  { code: 'CHF', symbol: 'Fr', name: 'Swiss Franc', flag: '🇨🇭', locale: 'de-CH' },
+  { code: 'SEK', symbol: 'kr', name: 'Swedish Krona', flag: '🇸🇪', locale: 'sv-SE' },
+  { code: 'NOK', symbol: 'kr', name: 'Norwegian Krone', flag: '🇳🇴', locale: 'nb-NO' },
+  { code: 'PLN', symbol: 'zł', name: 'Polish Zloty', flag: '🇵🇱', locale: 'pl-PL' },
+  { code: 'TRY', symbol: '₺', name: 'Turkish Lira', flag: '🇹🇷', locale: 'tr-TR' },
+  { code: 'RUB', symbol: '₽', name: 'Russian Ruble', flag: '🇷🇺', locale: 'ru-RU' },
+  { code: 'UAH', symbol: '₴', name: 'Ukrainian Hryvnia', flag: '🇺🇦', locale: 'uk-UA' },
   
   // Asia
-  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', flag: '🇨🇳', locale: 'zh-CN', rate: 0.0019 },
-  { code: 'JPY', symbol: '¥', name: 'Japanese Yen', flag: '🇯🇵', locale: 'ja-JP', rate: 0.041 },
-  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳', locale: 'hi-IN', rate: 0.023 },
-  { code: 'PKR', symbol: '₨', name: 'Pakistani Rupee', flag: '🇵🇰', locale: 'ur-PK', rate: 0.075 },
-  { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka', flag: '🇧🇩', locale: 'bn-BD', rate: 0.029 },
-  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', flag: '🇮🇩', locale: 'id-ID', rate: 4.3 },
-  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit', flag: '🇲🇾', locale: 'ms-MY', rate: 0.0012 },
-  { code: 'PHP', symbol: '₱', name: 'Philippine Peso', flag: '🇵🇭', locale: 'fil-PH', rate: 0.015 },
-  { code: 'THB', symbol: '฿', name: 'Thai Baht', flag: '🇹🇭', locale: 'th-TH', rate: 0.0094 },
-  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong', flag: '🇻🇳', locale: 'vi-VN', rate: 6.6 },
-  { code: 'KRW', symbol: '₩', name: 'South Korean Won', flag: '🇰🇷', locale: 'ko-KR', rate: 0.37 },
-  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', flag: '🇸🇬', locale: 'en-SG', rate: 0.00036 },
-  { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar', flag: '🇭🇰', locale: 'zh-HK', rate: 0.0021 },
-  { code: 'TWD', symbol: 'NT$', name: 'Taiwan Dollar', flag: '🇹🇼', locale: 'zh-TW', rate: 0.0086 },
+  { code: 'CNY', symbol: '¥', name: 'Chinese Yuan', flag: '🇨🇳', locale: 'zh-CN' },
+  { code: 'JPY', symbol: '¥', name: 'Japanese Yen', flag: '🇯🇵', locale: 'ja-JP' },
+  { code: 'INR', symbol: '₹', name: 'Indian Rupee', flag: '🇮🇳', locale: 'hi-IN' },
+  { code: 'PKR', symbol: '₨', name: 'Pakistani Rupee', flag: '🇵🇰', locale: 'ur-PK' },
+  { code: 'BDT', symbol: '৳', name: 'Bangladeshi Taka', flag: '🇧🇩', locale: 'bn-BD' },
+  { code: 'IDR', symbol: 'Rp', name: 'Indonesian Rupiah', flag: '🇮🇩', locale: 'id-ID' },
+  { code: 'MYR', symbol: 'RM', name: 'Malaysian Ringgit', flag: '🇲🇾', locale: 'ms-MY' },
+  { code: 'PHP', symbol: '₱', name: 'Philippine Peso', flag: '🇵🇭', locale: 'fil-PH' },
+  { code: 'THB', symbol: '฿', name: 'Thai Baht', flag: '🇹🇭', locale: 'th-TH' },
+  { code: 'VND', symbol: '₫', name: 'Vietnamese Dong', flag: '🇻🇳', locale: 'vi-VN' },
+  { code: 'KRW', symbol: '₩', name: 'South Korean Won', flag: '🇰🇷', locale: 'ko-KR' },
+  { code: 'SGD', symbol: 'S$', name: 'Singapore Dollar', flag: '🇸🇬', locale: 'en-SG' },
+  { code: 'HKD', symbol: 'HK$', name: 'Hong Kong Dollar', flag: '🇭🇰', locale: 'zh-HK' },
+  { code: 'TWD', symbol: 'NT$', name: 'Taiwan Dollar', flag: '🇹🇼', locale: 'zh-TW' },
   
   // Middle East
-  { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', flag: '🇦🇪', locale: 'ar-AE', rate: 0.00099 },
-  { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal', flag: '🇸🇦', locale: 'ar-SA', rate: 0.001 },
-  { code: 'ILS', symbol: '₪', name: 'Israeli Shekel', flag: '🇮🇱', locale: 'he-IL', rate: 0.001 },
-  { code: 'QAR', symbol: 'ر.ق', name: 'Qatari Riyal', flag: '🇶🇦', locale: 'ar-QA', rate: 0.00098 },
-  { code: 'KWD', symbol: 'د.ك', name: 'Kuwaiti Dinar', flag: '🇰🇼', locale: 'ar-KW', rate: 0.000083 },
+  { code: 'AED', symbol: 'د.إ', name: 'UAE Dirham', flag: '🇦🇪', locale: 'ar-AE' },
+  { code: 'SAR', symbol: '﷼', name: 'Saudi Riyal', flag: '🇸🇦', locale: 'ar-SA' },
+  { code: 'ILS', symbol: '₪', name: 'Israeli Shekel', flag: '🇮🇱', locale: 'he-IL' },
+  { code: 'QAR', symbol: 'ر.ق', name: 'Qatari Riyal', flag: '🇶🇦', locale: 'ar-QA' },
+  { code: 'KWD', symbol: 'د.ك', name: 'Kuwaiti Dinar', flag: '🇰🇼', locale: 'ar-KW' },
   
   // Oceania
-  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', flag: '🇦🇺', locale: 'en-AU', rate: 0.00041 },
-  { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', flag: '🇳🇿', locale: 'en-NZ', rate: 0.00045 },
+  { code: 'AUD', symbol: 'A$', name: 'Australian Dollar', flag: '🇦🇺', locale: 'en-AU' },
+  { code: 'NZD', symbol: 'NZ$', name: 'New Zealand Dollar', flag: '🇳🇿', locale: 'en-NZ' },
 ];
+
+// Fallback rates (used when API is unavailable)
+const fallbackRates: Record<string, number> = {
+  UGX: 1, KES: 0.029, TZS: 0.69, RWF: 0.35, ETB: 0.015, NGN: 0.42, GHS: 0.0035,
+  ZAR: 0.0048, EGP: 0.013, MAD: 0.0027, XOF: 0.16, XAF: 0.16, USD: 0.00027,
+  CAD: 0.00037, MXN: 0.0046, BRL: 0.0013, ARS: 0.24, COP: 1.1, EUR: 0.00025,
+  GBP: 0.00021, CHF: 0.00024, SEK: 0.0028, NOK: 0.0029, PLN: 0.0011, TRY: 0.0092,
+  RUB: 0.024, UAH: 0.011, CNY: 0.0019, JPY: 0.041, INR: 0.023, PKR: 0.075,
+  BDT: 0.029, IDR: 4.3, MYR: 0.0012, PHP: 0.015, THB: 0.0094, VND: 6.6,
+  KRW: 0.37, SGD: 0.00036, HKD: 0.0021, TWD: 0.0086, AED: 0.00099, SAR: 0.001,
+  ILS: 0.001, QAR: 0.00098, KWD: 0.000083, AUD: 0.00041, NZD: 0.00045
+};
+
+// Initialize currencies with fallback rates
+export let currencies: Currency[] = baseCurrencies.map(c => ({
+  ...c,
+  rate: fallbackRates[c.code] || 0.00027 // Default to USD rate if not found
+}));
 
 interface CurrencyContextType {
   currency: Currency;
@@ -80,6 +98,10 @@ interface CurrencyContextType {
   convertFromUGX: (amountInUGX: number) => number;
   convertToUGX: (amount: number) => number;
   getCurrencyByCode: (code: string) => Currency | undefined;
+  isLoadingRates: boolean;
+  lastUpdated: Date | null;
+  refreshRates: () => Promise<void>;
+  usdRate: number; // Current USD to UGX rate
 }
 
 const CurrencyContext = createContext<CurrencyContextType | undefined>(undefined);
@@ -190,18 +212,127 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
     }
     return detectUserCurrency();
   });
+  const [liveRates, setLiveRates] = useState<Record<string, number>>(fallbackRates);
+  const [isLoadingRates, setIsLoadingRates] = useState(false);
+  const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+
+  // Fetch real-time exchange rates
+  const fetchLiveRates = useCallback(async () => {
+    setIsLoadingRates(true);
+    try {
+      // Using exchangerate-api.com free tier (with UGX as base is limited, so we fetch USD and calculate)
+      const response = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+      
+      if (!response.ok) throw new Error('Failed to fetch rates');
+      
+      const data = await response.json();
+      const usdRates = data.rates as Record<string, number>;
+      
+      // Get UGX rate (how many UGX per 1 USD)
+      const ugxPerUsd = usdRates.UGX || 3700; // Fallback to approximate rate
+      
+      // Calculate rates relative to UGX (1 UGX = ? of target currency)
+      const newRates: Record<string, number> = { UGX: 1 };
+      
+      Object.entries(usdRates).forEach(([code, rateVsUsd]) => {
+        // rateVsUsd = how many of target currency per 1 USD
+        // We want: how many of target currency per 1 UGX
+        // = rateVsUsd / ugxPerUsd
+        newRates[code] = rateVsUsd / ugxPerUsd;
+      });
+      
+      setLiveRates(newRates);
+      setLastUpdated(new Date());
+      
+      // Update currencies array with new rates
+      currencies = baseCurrencies.map(c => ({
+        ...c,
+        rate: newRates[c.code] || fallbackRates[c.code] || 0.00027
+      }));
+      
+      // Also update current currency if it's selected
+      const updatedCurrency = currencies.find(c => c.code === currency.code);
+      if (updatedCurrency) {
+        setCurrencyState(updatedCurrency);
+      }
+      
+      // Cache rates in localStorage
+      localStorage.setItem('welile-live-rates', JSON.stringify({
+        rates: newRates,
+        timestamp: Date.now()
+      }));
+      
+    } catch (error) {
+      console.error('Failed to fetch live rates:', error);
+      // Try to load cached rates
+      try {
+        const cached = localStorage.getItem('welile-live-rates');
+        if (cached) {
+          const { rates, timestamp } = JSON.parse(cached);
+          setLiveRates(rates);
+          setLastUpdated(new Date(timestamp));
+        }
+      } catch {
+        // Use fallback rates
+      }
+    } finally {
+      setIsLoadingRates(false);
+    }
+  }, [currency.code]);
+
+  // Refresh rates function for manual refresh
+  const refreshRates = useCallback(async () => {
+    await fetchLiveRates();
+  }, [fetchLiveRates]);
+
+  // Fetch rates on mount and every 30 minutes
+  useEffect(() => {
+    // Check if we have recent cached rates (less than 30 min old)
+    const cached = localStorage.getItem('welile-live-rates');
+    if (cached) {
+      try {
+        const { rates, timestamp } = JSON.parse(cached);
+        const age = Date.now() - timestamp;
+        if (age < 30 * 60 * 1000) { // Less than 30 minutes
+          setLiveRates(rates);
+          setLastUpdated(new Date(timestamp));
+          // Update currencies with cached rates
+          currencies = baseCurrencies.map(c => ({
+            ...c,
+            rate: rates[c.code] || fallbackRates[c.code] || 0.00027
+          }));
+          return; // Don't fetch if cache is fresh
+        }
+      } catch {
+        // Continue to fetch
+      }
+    }
+    
+    fetchLiveRates();
+    
+    // Refresh every 30 minutes
+    const interval = setInterval(fetchLiveRates, 30 * 60 * 1000);
+    return () => clearInterval(interval);
+  }, [fetchLiveRates]);
 
   const setCurrency = (newCurrency: Currency) => {
-    setCurrencyState(newCurrency);
+    // Get the currency with live rate
+    const currencyWithLiveRate = {
+      ...newCurrency,
+      rate: liveRates[newCurrency.code] || newCurrency.rate
+    };
+    setCurrencyState(currencyWithLiveRate);
     localStorage.setItem(STORAGE_KEY, newCurrency.code);
   };
 
   const convertFromUGX = (amountInUGX: number): number => {
-    return amountInUGX * currency.rate;
+    const rate = liveRates[currency.code] || currency.rate;
+    return amountInUGX * rate;
   };
 
   const convertToUGX = (amount: number): number => {
-    return amount / currency.rate;
+    const rate = liveRates[currency.code] || currency.rate;
+    return amount / rate;
   };
 
   const formatAmount = (amountInUGX: number, showSymbol = true): string => {
@@ -236,17 +367,34 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
   };
 
   const getCurrencyByCode = (code: string): Currency | undefined => {
-    return currencies.find(c => c.code === code);
+    const baseCurrency = currencies.find(c => c.code === code);
+    if (baseCurrency) {
+      return {
+        ...baseCurrency,
+        rate: liveRates[code] || baseCurrency.rate
+      };
+    }
+    return undefined;
   };
 
+  // Get USD rate for display (1 USD = X UGX)
+  const usdRate = liveRates.USD ? 1 / liveRates.USD : 3700;
+
   const value: CurrencyContextType = {
-    currency,
+    currency: {
+      ...currency,
+      rate: liveRates[currency.code] || currency.rate
+    },
     setCurrency,
     formatAmount,
     formatAmountCompact,
     convertFromUGX,
     convertToUGX,
     getCurrencyByCode,
+    isLoadingRates,
+    lastUpdated,
+    refreshRates,
+    usdRate,
   };
 
   return (

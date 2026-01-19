@@ -6,14 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
+import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight, Save, Trash2, Layers, X } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight, Save, Trash2, Layers, X, Wifi, WifiOff, DollarSign, Loader2 } from 'lucide-react';
 import welileLogo from '@/assets/welile-logo.png';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToPDF } from '@/lib/exportUtils';
 import { toast } from '@/hooks/use-toast';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, ReferenceLine, BarChart, Bar } from 'recharts';
+import { useCurrency } from '@/hooks/useCurrency';
+import { formatDistanceToNow } from 'date-fns';
 
 const ROI_RATE = 0.15; // 15% per month
 
@@ -48,6 +51,7 @@ const SCENARIO_COLORS = [
 ];
 
 export function InvestmentCalculator() {
+  const { currency, formatAmount, isLoadingRates, lastUpdated, refreshRates, usdRate } = useCurrency();
   const [desiredEarnings, setDesiredEarnings] = useState(150000);
   const [duration, setDuration] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
@@ -58,8 +62,19 @@ export function InvestmentCalculator() {
   const [showSavedScenarios, setShowSavedScenarios] = useState(false);
   const [scenarioName, setScenarioName] = useState('');
   const [isExportingComparison, setIsExportingComparison] = useState(false);
+  const [isRefreshingRates, setIsRefreshingRates] = useState(false);
   const projectionRef = useRef<HTMLDivElement>(null);
   const comparisonRef = useRef<HTMLDivElement>(null);
+
+  const handleRefreshRates = async () => {
+    setIsRefreshingRates(true);
+    await refreshRates();
+    setIsRefreshingRates(false);
+    toast({
+      title: "Exchange Rates Updated",
+      description: `1 USD = ${usdRate.toLocaleString()} UGX`,
+    });
+  };
 
   // Load saved scenarios from localStorage
   useEffect(() => {
@@ -482,6 +497,49 @@ export function InvestmentCalculator() {
               </p>
             </motion.div>
 
+            {/* Live Exchange Rate Indicator */}
+            <motion.div
+              className="flex flex-wrap items-center justify-center gap-2 sm:gap-3"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border">
+                <DollarSign className="h-3.5 w-3.5 text-success" />
+                <span className="text-xs font-semibold">
+                  1 USD = <span className="text-success">{usdRate.toLocaleString()}</span> UGX
+                </span>
+              </div>
+              
+              <div className="flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border">
+                {isLoadingRates || isRefreshingRates ? (
+                  <Loader2 className="h-3 w-3 animate-spin text-primary" />
+                ) : (
+                  <Wifi className="h-3 w-3 text-success" />
+                )}
+                <span className="text-[10px] text-muted-foreground">
+                  {lastUpdated 
+                    ? `Updated ${formatDistanceToNow(lastUpdated, { addSuffix: true })}`
+                    : 'Loading rates...'}
+                </span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-5 w-5 ml-1"
+                  onClick={handleRefreshRates}
+                  disabled={isRefreshingRates}
+                >
+                  <RefreshCw className={`h-3 w-3 ${isRefreshingRates ? 'animate-spin' : ''}`} />
+                </Button>
+              </div>
+              
+              {currency.code !== 'UGX' && (
+                <Badge variant="outline" className="gap-1 text-xs">
+                  {currency.flag} Viewing in {currency.code}
+                </Badge>
+              )}
+            </motion.div>
+
             {/* Calculator Input */}
             <motion.div 
               className="space-y-4 sm:space-y-6 max-w-md mx-auto"
@@ -594,15 +652,21 @@ export function InvestmentCalculator() {
                   </div>
                   <p className="text-[10px] sm:text-xs font-bold text-primary uppercase tracking-wider mb-1 sm:mb-2">You Need To Invest</p>
                   <AnimatePresence mode="wait">
-                    <motion.p 
+                    <motion.div 
                       key={calculations.requiredInvestment}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="text-lg sm:text-2xl md:text-3xl font-black text-foreground"
                     >
-                      {formatUGX(calculations.requiredInvestment)}
-                    </motion.p>
+                      <p className="text-lg sm:text-2xl md:text-3xl font-black text-foreground">
+                        {formatUGX(calculations.requiredInvestment)}
+                      </p>
+                      {currency.code !== 'UGX' && (
+                        <p className="text-xs sm:text-sm font-semibold text-primary mt-0.5">
+                          ≈ {formatAmount(calculations.requiredInvestment)}
+                        </p>
+                      )}
+                    </motion.div>
                   </AnimatePresence>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">One-time investment</p>
                 </div>
@@ -624,15 +688,21 @@ export function InvestmentCalculator() {
                     {isCompounding ? `After ${duration} Months` : "You'll Earn Monthly"}
                   </p>
                   <AnimatePresence mode="wait">
-                    <motion.p 
+                    <motion.div 
                       key={`${isCompounding}-${projections[projections.length - 1]?.totalEarnings}`}
                       initial={{ opacity: 0, scale: 0.8 }}
                       animate={{ opacity: 1, scale: 1 }}
                       exit={{ opacity: 0, scale: 0.8 }}
-                      className="text-lg sm:text-2xl md:text-3xl font-black text-success"
                     >
-                      {formatUGX(isCompounding ? projections[projections.length - 1]?.totalEarnings || 0 : calculations.monthlyReturn)}
-                    </motion.p>
+                      <p className="text-lg sm:text-2xl md:text-3xl font-black text-success">
+                        {formatUGX(isCompounding ? projections[projections.length - 1]?.totalEarnings || 0 : calculations.monthlyReturn)}
+                      </p>
+                      {currency.code !== 'UGX' && (
+                        <p className="text-xs sm:text-sm font-semibold text-success mt-0.5">
+                          ≈ {formatAmount(isCompounding ? projections[projections.length - 1]?.totalEarnings || 0 : calculations.monthlyReturn)}
+                        </p>
+                      )}
+                    </motion.div>
                   </AnimatePresence>
                   <p className="text-[10px] sm:text-xs text-muted-foreground mt-1 sm:mt-2">
                     {isCompounding ? 'Total earnings with compounding 🚀' : 'Every single month 🎉'}
