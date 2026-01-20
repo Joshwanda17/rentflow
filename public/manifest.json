@@ -1,6 +1,6 @@
 {
   "name": "Welile.com",
-  "short_name": "Welile",
+  "short_name": "Welile.com",
   "description": "Africa's leading rent facilitation platform. Access rent today, pay back over time.",
   "start_url": "/dashboard",
   "display": "standalone",
