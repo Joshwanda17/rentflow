@@ -139,23 +139,31 @@
     </div>
     
     <h1>You're Offline</h1>
-    <p>It looks like you've lost your internet connection. Don't worry - some features may still work!</p>
+    <p>It looks like you've lost your internet connection. Your dashboard may still work with cached data!</p>
     
-    <button class="retry-btn" onclick="window.location.reload()">
+    <a class="retry-btn" href="/dashboard" style="margin-right: 10px;">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+        <polyline points="9 22 9 12 15 12 15 22"/>
+      </svg>
+      Go to Dashboard
+    </a>
+    
+    <button class="retry-btn" onclick="window.location.reload()" style="background: rgba(255,255,255,0.1);">
       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
         <path d="M23 4v6h-6M1 20v-6h6"/>
         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
       </svg>
-      Try Again
+      Retry
     </button>
     
     <div class="tips">
-      <h2>Saving Data Tips</h2>
+      <h2>What Works Offline?</h2>
       <ul>
-        <li>Check your mobile data or WiFi connection</li>
-        <li>Move to an area with better network coverage</li>
-        <li>Your pending transactions will sync when online</li>
-        <li>Cached pages will still load offline</li>
+        <li>View your cached dashboard data</li>
+        <li>See your wallet balance & transactions</li>
+        <li>Read previous notifications</li>
+        <li>Changes sync automatically when online</li>
       </ul>
     </div>
   </div>
@@ -163,8 +171,18 @@
   <script>
     // Auto-retry when connection is restored
     window.addEventListener('online', () => {
-      window.location.reload();
+      window.location.href = '/dashboard';
     });
+    
+    // Check if we can load the dashboard from cache
+    if ('caches' in window) {
+      caches.match('/dashboard').then(response => {
+        if (response) {
+          document.querySelector('p').textContent = 
+            'Good news! Your dashboard is cached and should work offline.';
+        }
+      });
+    }
   </script>
 </body>
 </html>

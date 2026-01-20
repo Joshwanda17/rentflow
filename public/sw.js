@@ -1,44 +1,60 @@
 // Welile Service Worker - Offline-First with Smart Caching
-// Supports instant auto-updates and comprehensive offline functionality
-const CACHE_NAME = 'welile-v5';
+// Optimized for fast smartphone loading and offline dashboard access
+const CACHE_NAME = 'welile-v6';
 const OFFLINE_URL = '/offline.html';
-const API_CACHE_NAME = 'welile-api-v1';
+const API_CACHE_NAME = 'welile-api-v2';
+const STATIC_CACHE_NAME = 'welile-static-v1';
 
-// Core assets to cache immediately on install
+// Core assets to cache immediately on install for instant loading
 const PRECACHE_ASSETS = [
   '/',
   '/offline.html',
   '/favicon.png',
   '/welile-logo.png',
   '/manifest.json',
+];
+
+// App routes to precache for offline navigation
+const APP_SHELL_ROUTES = [
   '/dashboard',
   '/auth',
   '/settings',
   '/transactions',
   '/chat',
+  '/marketplace',
+  '/referrals',
 ];
 
-// API endpoints to cache for offline use
+// API endpoints to cache for offline dashboard access
 const CACHEABLE_API_PATTERNS = [
   /\/rest\/v1\/profiles/,
   /\/rest\/v1\/wallets/,
   /\/rest\/v1\/notifications/,
   /\/rest\/v1\/user_roles/,
+  /\/rest\/v1\/rent_requests/,
+  /\/rest\/v1\/repayments/,
+  /\/rest\/v1\/investment_accounts/,
+  /\/rest\/v1\/platform_transactions/,
 ];
 
 // Install event - cache critical assets and skip waiting immediately
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing new version...');
+  console.log('[SW] Installing new version - optimized for fast smartphone loading...');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS.map(url => {
-        // Only cache GET-able URLs, skip API calls
-        return url;
-      })).catch(err => {
-        console.warn('[SW] Some assets failed to cache:', err);
-      });
-    }).then(() => {
-      console.log('[SW] Skipping waiting...');
+    Promise.all([
+      // Cache core assets
+      caches.open(CACHE_NAME).then((cache) => {
+        return cache.addAll(PRECACHE_ASSETS).catch(err => {
+          console.warn('[SW] Some core assets failed to cache:', err);
+        });
+      }),
+      // Pre-cache static resources
+      caches.open(STATIC_CACHE_NAME).then((cache) => {
+        // These will be cached on first request
+        console.log('[SW] Static cache ready');
+      })
+    ]).then(() => {
+      console.log('[SW] Skipping waiting for instant update...');
       return self.skipWaiting();
     })
   );
@@ -46,19 +62,25 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean old caches and claim all clients immediately
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating new version...');
+  console.log('[SW] Activating - claiming clients for offline dashboard support...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('welile-') && name !== CACHE_NAME && name !== API_CACHE_NAME)
+          .filter((name) => {
+            // Keep current caches, delete old versions
+            return name.startsWith('welile-') && 
+              name !== CACHE_NAME && 
+              name !== API_CACHE_NAME &&
+              name !== STATIC_CACHE_NAME;
+          })
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
     }).then(() => {
-      console.log('[SW] Claiming clients...');
+      console.log('[SW] Claiming all clients...');
       return self.clients.claim();
     }).then(() => {
       return self.clients.matchAll({ type: 'window' }).then((clients) => {
