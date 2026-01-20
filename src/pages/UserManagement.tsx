@@ -394,8 +394,12 @@ export default function UserManagement() {
         <div className="flex items-center justify-between px-4 py-3">
           <div className="flex items-center gap-3">
             <button
-              onClick={() => navigate(-1)}
-              className="p-2 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all"
+              onClick={() => {
+                hapticTap();
+                navigate(-1);
+              }}
+              className="p-3 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <ArrowLeft className="h-6 w-6" />
             </button>
@@ -412,23 +416,32 @@ export default function UserManagement() {
                 setAddUserOpen(true);
               }}
               size="sm"
-              className="h-10 gap-1.5 bg-primary text-primary-foreground font-semibold"
+              className="h-12 min-w-[80px] gap-1.5 bg-primary text-primary-foreground font-semibold touch-manipulation active:scale-95 transition-transform"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <UserPlus className="h-4 w-4" />
+              <UserPlus className="h-5 w-5" />
               Add
             </Button>
             
             <button
-              onClick={handleRefresh}
+              onClick={() => {
+                hapticTap();
+                handleRefresh();
+              }}
               disabled={refreshing}
-              className="p-2.5 rounded-full hover:bg-muted active:scale-95 transition-all"
+              className="p-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
             </button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button className="p-2.5 rounded-full hover:bg-muted active:scale-95 transition-all">
+                <button 
+                  onClick={() => hapticTap()}
+                  className="p-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
                   <MoreHorizontal className="h-5 w-5" />
                 </button>
               </DropdownMenuTrigger>
