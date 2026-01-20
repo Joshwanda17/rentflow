@@ -12,7 +12,8 @@ import { format } from 'date-fns';
 import { useConfetti } from '@/components/Confetti';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
-  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2, Plus
+  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2, Plus,
+  MessageCircle, Copy
 } from 'lucide-react';
 import {
   Dialog,
@@ -53,6 +54,8 @@ const colorOptions = [
   { value: 'pink', label: 'Pink', class: 'bg-pink-500' },
 ];
 
+const APP_URL = 'https://welile2.lovable.app';
+
 export function InvestmentAccountsManager() {
   const [accounts, setAccounts] = useState<InvestmentAccountWithUser[]>([]);
   const [loading, setLoading] = useState(true);
@@ -60,6 +63,7 @@ export function InvestmentAccountsManager() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [editName, setEditName] = useState('');
@@ -263,13 +267,47 @@ export function InvestmentAccountsManager() {
     }
   };
 
+  const generateActivationLink = (accountId: string) => {
+    return `${APP_URL}/dashboard?activate_account=${accountId}`;
+  };
+
+  const handleShareWhatsApp = (account: InvestmentAccountWithUser) => {
+    const activationLink = generateActivationLink(account.id);
+    const message = `🎉 *Welile Investment Account Created!*\n\nHello ${account.user_name},\n\nYour investment account "${account.name}" has been created!\n\n👉 Click here to activate: ${activationLink}\n\nStart investing and earn 15% monthly interest! 💰`;
+    
+    let phone = (account.user_phone || '').replace(/\D/g, '');
+    if (phone.startsWith('0')) {
+      phone = '256' + phone.slice(1);
+    } else if (!phone.startsWith('256')) {
+      phone = '256' + phone;
+    }
+    
+    const whatsappUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const handleCopyActivationLink = async (account: InvestmentAccountWithUser) => {
+    const activationLink = generateActivationLink(account.id);
+    try {
+      await navigator.clipboard.writeText(activationLink);
+      toast({ title: '✅ Link Copied!', description: 'Activation link copied to clipboard' });
+    } catch {
+      toast({ title: 'Copy failed', description: 'Please copy the link manually', variant: 'destructive' });
+    }
+  };
+
+  const openShareDialog = (account: InvestmentAccountWithUser) => {
+    setSelectedAccount(account);
+    setShareDialogOpen(true);
+  };
+
   const filteredAccounts = accounts.filter(acc => 
     acc.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
     acc.user_name?.toLowerCase().includes(searchQuery.toLowerCase()) ||
     acc.user_email?.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
-  const pendingCount = accounts.filter(a => a.status === 'pending').length;
+  const pendingCount = accounts.filter(a => a.status === 'pending' || a.status === 'pending_activation').length;
   const approvedCount = accounts.filter(a => a.status === 'approved').length;
   const totalBalance = accounts
     .filter(a => a.status === 'approved')
@@ -381,7 +419,7 @@ export function InvestmentAccountsManager() {
             <Card 
               key={account.id} 
               className={`overflow-hidden ${
-                account.status === 'pending' ? 'border-warning/50 bg-warning/5' : 
+                account.status === 'pending' || account.status === 'pending_activation' ? 'border-warning/50 bg-warning/5' : 
                 account.status === 'rejected' ? 'border-destructive/30 bg-destructive/5' :
                 'border-success/30 bg-success/5'
               }`}
@@ -396,15 +434,16 @@ export function InvestmentAccountsManager() {
                         <Badge 
                           variant="outline" 
                           className={
-                            account.status === 'pending' ? 'bg-warning/20 text-warning border-warning/30' :
+                            account.status === 'pending' || account.status === 'pending_activation' ? 'bg-warning/20 text-warning border-warning/30' :
                             account.status === 'rejected' ? 'bg-destructive/20 text-destructive border-destructive/30' :
                             'bg-success/20 text-success border-success/30'
                           }
                         >
-                          {account.status === 'pending' && <Clock className="h-3 w-3 mr-1" />}
+                          {(account.status === 'pending' || account.status === 'pending_activation') && <Clock className="h-3 w-3 mr-1" />}
                           {account.status === 'approved' && <CheckCircle className="h-3 w-3 mr-1" />}
                           {account.status === 'rejected' && <XCircle className="h-3 w-3 mr-1" />}
-                          {account.status.charAt(0).toUpperCase() + account.status.slice(1)}
+                          {account.status === 'pending_activation' ? 'Awaiting Activation' : 
+                           account.status.charAt(0).toUpperCase() + account.status.slice(1)}
                         </Badge>
                       </div>
                       
@@ -426,6 +465,28 @@ export function InvestmentAccountsManager() {
                       )}
                     </div>
                   </div>
+                  
+                  {/* Share buttons for pending_activation accounts */}
+                  {account.status === 'pending_activation' && (
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => handleCopyActivationLink(account)}
+                        className="gap-1"
+                      >
+                        <Copy className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => handleShareWhatsApp(account)}
+                        className="bg-[#25D366] hover:bg-[#128C7E] text-white gap-1"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span className="hidden sm:inline">Share</span>
+                      </Button>
+                    </div>
+                  )}
                   
                   {account.status === 'pending' && (
                     <div className="flex gap-2 shrink-0">
