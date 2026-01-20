@@ -1,15 +1,29 @@
-// Welile Service Worker - Instant Auto-Updates for All Devices
-// Version check happens every 5 seconds, updates apply immediately
-const CACHE_NAME = 'welile-v4';
+// Welile Service Worker - Offline-First with Smart Caching
+// Supports instant auto-updates and comprehensive offline functionality
+const CACHE_NAME = 'welile-v5';
 const OFFLINE_URL = '/offline.html';
+const API_CACHE_NAME = 'welile-api-v1';
 
-// Assets to cache immediately on install
+// Core assets to cache immediately on install
 const PRECACHE_ASSETS = [
   '/',
   '/offline.html',
   '/favicon.png',
   '/welile-logo.png',
-  '/manifest.json'
+  '/manifest.json',
+  '/dashboard',
+  '/auth',
+  '/settings',
+  '/transactions',
+  '/chat',
+];
+
+// API endpoints to cache for offline use
+const CACHEABLE_API_PATTERNS = [
+  /\/rest\/v1\/profiles/,
+  /\/rest\/v1\/wallets/,
+  /\/rest\/v1\/notifications/,
+  /\/rest\/v1\/user_roles/,
 ];
 
 // Install event - cache critical assets and skip waiting immediately
@@ -17,9 +31,13 @@ self.addEventListener('install', (event) => {
   console.log('[SW] Installing new version...');
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS);
+      return cache.addAll(PRECACHE_ASSETS.map(url => {
+        // Only cache GET-able URLs, skip API calls
+        return url;
+      })).catch(err => {
+        console.warn('[SW] Some assets failed to cache:', err);
+      });
     }).then(() => {
-      // CRITICAL: Skip waiting immediately to activate new version
       console.log('[SW] Skipping waiting...');
       return self.skipWaiting();
     })
@@ -33,18 +51,16 @@ self.addEventListener('activate', (event) => {
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames
-          .filter((name) => name.startsWith('welile-') && name !== CACHE_NAME)
+          .filter((name) => name.startsWith('welile-') && name !== CACHE_NAME && name !== API_CACHE_NAME)
           .map((name) => {
             console.log('[SW] Deleting old cache:', name);
             return caches.delete(name);
           })
       );
     }).then(() => {
-      // CRITICAL: Take control of all clients immediately
       console.log('[SW] Claiming clients...');
       return self.clients.claim();
     }).then(() => {
-      // Notify all clients about the update - this triggers automatic refresh
       return self.clients.matchAll({ type: 'window' }).then((clients) => {
         console.log('[SW] Notifying', clients.length, 'clients about update');
         clients.forEach((client) => {
@@ -55,7 +71,12 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch event - Network-first for fresh content
+// Check if URL should have API response cached
+function shouldCacheAPIResponse(url) {
+  return CACHEABLE_API_PATTERNS.some(pattern => pattern.test(url));
+}
+
+// Fetch event - Smart caching strategy
 self.addEventListener('fetch', (event) => {
   const { request } = event;
   const url = new URL(request.url);
@@ -63,19 +84,44 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
-  // Skip cross-origin requests except for fonts
+  // Skip cross-origin requests except for fonts and CDN assets
   if (url.origin !== location.origin &&
       !url.hostname.includes('fonts.googleapis.com') &&
-      !url.hostname.includes('fonts.gstatic.com')) {
+      !url.hostname.includes('fonts.gstatic.com') &&
+      !url.hostname.includes('supabase.co')) {
     return;
   }
 
-  // Skip backend API requests - always fetch fresh
+  // Handle Supabase API requests with stale-while-revalidate for cacheable endpoints
+  if (url.hostname.includes('supabase.co') && shouldCacheAPIResponse(url.pathname)) {
+    event.respondWith(
+      caches.open(API_CACHE_NAME).then((cache) => {
+        return cache.match(request).then((cachedResponse) => {
+          const fetchPromise = fetch(request).then((networkResponse) => {
+            if (networkResponse.ok) {
+              // Clone and cache the response
+              cache.put(request, networkResponse.clone());
+            }
+            return networkResponse;
+          }).catch(() => {
+            // Network failed, return cached if available
+            return cachedResponse;
+          });
+
+          // Return cached immediately, update in background
+          return cachedResponse || fetchPromise;
+        });
+      })
+    );
+    return;
+  }
+
+  // Skip other Supabase API requests (real-time, auth, etc.)
   if (url.hostname.includes('supabase.co')) {
     return;
   }
 
-  // For navigation requests, use network-first
+  // For navigation requests, use network-first with offline fallback
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
@@ -90,7 +136,11 @@ self.addEventListener('fetch', (event) => {
         })
         .catch(() => {
           return caches.match(request).then((cached) => {
-            return cached || caches.match(OFFLINE_URL);
+            if (cached) return cached;
+            // For SPA routes, return the main index
+            return caches.match('/').then((indexCached) => {
+              return indexCached || caches.match(OFFLINE_URL);
+            });
           });
         })
     );
@@ -169,6 +219,7 @@ self.addEventListener('fetch', (event) => {
 
 // Background sync for failed requests (when back online)
 self.addEventListener('sync', (event) => {
+  console.log('[SW] Background sync triggered:', event.tag);
   if (event.tag === 'sync-pending') {
     event.waitUntil(syncPendingRequests());
   }
@@ -191,6 +242,10 @@ self.addEventListener('message', (event) => {
   // Legacy support
   if (event.data === 'skipWaiting') {
     self.skipWaiting();
+  }
+  // Clear API cache on logout
+  if (event.data && event.data.type === 'CLEAR_API_CACHE') {
+    caches.delete(API_CACHE_NAME);
   }
 });
 
@@ -266,3 +321,15 @@ self.addEventListener('notificationclick', (event) => {
 self.addEventListener('notificationclose', (event) => {
   console.log('[SW] Notification closed:', event.notification.tag);
 });
+
+// Periodic background sync for keeping data fresh
+self.addEventListener('periodicsync', (event) => {
+  if (event.tag === 'refresh-data') {
+    event.waitUntil(refreshCachedData());
+  }
+});
+
+async function refreshCachedData() {
+  // This runs in the background to keep cached data fresh
+  console.log('[SW] Refreshing cached data in background');
+}

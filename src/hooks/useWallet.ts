@@ -1,6 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { 
+  cacheWallet, 
+  getCachedWallet, 
+  cacheTransactions, 
+  getCachedTransactions,
+  addToSyncQueue 
+} from '@/lib/offlineDataStorage';
 
 interface WalletTransaction {
   id: string;
@@ -27,75 +34,117 @@ export function useWallet() {
   const [wallet, setWallet] = useState<Wallet | null>(null);
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOfflineData, setIsOfflineData] = useState(false);
 
   const fetchWallet = useCallback(async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('wallets')
-      .select('*')
-      .eq('user_id', user.id)
-      .maybeSingle();
-
-    if (error) {
-      console.error('Error fetching wallet:', error);
-      return;
+    // Try cached data first for instant display
+    try {
+      const cached = await getCachedWallet(user.id);
+      if (cached) {
+        setWallet(cached);
+        setIsOfflineData(true);
+      }
+    } catch (e) {
+      console.warn('[useWallet] Failed to get cached wallet:', e);
     }
 
-    if (!data) {
-      // Create wallet if doesn't exist
-      const { data: newWallet, error: createError } = await supabase
-        .from('wallets')
-        .insert({ user_id: user.id, balance: 0 })
-        .select()
-        .single();
+    // Fetch fresh if online
+    if (navigator.onLine) {
+      try {
+        const { data, error } = await supabase
+          .from('wallets')
+          .select('*')
+          .eq('user_id', user.id)
+          .maybeSingle();
 
-      if (createError) {
-        console.error('Error creating wallet:', createError);
-        return;
+        if (error) {
+          console.error('Error fetching wallet:', error);
+          return;
+        }
+
+        if (!data) {
+          // Create wallet if doesn't exist
+          const { data: newWallet, error: createError } = await supabase
+            .from('wallets')
+            .insert({ user_id: user.id, balance: 0 })
+            .select()
+            .single();
+
+          if (createError) {
+            console.error('Error creating wallet:', createError);
+            return;
+          }
+          setWallet(newWallet);
+          setIsOfflineData(false);
+          await cacheWallet(newWallet);
+        } else {
+          setWallet(data);
+          setIsOfflineData(false);
+          await cacheWallet(data);
+        }
+      } catch (e) {
+        console.warn('[useWallet] Failed to fetch wallet:', e);
       }
-      setWallet(newWallet);
-    } else {
-      setWallet(data);
     }
   }, [user]);
 
   const fetchTransactions = useCallback(async () => {
     if (!user) return;
 
-    const { data, error } = await supabase
-      .from('wallet_transactions')
-      .select('*')
-      .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    if (error) {
-      console.error('Error fetching transactions:', error);
-      return;
+    // Try cached transactions first
+    try {
+      const cached = await getCachedTransactions();
+      if (cached.length > 0) {
+        setTransactions(cached.filter(t => t.sender_id === user.id || t.recipient_id === user.id));
+      }
+    } catch (e) {
+      console.warn('[useWallet] Failed to get cached transactions:', e);
     }
 
-    // Fetch profile names for transactions
-    if (data && data.length > 0) {
-      const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
-      
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds);
+    // Fetch fresh if online
+    if (!navigator.onLine) return;
 
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    try {
+      const { data, error } = await supabase
+        .from('wallet_transactions')
+        .select('*')
+        .or(`sender_id.eq.${user.id},recipient_id.eq.${user.id}`)
+        .order('created_at', { ascending: false })
+        .limit(20);
 
-      const enrichedTransactions = data.map(t => ({
-        ...t,
-        sender_name: profileMap.get(t.sender_id)?.full_name || 'Unknown',
-        recipient_name: profileMap.get(t.recipient_id)?.full_name || 'Unknown',
-        recipient_phone: profileMap.get(t.recipient_id)?.phone || '',
-      }));
+      if (error) {
+        console.error('Error fetching transactions:', error);
+        return;
+      }
 
-      setTransactions(enrichedTransactions);
-    } else {
-      setTransactions([]);
+      // Fetch profile names for transactions
+      if (data && data.length > 0) {
+        const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
+        
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+        const enrichedTransactions = data.map(t => ({
+          ...t,
+          sender_name: profileMap.get(t.sender_id)?.full_name || 'Unknown',
+          recipient_name: profileMap.get(t.recipient_id)?.full_name || 'Unknown',
+          recipient_phone: profileMap.get(t.recipient_id)?.phone || '',
+        }));
+
+        setTransactions(enrichedTransactions);
+        // Cache for offline use
+        await cacheTransactions(enrichedTransactions);
+      } else {
+        setTransactions([]);
+      }
+    } catch (e) {
+      console.warn('[useWallet] Failed to fetch transactions:', e);
     }
   }, [user]);
 
@@ -125,6 +174,27 @@ export function useWallet() {
 
     if (recipientProfile.id === user.id) {
       return { error: new Error('Cannot send money to yourself') };
+    }
+
+    // If offline, queue the transfer
+    if (!navigator.onLine) {
+      await addToSyncQueue({
+        type: 'create',
+        table: 'wallet_transfers_queue',
+        data: {
+          sender_id: user.id,
+          recipient_id: recipientProfile.id,
+          amount,
+          description: description || `Transfer to ${recipientProfile.full_name}`,
+        },
+      });
+      
+      // Optimistically update local wallet
+      const updatedWallet = { ...wallet, balance: wallet.balance - amount };
+      setWallet(updatedWallet);
+      await cacheWallet(updatedWallet);
+      
+      return { data: { queued: true }, error: null };
     }
 
     // Call edge function to process transfer
@@ -178,6 +248,7 @@ export function useWallet() {
     wallet,
     transactions,
     loading,
+    isOfflineData,
     sendMoney,
     depositMoney,
     refreshWallet: fetchWallet,
