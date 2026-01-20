@@ -315,9 +315,13 @@ export default function Auth() {
 
               <Button 
                 type="submit" 
-                className="w-full gap-2 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform" 
+                className="w-full gap-2 h-14 text-base touch-manipulation active:scale-[0.98] transition-transform" 
                 disabled={isLoading}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
+                style={{ 
+                  fontSize: '16px',
+                  WebkitTapHighlightColor: 'transparent',
+                  WebkitAppearance: 'none',
+                }}
               >
                 {isLoading ? (
                   <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
@@ -342,10 +346,14 @@ export default function Auth() {
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-3 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
+              className="w-full gap-3 h-14 text-base touch-manipulation active:scale-[0.98] transition-transform"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isLoading}
-              style={{ WebkitTapHighlightColor: 'transparent' }}
+              style={{ 
+                fontSize: '16px',
+                WebkitTapHighlightColor: 'transparent',
+                WebkitAppearance: 'none',
+              }}
             >
               {isGoogleLoading ? (
                 <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
