@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useChat } from '@/hooks/useChat';
+import { useState, useEffect } from 'react';
+import { useChat, Conversation } from '@/hooks/useChat';
 import { usePresenceContext } from '@/hooks/usePresence';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -7,20 +7,43 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Users, PlusCircle } from 'lucide-react';
+import { MessageCircle, Users, PlusCircle, WifiOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import NewChatSearch from './NewChatSearch';
 import OnlineIndicator from './OnlineIndicator';
+import { getCachedConversations, cacheConversations } from '@/lib/offlineStorage';
 
 interface ChatListProps {
   onSelectConversation: (conversationId: string) => void;
   selectedId?: string;
+  isOffline?: boolean;
 }
 
-export default function ChatList({ onSelectConversation, selectedId }: ChatListProps) {
+export default function ChatList({ onSelectConversation, selectedId, isOffline = false }: ChatListProps) {
   const { conversations, loading } = useChat();
   const { isOnline } = usePresenceContext();
   const [activeTab, setActiveTab] = useState<string>('chats');
+  const [cachedConversations, setCachedConversations] = useState<Conversation[]>([]);
+
+  // Load cached conversations on mount
+  useEffect(() => {
+    getCachedConversations().then(cached => {
+      if (cached.length > 0) {
+        setCachedConversations(cached as Conversation[]);
+      }
+    });
+  }, []);
+
+  // Cache conversations when they change
+  useEffect(() => {
+    if (conversations.length > 0 && !isOffline) {
+      cacheConversations(conversations);
+      setCachedConversations(conversations);
+    }
+  }, [conversations, isOffline]);
+
+  // Use cached data when offline
+  const displayConversations = isOffline ? cachedConversations : conversations;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -59,20 +82,31 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
       );
     }
 
-    if (conversations.length === 0) {
+    if (displayConversations.length === 0) {
       return (
         <div className="flex flex-col items-center justify-center py-12 text-center px-4">
           <div className="p-4 rounded-full bg-muted mb-4">
-            <MessageCircle className="h-8 w-8 text-muted-foreground" />
+            {isOffline ? (
+              <WifiOff className="h-8 w-8 text-muted-foreground" />
+            ) : (
+              <MessageCircle className="h-8 w-8 text-muted-foreground" />
+            )}
           </div>
-          <h3 className="font-semibold mb-1">No conversations yet</h3>
+          <h3 className="font-semibold mb-1">
+            {isOffline ? 'No cached conversations' : 'No conversations yet'}
+          </h3>
           <p className="text-sm text-muted-foreground mb-4">
-            Tap "New Chat" to start chatting with someone
+            {isOffline 
+              ? 'Your conversations will appear here when you go online'
+              : 'Tap "New Chat" to start chatting with someone'
+            }
           </p>
-          <Button onClick={() => setActiveTab('new')} className="gap-2">
-            <PlusCircle className="h-4 w-4" />
-            Start New Chat
-          </Button>
+          {!isOffline && (
+            <Button onClick={() => setActiveTab('new')} className="gap-2">
+              <PlusCircle className="h-4 w-4" />
+              Start New Chat
+            </Button>
+          )}
         </div>
       );
     }
@@ -80,7 +114,7 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
     return (
       <ScrollArea className="h-full">
         <div className="divide-y">
-          {conversations.map((conv) => {
+          {displayConversations.map((conv) => {
             const participant = conv.participants[0];
             if (!participant) return null;
 
@@ -102,11 +136,13 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
                       {conv.unread_count > 9 ? '9+' : conv.unread_count}
                     </div>
                   ) : (
-                    <OnlineIndicator 
-                      isOnline={isOnline(participant.user_id)} 
-                      size="md"
-                      className="absolute bottom-0 right-0"
-                    />
+                    !isOffline && (
+                      <OnlineIndicator 
+                        isOnline={isOnline(participant.user_id)} 
+                        size="md"
+                        className="absolute bottom-0 right-0"
+                      />
+                    )
                   )}
                 </div>
                 
@@ -144,11 +180,11 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
           <MessageCircle className="h-4 w-4" />
           Chats
         </TabsTrigger>
-        <TabsTrigger value="new" className="flex items-center gap-2">
+        <TabsTrigger value="new" className="flex items-center gap-2" disabled={isOffline}>
           <PlusCircle className="h-4 w-4" />
           New Chat
         </TabsTrigger>
-        <TabsTrigger value="users" className="flex items-center gap-2">
+        <TabsTrigger value="users" className="flex items-center gap-2" disabled={isOffline}>
           <Users className="h-4 w-4" />
           All Users
         </TabsTrigger>
@@ -159,16 +195,20 @@ export default function ChatList({ onSelectConversation, selectedId }: ChatListP
       </TabsContent>
 
       <TabsContent value="new" className="flex-1 mt-2 overflow-hidden">
-        <NewChatSearch 
-          onStartConversation={handleStartConversation} 
-          onClose={() => setActiveTab('chats')}
-        />
+        {!isOffline && (
+          <NewChatSearch 
+            onStartConversation={handleStartConversation} 
+            onClose={() => setActiveTab('chats')}
+          />
+        )}
       </TabsContent>
       
       <TabsContent value="users" className="flex-1 mt-2 overflow-hidden">
-        <NewChatSearch 
-          onStartConversation={handleStartConversation}
-        />
+        {!isOffline && (
+          <NewChatSearch 
+            onStartConversation={handleStartConversation}
+          />
+        )}
       </TabsContent>
     </Tabs>
   );

@@ -8,19 +8,37 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X } from 'lucide-react';
+import { ArrowLeft, Send, Check, CheckCheck, Pencil, Trash2, X, Clock, WifiOff } from 'lucide-react';
 import ReadReceipt from './ReadReceipt';
 import { format, isToday, isYesterday } from 'date-fns';
 import { cn } from '@/lib/utils';
 import OnlineIndicator from './OnlineIndicator';
 import MessageReactions from './MessageReactions';
+import PendingMessageIndicator from './PendingMessageIndicator';
+import { 
+  getCachedMessages, 
+  cacheMessages, 
+  queuePendingMessage, 
+  getPendingMessagesForConversation,
+  removePendingMessage 
+} from '@/lib/offlineStorage';
+import { toast } from 'sonner';
+
+interface PendingMessage {
+  id: string;
+  conversationId: string;
+  content: string;
+  createdAt: string;
+  status: 'pending' | 'sending' | 'failed';
+}
 
 interface ChatWindowProps {
   conversationId: string;
   onBack?: () => void;
+  isOffline?: boolean;
 }
 
-export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) {
+export default function ChatWindow({ conversationId, onBack, isOffline = false }: ChatWindowProps) {
   const { user } = useAuth();
   const { isOnline } = usePresenceContext();
   const { 
@@ -39,19 +57,61 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
   const [sending, setSending] = useState(false);
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editContent, setEditContent] = useState('');
+  const [pendingMessages, setPendingMessages] = useState<PendingMessage[]>([]);
+  const [cachedMessages, setCachedMessages] = useState<Message[]>([]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+
+  // Load cached messages on mount
+  useEffect(() => {
+    getCachedMessages(conversationId).then(cached => {
+      if (cached.length > 0) {
+        setCachedMessages(cached as Message[]);
+      }
+    });
+    getPendingMessagesForConversation(conversationId).then(pending => {
+      setPendingMessages(pending);
+    });
+  }, [conversationId]);
+
+  // Cache messages when they change
+  useEffect(() => {
+    if (messages.length > 0 && !isOffline) {
+      cacheMessages(conversationId, messages);
+      setCachedMessages(messages);
+    }
+  }, [messages, conversationId, isOffline]);
+
+  // Use cached data when offline
+  const displayMessages = isOffline ? cachedMessages : messages;
 
   useEffect(() => {
     // Scroll to bottom when messages change
     if (scrollRef.current) {
       scrollRef.current.scrollIntoView({ behavior: 'smooth' });
     }
-  }, [messages]);
+  }, [displayMessages, pendingMessages]);
 
   const handleSend = async () => {
     if (!newMessage.trim() || sending) return;
+
+    // If offline, queue the message
+    if (isOffline) {
+      const pendingMsg: PendingMessage = {
+        id: `pending-${Date.now()}`,
+        conversationId,
+        content: newMessage.trim(),
+        createdAt: new Date().toISOString(),
+        status: 'pending'
+      };
+      
+      await queuePendingMessage(pendingMsg);
+      setPendingMessages(prev => [...prev, pendingMsg]);
+      setNewMessage('');
+      toast.info('Message queued. Will be sent when you\'re back online.');
+      return;
+    }
 
     setSending(true);
     const success = await sendMessage(newMessage);
@@ -195,17 +255,25 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                 <AvatarImage src={otherParticipant.avatar_url || undefined} />
                 <AvatarFallback>{getInitials(otherParticipant.full_name)}</AvatarFallback>
               </Avatar>
-              <OnlineIndicator 
-                isOnline={isOnline(otherParticipant.user_id)} 
-                size="md"
-                className="absolute bottom-0 right-0"
-              />
+              {!isOffline && (
+                <OnlineIndicator 
+                  isOnline={isOnline(otherParticipant.user_id)} 
+                  size="md"
+                  className="absolute bottom-0 right-0"
+                />
+              )}
             </div>
-            <div>
+            <div className="flex-1">
               <div className="flex items-center gap-2">
                 <span className="font-semibold">{otherParticipant.full_name}</span>
-                {isOnline(otherParticipant.user_id) && (
+                {!isOffline && isOnline(otherParticipant.user_id) && (
                   <span className="text-xs text-success font-medium">Online</span>
+                )}
+                {isOffline && (
+                  <span className="text-xs text-amber-600 font-medium flex items-center gap-1">
+                    <WifiOff className="h-3 w-3" />
+                    Offline mode
+                  </span>
                 )}
               </div>
               <div className="flex gap-1 flex-wrap">
@@ -223,7 +291,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
       {/* Messages */}
       <ScrollArea className="flex-1">
         <div className="p-4 space-y-4">
-          {groupMessagesByDate(messages).map(group => (
+          {groupMessagesByDate(displayMessages).map(group => (
             <div key={group.date}>
               <div className="flex justify-center mb-4">
                 <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
@@ -234,7 +302,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                 {group.messages.map((msg) => {
                   const isOwn = msg.sender_id === user?.id;
                   const isEditing = editingMessageId === msg.id;
-                  const canEdit = isOwn && canEditMessage(msg);
+                  const canEdit = isOwn && canEditMessage(msg) && !isOffline;
                   
                   return (
                     <div
@@ -317,12 +385,14 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
                           )}
                           
                           {/* Reactions */}
-                          <MessageReactions
-                            messageId={msg.id}
-                            reactions={msg.reactions || []}
-                            isOwn={isOwn}
-                            onReactionChange={fetchMessages}
-                          />
+                          {!isOffline && (
+                            <MessageReactions
+                              messageId={msg.id}
+                              reactions={msg.reactions || []}
+                              isOwn={isOwn}
+                              onReactionChange={fetchMessages}
+                            />
+                          )}
                           
                           <div className={`flex items-center gap-1.5 ${isOwn ? 'justify-end' : ''}`}>
                             <p className="text-[10px] text-muted-foreground">
@@ -343,8 +413,24 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
             </div>
           ))}
           
+          {/* Pending messages (queued while offline) */}
+          {pendingMessages.map((pending) => (
+            <div key={pending.id} className="flex justify-end">
+              <div className="flex gap-2 max-w-[80%] flex-row-reverse">
+                <div className="relative">
+                  <div className="rounded-2xl px-4 py-2 bg-primary/60 text-primary-foreground rounded-br-md">
+                    <p className="text-sm whitespace-pre-wrap break-words">{pending.content}</p>
+                  </div>
+                  <div className="flex items-center gap-1.5 justify-end">
+                    <PendingMessageIndicator status={pending.status} />
+                  </div>
+                </div>
+              </div>
+            </div>
+          ))}
+          
           {/* Typing indicator */}
-          {isOtherTyping && otherParticipant && (
+          {!isOffline && isOtherTyping && otherParticipant && (
             <div className="flex justify-start">
               <div className="flex gap-2 items-center">
                 <Avatar className="h-8 w-8 shrink-0">
@@ -373,7 +459,7 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
         <div className="flex gap-2">
           <Input
             ref={inputRef}
-            placeholder="Type a message..."
+            placeholder={isOffline ? "Type a message (will send when online)..." : "Type a message..."}
             value={newMessage}
             onChange={onInputChange}
             onKeyPress={handleKeyPress}
@@ -384,10 +470,16 @@ export default function ChatWindow({ conversationId, onBack }: ChatWindowProps) 
             onClick={handleSend}
             disabled={!newMessage.trim() || sending}
             size="icon"
+            variant={isOffline ? "outline" : "default"}
           >
-            <Send className="h-4 w-4" />
+            {isOffline ? <Clock className="h-4 w-4" /> : <Send className="h-4 w-4" />}
           </Button>
         </div>
+        {isOffline && pendingMessages.length > 0 && (
+          <p className="text-xs text-muted-foreground mt-2 text-center">
+            {pendingMessages.length} message{pendingMessages.length > 1 ? 's' : ''} queued
+          </p>
+        )}
       </div>
     </div>
   );
