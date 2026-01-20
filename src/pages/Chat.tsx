@@ -72,7 +72,7 @@ export default function ChatPage() {
             <h1 className="font-bold text-lg flex-1">
               {selectedConversation ? '' : 'Messages'}
             </h1>
-            {!selectedConversation && currentRole === 'manager' && (
+            {!selectedConversation && (
               <BroadcastMessageDialog 
                 trigger={
                   <Button variant="ghost" size="icon" className="text-primary">
@@ -114,15 +114,13 @@ export default function ChatPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="font-bold text-lg flex-1">Messages</h1>
-              {currentRole === 'manager' && (
-                <BroadcastMessageDialog 
-                  trigger={
-                    <Button variant="ghost" size="icon" className="text-primary">
-                      <Megaphone className="h-5 w-5" />
-                    </Button>
-                  }
-                />
-              )}
+              <BroadcastMessageDialog 
+                trigger={
+                  <Button variant="ghost" size="icon" className="text-primary">
+                    <Megaphone className="h-5 w-5" />
+                  </Button>
+                }
+              />
               <ShareChatLinkButton />
             </div>
             <div className="flex-1 overflow-hidden">
