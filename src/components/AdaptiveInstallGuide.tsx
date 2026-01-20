@@ -119,8 +119,9 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="mt-3 gap-2"
+                    className="mt-3 gap-2 h-11 text-base touch-manipulation active:scale-[0.98] transition-transform"
                     onClick={copyUrl}
+                    style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                   >
                     {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
                     {copied ? 'Copied!' : 'Copy Link'}
@@ -139,9 +140,10 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
             >
               <Button 
                 size="lg" 
-                className="w-full gap-2 text-lg py-6 shadow-lg"
+                className="w-full gap-2 text-lg py-6 shadow-lg touch-manipulation active:scale-[0.98] transition-transform"
                 onClick={handleInstallClick}
                 disabled={isInstalling}
+                style={{ WebkitTapHighlightColor: 'transparent', fontSize: '18px' }}
               >
                 <DeviceIcon className="h-5 w-5" />
                 {isInstalling ? 'Installing...' : 'Install Now'}
@@ -243,24 +245,27 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
         <div className="max-w-md mx-auto flex gap-3">
           <Button 
             variant="outline" 
-            className="flex-1"
+            className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
             onClick={onClose}
+            style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
           >
             Maybe Later
           </Button>
           {canAutoInstall && onInstall && (
             <Button 
-              className="flex-1"
+              className="flex-1 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
               onClick={handleInstallClick}
               disabled={isInstalling}
+              style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
             >
               {isInstalling ? 'Installing...' : 'Install'}
             </Button>
           )}
           {needsSwitchBrowser && (
             <Button 
-              className="flex-1 gap-2"
+              className="flex-1 gap-2 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
               onClick={copyUrl}
+              style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
             >
               {copied ? <Check className="h-4 w-4" /> : <Copy className="h-4 w-4" />}
               {copied ? 'Copied!' : 'Copy Link'}

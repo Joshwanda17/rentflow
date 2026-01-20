@@ -218,7 +218,8 @@ export default function PWAInstallPrompt() {
                   onClick={() => handleInstall()}
                   size="lg"
                   disabled={isInstalling}
-                  className="gap-2 w-full font-semibold shadow-lg touch-manipulation"
+                  className="gap-2 w-full font-semibold shadow-lg touch-manipulation active:scale-[0.98] transition-transform text-base h-12"
+                  style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                 >
                   <Download className="h-5 w-5" />
                   {isInstalling ? 'Installing...' : (platform.installMethod === 'prompt' ? 'Install App' : 'See How')}

@@ -68,8 +68,9 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
                   <Button 
                     variant="outline" 
                     size="sm" 
-                    className="mt-3 gap-2"
+                    className="mt-3 gap-2 h-11 text-base touch-manipulation active:scale-[0.98] transition-transform"
                     onClick={openInSafari}
+                    style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
                   >
                     <Share2 className="h-4 w-4" />
                     Copy Link
@@ -185,9 +186,10 @@ export default function IOSInstallGuide({ onClose }: IOSInstallGuideProps) {
           </motion.p>
           <Button 
             variant="outline" 
-            size="sm" 
+            size="lg" 
             onClick={onClose}
-            className="text-xs touch-manipulation"
+            className="text-base h-12 touch-manipulation active:scale-[0.98] transition-transform"
+            style={{ WebkitTapHighlightColor: 'transparent', fontSize: '16px' }}
           >
             I'll do this later
           </Button>
