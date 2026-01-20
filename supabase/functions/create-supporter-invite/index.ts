@@ -81,8 +81,17 @@ Deno.serve(async (req) => {
     }
 
     // Check if email already exists in auth
-    const { data: existingUsers } = await adminClient.auth.admin.listUsers();
-    const emailExists = existingUsers?.users?.some(u => u.email === email);
+    const { data: existingUsers, error: listUsersError } = await adminClient.auth.admin.listUsers();
+    
+    if (listUsersError) {
+      console.error("Error listing users:", listUsersError);
+      return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    
+    const emailExists = existingUsers?.users?.some(u => u.email?.toLowerCase() === email.toLowerCase());
     
     if (emailExists) {
       return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
@@ -154,9 +163,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+  } catch (error: any) {
+    console.error("Error creating invite:", error);
+    return new Response(JSON.stringify({ 
+      error: error.message || "Internal server error",
+      details: error.toString()
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
