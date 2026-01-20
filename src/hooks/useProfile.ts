@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { cacheProfile, getCachedProfile } from '@/lib/offlineDataStorage';
 
 interface Profile {
   id: string;
@@ -14,33 +15,62 @@ export function useProfile() {
   const { user } = useAuth();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isOfflineData, setIsOfflineData] = useState(false);
 
-  useEffect(() => {
+  const fetchProfile = useCallback(async () => {
     if (!user) {
       setProfile(null);
       setLoading(false);
       return;
     }
 
-    const fetchProfile = async () => {
-      const { data, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, avatar_url')
-        .eq('id', user.id)
-        .single();
+    setLoading(true);
 
-      if (!error && data) {
-        setProfile(data);
+    // Try to get cached data first for instant display
+    try {
+      const cached = await getCachedProfile(user.id);
+      if (cached) {
+        setProfile(cached);
+        setIsOfflineData(true);
       }
-      setLoading(false);
-    };
+    } catch (e) {
+      console.warn('[useProfile] Failed to get cached profile:', e);
+    }
 
-    fetchProfile();
+    // Fetch fresh data if online
+    if (navigator.onLine) {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, full_name, email, phone, avatar_url')
+          .eq('id', user.id)
+          .single();
+
+        if (!error && data) {
+          setProfile(data);
+          setIsOfflineData(false);
+          // Cache for offline use
+          await cacheProfile(data);
+        }
+      } catch (e) {
+        console.warn('[useProfile] Failed to fetch profile:', e);
+      }
+    }
+    
+    setLoading(false);
   }, [user]);
 
-  const refreshProfile = async () => {
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
+
+  const refreshProfile = useCallback(async () => {
     if (!user) return;
     
+    if (!navigator.onLine) {
+      return; // Don't try to refresh when offline
+    }
+
     const { data, error } = await supabase
       .from('profiles')
       .select('id, full_name, email, phone, avatar_url')
@@ -49,8 +79,10 @@ export function useProfile() {
 
     if (!error && data) {
       setProfile(data);
+      setIsOfflineData(false);
+      await cacheProfile(data);
     }
-  };
+  }, [user]);
 
-  return { profile, loading, refreshProfile };
+  return { profile, loading, refreshProfile, isOfflineData };
 }

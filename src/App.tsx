@@ -10,6 +10,7 @@ import { FontSizeProvider } from "@/hooks/useFontSize";
 import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
 import { CartProvider } from "@/hooks/useCart";
 import { ComparisonProvider } from "@/hooks/useProductComparison";
+import { OfflineProvider } from "@/contexts/OfflineContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 
@@ -21,6 +22,7 @@ const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
 const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
+const OfflineBanner = lazy(() => import("@/components/OfflineBanner").then(m => ({ default: m.OfflineBanner })));
 
 // Lazy load routes
 const Index = lazy(() => import("./pages/Index"));
@@ -181,22 +183,25 @@ const App = () => (
               <CurrencyProvider>
                 <BrowserRouter>
                   <AuthProvider>
-                    <CartProvider>
-                      <ComparisonProvider>
-                        <TooltipProvider delayDuration={300}>
-                          <Suspense fallback={null}>
-                            <IOSOptimizations />
-                            <ConnectionStatus />
-                            <PWAInstallPrompt />
-                            <WhatsNewModal />
-                            <GlobalSettingsToolbar />
-                            <Toaster />
-                            <Sonner />
-                          </Suspense>
-                          <AnimatedRoutes />
-                        </TooltipProvider>
-                      </ComparisonProvider>
-                    </CartProvider>
+                    <OfflineProvider>
+                      <CartProvider>
+                        <ComparisonProvider>
+                          <TooltipProvider delayDuration={300}>
+                            <Suspense fallback={null}>
+                              <IOSOptimizations />
+                              <OfflineBanner />
+                              <ConnectionStatus />
+                              <PWAInstallPrompt />
+                              <WhatsNewModal />
+                              <GlobalSettingsToolbar />
+                              <Toaster />
+                              <Sonner />
+                            </Suspense>
+                            <AnimatedRoutes />
+                          </TooltipProvider>
+                        </ComparisonProvider>
+                      </CartProvider>
+                    </OfflineProvider>
                   </AuthProvider>
                 </BrowserRouter>
               </CurrencyProvider>
