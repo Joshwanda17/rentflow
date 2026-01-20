@@ -18,6 +18,7 @@ import BulkRemoveRoleDialog from './BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from './BulkWhatsAppDialog';
 import { QuickUserActions } from './QuickUserActions';
 import { ManagerTip } from './ManagerTip';
+import { CreateUserInviteDialog } from './CreateUserInviteDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils';
@@ -68,6 +69,7 @@ export default function UserProfilesTable() {
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [exportingSelected, setExportingSelected] = useState(false);
   const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
+  const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
 
@@ -491,7 +493,7 @@ export default function UserProfilesTable() {
               setBulkWhatsAppOpen(true);
             }}
             onExport={handleExportCSV}
-            onAddUser={() => toast.info('Navigate to Dashboard to add new users')}
+            onAddUser={() => setCreateUserInviteOpen(true)}
           />
         </div>
 
@@ -868,6 +870,11 @@ export default function UserProfilesTable() {
           phone: u.phone,
           avatar_url: u.avatar_url
         }))}
+      />
+
+      <CreateUserInviteDialog
+        open={createUserInviteOpen}
+        onOpenChange={setCreateUserInviteOpen}
       />
 
       {/* Hidden container for selected users PDF export */}
