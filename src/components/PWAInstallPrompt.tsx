@@ -1,16 +1,19 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Download, X, Plus, Square, ArrowDown, Smartphone } from 'lucide-react';
+import { Download, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { toast } from 'sonner';
+import { detectPlatform, getBrowserName, getOSName } from '@/lib/platformDetection';
+import AdaptiveInstallGuide from './AdaptiveInstallGuide';
 
 export default function PWAInstallPrompt() {
   const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
-  const [showIOSGuide, setShowIOSGuide] = useState(false);
+  const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isFromLink, setIsFromLink] = useState(false);
+  const [platform] = useState(() => detectPlatform());
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -33,62 +36,65 @@ export default function PWAInstallPrompt() {
     if (isInstalled) return;
 
     // For users from shared links, show immediately and more aggressively
-    if (isFromLink && (isInstallable || isIOS)) {
+    if (isFromLink && (isInstallable || platform.canInstallPWA || platform.os === 'ios')) {
       setShowPrompt(true);
-      if (isIOS) {
-        setShowIOSGuide(true);
+      // Show full guide for iOS or manual install platforms
+      if (platform.installMethod === 'manual') {
+        setShowInstallGuide(true);
       }
       return;
     }
 
     // For regular users, show after a brief delay
     const timer = setTimeout(() => {
-      if ((isInstallable || isIOS) && !isInstalled) {
+      if ((isInstallable || platform.canInstallPWA || platform.os === 'ios') && !isInstalled) {
         setShowPrompt(true);
-        if (isIOS) {
-          setShowIOSGuide(true);
-        }
       }
     }, 800);
 
     return () => clearTimeout(timer);
-  }, [isInstallable, isInstalled, isIOS, isFromLink]);
+  }, [isInstallable, isInstalled, isFromLink, platform]);
 
   // Auto-trigger install prompt on Android when user taps anything
   const triggerAutoInstall = useCallback(async () => {
-    if (isInstallable && !isIOS) {
+    if (isInstallable && platform.installMethod === 'prompt') {
       const success = await promptInstall();
       if (success) {
         setShowPrompt(false);
       }
     }
-  }, [isInstallable, isIOS, promptInstall]);
+  }, [isInstallable, platform.installMethod, promptInstall]);
 
   // For shared links on Android, auto-trigger install after short delay
   useEffect(() => {
-    if (isFromLink && isInstallable && !isIOS && !isInstalled) {
+    if (isFromLink && isInstallable && platform.installMethod === 'prompt' && !isInstalled) {
       const timer = setTimeout(() => {
         triggerAutoInstall();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isFromLink, isInstallable, isIOS, isInstalled, triggerAutoInstall]);
+  }, [isFromLink, isInstallable, platform.installMethod, isInstalled, triggerAutoInstall]);
 
   const handleInstall = async () => {
-    const success = await promptInstall();
-    if (success) {
-      setShowPrompt(false);
-      toast.success('App installed! Redirecting to login...');
-      // Redirect to auth page after installation
-      setTimeout(() => {
-        navigate('/auth', { replace: true });
-      }, 1000);
+    if (platform.installMethod === 'prompt') {
+      const success = await promptInstall();
+      if (success) {
+        setShowPrompt(false);
+        toast.success('App installed! Redirecting to login...');
+        setTimeout(() => {
+          navigate('/auth', { replace: true });
+        }, 1000);
+      }
+    } else {
+      // Show the install guide for manual installation
+      setShowInstallGuide(true);
     }
+    return false;
   };
 
   const handleDismiss = () => {
     setShowPrompt(false);
-    setShowIOSGuide(false);
+    setShowInstallGuide(false);
   };
 
   // Check if just installed and redirect to auth
@@ -99,9 +105,8 @@ export default function PWAInstallPrompt() {
     if (justInstalled === 'true' && installedAt) {
       const installedTime = parseInt(installedAt, 10);
       const now = Date.now();
-      // If installed within last 30 seconds, redirect to auth
       if (now - installedTime < 30000 && location.pathname !== '/auth') {
-        localStorage.removeItem('welile_pwa_installed_at'); // Clear to prevent repeated redirects
+        localStorage.removeItem('welile_pwa_installed_at');
         navigate('/auth', { replace: true });
       }
     }
@@ -109,159 +114,21 @@ export default function PWAInstallPrompt() {
 
   if (isInstalled) return null;
 
-  // Full-screen iOS installation guide - more prominent
-  if (showIOSGuide && isIOS) {
+  // Show the adaptive install guide
+  if (showInstallGuide) {
     return (
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-background flex flex-col"
-      >
-        {/* Header */}
-        <div className="flex items-center justify-between p-4 border-b bg-primary/5">
-          <div className="flex items-center gap-2">
-            <Smartphone className="h-5 w-5 text-primary" />
-            <h2 className="text-lg font-semibold">Install Welile.com</h2>
-          </div>
-          <button
-            onClick={handleDismiss}
-            className="p-2 rounded-full hover:bg-muted transition-colors"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        {/* Content */}
-        <div className="flex-1 overflow-auto px-6 py-8">
-          <div className="max-w-sm mx-auto space-y-8">
-            {/* App preview with pulse animation */}
-            <div className="text-center">
-              <motion.div 
-                className="w-24 h-24 mx-auto rounded-3xl overflow-hidden shadow-2xl mb-4 ring-4 ring-primary/20"
-                animate={{ scale: [1, 1.05, 1] }}
-                transition={{ duration: 2, repeat: Infinity }}
-              >
-                <img src="/welile-logo.png" alt="Welile" className="w-full h-full object-cover" />
-              </motion.div>
-              <h3 className="text-2xl font-bold">Get the App!</h3>
-              <p className="text-muted-foreground mt-1">Install for the best experience</p>
-            </div>
-
-            {/* Steps */}
-            <div className="space-y-4">
-              <h4 className="font-semibold text-center text-lg">3 Quick Steps:</h4>
-              
-              {/* Step 1 */}
-              <motion.div 
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.1 }}
-                className="flex items-start gap-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border-2 border-primary/30"
-              >
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                  1
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold mb-2 text-lg">Tap Share</p>
-                  <div className="flex items-center gap-2">
-                    <div className="p-3 bg-blue-500 rounded-xl flex flex-col items-center shadow-md">
-                      <Square className="h-5 w-5 text-white" strokeWidth={1.5} />
-                      <ArrowDown className="h-3 w-3 text-white -mt-1" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">
-                      At the bottom of Safari
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Step 2 */}
-              <motion.div 
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.2 }}
-                className="flex items-start gap-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border-2 border-primary/30"
-              >
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                  2
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold mb-2 text-lg">Add to Home Screen</p>
-                  <div className="flex items-center gap-2">
-                    <div className="p-3 bg-primary rounded-xl shadow-md">
-                      <Plus className="h-5 w-5 text-white" />
-                    </div>
-                    <span className="text-sm text-muted-foreground">Scroll down to find it</span>
-                  </div>
-                </div>
-              </motion.div>
-
-              {/* Step 3 */}
-              <motion.div 
-                initial={{ x: -20, opacity: 0 }}
-                animate={{ x: 0, opacity: 1 }}
-                transition={{ delay: 0.3 }}
-                className="flex items-start gap-4 p-4 bg-gradient-to-r from-primary/10 to-primary/5 rounded-2xl border-2 border-primary/30"
-              >
-                <div className="flex-shrink-0 w-12 h-12 rounded-full bg-primary text-white flex items-center justify-center font-bold text-lg shadow-lg">
-                  3
-                </div>
-                <div className="flex-1">
-                  <p className="font-semibold mb-2 text-lg">Tap "Add"</p>
-                  <span className="text-sm text-muted-foreground">Done! Open Welile from your home screen</span>
-                </div>
-              </motion.div>
-            </div>
-
-            {/* Benefits with icons */}
-            <div className="bg-gradient-to-br from-green-500/10 to-emerald-500/10 rounded-2xl p-5 border border-green-500/20">
-              <h5 className="font-semibold mb-3 text-green-700 dark:text-green-400">Why Install?</h5>
-              <ul className="text-sm space-y-2">
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
-                  <span>Instant access from home screen</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
-                  <span>Works offline - no internet needed</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
-                  <span>Faster than browser</span>
-                </li>
-                <li className="flex items-center gap-2">
-                  <span className="w-5 h-5 rounded-full bg-green-500 text-white flex items-center justify-center text-xs">✓</span>
-                  <span>Get important notifications</span>
-                </li>
-              </ul>
-            </div>
-          </div>
-        </div>
-
-        {/* Sticky footer with arrow pointing down */}
-        <div className="p-4 border-t bg-gradient-to-r from-primary/10 to-purple-500/10">
-          <div className="max-w-sm mx-auto text-center space-y-3">
-            <motion.div 
-              className="flex items-center justify-center gap-2 text-primary font-medium"
-              animate={{ y: [0, 5, 0] }}
-              transition={{ duration: 1, repeat: Infinity }}
-            >
-              <ArrowDown className="h-5 w-5" />
-              <span>Look for the Share button below</span>
-              <ArrowDown className="h-5 w-5" />
-            </motion.div>
-            <Button 
-              variant="ghost" 
-              size="sm" 
-              onClick={handleDismiss}
-              className="text-xs text-muted-foreground"
-            >
-              Maybe later
-            </Button>
-          </div>
-        </div>
-      </motion.div>
+      <AdaptiveInstallGuide 
+        onClose={handleDismiss}
+        onInstall={platform.installMethod === 'prompt' ? async () => {
+          const success = await promptInstall();
+          if (success) {
+            toast.success('App installed!');
+            navigate('/auth', { replace: true });
+            return true;
+          }
+          return false;
+        } : undefined}
+      />
     );
   }
 
@@ -274,6 +141,9 @@ export default function PWAInstallPrompt() {
           exit={{ y: 100, opacity: 0, scale: 0.9 }}
           transition={{ type: 'spring', stiffness: 400, damping: 30 }}
           className="fixed bottom-4 left-4 right-4 md:left-auto md:right-4 md:w-96 z-50"
+          style={{
+            bottom: 'max(env(safe-area-inset-bottom) + 16px, 16px)',
+          }}
         >
           <div className="bg-card border-2 border-primary/30 rounded-3xl shadow-2xl p-5 relative overflow-hidden">
             {/* Animated gradient background */}
@@ -286,7 +156,7 @@ export default function PWAInstallPrompt() {
             {/* Close button */}
             <button
               onClick={handleDismiss}
-              className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors z-10"
+              className="absolute top-3 right-3 p-1.5 rounded-full hover:bg-muted transition-colors z-10 touch-manipulation"
             >
               <X className="h-4 w-4 text-muted-foreground" />
             </button>
@@ -303,32 +173,24 @@ export default function PWAInstallPrompt() {
 
               <div className="flex-1 min-w-0">
                 <h3 className="font-bold text-lg text-foreground mb-1">Install Welile</h3>
+                <p className="text-xs text-muted-foreground mb-1">
+                  {getBrowserName(platform.browser)} on {getOSName(platform.os)}
+                </p>
                 <p className="text-sm text-muted-foreground mb-4">
-                  {isIOS 
-                    ? 'Add to home screen for the best experience'
-                    : 'Install now for quick access & offline use'
+                  {platform.installMethod === 'prompt' 
+                    ? 'Install now for quick access & offline use'
+                    : 'Add to home screen for the best experience'
                   }
                 </p>
 
-                {isIOS ? (
-                  <Button 
-                    onClick={() => setShowIOSGuide(true)}
-                    size="lg"
-                    className="gap-2 w-full font-semibold shadow-lg"
-                  >
-                    <Download className="h-5 w-5" />
-                    Install Now
-                  </Button>
-                ) : (
-                  <Button 
-                    onClick={handleInstall}
-                    size="lg"
-                    className="gap-2 w-full font-semibold shadow-lg"
-                  >
-                    <Download className="h-5 w-5" />
-                    Install App
-                  </Button>
-                )}
+                <Button 
+                  onClick={() => handleInstall()}
+                  size="lg"
+                  className="gap-2 w-full font-semibold shadow-lg touch-manipulation"
+                >
+                  <Download className="h-5 w-5" />
+                  {platform.installMethod === 'prompt' ? 'Install App' : 'See How'}
+                </Button>
               </div>
             </div>
           </div>
