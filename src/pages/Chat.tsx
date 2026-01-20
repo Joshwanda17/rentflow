@@ -8,8 +8,9 @@ import ChatList from '@/components/chat/ChatList';
 import ChatWindow from '@/components/chat/ChatWindow';
 import OfflineBanner from '@/components/chat/OfflineBanner';
 import ShareChatLinkButton from '@/components/chat/ShareChatLinkButton';
+import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Megaphone } from 'lucide-react';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { getLastSyncTime } from '@/lib/offlineStorage';
 
@@ -71,6 +72,15 @@ export default function ChatPage() {
             <h1 className="font-bold text-lg flex-1">
               {selectedConversation ? '' : 'Messages'}
             </h1>
+            {!selectedConversation && currentRole === 'manager' && (
+              <BroadcastMessageDialog 
+                trigger={
+                  <Button variant="ghost" size="icon" className="text-primary">
+                    <Megaphone className="h-5 w-5" />
+                  </Button>
+                }
+              />
+            )}
             {!selectedConversation && <ShareChatLinkButton />}
           </div>
 
@@ -104,6 +114,15 @@ export default function ChatPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
               <h1 className="font-bold text-lg flex-1">Messages</h1>
+              {currentRole === 'manager' && (
+                <BroadcastMessageDialog 
+                  trigger={
+                    <Button variant="ghost" size="icon" className="text-primary">
+                      <Megaphone className="h-5 w-5" />
+                    </Button>
+                  }
+                />
+              )}
               <ShareChatLinkButton />
             </div>
             <div className="flex-1 overflow-hidden">

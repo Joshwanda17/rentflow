@@ -10,12 +10,14 @@ import {
   TrendingUp,
   UserPlus,
   ChevronRight,
-  Megaphone
+  Megaphone,
+  MessageSquare
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { hapticTap } from '@/lib/haptics';
 import BroadcastNotificationDialog from './BroadcastNotificationDialog';
+import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { cn } from '@/lib/utils';
 
 interface QuickAction {
@@ -164,7 +166,7 @@ export function MobileQuickActions({
         </div>
 
         {/* Broadcast & Add User Buttons */}
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="mt-3 grid grid-cols-3 gap-2">
           {/* Broadcast Notification Button */}
           <BroadcastNotificationDialog 
             trigger={
@@ -173,15 +175,30 @@ export function MobileQuickActions({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 onClick={() => hapticTap()}
-                className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-orange-500/20 via-orange-500/15 to-orange-500/10 border-2 border-orange-500/30 touch-manipulation active:scale-[0.98]"
+                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-orange-500/15 to-orange-500/10 border-2 border-orange-500/30 touch-manipulation active:scale-[0.98]"
               >
                 <div className="p-2 rounded-xl bg-orange-500 text-white">
                   <Megaphone className="h-5 w-5" />
                 </div>
-                <div className="text-left">
-                  <p className="text-sm font-bold text-orange-600 dark:text-orange-400">Broadcast</p>
-                  <p className="text-[10px] text-muted-foreground">Notify all</p>
+                <p className="text-xs font-bold text-orange-600 dark:text-orange-400">Notify All</p>
+              </motion.button>
+            }
+          />
+
+          {/* Broadcast Message Button */}
+          <BroadcastMessageDialog 
+            trigger={
+              <motion.button
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.32 }}
+                onClick={() => hapticTap()}
+                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-blue-500/20 via-blue-500/15 to-blue-500/10 border-2 border-blue-500/30 touch-manipulation active:scale-[0.98]"
+              >
+                <div className="p-2 rounded-xl bg-blue-500 text-white">
+                  <MessageSquare className="h-5 w-5" />
                 </div>
+                <p className="text-xs font-bold text-blue-600 dark:text-blue-400">Message All</p>
               </motion.button>
             }
           />
@@ -195,15 +212,12 @@ export function MobileQuickActions({
               hapticTap();
               navigate('/manager-access?tab=users&action=add');
             }}
-            className="w-full flex items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98]"
+            className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98]"
           >
             <div className="p-2 rounded-xl bg-primary text-primary-foreground">
               <UserPlus className="h-5 w-5" />
             </div>
-            <div className="text-left">
-              <p className="text-sm font-bold text-primary">Add User</p>
-              <p className="text-[10px] text-muted-foreground">Invite new</p>
-            </div>
+            <p className="text-xs font-bold text-primary">Add User</p>
           </motion.button>
         </div>
       </CardContent>
