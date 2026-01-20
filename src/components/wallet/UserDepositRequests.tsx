@@ -1,10 +1,12 @@
 import { useState, useEffect } from 'react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { Clock, CheckCircle2, XCircle, Wallet } from 'lucide-react';
+import { Clock, CheckCircle2, XCircle, Wallet, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 
 interface DepositRequest {
   id: string;
@@ -20,6 +22,7 @@ export function UserDepositRequests() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<DepositRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isOpen, setIsOpen] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -114,21 +117,17 @@ export function UserDepositRequests() {
 
   if (loading) {
     return (
-      <Card>
-        <CardHeader className="pb-3">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Clock className="h-4 w-4" />
-            Deposit Requests
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="animate-pulse space-y-2">
-            {[1, 2].map(i => (
-              <div key={i} className="h-16 bg-muted rounded-lg" />
-            ))}
-          </div>
-        </CardContent>
-      </Card>
+      <Button
+        variant="ghost"
+        size="sm"
+        disabled
+        className="w-full justify-between text-muted-foreground"
+      >
+        <span className="flex items-center gap-2">
+          <Wallet className="h-4 w-4" />
+          Loading deposit requests...
+        </span>
+      </Button>
     );
   }
 
@@ -139,59 +138,72 @@ export function UserDepositRequests() {
   const pendingCount = requests.filter(r => r.status === 'pending').length;
 
   return (
-    <Card>
-      <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
-          <CardTitle className="text-base flex items-center gap-2">
+    <Collapsible open={isOpen} onOpenChange={setIsOpen}>
+      <CollapsibleTrigger asChild>
+        <Button
+          variant="ghost"
+          size="sm"
+          className="w-full justify-between hover:bg-muted/50"
+        >
+          <span className="flex items-center gap-2">
             <Wallet className="h-4 w-4 text-primary" />
-            Deposit Requests
-          </CardTitle>
-          {pendingCount > 0 && (
-            <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600">
-              {pendingCount} pending
-            </Badge>
+            <span className="text-sm font-medium">Deposit Requests</span>
+            {pendingCount > 0 && (
+              <Badge variant="secondary" className="bg-yellow-500/10 text-yellow-600 text-xs">
+                {pendingCount}
+              </Badge>
+            )}
+          </span>
+          {isOpen ? (
+            <ChevronUp className="h-4 w-4 text-muted-foreground" />
+          ) : (
+            <ChevronDown className="h-4 w-4 text-muted-foreground" />
           )}
-        </div>
-      </CardHeader>
-      <CardContent className="space-y-2">
-        <AnimatePresence mode="popLayout">
-          {requests.map((request) => (
-            <motion.div
-              key={request.id}
-              layout
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -50 }}
-              className="p-3 rounded-lg border bg-card/50"
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {getStatusIcon(request.status)}
-                  <div>
-                    <p className="font-medium text-sm">
-                      {formatCurrency(request.amount)}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      via {request.agent_name}
-                    </p>
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Card className="mt-2">
+          <CardContent className="p-3 space-y-2">
+            <AnimatePresence mode="popLayout">
+              {requests.map((request) => (
+                <motion.div
+                  key={request.id}
+                  layout
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, x: -50 }}
+                  className="p-3 rounded-lg border bg-card/50"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {getStatusIcon(request.status)}
+                      <div>
+                        <p className="font-medium text-sm">
+                          {formatCurrency(request.amount)}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          via {request.agent_name}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      {getStatusBadge(request.status)}
+                      <p className="text-xs text-muted-foreground mt-1">
+                        {new Date(request.created_at).toLocaleDateString()}
+                      </p>
+                    </div>
                   </div>
-                </div>
-                <div className="text-right">
-                  {getStatusBadge(request.status)}
-                  <p className="text-xs text-muted-foreground mt-1">
-                    {new Date(request.created_at).toLocaleDateString()}
-                  </p>
-                </div>
-              </div>
-              {request.status === 'rejected' && request.rejection_reason && (
-                <p className="text-xs text-destructive mt-2 bg-destructive/10 p-2 rounded">
-                  Reason: {request.rejection_reason}
-                </p>
-              )}
-            </motion.div>
-          ))}
-        </AnimatePresence>
-      </CardContent>
-    </Card>
+                  {request.status === 'rejected' && request.rejection_reason && (
+                    <p className="text-xs text-destructive mt-2 bg-destructive/10 p-2 rounded">
+                      Reason: {request.rejection_reason}
+                    </p>
+                  )}
+                </motion.div>
+              ))}
+            </AnimatePresence>
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
   );
 }
