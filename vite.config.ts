@@ -46,14 +46,21 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Skip waiting to activate new SW immediately
+        skipWaiting: true,
+        clientsClaim: true,
+        // Precache app shell for instant loading
+        navigateFallback: '/index.html',
+        navigateFallbackDenylist: [/^\/api/, /^\/rest/],
         runtimeCaching: [
+          // Google Fonts - cache forever
           {
             urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
             handler: 'CacheFirst',
             options: {
               cacheName: 'google-fonts-cache',
               expiration: {
-                maxEntries: 10,
+                maxEntries: 20,
                 maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
@@ -67,11 +74,50 @@ export default defineConfig(({ mode }) => ({
             options: {
               cacheName: 'gstatic-fonts-cache',
               expiration: {
-                maxEntries: 10,
+                maxEntries: 20,
                 maxAgeSeconds: 60 * 60 * 24 * 365
               },
               cacheableResponse: {
                 statuses: [0, 200]
+              }
+            }
+          },
+          // Supabase API - stale-while-revalidate for fast offline-first
+          {
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/(profiles|wallets|notifications|user_roles|rent_requests).*/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'supabase-api-cache',
+              expiration: {
+                maxEntries: 50,
+                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+              },
+              cacheableResponse: {
+                statuses: [0, 200]
+              }
+            }
+          },
+          // Images - cache first for speed
+          {
+            urlPattern: /\.(?:png|jpg|jpeg|svg|gif|webp)$/i,
+            handler: 'CacheFirst',
+            options: {
+              cacheName: 'images-cache',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
+              }
+            }
+          },
+          // JS/CSS - stale-while-revalidate
+          {
+            urlPattern: /\.(?:js|css)$/i,
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'static-resources',
+              expiration: {
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 60 * 24 * 7 // 7 days
               }
             }
           }
