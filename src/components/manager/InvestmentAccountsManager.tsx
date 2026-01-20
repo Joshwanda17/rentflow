@@ -13,7 +13,7 @@ import { useConfetti } from '@/components/Confetti';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
   Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2, Plus,
-  MessageCircle, Copy, History
+  MessageCircle, Copy, History, DollarSign, UserPlus
 } from 'lucide-react';
 import {
   Dialog,
@@ -31,6 +31,9 @@ import {
 } from '@/components/ui/select';
 import { CreateInvestmentAccountDialog } from './CreateInvestmentAccountDialog';
 import { InvestmentEditHistoryDialog } from './InvestmentEditHistoryDialog';
+import { FundInvestmentAccountDialog } from './FundInvestmentAccountDialog';
+import { EditInvestmentAccountDialog } from './EditInvestmentAccountDialog';
+import { CreateSupporterWithAccountDialog } from './CreateSupporterWithAccountDialog';
 
 interface InvestmentAccountWithUser {
   id: string;
@@ -64,8 +67,11 @@ export function InvestmentAccountsManager() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [createWithAccountDialogOpen, setCreateWithAccountDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
+  const [fundDialogOpen, setFundDialogOpen] = useState(false);
+  const [managerEditDialogOpen, setManagerEditDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [editName, setEditName] = useState('');
@@ -292,6 +298,16 @@ export function InvestmentAccountsManager() {
     setHistoryDialogOpen(true);
   };
 
+  const openFundDialog = (account: InvestmentAccountWithUser) => {
+    setSelectedAccount(account);
+    setFundDialogOpen(true);
+  };
+
+  const openManagerEditDialog = (account: InvestmentAccountWithUser) => {
+    setSelectedAccount(account);
+    setManagerEditDialogOpen(true);
+  };
+
   const handleProcessInterest = async () => {
     setProcessingInterest(true);
     try {
@@ -439,11 +455,11 @@ export function InvestmentAccountsManager() {
       </div>
 
       {/* Search, Create & Refresh */}
-      <div className="flex gap-2">
-        <div className="relative flex-1">
+      <div className="flex gap-2 flex-wrap">
+        <div className="relative flex-1 min-w-[150px]">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
-            placeholder="Search accounts or supporters..."
+            placeholder="Search accounts..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="pl-10"
@@ -451,10 +467,18 @@ export function InvestmentAccountsManager() {
         </div>
         <Button 
           onClick={() => setCreateDialogOpen(true)} 
+          variant="outline"
           className="gap-1.5 shrink-0"
         >
           <Plus className="h-4 w-4" />
-          <span className="hidden sm:inline">Create</span>
+          <span className="hidden sm:inline">Existing</span>
+        </Button>
+        <Button 
+          onClick={() => setCreateWithAccountDialogOpen(true)} 
+          className="gap-1.5 shrink-0"
+        >
+          <UserPlus className="h-4 w-4" />
+          <span className="hidden sm:inline">New Supporter</span>
         </Button>
         <Button variant="outline" size="icon" onClick={fetchAccounts} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
@@ -582,7 +606,7 @@ export function InvestmentAccountsManager() {
                     </div>
                   )}
 
-                  {/* History button for approved accounts */}
+                  {/* Actions for approved accounts */}
                   {account.status === 'approved' && (
                     <div className="flex gap-2 shrink-0">
                       <Button
@@ -592,6 +616,23 @@ export function InvestmentAccountsManager() {
                         title="View edit history"
                       >
                         <History className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openManagerEditDialog(account)}
+                        title="Edit account"
+                      >
+                        <Edit2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        onClick={() => openFundDialog(account)}
+                        className="bg-success hover:bg-success/90 gap-1"
+                        title="Add funds"
+                      >
+                        <DollarSign className="h-4 w-4" />
+                        <span className="hidden sm:inline">Fund</span>
                       </Button>
                     </div>
                   )}
@@ -719,12 +760,35 @@ export function InvestmentAccountsManager() {
         onSuccess={fetchAccounts}
       />
 
+      {/* Create Supporter With Account Dialog */}
+      <CreateSupporterWithAccountDialog
+        open={createWithAccountDialogOpen}
+        onOpenChange={setCreateWithAccountDialogOpen}
+        onSuccess={fetchAccounts}
+      />
+
       {/* Edit History Dialog */}
       <InvestmentEditHistoryDialog
         open={historyDialogOpen}
         onOpenChange={setHistoryDialogOpen}
         accountId={selectedAccount?.id || null}
         accountName={selectedAccount?.name || ''}
+      />
+
+      {/* Fund Account Dialog */}
+      <FundInvestmentAccountDialog
+        open={fundDialogOpen}
+        onOpenChange={setFundDialogOpen}
+        account={selectedAccount}
+        onSuccess={fetchAccounts}
+      />
+
+      {/* Manager Edit Account Dialog */}
+      <EditInvestmentAccountDialog
+        open={managerEditDialogOpen}
+        onOpenChange={setManagerEditDialogOpen}
+        account={selectedAccount}
+        onSuccess={fetchAccounts}
       />
     </div>
   );
