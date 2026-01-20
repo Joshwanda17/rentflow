@@ -13,7 +13,7 @@ import { useConfetti } from '@/components/Confetti';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
   Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2, Plus,
-  MessageCircle, Copy
+  MessageCircle, Copy, History
 } from 'lucide-react';
 import {
   Dialog,
@@ -30,6 +30,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { CreateInvestmentAccountDialog } from './CreateInvestmentAccountDialog';
+import { InvestmentEditHistoryDialog } from './InvestmentEditHistoryDialog';
 
 interface InvestmentAccountWithUser {
   id: string;
@@ -64,6 +65,7 @@ export function InvestmentAccountsManager() {
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [historyDialogOpen, setHistoryDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [editName, setEditName] = useState('');
@@ -125,12 +127,24 @@ export function InvestmentAccountsManager() {
     
     const { data: { user } } = await supabase.auth.getUser();
     
+    const oldValues = {
+      name: selectedAccount.name,
+      color: selectedAccount.color,
+      status: selectedAccount.status
+    };
+    
+    const newValues = {
+      name: editName.trim() || selectedAccount.name,
+      color: editColor || selectedAccount.color,
+      status: 'approved'
+    };
+    
     // Update account with edited values and approve
     const { error } = await supabase
       .from('investment_accounts')
       .update({
-        name: editName.trim() || selectedAccount.name,
-        color: editColor || selectedAccount.color,
+        name: newValues.name,
+        color: newValues.color,
         status: 'approved',
         approved_at: new Date().toISOString(),
         approved_by: user?.id
@@ -140,11 +154,22 @@ export function InvestmentAccountsManager() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Log to audit_logs with manager info
+      await supabase.from('audit_logs').insert({
+        record_id: selectedAccount.id,
+        table_name: 'investment_accounts',
+        action_type: 'approve',
+        performed_by: user?.id,
+        old_values: oldValues,
+        new_values: newValues,
+        reason: 'Account approved with edits'
+      });
+
       // Send notification to supporter
       await supabase.from('notifications').insert({
         user_id: selectedAccount.user_id,
         title: '✅ Account Approved!',
-        message: `Your investment account "${editName.trim() || selectedAccount.name}" has been approved. You can now start investing!`,
+        message: `Your investment account "${newValues.name}" has been approved. You can now start investing!`,
         type: 'success',
         metadata: { account_id: selectedAccount.id }
       });
@@ -152,7 +177,7 @@ export function InvestmentAccountsManager() {
       // 🎉 Fire confetti celebration!
       fireSuccess();
 
-      toast({ title: '🎉 Account Approved!', description: `${editName.trim() || selectedAccount.name} has been approved` });
+      toast({ title: '🎉 Account Approved!', description: `${newValues.name} has been approved` });
       setEditDialogOpen(false);
       setSelectedAccount(null);
       fetchAccounts();
@@ -178,6 +203,17 @@ export function InvestmentAccountsManager() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Log to audit_logs
+      await supabase.from('audit_logs').insert({
+        record_id: account.id,
+        table_name: 'investment_accounts',
+        action_type: 'approve',
+        performed_by: user?.id,
+        old_values: { status: account.status },
+        new_values: { status: 'approved' },
+        reason: 'Quick approval'
+      });
+
       // Send notification to supporter
       await supabase.from('notifications').insert({
         user_id: account.user_id,
@@ -202,6 +238,8 @@ export function InvestmentAccountsManager() {
     
     setProcessing(true);
     
+    const { data: { user } } = await supabase.auth.getUser();
+    
     const { error } = await supabase
       .from('investment_accounts')
       .update({
@@ -213,6 +251,17 @@ export function InvestmentAccountsManager() {
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
+      // Log to audit_logs
+      await supabase.from('audit_logs').insert({
+        record_id: selectedAccount.id,
+        table_name: 'investment_accounts',
+        action_type: 'reject',
+        performed_by: user?.id,
+        old_values: { status: selectedAccount.status },
+        new_values: { status: 'rejected', rejection_reason: rejectReason.trim() },
+        reason: rejectReason.trim()
+      });
+
       // Send notification to supporter
       await supabase.from('notifications').insert({
         user_id: selectedAccount.user_id,
@@ -236,6 +285,11 @@ export function InvestmentAccountsManager() {
     setSelectedAccount(account);
     setRejectReason('');
     setRejectDialogOpen(true);
+  };
+
+  const openHistoryDialog = (account: InvestmentAccountWithUser) => {
+    setSelectedAccount(account);
+    setHistoryDialogOpen(true);
   };
 
   const handleProcessInterest = async () => {
@@ -493,6 +547,14 @@ export function InvestmentAccountsManager() {
                       <Button
                         size="sm"
                         variant="outline"
+                        onClick={() => openHistoryDialog(account)}
+                        title="View edit history"
+                      >
+                        <History className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
                         onClick={() => openRejectDialog(account)}
                         className="text-destructive hover:text-destructive"
                         disabled={processing}
@@ -516,6 +578,20 @@ export function InvestmentAccountsManager() {
                       >
                         <CheckCircle className="h-4 w-4 mr-1" />
                         Approve
+                      </Button>
+                    </div>
+                  )}
+
+                  {/* History button for approved accounts */}
+                  {account.status === 'approved' && (
+                    <div className="flex gap-2 shrink-0">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openHistoryDialog(account)}
+                        title="View edit history"
+                      >
+                        <History className="h-4 w-4" />
                       </Button>
                     </div>
                   )}
@@ -641,6 +717,14 @@ export function InvestmentAccountsManager() {
         open={createDialogOpen}
         onOpenChange={setCreateDialogOpen}
         onSuccess={fetchAccounts}
+      />
+
+      {/* Edit History Dialog */}
+      <InvestmentEditHistoryDialog
+        open={historyDialogOpen}
+        onOpenChange={setHistoryDialogOpen}
+        accountId={selectedAccount?.id || null}
+        accountName={selectedAccount?.name || ''}
       />
     </div>
   );
