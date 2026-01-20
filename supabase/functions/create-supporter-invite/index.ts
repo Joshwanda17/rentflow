@@ -5,7 +5,7 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const validRoles = ['tenant', 'agent', 'supporter', 'landlord'];
+const validRoles = ['tenant', 'agent', 'supporter', 'landlord', 'manager'];
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     }
 
     if (!validRoles.includes(role)) {
-      return new Response(JSON.stringify({ error: "Invalid role. Must be tenant, agent, supporter, or landlord" }), {
+      return new Response(JSON.stringify({ error: "Invalid role. Must be tenant, agent, supporter, landlord, or manager" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -75,6 +75,14 @@ Deno.serve(async (req) => {
     // Agents can only create tenant, landlord, and agent (sub-agent) accounts
     if (creatorRole === 'agent' && !['tenant', 'landlord', 'agent'].includes(role)) {
       return new Response(JSON.stringify({ error: "Agents can only create tenant, landlord, and sub-agent accounts" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Only managers can create manager accounts
+    if (role === 'manager' && creatorRole !== 'manager') {
+      return new Response(JSON.stringify({ error: "Only managers can create manager accounts" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
