@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart, Sparkles } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart, Sparkles, Shield } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -15,7 +15,7 @@ interface CreateUserInviteDialogProps {
   onOpenChange: (open: boolean) => void;
 }
 
-type UserRole = 'tenant' | 'agent' | 'supporter' | 'landlord';
+type UserRole = 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string; bgColor: string }> = {
   tenant: {
@@ -45,6 +45,13 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; des
     description: 'Investor who funds rent requests & earns returns',
     color: 'text-rose-500',
     bgColor: 'bg-rose-500/10 border-rose-500/30',
+  },
+  manager: {
+    label: 'Manager',
+    icon: Shield,
+    description: 'Full admin access to manage all users & data',
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10 border-purple-500/30',
   },
 };
 
@@ -140,6 +147,7 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
       case 'landlord': return '🏢';
       case 'agent': return '💼';
       case 'supporter': return '💰';
+      case 'manager': return '👑';
     }
   };
 

@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
   Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound
+  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
@@ -18,6 +18,7 @@ import BulkNotificationDialog from '@/components/manager/BulkNotificationDialog'
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
+import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
@@ -69,6 +70,7 @@ export default function UserManagement() {
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
+  const [addUserOpen, setAddUserOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Check if user is manager
@@ -404,6 +406,18 @@ export default function UserManagement() {
           </div>
           
           <div className="flex items-center gap-2">
+            <Button
+              onClick={() => {
+                hapticTap();
+                setAddUserOpen(true);
+              }}
+              size="sm"
+              className="h-10 gap-1.5 bg-primary text-primary-foreground font-semibold"
+            >
+              <UserPlus className="h-4 w-4" />
+              Add
+            </Button>
+            
             <button
               onClick={handleRefresh}
               disabled={refreshing}
@@ -419,6 +433,13 @@ export default function UserManagement() {
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => {
+                  hapticTap();
+                  setAddUserOpen(true);
+                }}>
+                  <UserPlus className="h-4 w-4 mr-2" />
+                  Add User
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleExportCSV}>
                   <Download className="h-4 w-4 mr-2" />
                   Export CSV
@@ -895,6 +916,29 @@ export default function UserManagement() {
           avatar_url: u.avatar_url
         }))}
       />
+
+      <CreateUserInviteDialog
+        open={addUserOpen}
+        onOpenChange={setAddUserOpen}
+      />
+
+      {/* Floating Add User Button - visible when no selection */}
+      <AnimatePresence>
+        {selectedUserIds.size === 0 && (
+          <motion.button
+            initial={{ opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.8 }}
+            onClick={() => {
+              hapticTap();
+              setAddUserOpen(true);
+            }}
+            className="fixed bottom-6 right-6 z-40 h-16 w-16 rounded-full bg-primary text-primary-foreground shadow-2xl flex items-center justify-center active:scale-95 transition-transform safe-area-bottom"
+          >
+            <UserPlus className="h-7 w-7" />
+          </motion.button>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
