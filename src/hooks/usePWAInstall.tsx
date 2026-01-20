@@ -17,9 +17,11 @@ export function usePWAInstall() {
       || (window.navigator as any).standalone === true;
     setIsInstalled(isStandalone);
 
-    // Check if iOS
-    const iOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    setIsIOS(iOS);
+    // Enhanced iOS detection (includes iPad on iOS 13+)
+    const ua = navigator.userAgent;
+    const iOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+    const isIPadOS = navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1;
+    setIsIOS(iOS || isIPadOS);
 
     // Listen for beforeinstallprompt
     const handleBeforeInstallPrompt = (e: Event) => {
