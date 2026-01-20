@@ -388,11 +388,17 @@ Password: ${createdInvite?.password}`;
             </SheetDescription>
           </SheetHeader>
           
-          <ScrollArea className="flex-1 -mx-6 px-6">
-            <div className="pb-6">
+          <div 
+            className="flex-1 overflow-y-auto overscroll-contain -mx-6 px-6"
+            style={{ 
+              WebkitOverflowScrolling: 'touch',
+              touchAction: 'pan-y'
+            }}
+          >
+            <div className="pb-8">
               {!createdInvite ? formContent : successContent}
             </div>
-          </ScrollArea>
+          </div>
         </SheetContent>
       </Sheet>
     );
@@ -400,7 +406,7 @@ Password: ${createdInvite?.password}`;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+      <DialogContent className="sm:max-w-md max-h-[85vh] flex flex-col overflow-hidden">
         <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
@@ -413,11 +419,16 @@ Password: ${createdInvite?.password}`;
           </DialogDescription>
         </DialogHeader>
 
-        <ScrollArea className="flex-1 -mx-6 px-6">
-          <div className="pb-4">
+        <div 
+          className="flex-1 overflow-y-auto overscroll-contain -mx-6 px-6"
+          style={{ 
+            WebkitOverflowScrolling: 'touch'
+          }}
+        >
+          <div className="pb-6">
             {!createdInvite ? formContent : successContent}
           </div>
-        </ScrollArea>
+        </div>
       </DialogContent>
     </Dialog>
   );
