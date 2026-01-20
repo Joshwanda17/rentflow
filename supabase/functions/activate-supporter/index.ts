@@ -16,7 +16,10 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    const { token, password } = await req.json();
+    let { token, password } = await req.json();
+
+    token = typeof token === 'string' ? token.trim() : token;
+    password = typeof password === 'string' ? password.trim() : password;
 
     if (!token || !password) {
       return new Response(JSON.stringify({ error: "Missing token or password" }), {
@@ -25,7 +28,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Find the invite
+    // Find the invite (pending first)
     const { data: invite, error: inviteError } = await adminClient
       .from("supporter_invites")
       .select("*")
@@ -33,15 +36,40 @@ Deno.serve(async (req) => {
       .eq("status", "pending")
       .single();
 
+    // If it's not pending, allow idempotent activation (link should keep working)
     if (inviteError || !invite) {
-      return new Response(JSON.stringify({ error: "Invalid or expired activation link" }), {
+      const { data: activatedInvite } = await adminClient
+        .from("supporter_invites")
+        .select("*")
+        .eq("activation_token", token)
+        .eq("status", "activated")
+        .single();
+
+      if (activatedInvite) {
+        return new Response(
+          JSON.stringify({
+            success: true,
+            alreadyActivated: true,
+            message: "Account already activated. You can log in.",
+            email: activatedInvite.email,
+            role: activatedInvite.role || 'supporter',
+            isSubAgent: false,
+          }),
+          {
+            status: 200,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          }
+        );
+      }
+
+      return new Response(JSON.stringify({ error: "Invalid activation link" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify password matches
-    if (password !== invite.temp_password) {
+    // Verify password matches (trimmed)
+    if (password !== String(invite.temp_password).trim()) {
       return new Response(JSON.stringify({ error: "Incorrect password" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },

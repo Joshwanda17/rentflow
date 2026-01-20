@@ -66,14 +66,14 @@ export default function ActivateSupporter() {
 
     try {
       const response = await supabase.functions.invoke('activate-supporter', {
-        body: { token, password },
+        body: { token: token.trim(), password: password.trim() },
       });
 
       if (response.error) {
         throw new Error(response.error.message || 'Activation failed');
       }
 
-      if (response.data.error) {
+      if (response.data?.error) {
         throw new Error(response.data.error);
       }
 
@@ -81,8 +81,10 @@ export default function ActivateSupporter() {
       setActivatedEmail(response.data.email);
 
       toast({
-        title: '🎉 Account Activated!',
-        description: 'Your supporter account is now active.',
+        title: response.data?.alreadyActivated ? '✅ Already Activated' : '🎉 Account Activated!',
+        description: response.data?.alreadyActivated
+          ? 'This account was already activated. You can now sign in.'
+          : 'Your account is now active.',
       });
     } catch (error: any) {
       toast({
