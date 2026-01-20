@@ -18,7 +18,7 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { WalletCard } from '@/components/wallet/WalletCard';
+import { CollapsibleWalletCard } from '@/components/wallet/CollapsibleWalletCard';
 import { motion } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
@@ -553,9 +553,9 @@ export default function SupporterDashboard({
           />
         </div>
 
-        {/* Wallet */}
+        {/* Wallet - Collapsible */}
         <div id="wallet-section">
-          <WalletCard />
+          <CollapsibleWalletCard />
         </div>
 
         {/* Invite Friends Card */}
