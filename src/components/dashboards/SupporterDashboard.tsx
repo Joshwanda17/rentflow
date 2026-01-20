@@ -294,7 +294,7 @@ export default function SupporterDashboard({
 
     const { data: currentAccount } = await supabase
       .from('investment_accounts')
-      .select('balance')
+      .select('balance, name')
       .eq('id', accountId)
       .single();
 
@@ -303,6 +303,31 @@ export default function SupporterDashboard({
         .from('investment_accounts')
         .update({ balance: Number(currentAccount.balance) + amount })
         .eq('id', accountId);
+
+      // Notify all managers about the funding for approval
+      const { data: managers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'manager')
+        .eq('enabled', true);
+
+      if (managers && managers.length > 0) {
+        const notifications = managers.map((manager) => ({
+          user_id: manager.user_id,
+          title: '💰 Investment Account Funded!',
+          message: `${profile?.full_name || 'A supporter'} funded ${formatUGX(amount)} to "${currentAccount.name}". Review and approve.`,
+          type: 'investment_funding',
+          metadata: { 
+            account_id: accountId, 
+            supporter_id: user.id,
+            supporter_name: profile?.full_name,
+            amount: amount,
+            account_name: currentAccount.name
+          }
+        }));
+
+        await supabase.from('notifications').insert(notifications);
+      }
     }
 
     setAccounts(prev => prev.map(acc => 

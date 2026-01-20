@@ -15,9 +15,11 @@ import { useState } from 'react';
 interface NotificationMetadata {
   account_id?: string;
   supporter_id?: string;
+  supporter_name?: string;
   account_name?: string;
   rent_request_id?: string;
   user_id?: string;
+  amount?: number;
 }
 
 export function NotificationBell() {
@@ -32,6 +34,7 @@ export function NotificationBell() {
       case 'request': return '📨';
       case 'alert': return '⚠️';
       case 'warning': return '🔔';
+      case 'investment_funding': return '💰';
       default: return 'ℹ️';
     }
   };
@@ -48,6 +51,13 @@ export function NotificationBell() {
     }
 
     const metadata = notification.metadata as NotificationMetadata | null;
+    
+    // Handle investment funding notification - navigate managers to investment accounts
+    if (notification.type === 'investment_funding') {
+      setOpen(false);
+      navigate('/manager-access?tab=investments');
+      return;
+    }
     
     // Handle different notification types
     if (metadata?.account_id) {
