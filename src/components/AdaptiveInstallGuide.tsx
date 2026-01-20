@@ -21,6 +21,7 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
   const [platform, setPlatform] = useState<PlatformInfo | null>(null);
   const [instructions, setInstructions] = useState<InstallInstructions | null>(null);
   const [copied, setCopied] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
 
   useEffect(() => {
     const detected = detectPlatform();
@@ -41,9 +42,14 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
 
   const handleInstallClick = async () => {
     if (platform?.installMethod === 'prompt' && onInstall) {
-      const success = await onInstall();
-      if (success) {
-        onClose();
+      setIsInstalling(true);
+      try {
+        const success = await onInstall();
+        if (success) {
+          onClose();
+        }
+      } finally {
+        setIsInstalling(false);
       }
     }
   };
@@ -135,9 +141,10 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
                 size="lg" 
                 className="w-full gap-2 text-lg py-6 shadow-lg"
                 onClick={handleInstallClick}
+                disabled={isInstalling}
               >
                 <DeviceIcon className="h-5 w-5" />
-                Install Now
+                {isInstalling ? 'Installing...' : 'Install Now'}
               </Button>
               <p className="text-xs text-muted-foreground mt-2">
                 One tap to install the app
@@ -245,8 +252,9 @@ export default function AdaptiveInstallGuide({ onClose, onInstall }: AdaptiveIns
             <Button 
               className="flex-1"
               onClick={handleInstallClick}
+              disabled={isInstalling}
             >
-              Install
+              {isInstalling ? 'Installing...' : 'Install'}
             </Button>
           )}
           {needsSwitchBrowser && (

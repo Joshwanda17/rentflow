@@ -9,11 +9,12 @@ import { detectPlatform, getBrowserName, getOSName } from '@/lib/platformDetecti
 import AdaptiveInstallGuide from './AdaptiveInstallGuide';
 
 export default function PWAInstallPrompt() {
-  const { isInstallable, isInstalled, isIOS, promptInstall } = usePWAInstall();
+  const { isInstallable, isInstalled, promptInstall, hasPrompt } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
   const [isFromLink, setIsFromLink] = useState(false);
   const [platform] = useState(() => detectPlatform());
+  const [isInstalling, setIsInstalling] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -76,20 +77,37 @@ export default function PWAInstallPrompt() {
   }, [isFromLink, isInstallable, platform.installMethod, isInstalled, triggerAutoInstall]);
 
   const handleInstall = async () => {
-    if (platform.installMethod === 'prompt') {
-      const success = await promptInstall();
-      if (success) {
-        setShowPrompt(false);
-        toast.success('App installed! Redirecting to login...');
-        setTimeout(() => {
-          navigate('/auth', { replace: true });
-        }, 1000);
+    // Prevent double-clicks
+    if (isInstalling) return;
+    
+    if (platform.installMethod === 'prompt' && (isInstallable || hasPrompt)) {
+      setIsInstalling(true);
+      try {
+        const success = await promptInstall();
+        if (success) {
+          setShowPrompt(false);
+          toast.success('App installed! Redirecting to login...');
+          setTimeout(() => {
+            navigate('/auth', { replace: true });
+          }, 1000);
+        } else {
+          // If prompt failed but we're on a supported platform, show manual guide
+          if (!hasPrompt) {
+            toast.info('Tap the menu button to install manually');
+            setShowInstallGuide(true);
+          }
+        }
+      } catch (error) {
+        console.error('[PWA] Install error:', error);
+        toast.error('Installation failed. Try using the browser menu.');
+        setShowInstallGuide(true);
+      } finally {
+        setIsInstalling(false);
       }
     } else {
       // Show the install guide for manual installation
       setShowInstallGuide(true);
     }
-    return false;
   };
 
   const handleDismiss = () => {
@@ -119,14 +137,19 @@ export default function PWAInstallPrompt() {
     return (
       <AdaptiveInstallGuide 
         onClose={handleDismiss}
-        onInstall={platform.installMethod === 'prompt' ? async () => {
-          const success = await promptInstall();
-          if (success) {
-            toast.success('App installed!');
-            navigate('/auth', { replace: true });
-            return true;
+        onInstall={(platform.installMethod === 'prompt' && (isInstallable || hasPrompt)) ? async () => {
+          setIsInstalling(true);
+          try {
+            const success = await promptInstall();
+            if (success) {
+              toast.success('App installed!');
+              navigate('/auth', { replace: true });
+              return true;
+            }
+            return false;
+          } finally {
+            setIsInstalling(false);
           }
-          return false;
         } : undefined}
       />
     );
@@ -186,10 +209,11 @@ export default function PWAInstallPrompt() {
                 <Button 
                   onClick={() => handleInstall()}
                   size="lg"
+                  disabled={isInstalling}
                   className="gap-2 w-full font-semibold shadow-lg touch-manipulation"
                 >
                   <Download className="h-5 w-5" />
-                  {platform.installMethod === 'prompt' ? 'Install App' : 'See How'}
+                  {isInstalling ? 'Installing...' : (platform.installMethod === 'prompt' ? 'Install App' : 'See How')}
                 </Button>
               </div>
             </div>
