@@ -12,7 +12,7 @@ import { format } from 'date-fns';
 import { useConfetti } from '@/components/Confetti';
 import { 
   CheckCircle, XCircle, Clock, Wallet, User, 
-  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2
+  Search, RefreshCw, TrendingUp, AlertCircle, Sparkles, Loader2, Edit2, Plus
 } from 'lucide-react';
 import {
   Dialog,
@@ -28,6 +28,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { CreateInvestmentAccountDialog } from './CreateInvestmentAccountDialog';
 
 interface InvestmentAccountWithUser {
   id: string;
@@ -58,6 +59,7 @@ export function InvestmentAccountsManager() {
   const [searchQuery, setSearchQuery] = useState('');
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccountWithUser | null>(null);
   const [rejectReason, setRejectReason] = useState('');
   const [editName, setEditName] = useState('');
@@ -344,7 +346,7 @@ export function InvestmentAccountsManager() {
         </Card>
       </div>
 
-      {/* Search & Refresh */}
+      {/* Search, Create & Refresh */}
       <div className="flex gap-2">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,6 +357,13 @@ export function InvestmentAccountsManager() {
             className="pl-10"
           />
         </div>
+        <Button 
+          onClick={() => setCreateDialogOpen(true)} 
+          className="gap-1.5 shrink-0"
+        >
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Create</span>
+        </Button>
         <Button variant="outline" size="icon" onClick={fetchAccounts} disabled={loading}>
           <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
         </Button>
@@ -565,6 +574,13 @@ export function InvestmentAccountsManager() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Create Investment Account Dialog */}
+      <CreateInvestmentAccountDialog
+        open={createDialogOpen}
+        onOpenChange={setCreateDialogOpen}
+        onSuccess={fetchAccounts}
+      />
     </div>
   );
 }
