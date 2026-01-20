@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Briefcase, Heart, Sparkles, Shield } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
-
+import { ScrollArea } from '@/components/ui/scroll-area';
 interface CreateUserInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -372,8 +372,11 @@ Password: ${createdInvite?.password}`;
   if (isMobile) {
     return (
       <Sheet open={open} onOpenChange={handleClose}>
-        <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl overflow-y-auto pb-safe">
-          <SheetHeader className="pb-4">
+        <SheetContent 
+          side="bottom" 
+          className="h-[90vh] rounded-t-3xl flex flex-col pb-safe"
+        >
+          <SheetHeader className="pb-4 flex-shrink-0">
             <SheetTitle className="flex items-center gap-2 text-lg">
               <UserPlus className="h-5 w-5 text-primary" />
               {createdInvite ? 'Share Activation Link' : 'Create User Account'}
@@ -385,7 +388,11 @@ Password: ${createdInvite?.password}`;
             </SheetDescription>
           </SheetHeader>
           
-          {!createdInvite ? formContent : successContent}
+          <ScrollArea className="flex-1 -mx-6 px-6">
+            <div className="pb-6">
+              {!createdInvite ? formContent : successContent}
+            </div>
+          </ScrollArea>
         </SheetContent>
       </Sheet>
     );
@@ -393,8 +400,8 @@ Password: ${createdInvite?.password}`;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-md max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2">
             <UserPlus className="h-5 w-5 text-primary" />
             {createdInvite ? 'Share Activation Link' : 'Create User Account'}
@@ -406,7 +413,11 @@ Password: ${createdInvite?.password}`;
           </DialogDescription>
         </DialogHeader>
 
-        {!createdInvite ? formContent : successContent}
+        <ScrollArea className="flex-1 -mx-6 px-6">
+          <div className="pb-4">
+            {!createdInvite ? formContent : successContent}
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   );
