@@ -12,69 +12,75 @@ export default function PWAInstallPrompt() {
   const { isInstallable, isInstalled, promptInstall, hasPrompt } = usePWAInstall();
   const [showPrompt, setShowPrompt] = useState(false);
   const [showInstallGuide, setShowInstallGuide] = useState(false);
-  const [isFromLink, setIsFromLink] = useState(false);
   const [platform] = useState(() => detectPlatform());
   const [isInstalling, setIsInstalling] = useState(false);
+  const [autoInstallAttempted, setAutoInstallAttempted] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if user came from a shared link (referrer, UTM params, or specific routes)
-  useEffect(() => {
-    const urlParams = new URLSearchParams(window.location.search);
-    const hasReferrer = document.referrer && !document.referrer.includes(window.location.hostname);
-    const hasUTM = urlParams.has('ref') || urlParams.has('utm_source') || urlParams.has('invite');
-    const isShareRoute = window.location.pathname.includes('/invite') || 
-                         window.location.pathname.includes('/referral') ||
-                         window.location.pathname.includes('/share');
-    
-    if (hasReferrer || hasUTM || isShareRoute) {
-      setIsFromLink(true);
-    }
+  // Check if user has dismissed install recently (don't spam them)
+  const hasRecentlyDismissed = useCallback(() => {
+    const dismissedAt = localStorage.getItem('welile_install_dismissed_at');
+    if (!dismissedAt) return false;
+    const dismissedTime = parseInt(dismissedAt, 10);
+    // Only show again after 24 hours
+    return Date.now() - dismissedTime < 24 * 60 * 60 * 1000;
   }, []);
 
-  useEffect(() => {
-    // Skip if already installed
-    if (isInstalled) return;
+  // Detect if this is a mobile device
+  const isMobile = platform.device === 'mobile' || platform.device === 'tablet';
 
-    // For users from shared links, show immediately and more aggressively
-    if (isFromLink && (isInstallable || platform.canInstallPWA || platform.os === 'ios')) {
+  // Auto-trigger install on mobile devices
+  useEffect(() => {
+    // Skip if already installed or not on mobile
+    if (isInstalled || !isMobile) return;
+    
+    // Skip if user recently dismissed
+    if (hasRecentlyDismissed()) return;
+
+    // For iOS, show install guide immediately
+    if (platform.os === 'ios') {
       setShowPrompt(true);
-      // Show full guide for iOS or manual install platforms
-      if (platform.installMethod === 'manual') {
-        setShowInstallGuide(true);
-      }
-      return;
-    }
-
-    // For regular users, show after a brief delay
-    const timer = setTimeout(() => {
-      if ((isInstallable || platform.canInstallPWA || platform.os === 'ios') && !isInstalled) {
-        setShowPrompt(true);
-      }
-    }, 800);
-
-    return () => clearTimeout(timer);
-  }, [isInstallable, isInstalled, isFromLink, platform]);
-
-  // Auto-trigger install prompt on Android when user taps anything
-  const triggerAutoInstall = useCallback(async () => {
-    if (isInstallable && platform.installMethod === 'prompt') {
-      const success = await promptInstall();
-      if (success) {
-        setShowPrompt(false);
-      }
-    }
-  }, [isInstallable, platform.installMethod, promptInstall]);
-
-  // For shared links on Android, auto-trigger install after short delay
-  useEffect(() => {
-    if (isFromLink && isInstallable && platform.installMethod === 'prompt' && !isInstalled) {
+      // Small delay then show full guide
       const timer = setTimeout(() => {
-        triggerAutoInstall();
-      }, 1500);
+        setShowInstallGuide(true);
+      }, 500);
       return () => clearTimeout(timer);
     }
-  }, [isFromLink, isInstallable, platform.installMethod, isInstalled, triggerAutoInstall]);
+
+    // For Android/other mobile with prompt support, show prompt immediately
+    if (platform.canInstallPWA || platform.installMethod === 'prompt') {
+      setShowPrompt(true);
+    }
+  }, [isInstalled, isMobile, platform, hasRecentlyDismissed]);
+
+  // Auto-trigger the native install prompt on Android as soon as it's available
+  useEffect(() => {
+    if (autoInstallAttempted) return;
+    if (!isMobile || isInstalled) return;
+    if (hasRecentlyDismissed()) return;
+    
+    // When the install prompt becomes available, trigger it automatically
+    if ((isInstallable || hasPrompt) && platform.installMethod === 'prompt') {
+      setAutoInstallAttempted(true);
+      
+      // Trigger after a brief moment to ensure page has loaded
+      const timer = setTimeout(async () => {
+        console.log('[PWA] Auto-triggering install prompt for mobile...');
+        const success = await promptInstall();
+        if (success) {
+          setShowPrompt(false);
+          toast.success('App installed!');
+          navigate('/auth', { replace: true });
+        } else {
+          // If user dismissed, still show the banner
+          setShowPrompt(true);
+        }
+      }, 800);
+      
+      return () => clearTimeout(timer);
+    }
+  }, [isInstallable, hasPrompt, platform.installMethod, isMobile, isInstalled, autoInstallAttempted, promptInstall, navigate, hasRecentlyDismissed]);
 
   const handleInstall = async () => {
     // Prevent double-clicks
@@ -113,6 +119,8 @@ export default function PWAInstallPrompt() {
   const handleDismiss = () => {
     setShowPrompt(false);
     setShowInstallGuide(false);
+    // Track dismissal to avoid spamming the user
+    localStorage.setItem('welile_install_dismissed_at', Date.now().toString());
   };
 
   // Check if just installed and redirect to auth

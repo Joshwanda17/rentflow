@@ -7,6 +7,17 @@ interface BeforeInstallPromptEvent extends Event {
 
 // Global storage for the deferred prompt to prevent losing it on re-renders
 let globalDeferredPrompt: BeforeInstallPromptEvent | null = null;
+let promptCaptured = false;
+
+// Capture the prompt as early as possible (before React even loads)
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e: Event) => {
+    console.log('[PWA] Early capture: beforeinstallprompt event fired');
+    e.preventDefault();
+    globalDeferredPrompt = e as BeforeInstallPromptEvent;
+    promptCaptured = true;
+  }, { once: false });
+}
 
 export function usePWAInstall() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(globalDeferredPrompt);
