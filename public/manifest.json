@@ -1,12 +1,18 @@
 {
   "name": "Welile.com",
-  "short_name": "Welile.com",
+  "short_name": "Welile",
   "description": "Africa's leading rent facilitation platform. Access rent today, pay back over time.",
   "start_url": "/dashboard",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#f8fafc",
   "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
+  "scope": "/",
+  "id": "welile-pwa",
+  "launch_handler": {
+    "client_mode": "navigate-existing"
+  },
   "icons": [
     {
       "src": "/welile-logo.png",
@@ -46,6 +52,18 @@
     },
     {
       "src": "/welile-logo.png",
+      "sizes": "167x167",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
@@ -65,18 +83,23 @@
   ],
   "categories": ["finance", "business"],
   "prefer_related_applications": false,
-  "permissions": [
-    "geolocation",
-    "notifications"
-  ],
-  "protocol_handlers": [
+  "edge_side_panel": {
+    "preferred_width": 400
+  },
+  "shortcuts": [
     {
-      "protocol": "tel",
-      "url": "/call?number=%s"
+      "name": "Dashboard",
+      "short_name": "Home",
+      "description": "Go to your dashboard",
+      "url": "/dashboard",
+      "icons": [{ "src": "/welile-logo.png", "sizes": "96x96" }]
     },
     {
-      "protocol": "sms",
-      "url": "/sms?number=%s"
+      "name": "Marketplace",
+      "short_name": "Shop",
+      "description": "Browse the marketplace",
+      "url": "/marketplace",
+      "icons": [{ "src": "/welile-logo.png", "sizes": "96x96" }]
     }
   ],
   "share_target": {

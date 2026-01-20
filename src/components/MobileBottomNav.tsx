@@ -127,7 +127,10 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       initial={{ y: 100 }}
       animate={{ y: 0 }}
       transition={{ type: 'spring', stiffness: 400, damping: 35 }}
-      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-xl border-t-2 border-primary/20 safe-area-bottom shadow-[0_-8px_30px_-8px_rgba(0,0,0,0.15)]"
+      className="md:hidden fixed bottom-0 left-0 right-0 z-50 bg-card/98 backdrop-blur-xl border-t-2 border-primary/20 shadow-[0_-8px_30px_-8px_rgba(0,0,0,0.15)]"
+      style={{
+        paddingBottom: 'max(env(safe-area-inset-bottom), 8px)',
+      }}
     >
       <div className="flex items-center justify-around py-2 px-1">
         {navItems.map((item) => {

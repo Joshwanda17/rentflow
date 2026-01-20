@@ -20,6 +20,7 @@ const ConnectionStatus = lazy(() => import("@/components/ConnectionStatus").then
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
 const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
+const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 
 // Lazy load routes
 const Index = lazy(() => import("./pages/Index"));
@@ -184,6 +185,7 @@ const App = () => (
                       <ComparisonProvider>
                         <TooltipProvider delayDuration={300}>
                           <Suspense fallback={null}>
+                            <IOSOptimizations />
                             <ConnectionStatus />
                             <PWAInstallPrompt />
                             <WhatsNewModal />

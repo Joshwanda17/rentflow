@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover, user-scalable=yes" />
     <title>Welile.com - Africa's Rent Facilitation Platform</title>
     <meta name="description" content="Welile.com - Africa's leading rent facilitation platform. Access rent today, pay back over time." />
     <link rel="icon" type="image/png" sizes="32x32" href="/welile-logo.png" />
@@ -22,12 +22,32 @@
     
     <!-- PWA -->
     <link rel="manifest" href="/manifest.json" />
-    <meta name="theme-color" content="#7c3aed" />
+    <meta name="theme-color" content="#7c3aed" media="(prefers-color-scheme: light)" />
+    <meta name="theme-color" content="#5b21b6" media="(prefers-color-scheme: dark)" />
+    
+    <!-- iOS PWA Meta Tags - Enhanced -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="Welile.com" />
+    <meta name="format-detection" content="telephone=no" />
+    
+    <!-- iOS Touch Icons - Multiple Sizes -->
     <link rel="apple-touch-icon" href="/welile-logo.png" />
+    <link rel="apple-touch-icon" sizes="152x152" href="/welile-logo.png" />
+    <link rel="apple-touch-icon" sizes="167x167" href="/welile-logo.png" />
+    <link rel="apple-touch-icon" sizes="180x180" href="/welile-logo.png" />
+    
+    <!-- iOS Splash Screens -->
+    <link rel="apple-touch-startup-image" href="/welile-logo.png" />
+    
+    <!-- Prevent iOS Text Size Adjustment -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=5.0, viewport-fit=cover" />
+    
+    <!-- Android PWA -->
     <meta name="mobile-web-app-capable" content="yes" />
+    
+    <!-- Disable callout on iOS -->
+    <meta name="touch-callout" content="none" />
 
     <!-- Open Graph -->
     <meta property="og:title" content="Welile.com - Rent Facilitation" />
