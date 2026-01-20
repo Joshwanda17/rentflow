@@ -1,9 +1,10 @@
 // Welile Service Worker - Offline-First with Smart Caching
 // Optimized for fast smartphone loading and offline dashboard access
-const CACHE_NAME = 'welile-v6';
+// Auto-updates across all devices when new version is published
+const CACHE_NAME = 'welile-v7';
 const OFFLINE_URL = '/offline.html';
 const API_CACHE_NAME = 'welile-api-v2';
-const STATIC_CACHE_NAME = 'welile-static-v1';
+const STATIC_CACHE_NAME = 'welile-static-v2';
 
 // Core assets to cache immediately on install for instant loading
 const PRECACHE_ASSETS = [

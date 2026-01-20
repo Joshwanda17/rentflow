@@ -1,4 +1,5 @@
-import { lazy, Suspense, memo, useEffect } from "react";
+import { lazy, Suspense, memo } from "react";
+import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -112,10 +113,8 @@ const pageTransition = {
 function AnimatedRoutes() {
   const location = useLocation();
   
-  // Lazy load service worker hook
-  useEffect(() => {
-    import("@/hooks/useServiceWorkerUpdate");
-  }, []);
+  // Auto-update service worker for real-time feature deployment
+  useServiceWorkerUpdate();
   
   return (
     <AnimatePresence mode="wait" initial={false}>
