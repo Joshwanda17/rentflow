@@ -4,7 +4,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 
 // VAPID public key - generated for Welile push notifications
-const VAPID_PUBLIC_KEY = 'BHqBb_pjHqSuMtXcCMZ_ZNnXgHPQwxHqQ_LfzJMxF_NwpQABwPfqXPAVzZbPeHvqXvJNP_dW6zNQ_CkA_sWjLxM';
+// This must be a valid P-256 EC public key in uncompressed format (65 bytes), base64url encoded
+const VAPID_PUBLIC_KEY = 'BGtkbcjrO12YMoDuq2sCQeHlu47uPx3SHTgFKZFYiBW8Qr0D9vgyZSZPdw6_4ZFEI9Snk1VEAj2qTYI1I1YxBXE';
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
