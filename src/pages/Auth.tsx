@@ -237,7 +237,8 @@ export default function Auth() {
                         value={fullName}
                         onChange={(e) => setFullName(e.target.value)}
                         placeholder="Enter your full name"
-                        className="pl-10"
+                        className="pl-10 h-12 text-base"
+                        style={{ fontSize: '16px' }}
                         required
                       />
                     </div>
@@ -249,10 +250,13 @@ export default function Auth() {
                       <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                       <Input
                         id="phone"
+                        type="tel"
+                        inputMode="tel"
                         value={phone}
                         onChange={(e) => setPhone(e.target.value)}
                         placeholder="e.g., 0700123456"
-                        className="pl-10"
+                        className="pl-10 h-12 text-base"
+                        style={{ fontSize: '16px' }}
                         required
                       />
                     </div>
@@ -267,10 +271,13 @@ export default function Auth() {
                   <Input
                     id="email"
                     type="email"
+                    inputMode="email"
+                    autoComplete="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     placeholder="you@example.com"
-                    className="pl-10"
+                    className="pl-10 h-12 text-base"
+                    style={{ fontSize: '16px' }}
                     required
                   />
                 </div>
@@ -284,10 +291,12 @@ export default function Auth() {
                     <Input
                       id="password"
                       type="password"
+                      autoComplete={isSignUp ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="pl-10"
+                      className="pl-10 h-12 text-base"
+                      style={{ fontSize: '16px' }}
                       required
                     />
                   </div>
@@ -304,12 +313,17 @@ export default function Auth() {
                 </button>
               )}
 
-              <Button type="submit" className="w-full gap-2 h-11" disabled={isLoading}>
+              <Button 
+                type="submit" 
+                className="w-full gap-2 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform" 
+                disabled={isLoading}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
+              >
                 {isLoading ? (
-                  <div className="w-4 h-4 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                 ) : (
                   <>
-                    {isForgotPassword ? <Mail className="h-4 w-4" /> : isSignUp ? <UserPlus className="h-4 w-4" /> : <LogIn className="h-4 w-4" />}
+                    {isForgotPassword ? <Mail className="h-5 w-5" /> : isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
                     {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Create Account' : 'Sign In'}
                   </>
                 )}
@@ -328,12 +342,13 @@ export default function Auth() {
             <Button
               type="button"
               variant="outline"
-              className="w-full gap-3 h-11"
+              className="w-full gap-3 h-12 text-base touch-manipulation active:scale-[0.98] transition-transform"
               onClick={handleGoogleSignIn}
               disabled={isGoogleLoading || isLoading}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {isGoogleLoading ? (
-                <div className="w-4 h-4 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
               ) : (
                 <svg className="h-5 w-5" viewBox="0 0 24 24">
                   <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
@@ -360,7 +375,8 @@ export default function Auth() {
                   <button
                     type="button"
                     onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-primary hover:text-primary/80 font-medium transition-colors"
+                    className="text-primary hover:text-primary/80 font-medium transition-colors touch-manipulation py-2 px-1"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     {isSignUp ? 'Sign In' : 'Sign Up'}
                   </button>
