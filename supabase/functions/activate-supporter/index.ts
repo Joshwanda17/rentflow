@@ -219,9 +219,12 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+  } catch (error: any) {
+    console.error("Error activating account:", error);
+    return new Response(JSON.stringify({ 
+      error: error.message || "Internal server error",
+      details: error.toString()
+    }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
