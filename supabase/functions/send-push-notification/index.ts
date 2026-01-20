@@ -7,7 +7,7 @@ const corsHeaders = {
 };
 
 // VAPID keys for push notifications
-const VAPID_PUBLIC_KEY = "BHqBb_pjHqSuMtXcCMZ_ZNnXgHPQwxHqQ_LfzJMxF_NwpQABwPfqXPAVzZbPeHvqXvJNP_dW6zNQ_CkA_sWjLxM";
+const VAPID_PUBLIC_KEY = "BGtkbcjrO12YMoDuq2sCQeHlu47uPx3SHTgFKZFYiBW8Qr0D9vgyZSZPdw6_4ZFEI9Snk1VEAj2qTYI1I1YxBXE";
 const VAPID_PRIVATE_KEY = Deno.env.get("VAPID_PRIVATE_KEY") || "";
 const VAPID_SUBJECT = "mailto:notifications@welile.com";
 
