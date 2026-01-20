@@ -1,5 +1,5 @@
 import { useEffect, useState, Suspense, lazy } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
@@ -7,6 +7,9 @@ import { PushNotificationPrompt } from '@/components/PushNotificationPrompt';
 import { Loader2 } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
+import { useConfetti } from '@/components/Confetti';
 
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
@@ -26,11 +29,70 @@ const DashboardLoadingFallback = () => (
 export default function Dashboard() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [cachedRoles, setCachedRoles] = useState<AppRole[]>([]);
   const [showCachedUI, setShowCachedUI] = useState(false);
+  const { toast } = useToast();
+  const { fireSuccess } = useConfetti();
   
   // Enable real-time notifications for money transfers and requests
   useNotifications();
+
+  // Handle investment account activation via link
+  useEffect(() => {
+    const activateAccountId = searchParams.get('activate_account');
+    if (!activateAccountId || !user) return;
+
+    const activateAccount = async () => {
+      // Verify this account belongs to the current user and is pending_activation
+      const { data: account, error: fetchError } = await supabase
+        .from('investment_accounts')
+        .select('*')
+        .eq('id', activateAccountId)
+        .eq('user_id', user.id)
+        .eq('status', 'pending_activation')
+        .single();
+
+      if (fetchError || !account) {
+        if (fetchError?.code !== 'PGRST116') {
+          console.warn('[Dashboard] Account activation error:', fetchError);
+        }
+        // Clear the param to prevent repeated attempts
+        searchParams.delete('activate_account');
+        setSearchParams(searchParams, { replace: true });
+        return;
+      }
+
+      // Activate the account
+      const { error: updateError } = await supabase
+        .from('investment_accounts')
+        .update({
+          status: 'approved',
+          approved_at: new Date().toISOString()
+        })
+        .eq('id', activateAccountId);
+
+      if (updateError) {
+        toast({ 
+          title: 'Activation Failed', 
+          description: updateError.message, 
+          variant: 'destructive' 
+        });
+      } else {
+        fireSuccess();
+        toast({ 
+          title: '🎉 Account Activated!', 
+          description: `Your investment account "${account.name}" is now active. Start investing!` 
+        });
+      }
+
+      // Clear the activation param
+      searchParams.delete('activate_account');
+      setSearchParams(searchParams, { replace: true });
+    };
+
+    activateAccount();
+  }, [searchParams, user, toast, fireSuccess, setSearchParams]);
 
   // Try to load cached roles for instant display
   useEffect(() => {
