@@ -77,15 +77,35 @@ export default function ActivateSupporter() {
         throw new Error(response.data.error);
       }
 
-      setPageState('success');
-      setActivatedEmail(response.data.email);
+      const email = response.data.email;
+      setActivatedEmail(email);
 
       toast({
         title: response.data?.alreadyActivated ? '✅ Already Activated' : '🎉 Account Activated!',
-        description: response.data?.alreadyActivated
-          ? 'This account was already activated. You can now sign in.'
-          : 'Your account is now active.',
+        description: 'Signing you in...',
       });
+
+      // Auto sign-in and redirect to dashboard
+      const { error: signInError } = await supabase.auth.signInWithPassword({
+        email,
+        password: password.trim(),
+      });
+
+      if (signInError) {
+        // If auto-login fails, show success state with manual login button
+        setPageState('success');
+        toast({
+          title: 'Account Activated',
+          description: 'Please click the button to go to your dashboard.',
+        });
+      } else {
+        // Successfully signed in - redirect to dashboard
+        toast({
+          title: '🎉 Welcome to Welile!',
+          description: 'Redirecting to your dashboard...',
+        });
+        navigate('/dashboard');
+      }
     } catch (error: any) {
       toast({
         title: 'Activation Failed',
