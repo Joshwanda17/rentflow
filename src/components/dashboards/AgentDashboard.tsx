@@ -38,6 +38,7 @@ import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
 import { SubAgentsList } from '@/components/agent/SubAgentsList';
+import { SubAgentInvitesList } from '@/components/agent/SubAgentInvitesList';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -364,7 +365,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Rent Requests - Agents can approve/reject */}
         <AgentRentRequestsManager />
 
-        {/* Sub-Agents List */}
+        {/* Sub-Agent Invites List - with resend capability */}
+        <SubAgentInvitesList />
+
+        {/* Active Sub-Agents List */}
         <SubAgentsList />
 
         {/* Registered Users List */}
