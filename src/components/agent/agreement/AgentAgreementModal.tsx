@@ -22,7 +22,6 @@ export default function AgentAgreementModal({
   isAccepting = false,
   viewOnly = false
 }: AgentAgreementModalProps) {
-  const [hasScrolledToBottom, setHasScrolledToBottom] = useState(false);
   const [isAgreed, setIsAgreed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const { profile } = useProfile();
@@ -30,19 +29,9 @@ export default function AgentAgreementModal({
   // Reset state when modal opens
   useEffect(() => {
     if (isOpen) {
-      setHasScrolledToBottom(false);
       setIsAgreed(false);
     }
   }, [isOpen]);
-
-  const handleScroll = () => {
-    if (!scrollRef.current) return;
-    const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    // Consider scrolled to bottom when within 50px of the end
-    if (scrollHeight - scrollTop - clientHeight < 50) {
-      setHasScrolledToBottom(true);
-    }
-  };
 
   const handleAccept = async () => {
     const success = await onAccept();
@@ -99,7 +88,7 @@ export default function AgentAgreementModal({
     }
   };
 
-  const canAccept = hasScrolledToBottom && isAgreed;
+  const canAccept = isAgreed;
 
   if (!isOpen) return null;
 
@@ -139,21 +128,11 @@ export default function AgentAgreementModal({
           {/* Scrollable content */}
           <div
             ref={scrollRef}
-            onScroll={handleScroll}
             className="flex-1 overflow-y-auto p-4 text-sm leading-relaxed"
           >
             <pre className="whitespace-pre-wrap font-sans text-foreground/90">
               {getFormattedAgreement()}
             </pre>
-            
-            {/* Scroll indicator */}
-            {!hasScrolledToBottom && !viewOnly && (
-              <div className="sticky bottom-0 left-0 right-0 bg-gradient-to-t from-card via-card to-transparent pt-8 pb-2 text-center">
-                <p className="text-xs text-muted-foreground animate-bounce">
-                  ↓ Scroll to bottom to accept ↓
-                </p>
-              </div>
-            )}
           </div>
 
           {/* Footer */}
@@ -187,10 +166,9 @@ export default function AgentAgreementModal({
                   <Checkbox
                     checked={isAgreed}
                     onCheckedChange={(checked) => setIsAgreed(checked === true)}
-                    disabled={!hasScrolledToBottom}
                     className="mt-0.5"
                   />
-                  <span className={`text-sm ${!hasScrolledToBottom ? 'text-muted-foreground' : ''}`}>
+                  <span className="text-sm">
                     I have read, understood, and agree to the Agent Terms & Conditions. I confirm I am an independent platform partner, not an employee.
                   </span>
                 </label>
