@@ -14,9 +14,11 @@ import {
   User,
   Building,
   Calendar,
-  Banknote
+  Banknote,
+  AlertTriangle,
+  Filter
 } from 'lucide-react';
-import { format } from 'date-fns';
+import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import {
   Dialog,
   DialogContent,
@@ -26,6 +28,8 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface RentRequest {
   id: string;
@@ -37,6 +41,8 @@ interface RentRequest {
   daily_repayment: number;
   status: string | null;
   created_at: string;
+  disbursed_at: string | null;
+  funded_at: string | null;
   tenant_id: string;
   landlord_id: string;
   approval_comment: string | null;
@@ -44,6 +50,8 @@ interface RentRequest {
   approved_by: string | null;
   tenant?: { full_name: string; phone: string };
   landlord?: { name: string; property_address: string };
+  missedDays?: number;
+  paidAmount?: number;
 }
 
 export function RentRequestsManager() {
@@ -55,6 +63,7 @@ export function RentRequestsManager() {
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [rejectReason, setRejectReason] = useState('');
   const [approvalComment, setApprovalComment] = useState('');
+  const [showDelinquentOnly, setShowDelinquentOnly] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -86,11 +95,53 @@ export function RentRequestsManager() {
       ? await supabase.from('landlords').select('id, name, property_address').in('id', landlordIds)
       : { data: [] };
 
-    const requestsWithDetails = (requestsData || []).map(r => ({
-      ...r,
-      tenant: profiles?.find(p => p.id === r.tenant_id),
-      landlord: landlords?.find(l => l.id === r.landlord_id)
-    }));
+    // Fetch all repayments to calculate missed days
+    const requestIds = (requestsData || []).map(r => r.id);
+    const { data: repayments } = requestIds.length > 0
+      ? await supabase.from('repayments').select('*').in('rent_request_id', requestIds)
+      : { data: [] };
+
+    // Calculate missed days for each request
+    const today = startOfDay(new Date());
+    
+    const requestsWithDetails = (requestsData || []).map(r => {
+      const requestRepayments = (repayments || []).filter(p => p.rent_request_id === r.id);
+      const paidAmount = requestRepayments.reduce((sum, p) => sum + p.amount, 0);
+      
+      let missedDays = 0;
+      
+      // Only calculate missed days for active requests (funded or disbursed)
+      if (r.status === 'funded' || r.status === 'disbursed') {
+        const startDate = startOfDay(new Date(r.disbursed_at || r.funded_at || r.created_at));
+        
+        // Group payments by date
+        const paymentsByDate: Record<string, number> = {};
+        requestRepayments.forEach(p => {
+          const dateKey = format(new Date(p.payment_date), 'yyyy-MM-dd');
+          paymentsByDate[dateKey] = (paymentsByDate[dateKey] || 0) + p.amount;
+        });
+        
+        // Count missed days
+        for (let day = 1; day <= r.duration_days; day++) {
+          const date = addDays(startDate, day - 1);
+          if (isBefore(date, today)) {
+            const dateKey = format(date, 'yyyy-MM-dd');
+            const paidForDay = paymentsByDate[dateKey] || 0;
+            if (paidForDay < r.daily_repayment) {
+              missedDays++;
+            }
+          }
+        }
+      }
+      
+      return {
+        ...r,
+        tenant: profiles?.find(p => p.id === r.tenant_id),
+        landlord: landlords?.find(l => l.id === r.landlord_id),
+        missedDays,
+        paidAmount
+      };
+    });
 
     setRequests(requestsWithDetails);
     setLoading(false);
@@ -170,7 +221,13 @@ export function RentRequestsManager() {
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
-  const otherRequests = requests.filter(r => r.status !== 'pending');
+  const delinquentRequests = requests.filter(r => (r.missedDays || 0) > 0);
+  const activeRequests = requests.filter(r => r.status === 'funded' || r.status === 'disbursed');
+  
+  // Apply delinquent filter
+  const filteredOtherRequests = showDelinquentOnly 
+    ? requests.filter(r => r.status !== 'pending' && (r.missedDays || 0) > 0)
+    : requests.filter(r => r.status !== 'pending');
 
   if (loading) {
     return (
@@ -217,6 +274,17 @@ export function RentRequestsManager() {
             </div>
           </CardContent>
         </Card>
+        <Card className={`cursor-pointer transition-all ${showDelinquentOnly ? 'ring-2 ring-destructive' : ''}`} onClick={() => setShowDelinquentOnly(!showDelinquentOnly)}>
+          <CardContent className="pt-4">
+            <div className="flex items-center gap-3">
+              <AlertTriangle className="h-5 w-5 text-destructive" />
+              <div>
+                <p className="text-sm text-muted-foreground">Delinquent</p>
+                <p className="text-xl font-bold text-destructive">{delinquentRequests.length}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-3">
@@ -228,6 +296,21 @@ export function RentRequestsManager() {
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Delinquent Filter Toggle */}
+      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+        <div className="flex items-center gap-2">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Label htmlFor="delinquent-filter" className="text-sm font-medium cursor-pointer">
+            Show only delinquent accounts (missed payments)
+          </Label>
+        </div>
+        <Switch
+          id="delinquent-filter"
+          checked={showDelinquentOnly}
+          onCheckedChange={setShowDelinquentOnly}
+        />
       </div>
 
       {/* Pending Requests */}
@@ -335,10 +418,19 @@ export function RentRequestsManager() {
 
       {/* Other Requests */}
       <div className="space-y-3">
-        <h3 className="font-semibold">All Requests ({otherRequests.length})</h3>
+        <h3 className="font-semibold flex items-center gap-2">
+          {showDelinquentOnly ? (
+            <>
+              <AlertTriangle className="h-4 w-4 text-destructive" />
+              Delinquent Accounts ({filteredOtherRequests.length})
+            </>
+          ) : (
+            <>All Requests ({filteredOtherRequests.length})</>
+          )}
+        </h3>
         <div className="space-y-3">
-          {otherRequests.map((request) => (
-            <Card key={request.id}>
+          {filteredOtherRequests.map((request) => (
+            <Card key={request.id} className={request.missedDays && request.missedDays > 0 ? 'border-destructive/30' : ''}>
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
                   <div className="space-y-1">
@@ -346,6 +438,12 @@ export function RentRequestsManager() {
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">{request.tenant?.full_name || 'Unknown'}</span>
                       {getStatusBadge(request.status)}
+                      {request.missedDays && request.missedDays > 0 && (
+                        <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1">
+                          <AlertTriangle className="h-3 w-3" />
+                          {request.missedDays} missed
+                        </Badge>
+                      )}
                     </div>
                     <div className="flex items-center gap-4 text-sm text-muted-foreground">
                       <span>{formatUGX(request.rent_amount)}</span>
@@ -357,8 +455,10 @@ export function RentRequestsManager() {
               </CardContent>
             </Card>
           ))}
-          {otherRequests.length === 0 && (
-            <p className="text-center text-muted-foreground py-8">No processed requests yet</p>
+          {filteredOtherRequests.length === 0 && (
+            <p className="text-center text-muted-foreground py-8">
+              {showDelinquentOnly ? 'No delinquent accounts found' : 'No processed requests yet'}
+            </p>
           )}
         </div>
       </div>
