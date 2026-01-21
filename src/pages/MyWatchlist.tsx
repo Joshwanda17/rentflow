@@ -68,6 +68,7 @@ export default function MyWatchlist() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [fundingId, setFundingId] = useState<string | null>(null);
+  const [showReadyOnly, setShowReadyOnly] = useState(false);
   const [confirmFunding, setConfirmFunding] = useState<{
     watchId: string;
     requestId: string;
@@ -311,10 +312,19 @@ export default function MyWatchlist() {
                 <p className="font-semibold text-sm">{formatAmount(stats.totalValue)}</p>
               </CardContent>
             </Card>
-            <Card className="bg-gradient-to-br from-success/10 to-success/5 border-0">
+            <Card 
+              className={`border-0 cursor-pointer transition-all ${
+                showReadyOnly 
+                  ? 'bg-success ring-2 ring-success text-success-foreground' 
+                  : 'bg-gradient-to-br from-success/10 to-success/5 hover:from-success/20 hover:to-success/10'
+              }`}
+              onClick={() => setShowReadyOnly(!showReadyOnly)}
+            >
               <CardContent className="p-3 text-center">
-                <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-success" />
-                <p className="text-xs text-muted-foreground">Ready</p>
+                <CheckCircle2 className={`h-4 w-4 mx-auto mb-1 ${showReadyOnly ? 'text-success-foreground' : 'text-success'}`} />
+                <p className={`text-xs ${showReadyOnly ? 'text-success-foreground/80' : 'text-muted-foreground'}`}>
+                  {showReadyOnly ? 'Showing Ready' : 'Ready'}
+                </p>
                 <p className="font-semibold text-sm">{stats.readyCount}</p>
               </CardContent>
             </Card>
@@ -347,7 +357,9 @@ export default function MyWatchlist() {
               </Button>
             </motion.div>
           ) : (
-            opportunities.map((item, index) => {
+            opportunities
+              .filter(item => !showReadyOnly || isReadyToFund(item.rent_request))
+              .map((item, index) => {
               const request = item.rent_request;
               const status = getVerificationStatus(request);
               const StatusIcon = status.icon;
