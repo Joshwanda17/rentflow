@@ -41,6 +41,7 @@ import { SimpleInvestmentCard } from '@/components/supporter/SimpleInvestmentCar
 import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
 import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
+import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
@@ -569,11 +570,10 @@ export default function SupporterDashboard({
         {/* ROI Earnings Section */}
         <ROIEarningsCard />
 
-        {/* Tenants Needing Help */}
+        {/* Investment Opportunities - Real-time */}
         <div id="tenants-section" className="relative">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-          <SimpleTenantsList
-            requests={availableRequests}
+          <RentOpportunities
             onFund={(id, amount) => {
               if (!effectiveHasAccepted) {
                 setShowAgreementModal(true);
@@ -582,7 +582,8 @@ export default function SupporterDashboard({
               setSelectedRequestId(id);
               setShowRequestDetails(true);
             }}
-            loading={loading}
+            isLocked={!effectiveHasAccepted}
+            onLockedClick={() => setShowAgreementModal(true)}
           />
         </div>
 
