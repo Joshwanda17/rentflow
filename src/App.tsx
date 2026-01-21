@@ -64,6 +64,7 @@ const Calculator = lazy(() => import('./pages/Calculator'));
 const UserManagement = lazy(() => import('./pages/UserManagement'));
 const SupporterEarnings = lazy(() => import('./pages/SupporterEarnings'));
 const InvestmentPortfolio = lazy(() => import('./pages/InvestmentPortfolio'));
+const MyWatchlist = lazy(() => import('./pages/MyWatchlist'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -168,6 +169,7 @@ function AnimatedRoutes() {
             <Route path="/users" element={<UserManagement />} />
             <Route path="/supporter-earnings" element={<SupporterEarnings />} />
             <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
+            <Route path="/my-watchlist" element={<MyWatchlist />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </Suspense>
