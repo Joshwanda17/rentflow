@@ -1,16 +1,43 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Users, Link2, Sparkles } from 'lucide-react';
+import { Copy, Check, Share2, Users, Link2, Sparkles, UserPlus } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 export function ShareSubAgentLink() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [stats, setStats] = useState({ linkSignups: 0, directInvites: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (user) {
+      fetchStats();
+    }
+  }, [user]);
+
+  const fetchStats = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    const { data, error } = await supabase
+      .from('agent_subagents')
+      .select('source')
+      .eq('parent_agent_id', user.id);
+
+    if (!error && data) {
+      const linkSignups = data.filter(d => d.source === 'link').length;
+      const directInvites = data.filter(d => d.source === 'invite').length;
+      setStats({ linkSignups, directInvites });
+    }
+    setLoading(false);
+  };
 
   const getShareLink = () => {
     if (!user) return '';
@@ -69,21 +96,41 @@ Let's grow together! 🤝`;
     >
       <Card className="border-2 border-orange-500/30 bg-gradient-to-br from-orange-500/5 via-amber-500/5 to-yellow-500/5 overflow-hidden">
         <CardContent className="p-4 space-y-4">
-          {/* Header */}
-          <div className="flex items-center gap-3">
-            <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25">
-              <Users className="h-5 w-5" />
-            </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-base flex items-center gap-2">
-                Recruit Sub-Agents
-                <Sparkles className="h-4 w-4 text-orange-500" />
-              </h3>
-              <p className="text-xs text-muted-foreground">
-                Earn <span className="font-bold text-orange-600">UGX 500</span> for each signup!
-              </p>
+          {/* Header with Stats */}
+          <div className="flex items-center justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-orange-500 to-amber-500 text-white shadow-lg shadow-orange-500/25">
+                <Users className="h-5 w-5" />
+              </div>
+              <div>
+                <h3 className="font-bold text-base flex items-center gap-2">
+                  Recruit Sub-Agents
+                  <Sparkles className="h-4 w-4 text-orange-500" />
+                </h3>
+                <p className="text-xs text-muted-foreground">
+                  Earn <span className="font-bold text-orange-600">UGX 500</span> for each signup!
+                </p>
+              </div>
             </div>
           </div>
+
+          {/* Stats Row */}
+          {!loading && (stats.linkSignups > 0 || stats.directInvites > 0) && (
+            <div className="flex gap-2">
+              <Badge variant="outline" className="gap-1.5 px-2.5 py-1 bg-orange-500/10 text-orange-600 border-orange-500/20">
+                <Link2 className="h-3 w-3" />
+                {stats.linkSignups} via link
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 px-2.5 py-1 bg-primary/10 text-primary border-primary/20">
+                <UserPlus className="h-3 w-3" />
+                {stats.directInvites} direct
+              </Badge>
+              <Badge variant="outline" className="gap-1.5 px-2.5 py-1 bg-success/10 text-success border-success/20">
+                <Users className="h-3 w-3" />
+                {stats.linkSignups + stats.directInvites} total
+              </Badge>
+            </div>
+          )}
 
           {/* Link Section */}
           <div className="relative p-3 rounded-xl bg-background/80 border border-orange-500/20">

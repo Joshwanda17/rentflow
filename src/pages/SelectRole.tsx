@@ -168,7 +168,8 @@ export default function SelectRole() {
       try {
         await supabase.from('agent_subagents').insert({
           parent_agent_id: parentAgentId,
-          sub_agent_id: user.id
+          sub_agent_id: user.id,
+          source: 'link' // Track that this came from shareable link
         });
         
         // Clear the stored values
