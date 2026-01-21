@@ -18,7 +18,10 @@ import {
   AlertTriangle,
   Filter,
   MessageCircle,
-  Send
+  Send,
+  History,
+  CheckCircle2,
+  Phone
 } from 'lucide-react';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
@@ -57,6 +60,14 @@ interface RentRequest {
   paidAmount?: number;
 }
 
+interface SentReminder {
+  tenantId: string;
+  tenantName: string;
+  phone: string;
+  missedDays: number;
+  sentAt: Date;
+}
+
 export function RentRequestsManager() {
   const { toast } = useToast();
   const [requests, setRequests] = useState<RentRequest[]>([]);
@@ -74,6 +85,9 @@ export function RentRequestsManager() {
   }>({ open: false, request: null, message: '' });
   const [bulkWhatsappDialog, setBulkWhatsappDialog] = useState(false);
   const [bulkSendingIndex, setBulkSendingIndex] = useState<number | null>(null);
+  const [sentReminders, setSentReminders] = useState<SentReminder[]>([]);
+  const [reminderHistoryDialog, setReminderHistoryDialog] = useState(false);
+  const [bulkCompleteDialog, setBulkCompleteDialog] = useState<{ open: boolean; count: number; reminders: SentReminder[] }>({ open: false, count: 0, reminders: [] });
 
   useEffect(() => {
     fetchRequests();
@@ -278,6 +292,16 @@ Thank you for being part of Welile! 🏠`;
     
     window.open(whatsappUrl, '_blank');
     
+    // Track sent reminder
+    const newReminder: SentReminder = {
+      tenantId: whatsappDialog.request.tenant_id,
+      tenantName: whatsappDialog.request.tenant.full_name,
+      phone: whatsappDialog.request.tenant.phone,
+      missedDays: whatsappDialog.request.missedDays || 0,
+      sentAt: new Date()
+    };
+    setSentReminders(prev => [newReminder, ...prev]);
+    
     toast({
       title: 'WhatsApp Opened',
       description: `Reminder prepared for ${whatsappDialog.request.tenant.full_name}`,
@@ -295,20 +319,27 @@ Thank you for being part of Welile! 🏠`;
     );
   };
 
-  const sendBulkWhatsappReminder = async (index: number) => {
+  const sendBulkWhatsappReminder = async (index: number, bulkReminders: SentReminder[]) => {
     const delinquentTenants = getDelinquentTenantsWithPhone();
     
     if (index >= delinquentTenants.length) {
       setBulkSendingIndex(null);
-      toast({
-        title: 'Bulk Reminders Complete',
-        description: `Opened WhatsApp for ${delinquentTenants.length} delinquent tenants`,
+      // Add all bulk reminders to history
+      setSentReminders(prev => [...bulkReminders, ...prev]);
+      // Show completion dialog
+      setBulkCompleteDialog({ 
+        open: true, 
+        count: delinquentTenants.length,
+        reminders: bulkReminders
       });
       return;
     }
     
     const request = delinquentTenants[index];
-    if (!request.tenant?.phone) return;
+    if (!request.tenant?.phone) {
+      sendBulkWhatsappReminder(index + 1, bulkReminders);
+      return;
+    }
     
     setBulkSendingIndex(index);
     
@@ -319,9 +350,18 @@ Thank you for being part of Welile! 🏠`;
     
     window.open(whatsappUrl, '_blank');
     
+    // Track this reminder
+    const newReminder: SentReminder = {
+      tenantId: request.tenant_id,
+      tenantName: request.tenant.full_name,
+      phone: request.tenant.phone,
+      missedDays: request.missedDays || 0,
+      sentAt: new Date()
+    };
+    
     // Wait a bit before opening next to avoid popup blocker
     setTimeout(() => {
-      sendBulkWhatsappReminder(index + 1);
+      sendBulkWhatsappReminder(index + 1, [...bulkReminders, newReminder]);
     }, 1500);
   };
 
@@ -337,7 +377,7 @@ Thank you for being part of Welile! 🏠`;
     }
     
     setBulkWhatsappDialog(false);
-    sendBulkWhatsappReminder(0);
+    sendBulkWhatsappReminder(0, []);
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -433,28 +473,43 @@ Thank you for being part of Welile! 🏠`;
           />
         </div>
         
-        {/* Bulk WhatsApp Button */}
-        {delinquentWithPhone.length > 0 && (
-          <Button
-            variant="outline"
-            size="sm"
-            className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
-            onClick={() => setBulkWhatsappDialog(true)}
-            disabled={bulkSendingIndex !== null}
-          >
-            {bulkSendingIndex !== null ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" />
-                Sending {bulkSendingIndex + 1}/{delinquentWithPhone.length}...
-              </>
-            ) : (
-              <>
-                <MessageCircle className="h-4 w-4" />
-                Remind All ({delinquentWithPhone.length})
-              </>
-            )}
-          </Button>
-        )}
+        <div className="flex items-center gap-2">
+          {/* Reminder History Button */}
+          {sentReminders.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => setReminderHistoryDialog(true)}
+            >
+              <History className="h-4 w-4" />
+              History ({sentReminders.length})
+            </Button>
+          )}
+          
+          {/* Bulk WhatsApp Button */}
+          {delinquentWithPhone.length > 0 && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+              onClick={() => setBulkWhatsappDialog(true)}
+              disabled={bulkSendingIndex !== null}
+            >
+              {bulkSendingIndex !== null ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Sending {bulkSendingIndex + 1}/{delinquentWithPhone.length}...
+                </>
+              ) : (
+                <>
+                  <MessageCircle className="h-4 w-4" />
+                  Remind All ({delinquentWithPhone.length})
+                </>
+              )}
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* Pending Requests */}
@@ -848,6 +903,135 @@ Thank you for being part of Welile! 🏠`;
             >
               <Send className="h-4 w-4" />
               Send All Reminders
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk Complete Dialog */}
+      <Dialog open={bulkCompleteDialog.open} onOpenChange={(open) => setBulkCompleteDialog({ open, count: 0, reminders: [] })}>
+        <DialogContent className="max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-success">
+              <CheckCircle2 className="h-5 w-5" />
+              Bulk Reminders Complete!
+            </DialogTitle>
+            <DialogDescription>
+              Successfully opened WhatsApp for {bulkCompleteDialog.count} delinquent tenants.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="p-4 rounded-lg bg-success/10 border border-success/20 text-center">
+              <div className="text-3xl font-bold text-success mb-1">{bulkCompleteDialog.count}</div>
+              <div className="text-sm text-muted-foreground">Reminders Sent</div>
+            </div>
+            
+            {bulkCompleteDialog.reminders.length > 0 && (
+              <div className="space-y-2">
+                <Label className="text-sm font-medium">Tenants Messaged:</Label>
+                <div className="max-h-40 overflow-y-auto space-y-1 border rounded-md p-2">
+                  {bulkCompleteDialog.reminders.map((reminder, index) => (
+                    <div key={`${reminder.tenantId}-${index}`} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                      <div className="flex items-center gap-2">
+                        <CheckCircle className="h-3 w-3 text-success" />
+                        <span className="font-medium">{reminder.tenantName}</span>
+                      </div>
+                      <span className="text-xs text-muted-foreground">{reminder.missedDays} missed</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            <p className="text-xs text-muted-foreground text-center">
+              All reminders have been tracked and saved in your history.
+            </p>
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              onClick={() => setBulkCompleteDialog({ open: false, count: 0, reminders: [] })}
+              className="min-h-[44px] w-full"
+              type="button"
+            >
+              Done
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Reminder History Dialog */}
+      <Dialog open={reminderHistoryDialog} onOpenChange={setReminderHistoryDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <History className="h-5 w-5 text-primary" />
+              Reminder History
+            </DialogTitle>
+            <DialogDescription>
+              Track of all payment reminders sent this session.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="flex items-center justify-between p-3 rounded-lg bg-primary/5 border border-primary/20">
+              <div className="flex items-center gap-2">
+                <MessageCircle className="h-4 w-4 text-primary" />
+                <span className="text-sm font-medium">Total Reminders Sent</span>
+              </div>
+              <Badge className="bg-primary">{sentReminders.length}</Badge>
+            </div>
+            
+            {sentReminders.length > 0 ? (
+              <div className="max-h-80 overflow-y-auto space-y-2">
+                {sentReminders.map((reminder, index) => (
+                  <Card key={`${reminder.tenantId}-${index}`} className="p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="space-y-1">
+                        <div className="flex items-center gap-2">
+                          <User className="h-4 w-4 text-muted-foreground" />
+                          <span className="font-medium text-sm">{reminder.tenantName}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Phone className="h-3 w-3" />
+                          <span>{reminder.phone}</span>
+                        </div>
+                        <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                          <Calendar className="h-3 w-3" />
+                          <span>{format(reminder.sentAt, 'MMM d, yyyy h:mm a')}</span>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs shrink-0">
+                        {reminder.missedDays} missed
+                      </Badge>
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <MessageCircle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">No reminders sent yet</p>
+              </div>
+            )}
+            
+            {sentReminders.length > 0 && (
+              <div className="p-3 rounded-lg bg-muted/50 text-xs text-muted-foreground">
+                <strong>Note:</strong> This history is only stored for the current session. 
+                Refreshing the page will clear this history.
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter>
+            <Button 
+              variant="outline"
+              onClick={() => setReminderHistoryDialog(false)}
+              className="min-h-[44px]"
+              type="button"
+            >
+              Close
             </Button>
           </DialogFooter>
         </DialogContent>
