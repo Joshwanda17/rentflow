@@ -21,7 +21,9 @@ import {
   MessageSquare,
   ChevronRight,
   RefreshCw,
-  Home
+  Home,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
 import { format } from 'date-fns';
 import {
@@ -44,6 +46,7 @@ import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
 
 interface RentRequest {
   id: string;
@@ -61,8 +64,10 @@ interface RentRequest {
   approval_comment: string | null;
   rejected_reason: string | null;
   approved_by: string | null;
+  agent_verified?: boolean;
+  manager_verified?: boolean;
   tenant?: { full_name: string; phone: string };
-  landlord?: { name: string; property_address: string };
+  landlord?: { id: string; name: string; property_address: string; verified?: boolean; ready_to_receive?: boolean };
 }
 
 export function AgentRentRequestsManager() {
@@ -100,10 +105,10 @@ export function AgentRentRequestsManager() {
       ? await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
       : { data: [] };
 
-    // Fetch landlords
+    // Fetch landlords with verification status
     const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
     const { data: landlords } = landlordIds.length > 0
-      ? await supabase.from('landlords').select('id, name, property_address').in('id', landlordIds)
+      ? await supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
       : { data: [] };
 
     const requestsWithDetails = (requestsData || []).map(r => ({
@@ -346,65 +351,90 @@ export function AgentRentRequestsManager() {
               >
                 <Card className="border-2 border-warning/30 bg-warning/5">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between gap-4">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-2">
-                          <User className="h-4 w-4 text-primary" />
-                          <span className="font-semibold truncate">
-                            {request.tenant?.full_name || 'Unknown Tenant'}
-                          </span>
+                    <div className="flex flex-col gap-4">
+                      <div className="flex items-start justify-between gap-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-2">
+                            <User className="h-4 w-4 text-primary" />
+                            <span className="font-semibold truncate">
+                              {request.tenant?.full_name || 'Unknown Tenant'}
+                            </span>
+                          </div>
+                          
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
+                            <Building className="h-3.5 w-3.5" />
+                            <span className="truncate">{request.landlord?.property_address || 'Unknown'}</span>
+                          </div>
+                          
+                          <div className="flex flex-wrap gap-2 text-sm">
+                            <Badge variant="secondary" className="gap-1">
+                              <Banknote className="h-3 w-3" />
+                              {formatUGX(request.rent_amount)}
+                            </Badge>
+                            <Badge variant="outline" className="gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {request.duration_days} days
+                            </Badge>
+                          </div>
+                          
+                          <p className="text-xs text-muted-foreground mt-2">
+                            {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
+                          </p>
                         </div>
                         
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground mb-2">
-                          <Building className="h-3.5 w-3.5" />
-                          <span className="truncate">{request.landlord?.property_address || 'Unknown'}</span>
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <Button
+                            size="default"
+                            variant="success"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openAction(request, 'approve');
+                            }}
+                            className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
+                            type="button"
+                          >
+                            <CheckCircle className="h-4 w-4" />
+                            Approve
+                          </Button>
+                          <Button
+                            size="default"
+                            variant="destructive"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              openAction(request, 'reject');
+                            }}
+                            className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
+                            type="button"
+                          >
+                            <XCircle className="h-4 w-4" />
+                            Reject
+                          </Button>
                         </div>
-                        
-                        <div className="flex flex-wrap gap-2 text-sm">
-                          <Badge variant="secondary" className="gap-1">
-                            <Banknote className="h-3 w-3" />
-                            {formatUGX(request.rent_amount)}
-                          </Badge>
-                          <Badge variant="outline" className="gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {request.duration_days} days
-                          </Badge>
-                        </div>
-                        
-                        <p className="text-xs text-muted-foreground mt-2">
-                          {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
-                        </p>
                       </div>
                       
-                      <div className="flex flex-col gap-2 shrink-0">
-                        <Button
-                          size="default"
-                          variant="success"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            openAction(request, 'approve');
-                          }}
-                          className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
-                          type="button"
-                        >
-                          <CheckCircle className="h-4 w-4" />
-                          Approve
-                        </Button>
-                        <Button
-                          size="default"
-                          variant="destructive"
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            openAction(request, 'reject');
-                          }}
-                          className="gap-1.5 min-h-[44px] min-w-[100px] touch-manipulation"
-                          type="button"
-                        >
-                          <XCircle className="h-4 w-4" />
-                          Reject
-                        </Button>
+                      {/* Verification Section */}
+                      <div className="flex items-center justify-between gap-3 p-3 rounded-lg bg-muted/50 border">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Shield className="h-4 w-4 text-primary" />
+                          <span className="font-medium">Verification Status</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <VerifyTenantButton
+                            requestId={request.id}
+                            agentVerified={request.agent_verified}
+                            managerVerified={request.manager_verified}
+                            onVerified={fetchRequests}
+                            variant="agent"
+                          />
+                          {request.manager_verified && (
+                            <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 gap-1">
+                              <ShieldCheck className="h-3 w-3" />
+                              Manager
+                            </Badge>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </CardContent>
