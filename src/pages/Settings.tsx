@@ -29,6 +29,8 @@ import { playNotificationSound } from '@/lib/notificationSound';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { TenantAgreementModal } from '@/components/tenant/agreement';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
+import { useAgentAgreement } from '@/hooks/useAgentAgreement';
+import { AgentAgreementModal } from '@/components/agent/agreement';
 
 interface Profile {
   id: string;
@@ -64,7 +66,8 @@ export default function Settings() {
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
-  const { isAccepted: hasAcceptedTerms, acceptance, acceptAgreement } = useTenantAgreement();
+  const { isAccepted: hasAcceptedTenantTerms, acceptance: tenantAcceptance, acceptAgreement: acceptTenantAgreement } = useTenantAgreement();
+  const { isAccepted: hasAcceptedAgentTerms, acceptance: agentAcceptance, acceptAgreement: acceptAgentAgreement } = useAgentAgreement();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: subscribePush, unsubscribe: unsubscribePush, loading: pushLoading } = usePushNotifications();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -72,7 +75,8 @@ export default function Settings() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
-  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [showTenantAgreementModal, setShowTenantAgreementModal] = useState(false);
+  const [showAgentAgreementModal, setShowAgentAgreementModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -503,28 +507,74 @@ export default function Settings() {
                     <div>
                       <p className="font-medium">Tenant Agreement</p>
                       <p className="text-sm text-muted-foreground">
-                        {hasAcceptedTerms 
-                          ? `Accepted on ${new Date(acceptance?.accepted_at || '').toLocaleDateString()}`
+                        {hasAcceptedTenantTerms 
+                          ? `Accepted on ${new Date(tenantAcceptance?.accepted_at || '').toLocaleDateString()}`
                           : 'Not yet accepted'}
                       </p>
                     </div>
                   </div>
                   <Button 
-                    variant={hasAcceptedTerms ? "outline" : "default"}
+                    variant={hasAcceptedTenantTerms ? "outline" : "default"}
                     size="sm"
-                    onClick={() => setShowAgreementModal(true)}
+                    onClick={() => setShowTenantAgreementModal(true)}
                   >
-                    {hasAcceptedTerms ? 'View' : 'Accept'}
+                    {hasAcceptedTenantTerms ? 'View' : 'Accept'}
                   </Button>
                 </div>
               </CardContent>
             </Card>
 
             <TenantAgreementModal
-              isOpen={showAgreementModal}
-              onClose={() => setShowAgreementModal(false)}
-              onAccept={acceptAgreement}
-              viewOnly={hasAcceptedTerms || false}
+              isOpen={showTenantAgreementModal}
+              onClose={() => setShowTenantAgreementModal(false)}
+              onAccept={acceptTenantAgreement}
+              viewOnly={hasAcceptedTenantTerms || false}
+            />
+          </motion.div>
+        )}
+
+        {/* Legal & Agreements Section for Agents */}
+        {roles.includes('agent') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-2">
+                  <Scale className="h-5 w-5 text-warning" />
+                  Agent Terms & Conditions
+                </CardTitle>
+                <CardDescription>
+                  View your agent agreement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 relative">
+                <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Agent Agreement</p>
+                      <p className="text-sm text-muted-foreground">
+                        {hasAcceptedAgentTerms 
+                          ? `Accepted on ${new Date(agentAcceptance?.accepted_at || '').toLocaleDateString()}`
+                          : 'Not yet accepted'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant={hasAcceptedAgentTerms ? "outline" : "default"}
+                    size="sm"
+                    onClick={() => setShowAgentAgreementModal(true)}
+                  >
+                    {hasAcceptedAgentTerms ? 'View' : 'Accept'}
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <AgentAgreementModal
+              isOpen={showAgentAgreementModal}
+              onClose={() => setShowAgentAgreementModal(false)}
+              onAccept={acceptAgentAgreement}
+              viewOnly={hasAcceptedAgentTerms || false}
             />
           </motion.div>
         )}
