@@ -103,7 +103,7 @@ export function useNotifications() {
           table: 'notifications',
           filter: `user_id=eq.${user.id}`,
         },
-        (payload) => {
+        async (payload) => {
           const rawNotification = payload.new as { 
             id: string; 
             title: string; 
@@ -146,6 +146,23 @@ export function useNotifications() {
               }
             } : undefined,
           });
+
+          // Send push notification for watched opportunities
+          if ((newNotification.metadata as any)?.send_push && (newNotification.metadata as any)?.action === 'view_opportunity') {
+            try {
+              await supabase.functions.invoke('send-push-notification', {
+                body: {
+                  user_id: user.id,
+                  title: newNotification.title,
+                  body: newNotification.message,
+                  url: '/dashboard',
+                  tag: `watch-${(newNotification.metadata as any)?.rent_request_id}`,
+                }
+              });
+            } catch (e) {
+              console.log('Push notification send failed:', e);
+            }
+          }
 
           // Also show native browser notification if permission granted
           if ('Notification' in window && Notification.permission === 'granted') {
