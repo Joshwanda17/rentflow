@@ -44,6 +44,7 @@ import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
 import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
+import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Tenant request details and payment dialogs
@@ -746,6 +747,7 @@ export default function SupporterDashboard({
         }}
       />
       
+      <FloatingPortfolioButton totalBalance={totalInvested} />
       <FloatingShareButton />
       <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
