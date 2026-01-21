@@ -1,6 +1,7 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useChat, Conversation } from '@/hooks/useChat';
 import { usePresenceContext } from '@/hooks/usePresence';
+import { useGlobalTyping } from '@/hooks/useGlobalTyping';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -11,6 +12,8 @@ import { MessageCircle, Users, PlusCircle, WifiOff } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import NewChatSearch from './NewChatSearch';
 import OnlineIndicator from './OnlineIndicator';
+import TypingIndicator from './TypingIndicator';
+import { AnimatePresence } from 'framer-motion';
 import { getCachedConversations, cacheConversations } from '@/lib/offlineStorage';
 
 interface ChatListProps {
@@ -24,6 +27,13 @@ export default function ChatList({ onSelectConversation, selectedId, isOffline =
   const { isOnline } = usePresenceContext();
   const [activeTab, setActiveTab] = useState<string>('chats');
   const [cachedConversations, setCachedConversations] = useState<Conversation[]>([]);
+
+  // Get conversation IDs for global typing tracker
+  const conversationIds = useMemo(() => 
+    conversations.map(c => c.id), 
+    [conversations]
+  );
+  const { isTypingInConversation } = useGlobalTyping(conversationIds);
 
   // Load cached conversations on mount
   useEffect(() => {
@@ -117,6 +127,8 @@ export default function ChatList({ onSelectConversation, selectedId, isOffline =
           {displayConversations.map((conv) => {
             const participant = conv.participants[0];
             if (!participant) return null;
+            
+            const typingUser = !isOffline ? isTypingInConversation(conv.id) : null;
 
             return (
               <button
@@ -155,11 +167,21 @@ export default function ChatList({ onSelectConversation, selectedId, isOffline =
                       </Badge>
                     )}
                   </div>
-                  {conv.last_message && (
-                    <p className="text-sm text-muted-foreground truncate">
-                      {conv.last_message.content}
-                    </p>
-                  )}
+                  
+                  {/* Show typing indicator or last message */}
+                  <AnimatePresence mode="wait">
+                    {typingUser ? (
+                      <TypingIndicator 
+                        key="typing"
+                        name={participant.full_name.split(' ')[0]} 
+                        variant="inline" 
+                      />
+                    ) : conv.last_message ? (
+                      <p key="message" className="text-sm text-muted-foreground truncate">
+                        {conv.last_message.content}
+                      </p>
+                    ) : null}
+                  </AnimatePresence>
                 </div>
 
                 <div className="text-xs text-muted-foreground shrink-0">

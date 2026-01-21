@@ -568,9 +568,13 @@ export function useConversation(conversationId: string | null) {
     channel.send({
       type: 'broadcast',
       event: 'typing',
-      payload: { user_id: user.id, typing }
+      payload: { 
+        user_id: user.id, 
+        typing,
+        user_name: otherParticipant?.full_name || 'Someone'
+      }
     });
-  }, [conversationId, user]);
+  }, [conversationId, user, otherParticipant]);
 
   // Typing timeout ref
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
