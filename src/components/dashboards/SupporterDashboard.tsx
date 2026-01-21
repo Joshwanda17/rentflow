@@ -697,9 +697,8 @@ export default function SupporterDashboard({
         <div id="wallet-section">
           <CollapsibleWalletCard />
         </div>
-
-        {/* ROI Leaderboard */}
-        <SupporterROILeaderboard limit={5} compact />
+        {/* ROI Leaderboard - Hidden to give more space to opportunities */}
+        {/* <SupporterROILeaderboard limit={5} compact /> */}
 
         {/* Invite Friends Card */}
         <motion.div
