@@ -14,6 +14,66 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
+// User-friendly error messages mapping
+const getErrorMessage = (error: string): string => {
+  const errorLower = error.toLowerCase();
+  
+  // Email errors
+  if (errorLower.includes('email already exists') || errorLower.includes('user with this email')) {
+    return 'This email is already registered. Try a different email address.';
+  }
+  if (errorLower.includes('invite for this email already exists')) {
+    return 'An invitation was already sent to this email. Check if they received it or use a different email.';
+  }
+  if (errorLower.includes('invalid email')) {
+    return 'Please enter a valid email address.';
+  }
+  
+  // Phone errors
+  if (errorLower.includes('phone') && errorLower.includes('exists')) {
+    return 'This phone number is already registered.';
+  }
+  
+  // Permission errors
+  if (errorLower.includes('unauthorized') || errorLower.includes('not authenticated')) {
+    return 'Your session has expired. Please log in again.';
+  }
+  if (errorLower.includes('only managers')) {
+    return 'You don\'t have permission to create this type of account.';
+  }
+  if (errorLower.includes('agents can only')) {
+    return 'As an agent, you can only register tenants, landlords, and sub-agents.';
+  }
+  
+  // Validation errors  
+  if (errorLower.includes('missing required')) {
+    return 'Please fill in all required fields.';
+  }
+  if (errorLower.includes('invalid role')) {
+    return 'Invalid account type selected. Please try again.';
+  }
+  
+  // Duplicate errors
+  if (errorLower.includes('already registered') || errorLower.includes('duplicate')) {
+    return 'This person is already registered in the system.';
+  }
+  
+  // Network/Server errors
+  if (errorLower.includes('failed to fetch') || errorLower.includes('network')) {
+    return 'Connection error. Please check your internet and try again.';
+  }
+  if (errorLower.includes('timeout')) {
+    return 'Request timed out. Please try again.';
+  }
+  
+  // Generic fallback with the original message if it's readable
+  if (error.length < 100 && !errorLower.includes('error') && !errorLower.includes('exception')) {
+    return error;
+  }
+  
+  return 'Something went wrong. Please try again or contact support.';
+};
+
 interface UnifiedRegistrationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -150,9 +210,10 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
       onSuccess?.();
     } catch (error: any) {
+      const rawMessage = error.message || 'Failed to create invite';
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create invite',
+        title: 'Registration Failed',
+        description: getErrorMessage(rawMessage),
         variant: 'destructive',
       });
     } finally {
@@ -187,9 +248,10 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       });
       onSuccess?.();
     } catch (error: any) {
+      const rawMessage = error.message || 'Failed to register LC1';
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to register LC1',
+        title: 'Registration Failed',
+        description: getErrorMessage(rawMessage),
         variant: 'destructive',
       });
     } finally {
