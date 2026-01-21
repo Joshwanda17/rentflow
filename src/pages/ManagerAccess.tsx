@@ -48,6 +48,8 @@ import { ActivityManager } from '@/components/manager/ActivityManager';
 import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
 import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
+import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
+import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -702,9 +704,15 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="payments" className="mt-4">
-            <div className="grid gap-4 lg:grid-cols-2">
-              <RecordMerchantPayment />
-              <PaymentConfirmationsManager />
+            <div className="space-y-4">
+              <div className="grid gap-4 lg:grid-cols-2">
+                <RecordMerchantPayment />
+                <PaymentConfirmationsManager />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <SupporterROITrigger />
+                <MonthlyRewardsTrigger />
+              </div>
             </div>
           </TabsContent>
 
