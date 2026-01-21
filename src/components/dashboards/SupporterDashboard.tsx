@@ -10,7 +10,7 @@ import {
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Target, ChevronRight, Sparkles, Store, Users,
-  FileText, ScrollText, BarChart3
+  FileText, ScrollText, BarChart3, PieChart
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -541,10 +541,12 @@ export default function SupporterDashboard({
           items={[
             { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
             { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
+            { icon: PieChart, label: 'My Portfolio', onClick: () => navigate('/investment-portfolio') },
             { icon: Calculator, label: 'ROI Calculator', onClick: () => setShowCalculator(true) },
             { icon: BarChart3, label: 'Projections', onClick: () => setShowCalculator(true) },
             { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
             { icon: Target, label: 'Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
+            { icon: TrendingUp, label: 'ROI Earnings', onClick: () => navigate('/supporter-earnings') },
             { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
             { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
             { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
