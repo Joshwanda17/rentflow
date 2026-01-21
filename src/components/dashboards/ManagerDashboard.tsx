@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useOffline } from '@/contexts/OfflineContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -109,7 +110,9 @@ const MANAGER_ACCESS_CODE = 'Manager@welile';
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { isOnline } = useOffline();
   const [loading, setLoading] = useState(true);
+  const [hasCachedData, setHasCachedData] = useState(false);
   const [accessVerified, setAccessVerified] = useState(() => {
     // Check if already verified in this session
     return sessionStorage.getItem('manager_access_verified') === 'true';
@@ -359,6 +362,26 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       setDeletingUserId(null);
     }
   };
+
+  // Load cached data first for offline support
+  useEffect(() => {
+    const cached = localStorage.getItem(`manager_dashboard_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setPendingRequests(data.pendingRequests ?? 0);
+        setTotalUsers(data.totalUsers ?? 0);
+        setTotalFacilitated(data.totalFacilitated ?? 0);
+        setPendingOrders(data.pendingOrders ?? 0);
+        setPendingLoans(data.pendingLoans ?? 0);
+        setActiveUsers(data.activeUsers ?? 0);
+        setNewSignupsThisWeek(data.newSignupsThisWeek ?? 0);
+        setHasCachedData(true);
+      } catch (e) {
+        console.warn('[ManagerDashboard] Failed to load cached data');
+      }
+    }
+  }, [user.id]);
 
   useEffect(() => {
     fetchData();
@@ -690,46 +713,75 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   const fetchData = async () => {
+    // Skip network fetch if offline and we have cached data
+    if (!navigator.onLine && hasCachedData) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     
-    // Calculate date for one week ago
-    const oneWeekAgo = new Date();
-    oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-    const oneWeekAgoISO = oneWeekAgo.toISOString();
-    
-    const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
-      supabase
-        .from('rent_requests')
-        .select('id, status, rent_amount'),
-      supabase
-        .from('profiles')
-        .select('id, rent_discount_active, created_at'),
-      supabase
-        .from('product_orders')
-        .select('id, status'),
-      supabase
-        .from('loan_applications')
-        .select('id, status'),
-      supabase
-        .from('profiles')
-        .select('id')
-        .gte('created_at', oneWeekAgoISO)
-    ]);
-    
-    const requests = requestsRes.data || [];
-    const users = usersRes.data || [];
-    
-    setPendingRequests(requests.filter(r => r.status === 'pending').length);
-    setTotalFacilitated(
-      requests
+    try {
+      // Calculate date for one week ago
+      const oneWeekAgo = new Date();
+      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
+      const oneWeekAgoISO = oneWeekAgo.toISOString();
+      
+      const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id, status, rent_amount'),
+        supabase
+          .from('profiles')
+          .select('id, rent_discount_active, created_at'),
+        supabase
+          .from('product_orders')
+          .select('id, status'),
+        supabase
+          .from('loan_applications')
+          .select('id, status'),
+        supabase
+          .from('profiles')
+          .select('id')
+          .gte('created_at', oneWeekAgoISO)
+      ]);
+      
+      const requests = requestsRes.data || [];
+      const users = usersRes.data || [];
+      
+      const newPendingRequests = requests.filter(r => r.status === 'pending').length;
+      const newTotalFacilitated = requests
         .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
-        .reduce((sum, r) => sum + Number(r.rent_amount), 0)
-    );
-    setTotalUsers(users.length);
-    setActiveUsers(users.filter(u => u.rent_discount_active).length);
-    setNewSignupsThisWeek(newUsersRes.data?.length || 0);
-    setPendingOrders((ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length);
-    setPendingLoans((loansRes.data || []).filter(l => l.status === 'pending').length);
+        .reduce((sum, r) => sum + Number(r.rent_amount), 0);
+      const newTotalUsers = users.length;
+      const newActiveUsers = users.filter(u => u.rent_discount_active).length;
+      const newNewSignupsThisWeek = newUsersRes.data?.length || 0;
+      const newPendingOrders = (ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length;
+      const newPendingLoans = (loansRes.data || []).filter(l => l.status === 'pending').length;
+      
+      setPendingRequests(newPendingRequests);
+      setTotalFacilitated(newTotalFacilitated);
+      setTotalUsers(newTotalUsers);
+      setActiveUsers(newActiveUsers);
+      setNewSignupsThisWeek(newNewSignupsThisWeek);
+      setPendingOrders(newPendingOrders);
+      setPendingLoans(newPendingLoans);
+      
+      // Cache the data for offline use
+      localStorage.setItem(`manager_dashboard_${user.id}`, JSON.stringify({
+        pendingRequests: newPendingRequests,
+        totalFacilitated: newTotalFacilitated,
+        totalUsers: newTotalUsers,
+        activeUsers: newActiveUsers,
+        newSignupsThisWeek: newNewSignupsThisWeek,
+        pendingOrders: newPendingOrders,
+        pendingLoans: newPendingLoans,
+        timestamp: Date.now()
+      }));
+      setHasCachedData(true);
+    } catch (error) {
+      console.error('[ManagerDashboard] Error fetching data:', error);
+    }
     
     setLoading(false);
   };
@@ -961,7 +1013,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     );
   }
 
-  if (loading) {
+  // Only show skeleton if loading AND online AND no cached data
+  if (loading && isOnline && !hasCachedData) {
     return <ManagerDashboardSkeleton />;
   }
 

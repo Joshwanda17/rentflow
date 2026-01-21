@@ -127,6 +127,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }, [user.id]);
 
   const fetchData = async () => {
+    // Skip network fetch if offline and we have cached data
+    if (!navigator.onLine && hasLoadedOnce) {
+      setLoading(false);
+      return;
+    }
+    
     if (!hasLoadedOnce) setLoading(true);
     setFetchError(false);
     
@@ -174,8 +180,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     }
   };
 
-  // Show skeleton only on first load with no cached data
-  if (loading && !hasLoadedOnce) {
+  // Only show skeleton if loading AND online AND no cached data
+  if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
   }
 

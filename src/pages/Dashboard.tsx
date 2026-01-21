@@ -173,9 +173,37 @@ export default function Dashboard() {
   const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? cachedRoles[0] : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
 
-  // Show offline fallback if loading and offline with no cached data
-  if (loading && !showCachedUI && !isOnline) {
-    return <OfflineFallback cachedRole={cachedRoles[0]} onRetry={() => window.location.reload()} />;
+// Allow dashboards to render with cached data when offline
+  // Only show offline fallback if we have no cached roles at all
+  if (loading && !showCachedUI && !isOnline && cachedRoles.length === 0) {
+    return <OfflineFallback cachedRole={null} onRetry={() => window.location.reload()} />;
+  }
+
+  // If loading but offline with cached roles, skip loading and show cached UI
+  if (loading && !isOnline && cachedRoles.length > 0) {
+    // Use cached roles directly
+    const cachedDisplayRole = cachedRoles[0];
+    const dashboardProps = { 
+      user: user!, 
+      signOut, 
+      currentRole: cachedDisplayRole, 
+      availableRoles: cachedRoles, 
+      onRoleChange: switchRole,
+      addRoleComponent: <AddRoleDialog availableRoles={cachedRoles} onAddRole={addRole} />
+    };
+
+    return (
+      <>
+        <Suspense fallback={<DashboardLoadingFallback />}>
+          {cachedDisplayRole === 'tenant' && <TenantDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'agent' && <AgentDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'supporter' && <SupporterDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'landlord' && <LandlordDashboard {...dashboardProps} />}
+          {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
+        </Suspense>
+        <FloatingChatButton />
+      </>
+    );
   }
 
   if (loading && !showCachedUI) {
@@ -183,10 +211,6 @@ export default function Dashboard() {
   }
 
   if (!user || !displayRole) {
-    // If offline but we have cached role, still try to show dashboard
-    if (!isOnline && cachedRoles.length > 0) {
-      return <OfflineFallback cachedRole={cachedRoles[0]} onRetry={() => window.location.reload()} />;
-    }
     return null;
   }
 
