@@ -10,7 +10,7 @@ import {
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Target, ChevronRight, Sparkles, Store, Users,
-  FileText, ScrollText, BarChart3, PieChart
+  FileText, ScrollText, BarChart3
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -39,8 +39,6 @@ import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 // Simple components
 import { SimpleInvestmentCard } from '@/components/supporter/SimpleInvestmentCard';
 import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
-import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
-import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
 import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
@@ -541,14 +539,14 @@ export default function SupporterDashboard({
           items={[
             { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
             { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
-            { icon: PieChart, label: 'My Portfolio', onClick: () => navigate('/investment-portfolio') },
+            { icon: Wallet, label: 'My Portfolio', onClick: () => navigate('/investment-portfolio'), variant: 'default' },
             { icon: Calculator, label: 'ROI Calculator', onClick: () => setShowCalculator(true) },
             { icon: BarChart3, label: 'Projections', onClick: () => setShowCalculator(true) },
-            { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
-            { icon: Target, label: 'Accounts', onClick: () => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' }) },
             { icon: TrendingUp, label: 'ROI Earnings', onClick: () => navigate('/supporter-earnings') },
             { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
             { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
+            { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
+            { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
             { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
             { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
             // Agreement action - show "Accept" if not accepted, otherwise view options
@@ -566,14 +564,14 @@ export default function SupporterDashboard({
           totalInvested={totalInvested}
           expectedReturns={expectedRewards}
           onAddInvestment={() => setShowPaymentPartners(true)}
-          onViewDetails={() => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' })}
+          onViewDetails={() => navigate('/investment-portfolio')}
         />
 
         {/* ROI Earnings Section */}
         <ROIEarningsCard />
 
-        {/* Investment Opportunities - Real-time */}
-        <div id="tenants-section" className="relative">
+        {/* Investment Opportunities - Real-time - Full Width */}
+        <div id="tenants-section" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <RentOpportunities
             onFund={(id, amount) => {
@@ -589,19 +587,6 @@ export default function SupporterDashboard({
           />
         </div>
 
-        {/* My Accounts */}
-        <div id="accounts-section">
-          <SimpleAccountsList
-            accounts={accounts}
-            onCreateAccount={() => setShowCreateAccount(true)}
-            onFundAccount={handleFundAccountClick}
-            onWithdrawAccount={handleWithdrawAccountClick}
-            onViewDetails={(account) => {
-              setSelectedAccountForDetails(account);
-              setShowAccountDetails(true);
-            }}
-          />
-        </div>
 
         {/* Wallet - Collapsible */}
         <div id="wallet-section">
