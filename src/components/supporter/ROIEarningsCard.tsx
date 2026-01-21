@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,7 +22,8 @@ import {
   Clock,
   CheckCircle2,
   Gift,
-  Sparkles
+  Sparkles,
+  BarChart3
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -53,6 +55,7 @@ interface PaymentProofSummary {
 
 export function ROIEarningsCard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [roiPayments, setRoiPayments] = useState<ROIPayment[]>([]);
   const [paymentProofs, setPaymentProofs] = useState<PaymentProofSummary[]>([]);
@@ -147,10 +150,10 @@ export function ROIEarningsCard() {
               variant="ghost" 
               size="sm" 
               className="text-xs gap-1"
-              onClick={() => setShowHistory(true)}
+              onClick={() => navigate('/supporter-earnings')}
             >
-              <History className="h-3.5 w-3.5" />
-              History
+              <BarChart3 className="h-3.5 w-3.5" />
+              Full Dashboard
             </Button>
           </div>
         </CardHeader>
