@@ -215,83 +215,108 @@ export default function InvestmentPortfolio() {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <div>
+          <div className="flex-1">
             <h1 className="font-bold flex items-center gap-2">
               <Wallet className="h-5 w-5 text-primary" />
               Investment Portfolio
             </h1>
-            <p className="text-xs text-muted-foreground">View accounts & linked fundings</p>
+            <p className="text-xs text-muted-foreground">Track your investments & returns</p>
           </div>
         </div>
       </header>
 
-      <main className="container mx-auto px-4 py-6 space-y-6">
-        {/* Hero Stats */}
+      <main className="container mx-auto px-4 py-6 space-y-6 max-w-2xl">
+        {/* Portfolio Overview Card */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-violet-600 p-6 text-white"
+          className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary/90 to-violet-600 p-5 text-white shadow-xl"
         >
           <div className="absolute top-0 right-0 opacity-10">
-            <PiggyBank className="h-32 w-32 -mt-4 -mr-4" />
+            <PiggyBank className="h-28 w-28 -mt-4 -mr-4" />
           </div>
           
-          <p className="text-primary-foreground/80 text-sm font-medium">Total Portfolio Value</p>
-          <p className="text-4xl font-black mt-1">{formatUGX(totalBalance)}</p>
-          
-          <div className="flex items-center gap-2 mt-3">
-            <Badge className="bg-white/20 text-white border-0 hover:bg-white/30">
-              {accounts.length} accounts
-            </Badge>
-            <Badge className="bg-white/20 text-white border-0 hover:bg-white/30">
-              {totalFundings} fundings
-            </Badge>
+          <div className="flex items-center gap-2 mb-1">
+            <Sparkles className="h-4 w-4 text-primary-foreground/70" />
+            <span className="text-primary-foreground/70 text-xs font-medium uppercase tracking-wide">Total Portfolio Value</span>
           </div>
-
-          {/* Quick Stats Row */}
-          <div className="grid grid-cols-3 gap-3 mt-6">
-            <div className="bg-white/10 rounded-xl p-3 text-center">
-              <TrendingUp className="h-4 w-4 mx-auto mb-1 opacity-80" />
-              <p className="text-lg font-bold">{formatUGX(totalRoiEarned)}</p>
-              <p className="text-xs opacity-70">ROI Earned</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3 text-center">
-              <Calendar className="h-4 w-4 mx-auto mb-1 opacity-80" />
-              <p className="text-lg font-bold">{formatUGX(expectedMonthlyRoi)}</p>
-              <p className="text-xs opacity-70">Monthly ROI</p>
-            </div>
-            <div className="bg-white/10 rounded-xl p-3 text-center">
-              <Gift className="h-4 w-4 mx-auto mb-1 opacity-80" />
-              <p className="text-lg font-bold">15%</p>
-              <p className="text-xs opacity-70">ROI Rate</p>
-            </div>
+          <p className="text-3xl font-black">{formatUGX(totalBalance)}</p>
+          
+          <div className="flex flex-wrap items-center gap-2 mt-3">
+            <Badge className="bg-white/20 text-white border-0 text-xs">
+              {accounts.length} {accounts.length === 1 ? 'account' : 'accounts'}
+            </Badge>
+            <Badge className="bg-white/20 text-white border-0 text-xs">
+              {totalFundings} {totalFundings === 1 ? 'funding' : 'fundings'}
+            </Badge>
           </div>
         </motion.div>
 
-        {/* Accounts List */}
-        <div className="space-y-3">
-          <div className="flex items-center justify-between px-1">
-            <h2 className="font-bold text-foreground flex items-center gap-2">
-              <Wallet className="h-4 w-4 text-primary" />
-              Investment Accounts
+        {/* Quick Stats Grid */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="grid grid-cols-3 gap-3"
+        >
+          <Card className="border-0 bg-gradient-to-br from-success/10 to-success/5">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center">
+                <TrendingUp className="h-5 w-5 text-success" />
+              </div>
+              <p className="text-lg font-bold text-success">{formatUGX(totalRoiEarned)}</p>
+              <p className="text-xs text-muted-foreground">Total ROI Earned</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 bg-gradient-to-br from-primary/10 to-primary/5">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-primary/20 flex items-center justify-center">
+                <Calendar className="h-5 w-5 text-primary" />
+              </div>
+              <p className="text-lg font-bold text-primary">{formatUGX(expectedMonthlyRoi)}</p>
+              <p className="text-xs text-muted-foreground">Monthly ROI</p>
+            </CardContent>
+          </Card>
+          <Card className="border-0 bg-gradient-to-br from-violet-500/10 to-violet-500/5">
+            <CardContent className="p-4 text-center">
+              <div className="w-10 h-10 mx-auto mb-2 rounded-full bg-violet-500/20 flex items-center justify-center">
+                <Gift className="h-5 w-5 text-violet-500" />
+              </div>
+              <p className="text-lg font-bold text-violet-600">15%</p>
+              <p className="text-xs text-muted-foreground">ROI Rate</p>
+            </CardContent>
+          </Card>
+        </motion.div>
+
+        {/* Investment Accounts Section */}
+        <motion.section
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+          className="space-y-4"
+        >
+          <div className="flex items-center justify-between">
+            <h2 className="font-bold text-lg flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              My Accounts
             </h2>
-            <Badge variant="outline" className="text-xs">
+            <Badge variant="secondary" className="font-medium">
               {accounts.length} total
             </Badge>
           </div>
 
           {accounts.length === 0 ? (
-            <Card className="border-0 bg-muted/30">
+            <Card className="border-dashed border-2">
               <CardContent className="p-8 text-center">
-                <Wallet className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
-                <p className="font-bold text-foreground">No Investment Accounts</p>
-                <p className="text-sm text-muted-foreground mt-1">
-                  Fund tenants to automatically create investment accounts
+                <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-muted flex items-center justify-center">
+                  <Wallet className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="font-bold text-foreground mb-1">No Investment Accounts Yet</h3>
+                <p className="text-sm text-muted-foreground mb-4">
+                  Start funding rent requests to build your investment portfolio
                 </p>
-                <Button 
-                  className="mt-4" 
-                  onClick={() => navigate('/dashboard')}
-                >
+                <Button onClick={() => navigate('/dashboard')} className="gap-2">
+                  <Target className="h-4 w-4" />
                   Browse Opportunities
                 </Button>
               </CardContent>
@@ -302,44 +327,64 @@ export default function InvestmentPortfolio() {
                 {accounts.map((account, index) => (
                   <motion.div
                     key={account.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
                     transition={{ delay: index * 0.05 }}
                   >
                     <Card 
-                      className="border-0 bg-card hover:bg-accent/50 transition-all cursor-pointer active:scale-[0.98]"
+                      className="border-0 bg-card shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-[0.98] overflow-hidden"
                       onClick={() => handleViewDetails(account)}
                     >
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3">
-                          <div className="flex items-start gap-3 flex-1 min-w-0">
-                            <div 
-                              className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
-                              style={{ backgroundColor: `${account.color}20` }}
-                            >
-                              <Wallet className="h-5 w-5" style={{ color: account.color }} />
+                      <CardContent className="p-0">
+                        {/* Colored top border */}
+                        <div 
+                          className="h-1 w-full"
+                          style={{ backgroundColor: account.color }}
+                        />
+                        <div className="p-4">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="flex items-start gap-3 flex-1 min-w-0">
+                              <div 
+                                className="w-12 h-12 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
+                                style={{ backgroundColor: `${account.color}15` }}
+                              >
+                                <Wallet className="h-6 w-6" style={{ color: account.color }} />
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 mb-0.5">
+                                  <p className="font-bold text-foreground truncate">{account.name}</p>
+                                  <Badge 
+                                    variant="outline" 
+                                    className={`text-[10px] shrink-0 ${getStatusColor(account.status)}`}
+                                  >
+                                    {account.status === 'approved' ? 'Active' : 
+                                     account.status === 'pending_activation' ? 'Pending' : account.status}
+                                  </Badge>
+                                </div>
+                                <p className="text-2xl font-black text-foreground tracking-tight">
+                                  {formatUGX(account.balance)}
+                                </p>
+                              </div>
                             </div>
-                            <div className="min-w-0 flex-1">
-                              <div className="flex items-center gap-2 mb-1">
-                                <p className="font-bold text-foreground truncate">{account.name}</p>
-                                <Badge variant="outline" className={`text-[10px] shrink-0 ${getStatusColor(account.status)}`}>
-                                  {account.status === 'approved' ? 'Active' : account.status}
-                                </Badge>
-                              </div>
-                              <p className="text-xl font-black text-foreground">{formatUGX(account.balance)}</p>
-                              <div className="flex items-center gap-3 mt-1">
-                                <span className="text-xs text-muted-foreground flex items-center gap-1">
-                                  <Users className="h-3 w-3" />
-                                  {account.linked_fundings.length} fundings
-                                </span>
-                                <span className="text-xs text-success flex items-center gap-1">
-                                  <TrendingUp className="h-3 w-3" />
-                                  +{formatUGX(account.total_roi_earned)}
-                                </span>
-                              </div>
+                            <div className="flex flex-col items-end gap-1">
+                              <ChevronRight className="h-5 w-5 text-muted-foreground" />
                             </div>
                           </div>
-                          <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0" />
+                          
+                          {/* Stats row */}
+                          <div className="flex items-center gap-4 mt-3 pt-3 border-t">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                              <Users className="h-3.5 w-3.5" />
+                              <span>{account.linked_fundings.length} fundings</span>
+                            </div>
+                            <div className="flex items-center gap-1.5 text-xs text-success font-medium">
+                              <ArrowUpRight className="h-3.5 w-3.5" />
+                              <span>+{formatUGX(account.total_roi_earned)} ROI</span>
+                            </div>
+                            <div className="flex-1 text-right text-xs text-muted-foreground">
+                              {format(new Date(account.created_at), 'MMM yyyy')}
+                            </div>
+                          </div>
                         </div>
                       </CardContent>
                     </Card>
@@ -348,7 +393,45 @@ export default function InvestmentPortfolio() {
               </AnimatePresence>
             </div>
           )}
-        </div>
+        </motion.section>
+
+        {/* Performance Summary */}
+        {accounts.length > 0 && (
+          <motion.section
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card className="border-0 bg-muted/30">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                  <BarChart3 className="h-4 w-4 text-primary" />
+                  Performance Summary
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total Invested</span>
+                  <span className="font-bold">{formatUGX(totalBalance)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Total Returns</span>
+                  <span className="font-bold text-success">+{formatUGX(totalRoiEarned)}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">ROI Percentage</span>
+                  <span className="font-bold text-primary">
+                    {totalBalance > 0 ? ((totalRoiEarned / totalBalance) * 100).toFixed(1) : 0}%
+                  </span>
+                </div>
+                <Progress 
+                  value={totalBalance > 0 ? Math.min((totalRoiEarned / totalBalance) * 100, 100) : 0} 
+                  className="h-2 mt-2"
+                />
+              </CardContent>
+            </Card>
+          </motion.section>
+        )}
       </main>
 
       {/* Account Details Dialog */}
