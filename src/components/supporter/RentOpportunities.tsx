@@ -39,6 +39,7 @@ import {
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
+import { playOpportunitySound } from '@/lib/notificationSound';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
 
@@ -256,8 +257,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
       setNewOpportunityId(id);
       setTimeout(() => setNewOpportunityId(null), 5000);
       
-      // Show toast notification for new opportunity
+      // Show toast notification and play sound for new opportunity
       const reward = calculateSupporterReward(opportunity.rent_amount);
+      
+      // Play notification sound
+      playOpportunitySound();
+      
       toast.success('New Investment Opportunity!', {
         description: `${opportunity.tenant?.full_name || 'A tenant'} needs ${formatUGX(opportunity.rent_amount)} — Earn ${formatUGX(reward)} ROI`,
         duration: 6000,
