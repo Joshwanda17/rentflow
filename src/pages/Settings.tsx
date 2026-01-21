@@ -553,18 +553,16 @@ export default function Settings() {
                     <div>
                       <p className="font-medium">Agent Agreement</p>
                       <p className="text-sm text-muted-foreground">
-                        {hasAcceptedAgentTerms 
-                          ? `Accepted on ${new Date(agentAcceptance?.accepted_at || '').toLocaleDateString()}`
-                          : 'Not yet accepted'}
+                        By using Welile as an Agent, you agree to our terms
                       </p>
                     </div>
                   </div>
                   <Button 
-                    variant={hasAcceptedAgentTerms ? "outline" : "default"}
+                    variant="outline"
                     size="sm"
                     onClick={() => setShowAgentAgreementModal(true)}
                   >
-                    {hasAcceptedAgentTerms ? 'View' : 'Accept'}
+                    View Terms
                   </Button>
                 </div>
               </CardContent>
@@ -573,8 +571,8 @@ export default function Settings() {
             <AgentAgreementModal
               isOpen={showAgentAgreementModal}
               onClose={() => setShowAgentAgreementModal(false)}
-              onAccept={acceptAgentAgreement}
-              viewOnly={hasAcceptedAgentTerms || false}
+              onAccept={async () => true}
+              viewOnly
             />
           </motion.div>
         )}
