@@ -1,17 +1,42 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Home, ChevronDown, ChevronUp } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
+import { supabase } from '@/integrations/supabase/client';
 import { AgentRentRequestsManager } from './AgentRentRequestsManager';
 
-interface CollapsibleRentRequestsProps {
-  pendingCount?: number;
-}
-
-export function CollapsibleRentRequests({ pendingCount = 0 }: CollapsibleRentRequestsProps) {
+export function CollapsibleRentRequests() {
   const [isOpen, setIsOpen] = useState(false);
+  const [pendingCount, setPendingCount] = useState(0);
+
+  useEffect(() => {
+    fetchPendingCount();
+    
+    // Subscribe to realtime updates
+    const channel = supabase
+      .channel('rent-requests-count')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        () => fetchPendingCount()
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const fetchPendingCount = async () => {
+    const { count } = await supabase
+      .from('rent_requests')
+      .select('*', { count: 'exact', head: true })
+      .eq('status', 'pending');
+    
+    setPendingCount(count || 0);
+  };
 
   const toggleOpen = () => {
     hapticTap();
