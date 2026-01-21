@@ -1,9 +1,11 @@
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Home, MessageCircle, Settings, Store, Users, FileText } from 'lucide-react';
+import { Home, MessageCircle, Settings, Store, Users, FileText, TrendingUp } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { useEffect, useState } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
@@ -12,6 +14,45 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottomNavProps) {
   const location = useLocation();
+  const [pendingOpportunities, setPendingOpportunities] = useState(0);
+  
+  // Fetch pending opportunities count for supporters
+  useEffect(() => {
+    if (currentRole !== 'supporter') return;
+    
+    const fetchPendingCount = async () => {
+      const { count, error } = await supabase
+        .from('rent_requests')
+        .select('*', { count: 'exact', head: true })
+        .in('status', ['pending', 'approved']);
+      
+      if (!error && count !== null) {
+        setPendingOpportunities(count);
+      }
+    };
+    
+    fetchPendingCount();
+    
+    // Subscribe to real-time updates
+    const channel = supabase
+      .channel('nav-opportunities')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rent_requests',
+        },
+        () => {
+          fetchPendingCount();
+        }
+      )
+      .subscribe();
+    
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [currentRole]);
   
   // Role-specific navigation items with large, clear icons
   const getNavItems = () => {
@@ -86,6 +127,38 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       ];
     }
 
+    // Supporter-specific navigation with opportunities badge
+    if (currentRole === 'supporter') {
+      return [
+        ...baseItems,
+        { 
+          href: '/dashboard#opportunities', 
+          icon: TrendingUp, 
+          label: 'Invest',
+          active: location.hash === '#opportunities',
+          badge: pendingOpportunities > 0 ? pendingOpportunities : undefined
+        },
+        { 
+          href: '/marketplace', 
+          icon: Store, 
+          label: 'Shop',
+          active: location.pathname === '/marketplace'
+        },
+        { 
+          href: '/chat', 
+          icon: MessageCircle, 
+          label: 'Chat',
+          active: location.pathname === '/chat'
+        },
+        { 
+          href: '/settings', 
+          icon: Settings, 
+          label: 'More',
+          active: location.pathname === '/settings'
+        },
+      ];
+    }
+
     // Default navigation for other roles
     return [
       ...baseItems,
@@ -135,6 +208,7 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       <div className="flex items-center justify-around py-2 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
+          const badge = 'badge' in item ? item.badge : undefined;
           return (
             <Link
               key={item.label + item.href}
@@ -156,6 +230,17 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
                   "h-6 w-6 transition-transform",
                   item.active && "scale-110"
                 )} strokeWidth={item.active ? 2.5 : 2} />
+                
+                {/* Badge for pending opportunities */}
+                {badge !== undefined && badge > 0 && (
+                  <motion.span
+                    initial={{ scale: 0 }}
+                    animate={{ scale: 1 }}
+                    className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm"
+                  >
+                    {badge > 99 ? '99+' : badge}
+                  </motion.span>
+                )}
               </div>
               
               {/* Clear label */}
