@@ -23,7 +23,6 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
   const [formData, setFormData] = useState({
-    email: '',
     fullName: '',
     phone: '',
     password: '',
@@ -60,8 +59,11 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
         return;
       }
 
+      // Generate email from phone number for backend compatibility
+      const generatedEmail = `${formData.phone.replace(/\D/g, '')}@welile.agent`;
+      
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: { ...formData, role: 'agent', isSubAgent: true },
+        body: { ...formData, email: generatedEmail, role: 'agent', isSubAgent: true },
       });
 
       if (response.error) {
@@ -135,7 +137,7 @@ Password: ${createdInvite?.password}`;
   };
 
   const handleClose = () => {
-    setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setFormData({ fullName: '', phone: '', password: '' });
     setCreatedInvite(null);
     setCopied(false);
     onOpenChange(false);
@@ -166,21 +168,6 @@ Password: ${createdInvite?.password}`;
             required
             className="h-12 text-base rounded-xl"
             autoComplete="off"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="subagent@example.com"
-            value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            required
-            className="h-12 text-base rounded-xl"
-            autoComplete="off"
-            inputMode="email"
           />
         </div>
 
