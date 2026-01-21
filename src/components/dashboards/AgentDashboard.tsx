@@ -21,7 +21,9 @@ import {
   Sparkles,
   ChevronRight,
   UsersRound,
-  Handshake
+  Handshake,
+  WifiOff,
+  RefreshCw
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -49,10 +51,12 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { useOffline } from '@/contexts/OfflineContext';
+import { OfflineBanner } from '@/components/OfflineBanner';
 
 interface AgentDashboardProps {
   user: User;
@@ -67,51 +71,88 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
+  const { isOnline } = useOffline();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
   const [subAgentCount, setSubAgentCount] = useState(0);
   const [subAgentEarnings, setSubAgentEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  const [fetchError, setFetchError] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+
+  // Load cached data from localStorage on mount
   useEffect(() => {
+    const cached = localStorage.getItem(`agent_dashboard_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setTenantsCount(data.tenantsCount || 0);
+        setReferralCount(data.referralCount || 0);
+        setSubAgentCount(data.subAgentCount || 0);
+        setSubAgentEarnings(data.subAgentEarnings || 0);
+        setHasLoadedOnce(true);
+      } catch (e) {
+        console.warn('[AgentDashboard] Failed to parse cached data');
+      }
+    }
     fetchData();
-  }, []);
+  }, [user.id]);
 
   const fetchData = async () => {
-    setLoading(true);
+    if (!hasLoadedOnce) setLoading(true);
+    setFetchError(false);
     
-    const [requestsRes, referralsRes, subAgentsRes, subAgentEarningsRes] = await Promise.all([
-      supabase
-        .from('rent_requests')
-        .select('id')
-        .eq('agent_id', user.id),
-      supabase
-        .from('referrals')
-        .select('id')
-        .eq('referrer_id', user.id),
-      supabase
-        .from('agent_subagents')
-        .select('id')
-        .eq('parent_agent_id', user.id),
-      supabase
-        .from('agent_earnings')
-        .select('amount')
-        .eq('agent_id', user.id)
-        .eq('earning_type', 'subagent_commission')
-    ]);
-    
-    setTenantsCount(requestsRes.data?.length || 0);
-    setReferralCount(referralsRes.data?.length || 0);
-    setSubAgentCount(subAgentsRes.data?.length || 0);
-    setSubAgentEarnings(subAgentEarningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0);
-    setLoading(false);
+    try {
+      const [requestsRes, referralsRes, subAgentsRes, subAgentEarningsRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id')
+          .eq('agent_id', user.id),
+        supabase
+          .from('referrals')
+          .select('id')
+          .eq('referrer_id', user.id),
+        supabase
+          .from('agent_subagents')
+          .select('id')
+          .eq('parent_agent_id', user.id),
+        supabase
+          .from('agent_earnings')
+          .select('amount')
+          .eq('agent_id', user.id)
+          .eq('earning_type', 'subagent_commission')
+      ]);
+      
+      const newData = {
+        tenantsCount: requestsRes.data?.length || 0,
+        referralCount: referralsRes.data?.length || 0,
+        subAgentCount: subAgentsRes.data?.length || 0,
+        subAgentEarnings: subAgentEarningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
+      };
+      
+      setTenantsCount(newData.tenantsCount);
+      setReferralCount(newData.referralCount);
+      setSubAgentCount(newData.subAgentCount);
+      setSubAgentEarnings(newData.subAgentEarnings);
+      
+      // Cache the data for offline use
+      localStorage.setItem(`agent_dashboard_${user.id}`, JSON.stringify(newData));
+      setHasLoadedOnce(true);
+    } catch (error) {
+      console.warn('[AgentDashboard] Fetch error:', error);
+      setFetchError(true);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  if (loading) {
+  // Show skeleton only on first load with no cached data
+  if (loading && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
   }
 
@@ -179,6 +220,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
+      {/* Offline Banner - Shows when offline or syncing */}
+      <OfflineBanner />
+      
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -188,6 +232,69 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       />
 
       <main className="px-4 py-4 space-y-5 animate-fade-in">
+        {/* Offline Notice Card - Prominent when offline */}
+        <AnimatePresence>
+          {!isOnline && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Card className="border-warning/50 bg-warning/10">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="p-2 rounded-full bg-warning/20">
+                    <WifiOff className="h-5 w-5 text-warning" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium text-sm">You're Offline</p>
+                    <p className="text-xs text-muted-foreground">
+                      Viewing cached data. Changes will sync when online.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="shrink-0"
+                    onClick={() => window.location.reload()}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Fetch Error Notice */}
+        <AnimatePresence>
+          {fetchError && isOnline && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+            >
+              <Card className="border-destructive/50 bg-destructive/10">
+                <CardContent className="p-4 flex items-center gap-3">
+                  <div className="flex-1">
+                    <p className="font-medium text-sm text-destructive">Connection Issue</p>
+                    <p className="text-xs text-muted-foreground">
+                      Couldn't load latest data. Showing cached version.
+                    </p>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={handleRefresh}
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
         {/* Role Switcher - Prominent placement for multi-role users */}
         {availableRoles.length > 1 && (
           <RoleSwitcher
