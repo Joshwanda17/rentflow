@@ -1,7 +1,7 @@
 // Simple notification sound using Web Audio API
 // No external dependencies required
 
-import { areNotificationSoundsEnabled, getNotificationSoundType } from '@/hooks/useAppPreferences';
+import { areNotificationSoundsEnabled, getNotificationSoundType, getOpportunitySoundType } from '@/hooks/useAppPreferences';
 
 let audioContext: AudioContext | null = null;
 
@@ -205,9 +205,18 @@ export function playSuccessSound() {
 }
 
 // New opportunity sound - attention-grabbing but pleasant
-export function playOpportunitySound() {
+export function playOpportunitySound(typeOverride?: 'ding' | 'pop' | 'chime' | 'opportunity') {
   // Check if sounds are enabled
   if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
+  // Use the user's preferred opportunity sound type, or override if specified
+  const type = typeOverride || getOpportunitySoundType();
+  
+  // If user chose ding, pop, or chime, use those instead
+  if (type === 'ding' || type === 'pop' || type === 'chime') {
+    playNotificationSound(type);
     return;
   }
 

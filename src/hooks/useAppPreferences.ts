@@ -3,6 +3,7 @@ import { useState, useEffect, useCallback } from 'react';
 export interface AppPreferences {
   notificationSounds: boolean;
   notificationSoundType: 'ding' | 'pop' | 'chime';
+  opportunitySoundType: 'ding' | 'pop' | 'chime' | 'opportunity';
   rememberLogin: boolean;
   skipSplash: boolean;
 }
@@ -10,6 +11,7 @@ export interface AppPreferences {
 const DEFAULT_PREFERENCES: AppPreferences = {
   notificationSounds: true,
   notificationSoundType: 'ding',
+  opportunitySoundType: 'opportunity',
   rememberLogin: true,
   skipSplash: false,
 };
@@ -89,6 +91,18 @@ export function getNotificationSoundType(): 'ding' | 'pop' | 'chime' {
     }
   } catch (e) {}
   return 'ding';
+}
+
+// Standalone function to get opportunity sound type
+export function getOpportunitySoundType(): 'ding' | 'pop' | 'chime' | 'opportunity' {
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const prefs = JSON.parse(stored);
+      return prefs.opportunitySoundType || 'opportunity';
+    }
+  } catch (e) {}
+  return 'opportunity';
 }
 
 // Standalone function to check if remember login is enabled
