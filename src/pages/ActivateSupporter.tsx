@@ -39,9 +39,9 @@ export default function ActivateSupporter() {
       try {
         const { data, error } = await supabase
           .from('supporter_invites')
-          .select('full_name, status, role')
+          .select('full_name, status, role, email, activated_user_id')
           .eq('activation_token', token)
-          .single();
+          .maybeSingle();
 
         if (error || !data) {
           setPageState('invalid');
@@ -49,8 +49,10 @@ export default function ActivateSupporter() {
           return;
         }
 
-        if (data.status === 'activated') {
+        // Detect duplicate - already activated
+        if (data.status === 'activated' || data.activated_user_id) {
           setPageState('activated-already');
+          setActivatedEmail(data.email);
         } else {
           setInviteDetails({ full_name: data.full_name, role: data.role });
           setPageState('ready');
