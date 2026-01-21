@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
@@ -17,12 +17,16 @@ import {
   User,
   Calendar,
   Loader2,
-  RefreshCw
+  RefreshCw,
+  HandCoins,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useToast } from '@/hooks/use-toast';
+import { useConfetti } from '@/components/Confetti';
+import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 
 interface WatchedOpportunity {
   id: string;
@@ -46,11 +50,13 @@ export default function MyWatchlist() {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const { toast } = useToast();
+  const { fireSuccess } = useConfetti();
   
   const [opportunities, setOpportunities] = useState<WatchedOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
+  const [fundingId, setFundingId] = useState<string | null>(null);
 
   const fetchWatchlist = async () => {
     if (!user) return;
@@ -119,6 +125,70 @@ export default function MyWatchlist() {
   const handleRefresh = () => {
     setRefreshing(true);
     fetchWatchlist();
+  };
+
+  const handleFund = async (requestId: string, rentAmount: number, watchId: string) => {
+    if (!user) return;
+    
+    setFundingId(requestId);
+    try {
+      const { error } = await supabase
+        .from('rent_requests')
+        .update({
+          supporter_id: user.id,
+          status: 'funded',
+          funded_at: new Date().toISOString()
+        })
+        .eq('id', requestId)
+        .eq('status', 'approved');
+
+      if (error) {
+        toast({
+          title: 'Funding Failed',
+          description: error.message,
+          variant: 'destructive'
+        });
+        return;
+      }
+
+      // Record the transaction
+      await supabase.from('platform_transactions').insert({
+        rent_request_id: requestId,
+        user_id: user.id,
+        transaction_type: 'supporter_funding',
+        amount: rentAmount,
+        direction: 'out',
+        description: 'Rent facilitation funding'
+      });
+
+      // Remove from watchlist after funding
+      await supabase
+        .from('watched_opportunities')
+        .delete()
+        .eq('id', watchId);
+
+      fireSuccess();
+      toast({
+        title: '🎉 Request Funded!',
+        description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
+      });
+
+      // Remove from local state
+      setOpportunities(prev => prev.filter(o => o.id !== watchId));
+    } catch (e) {
+      toast({
+        title: 'Error',
+        description: 'Failed to fund request',
+        variant: 'destructive'
+      });
+    } finally {
+      setFundingId(null);
+    }
+  };
+
+  const isReadyToFund = (request: WatchedOpportunity['rent_request']) => {
+    if (!request) return false;
+    return request.agent_verified && request.manager_verified && request.status === 'approved';
   };
 
   const getVerificationStatus = (request: WatchedOpportunity['rent_request']) => {
@@ -259,17 +329,41 @@ export default function MyWatchlist() {
                             </div>
                           </div>
 
-                          {/* Footer: Date + Actions */}
+                          {/* Fund Now Button - Only for ready opportunities */}
+                          {isReadyToFund(request) && (
+                            <div className="pt-2">
+                              <Button
+                                onClick={() => handleFund(request.id, request.rent_amount, item.id)}
+                                disabled={fundingId === request.id}
+                                className="w-full gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70"
+                              >
+                                {fundingId === request.id ? (
+                                  <Loader2 className="h-4 w-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <HandCoins className="h-4 w-4" />
+                                    Fund Now
+                                    <Sparkles className="h-3 w-3" />
+                                  </>
+                                )}
+                              </Button>
+                              <p className="text-xs text-center text-muted-foreground mt-1.5">
+                                Earn {formatUGX(calculateSupporterReward(request.rent_amount))} reward
+                              </p>
+                            </div>
+                          )}
+
+                          {/* Footer: Date + Remove */}
                           <div className="flex items-center justify-between pt-2 border-t">
                             <div className="flex items-center gap-1 text-xs text-muted-foreground">
                               <Calendar className="h-3 w-3" />
-                              <span>Watching since {formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
+                              <span>{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
                             </div>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemove(item.id)}
-                              disabled={removingId === item.id}
+                              disabled={removingId === item.id || fundingId === request.id}
                               className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
                             >
                               {removingId === item.id ? (
