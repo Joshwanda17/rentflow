@@ -45,6 +45,10 @@ import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
+// Tenant request details and payment dialogs
+import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
+import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
+
 // Agreement components
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { 
@@ -70,6 +74,8 @@ interface AvailableRequest {
   status: string;
   created_at: string;
   tenant_name?: string;
+  agent_verified?: boolean;
+  manager_verified?: boolean;
 }
 
 interface FundedRequest {
@@ -101,6 +107,10 @@ export default function SupporterDashboard({
   const [viewAgreementTab, setViewAgreementTab] = useState<'summary' | 'full'>('summary');
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showRequestDetails, setShowRequestDetails] = useState(false);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
+  const [showPayLandlord, setShowPayLandlord] = useState(false);
+  const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess } = useConfetti();
@@ -151,7 +161,7 @@ export default function SupporterDashboard({
     const [availableRes, fundedRes, accountsRes] = await Promise.all([
       supabase
         .from('rent_requests')
-        .select('id, rent_amount, duration_days, status, created_at')
+        .select('id, rent_amount, duration_days, status, created_at, agent_verified, manager_verified')
         .eq('status', 'approved')
         .order('created_at', { ascending: true }),
       supabase
@@ -559,7 +569,14 @@ export default function SupporterDashboard({
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <SimpleTenantsList
             requests={availableRequests}
-            onFund={effectiveHasAccepted ? fundRequest : () => setShowAgreementModal(true)}
+            onFund={(id, amount) => {
+              if (!effectiveHasAccepted) {
+                setShowAgreementModal(true);
+                return;
+              }
+              setSelectedRequestId(id);
+              setShowRequestDetails(true);
+            }}
             loading={loading}
           />
         </div>
@@ -709,6 +726,29 @@ export default function SupporterDashboard({
           </div>
         </DialogContent>
       </Dialog>
+      
+      {/* Tenant Request Details Dialog */}
+      <TenantRequestDetailsDialog
+        open={showRequestDetails}
+        onOpenChange={setShowRequestDetails}
+        requestId={selectedRequestId}
+        onPayLandlord={(request) => {
+          setSelectedRequestForPayment(request);
+          setShowRequestDetails(false);
+          setShowPayLandlord(true);
+        }}
+      />
+      
+      {/* Pay Landlord Dialog */}
+      <PayLandlordDialog
+        open={showPayLandlord}
+        onOpenChange={setShowPayLandlord}
+        request={selectedRequestForPayment}
+        onSuccess={() => {
+          fetchData();
+          setSelectedRequestForPayment(null);
+        }}
+      />
       
       <FloatingShareButton />
       <MobileQuickMenu currentRole={currentRole} />

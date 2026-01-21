@@ -2,7 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Users, ArrowRight, Clock, Sparkles, TrendingUp, Zap } from 'lucide-react';
+import { Users, ArrowRight, Clock, Sparkles, TrendingUp, Zap, Eye, Shield } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 
@@ -13,15 +13,18 @@ interface RentRequest {
   status: string;
   created_at: string;
   tenant_name?: string;
+  agent_verified?: boolean;
+  manager_verified?: boolean;
 }
 
 interface TenantsNeedingRentProps {
   requests: RentRequest[];
   onFund: (requestId: string, amount: number) => void;
+  onViewDetails: (requestId: string) => void;
   loading?: boolean;
 }
 
-export function TenantsNeedingRent({ requests, onFund, loading }: TenantsNeedingRentProps) {
+export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }: TenantsNeedingRentProps) {
   const getInitials = (name?: string) => {
     if (!name) return 'T';
     return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
@@ -132,14 +135,19 @@ export function TenantsNeedingRent({ requests, onFund, loading }: TenantsNeeding
                       </Avatar>
                       
                       <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
-                          <p className="font-bold text-foreground text-sm sm:text-base truncate">
-                            {request.tenant_name || 'Anonymous Tenant'}
-                          </p>
-                          <Badge className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0 sm:py-0.5 bg-white/10 text-foreground/80 border-0 shrink-0">
-                            {request.duration_days}d
-                          </Badge>
-                        </div>
+                        <button 
+                          onClick={() => onViewDetails(request.id)}
+                          className="text-left w-full"
+                        >
+                          <div className="flex items-center gap-2 mb-0.5 sm:mb-1 flex-wrap">
+                            <p className="font-bold text-foreground text-sm sm:text-base truncate hover:text-primary transition-colors">
+                              {request.tenant_name || 'Anonymous Tenant'}
+                            </p>
+                            <Badge className="text-[9px] sm:text-[10px] px-1.5 sm:px-2 py-0 sm:py-0.5 bg-white/10 text-foreground/80 border-0 shrink-0">
+                              {request.duration_days}d
+                            </Badge>
+                          </div>
+                        </button>
                         
                         <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
                           <span className="text-base sm:text-xl font-black text-foreground">
@@ -153,21 +161,48 @@ export function TenantsNeedingRent({ requests, onFund, loading }: TenantsNeeding
                           </div>
                         </div>
                         
-                        <div className="flex items-center gap-1 sm:gap-1.5 mt-1 sm:mt-1.5 text-[10px] sm:text-xs text-muted-foreground font-medium">
-                          <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
-                          <span>{getDaysAgo(request.created_at)}</span>
+                        <div className="flex items-center gap-2 sm:gap-3 mt-1 sm:mt-1.5">
+                          <div className="flex items-center gap-1 text-[10px] sm:text-xs text-muted-foreground font-medium">
+                            <Clock className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
+                            <span>{getDaysAgo(request.created_at)}</span>
+                          </div>
+                          {/* Verification status indicators */}
+                          <div className="flex items-center gap-1">
+                            {request.agent_verified && (
+                              <Badge variant="outline" className="text-[8px] px-1 py-0 bg-success/10 text-success border-success/30">
+                                <Shield className="h-2 w-2 mr-0.5" />
+                                Agent
+                              </Badge>
+                            )}
+                            {request.manager_verified && (
+                              <Badge variant="outline" className="text-[8px] px-1 py-0 bg-primary/10 text-primary border-primary/30">
+                                <Shield className="h-2 w-2 mr-0.5" />
+                                Manager
+                              </Badge>
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
 
-                    {/* Fund Button - Full width on mobile */}
-                    <Button
-                      onClick={() => onFund(request.id, Number(request.rent_amount))}
-                      className="relative gap-1.5 sm:gap-2 shrink-0 h-10 sm:h-11 w-full sm:w-auto px-4 sm:px-5 font-bold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
-                    >
-                      Fund Now
-                      <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:translate-x-0.5 transition-transform" />
-                    </Button>
+                    {/* Buttons - View & Fund */}
+                    <div className="flex gap-2 w-full sm:w-auto">
+                      <Button
+                        variant="outline"
+                        onClick={() => onViewDetails(request.id)}
+                        className="relative gap-1 shrink-0 h-10 sm:h-11 flex-1 sm:flex-none sm:px-3 text-sm"
+                      >
+                        <Eye className="h-4 w-4" />
+                        <span className="sm:hidden">Details</span>
+                      </Button>
+                      <Button
+                        onClick={() => onViewDetails(request.id)}
+                        className="relative gap-1.5 sm:gap-2 shrink-0 h-10 sm:h-11 flex-1 sm:w-auto px-4 sm:px-5 font-bold text-sm bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 hover:shadow-xl hover:shadow-primary/30 transition-all duration-300"
+                      >
+                        View & Fund
+                        <ArrowRight className="h-3.5 w-3.5 sm:h-4 sm:w-4 group-hover:translate-x-0.5 transition-transform" />
+                      </Button>
+                    </div>
                   </motion.div>
                 );
               })}
