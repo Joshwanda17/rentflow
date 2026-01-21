@@ -4,6 +4,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { SwipeableRow, swipeActions } from '@/components/SwipeableRow';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Progress } from '@/components/ui/progress';
@@ -550,112 +551,114 @@ export default function MyWatchlist() {
                   exit={{ opacity: 0, x: -100 }}
                   transition={{ delay: index * 0.05 }}
                 >
-                  <Card className="overflow-hidden">
-                    <CardContent className="p-4">
-                      {request ? (
-                        <div className="space-y-3">
-                          {/* Top row: Amount + Status */}
-                          <div className="flex items-start justify-between gap-2">
-                            <div className="flex items-center gap-2">
-                              <div className="p-2 rounded-full bg-primary/10">
-                                <Banknote className="h-4 w-4 text-primary" />
+                  <SwipeableRow
+                    leftActions={isReadyToFund(request) ? [
+                      swipeActions.fund(() => setConfirmFunding({
+                        watchId: item.id,
+                        requestId: request?.id || '',
+                        amount: request?.rent_amount || 0,
+                        tenantName: request?.tenant?.[0]?.full_name || 'Unknown tenant'
+                      }))
+                    ] : []}
+                    rightActions={[
+                      swipeActions.unwatch(() => handleRemove(item.id))
+                    ]}
+                    disabled={bulkFunding || !!fundingId}
+                  >
+                    <Card className="overflow-hidden border-0">
+                      <CardContent className="p-4">
+                        {request ? (
+                          <div className="space-y-3">
+                            {/* Top row: Amount + Status */}
+                            <div className="flex items-start justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className="p-2 rounded-full bg-primary/10">
+                                  <Banknote className="h-4 w-4 text-primary" />
+                                </div>
+                                <div>
+                                  <p className="font-semibold">
+                                    {formatAmount(request.rent_amount)}
+                                  </p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {request.duration_days} days
+                                  </p>
+                                </div>
                               </div>
-                              <div>
-                                <p className="font-semibold">
-                                  {formatAmount(request.rent_amount)}
-                                </p>
-                                <p className="text-xs text-muted-foreground">
-                                  {request.duration_days} days
-                                </p>
+                              <Badge variant={status.variant} className="flex items-center gap-1">
+                                <StatusIcon className="h-3 w-3" />
+                                {status.label}
+                              </Badge>
+                            </div>
+
+                            {/* Tenant + Verification Progress */}
+                            <div className="flex items-center justify-between text-sm">
+                              <div className="flex items-center gap-1.5 text-muted-foreground">
+                                <User className="h-3.5 w-3.5" />
+                                <span>{request.tenant?.[0]?.full_name || 'Unknown tenant'}</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                <span className={`w-2 h-2 rounded-full ${request.agent_verified ? 'bg-green-500' : 'bg-muted'}`} />
+                                <span className={`w-2 h-2 rounded-full ${request.manager_verified ? 'bg-green-500' : 'bg-muted'}`} />
                               </div>
                             </div>
-                            <Badge variant={status.variant} className="flex items-center gap-1">
-                              <StatusIcon className="h-3 w-3" />
-                              {status.label}
-                            </Badge>
+
+                            {/* Fund Now Button - Only for ready opportunities */}
+                            {isReadyToFund(request) && (
+                              <div className="pt-2">
+                                <Button
+                                  onClick={() => setConfirmFunding({
+                                    watchId: item.id,
+                                    requestId: request.id,
+                                    amount: request.rent_amount,
+                                    tenantName: request.tenant?.[0]?.full_name || 'Unknown tenant'
+                                  })}
+                                  disabled={fundingId === request.id}
+                                  className="w-full gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70"
+                                >
+                                  {fundingId === request.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <>
+                                      <HandCoins className="h-4 w-4" />
+                                      Fund Now
+                                      <Sparkles className="h-3 w-3" />
+                                    </>
+                                  )}
+                                </Button>
+                                <p className="text-xs text-center text-muted-foreground mt-1.5">
+                                  Earn {formatUGX(calculateSupporterReward(request.rent_amount))} reward
+                                </p>
+                              </div>
+                            )}
+
+                            {/* Footer: Date + Swipe hint */}
+                            <div className="flex items-center justify-between pt-2 border-t">
+                              <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                                <Calendar className="h-3 w-3" />
+                                <span>{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
+                              </div>
+                              {isReadyToFund(request) && (
+                                <span className="text-xs text-success/70">← Swipe to fund</span>
+                              )}
+                            </div>
                           </div>
-
-                          {/* Tenant + Verification Progress */}
-                          <div className="flex items-center justify-between text-sm">
-                            <div className="flex items-center gap-1.5 text-muted-foreground">
-                              <User className="h-3.5 w-3.5" />
-                              <span>{request.tenant?.[0]?.full_name || 'Unknown tenant'}</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <span className={`w-2 h-2 rounded-full ${request.agent_verified ? 'bg-green-500' : 'bg-muted'}`} />
-                              <span className={`w-2 h-2 rounded-full ${request.manager_verified ? 'bg-green-500' : 'bg-muted'}`} />
-                            </div>
-                          </div>
-
-                          {/* Fund Now Button - Only for ready opportunities */}
-                          {isReadyToFund(request) && (
-                            <div className="pt-2">
-                              <Button
-                                onClick={() => setConfirmFunding({
-                                  watchId: item.id,
-                                  requestId: request.id,
-                                  amount: request.rent_amount,
-                                  tenantName: request.tenant?.[0]?.full_name || 'Unknown tenant'
-                                })}
-                                disabled={fundingId === request.id}
-                                className="w-full gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70"
-                              >
-                                {fundingId === request.id ? (
-                                  <Loader2 className="h-4 w-4 animate-spin" />
-                                ) : (
-                                  <>
-                                    <HandCoins className="h-4 w-4" />
-                                    Fund Now
-                                    <Sparkles className="h-3 w-3" />
-                                  </>
-                                )}
-                              </Button>
-                              <p className="text-xs text-center text-muted-foreground mt-1.5">
-                                Earn {formatUGX(calculateSupporterReward(request.rent_amount))} reward
-                              </p>
-                            </div>
-                          )}
-
-                          {/* Footer: Date + Remove */}
-                          <div className="flex items-center justify-between pt-2 border-t">
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                              <Calendar className="h-3 w-3" />
-                              <span>{formatDistanceToNow(new Date(item.created_at), { addSuffix: true })}</span>
-                            </div>
+                        ) : (
+                          <div className="text-center py-4 text-muted-foreground">
+                            <AlertCircle className="h-5 w-5 mx-auto mb-2" />
+                            <p className="text-sm">Opportunity no longer available</p>
                             <Button
                               variant="ghost"
                               size="sm"
                               onClick={() => handleRemove(item.id)}
-                              disabled={removingId === item.id || fundingId === request.id}
-                              className="h-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                              className="mt-2"
                             >
-                              {removingId === item.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <>
-                                  <BookmarkX className="h-4 w-4 mr-1" />
-                                  Remove
-                                </>
-                              )}
+                              Remove
                             </Button>
                           </div>
-                        </div>
-                      ) : (
-                        <div className="text-center py-4 text-muted-foreground">
-                          <AlertCircle className="h-5 w-5 mx-auto mb-2" />
-                          <p className="text-sm">Opportunity no longer available</p>
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => handleRemove(item.id)}
-                            className="mt-2"
-                          >
-                            Remove
-                          </Button>
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
+                        )}
+                      </CardContent>
+                    </Card>
+                  </SwipeableRow>
                 </motion.div>
               );
             })
