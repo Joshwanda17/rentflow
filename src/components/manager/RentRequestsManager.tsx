@@ -21,7 +21,9 @@ import {
   Send,
   History,
   CheckCircle2,
-  Phone
+  Phone,
+  Shield,
+  ShieldCheck
 } from 'lucide-react';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
@@ -36,6 +38,7 @@ import {
 import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
 
 interface RentRequest {
   id: string;
@@ -54,8 +57,10 @@ interface RentRequest {
   approval_comment: string | null;
   rejected_reason: string | null;
   approved_by: string | null;
+  agent_verified?: boolean;
+  manager_verified?: boolean;
   tenant?: { full_name: string; phone: string };
-  landlord?: { name: string; property_address: string };
+  landlord?: { id: string; name: string; property_address: string; verified?: boolean; ready_to_receive?: boolean };
   missedDays?: number;
   paidAmount?: number;
 }
@@ -113,10 +118,10 @@ export function RentRequestsManager() {
       ? await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
       : { data: [] };
 
-    // Fetch landlords
+    // Fetch landlords with verification status
     const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
     const { data: landlords } = landlordIds.length > 0
-      ? await supabase.from('landlords').select('id, name, property_address').in('id', landlordIds)
+      ? await supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
       : { data: [] };
 
     // Fetch all repayments to calculate missed days
@@ -562,6 +567,44 @@ Thank you for being part of Welile! 🏠`;
                       <div className="p-2 rounded-lg bg-success/10 border border-success/20">
                         <p className="text-muted-foreground text-xs">Daily Payment</p>
                         <p className="font-bold text-success">{formatUGX(request.daily_repayment)}</p>
+                      </div>
+                    </div>
+
+                    {/* Verification Section */}
+                    <div className="p-3 rounded-lg bg-muted/50 border space-y-3">
+                      <div className="flex items-center gap-2 text-sm font-medium">
+                        <Shield className="h-4 w-4 text-primary" />
+                        Verification Status
+                      </div>
+                      <div className="flex flex-wrap items-center gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Tenant:</span>
+                          <VerifyTenantButton
+                            requestId={request.id}
+                            agentVerified={request.agent_verified}
+                            managerVerified={request.manager_verified}
+                            onVerified={fetchRequests}
+                            variant="manager"
+                          />
+                          {request.agent_verified && (
+                            <Badge variant="outline" className="bg-success/10 text-success border-success/30 gap-1 text-xs">
+                              <CheckCircle2 className="h-3 w-3" />
+                              Agent
+                            </Badge>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs text-muted-foreground">Landlord:</span>
+                          {request.landlord && (
+                            <VerifyLandlordButton
+                              landlordId={request.landlord.id}
+                              landlordName={request.landlord.name}
+                              verified={request.landlord.verified}
+                              readyToReceive={request.landlord.ready_to_receive}
+                              onVerified={fetchRequests}
+                            />
+                          )}
+                        </div>
                       </div>
                     </div>
 
