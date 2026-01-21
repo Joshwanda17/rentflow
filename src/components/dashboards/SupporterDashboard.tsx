@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useConfetti } from '@/components/Confetti';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -130,6 +130,9 @@ export default function SupporterDashboard({
   } = useSupporterAgreement();
 
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
+  
+  // Ref for refreshing opportunities from parent
+  const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
   
   // Track local acceptance state - once accepted, never show agreement UI again in this session
   const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
@@ -499,7 +502,10 @@ export default function SupporterDashboard({
   }
 
   const handleRefresh = async () => {
-    await fetchData();
+    await Promise.all([
+      fetchData(),
+      opportunitiesRefreshRef.current?.()
+    ]);
   };
 
   const menuItems = [
@@ -641,6 +647,7 @@ export default function SupporterDashboard({
             }}
             isLocked={!effectiveHasAccepted}
             onLockedClick={() => setShowAgreementModal(true)}
+            onRefreshRef={opportunitiesRefreshRef}
           />
         </div>
 

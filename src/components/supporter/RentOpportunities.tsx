@@ -85,9 +85,10 @@ interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
   isLocked?: boolean;
   onLockedClick?: () => void;
+  onRefreshRef?: React.MutableRefObject<(() => Promise<void>) | null>;
 }
 
-export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOpportunitiesProps) {
+export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRef }: RentOpportunitiesProps) {
   const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<RentOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
@@ -100,6 +101,21 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
   const [startingChat, setStartingChat] = useState(false);
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [watchingId, setWatchingId] = useState<string | null>(null);
+
+  // Expose refresh function to parent
+  useEffect(() => {
+    if (onRefreshRef) {
+      onRefreshRef.current = async () => {
+        await fetchOpportunities();
+        await fetchWatchedOpportunities();
+      };
+    }
+    return () => {
+      if (onRefreshRef) {
+        onRefreshRef.current = null;
+      }
+    };
+  }, [onRefreshRef]);
 
   useEffect(() => {
     fetchOpportunities();
