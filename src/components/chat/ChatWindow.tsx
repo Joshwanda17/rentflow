@@ -15,6 +15,8 @@ import { cn } from '@/lib/utils';
 import OnlineIndicator from './OnlineIndicator';
 import MessageReactions from './MessageReactions';
 import PendingMessageIndicator from './PendingMessageIndicator';
+import TypingIndicator from './TypingIndicator';
+import { AnimatePresence } from 'framer-motion';
 import { 
   getCachedMessages, 
   cacheMessages, 
@@ -430,25 +432,21 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
           ))}
           
           {/* Typing indicator */}
-          {!isOffline && isOtherTyping && otherParticipant && (
-            <div className="flex justify-start">
-              <div className="flex gap-2 items-center">
-                <Avatar className="h-8 w-8 shrink-0">
-                  <AvatarImage src={otherParticipant.avatar_url || undefined} />
-                  <AvatarFallback className="text-xs">
-                    {getInitials(otherParticipant.full_name)}
-                  </AvatarFallback>
-                </Avatar>
-                <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-2">
-                  <div className="flex gap-1 items-center">
-                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                    <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
-                  </div>
+          <AnimatePresence>
+            {!isOffline && isOtherTyping && otherParticipant && (
+              <div className="flex justify-start">
+                <div className="flex gap-2 items-center">
+                  <Avatar className="h-8 w-8 shrink-0">
+                    <AvatarImage src={otherParticipant.avatar_url || undefined} />
+                    <AvatarFallback className="text-xs">
+                      {getInitials(otherParticipant.full_name)}
+                    </AvatarFallback>
+                  </Avatar>
+                  <TypingIndicator name={otherParticipant.full_name} variant="bubble" />
                 </div>
               </div>
-            </div>
-          )}
+            )}
+          </AnimatePresence>
           
           <div ref={scrollRef} />
         </div>
