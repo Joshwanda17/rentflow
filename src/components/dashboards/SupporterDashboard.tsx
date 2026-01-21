@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useConfetti } from '@/components/Confetti';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -93,9 +94,11 @@ export default function SupporterDashboard({
 }: SupporterDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { isOnline } = useOffline();
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasCachedData, setHasCachedData] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
   const [showFundAccount, setShowFundAccount] = useState(false);
   const [showWithdrawAccount, setShowWithdrawAccount] = useState(false);
@@ -153,44 +156,82 @@ export default function SupporterDashboard({
     return success;
   };
 
+  // Load cached data first for offline support
+  useEffect(() => {
+    const cached = localStorage.getItem(`supporter_dashboard_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setAvailableRequests(data.availableRequests || []);
+        setFundedRequests(data.fundedRequests || []);
+        setAccounts(data.accounts || []);
+        setHasCachedData(true);
+      } catch (e) {
+        console.warn('[SupporterDashboard] Failed to load cached data');
+      }
+    }
+  }, [user.id]);
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    // Skip network fetch if offline and we have cached data
+    if (!navigator.onLine && hasCachedData) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     
-    const [availableRes, fundedRes, accountsRes] = await Promise.all([
-      supabase
-        .from('rent_requests')
-        .select('id, rent_amount, duration_days, status, created_at, agent_verified, manager_verified')
-        .eq('status', 'approved')
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('rent_requests')
-        .select('id, rent_amount, duration_days, status, funded_at')
-        .eq('supporter_id', user.id)
-        .order('funded_at', { ascending: false }),
-      supabase
-        .from('investment_accounts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
-    ]);
-    
-    setAvailableRequests(availableRes.data || []);
-    setFundedRequests(fundedRes.data || []);
-
-    const dbAccounts = (accountsRes.data || []).map(acc => ({
-      id: acc.id,
-      name: acc.name,
-      balance: Number(acc.balance),
-      invested: 0,
-      returns: 0,
-      color: acc.color,
-      status: acc.status as 'pending' | 'approved' | 'rejected',
-    }));
-    setAccounts(dbAccounts);
+    try {
+      const [availableRes, fundedRes, accountsRes] = await Promise.all([
+        supabase
+          .from('rent_requests')
+          .select('id, rent_amount, duration_days, status, created_at, agent_verified, manager_verified')
+          .eq('status', 'approved')
+          .order('created_at', { ascending: true }),
+        supabase
+          .from('rent_requests')
+          .select('id, rent_amount, duration_days, status, funded_at')
+          .eq('supporter_id', user.id)
+          .order('funded_at', { ascending: false }),
+        supabase
+          .from('investment_accounts')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true })
+      ]);
+      
+      const newAvailableRequests = availableRes.data || [];
+      const newFundedRequests = fundedRes.data || [];
+      const newAccounts = (accountsRes.data || []).map(acc => ({
+        id: acc.id,
+        name: acc.name,
+        balance: Number(acc.balance),
+        invested: 0,
+        returns: 0,
+        color: acc.color,
+        status: acc.status as 'pending' | 'approved' | 'rejected',
+      }));
+      
+      setAvailableRequests(newAvailableRequests);
+      setFundedRequests(newFundedRequests);
+      setAccounts(newAccounts);
+      
+      // Cache the data for offline use
+      localStorage.setItem(`supporter_dashboard_${user.id}`, JSON.stringify({
+        availableRequests: newAvailableRequests,
+        fundedRequests: newFundedRequests,
+        accounts: newAccounts,
+        timestamp: Date.now()
+      }));
+      setHasCachedData(true);
+    } catch (error) {
+      console.error('[SupporterDashboard] Error fetching data:', error);
+      // If we have cached data, don't show error, just use cached
+    }
 
     setLoading(false);
   };
@@ -438,7 +479,8 @@ export default function SupporterDashboard({
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
   const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
 
-  if (loading) {
+  // Only show skeleton if loading AND online AND no cached data
+  if (loading && isOnline && !hasCachedData) {
     return <SupporterDashboardSkeleton />;
   }
 

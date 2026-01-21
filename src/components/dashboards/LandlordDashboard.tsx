@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useOffline } from '@/contexts/OfflineContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { 
   Banknote, 
@@ -43,30 +44,70 @@ interface LandlordDashboardProps {
 export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { isOnline } = useOffline();
   const [totalReceived, setTotalReceived] = useState(0);
   const [paymentsCount, setPaymentsCount] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [hasCachedData, setHasCachedData] = useState(false);
+
+  // Load cached data first for offline support
+  useEffect(() => {
+    const cached = localStorage.getItem(`landlord_dashboard_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setTotalReceived(data.totalReceived ?? 0);
+        setPaymentsCount(data.paymentsCount ?? 0);
+        setHasCachedData(true);
+      } catch (e) {
+        console.warn('[LandlordDashboard] Failed to load cached data');
+      }
+    }
+  }, [user.id]);
 
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    // Skip network fetch if offline and we have cached data
+    if (!navigator.onLine && hasCachedData) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     
-    const { data } = await supabase
-      .from('platform_transactions')
-      .select('id, amount')
-      .eq('user_id', user.id)
-      .eq('transaction_type', 'landlord_payout');
+    try {
+      const { data } = await supabase
+        .from('platform_transactions')
+        .select('id, amount')
+        .eq('user_id', user.id)
+        .eq('transaction_type', 'landlord_payout');
+      
+      const payments = data || [];
+      const newPaymentsCount = payments.length;
+      const newTotalReceived = payments.reduce((sum, p) => sum + Number(p.amount), 0);
+      
+      setPaymentsCount(newPaymentsCount);
+      setTotalReceived(newTotalReceived);
+      
+      // Cache the data for offline use
+      localStorage.setItem(`landlord_dashboard_${user.id}`, JSON.stringify({
+        totalReceived: newTotalReceived,
+        paymentsCount: newPaymentsCount,
+        timestamp: Date.now()
+      }));
+      setHasCachedData(true);
+    } catch (error) {
+      console.error('[LandlordDashboard] Error fetching data:', error);
+    }
     
-    const payments = data || [];
-    setPaymentsCount(payments.length);
-    setTotalReceived(payments.reduce((sum, p) => sum + Number(p.amount), 0));
     setLoading(false);
   };
 
-  if (loading) {
+  // Only show skeleton if loading AND online AND no cached data
+  if (loading && isOnline && !hasCachedData) {
     return <LandlordDashboardSkeleton />;
   }
 

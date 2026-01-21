@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import { useOffline } from '@/contexts/OfflineContext';
 import { 
   Home, 
   Receipt, 
@@ -81,11 +82,13 @@ interface Repayment {
 export default function TenantDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: TenantDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { isOnline } = useOffline();
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hasCachedData, setHasCachedData] = useState(false);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
@@ -103,31 +106,69 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       setIsAcceptingAgreement(false);
     }
   };
+  // Load cached data first for offline support
+  useEffect(() => {
+    const cached = localStorage.getItem(`tenant_dashboard_${user.id}`);
+    if (cached) {
+      try {
+        const data = JSON.parse(cached);
+        setRentRequests(data.rentRequests || []);
+        setRepayments(data.repayments || []);
+        setHasCachedData(true);
+      } catch (e) {
+        console.warn('[TenantDashboard] Failed to load cached data');
+      }
+    }
+  }, [user.id]);
+
   useEffect(() => {
     fetchData();
   }, []);
 
   const fetchData = async () => {
+    // Skip network fetch if offline and we have cached data
+    if (!navigator.onLine && hasCachedData) {
+      setLoading(false);
+      return;
+    }
+    
     setLoading(true);
     
-    const { data: requests } = await supabase
-      .from('rent_requests')
-      .select('*')
-      .eq('tenant_id', user.id)
-      .order('created_at', { ascending: false });
+    try {
+      const { data: requests } = await supabase
+        .from('rent_requests')
+        .select('*')
+        .eq('tenant_id', user.id)
+        .order('created_at', { ascending: false });
+      
+      const { data: payments } = await supabase
+        .from('repayments')
+        .select('*')
+        .eq('tenant_id', user.id)
+        .order('payment_date', { ascending: false });
+      
+      const newRentRequests = requests || [];
+      const newRepayments = payments || [];
+      
+      setRentRequests(newRentRequests);
+      setRepayments(newRepayments);
+      
+      // Cache the data for offline use
+      localStorage.setItem(`tenant_dashboard_${user.id}`, JSON.stringify({
+        rentRequests: newRentRequests,
+        repayments: newRepayments,
+        timestamp: Date.now()
+      }));
+      setHasCachedData(true);
+    } catch (error) {
+      console.error('[TenantDashboard] Error fetching data:', error);
+    }
     
-    const { data: payments } = await supabase
-      .from('repayments')
-      .select('*')
-      .eq('tenant_id', user.id)
-      .order('payment_date', { ascending: false });
-    
-    setRentRequests(requests || []);
-    setRepayments(payments || []);
     setLoading(false);
   };
 
-  if (loading) {
+  // Only show skeleton if loading AND online AND no cached data
+  if (loading && isOnline && !hasCachedData) {
     return <TenantDashboardSkeleton />;
   }
 
