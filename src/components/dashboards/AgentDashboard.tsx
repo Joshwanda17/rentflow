@@ -38,7 +38,7 @@ import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog'
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
-import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
+import { CollapsibleRentRequests } from '@/components/agent/CollapsibleRentRequests';
 import { SubAgentsList } from '@/components/agent/SubAgentsList';
 import { SubAgentInvitesList } from '@/components/agent/SubAgentInvitesList';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
@@ -479,8 +479,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
 
-        {/* Rent Requests - Agents can approve/reject */}
-        <AgentRentRequestsManager />
+        {/* Rent Requests - Hidden behind collapsible button */}
+        <CollapsibleRentRequests />
 
         {/* Sub-Agent Invites List - with resend capability */}
         <SubAgentInvitesList />
