@@ -89,11 +89,14 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: Create
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to create invite');
+        const errorMsg = response.error.message || 
+          (response.error as any)?.context?.body || 
+          'Failed to create invite';
+        throw new Error(errorMsg);
       }
 
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (!response.data || response.data.error) {
+        throw new Error(response.data?.error || 'Failed to create invite');
       }
 
       setCreatedInvite({
