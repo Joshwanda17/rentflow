@@ -20,6 +20,7 @@ import {
   Wallet,
   Sparkles,
   ChevronRight,
+  ChevronUp,
   UsersRound,
   Handshake,
   WifiOff,
@@ -84,6 +85,28 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  
+  // Collapsible sections state
+  const [sectionsOpen, setSectionsOpen] = useState({
+    rentRequests: false,
+    subAgents: false,
+    userInvites: false,
+  });
+  
+  const anyExpanded = Object.values(sectionsOpen).some(v => v);
+  
+  const collapseAll = () => {
+    hapticTap();
+    setSectionsOpen({
+      rentRequests: false,
+      subAgents: false,
+      userInvites: false,
+    });
+  };
+  
+  const toggleSection = (section: keyof typeof sectionsOpen) => {
+    setSectionsOpen(prev => ({ ...prev, [section]: !prev[section] }));
+  };
 
   // Load cached data from localStorage on mount
   useEffect(() => {
@@ -479,14 +502,36 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
 
+        {/* Collapse All Button - Show when any section is expanded */}
+        {anyExpanded && (
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={collapseAll}
+            className="w-full text-muted-foreground gap-2"
+          >
+            <ChevronUp className="h-4 w-4" />
+            Collapse All Sections
+          </Button>
+        )}
+
         {/* Rent Requests - Hidden behind collapsible button */}
-        <CollapsibleRentRequests />
+        <CollapsibleRentRequests 
+          isOpen={sectionsOpen.rentRequests}
+          onToggle={() => toggleSection('rentRequests')}
+        />
 
         {/* Sub-Agents - Hidden behind collapsible button */}
-        <CollapsibleSubAgents />
+        <CollapsibleSubAgents 
+          isOpen={sectionsOpen.subAgents}
+          onToggle={() => toggleSection('subAgents')}
+        />
 
         {/* Registered Users - Hidden behind collapsible button */}
-        <CollapsibleUserInvites />
+        <CollapsibleUserInvites 
+          isOpen={sectionsOpen.userInvites}
+          onToggle={() => toggleSection('userInvites')}
+        />
 
         {/* Food Shopping Loans */}
         <FoodShoppingLoansSection />
