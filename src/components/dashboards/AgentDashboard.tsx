@@ -64,7 +64,7 @@ interface AgentDashboardProps {
 export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
-  const { totalEarnings, refreshEarnings } = useAgentEarnings();
+  const { totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
   const [subAgentCount, setSubAgentCount] = useState(0);
@@ -300,13 +300,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </motion.div>
         )}
 
-        {/* Quick Earnings Indicator - Compact */}
+        {/* Quick Earnings Indicator with Breakdown */}
         <button 
           onClick={() => navigate('/earnings')}
           className="w-full"
         >
           <Card className="border border-success/30 bg-success/5 hover:bg-success/10 transition-colors">
-            <CardContent className="p-4">
+            <CardContent className="p-4 space-y-3">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   <div className="p-2.5 rounded-xl bg-success/15">
@@ -317,17 +317,32 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
                     <p className="text-xs text-muted-foreground">Total Earnings</p>
                   </div>
                 </div>
-                <div className="flex items-center gap-4 text-sm">
-                  <div className="text-center">
-                    <p className="font-bold">{tenantsCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Tenants</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="font-bold">{referralCount}</p>
-                    <p className="text-[10px] text-muted-foreground">Referrals</p>
-                  </div>
-                  <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                <ChevronRight className="h-4 w-4 text-muted-foreground" />
+              </div>
+              
+              {/* Earnings Breakdown */}
+              <div className="grid grid-cols-3 gap-2 pt-2 border-t border-border/50">
+                <div className="text-center p-2 rounded-lg bg-background/50">
+                  <p className="font-bold text-sm">{formatUGX(commissionTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground">Repayments</p>
                 </div>
+                <div className="text-center p-2 rounded-lg bg-background/50">
+                  <p className="font-bold text-sm">{formatUGX(bonusTotal)}</p>
+                  <p className="text-[10px] text-muted-foreground">Bonuses</p>
+                </div>
+                <div className="text-center p-2 rounded-lg bg-orange-500/10">
+                  <p className="font-bold text-sm text-orange-600 dark:text-orange-400">{formatUGX(subAgentEarnings)}</p>
+                  <p className="text-[10px] text-muted-foreground">Sub-Agents</p>
+                </div>
+              </div>
+              
+              {/* Quick Stats Row */}
+              <div className="flex items-center justify-around text-xs text-muted-foreground pt-1">
+                <span>{tenantsCount} tenants</span>
+                <span className="text-border">•</span>
+                <span>{referralCount} referrals</span>
+                <span className="text-border">•</span>
+                <span className="text-orange-500">{subAgentCount} sub-agents</span>
               </div>
             </CardContent>
           </Card>
