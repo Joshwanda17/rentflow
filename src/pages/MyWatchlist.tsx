@@ -39,6 +39,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound } from '@/lib/notificationSound';
+import { hapticSuccess } from '@/lib/haptics';
 import { useMemo } from 'react';
 
 interface WatchedOpportunity {
@@ -194,6 +195,7 @@ export default function MyWatchlist() {
         .eq('id', watchId);
 
       fireSuccess();
+      hapticSuccess();
       toast({
         title: '🎉 Request Funded!',
         description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
@@ -294,6 +296,7 @@ export default function MyWatchlist() {
     if (successCount > 0) {
       fireSuccess();
       playSuccessSound();
+      hapticSuccess();
       setOpportunities(prev => prev.filter(o => !fundedWatchIds.includes(o.id)));
     }
 
