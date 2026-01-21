@@ -67,6 +67,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { totalEarnings, refreshEarnings } = useAgentEarnings();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
+  const [subAgentCount, setSubAgentCount] = useState(0);
+  const [subAgentEarnings, setSubAgentEarnings] = useState(0);
   const [loading, setLoading] = useState(true);
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
@@ -80,7 +82,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const fetchData = async () => {
     setLoading(true);
     
-    const [requestsRes, referralsRes] = await Promise.all([
+    const [requestsRes, referralsRes, subAgentsRes, subAgentEarningsRes] = await Promise.all([
       supabase
         .from('rent_requests')
         .select('id')
@@ -88,11 +90,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       supabase
         .from('referrals')
         .select('id')
-        .eq('referrer_id', user.id)
+        .eq('referrer_id', user.id),
+      supabase
+        .from('agent_subagents')
+        .select('id')
+        .eq('parent_agent_id', user.id),
+      supabase
+        .from('agent_earnings')
+        .select('amount')
+        .eq('agent_id', user.id)
+        .eq('earning_type', 'subagent_commission')
     ]);
     
     setTenantsCount(requestsRes.data?.length || 0);
     setReferralCount(referralsRes.data?.length || 0);
+    setSubAgentCount(subAgentsRes.data?.length || 0);
+    setSubAgentEarnings(subAgentEarningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0);
     setLoading(false);
   };
 
@@ -192,13 +205,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <h1 className="font-bold text-xl truncate">
               {profile?.full_name?.split(' ')[0] || 'Agent'}
             </h1>
-            <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <div className="flex items-center gap-2 text-sm text-muted-foreground flex-wrap">
               <span className="flex items-center gap-1">
                 <Coins className="h-3.5 w-3.5 text-success" />
                 {formatUGX(totalEarnings)}
               </span>
               <span>•</span>
               <span>{tenantsCount + referralCount} users</span>
+              {subAgentCount > 0 && (
+                <>
+                  <span>•</span>
+                  <span className="flex items-center gap-1">
+                    <UsersRound className="h-3.5 w-3.5 text-orange-500" />
+                    {subAgentCount} sub-agent{subAgentCount !== 1 ? 's' : ''}
+                  </span>
+                </>
+              )}
             </div>
           </div>
           {addRoleComponent}
