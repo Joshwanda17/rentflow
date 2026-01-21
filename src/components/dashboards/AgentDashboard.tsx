@@ -36,11 +36,11 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
-import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
+
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { CollapsibleRentRequests } from '@/components/agent/CollapsibleRentRequests';
-import { SubAgentsList } from '@/components/agent/SubAgentsList';
-import { SubAgentInvitesList } from '@/components/agent/SubAgentInvitesList';
+import { CollapsibleSubAgents } from '@/components/agent/CollapsibleSubAgents';
+import { CollapsibleUserInvites } from '@/components/agent/CollapsibleUserInvites';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
@@ -482,14 +482,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Rent Requests - Hidden behind collapsible button */}
         <CollapsibleRentRequests />
 
-        {/* Sub-Agent Invites List - with resend capability */}
-        <SubAgentInvitesList />
+        {/* Sub-Agents - Hidden behind collapsible button */}
+        <CollapsibleSubAgents />
 
-        {/* Active Sub-Agents List */}
-        <SubAgentsList />
-
-        {/* Registered Users List */}
-        <AgentInvitesList />
+        {/* Registered Users - Hidden behind collapsible button */}
+        <CollapsibleUserInvites />
 
         {/* Food Shopping Loans */}
         <FoodShoppingLoansSection />
