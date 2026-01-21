@@ -1,7 +1,7 @@
 import { ReactNode, useState } from 'react';
 import { useSwipeGesture } from '@/hooks/useSwipeGesture';
 import { cn } from '@/lib/utils';
-import { Trash2, Edit, Eye, Check, X, MoreHorizontal } from 'lucide-react';
+import { Trash2, Edit, Eye, Check, X, MoreHorizontal, HandCoins, Bookmark } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
 interface SwipeAction {
@@ -181,6 +181,18 @@ export const swipeActions = {
   reject: (onClick: () => void): SwipeAction => ({
     icon: X,
     label: 'Reject',
+    onClick,
+    color: 'destructive',
+  }),
+  fund: (onClick: () => void): SwipeAction => ({
+    icon: HandCoins,
+    label: 'Fund',
+    onClick,
+    color: 'success',
+  }),
+  unwatch: (onClick: () => void): SwipeAction => ({
+    icon: Bookmark,
+    label: 'Remove',
     onClick,
     color: 'destructive',
   }),
