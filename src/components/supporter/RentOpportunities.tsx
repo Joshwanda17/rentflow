@@ -468,6 +468,18 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
               <SelectItem value="pending">🆕 New/Pending</SelectItem>
             </SelectContent>
           </Select>
+
+          {watchedIds.size > 0 && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => navigate('/my-watchlist')}
+              className="h-9 px-2 text-xs shrink-0"
+            >
+              <Bookmark className="h-3.5 w-3.5 mr-1" />
+              View All
+            </Button>
+          )}
         </div>
 
         {/* Opportunities List */}
