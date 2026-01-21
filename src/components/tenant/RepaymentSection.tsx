@@ -2,8 +2,9 @@ import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
+import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Wallet, TrendingUp, Calendar, CheckCircle2, Clock, AlertTriangle, XCircle, CalendarDays } from 'lucide-react';
+import { Wallet, TrendingUp, Calendar, CheckCircle2, Clock, AlertTriangle, XCircle, CalendarDays, CreditCard, Smartphone, Zap } from 'lucide-react';
 import { RepaymentHistoryDrawer } from './RepaymentHistoryDrawer';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -11,6 +12,8 @@ import { differenceInDays, format, eachDayOfInterval, isSameDay, startOfDay } fr
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import PaymentPartnersCard from '@/components/payments/PaymentPartnersCard';
 
 interface RentRequest {
   id: string;
@@ -53,6 +56,7 @@ export default function RepaymentSection({
   const [loading, setLoading] = useState(true);
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
+  const [showPaymentDialog, setShowPaymentDialog] = useState(false);
 
   // Fetch all rent requests and repayments for this tenant
   useEffect(() => {
@@ -211,6 +215,47 @@ export default function RepaymentSection({
 
         {/* Schedule Tab */}
         <TabsContent value="schedule" className="space-y-4 mt-4">
+          {/* Make Payment CTA Card */}
+          {activeRequest && (
+            <Card className="border-0 bg-gradient-to-r from-primary via-primary to-success overflow-hidden">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between gap-4">
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2 mb-1">
+                      <Zap className="h-5 w-5 text-primary-foreground" />
+                      <h3 className="font-bold text-primary-foreground">Make Daily Payment</h3>
+                    </div>
+                    <p className="text-sm text-primary-foreground/80">
+                      Pay <span className="font-bold">{formatUGX(Number(activeRequest.daily_repayment))}</span> via MTN or Airtel
+                    </p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-yellow-500/20">
+                        <div className="w-4 h-4 rounded-full bg-yellow-500 flex items-center justify-center">
+                          <span className="text-[8px] font-black text-black">MTN</span>
+                        </div>
+                        <span className="text-xs text-primary-foreground">MoMo</span>
+                      </div>
+                      <div className="flex items-center gap-1 px-2 py-1 rounded-full bg-red-500/20">
+                        <div className="w-4 h-4 rounded-full bg-red-500 flex items-center justify-center">
+                          <span className="text-[7px] font-black text-white">A</span>
+                        </div>
+                        <span className="text-xs text-primary-foreground">Airtel</span>
+                      </div>
+                    </div>
+                  </div>
+                  <Button 
+                    size="lg"
+                    onClick={() => setShowPaymentDialog(true)}
+                    className="bg-white text-primary hover:bg-white/90 font-bold shadow-lg"
+                  >
+                    <Smartphone className="h-4 w-4 mr-2" />
+                    Pay Now
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
           {/* Summary Stats */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-3 rounded-lg bg-success/10 border border-success/20 text-center">
@@ -232,47 +277,100 @@ export default function RepaymentSection({
 
           {/* Active Request Progress */}
           {activeRequest && (
-            <Card className="glass-card">
+            <Card className="glass-card overflow-hidden">
               <CardHeader className="pb-2">
                 <div className="flex items-center justify-between">
-                  <CardTitle className="text-base">Active Loan</CardTitle>
+                  <CardTitle className="text-base">Active Loan Progress</CardTitle>
                   <Badge variant={paymentStatus === 'on-track' ? 'default' : 'destructive'} className="text-xs">
-                    {paymentStatus === 'on-track' ? 'On Track' : 'Behind'}
+                    {paymentStatus === 'on-track' ? '✓ On Track' : '⚠ Behind'}
                   </Badge>
                 </div>
               </CardHeader>
-              <CardContent className="space-y-3">
-                <div className="space-y-2">
-                  <div className="flex justify-between text-xs text-muted-foreground">
-                    <span>Progress: {activeProgress.toFixed(0)}%</span>
-                    <span>{formatUGX(activeRepaid)} / {formatUGX(Number(activeRequest.total_repayment))}</span>
-                  </div>
-                  <Progress value={activeProgress} className="h-3" />
-                </div>
-
-                <div className="grid grid-cols-2 gap-2 text-xs">
-                  <div className="flex items-center gap-1.5 p-2 rounded bg-secondary/50">
-                    <TrendingUp className="h-3.5 w-3.5 text-primary" />
-                    <div>
-                      <span className="text-muted-foreground">Daily: </span>
-                      <span className="font-mono font-medium">{formatUGX(Number(activeRequest.daily_repayment))}</span>
+              <CardContent className="space-y-4">
+                {/* Visual Progress Circle */}
+                <div className="flex items-center gap-4">
+                  <div className="relative w-20 h-20 shrink-0">
+                    <svg className="w-20 h-20 transform -rotate-90">
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        className="text-muted/30"
+                      />
+                      <circle
+                        cx="40"
+                        cy="40"
+                        r="36"
+                        stroke="currentColor"
+                        strokeWidth="8"
+                        fill="none"
+                        strokeDasharray={`${2 * Math.PI * 36}`}
+                        strokeDashoffset={`${2 * Math.PI * 36 * (1 - activeProgress / 100)}`}
+                        strokeLinecap="round"
+                        className="text-primary transition-all duration-500"
+                      />
+                    </svg>
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <span className="text-lg font-black">{activeProgress.toFixed(0)}%</span>
                     </div>
                   </div>
-                  <div className="flex items-center gap-1.5 p-2 rounded bg-secondary/50">
-                    <Wallet className="h-3.5 w-3.5 text-primary" />
+                  <div className="flex-1 space-y-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Paid</span>
+                      <span className="font-bold text-success">{formatUGX(activeRepaid)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Remaining</span>
+                      <span className="font-bold">{formatUGX(activeRemaining)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Total</span>
+                      <span className="font-mono">{formatUGX(Number(activeRequest.total_repayment))}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Quick Stats */}
+                <div className="grid grid-cols-2 gap-2">
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/20">
+                    <div className="p-1.5 rounded-full bg-primary/20">
+                      <TrendingUp className="h-3.5 w-3.5 text-primary" />
+                    </div>
                     <div>
-                      <span className="text-muted-foreground">Left: </span>
-                      <span className="font-mono font-medium">{formatUGX(activeRemaining)}</span>
+                      <p className="text-xs text-muted-foreground">Daily</p>
+                      <p className="font-mono font-bold text-sm">{formatUGX(Number(activeRequest.daily_repayment))}</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50">
+                    <div className="p-1.5 rounded-full bg-muted">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">Days Left</p>
+                      <p className="font-bold text-sm">{scheduleData.upcomingDays} days</p>
                     </div>
                   </div>
                 </div>
 
                 {paymentStatus === 'behind' && (
-                  <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20 text-xs">
-                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                    <span className="text-destructive">
-                      You're behind by {formatUGX(expectedPayments - activeRepaid)}
-                    </span>
+                  <div className="flex items-center gap-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                    <AlertTriangle className="h-4 w-4 text-destructive shrink-0" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-destructive">You're behind schedule</p>
+                      <p className="text-xs text-destructive/80">
+                        Missing {formatUGX(expectedPayments - activeRepaid)} • Late fees may apply
+                      </p>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      variant="destructive"
+                      onClick={() => setShowPaymentDialog(true)}
+                    >
+                      Pay Now
+                    </Button>
                   </div>
                 )}
               </CardContent>
@@ -445,6 +543,54 @@ export default function RepaymentSection({
           </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Payment Dialog */}
+      <Dialog open={showPaymentDialog} onOpenChange={setShowPaymentDialog}>
+        <DialogContent className="max-w-lg max-h-[90vh] p-0">
+          <DialogHeader className="p-4 pb-0">
+            <DialogTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5 text-primary" />
+              Make Repayment
+            </DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[calc(90vh-80px)] p-4 pt-2">
+            {activeRequest && (
+              <div className="space-y-4">
+                {/* Amount Info */}
+                <Card className="border-0 bg-primary/5">
+                  <CardContent className="p-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-sm text-muted-foreground">Daily Payment</p>
+                        <p className="text-2xl font-black text-primary">
+                          {formatUGX(Number(activeRequest.daily_repayment))}
+                        </p>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-sm text-muted-foreground">Remaining</p>
+                        <p className="text-lg font-bold">{formatUGX(activeRemaining)}</p>
+                      </div>
+                    </div>
+                    <Progress value={activeProgress} className="h-2 mt-3" />
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                      {activeProgress.toFixed(0)}% complete
+                    </p>
+                  </CardContent>
+                </Card>
+
+                {/* Payment Partners */}
+                <PaymentPartnersCard 
+                  dashboardType="tenant"
+                  onPaymentSubmitted={() => {
+                    setShowPaymentDialog(false);
+                    onRepaymentSuccess?.();
+                  }}
+                />
+              </div>
+            )}
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
