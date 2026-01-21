@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useConfetti } from '@/components/Confetti';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -93,6 +93,7 @@ export default function SupporterDashboard({
   user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent 
 }: SupporterDashboardProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
@@ -171,6 +172,19 @@ export default function SupporterDashboard({
       }
     }
   }, [user.id]);
+
+  // Scroll to opportunities section when hash is present
+  useEffect(() => {
+    if (location.hash === '#opportunities') {
+      // Small delay to ensure content is rendered
+      setTimeout(() => {
+        const el = document.getElementById('opportunities');
+        if (el) {
+          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+      }, 100);
+    }
+  }, [location.hash]);
 
   useEffect(() => {
     fetchData();
@@ -614,7 +628,7 @@ export default function SupporterDashboard({
         <ROIEarningsCard />
 
         {/* Investment Opportunities - Real-time - Full Width */}
-        <div id="tenants-section" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4">
+        <div id="opportunities" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 scroll-mt-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <RentOpportunities
             onFund={(id, amount) => {
