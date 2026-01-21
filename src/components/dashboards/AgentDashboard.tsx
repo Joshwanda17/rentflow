@@ -144,30 +144,36 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setShowWallet(!showWallet);
   };
 
+  // Header menu - organized by category with separators
   const menuItems = [
+    // User Operations
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
     { icon: ArrowDownCircle, label: 'Deposit for User', onClick: handleDeposit },
     { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: handleWithdrawal, separator: true },
-    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
-    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+    // My Business
+    { icon: TrendingUp, label: 'My Earnings', onClick: () => navigate('/earnings') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
-    { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), separator: true },
-    { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
-    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
-    { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
+    { icon: History, label: 'Transactions', onClick: () => navigate('/transactions'), separator: true },
+    // My Records
+    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
+    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans'), separator: true },
+    // Network & Growth
+    { icon: Users, label: 'My Referrals', onClick: () => navigate('/referrals') },
+    { icon: Share2, label: 'Invite & Earn', onClick: () => navigate('/benefits') },
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
-  // Other actions for the collapsible menu
+  // Collapsible quick actions - organized with visual hierarchy
   const otherActions = [
+    // Primary agent actions
     { icon: UserPlus, label: 'Register', onClick: handleRegisterUser, variant: 'primary' as const },
     { icon: ArrowDownCircle, label: 'Deposit', onClick: handleDeposit, variant: 'success' as const },
-    { icon: ArrowUpCircle, label: 'Withdraw', onClick: handleWithdrawal, variant: 'default' as const },
-    { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'warning' as const },
+    { icon: ArrowUpCircle, label: 'Withdraw', onClick: handleWithdrawal, variant: 'warning' as const },
+    { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' as const },
+    // Business tools
+    { icon: Store, label: 'Shop', onClick: () => navigate('/marketplace') },
     { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
-    { icon: TrendingUp, label: 'Earnings', onClick: () => navigate('/earnings'), variant: 'success' as const },
-    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
     { icon: History, label: 'History', onClick: () => navigate('/transactions') },
   ];
 
