@@ -16,9 +16,12 @@ import {
   Calendar,
   Banknote,
   AlertTriangle,
-  Filter
+  Filter,
+  MessageCircle,
+  Send
 } from 'lucide-react';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
+import { parsePhoneNumber } from '@/lib/phoneUtils';
 import {
   Dialog,
   DialogContent,
@@ -64,6 +67,11 @@ export function RentRequestsManager() {
   const [rejectReason, setRejectReason] = useState('');
   const [approvalComment, setApprovalComment] = useState('');
   const [showDelinquentOnly, setShowDelinquentOnly] = useState(false);
+  const [whatsappDialog, setWhatsappDialog] = useState<{ 
+    open: boolean; 
+    request: RentRequest | null;
+    message: string;
+  }>({ open: false, request: null, message: '' });
 
   useEffect(() => {
     fetchRequests();
@@ -218,6 +226,62 @@ export function RentRequestsManager() {
       default:
         return <Badge variant="secondary">{status}</Badge>;
     }
+  };
+
+  const generateReminderMessage = (request: RentRequest) => {
+    const tenantName = request.tenant?.full_name?.split(' ')[0] || 'there';
+    const missedDays = request.missedDays || 0;
+    const outstandingAmount = request.total_repayment - (request.paidAmount || 0);
+    const dailyAmount = request.daily_repayment;
+    
+    return `Hi ${tenantName}! 👋
+
+This is a friendly reminder from Welile about your rent repayment.
+
+📊 *Your Payment Status:*
+• Missed Days: ${missedDays}
+• Outstanding: ${formatUGX(outstandingAmount)}
+• Daily Payment: ${formatUGX(dailyAmount)}
+
+💡 *Why Pay on Time?*
+✅ Your rent access limit *increases* with every payment you make!
+✅ Consistent payments unlock *higher rent amounts* for future requests
+✅ Build a strong payment history for better terms
+
+🎯 The more you pay, the more we can help you access! Start small - even ${formatUGX(dailyAmount)} today helps build your limit.
+
+Need help or have questions? Reply to this message and we'll assist you.
+
+Thank you for being part of Welile! 🏠`;
+  };
+
+  const openWhatsappDialog = (request: RentRequest) => {
+    const message = generateReminderMessage(request);
+    setWhatsappDialog({ open: true, request, message });
+  };
+
+  const sendWhatsappReminder = () => {
+    if (!whatsappDialog.request?.tenant?.phone) {
+      toast({ 
+        title: 'Error', 
+        description: 'No phone number available for this tenant', 
+        variant: 'destructive' 
+      });
+      return;
+    }
+    
+    const phoneInfo = parsePhoneNumber(whatsappDialog.request.tenant.phone);
+    const encodedMessage = encodeURIComponent(whatsappDialog.message);
+    const whatsappUrl = `${phoneInfo.whatsappLink}?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+    
+    toast({
+      title: 'WhatsApp Opened',
+      description: `Reminder prepared for ${whatsappDialog.request.tenant.full_name}`,
+    });
+    
+    setWhatsappDialog({ open: false, request: null, message: '' });
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -432,9 +496,9 @@ export function RentRequestsManager() {
           {filteredOtherRequests.map((request) => (
             <Card key={request.id} className={request.missedDays && request.missedDays > 0 ? 'border-destructive/30' : ''}>
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="space-y-1 flex-1">
+                    <div className="flex items-center gap-2 flex-wrap">
                       <User className="h-4 w-4 text-muted-foreground" />
                       <span className="font-semibold">{request.tenant?.full_name || 'Unknown'}</span>
                       {getStatusBadge(request.status)}
@@ -450,7 +514,25 @@ export function RentRequestsManager() {
                       <span>{request.duration_days} days</span>
                       <span>{format(new Date(request.created_at), 'MMM d, yyyy')}</span>
                     </div>
+                    {request.paidAmount !== undefined && request.paidAmount > 0 && (
+                      <div className="text-xs text-success">
+                        Paid: {formatUGX(request.paidAmount)} / {formatUGX(request.total_repayment)}
+                      </div>
+                    )}
                   </div>
+                  
+                  {/* WhatsApp Reminder Button for Delinquent */}
+                  {request.missedDays && request.missedDays > 0 && request.tenant?.phone && (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 shrink-0"
+                      onClick={() => openWhatsappDialog(request)}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      <span className="hidden sm:inline">Remind</span>
+                    </Button>
+                  )}
                 </div>
               </CardContent>
             </Card>
@@ -538,6 +620,80 @@ export function RentRequestsManager() {
             >
               {processing ? <Loader2 className="h-4 w-4 animate-spin mr-1" /> : <XCircle className="h-4 w-4 mr-1" />}
               Reject Request
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* WhatsApp Reminder Dialog */}
+      <Dialog open={whatsappDialog.open} onOpenChange={(open) => setWhatsappDialog({ open, request: open ? whatsappDialog.request : null, message: open ? whatsappDialog.message : '' })}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              Send WhatsApp Reminder
+            </DialogTitle>
+            <DialogDescription>
+              Send a payment reminder to {whatsappDialog.request?.tenant?.full_name || 'tenant'} encouraging them to pay and increase their rent limit.
+            </DialogDescription>
+          </DialogHeader>
+          
+          {whatsappDialog.request && (
+            <div className="space-y-4">
+              {/* Tenant Info */}
+              <div className="p-3 rounded-lg bg-muted/50 space-y-1">
+                <div className="flex items-center gap-2 text-sm">
+                  <User className="h-4 w-4 text-muted-foreground" />
+                  <span className="font-medium">{whatsappDialog.request.tenant?.full_name}</span>
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  Phone: {whatsappDialog.request.tenant?.phone}
+                </div>
+                <div className="flex gap-3 text-xs">
+                  <span className="text-destructive font-medium">
+                    {whatsappDialog.request.missedDays} days missed
+                  </span>
+                  <span className="text-muted-foreground">
+                    Outstanding: {formatUGX(whatsappDialog.request.total_repayment - (whatsappDialog.request.paidAmount || 0))}
+                  </span>
+                </div>
+              </div>
+              
+              {/* Message Preview/Edit */}
+              <div className="space-y-2">
+                <Label htmlFor="whatsapp-message" className="text-sm font-medium">
+                  Message Preview
+                </Label>
+                <Textarea
+                  id="whatsapp-message"
+                  value={whatsappDialog.message}
+                  onChange={(e) => setWhatsappDialog(prev => ({ ...prev, message: e.target.value }))}
+                  className="min-h-[200px] text-sm font-mono"
+                  placeholder="Enter your message..."
+                />
+                <p className="text-xs text-muted-foreground">
+                  You can edit the message before sending. The message will open in WhatsApp for you to review and send.
+                </p>
+              </div>
+            </div>
+          )}
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setWhatsappDialog({ open: false, request: null, message: '' })}
+              className="min-h-[44px]"
+              type="button"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={sendWhatsappReminder}
+              className="min-h-[44px] bg-green-600 hover:bg-green-700 text-white gap-2"
+              type="button"
+            >
+              <Send className="h-4 w-4" />
+              Open in WhatsApp
             </Button>
           </DialogFooter>
         </DialogContent>
