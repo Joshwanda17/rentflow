@@ -69,6 +69,8 @@ export default function MyWatchlist() {
   const [refreshing, setRefreshing] = useState(false);
   const [fundingId, setFundingId] = useState<string | null>(null);
   const [showReadyOnly, setShowReadyOnly] = useState(false);
+  const [bulkFunding, setBulkFunding] = useState(false);
+  const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [confirmFunding, setConfirmFunding] = useState<{
     watchId: string;
     requestId: string;
@@ -211,6 +213,80 @@ export default function MyWatchlist() {
     return request.agent_verified && request.manager_verified && request.status === 'approved';
   };
 
+  // Get all ready opportunities for bulk funding
+  const readyOpportunities = useMemo(() => 
+    opportunities.filter(item => isReadyToFund(item.rent_request)),
+    [opportunities]
+  );
+
+  const handleBulkFund = async () => {
+    if (!user || readyOpportunities.length === 0) return;
+    
+    setShowBulkConfirm(false);
+    setBulkFunding(true);
+    
+    let successCount = 0;
+    let failCount = 0;
+    const fundedWatchIds: string[] = [];
+
+    for (const item of readyOpportunities) {
+      if (!item.rent_request) continue;
+      
+      try {
+        const { error } = await supabase
+          .from('rent_requests')
+          .update({
+            supporter_id: user.id,
+            status: 'funded',
+            funded_at: new Date().toISOString()
+          })
+          .eq('id', item.rent_request.id)
+          .eq('status', 'approved');
+
+        if (error) {
+          failCount++;
+          continue;
+        }
+
+        // Record the transaction
+        await supabase.from('platform_transactions').insert({
+          rent_request_id: item.rent_request.id,
+          user_id: user.id,
+          transaction_type: 'supporter_funding',
+          amount: item.rent_request.rent_amount,
+          direction: 'out',
+          description: 'Rent facilitation funding (bulk)'
+        });
+
+        // Remove from watchlist
+        await supabase
+          .from('watched_opportunities')
+          .delete()
+          .eq('id', item.id);
+
+        fundedWatchIds.push(item.id);
+        successCount++;
+      } catch (e) {
+        failCount++;
+      }
+    }
+
+    if (successCount > 0) {
+      fireSuccess();
+      setOpportunities(prev => prev.filter(o => !fundedWatchIds.includes(o.id)));
+    }
+
+    toast({
+      title: successCount > 0 ? '🎉 Bulk Funding Complete!' : 'Funding Failed',
+      description: successCount > 0 
+        ? `Successfully funded ${successCount} request${successCount > 1 ? 's' : ''}${failCount > 0 ? `, ${failCount} failed` : ''}`
+        : 'Could not fund any requests',
+      variant: successCount > 0 ? 'default' : 'destructive'
+    });
+
+    setBulkFunding(false);
+  };
+
   const getVerificationStatus = (request: WatchedOpportunity['rent_request']) => {
     if (!request) return { label: 'Unknown', variant: 'secondary' as const, icon: AlertCircle };
     
@@ -335,6 +411,31 @@ export default function MyWatchlist() {
                 <p className="font-semibold text-sm">{formatAmount(stats.potentialReward)}</p>
               </CardContent>
             </Card>
+          </motion.div>
+        )}
+
+        {/* Fund All Ready Button */}
+        {stats.readyCount > 1 && (
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+          >
+            <Button
+              onClick={() => setShowBulkConfirm(true)}
+              disabled={bulkFunding}
+              className="w-full gap-2 bg-gradient-to-r from-success via-success/90 to-success/80 hover:from-success/90 hover:to-success/70 shadow-lg"
+              size="lg"
+            >
+              {bulkFunding ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <>
+                  <HandCoins className="h-5 w-5" />
+                  Fund All {stats.readyCount} Ready
+                  <Sparkles className="h-4 w-4" />
+                </>
+              )}
+            </Button>
           </motion.div>
         )}
 
@@ -523,6 +624,61 @@ export default function MyWatchlist() {
             >
               <HandCoins className="h-4 w-4 mr-2" />
               Confirm & Fund
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Funding Confirmation Dialog */}
+      <AlertDialog open={showBulkConfirm} onOpenChange={setShowBulkConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-success" />
+              Fund All Ready Opportunities
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>You are about to fund all ready opportunities:</p>
+                <div className="bg-muted rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Requests</span>
+                    <span className="font-medium text-foreground">{stats.readyCount}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Total Amount</span>
+                    <span className="font-semibold text-foreground">
+                      {formatUGX(readyOpportunities.reduce((sum, o) => sum + (o.rent_request?.rent_amount || 0), 0))}
+                    </span>
+                  </div>
+                  <div className="flex justify-between text-success">
+                    <span>Total Reward</span>
+                    <span className="font-medium">{formatUGX(stats.potentialReward)}</span>
+                  </div>
+                </div>
+                <div className="text-xs space-y-1">
+                  <p className="font-medium">Tenants being funded:</p>
+                  <ul className="list-disc list-inside text-muted-foreground">
+                    {readyOpportunities.slice(0, 5).map(o => (
+                      <li key={o.id}>{o.rent_request?.tenant?.[0]?.full_name || 'Unknown'}</li>
+                    ))}
+                    {readyOpportunities.length > 5 && (
+                      <li>...and {readyOpportunities.length - 5} more</li>
+                    )}
+                  </ul>
+                </div>
+                <p className="text-xs text-destructive">This action cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkFund}
+              className="bg-success hover:bg-success/90"
+            >
+              <HandCoins className="h-4 w-4 mr-2" />
+              Fund All {stats.readyCount}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
