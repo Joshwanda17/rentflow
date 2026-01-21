@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -52,6 +52,7 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   const [formData, setFormData] = useState({
     fullName: '',
     phone: '',
@@ -78,9 +79,10 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
     }
   }, [open]);
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setIsLoading(true);
+    setLastError(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -121,9 +123,11 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
       onSuccess?.();
     } catch (error: any) {
       const rawMessage = error.message || 'Failed to create invite';
+      const friendlyMessage = getErrorMessage(rawMessage);
+      setLastError(friendlyMessage);
       toast({
         title: 'Registration Failed',
-        description: getErrorMessage(rawMessage),
+        description: friendlyMessage,
         variant: 'destructive',
       });
     } finally {
@@ -171,6 +175,7 @@ Password: ${createdInvite?.password}`;
     setFormData({ fullName: '', phone: '', password: '' });
     setCreatedInvite(null);
     setCopied(false);
+    setLastError(null);
     onOpenChange(false);
   };
 
@@ -268,6 +273,26 @@ Password: ${createdInvite?.password}`;
           </>
         )}
       </Button>
+
+      {/* Error retry section */}
+      {lastError && !isLoading && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-destructive font-medium">{lastError}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSubmit()}
+              className="mt-2 h-8 px-3 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 
