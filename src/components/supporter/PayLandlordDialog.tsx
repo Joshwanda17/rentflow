@@ -117,7 +117,66 @@ export function PayLandlordDialog({
         })
         .eq('id', request.id);
       
-      // Send notification to supporter
+      // Create investment account for this funding batch
+      const accountName = `Rent Funding - ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
+      const accountColors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
+      const randomColor = accountColors[Math.floor(Math.random() * accountColors.length)];
+      
+      // Check if an account with similar name exists for this month
+      const monthStart = new Date();
+      monthStart.setDate(1);
+      monthStart.setHours(0, 0, 0, 0);
+      
+      const { data: existingAccount } = await supabase
+        .from('investment_accounts')
+        .select('id, balance')
+        .eq('user_id', user.id)
+        .gte('created_at', monthStart.toISOString())
+        .ilike('name', `%Rent Funding%${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}%`)
+        .single();
+      
+      if (existingAccount) {
+        // Update existing account balance
+        await supabase
+          .from('investment_accounts')
+          .update({ 
+            balance: Number(existingAccount.balance) + Number(request.rent_amount),
+            updated_at: new Date().toISOString()
+          })
+          .eq('id', existingAccount.id);
+      } else {
+        // Create new investment account for this funding
+        const { data: newAccount, error: accountError } = await supabase
+          .from('investment_accounts')
+          .insert({
+            user_id: user.id,
+            name: accountName,
+            color: randomColor,
+            balance: request.rent_amount,
+            status: 'approved' // Auto-approved since it's from actual funding
+          })
+          .select()
+          .single();
+        
+        if (accountError) {
+          console.error('Failed to create investment account:', accountError);
+        } else if (newAccount) {
+          // Notify supporter about the new account
+          await supabase.from('notifications').insert({
+            user_id: user.id,
+            title: '📊 Investment Account Created!',
+            message: `A new investment account "${accountName}" has been automatically created for your funding of ${formatUGX(Number(request.rent_amount))}. Track your ROI earnings there!`,
+            type: 'success',
+            metadata: {
+              account_id: newAccount.id,
+              account_name: accountName,
+              initial_balance: request.rent_amount
+            }
+          });
+        }
+      }
+      
+      // Send notification to supporter about payment
       await supabase.from('notifications').insert({
         user_id: user.id,
         title: '✅ Payment Proof Submitted!',
@@ -355,6 +414,20 @@ export function PayLandlordDialog({
             <p className="text-muted-foreground text-sm mb-4">
               Your payment is being verified by our team. Once confirmed, you'll start earning 15% monthly ROI on {formatUGX(Number(request.rent_amount))}.
             </p>
+            
+            {/* Investment Account Info */}
+            <Card className="border-0 bg-primary/5 mb-3">
+              <CardContent className="p-3">
+                <p className="text-xs text-muted-foreground">Investment Account</p>
+                <p className="font-bold text-primary">
+                  Rent Funding - {new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">
+                  This funding has been added to your investment account
+                </p>
+              </CardContent>
+            </Card>
+            
             <Card className="border-0 bg-success/10">
               <CardContent className="p-3">
                 <p className="text-sm font-medium text-success">Expected Monthly Reward</p>
