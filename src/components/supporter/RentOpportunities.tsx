@@ -73,6 +73,7 @@ interface RentOpportunity {
     mobile_money_number: string;
     monthly_rent: number;
     verified: boolean;
+    user_id?: string;
   };
 }
 
@@ -215,7 +216,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
         manager_verified_at,
         tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, user_id)
       `)
       .in('status', ['pending', 'approved'])
       .order('created_at', { ascending: false })
@@ -244,7 +245,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
         manager_verified_at,
         tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, user_id)
       `)
       .eq('id', id)
       .single();
@@ -649,6 +650,41 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
           {selectedOpportunity && (
             <ScrollArea className="max-h-[70vh] pr-4">
               <div className="space-y-5">
+                {/* Quick Chat Actions */}
+                <div className="flex gap-2 p-3 rounded-xl bg-gradient-to-r from-primary/10 to-success/10 border border-primary/20">
+                  <Button
+                    size="sm"
+                    onClick={() => handleStartChat(selectedOpportunity.tenant_id)}
+                    disabled={startingChat}
+                    className="flex-1 gap-2 bg-primary hover:bg-primary/90"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Chat Tenant
+                  </Button>
+                  {selectedOpportunity.landlord?.user_id ? (
+                    <Button
+                      size="sm"
+                      onClick={() => handleStartChat(selectedOpportunity.landlord!.user_id!)}
+                      disabled={startingChat}
+                      variant="outline"
+                      className="flex-1 gap-2"
+                    >
+                      <Building className="h-4 w-4" />
+                      Chat Landlord
+                    </Button>
+                  ) : selectedOpportunity.landlord?.phone && (
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="flex-1 gap-2"
+                      onClick={() => window.open(`tel:${selectedOpportunity.landlord?.phone}`, '_self')}
+                    >
+                      <Phone className="h-4 w-4" />
+                      Call Landlord
+                    </Button>
+                  )}
+                </div>
+
                 {/* Tenant Info */}
                 <div 
                   className="flex items-center gap-3 p-3 rounded-xl bg-muted/50 cursor-pointer hover:bg-muted transition-colors"
@@ -663,19 +699,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
                     <p className="font-semibold truncate">{selectedOpportunity.tenant?.full_name || 'Tenant'}</p>
                     <p className="text-xs text-muted-foreground">Tap to see landlord details</p>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      handleStartChat(selectedOpportunity.tenant_id);
-                    }}
-                    disabled={startingChat}
-                    className="gap-1.5"
-                  >
-                    <MessageCircle className="h-4 w-4" />
-                    Chat
-                  </Button>
+                  <Eye className="h-4 w-4 text-muted-foreground" />
                 </div>
 
                 {/* Amount Hero */}
@@ -932,17 +956,37 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
                 </div>
               </div>
 
-              {/* Back to details */}
-              <Button
-                variant="outline"
-                onClick={() => {
-                  setShowLandlordDetails(false);
-                  setShowDetails(true);
-                }}
-                className="w-full"
-              >
-                Back to Opportunity
-              </Button>
+              {/* Chat/Contact Actions */}
+              <div className="flex gap-2">
+                {selectedOpportunity.landlord.user_id ? (
+                  <Button
+                    onClick={() => handleStartChat(selectedOpportunity.landlord!.user_id!)}
+                    disabled={startingChat}
+                    className="flex-1 gap-2 bg-primary hover:bg-primary/90"
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    Chat Landlord
+                  </Button>
+                ) : selectedOpportunity.landlord.phone && (
+                  <Button
+                    className="flex-1 gap-2"
+                    onClick={() => window.open(`tel:${selectedOpportunity.landlord?.phone}`, '_self')}
+                  >
+                    <Phone className="h-4 w-4" />
+                    Call Landlord
+                  </Button>
+                )}
+                <Button
+                  variant="outline"
+                  onClick={() => {
+                    setShowLandlordDetails(false);
+                    setShowDetails(true);
+                  }}
+                  className="flex-1"
+                >
+                  Back to Opportunity
+                </Button>
+              </div>
             </div>
           ) : (
             <div className="text-center py-8">
