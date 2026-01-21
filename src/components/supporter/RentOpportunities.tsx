@@ -34,7 +34,8 @@ import {
   ArrowUpDown,
   Home,
   Bookmark,
-  BookmarkCheck
+  BookmarkCheck,
+  CheckCheck
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -42,6 +43,7 @@ import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { playOpportunitySound } from '@/lib/notificationSound';
 import { formatDistanceToNow, format } from 'date-fns';
 import { toast } from 'sonner';
+import { markAllAsSeen, getLastSeenAt, isOpportunityUnseen } from '@/lib/opportunitySeenStorage';
 
 interface RentOpportunity {
   id: string;
@@ -101,6 +103,22 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [startingChat, setStartingChat] = useState(false);
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [watchingId, setWatchingId] = useState<string | null>(null);
+  const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
+
+  // Count unseen opportunities
+  const unseenCount = useMemo(() => {
+    if (!lastSeenAt) return opportunities.length;
+    return opportunities.filter(opp => new Date(opp.created_at) > lastSeenAt).length;
+  }, [opportunities, lastSeenAt]);
+
+  const handleMarkAllSeen = () => {
+    markAllAsSeen();
+    setLastSeenAt(new Date());
+    hapticTap();
+    // Dispatch custom event for same-tab listeners
+    window.dispatchEvent(new Event('opportunities-marked-seen'));
+    toast.success('All opportunities marked as seen');
+  };
 
   // Expose refresh function to parent
   useEffect(() => {
@@ -471,10 +489,23 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
               <p className="text-xs text-muted-foreground">Earn 15% monthly returns</p>
             </div>
           </div>
-          <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
-            <Zap className="h-3 w-3 mr-1" />
-            Live
-          </Badge>
+          <div className="flex items-center gap-2">
+            {unseenCount > 0 && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllSeen}
+                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5"
+              >
+                <CheckCheck className="h-4 w-4" />
+                <span className="hidden sm:inline">Mark all seen</span>
+              </Button>
+            )}
+            <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
+              <Zap className="h-3 w-3 mr-1" />
+              Live
+            </Badge>
+          </div>
         </div>
 
         {/* Filters & Sort */}
