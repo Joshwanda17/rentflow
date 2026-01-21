@@ -21,12 +21,14 @@ import {
   PiggyBank,
   Sparkles,
   ChevronRight,
-  Info
+  Info,
+  Trophy
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, addDays, differenceInDays, startOfMonth, endOfMonth, eachMonthOfInterval, subMonths } from 'date-fns';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Cell } from 'recharts';
 import { motion } from 'framer-motion';
+import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 
 interface ROIPayment {
   id: string;
@@ -576,6 +578,9 @@ export default function SupporterEarnings() {
             </CardContent>
           </Card>
         )}
+
+        {/* ROI Leaderboard */}
+        <SupporterROILeaderboard limit={10} />
       </main>
     </div>
   );

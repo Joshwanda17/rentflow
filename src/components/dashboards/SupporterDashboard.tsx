@@ -44,6 +44,7 @@ import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
+import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Tenant request details and payment dialogs
@@ -603,6 +604,9 @@ export default function SupporterDashboard({
         <div id="wallet-section">
           <CollapsibleWalletCard />
         </div>
+
+        {/* ROI Leaderboard */}
+        <SupporterROILeaderboard limit={5} compact />
 
         {/* Invite Friends Card */}
         <motion.div
