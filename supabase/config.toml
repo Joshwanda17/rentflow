@@ -56,3 +56,6 @@ verify_jwt = false
 
 [functions.process-supporter-roi]
 verify_jwt = false
+
+[functions.check-repayment-status]
+verify_jwt = false
