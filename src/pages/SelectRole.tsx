@@ -6,9 +6,10 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
-import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft } from 'lucide-react';
+import { Home, Users, Wallet, Building2, Shield, Check, ArrowLeft, Sparkles } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import WelileLogo from '@/components/WelileLogo';
+import { supabase } from '@/integrations/supabase/client';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -63,10 +64,24 @@ export default function SelectRole() {
   const [accessCode, setAccessCode] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [showCodeInput, setShowCodeInput] = useState(false);
+  const [isSubAgentSignup, setIsSubAgentSignup] = useState(false);
+  const [parentAgentId, setParentAgentId] = useState<string | null>(null);
   
   const { addRole, user, roles, loading } = useAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // Check for become_role and referrer on mount
+  useEffect(() => {
+    const becomeRole = localStorage.getItem('become_role');
+    const referrerId = localStorage.getItem('referral_agent_id');
+    
+    if (becomeRole === 'agent' && referrerId) {
+      setIsSubAgentSignup(true);
+      setParentAgentId(referrerId);
+      setSelectedRoles(['agent']);
+    }
+  }, []);
 
   // Handle redirects in useEffect to avoid render-time navigation
   useEffect(() => {
@@ -148,10 +163,31 @@ export default function SelectRole() {
       }
     }
 
-    toast({
-      title: 'Roles Added!',
-      description: `You now have access to ${selectedRoles.length} dashboard${selectedRoles.length > 1 ? 's' : ''}`
-    });
+    // If this is a sub-agent signup, create the sub-agent relationship
+    if (isSubAgentSignup && parentAgentId && selectedRoles.includes('agent') && user) {
+      try {
+        await supabase.from('agent_subagents').insert({
+          parent_agent_id: parentAgentId,
+          sub_agent_id: user.id
+        });
+        
+        // Clear the stored values
+        localStorage.removeItem('become_role');
+        localStorage.removeItem('referral_agent_id');
+        
+        toast({
+          title: '🎉 Welcome, Sub-Agent!',
+          description: 'You are now connected to your parent agent and can start earning!'
+        });
+      } catch (err) {
+        console.error('Failed to create sub-agent relationship:', err);
+      }
+    } else {
+      toast({
+        title: 'Roles Added!',
+        description: `You now have access to ${selectedRoles.length} dashboard${selectedRoles.length > 1 ? 's' : ''}`
+      });
+    }
     
     navigate('/dashboard');
     setIsLoading(false);
@@ -175,11 +211,25 @@ export default function SelectRole() {
           <p className="text-muted-foreground">Choose your role(s) on the platform</p>
         </div>
 
+        {isSubAgentSignup && (
+          <div className="mb-4 p-4 rounded-xl bg-orange-500/10 border border-orange-500/20">
+            <div className="flex items-center justify-center gap-2 text-orange-600">
+              <Sparkles className="h-4 w-4" />
+              <span className="text-sm font-medium">Becoming a Sub-Agent</span>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1 text-center">
+              You'll be connected to your parent agent and can start earning commissions!
+            </p>
+          </div>
+        )}
+
         <Card className="glass-card">
           <CardHeader>
-            <CardTitle>Select Your Role(s)</CardTitle>
+            <CardTitle>{isSubAgentSignup ? 'Confirm Your Role' : 'Select Your Role(s)'}</CardTitle>
             <CardDescription>
-              You can select multiple roles. You can always add more later.
+              {isSubAgentSignup 
+                ? 'Click continue to activate your agent account'
+                : 'You can select multiple roles. You can always add more later.'}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">

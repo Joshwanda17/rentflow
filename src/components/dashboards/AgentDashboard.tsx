@@ -40,6 +40,7 @@ import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsMa
 import { SubAgentsList } from '@/components/agent/SubAgentsList';
 import { SubAgentInvitesList } from '@/components/agent/SubAgentInvitesList';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
+import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -274,20 +275,23 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </motion.button>
         </div>
 
-        {/* Invite Sub-Agent Quick Action */}
+        {/* Share Sub-Agent Referral Link - Prominent */}
+        <ShareSubAgentLink />
+
+        {/* Invite Sub-Agent Quick Action (for direct registration) */}
         <motion.button
           whileTap={{ scale: 0.98 }}
           onClick={handleInviteSubAgent}
-          className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 hover:border-orange-500/50 transition-colors touch-manipulation"
+          className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-primary/5 to-primary/10 border border-primary/20 hover:border-primary/40 transition-colors touch-manipulation"
         >
-          <div className="p-3 rounded-xl bg-orange-500/20">
-            <Handshake className="h-6 w-6 text-orange-500" />
+          <div className="p-3 rounded-xl bg-primary/10">
+            <Handshake className="h-6 w-6 text-primary" />
           </div>
           <div className="flex-1 text-left">
-            <p className="font-bold text-orange-600 dark:text-orange-400">Invite Sub-Agent</p>
-            <p className="text-sm text-muted-foreground">Build your team & earn 1% of their earnings</p>
+            <p className="font-bold">Register Sub-Agent Directly</p>
+            <p className="text-sm text-muted-foreground">Create account for someone you know</p>
           </div>
-          <ChevronRight className="h-5 w-5 text-orange-500/60" />
+          <ChevronRight className="h-5 w-5 text-primary/60" />
         </motion.button>
 
         {showWallet && (

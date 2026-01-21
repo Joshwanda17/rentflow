@@ -29,8 +29,9 @@ const signInSchema = z.object({
 export default function Auth() {
   const [searchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
+  const becomeRole = searchParams.get('become'); // e.g., 'agent' for sub-agent signup
   
-  const [isSignUp, setIsSignUp] = useState(!!referralId);
+  const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -47,7 +48,10 @@ export default function Auth() {
     if (referralId) {
       localStorage.setItem('referral_agent_id', referralId);
     }
-  }, [referralId]);
+    if (becomeRole) {
+      localStorage.setItem('become_role', becomeRole);
+    }
+  }, [referralId, becomeRole]);
 
   useEffect(() => {
     if (user) {
@@ -195,14 +199,18 @@ export default function Auth() {
           </div>
         </div>
 
-        {referralId && (
-          <div className="mb-4 p-4 rounded-xl bg-success/10 border border-success/20">
-            <div className="flex items-center justify-center gap-2 text-success">
+        {(referralId || becomeRole) && (
+          <div className={`mb-4 p-4 rounded-xl ${becomeRole === 'agent' ? 'bg-orange-500/10 border border-orange-500/20' : 'bg-success/10 border border-success/20'}`}>
+            <div className={`flex items-center justify-center gap-2 ${becomeRole === 'agent' ? 'text-orange-600' : 'text-success'}`}>
               <Sparkles className="h-4 w-4" />
-              <span className="text-sm font-medium">Referred by an Agent</span>
+              <span className="text-sm font-medium">
+                {becomeRole === 'agent' ? 'Become a Sub-Agent' : 'Referred by an Agent'}
+              </span>
             </div>
             <p className="text-xs text-muted-foreground mt-1 text-center">
-              Sign up to get started with rent facilitation
+              {becomeRole === 'agent' 
+                ? 'Sign up to start earning as an agent!' 
+                : 'Sign up to get started with rent facilitation'}
             </p>
           </div>
         )}
