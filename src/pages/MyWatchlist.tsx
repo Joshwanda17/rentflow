@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Progress } from '@/components/ui/progress';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -70,6 +71,7 @@ export default function MyWatchlist() {
   const [fundingId, setFundingId] = useState<string | null>(null);
   const [showReadyOnly, setShowReadyOnly] = useState(false);
   const [bulkFunding, setBulkFunding] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, success: 0 });
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
   const [confirmFunding, setConfirmFunding] = useState<{
     watchId: string;
@@ -224,13 +226,18 @@ export default function MyWatchlist() {
     
     setShowBulkConfirm(false);
     setBulkFunding(true);
+    setBulkProgress({ current: 0, total: readyOpportunities.length, success: 0 });
     
     let successCount = 0;
     let failCount = 0;
     const fundedWatchIds: string[] = [];
 
-    for (const item of readyOpportunities) {
-      if (!item.rent_request) continue;
+    for (let i = 0; i < readyOpportunities.length; i++) {
+      const item = readyOpportunities[i];
+      if (!item.rent_request) {
+        setBulkProgress(prev => ({ ...prev, current: i + 1 }));
+        continue;
+      }
       
       try {
         const { error } = await supabase
@@ -245,6 +252,7 @@ export default function MyWatchlist() {
 
         if (error) {
           failCount++;
+          setBulkProgress(prev => ({ ...prev, current: i + 1 }));
           continue;
         }
 
@@ -266,8 +274,10 @@ export default function MyWatchlist() {
 
         fundedWatchIds.push(item.id);
         successCount++;
+        setBulkProgress(prev => ({ ...prev, current: i + 1, success: successCount }));
       } catch (e) {
         failCount++;
+        setBulkProgress(prev => ({ ...prev, current: i + 1 }));
       }
     }
 
@@ -285,6 +295,7 @@ export default function MyWatchlist() {
     });
 
     setBulkFunding(false);
+    setBulkProgress({ current: 0, total: 0, success: 0 });
   };
 
   const getVerificationStatus = (request: WatchedOpportunity['rent_request']) => {
@@ -415,7 +426,7 @@ export default function MyWatchlist() {
         )}
 
         {/* Fund All Ready Button */}
-        {stats.readyCount > 1 && (
+        {stats.readyCount > 1 && !bulkFunding && (
           <motion.div
             initial={{ opacity: 0, scale: 0.95 }}
             animate={{ opacity: 1, scale: 1 }}
@@ -426,16 +437,45 @@ export default function MyWatchlist() {
               className="w-full gap-2 bg-gradient-to-r from-success via-success/90 to-success/80 hover:from-success/90 hover:to-success/70 shadow-lg"
               size="lg"
             >
-              {bulkFunding ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : (
-                <>
-                  <HandCoins className="h-5 w-5" />
-                  Fund All {stats.readyCount} Ready
-                  <Sparkles className="h-4 w-4" />
-                </>
-              )}
+              <HandCoins className="h-5 w-5" />
+              Fund All {stats.readyCount} Ready
+              <Sparkles className="h-4 w-4" />
             </Button>
+          </motion.div>
+        )}
+
+        {/* Bulk Funding Progress */}
+        {bulkFunding && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="space-y-3"
+          >
+            <Card className="border-success/30 bg-success/5">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Loader2 className="h-5 w-5 animate-spin text-success" />
+                    <span className="font-medium">Funding in progress...</span>
+                  </div>
+                  <Badge variant="success">
+                    {bulkProgress.current}/{bulkProgress.total}
+                  </Badge>
+                </div>
+                <Progress 
+                  value={(bulkProgress.current / bulkProgress.total) * 100} 
+                  className="h-2"
+                />
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">
+                    Processing request {bulkProgress.current} of {bulkProgress.total}
+                  </span>
+                  <span className="text-success font-medium">
+                    {bulkProgress.success} funded
+                  </span>
+                </div>
+              </CardContent>
+            </Card>
           </motion.div>
         )}
 
