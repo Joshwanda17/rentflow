@@ -139,51 +139,41 @@ export default function PaymentProofsManager() {
 
     try {
       const reward = calculateSupporterReward(proof.amount);
+      const now = new Date();
+      const nextRoiDueDate = new Date(now);
+      nextRoiDueDate.setDate(nextRoiDueDate.getDate() + 30);
 
-      // Update proof status
+      // Update proof status and set next ROI due date
       const { error: updateError } = await supabase
         .from('landlord_payment_proofs')
         .update({
           status: 'verified',
-          verified_at: new Date().toISOString(),
+          verified_at: now.toISOString(),
           verified_by: user.id,
-          reward_credited: true,
-          reward_credited_at: new Date().toISOString()
+          reward_credited: false, // Will be set true by cron job
+          next_roi_due_date: nextRoiDueDate.toISOString(),
+          total_roi_paid: 0,
+          roi_payments_count: 0
         })
         .eq('id', proof.id);
 
       if (updateError) throw updateError;
 
-      // Get current wallet balance
-      const { data: walletData } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', proof.supporter_id)
-        .single();
-
-      // Credit supporter wallet with 15% ROI reward
-      if (walletData) {
-        const newBalance = (walletData.balance || 0) + reward;
-        await supabase
-          .from('wallets')
-          .update({ balance: newBalance, updated_at: new Date().toISOString() })
-          .eq('user_id', proof.supporter_id);
-      }
-
       // Send success notification to supporter
       await supabase.from('notifications').insert({
         user_id: proof.supporter_id,
         title: '✅ Payment Verified!',
-        message: `Your payment of ${formatUGX(proof.amount)} to the landlord has been verified. You'll earn ${formatUGX(reward)} (15% ROI) monthly starting in 30 days.`,
+        message: `Your payment of ${formatUGX(proof.amount)} to the landlord has been verified. You'll start earning ${formatUGX(reward)} (15% ROI) monthly in 30 days.`,
         type: 'success',
         metadata: {
           payment_proof_id: proof.id,
           amount: proof.amount,
-          monthly_reward: reward
+          monthly_reward: reward,
+          first_roi_date: nextRoiDueDate.toISOString()
         }
       });
 
-      toast.success('Payment verified and ROI reward scheduled');
+      toast.success('Payment verified - ROI will be credited in 30 days');
       fetchProofs();
       setDetailsOpen(false);
     } catch (error: any) {
