@@ -202,7 +202,13 @@ export default function ActivateSupporter() {
               This account has already been activated. Please sign in to access your dashboard.
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            {activatedEmail && (
+              <div className="p-3 rounded-lg bg-muted text-center">
+                <p className="text-xs text-muted-foreground mb-1">Sign in with</p>
+                <p className="font-medium text-sm break-all">{activatedEmail}</p>
+              </div>
+            )}
             <Link to="/auth" className="block">
               <Button className="w-full gap-2">
                 <ArrowRight className="h-4 w-4" />
