@@ -11,7 +11,7 @@ import {
   LogOut, Wallet, TrendingUp, Settings, Plus, 
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Target, ChevronRight, Sparkles, Store, Users,
-  FileText, ScrollText, BarChart3
+  FileText, ScrollText, BarChart3, Trophy
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
@@ -46,6 +46,7 @@ import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculato
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
 import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
+import { FundingMilestones } from '@/components/supporter/FundingMilestones';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Tenant request details and payment dialogs
@@ -651,6 +652,27 @@ export default function SupporterDashboard({
 
         {/* ROI Earnings Section */}
         <ROIEarningsCard />
+
+        {/* Funding Milestones */}
+        {fundedRequests.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="border-0 bg-gradient-to-br from-card via-card to-primary/5">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="p-1.5 rounded-lg bg-primary/10">
+                    <Trophy className="h-4 w-4 text-primary" />
+                  </div>
+                  <h3 className="font-bold text-sm text-foreground">Your Achievements</h3>
+                </div>
+                <FundingMilestones fundingCount={fundedRequests.length} />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Investment Opportunities - Real-time - Full Width */}
         <div id="opportunities" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 scroll-mt-4">
