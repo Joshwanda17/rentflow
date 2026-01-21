@@ -86,6 +86,7 @@ import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWid
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
+import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1022,6 +1023,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Withdrawal Requests - Priority Section for Manager */}
         <WithdrawalRequestsManager />
+
+        {/* Pending Invites Widget - Quick view of unactivated users */}
+        <PendingInvitesWidget />
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
