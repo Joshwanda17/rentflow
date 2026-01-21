@@ -4,12 +4,13 @@ import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
 import { PushNotificationPrompt } from '@/components/PushNotificationPrompt';
-import { Loader2 } from 'lucide-react';
+import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
+import { Button } from '@/components/ui/button';
 
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
@@ -26,17 +27,57 @@ const DashboardLoadingFallback = () => (
   </div>
 );
 
+// Offline fallback when dashboard can't load
+const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null; onRetry: () => void }) => (
+  <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4 p-6">
+    <div className="w-16 h-16 rounded-full bg-warning/20 flex items-center justify-center">
+      <WifiOff className="h-8 w-8 text-warning" />
+    </div>
+    <div className="text-center space-y-2 max-w-sm">
+      <h1 className="text-xl font-semibold">You're Offline</h1>
+      <p className="text-muted-foreground text-sm">
+        {cachedRole 
+          ? `Your ${cachedRole} dashboard will load with cached data when connection is restored.`
+          : 'Please check your internet connection and try again.'
+        }
+      </p>
+    </div>
+    <Button onClick={onRetry} className="gap-2">
+      <RefreshCw className="h-4 w-4" />
+      Retry Connection
+    </Button>
+    <p className="text-xs text-muted-foreground/60 text-center mt-4">
+      The app works best with an internet connection, but cached data is available when offline.
+    </p>
+  </div>
+);
+
 export default function Dashboard() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const [cachedRoles, setCachedRoles] = useState<AppRole[]>([]);
   const [showCachedUI, setShowCachedUI] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
   
   // Enable real-time notifications for money transfers and requests
   useNotifications();
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Handle investment account activation via link
   useEffect(() => {
@@ -132,11 +173,20 @@ export default function Dashboard() {
   const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? cachedRoles[0] : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
 
+  // Show offline fallback if loading and offline with no cached data
+  if (loading && !showCachedUI && !isOnline) {
+    return <OfflineFallback cachedRole={cachedRoles[0]} onRetry={() => window.location.reload()} />;
+  }
+
   if (loading && !showCachedUI) {
     return <DashboardLoadingFallback />;
   }
 
   if (!user || !displayRole) {
+    // If offline but we have cached role, still try to show dashboard
+    if (!isOnline && cachedRoles.length > 0) {
+      return <OfflineFallback cachedRole={cachedRoles[0]} onRetry={() => window.location.reload()} />;
+    }
     return null;
   }
 
