@@ -43,6 +43,7 @@ import { SimpleTenantsList } from '@/components/supporter/SimpleTenantsList';
 import { SimpleAccountsList } from '@/components/supporter/SimpleAccountsList';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
+import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Tenant request details and payment dialogs
@@ -563,6 +564,9 @@ export default function SupporterDashboard({
           onAddInvestment={() => setShowPaymentPartners(true)}
           onViewDetails={() => document.getElementById('accounts-section')?.scrollIntoView({ behavior: 'smooth' })}
         />
+
+        {/* ROI Earnings Section */}
+        <ROIEarningsCard />
 
         {/* Tenants Needing Help */}
         <div id="tenants-section" className="relative">
