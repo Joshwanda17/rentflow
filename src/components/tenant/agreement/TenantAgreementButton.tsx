@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { FileCheck, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -33,14 +32,13 @@ export default function TenantAgreementButton() {
   if (isAccepted) {
     return (
       <>
-        <motion.button
+        <button
           onClick={handleOpenModal}
-          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-green-500/10 text-green-600 dark:text-green-400 text-xs font-medium hover:bg-green-500/20 transition-colors"
-          whileTap={{ scale: 0.95 }}
+          className="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-success/10 text-success text-xs font-medium hover:bg-success/20 transition-colors active:scale-95 touch-manipulation"
         >
           <FileCheck className="h-3.5 w-3.5" />
           <span>Terms Accepted ✅</span>
-        </motion.button>
+        </button>
 
         <TenantAgreementModal
           isOpen={isModalOpen}
@@ -54,13 +52,13 @@ export default function TenantAgreementButton() {
 
   return (
     <>
-      <motion.div className="relative">
+      <div className="relative">
         <Button
           onClick={handleOpenModal}
           size="sm"
           className={cn(
-            "relative px-3 py-1.5 h-auto text-xs font-medium",
-            "bg-primary hover:bg-primary/90"
+            "relative px-3 py-1.5 h-auto text-xs font-medium touch-manipulation",
+            "bg-primary hover:bg-primary/90 active:scale-95"
           )}
         >
           <AlertCircle className="h-3.5 w-3.5 mr-1.5" />
@@ -68,8 +66,8 @@ export default function TenantAgreementButton() {
         </Button>
         
         {/* Red dot indicator */}
-        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-red-500 rounded-full animate-pulse" />
-      </motion.div>
+        <span className="absolute -top-1 -right-1 h-2.5 w-2.5 bg-destructive rounded-full" />
+      </div>
 
       <TenantAgreementModal
         isOpen={isModalOpen}

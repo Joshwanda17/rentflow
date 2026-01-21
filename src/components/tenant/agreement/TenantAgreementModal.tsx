@@ -1,5 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import { useState, useRef, useEffect, forwardRef } from 'react';
 import { X, Download, Printer, FileText, CheckCircle2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -16,13 +15,13 @@ interface TenantAgreementModalProps {
   viewOnly?: boolean;
 }
 
-export default function TenantAgreementModal({
+const TenantAgreementModal = forwardRef<HTMLDivElement, TenantAgreementModalProps>(({
   isOpen,
   onClose,
   onAccept,
   isAccepting = false,
   viewOnly = false
-}: TenantAgreementModalProps) {
+}, ref) => {
   const [hasScrolledToBottom, setHasScrolledToBottom] = useState(viewOnly);
   const [isAgreed, setIsAgreed] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -100,135 +99,131 @@ export default function TenantAgreementModal({
 
   const canAccept = hasScrolledToBottom && isAgreed && !isAccepting;
 
+  if (!isOpen) return null;
+
   return (
-    <AnimatePresence>
-      {isOpen && (
-        <>
-          {/* Backdrop */}
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            onClick={onClose}
-            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100]"
-          />
+    <>
+      {/* Backdrop */}
+      <div
+        onClick={onClose}
+        className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[100] animate-fade-in"
+      />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, y: '100%' }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: '100%' }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className="fixed inset-x-0 bottom-0 z-[101] max-h-[90vh] bg-card rounded-t-3xl shadow-2xl flex flex-col md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:max-w-lg md:rounded-2xl md:max-h-[85vh]"
+      {/* Modal */}
+      <div
+        ref={ref}
+        className="fixed inset-x-0 bottom-0 z-[101] max-h-[90vh] bg-card rounded-t-3xl shadow-2xl flex flex-col md:inset-x-auto md:left-1/2 md:-translate-x-1/2 md:bottom-auto md:top-1/2 md:-translate-y-1/2 md:max-w-lg md:rounded-2xl md:max-h-[85vh] animate-fade-in-up"
+      >
+        {/* Header */}
+        <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
+          <div className="flex items-center gap-2">
+            <FileText className="h-5 w-5 text-primary" />
+            <h2 className="font-bold text-lg">Welile Tenant Agreement</h2>
+          </div>
+          <Button variant="ghost" size="icon" onClick={onClose}>
+            <X className="h-5 w-5" />
+          </Button>
+        </div>
+
+        {/* Version badge */}
+        <div className="px-4 py-2 bg-muted/50 border-b border-border shrink-0">
+          <span className="text-xs text-muted-foreground">
+            Version {TENANT_AGREEMENT_VERSION} • {format(new Date(), 'dd MMM yyyy')}
+          </span>
+        </div>
+
+        {/* Agreement Content */}
+        <ScrollArea className="flex-1 min-h-0">
+          <div
+            ref={scrollRef}
+            onScroll={handleScroll}
+            className="p-4 text-sm leading-relaxed whitespace-pre-wrap h-[300px] md:h-[350px] overflow-auto"
           >
-            {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border shrink-0">
-              <div className="flex items-center gap-2">
-                <FileText className="h-5 w-5 text-primary" />
-                <h2 className="font-bold text-lg">Welile Tenant Agreement</h2>
-              </div>
-              <Button variant="ghost" size="icon" onClick={onClose}>
-                <X className="h-5 w-5" />
-              </Button>
-            </div>
+            {getFormattedAgreement()}
+          </div>
+        </ScrollArea>
 
-            {/* Version badge */}
-            <div className="px-4 py-2 bg-muted/50 border-b border-border shrink-0">
-              <span className="text-xs text-muted-foreground">
-                Version {TENANT_AGREEMENT_VERSION} • {format(new Date(), 'dd MMM yyyy')}
-              </span>
-            </div>
+        {/* Scroll indicator */}
+        {!viewOnly && !hasScrolledToBottom && (
+          <div className="px-4 py-2 bg-amber-500/10 border-t border-amber-500/20 text-center shrink-0">
+            <span className="text-xs text-amber-600 dark:text-amber-400">
+              ↓ Scroll down to read the full agreement
+            </span>
+          </div>
+        )}
 
-            {/* Agreement Content */}
-            <ScrollArea className="flex-1 min-h-0">
-              <div
-                ref={scrollRef}
-                onScroll={handleScroll}
-                className="p-4 text-sm leading-relaxed whitespace-pre-wrap h-[300px] md:h-[350px] overflow-auto"
-              >
-                {getFormattedAgreement()}
-              </div>
-            </ScrollArea>
+        {/* Action buttons */}
+        <div className="p-4 border-t border-border space-y-3 shrink-0">
+          {/* Download and Print */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handleDownloadPDF}
+            >
+              <Download className="h-4 w-4 mr-2" />
+              Download
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={handlePrint}
+            >
+              <Printer className="h-4 w-4 mr-2" />
+              Print
+            </Button>
+          </div>
 
-            {/* Scroll indicator */}
-            {!viewOnly && !hasScrolledToBottom && (
-              <div className="px-4 py-2 bg-amber-500/10 border-t border-amber-500/20 text-center shrink-0">
-                <span className="text-xs text-amber-600 dark:text-amber-400">
-                  ↓ Scroll down to read the full agreement
+          {/* Acceptance controls - only show if not view only */}
+          {!viewOnly && (
+            <>
+              <label className="flex items-start gap-3 cursor-pointer">
+                <Checkbox
+                  checked={isAgreed}
+                  onCheckedChange={(checked) => setIsAgreed(checked === true)}
+                  disabled={!hasScrolledToBottom}
+                  className="mt-0.5"
+                />
+                <span className={`text-sm ${!hasScrolledToBottom ? 'text-muted-foreground' : ''}`}>
+                  I agree to the Welile Tenant Agreement.
                 </span>
-              </div>
-            )}
+              </label>
 
-            {/* Action buttons */}
-            <div className="p-4 border-t border-border space-y-3 shrink-0">
-              {/* Download and Print */}
-              <div className="flex gap-2">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handleDownloadPDF}
-                >
-                  <Download className="h-4 w-4 mr-2" />
-                  Download
-                </Button>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={handlePrint}
-                >
-                  <Printer className="h-4 w-4 mr-2" />
-                  Print
-                </Button>
-              </div>
+              <Button
+                onClick={handleAccept}
+                disabled={!canAccept}
+                className="w-full"
+                size="lg"
+              >
+                {isAccepting ? (
+                  <>
+                    <span className="animate-spin mr-2">⏳</span>
+                    Processing...
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-5 w-5 mr-2" />
+                    Accept & Continue
+                  </>
+                )}
+              </Button>
+            </>
+          )}
 
-              {/* Acceptance controls - only show if not view only */}
-              {!viewOnly && (
-                <>
-                  <label className="flex items-start gap-3 cursor-pointer">
-                    <Checkbox
-                      checked={isAgreed}
-                      onCheckedChange={(checked) => setIsAgreed(checked === true)}
-                      disabled={!hasScrolledToBottom}
-                      className="mt-0.5"
-                    />
-                    <span className={`text-sm ${!hasScrolledToBottom ? 'text-muted-foreground' : ''}`}>
-                      I agree to the Welile Tenant Agreement.
-                    </span>
-                  </label>
-
-                  <Button
-                    onClick={handleAccept}
-                    disabled={!canAccept}
-                    className="w-full"
-                    size="lg"
-                  >
-                    {isAccepting ? (
-                      <>
-                        <span className="animate-spin mr-2">⏳</span>
-                        Processing...
-                      </>
-                    ) : (
-                      <>
-                        <CheckCircle2 className="h-5 w-5 mr-2" />
-                        Accept & Continue
-                      </>
-                    )}
-                  </Button>
-                </>
-              )}
-
-              {viewOnly && (
-                <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
-                  <CheckCircle2 className="h-5 w-5" />
-                  <span className="text-sm font-medium">Agreement Accepted</span>
-                </div>
-              )}
+          {viewOnly && (
+            <div className="flex items-center justify-center gap-2 text-green-600 dark:text-green-400">
+              <CheckCircle2 className="h-5 w-5" />
+              <span className="text-sm font-medium">Agreement Accepted</span>
             </div>
-          </motion.div>
-        </>
-      )}
-    </AnimatePresence>
+          )}
+        </div>
+      </div>
+    </>
   );
-}
+});
+
+TenantAgreementModal.displayName = 'TenantAgreementModal';
+
+export default TenantAgreementModal;
