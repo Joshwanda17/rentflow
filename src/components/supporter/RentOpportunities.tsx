@@ -556,6 +556,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             {filteredAndSortedOpportunities.slice(0, 10).map((opportunity, index) => {
               const reward = calculateSupporterReward(opportunity.rent_amount);
               const isNew = opportunity.id === newOpportunityId;
+              const isUnseen = !lastSeenAt || new Date(opportunity.created_at) > lastSeenAt;
               const verificationProgress = getVerificationProgress(opportunity);
               
               return (
@@ -572,11 +573,22 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   onClick={() => handleCardClick(opportunity)}
                   className="cursor-pointer"
                 >
-                  <Card className={`border-0 overflow-hidden transition-all hover:scale-[1.02] ${
+                  <Card className={`border-0 overflow-hidden transition-all hover:scale-[1.02] relative ${
                     isNew 
                       ? 'bg-gradient-to-r from-success/20 via-success/10 to-transparent ring-2 ring-success/50' 
-                      : 'bg-gradient-to-r from-card via-card to-success/5 hover:from-success/5'
+                      : isUnseen
+                        ? 'bg-gradient-to-r from-primary/10 via-card to-success/5 ring-1 ring-primary/20'
+                        : 'bg-gradient-to-r from-card via-card to-success/5 hover:from-success/5'
                   }`}>
+                    {/* Unseen indicator dot */}
+                    {isUnseen && !isNew && (
+                      <div className="absolute top-3 right-3 z-10">
+                        <span className="relative flex h-2.5 w-2.5">
+                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
+                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
+                        </span>
+                      </div>
+                    )}
                     <CardContent className="p-4">
                       <div className="flex items-start gap-4">
                         {/* Tenant Avatar */}
