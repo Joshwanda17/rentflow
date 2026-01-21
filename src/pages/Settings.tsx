@@ -795,36 +795,76 @@ export default function Settings() {
                 </div>
                 
                 {preferences.notificationSounds && (
-                  <div className="pt-4 border-t border-border/30">
-                    <p className="text-sm text-muted-foreground mb-3">Sound Type</p>
-                    <RadioGroup 
-                      value={preferences.notificationSoundType} 
-                      onValueChange={(value) => {
-                        updatePreference('notificationSoundType', value as 'ding' | 'pop' | 'chime');
-                        playNotificationSound(value as 'ding' | 'pop' | 'chime');
-                      }}
-                      className="grid grid-cols-3 gap-2"
-                    >
-                      {(['ding', 'pop', 'chime'] as const).map((soundType) => (
-                        <motion.div
-                          key={soundType}
-                          whileHover={{ scale: 1.02 }}
-                          whileTap={{ scale: 0.98 }}
-                        >
-                          <Label
-                            htmlFor={`sound-${soundType}`}
-                            className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
-                              preferences.notificationSoundType === soundType 
-                                ? 'border-primary bg-primary/10' 
-                                : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
-                            }`}
+                  <div className="pt-4 border-t border-border/30 space-y-4">
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-3">General Sound Type</p>
+                      <RadioGroup 
+                        value={preferences.notificationSoundType} 
+                        onValueChange={(value) => {
+                          updatePreference('notificationSoundType', value as 'ding' | 'pop' | 'chime');
+                          playNotificationSound(value as 'ding' | 'pop' | 'chime');
+                        }}
+                        className="grid grid-cols-3 gap-2"
+                      >
+                        {(['ding', 'pop', 'chime'] as const).map((soundType) => (
+                          <motion.div
+                            key={soundType}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
                           >
-                            <RadioGroupItem value={soundType} id={`sound-${soundType}`} className="sr-only" />
-                            {soundType}
-                          </Label>
-                        </motion.div>
-                      ))}
-                    </RadioGroup>
+                            <Label
+                              htmlFor={`sound-${soundType}`}
+                              className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
+                                preferences.notificationSoundType === soundType 
+                                  ? 'border-primary bg-primary/10' 
+                                  : 'border-border/50 hover:border-primary/50 hover:bg-muted/50'
+                              }`}
+                            >
+                              <RadioGroupItem value={soundType} id={`sound-${soundType}`} className="sr-only" />
+                              {soundType}
+                            </Label>
+                          </motion.div>
+                        ))}
+                      </RadioGroup>
+                    </div>
+                    
+                    <div>
+                      <p className="text-sm text-muted-foreground mb-2">💰 Opportunity Sound</p>
+                      <p className="text-xs text-muted-foreground mb-3">Sound when new investment opportunities appear</p>
+                      <RadioGroup 
+                        value={preferences.opportunitySoundType} 
+                        onValueChange={(value) => {
+                          updatePreference('opportunitySoundType', value as 'ding' | 'pop' | 'chime' | 'opportunity');
+                          // Play the selected sound as preview
+                          if (value === 'opportunity') {
+                            import('@/lib/notificationSound').then(m => m.playOpportunitySound('opportunity'));
+                          } else {
+                            playNotificationSound(value as 'ding' | 'pop' | 'chime');
+                          }
+                        }}
+                        className="grid grid-cols-2 gap-2"
+                      >
+                        {(['opportunity', 'ding', 'pop', 'chime'] as const).map((soundType) => (
+                          <motion.div
+                            key={soundType}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                          >
+                            <Label
+                              htmlFor={`opp-sound-${soundType}`}
+                              className={`flex items-center justify-center gap-2 p-3 rounded-lg border cursor-pointer transition-all capitalize ${
+                                preferences.opportunitySoundType === soundType 
+                                  ? 'border-success bg-success/10' 
+                                  : 'border-border/50 hover:border-success/50 hover:bg-muted/50'
+                              }`}
+                            >
+                              <RadioGroupItem value={soundType} id={`opp-sound-${soundType}`} className="sr-only" />
+                              {soundType === 'opportunity' ? '💰 Money' : soundType}
+                            </Label>
+                          </motion.div>
+                        ))}
+                      </RadioGroup>
+                    </div>
                   </div>
                 )}
               </div>
