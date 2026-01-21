@@ -38,6 +38,7 @@ export function PendingInvitesWidget({ onViewAll }: PendingInvitesWidgetProps) {
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
   const [bulkResending, setBulkResending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
 
   const fetchPendingInvites = async () => {
     setLoading(true);
@@ -123,10 +124,14 @@ Just click the link and enter your password to get started!`;
     if (invites.length === 0) return;
     
     setBulkResending(true);
+    setBulkProgress({ current: 0, total: invites.length });
     let successCount = 0;
     
     try {
-      for (const invite of invites) {
+      for (let i = 0; i < invites.length; i++) {
+        const invite = invites[i];
+        setBulkProgress({ current: i + 1, total: invites.length });
+        
         const newPassword = generateNewPassword();
         
         const { error } = await supabase
@@ -169,6 +174,7 @@ Just click the link and enter your password to get started!`;
       });
     } finally {
       setBulkResending(false);
+      setBulkProgress({ current: 0, total: 0 });
     }
   };
 
@@ -221,11 +227,16 @@ Just click the link and enter your password to get started!`;
                 disabled={bulkResending || invites.length === 0}
               >
                 {bulkResending ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
+                  <>
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                    {bulkProgress.current}/{bulkProgress.total}
+                  </>
                 ) : (
-                  <Send className="h-3 w-3" />
+                  <>
+                    <Send className="h-3 w-3" />
+                    Resend All
+                  </>
                 )}
-                Resend All
               </Button>
             </AlertDialogTrigger>
             <AlertDialogContent>
