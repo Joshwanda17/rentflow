@@ -5,7 +5,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter, ChevronLeft, ChevronRight, Search } from 'lucide-react';
+import { Users, Clock, CheckCircle, Share2, Copy, Check, RefreshCw, ClipboardList, Filter, ChevronLeft, ChevronRight, Search, Send, Loader2 } from 'lucide-react';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Input } from '@/components/ui/input';
 import { formatDistanceToNow } from 'date-fns';
@@ -35,6 +35,7 @@ export function SupporterInvitesList() {
   const [invites, setInvites] = useState<SupporterInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [resendingId, setResendingId] = useState<string | null>(null);
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [page, setPage] = useState(0);
@@ -105,13 +106,14 @@ Password: ${invite.temp_password}`;
     toast({ title: 'Link & password copied!' });
   };
 
-  const handleShareWhatsApp = (invite: SupporterInvite) => {
+  const handleShareWhatsApp = (invite: SupporterInvite, customPassword?: string) => {
     const roleInfo = roleConfig[invite.role] || roleConfig.supporter;
+    const passwordToUse = customPassword || invite.temp_password;
     const message = `${roleInfo.emoji} Welcome to Welile, ${invite.full_name}!
 
 You've been invited to join as a ${roleInfo.label}!
 
-🔐 Your password: ${invite.temp_password}
+🔐 Your password: ${passwordToUse}
 
 👉 Activate your account here:
 ${getShareLink(invite.activation_token)}
@@ -120,6 +122,53 @@ Just click the link and enter your password to get started!`;
     
     window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
     toast({ title: 'Opening WhatsApp...', description: 'Share the activation link with the user.' });
+  };
+
+  const generateNewPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let password = '';
+    for (let i = 0; i < 8; i++) {
+      password += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return password;
+  };
+
+  const handleResendInvite = async (invite: SupporterInvite) => {
+    setResendingId(invite.id);
+    
+    try {
+      // Generate new password
+      const newPassword = generateNewPassword();
+      
+      // Update the invite with the new password
+      const { error } = await supabase
+        .from('supporter_invites')
+        .update({ temp_password: newPassword })
+        .eq('id', invite.id);
+
+      if (error) throw error;
+
+      // Update local state
+      setInvites(prev => prev.map(inv => 
+        inv.id === invite.id ? { ...inv, temp_password: newPassword } : inv
+      ));
+
+      // Open WhatsApp with new password
+      handleShareWhatsApp({ ...invite, temp_password: newPassword });
+      
+      toast({ 
+        title: '✅ Invite Resent', 
+        description: `New password generated and WhatsApp opened for ${invite.full_name}.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Resend Failed', 
+        description: error.message || 'Failed to resend invite', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setResendingId(null);
+    }
   };
 
   if (loading) {
@@ -274,6 +323,21 @@ Just click the link and enter your password to get started!`;
                   title="Share on WhatsApp"
                 >
                   <Share2 className="h-4 w-4" />
+                </Button>
+                <Button 
+                  variant="default" 
+                  size="sm" 
+                  className="h-8 gap-1 text-xs"
+                  onClick={() => handleResendInvite(invite)}
+                  disabled={resendingId === invite.id}
+                  title="Resend with new password"
+                >
+                  {resendingId === invite.id ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <Send className="h-3 w-3" />
+                  )}
+                  Resend
                 </Button>
               </div>
             )}
