@@ -254,6 +254,20 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
       setOpportunities(prev => [opportunity, ...prev]);
       setNewOpportunityId(id);
       setTimeout(() => setNewOpportunityId(null), 5000);
+      
+      // Show toast notification for new opportunity
+      const reward = calculateSupporterReward(opportunity.rent_amount);
+      toast.success('New Investment Opportunity!', {
+        description: `${opportunity.tenant?.full_name || 'A tenant'} needs ${formatUGX(opportunity.rent_amount)} — Earn ${formatUGX(reward)} ROI`,
+        duration: 6000,
+        action: {
+          label: 'View',
+          onClick: () => {
+            setSelectedOpportunity(opportunity);
+            setShowDetails(true);
+          }
+        }
+      });
     }
   };
 
