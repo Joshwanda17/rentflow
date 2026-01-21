@@ -6,6 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { 
   ArrowLeft, 
   Bookmark, 
@@ -57,6 +67,12 @@ export default function MyWatchlist() {
   const [removingId, setRemovingId] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
   const [fundingId, setFundingId] = useState<string | null>(null);
+  const [confirmFunding, setConfirmFunding] = useState<{
+    watchId: string;
+    requestId: string;
+    amount: number;
+    tenantName: string;
+  } | null>(null);
 
   const fetchWatchlist = async () => {
     if (!user) return;
@@ -127,9 +143,11 @@ export default function MyWatchlist() {
     fetchWatchlist();
   };
 
-  const handleFund = async (requestId: string, rentAmount: number, watchId: string) => {
-    if (!user) return;
+  const confirmAndFund = async () => {
+    if (!user || !confirmFunding) return;
     
+    const { requestId, amount: rentAmount, watchId } = confirmFunding;
+    setConfirmFunding(null);
     setFundingId(requestId);
     try {
       const { error } = await supabase
@@ -333,7 +351,12 @@ export default function MyWatchlist() {
                           {isReadyToFund(request) && (
                             <div className="pt-2">
                               <Button
-                                onClick={() => handleFund(request.id, request.rent_amount, item.id)}
+                                onClick={() => setConfirmFunding({
+                                  watchId: item.id,
+                                  requestId: request.id,
+                                  amount: request.rent_amount,
+                                  tenantName: request.tenant?.[0]?.full_name || 'Unknown tenant'
+                                })}
                                 disabled={fundingId === request.id}
                                 className="w-full gap-2 bg-gradient-to-r from-success to-success/80 hover:from-success/90 hover:to-success/70"
                               >
@@ -399,6 +422,48 @@ export default function MyWatchlist() {
           )}
         </AnimatePresence>
       </div>
+
+      {/* Funding Confirmation Dialog */}
+      <AlertDialog open={!!confirmFunding} onOpenChange={(open) => !open && setConfirmFunding(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-success" />
+              Confirm Funding
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>You are about to fund a rent request:</p>
+                <div className="bg-muted rounded-lg p-3 space-y-2">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Tenant</span>
+                    <span className="font-medium text-foreground">{confirmFunding?.tenantName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-semibold text-foreground">{formatUGX(confirmFunding?.amount || 0)}</span>
+                  </div>
+                  <div className="flex justify-between text-success">
+                    <span>Your Reward</span>
+                    <span className="font-medium">{formatUGX(calculateSupporterReward(confirmFunding?.amount || 0))}</span>
+                  </div>
+                </div>
+                <p className="text-xs">This action cannot be undone.</p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={confirmAndFund}
+              className="bg-success hover:bg-success/90"
+            >
+              <HandCoins className="h-4 w-4 mr-2" />
+              Confirm & Fund
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
