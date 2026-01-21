@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -73,6 +73,7 @@ export default function MyWatchlist() {
   const [bulkFunding, setBulkFunding] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0, success: 0 });
   const [showBulkConfirm, setShowBulkConfirm] = useState(false);
+  const cancelBulkRef = useRef(false);
   const [confirmFunding, setConfirmFunding] = useState<{
     watchId: string;
     requestId: string;
@@ -226,13 +227,21 @@ export default function MyWatchlist() {
     
     setShowBulkConfirm(false);
     setBulkFunding(true);
+    cancelBulkRef.current = false;
     setBulkProgress({ current: 0, total: readyOpportunities.length, success: 0 });
     
     let successCount = 0;
     let failCount = 0;
+    let cancelled = false;
     const fundedWatchIds: string[] = [];
 
     for (let i = 0; i < readyOpportunities.length; i++) {
+      // Check for cancellation
+      if (cancelBulkRef.current) {
+        cancelled = true;
+        break;
+      }
+
       const item = readyOpportunities[i];
       if (!item.rent_request) {
         setBulkProgress(prev => ({ ...prev, current: i + 1 }));
@@ -286,16 +295,30 @@ export default function MyWatchlist() {
       setOpportunities(prev => prev.filter(o => !fundedWatchIds.includes(o.id)));
     }
 
-    toast({
-      title: successCount > 0 ? '🎉 Bulk Funding Complete!' : 'Funding Failed',
-      description: successCount > 0 
-        ? `Successfully funded ${successCount} request${successCount > 1 ? 's' : ''}${failCount > 0 ? `, ${failCount} failed` : ''}`
-        : 'Could not fund any requests',
-      variant: successCount > 0 ? 'default' : 'destructive'
-    });
+    if (cancelled) {
+      toast({
+        title: '⏹️ Funding Cancelled',
+        description: successCount > 0 
+          ? `Funded ${successCount} request${successCount > 1 ? 's' : ''} before cancellation`
+          : 'No requests were funded',
+      });
+    } else {
+      toast({
+        title: successCount > 0 ? '🎉 Bulk Funding Complete!' : 'Funding Failed',
+        description: successCount > 0 
+          ? `Successfully funded ${successCount} request${successCount > 1 ? 's' : ''}${failCount > 0 ? `, ${failCount} failed` : ''}`
+          : 'Could not fund any requests',
+        variant: successCount > 0 ? 'default' : 'destructive'
+      });
+    }
 
     setBulkFunding(false);
     setBulkProgress({ current: 0, total: 0, success: 0 });
+    cancelBulkRef.current = false;
+  };
+
+  const handleCancelBulk = () => {
+    cancelBulkRef.current = true;
   };
 
   const getVerificationStatus = (request: WatchedOpportunity['rent_request']) => {
@@ -474,6 +497,14 @@ export default function MyWatchlist() {
                     {bulkProgress.success} funded
                   </span>
                 </div>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCancelBulk}
+                  className="w-full mt-2 text-destructive border-destructive/30 hover:bg-destructive/10"
+                >
+                  Cancel Funding
+                </Button>
               </CardContent>
             </Card>
           </motion.div>
