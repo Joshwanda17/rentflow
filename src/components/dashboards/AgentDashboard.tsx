@@ -20,7 +20,8 @@ import {
   Wallet,
   Sparkles,
   ChevronRight,
-  UsersRound
+  UsersRound,
+  Handshake
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -37,6 +38,7 @@ import { AgentInvitesList } from '@/components/agent/AgentInvitesList';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { AgentRentRequestsManager } from '@/components/agent/AgentRentRequestsManager';
 import { SubAgentsList } from '@/components/agent/SubAgentsList';
+import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -69,6 +71,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [depositOpen, setDepositOpen] = useState(false);
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
+  const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   useEffect(() => {
     fetchData();
@@ -114,6 +117,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const handleWithdrawal = () => {
     hapticTap();
     setWithdrawalOpen(true);
+  };
+
+  const handleInviteSubAgent = () => {
+    hapticTap();
+    setInviteSubAgentOpen(true);
   };
 
   const handleViewWallet = () => {
@@ -243,7 +251,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </motion.button>
         </div>
 
-        {/* Expandable Wallet Section */}
+        {/* Invite Sub-Agent Quick Action */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={handleInviteSubAgent}
+          className="w-full flex items-center gap-4 p-4 rounded-2xl bg-gradient-to-r from-orange-500/10 to-amber-500/10 border border-orange-500/30 hover:border-orange-500/50 transition-colors touch-manipulation"
+        >
+          <div className="p-3 rounded-xl bg-orange-500/20">
+            <Handshake className="h-6 w-6 text-orange-500" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-orange-600 dark:text-orange-400">Invite Sub-Agent</p>
+            <p className="text-sm text-muted-foreground">Build your team & earn 1% of their earnings</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-orange-500/60" />
+        </motion.button>
+
         {showWallet && (
           <motion.div
             initial={{ opacity: 0, height: 0 }}
@@ -319,6 +342,14 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <UnifiedRegistrationDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
+        onSuccess={() => {
+          fetchData();
+          refreshEarnings();
+        }}
+      />
+      <RegisterSubAgentDialog
+        open={inviteSubAgentOpen}
+        onOpenChange={setInviteSubAgentOpen}
         onSuccess={() => {
           fetchData();
           refreshEarnings();
