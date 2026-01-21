@@ -21,7 +21,8 @@ import {
   Menu,
   Sparkles,
   ChevronRight,
-  UsersRound
+  UsersRound,
+  Lock
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -49,6 +50,9 @@ import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { motion } from 'framer-motion';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { hapticTap } from '@/lib/haptics';
+import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { useAgentAgreement } from '@/hooks/useAgentAgreement';
+import { useToast } from '@/hooks/use-toast';
 
 interface AgentDashboardProps {
   user: User;
@@ -63,6 +67,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { totalEarnings, refreshEarnings } = useAgentEarnings();
+  const { isAccepted: hasAcceptedTerms, isLoading: termsLoading } = useAgentAgreement();
+  const { toast } = useToast();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
   const [loading, setLoading] = useState(true);
@@ -101,9 +107,40 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     await Promise.all([fetchData(), refreshEarnings()]);
   };
 
+  // Show toast when trying to use locked features
+  const showLockedToast = () => {
+    toast({
+      title: "Accept Terms Required",
+      description: "Please accept the Agent Terms & Conditions to unlock this feature.",
+      variant: "destructive"
+    });
+  };
+
   const handleRegisterUser = () => {
     hapticTap();
+    if (!hasAcceptedTerms) {
+      showLockedToast();
+      return;
+    }
     setRegisterUserOpen(true);
+  };
+
+  const handleDeposit = () => {
+    hapticTap();
+    if (!hasAcceptedTerms) {
+      showLockedToast();
+      return;
+    }
+    setDepositOpen(true);
+  };
+
+  const handleWithdrawal = () => {
+    hapticTap();
+    if (!hasAcceptedTerms) {
+      showLockedToast();
+      return;
+    }
+    setWithdrawalOpen(true);
   };
 
   const handleViewWallet = () => {
@@ -112,9 +149,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   };
 
   const menuItems = [
-    { icon: UserPlus, label: 'Register User', onClick: () => setRegisterUserOpen(true) },
-    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: () => setDepositOpen(true) },
-    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: () => setWithdrawalOpen(true), separator: true },
+    { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
+    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: handleDeposit },
+    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: handleWithdrawal, separator: true },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
@@ -125,11 +162,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
-  // Other actions for the collapsible menu
+  // Other actions for the collapsible menu - show lock icon if terms not accepted
   const otherActions = [
-    { icon: UserPlus, label: 'Register', onClick: () => setRegisterUserOpen(true), variant: 'primary' as const },
-    { icon: ArrowDownCircle, label: 'Deposit', onClick: () => setDepositOpen(true), variant: 'success' as const },
-    { icon: ArrowUpCircle, label: 'Withdraw', onClick: () => setWithdrawalOpen(true), variant: 'default' as const },
+    { icon: hasAcceptedTerms ? UserPlus : Lock, label: 'Register', onClick: handleRegisterUser, variant: 'primary' as const },
+    { icon: hasAcceptedTerms ? ArrowDownCircle : Lock, label: 'Deposit', onClick: handleDeposit, variant: 'success' as const },
+    { icon: hasAcceptedTerms ? ArrowUpCircle : Lock, label: 'Withdraw', onClick: handleWithdrawal, variant: 'default' as const },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace'), variant: 'warning' as const },
     { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
@@ -158,6 +195,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             variant="prominent"
           />
         )}
+
+        {/* Agent Agreement Banner - Show if not accepted */}
+        <AgentAgreementBanner />
 
         {/* Agent Welcome & Stats Header */}
         <div className="flex items-center gap-3">
@@ -189,22 +229,29 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={handleRegisterUser}
-            className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-primary via-primary to-primary/80 p-5 text-primary-foreground shadow-lg shadow-primary/25 active:shadow-md transition-shadow"
+            className={`relative overflow-hidden rounded-2xl p-5 shadow-lg active:shadow-md transition-shadow ${
+              hasAcceptedTerms 
+                ? 'bg-gradient-to-br from-primary via-primary to-primary/80 text-primary-foreground shadow-primary/25' 
+                : 'bg-gradient-to-br from-muted via-muted to-muted/80 text-muted-foreground'
+            }`}
           >
             <div className="absolute top-0 right-0 w-24 h-24 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
             <div className="absolute bottom-0 left-0 w-16 h-16 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
             
             <div className="relative z-10 flex flex-col items-center text-center gap-3">
               <div className="p-3 rounded-xl bg-white/20 backdrop-blur-sm">
-                <UserPlus className="h-7 w-7" />
+                {hasAcceptedTerms ? <UserPlus className="h-7 w-7" /> : <Lock className="h-7 w-7" />}
               </div>
               <div>
                 <p className="font-bold text-base">Register User</p>
-                <p className="text-xs opacity-80 mt-0.5">Earn commission</p>
+                <p className="text-xs opacity-80 mt-0.5">
+                  {hasAcceptedTerms ? 'Earn commission' : 'Accept terms first'}
+                </p>
               </div>
             </div>
             
-            <Sparkles className="absolute top-3 right-3 h-4 w-4 opacity-60" />
+            {hasAcceptedTerms && <Sparkles className="absolute top-3 right-3 h-4 w-4 opacity-60" />}
+            {!hasAcceptedTerms && <Lock className="absolute top-3 right-3 h-4 w-4 opacity-60" />}
           </motion.button>
 
           {/* View Wallet - Secondary Action */}
