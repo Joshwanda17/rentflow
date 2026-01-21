@@ -653,8 +653,8 @@ export default function SupporterDashboard({
         {/* ROI Earnings Section */}
         <ROIEarningsCard />
 
-        {/* Funding Milestones */}
-        {fundedRequests.length > 0 && (
+        {/* Funding Milestones - Hidden to give more space to opportunities */}
+        {/* {fundedRequests.length > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -672,7 +672,7 @@ export default function SupporterDashboard({
               </CardContent>
             </Card>
           </motion.div>
-        )}
+        )} */}
 
         {/* Investment Opportunities - Real-time - Full Width */}
         <div id="opportunities" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 scroll-mt-4">
