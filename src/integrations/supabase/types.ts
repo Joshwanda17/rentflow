@@ -463,6 +463,109 @@ export type Database = {
           },
         ]
       }
+      landlord_payment_proofs: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          landlord_id: string
+          payment_date: string
+          payment_method: string
+          proof_image_url: string | null
+          rejection_reason: string | null
+          rent_request_id: string
+          reward_credited: boolean | null
+          reward_credited_at: string | null
+          status: string | null
+          supporter_id: string
+          transaction_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          landlord_id: string
+          payment_date?: string
+          payment_method: string
+          proof_image_url?: string | null
+          rejection_reason?: string | null
+          rent_request_id: string
+          reward_credited?: boolean | null
+          reward_credited_at?: string | null
+          status?: string | null
+          supporter_id: string
+          transaction_id: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          payment_date?: string
+          payment_method?: string
+          proof_image_url?: string | null
+          rejection_reason?: string | null
+          rent_request_id?: string
+          reward_credited?: boolean | null
+          reward_credited_at?: string | null
+          status?: string | null
+          supporter_id?: string
+          transaction_id?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_payment_proofs_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
@@ -474,8 +577,12 @@ export type Database = {
           name: string
           phone: string
           property_address: string
+          ready_to_receive: boolean | null
           registered_by: string | null
           tenant_id: string | null
+          verified: boolean | null
+          verified_at: string | null
+          verified_by: string | null
         }
         Insert: {
           account_number?: string | null
@@ -487,8 +594,12 @@ export type Database = {
           name: string
           phone: string
           property_address: string
+          ready_to_receive?: boolean | null
           registered_by?: string | null
           tenant_id?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
         Update: {
           account_number?: string | null
@@ -500,10 +611,29 @@ export type Database = {
           name?: string
           phone?: string
           property_address?: string
+          ready_to_receive?: boolean | null
           registered_by?: string | null
           tenant_id?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       late_fee_configurations: {
         Row: {
@@ -1494,6 +1624,9 @@ export type Database = {
         Row: {
           access_fee: number
           agent_id: string | null
+          agent_verified: boolean | null
+          agent_verified_at: string | null
+          agent_verified_by: string | null
           approval_comment: string | null
           approved_at: string | null
           approved_by: string | null
@@ -1505,6 +1638,9 @@ export type Database = {
           id: string
           landlord_id: string
           lc1_id: string
+          manager_verified: boolean | null
+          manager_verified_at: string | null
+          manager_verified_by: string | null
           rejected_reason: string | null
           rent_amount: number
           request_fee: number
@@ -1517,6 +1653,9 @@ export type Database = {
         Insert: {
           access_fee: number
           agent_id?: string | null
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          agent_verified_by?: string | null
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1528,6 +1667,9 @@ export type Database = {
           id?: string
           landlord_id: string
           lc1_id: string
+          manager_verified?: boolean | null
+          manager_verified_at?: string | null
+          manager_verified_by?: string | null
           rejected_reason?: string | null
           rent_amount: number
           request_fee: number
@@ -1540,6 +1682,9 @@ export type Database = {
         Update: {
           access_fee?: number
           agent_id?: string | null
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          agent_verified_by?: string | null
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1551,6 +1696,9 @@ export type Database = {
           id?: string
           landlord_id?: string
           lc1_id?: string
+          manager_verified?: boolean | null
+          manager_verified_at?: string | null
+          manager_verified_by?: string | null
           rejected_reason?: string | null
           rent_amount?: number
           request_fee?: number
@@ -1561,6 +1709,20 @@ export type Database = {
           updated_at?: string
         }
         Relationships: [
+          {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "rent_requests_landlord_id_fkey"
             columns: ["landlord_id"]
@@ -1574,6 +1736,20 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lc1_chairpersons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
           },
         ]
       }
