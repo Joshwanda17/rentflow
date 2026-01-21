@@ -81,7 +81,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -332,6 +332,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     // Apply filter
     if (filterBy === 'watched') {
       result = result.filter(opp => watchedIds.has(opp.id));
+    } else if (filterBy === 'unseen') {
+      result = result.filter(opp => !lastSeenAt || new Date(opp.created_at) > lastSeenAt);
     } else if (filterBy !== 'all') {
       result = result.filter(opp => getVerificationStatus(opp) === filterBy);
     }
@@ -353,7 +355,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
 
     return result;
-  }, [opportunities, sortBy, filterBy, watchedIds]);
+  }, [opportunities, sortBy, filterBy, watchedIds, lastSeenAt]);
 
   const handleCardClick = (opportunity: RentOpportunity) => {
     hapticTap();
@@ -530,6 +532,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Requests</SelectItem>
+              <SelectItem value="unseen">🔵 Unseen ({unseenCount})</SelectItem>
               <SelectItem value="watched">⭐ Watching ({watchedIds.size})</SelectItem>
               <SelectItem value="verified">✓ Verified Only</SelectItem>
               <SelectItem value="verifying">⏳ Verifying</SelectItem>
