@@ -1,10 +1,11 @@
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Plus, Wallet, Clock, CheckCircle, XCircle, ArrowDownToLine, Sparkles } from 'lucide-react';
+import { Plus, Wallet, Clock, CheckCircle, XCircle, ArrowDownToLine, Sparkles, ChevronRight } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
+import { useNavigate } from 'react-router-dom';
 
 interface SimpleAccountsListProps {
   accounts: InvestmentAccount[];
@@ -21,6 +22,8 @@ export function SimpleAccountsList({
   onWithdrawAccount,
   onViewDetails 
 }: SimpleAccountsListProps) {
+  const navigate = useNavigate();
+  
   const getStatusIcon = (status?: string) => {
     switch (status) {
       case 'approved':
@@ -59,14 +62,25 @@ export function SimpleAccountsList({
           <span className="text-xl">💼</span>
           <h3 className="font-bold text-foreground">My Accounts</h3>
         </div>
-        <Button 
-          size="sm" 
-          onClick={onCreateAccount}
-          className="h-9 gap-1.5 bg-gradient-to-r from-primary to-primary/80"
-        >
-          <Plus className="h-4 w-4" />
-          New
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost"
+            size="sm" 
+            onClick={() => navigate('/investment-portfolio')}
+            className="h-8 text-xs text-muted-foreground hover:text-primary gap-1"
+          >
+            View All
+            <ChevronRight className="h-3 w-3" />
+          </Button>
+          <Button 
+            size="sm" 
+            onClick={onCreateAccount}
+            className="h-9 gap-1.5 bg-gradient-to-r from-primary to-primary/80"
+          >
+            <Plus className="h-4 w-4" />
+            New
+          </Button>
+        </div>
       </div>
 
       {/* Accounts */}
