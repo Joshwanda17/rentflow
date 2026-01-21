@@ -4,8 +4,9 @@ import { Home, MessageCircle, Settings, Store, Users, FileText, TrendingUp } fro
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { getLastSeenAt } from '@/lib/opportunitySeenStorage';
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
@@ -16,24 +17,32 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
   const location = useLocation();
   const [pendingOpportunities, setPendingOpportunities] = useState(0);
   
-  // Fetch pending opportunities count for supporters
+  // Fetch unseen opportunities count for supporters
+  const fetchUnseenCount = useCallback(async () => {
+    const lastSeenAt = getLastSeenAt();
+    
+    let query = supabase
+      .from('rent_requests')
+      .select('*', { count: 'exact', head: true })
+      .in('status', ['pending', 'approved']);
+    
+    // Only count opportunities created after last seen timestamp
+    if (lastSeenAt) {
+      query = query.gt('created_at', lastSeenAt.toISOString());
+    }
+    
+    const { count, error } = await query;
+    
+    if (!error && count !== null) {
+      setPendingOpportunities(count);
+    }
+  }, []);
+
   useEffect(() => {
     if (currentRole !== 'supporter') return;
     
-    const fetchPendingCount = async () => {
-      const { count, error } = await supabase
-        .from('rent_requests')
-        .select('*', { count: 'exact', head: true })
-        .in('status', ['pending', 'approved']);
-      
-      if (!error && count !== null) {
-        setPendingOpportunities(count);
-      }
-    };
+    fetchUnseenCount();
     
-    fetchPendingCount();
-    
-    // Subscribe to real-time updates
     const channel = supabase
       .channel('nav-opportunities')
       .on(
@@ -44,15 +53,29 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
           table: 'rent_requests',
         },
         () => {
-          fetchPendingCount();
+          fetchUnseenCount();
         }
       )
       .subscribe();
     
+    // Also listen for storage changes (when user marks all as seen)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'opportunities_last_seen_at') {
+        fetchUnseenCount();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    
+    // Custom event for same-tab updates
+    const handleCustomEvent = () => fetchUnseenCount();
+    window.addEventListener('opportunities-marked-seen', handleCustomEvent);
+
     return () => {
       supabase.removeChannel(channel);
+      window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('opportunities-marked-seen', handleCustomEvent);
     };
-  }, [currentRole]);
+  }, [currentRole, fetchUnseenCount]);
   
   // Role-specific navigation items with large, clear icons
   const getNavItems = () => {
