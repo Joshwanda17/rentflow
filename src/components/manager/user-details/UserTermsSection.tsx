@@ -36,6 +36,17 @@ interface SupporterAgreement {
   created_at: string;
 }
 
+interface AgentAgreement {
+  id: string;
+  agent_id: string;
+  agreement_version: string;
+  status: string;
+  accepted_at: string;
+  device_info: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
 interface UserTermsSectionProps {
   userId: string;
   userRoles: string[];
@@ -44,6 +55,7 @@ interface UserTermsSectionProps {
 export default function UserTermsSection({ userId, userRoles }: UserTermsSectionProps) {
   const [tenantAgreement, setTenantAgreement] = useState<TenantAgreement | null>(null);
   const [supporterAgreement, setSupporterAgreement] = useState<SupporterAgreement | null>(null);
+  const [agentAgreement, setAgentAgreement] = useState<AgentAgreement | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -79,8 +91,22 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
         supporterData = data;
       }
 
+      // Fetch agent agreement if user has agent role
+      let agentData: AgentAgreement | null = null;
+      if (userRoles.includes('agent')) {
+        const { data } = await supabase
+          .from('agent_agreement_acceptance')
+          .select('*')
+          .eq('agent_id', userId)
+          .order('accepted_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        agentData = data;
+      }
+
       setTenantAgreement(tenantData);
       setSupporterAgreement(supporterData);
+      setAgentAgreement(agentData);
     } catch (error) {
       console.error('Error fetching agreements:', error);
     } finally {
@@ -121,7 +147,8 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
 
   const hasTenantRole = userRoles.includes('tenant');
   const hasSupporterRole = userRoles.includes('supporter');
-  const noRelevantRoles = !hasTenantRole && !hasSupporterRole;
+  const hasAgentRole = userRoles.includes('agent');
+  const noRelevantRoles = !hasTenantRole && !hasSupporterRole && !hasAgentRole;
 
   if (noRelevantRoles) {
     return (
@@ -132,7 +159,7 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
             No agreement requirements for this user's roles
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Agreements are only required for Tenant and Supporter roles
+            Agreements are required for Tenant, Supporter, and Agent roles
           </p>
         </CardContent>
       </Card>
@@ -181,6 +208,31 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
                   <span className="font-semibold text-sm">Accepted</span>
                 </div>
                 <p className="text-xs text-muted-foreground">v{supporterAgreement.agreement_version}</p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-1 text-warning">
+                  <XCircle className="h-4 w-4" />
+                  <span className="font-semibold text-sm">Not Accepted</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </>
+            )}
+          </Card>
+        )}
+        {hasAgentRole && (
+          <Card className={`p-3 ${agentAgreement?.status === 'accepted' ? 'border-success/50' : 'border-warning/50'}`}>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <Shield className="h-3 w-3" />
+              Agent Agreement
+            </div>
+            {agentAgreement?.status === 'accepted' ? (
+              <>
+                <div className="flex items-center gap-1 text-success">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-semibold text-sm">Accepted</span>
+                </div>
+                <p className="text-xs text-muted-foreground">v{agentAgreement.agreement_version}</p>
               </>
             ) : (
               <>
