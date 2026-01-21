@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +15,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import {
   ArrowLeft,
   TrendingUp,
@@ -33,11 +40,17 @@ import {
   Eye,
   Coins,
   ArrowUpRight,
-  History
+  History,
+  Filter,
+  ArrowDownAZ,
+  ArrowUpDown
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+
+type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
+type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
 
 interface LinkedFunding {
   id: string;
@@ -79,6 +92,8 @@ export default function InvestmentPortfolio() {
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [selectedAccount, setSelectedAccount] = useState<InvestmentAccount | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [sortBy, setSortBy] = useState<SortOption>('date-desc');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all');
 
   useEffect(() => {
     if (user) {
@@ -182,6 +197,38 @@ export default function InvestmentPortfolio() {
   const totalRoiEarned = accounts.reduce((sum, a) => sum + a.total_roi_earned, 0);
   const totalFundings = accounts.reduce((sum, a) => sum + a.linked_fundings.length, 0);
   const expectedMonthlyRoi = totalBalance * 0.15;
+
+  // Filter and sort accounts
+  const filteredAndSortedAccounts = useMemo(() => {
+    let result = [...accounts];
+    
+    // Apply filter
+    if (filterBy !== 'all') {
+      result = result.filter(a => a.status === filterBy);
+    }
+    
+    // Apply sort
+    result.sort((a, b) => {
+      switch (sortBy) {
+        case 'balance-desc':
+          return b.balance - a.balance;
+        case 'balance-asc':
+          return a.balance - b.balance;
+        case 'roi-desc':
+          return b.total_roi_earned - a.total_roi_earned;
+        case 'roi-asc':
+          return a.total_roi_earned - b.total_roi_earned;
+        case 'date-desc':
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime();
+        case 'date-asc':
+          return new Date(a.created_at).getTime() - new Date(b.created_at).getTime();
+        default:
+          return 0;
+      }
+    });
+    
+    return result;
+  }, [accounts, filterBy, sortBy]);
 
   const handleViewDetails = (account: InvestmentAccount) => {
     setSelectedAccount(account);
@@ -301,9 +348,42 @@ export default function InvestmentPortfolio() {
               My Accounts
             </h2>
             <Badge variant="secondary" className="font-medium">
-              {accounts.length} total
+              {filteredAndSortedAccounts.length} of {accounts.length}
             </Badge>
           </div>
+
+          {/* Filter and Sort Controls */}
+          {accounts.length > 0 && (
+            <div className="flex gap-2 flex-wrap">
+              <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
+                <SelectTrigger className="w-[130px] h-9 text-xs">
+                  <Filter className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Filter" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Status</SelectItem>
+                  <SelectItem value="approved">Active</SelectItem>
+                  <SelectItem value="pending">Pending</SelectItem>
+                  <SelectItem value="pending_activation">Awaiting Activation</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
+                <SelectTrigger className="w-[150px] h-9 text-xs">
+                  <ArrowUpDown className="h-3.5 w-3.5 mr-1.5 text-muted-foreground" />
+                  <SelectValue placeholder="Sort by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="date-desc">Newest First</SelectItem>
+                  <SelectItem value="date-asc">Oldest First</SelectItem>
+                  <SelectItem value="balance-desc">Highest Balance</SelectItem>
+                  <SelectItem value="balance-asc">Lowest Balance</SelectItem>
+                  <SelectItem value="roi-desc">Highest ROI</SelectItem>
+                  <SelectItem value="roi-asc">Lowest ROI</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+          )}
 
           {accounts.length === 0 ? (
             <Card className="border-dashed border-2">
@@ -321,15 +401,32 @@ export default function InvestmentPortfolio() {
                 </Button>
               </CardContent>
             </Card>
+          ) : filteredAndSortedAccounts.length === 0 ? (
+            <Card className="border-dashed border-2">
+              <CardContent className="p-6 text-center">
+                <div className="w-12 h-12 mx-auto mb-3 rounded-full bg-muted flex items-center justify-center">
+                  <Filter className="h-6 w-6 text-muted-foreground" />
+                </div>
+                <h3 className="font-semibold text-foreground mb-1">No Matching Accounts</h3>
+                <p className="text-sm text-muted-foreground mb-3">
+                  No accounts match the current filter
+                </p>
+                <Button variant="outline" size="sm" onClick={() => setFilterBy('all')}>
+                  Clear Filter
+                </Button>
+              </CardContent>
+            </Card>
           ) : (
             <div className="space-y-3">
-              <AnimatePresence>
-                {accounts.map((account, index) => (
+              <AnimatePresence mode="popLayout">
+                {filteredAndSortedAccounts.map((account, index) => (
                   <motion.div
                     key={account.id}
+                    layout
                     initial={{ opacity: 0, x: -20 }}
                     animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
+                    exit={{ opacity: 0, x: 20 }}
+                    transition={{ delay: index * 0.03 }}
                   >
                     <Card 
                       className="border-0 bg-card shadow-sm hover:shadow-md transition-all cursor-pointer active:scale-[0.98] overflow-hidden"
