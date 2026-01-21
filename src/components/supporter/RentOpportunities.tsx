@@ -32,7 +32,9 @@ import {
   SortAsc,
   Filter,
   ArrowUpDown,
-  Home
+  Home,
+  Bookmark,
+  BookmarkCheck
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -75,7 +77,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -94,9 +96,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [filterBy, setFilterBy] = useState<FilterOption>('all');
   const [startingChat, setStartingChat] = useState(false);
+  const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
+  const [watchingId, setWatchingId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchOpportunities();
+    fetchWatchedOpportunities();
     
     const channel = supabase
       .channel('rent-opportunities')
@@ -127,6 +132,69 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
       supabase.removeChannel(channel);
     };
   }, []);
+
+  const fetchWatchedOpportunities = async () => {
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) return;
+    
+    const { data } = await supabase
+      .from('watched_opportunities')
+      .select('rent_request_id')
+      .eq('user_id', userData.user.id);
+    
+    if (data) {
+      setWatchedIds(new Set(data.map(w => w.rent_request_id)));
+    }
+  };
+
+  const handleWatch = async (e: React.MouseEvent, opportunityId: string) => {
+    e.stopPropagation();
+    hapticTap();
+    
+    const { data: userData } = await supabase.auth.getUser();
+    if (!userData.user) {
+      toast.error('Please sign in to watch opportunities');
+      return;
+    }
+    
+    setWatchingId(opportunityId);
+    const isWatched = watchedIds.has(opportunityId);
+    
+    if (isWatched) {
+      // Unwatch
+      const { error } = await supabase
+        .from('watched_opportunities')
+        .delete()
+        .eq('user_id', userData.user.id)
+        .eq('rent_request_id', opportunityId);
+      
+      if (!error) {
+        setWatchedIds(prev => {
+          const newSet = new Set(prev);
+          newSet.delete(opportunityId);
+          return newSet;
+        });
+        toast.success('Removed from watchlist');
+      }
+    } else {
+      // Watch
+      const { error } = await supabase
+        .from('watched_opportunities')
+        .insert({
+          user_id: userData.user.id,
+          rent_request_id: opportunityId
+        });
+      
+      if (!error) {
+        setWatchedIds(prev => new Set([...prev, opportunityId]));
+        toast.success('Added to watchlist! You\'ll be notified when verified.');
+      } else if (error.code === '23505') {
+        toast.info('Already watching this opportunity');
+      }
+    }
+    
+    setWatchingId(null);
+  };
 
   const fetchOpportunities = async () => {
     setLoading(true);
@@ -207,7 +275,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
     let result = [...opportunities];
 
     // Apply filter
-    if (filterBy !== 'all') {
+    if (filterBy === 'watched') {
+      result = result.filter(opp => watchedIds.has(opp.id));
+    } else if (filterBy !== 'all') {
       result = result.filter(opp => getVerificationStatus(opp) === filterBy);
     }
 
@@ -228,7 +298,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
     }
 
     return result;
-  }, [opportunities, sortBy, filterBy]);
+  }, [opportunities, sortBy, filterBy, watchedIds]);
 
   const handleCardClick = (opportunity: RentOpportunity) => {
     hapticTap();
@@ -392,6 +462,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Requests</SelectItem>
+              <SelectItem value="watched">⭐ Watching ({watchedIds.size})</SelectItem>
               <SelectItem value="verified">✓ Verified Only</SelectItem>
               <SelectItem value="verifying">⏳ Verifying</SelectItem>
               <SelectItem value="pending">🆕 New/Pending</SelectItem>
@@ -472,12 +543,28 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick }: RentOppor
                           </div>
                         </div>
 
-                        {/* View Details */}
-                        <div className="flex flex-col items-center gap-1">
-                          <div className="p-2.5 rounded-full bg-success/10 text-success">
+                        {/* Watch & View Actions */}
+                        <div className="flex flex-col items-center gap-2">
+                          {/* Watch Button */}
+                          <button
+                            onClick={(e) => handleWatch(e, opportunity.id)}
+                            disabled={watchingId === opportunity.id}
+                            className={`p-2 rounded-full transition-all ${
+                              watchedIds.has(opportunity.id)
+                                ? 'bg-warning/20 text-warning'
+                                : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
+                            }`}
+                          >
+                            {watchedIds.has(opportunity.id) ? (
+                              <BookmarkCheck className="h-4 w-4" />
+                            ) : (
+                              <Bookmark className="h-4 w-4" />
+                            )}
+                          </button>
+                          {/* View Details */}
+                          <div className="p-2 rounded-full bg-success/10 text-success">
                             <Eye className="h-4 w-4" />
                           </div>
-                          <span className="text-[9px] text-muted-foreground">Details</span>
                         </div>
                       </div>
 
