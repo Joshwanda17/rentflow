@@ -136,12 +136,13 @@ Deno.serve(async (req) => {
         .insert({
           parent_agent_id: parentAgentId,
           sub_agent_id: authData.user.id,
+          source: 'invite', // Track that this came from direct registration
         });
 
       if (subAgentError) {
         console.error("Sub-agent relationship error:", subAgentError);
       } else {
-        console.log(`Created sub-agent relationship: ${authData.user.id} under ${parentAgentId}`);
+        console.log(`Created sub-agent relationship: ${authData.user.id} under ${parentAgentId} (source: invite)`);
       }
     }
 

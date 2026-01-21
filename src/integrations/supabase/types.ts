@@ -118,18 +118,21 @@ export type Database = {
           created_at: string
           id: string
           parent_agent_id: string
+          source: string
           sub_agent_id: string
         }
         Insert: {
           created_at?: string
           id?: string
           parent_agent_id: string
+          source?: string
           sub_agent_id: string
         }
         Update: {
           created_at?: string
           id?: string
           parent_agent_id?: string
+          source?: string
           sub_agent_id?: string
         }
         Relationships: []
