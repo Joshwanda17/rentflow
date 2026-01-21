@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -24,11 +24,15 @@ import {
   AlertCircle,
   User,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  FileDown,
+  Loader2
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, addDays, isBefore, isToday, startOfDay } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import { jsPDF } from 'jspdf';
+import { toast } from '@/hooks/use-toast';
 
 interface RentRequest {
   id: string;
@@ -77,6 +81,8 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [expandedSchedules, setExpandedSchedules] = useState<Record<string, boolean>>({});
+  const [exportingPdf, setExportingPdf] = useState<string | null>(null);
+  const [tenantName, setTenantName] = useState<string>('');
 
   useEffect(() => {
     fetchRentData();
@@ -85,6 +91,17 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
   const fetchRentData = async () => {
     setLoading(true);
     try {
+      // Fetch tenant profile
+      const { data: tenantProfile } = await supabase
+        .from('profiles')
+        .select('full_name')
+        .eq('id', userId)
+        .single();
+      
+      if (tenantProfile) {
+        setTenantName(tenantProfile.full_name);
+      }
+
       // Fetch rent requests with landlord info
       const { data: requests } = await supabase
         .from('rent_requests')
@@ -132,7 +149,157 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
     }
   };
 
+  const exportScheduleToPdf = (request: RentRequest, schedule: DayStatus[], paidAmount: number) => {
+    setExportingPdf(request.id);
+    
+    try {
+      const doc = new jsPDF();
+      const pageWidth = doc.internal.pageSize.getWidth();
+      
+      // Header
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Repayment Schedule Report', pageWidth / 2, 20, { align: 'center' });
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Generated: ${format(new Date(), 'MMMM d, yyyy HH:mm')}`, pageWidth / 2, 28, { align: 'center' });
+      
+      // Tenant & Property Info
+      let yPos = 40;
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Tenant Information', 14, yPos);
+      yPos += 7;
+      
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Name: ${tenantName || 'N/A'}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Property: ${request.landlord?.property_address || 'Unknown'}`, 14, yPos);
+      yPos += 6;
+      doc.text(`Landlord: ${request.landlord?.name || 'Unknown'}`, 14, yPos);
+      yPos += 6;
+      
+      if (request.agent) {
+        doc.text(`Agent: ${request.agent.full_name} (${request.agent.phone})`, 14, yPos);
+        yPos += 6;
+      }
+      
+      // Loan Details
+      yPos += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Loan Details', 14, yPos);
+      yPos += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      const details = [
+        ['Rent Amount:', formatUGX(request.rent_amount)],
+        ['Total Repayment:', formatUGX(request.total_repayment)],
+        ['Daily Repayment:', formatUGX(request.daily_repayment)],
+        ['Duration:', `${request.duration_days} days`],
+        ['Status:', request.status || 'Pending'],
+        ['Amount Paid:', formatUGX(paidAmount)],
+        ['Outstanding:', formatUGX(Math.max(0, request.total_repayment - paidAmount))],
+      ];
+      
+      details.forEach(([label, value]) => {
+        doc.text(label, 14, yPos);
+        doc.text(value, 60, yPos);
+        yPos += 5;
+      });
+      
+      // Progress stats
+      const paidDays = schedule.filter(d => d.status === 'paid').length;
+      const missedDays = schedule.filter(d => d.status === 'missed').length;
+      const upcomingDays = schedule.filter(d => d.status === 'upcoming' || d.status === 'due_today').length;
+      
+      yPos += 4;
+      doc.setFont('helvetica', 'bold');
+      doc.text('Payment Progress', 14, yPos);
+      yPos += 7;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Paid Days: ${paidDays}`, 14, yPos);
+      doc.text(`Missed Days: ${missedDays}`, 60, yPos);
+      doc.text(`Remaining: ${upcomingDays}`, 110, yPos);
+      yPos += 10;
+      
+      // Schedule Table Header
+      doc.setFont('helvetica', 'bold');
+      doc.text('Day', 14, yPos);
+      doc.text('Date', 35, yPos);
+      doc.text('Status', 70, yPos);
+      doc.text('Expected', 110, yPos);
+      doc.text('Paid', 150, yPos);
+      yPos += 2;
+      
+      doc.setLineWidth(0.5);
+      doc.line(14, yPos, pageWidth - 14, yPos);
+      yPos += 5;
+      
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(9);
+      
+      // Schedule rows
+      schedule.forEach((day) => {
+        if (yPos > 270) {
+          doc.addPage();
+          yPos = 20;
+        }
+        
+        const statusText = day.status === 'paid' ? 'Paid' : 
+                          day.status === 'missed' ? 'Missed' : 
+                          day.status === 'due_today' ? 'Due Today' : 'Upcoming';
+        
+        doc.text(String(day.day), 14, yPos);
+        doc.text(format(day.date, 'MMM d, yyyy'), 35, yPos);
+        doc.text(statusText, 70, yPos);
+        doc.text(formatUGX(day.expected), 110, yPos);
+        doc.text(day.paid > 0 ? formatUGX(day.paid) : '-', 150, yPos);
+        yPos += 5;
+      });
+      
+      // Footer
+      doc.setFontSize(8);
+      doc.setTextColor(128);
+      doc.text('This is an automated report generated by Welile Platform', pageWidth / 2, 290, { align: 'center' });
+      
+      // Save PDF
+      const fileName = `repayment-schedule-${tenantName?.replace(/\s+/g, '-') || 'tenant'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: 'PDF Exported',
+        description: 'Repayment schedule has been downloaded.',
+      });
+    } catch (error) {
+      console.error('Error exporting PDF:', error);
+      toast({
+        title: 'Export Failed',
+        description: 'Could not generate PDF. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setExportingPdf(null);
+    }
+  };
+
   const getStatusBadge = (status: string | null) => {
+    switch (status) {
+      case 'approved':
+        return <Badge className="bg-success/20 text-success"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
+      case 'funded':
+        return <Badge className="bg-primary/20 text-primary"><Wallet className="h-3 w-3 mr-1" />Funded</Badge>;
+      case 'disbursed':
+        return <Badge className="bg-chart-5/20 text-chart-5"><TrendingUp className="h-3 w-3 mr-1" />Active</Badge>;
+      case 'completed':
+        return <Badge className="bg-success/20 text-success"><CheckCircle className="h-3 w-3 mr-1" />Completed</Badge>;
+      case 'rejected':
+        return <Badge className="bg-destructive/20 text-destructive"><XCircle className="h-3 w-3 mr-1" />Rejected</Badge>;
+      default:
+        return <Badge className="bg-warning/20 text-warning"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+    }
     switch (status) {
       case 'approved':
         return <Badge className="bg-success/20 text-success"><CheckCircle className="h-3 w-3 mr-1" />Approved</Badge>;
@@ -379,6 +546,28 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
                           {/* Full Schedule Table */}
                           <CollapsibleContent>
                             <div className="mt-3 border rounded-md overflow-hidden">
+                              {/* Export PDF Button */}
+                              <div className="p-2 bg-muted/50 border-b flex justify-end">
+                                <Button 
+                                  variant="outline" 
+                                  size="sm" 
+                                  className="text-xs gap-1"
+                                  onClick={() => exportScheduleToPdf(request, schedule, paidAmount)}
+                                  disabled={exportingPdf === request.id}
+                                >
+                                  {exportingPdf === request.id ? (
+                                    <>
+                                      <Loader2 className="h-3 w-3 animate-spin" />
+                                      Exporting...
+                                    </>
+                                  ) : (
+                                    <>
+                                      <FileDown className="h-3 w-3" />
+                                      Export PDF
+                                    </>
+                                  )}
+                                </Button>
+                              </div>
                               <div className="max-h-64 overflow-y-auto">
                                 <Table>
                                   <TableHeader className="sticky top-0 bg-muted">
