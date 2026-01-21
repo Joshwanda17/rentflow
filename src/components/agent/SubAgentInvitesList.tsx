@@ -5,6 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Check, Share2, Users, Clock, CheckCircle2, RefreshCw, Send, Loader2, Link2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -28,6 +29,8 @@ export function SubAgentInvitesList() {
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [bulkResending, setBulkResending] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ current: 0, total: 0 });
 
   const fetchInvites = async () => {
     if (!user) return;
@@ -49,6 +52,8 @@ export function SubAgentInvitesList() {
   useEffect(() => {
     fetchInvites();
   }, [user]);
+
+  const pendingInvites = invites.filter(i => i.status === 'pending');
 
   const getShareLink = (token: string) => {
     return `${window.location.origin}/join?t=${token}`;
@@ -123,7 +128,64 @@ Just click the link and enter your password to get started!`;
     }
   };
 
-  const pendingCount = invites.filter(i => i.status === 'pending').length;
+  const handleBulkResend = async () => {
+    if (pendingInvites.length === 0) return;
+    
+    setBulkResending(true);
+    setBulkProgress({ current: 0, total: pendingInvites.length });
+    let successCount = 0;
+    
+    try {
+      for (let i = 0; i < pendingInvites.length; i++) {
+        const invite = pendingInvites[i];
+        setBulkProgress({ current: i + 1, total: pendingInvites.length });
+        
+        const newPassword = generateNewPassword();
+        
+        const { error } = await supabase
+          .from('supporter_invites')
+          .update({ temp_password: newPassword })
+          .eq('id', invite.id);
+
+        if (!error) {
+          const message = `🤝 Welcome to Welile, ${invite.full_name}!
+
+You've been invited to join as a Sub-Agent!
+
+🔐 Your password: ${newPassword}
+
+👉 Activate your account here:
+${getShareLink(invite.activation_token)}
+
+Just click the link and enter your password to get started!`;
+          
+          window.open(`https://wa.me/${invite.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+          successCount++;
+          
+          // Small delay between opening tabs
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      await fetchInvites();
+      
+      toast({ 
+        title: '✅ Bulk Resend Complete', 
+        description: `Opened WhatsApp for ${successCount} of ${pendingInvites.length} sub-agents.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Bulk Resend Failed', 
+        description: error.message || 'Some invites could not be resent', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setBulkResending(false);
+      setBulkProgress({ current: 0, total: 0 });
+    }
+  };
+
+  const pendingCount = pendingInvites.length;
   const activatedCount = invites.filter(i => i.status === 'activated').length;
 
   if (loading) {
@@ -144,14 +206,55 @@ Just click the link and enter your password to get started!`;
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-3">
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between flex-wrap gap-2">
           <CardTitle className="text-lg flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
             My Sub-Agents
           </CardTitle>
-          <Button variant="ghost" size="icon" onClick={fetchInvites}>
-            <RefreshCw className="h-4 w-4" />
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={fetchInvites} className="h-8 w-8">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+            {pendingCount > 0 && (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="h-8 gap-1 text-xs"
+                    disabled={bulkResending}
+                  >
+                    {bulkResending ? (
+                      <>
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        {bulkProgress.current}/{bulkProgress.total}
+                      </>
+                    ) : (
+                      <>
+                        <Send className="h-3 w-3" />
+                        Resend All
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Resend All Sub-Agent Invites?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This will generate new passwords and open WhatsApp for all {pendingCount} pending sub-agent invite{pendingCount !== 1 ? 's' : ''}. 
+                      Each invite will open in a new tab.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBulkResend}>
+                      Yes, Resend All
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </div>
         
         {/* Stats */}
