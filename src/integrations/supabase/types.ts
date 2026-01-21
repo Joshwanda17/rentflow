@@ -469,6 +469,8 @@ export type Database = {
           created_at: string
           id: string
           landlord_id: string
+          last_roi_payment_at: string | null
+          next_roi_due_date: string | null
           payment_date: string
           payment_method: string
           proof_image_url: string | null
@@ -476,8 +478,10 @@ export type Database = {
           rent_request_id: string
           reward_credited: boolean | null
           reward_credited_at: string | null
+          roi_payments_count: number | null
           status: string | null
           supporter_id: string
+          total_roi_paid: number | null
           transaction_id: string
           updated_at: string
           verified_at: string | null
@@ -488,6 +492,8 @@ export type Database = {
           created_at?: string
           id?: string
           landlord_id: string
+          last_roi_payment_at?: string | null
+          next_roi_due_date?: string | null
           payment_date?: string
           payment_method: string
           proof_image_url?: string | null
@@ -495,8 +501,10 @@ export type Database = {
           rent_request_id: string
           reward_credited?: boolean | null
           reward_credited_at?: string | null
+          roi_payments_count?: number | null
           status?: string | null
           supporter_id: string
+          total_roi_paid?: number | null
           transaction_id: string
           updated_at?: string
           verified_at?: string | null
@@ -507,6 +515,8 @@ export type Database = {
           created_at?: string
           id?: string
           landlord_id?: string
+          last_roi_payment_at?: string | null
+          next_roi_due_date?: string | null
           payment_date?: string
           payment_method?: string
           proof_image_url?: string | null
@@ -514,8 +524,10 @@ export type Database = {
           rent_request_id?: string
           reward_credited?: boolean | null
           reward_credited_at?: string | null
+          roi_payments_count?: number | null
           status?: string | null
           supporter_id?: string
+          total_roi_paid?: number | null
           transaction_id?: string
           updated_at?: string
           verified_at?: string | null
@@ -2030,6 +2042,67 @@ export type Database = {
           referrer_id?: string
         }
         Relationships: []
+      }
+      supporter_roi_payments: {
+        Row: {
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          payment_number: number
+          payment_proof_id: string
+          rent_amount: number
+          roi_amount: number
+          status: string
+          supporter_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          payment_number?: number
+          payment_proof_id: string
+          rent_amount: number
+          roi_amount: number
+          status?: string
+          supporter_id: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_number?: number
+          payment_proof_id?: string
+          rent_amount?: number
+          roi_amount?: number
+          status?: string
+          supporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporter_roi_payments_payment_proof_id_fkey"
+            columns: ["payment_proof_id"]
+            isOneToOne: false
+            referencedRelation: "landlord_payment_proofs"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_roi_payments_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_roi_payments_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       tenant_agreement_acceptance: {
         Row: {
