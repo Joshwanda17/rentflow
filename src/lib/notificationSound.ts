@@ -157,3 +157,49 @@ export function playUrgencySound() {
     console.log('Audio not supported:', error);
   }
 }
+
+// Success fanfare sound for bulk completion
+export function playSuccessSound() {
+  // Check if sounds are enabled
+  if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
+  try {
+    const ctx = getAudioContext();
+    
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    // Play a celebratory ascending arpeggio
+    const notes = [
+      { freq: 523.25, delay: 0 },      // C5
+      { freq: 659.25, delay: 0.08 },   // E5
+      { freq: 783.99, delay: 0.16 },   // G5
+      { freq: 1046.5, delay: 0.24 },   // C6
+    ];
+    
+    notes.forEach(({ freq, delay }) => {
+      const oscillator = ctx.createOscillator();
+      const gainNode = ctx.createGain();
+      
+      oscillator.connect(gainNode);
+      gainNode.connect(ctx.destination);
+      
+      const now = ctx.currentTime;
+      
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(freq, now + delay);
+      
+      gainNode.gain.setValueAtTime(0, now + delay);
+      gainNode.gain.linearRampToValueAtTime(0.2, now + delay + 0.02);
+      gainNode.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.3);
+      
+      oscillator.start(now + delay);
+      oscillator.stop(now + delay + 0.35);
+    });
+  } catch (error) {
+    console.log('Audio not supported:', error);
+  }
+}
