@@ -22,7 +22,7 @@ export default function ActivateSupporter() {
   const [isLoading, setIsLoading] = useState(false);
   const [pageState, setPageState] = useState<PageState>('loading');
   const [activatedEmail, setActivatedEmail] = useState('');
-  const [inviteDetails, setInviteDetails] = useState<{ full_name: string } | null>(null);
+  const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string } | null>(null);
 
   useEffect(() => {
     if (!token) {
@@ -35,7 +35,7 @@ export default function ActivateSupporter() {
       try {
         const { data, error } = await supabase
           .from('supporter_invites')
-          .select('full_name, status')
+          .select('full_name, status, role')
           .eq('activation_token', token)
           .single();
 
@@ -47,7 +47,7 @@ export default function ActivateSupporter() {
         if (data.status === 'activated') {
           setPageState('activated-already');
         } else {
-          setInviteDetails({ full_name: data.full_name });
+          setInviteDetails({ full_name: data.full_name, role: data.role });
           setPageState('ready');
         }
       } catch {
@@ -219,6 +219,7 @@ export default function ActivateSupporter() {
 
   // Success state
   if (pageState === 'success') {
+    const roleLabel = inviteDetails?.role ? inviteDetails.role.charAt(0).toUpperCase() + inviteDetails.role.slice(1) : 'User';
     return (
       <div className="min-h-screen bg-gradient-to-b from-success/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
@@ -231,12 +232,12 @@ export default function ActivateSupporter() {
             </div>
             <CardTitle className="text-2xl">Account Activated!</CardTitle>
             <CardDescription>
-              Welcome to Welile! You can now start investing.
+              Welcome to Welile! Your {roleLabel} account is ready.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <p className="text-sm text-muted-foreground text-center">
-              Your supporter account is ready. Start earning 15% monthly returns!
+              Click below to access your dashboard and get started.
             </p>
             <Button onClick={handleLogin} className="w-full gap-2" disabled={isLoading}>
               {isLoading ? (
