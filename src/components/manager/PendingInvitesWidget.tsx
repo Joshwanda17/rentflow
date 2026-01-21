@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { useToast } from '@/hooks/use-toast';
 import { Clock, Share2, Send, Loader2, ChevronRight, UserPlus, RefreshCw } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -211,20 +212,38 @@ Just click the link and enter your password to get started!`;
           >
             <RefreshCw className="h-3 w-3" />
           </Button>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            className="h-8 gap-1 text-xs"
-            onClick={handleBulkResend}
-            disabled={bulkResending || invites.length === 0}
-          >
-            {bulkResending ? (
-              <Loader2 className="h-3 w-3 animate-spin" />
-            ) : (
-              <Send className="h-3 w-3" />
-            )}
-            Resend All
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="h-8 gap-1 text-xs"
+                disabled={bulkResending || invites.length === 0}
+              >
+                {bulkResending ? (
+                  <Loader2 className="h-3 w-3 animate-spin" />
+                ) : (
+                  <Send className="h-3 w-3" />
+                )}
+                Resend All
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Resend All Invites?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  This will generate new passwords and open WhatsApp for all {invites.length} pending invite{invites.length !== 1 ? 's' : ''}. 
+                  Each invite will open in a new tab.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handleBulkResend}>
+                  Yes, Resend All
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </div>
         <p className="text-xs text-muted-foreground">
           Users who haven't activated their accounts yet
