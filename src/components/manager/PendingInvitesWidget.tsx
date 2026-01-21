@@ -172,12 +172,16 @@ Just click the link and enter your password to get started!`;
               <span className="text-xl">{(roleConfig[invite.role] || { emoji: '👤' }).emoji}</span>
               <div className="min-w-0 flex-1">
                 <p className="font-medium text-sm truncate">{invite.full_name}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                   <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
                     {(roleConfig[invite.role] || { label: 'User' }).label}
                   </Badge>
                   <span>•</span>
                   <span>{formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}</span>
+                  <span>•</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-green-500/30">
+                    ∞ Never expires
+                  </Badge>
                 </div>
               </div>
             </div>
