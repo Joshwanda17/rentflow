@@ -72,6 +72,8 @@ export function RentRequestsManager() {
     request: RentRequest | null;
     message: string;
   }>({ open: false, request: null, message: '' });
+  const [bulkWhatsappDialog, setBulkWhatsappDialog] = useState(false);
+  const [bulkSendingIndex, setBulkSendingIndex] = useState<number | null>(null);
 
   useEffect(() => {
     fetchRequests();
@@ -284,8 +286,63 @@ Thank you for being part of Welile! 🏠`;
     setWhatsappDialog({ open: false, request: null, message: '' });
   };
 
+  // Get delinquent tenants with phone numbers for bulk messaging
+  const getDelinquentTenantsWithPhone = () => {
+    return requests.filter(r => 
+      (r.missedDays || 0) > 0 && 
+      r.tenant?.phone &&
+      (r.status === 'funded' || r.status === 'disbursed')
+    );
+  };
+
+  const sendBulkWhatsappReminder = async (index: number) => {
+    const delinquentTenants = getDelinquentTenantsWithPhone();
+    
+    if (index >= delinquentTenants.length) {
+      setBulkSendingIndex(null);
+      toast({
+        title: 'Bulk Reminders Complete',
+        description: `Opened WhatsApp for ${delinquentTenants.length} delinquent tenants`,
+      });
+      return;
+    }
+    
+    const request = delinquentTenants[index];
+    if (!request.tenant?.phone) return;
+    
+    setBulkSendingIndex(index);
+    
+    const message = generateReminderMessage(request);
+    const phoneInfo = parsePhoneNumber(request.tenant.phone);
+    const encodedMessage = encodeURIComponent(message);
+    const whatsappUrl = `${phoneInfo.whatsappLink}?text=${encodedMessage}`;
+    
+    window.open(whatsappUrl, '_blank');
+    
+    // Wait a bit before opening next to avoid popup blocker
+    setTimeout(() => {
+      sendBulkWhatsappReminder(index + 1);
+    }, 1500);
+  };
+
+  const startBulkReminders = () => {
+    const delinquentTenants = getDelinquentTenantsWithPhone();
+    if (delinquentTenants.length === 0) {
+      toast({
+        title: 'No Delinquent Tenants',
+        description: 'There are no delinquent tenants with phone numbers to message.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    
+    setBulkWhatsappDialog(false);
+    sendBulkWhatsappReminder(0);
+  };
+
   const pendingRequests = requests.filter(r => r.status === 'pending');
   const delinquentRequests = requests.filter(r => (r.missedDays || 0) > 0);
+  const delinquentWithPhone = getDelinquentTenantsWithPhone();
   const activeRequests = requests.filter(r => r.status === 'funded' || r.status === 'disbursed');
   
   // Apply delinquent filter
@@ -362,19 +419,42 @@ Thank you for being part of Welile! 🏠`;
         </Card>
       </div>
 
-      {/* Delinquent Filter Toggle */}
-      <div className="flex items-center justify-between p-3 rounded-lg border bg-muted/30">
+      {/* Delinquent Filter Toggle & Bulk Actions */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 p-3 rounded-lg border bg-muted/30">
         <div className="flex items-center gap-2">
           <Filter className="h-4 w-4 text-muted-foreground" />
           <Label htmlFor="delinquent-filter" className="text-sm font-medium cursor-pointer">
             Show only delinquent accounts (missed payments)
           </Label>
+          <Switch
+            id="delinquent-filter"
+            checked={showDelinquentOnly}
+            onCheckedChange={setShowDelinquentOnly}
+          />
         </div>
-        <Switch
-          id="delinquent-filter"
-          checked={showDelinquentOnly}
-          onCheckedChange={setShowDelinquentOnly}
-        />
+        
+        {/* Bulk WhatsApp Button */}
+        {delinquentWithPhone.length > 0 && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+            onClick={() => setBulkWhatsappDialog(true)}
+            disabled={bulkSendingIndex !== null}
+          >
+            {bulkSendingIndex !== null ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                Sending {bulkSendingIndex + 1}/{delinquentWithPhone.length}...
+              </>
+            ) : (
+              <>
+                <MessageCircle className="h-4 w-4" />
+                Remind All ({delinquentWithPhone.length})
+              </>
+            )}
+          </Button>
+        )}
       </div>
 
       {/* Pending Requests */}
@@ -694,6 +774,80 @@ Thank you for being part of Welile! 🏠`;
             >
               <Send className="h-4 w-4" />
               Open in WhatsApp
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Bulk WhatsApp Reminder Dialog */}
+      <Dialog open={bulkWhatsappDialog} onOpenChange={setBulkWhatsappDialog}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <MessageCircle className="h-5 w-5 text-green-600" />
+              Bulk WhatsApp Reminders
+            </DialogTitle>
+            <DialogDescription>
+              Send payment reminders to all {delinquentWithPhone.length} delinquent tenants with missed payments.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            {/* Summary */}
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+              <div className="flex items-center gap-2 text-destructive font-medium text-sm mb-2">
+                <AlertTriangle className="h-4 w-4" />
+                {delinquentWithPhone.length} Delinquent Tenants
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Total missed payments: {delinquentWithPhone.reduce((sum, r) => sum + (r.missedDays || 0), 0)} days
+              </p>
+            </div>
+            
+            {/* Tenant List Preview */}
+            <div className="space-y-2">
+              <Label className="text-sm font-medium">Tenants to be messaged:</Label>
+              <div className="max-h-48 overflow-y-auto space-y-2 border rounded-md p-2">
+                {delinquentWithPhone.map((request, index) => (
+                  <div key={request.id} className="flex items-center justify-between text-sm p-2 rounded bg-muted/50">
+                    <div className="flex items-center gap-2">
+                      <span className="text-muted-foreground text-xs">{index + 1}.</span>
+                      <User className="h-3 w-3 text-muted-foreground" />
+                      <span className="font-medium">{request.tenant?.full_name}</span>
+                    </div>
+                    <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 text-xs">
+                      {request.missedDays} missed
+                    </Badge>
+                  </div>
+                ))}
+              </div>
+            </div>
+            
+            {/* Warning */}
+            <div className="p-3 rounded-lg bg-warning/10 border border-warning/20">
+              <p className="text-xs text-warning-foreground">
+                <strong>Note:</strong> This will open {delinquentWithPhone.length} WhatsApp tabs sequentially. 
+                Each message will be pre-filled and ready to send. Please allow pop-ups for this site.
+              </p>
+            </div>
+          </div>
+          
+          <DialogFooter className="gap-2">
+            <Button 
+              variant="outline" 
+              onClick={() => setBulkWhatsappDialog(false)}
+              className="min-h-[44px]"
+              type="button"
+            >
+              Cancel
+            </Button>
+            <Button 
+              onClick={startBulkReminders}
+              className="min-h-[44px] bg-green-600 hover:bg-green-700 text-white gap-2"
+              type="button"
+            >
+              <Send className="h-4 w-4" />
+              Send All Reminders
             </Button>
           </DialogFooter>
         </DialogContent>
