@@ -276,7 +276,7 @@ Password: ${createdInvite?.password}`;
 
       {/* Error retry section */}
       {lastError && !isLoading && (
-        <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20 animate-shake">
           <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
           <div className="flex-1 min-w-0">
             <p className="text-sm text-destructive font-medium">{lastError}</p>
