@@ -37,6 +37,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
+import { useMemo } from 'react';
 
 interface WatchedOpportunity {
   id: string;
@@ -226,6 +227,25 @@ export default function MyWatchlist() {
     return { label: 'Pending', variant: 'secondary' as const, icon: Clock };
   };
 
+  // Calculate summary stats
+  const stats = useMemo(() => {
+    let totalValue = 0;
+    let readyCount = 0;
+    let potentialReward = 0;
+
+    opportunities.forEach(item => {
+      if (item.rent_request) {
+        totalValue += item.rent_request.rent_amount;
+        if (isReadyToFund(item.rent_request)) {
+          readyCount++;
+          potentialReward += calculateSupporterReward(item.rent_request.rent_amount);
+        }
+      }
+    });
+
+    return { totalValue, readyCount, potentialReward };
+  }, [opportunities]);
+
   if (authLoading || loading) {
     return (
       <div className="min-h-screen bg-background p-4 space-y-4">
@@ -277,6 +297,37 @@ export default function MyWatchlist() {
 
       {/* Content */}
       <div className="max-w-2xl mx-auto p-4 space-y-3 pb-20">
+        {/* Summary Stats */}
+        {opportunities.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="grid grid-cols-3 gap-2 mb-4"
+          >
+            <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-0">
+              <CardContent className="p-3 text-center">
+                <Banknote className="h-4 w-4 mx-auto mb-1 text-primary" />
+                <p className="text-xs text-muted-foreground">Total Value</p>
+                <p className="font-semibold text-sm">{formatAmount(stats.totalValue)}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-success/10 to-success/5 border-0">
+              <CardContent className="p-3 text-center">
+                <CheckCircle2 className="h-4 w-4 mx-auto mb-1 text-success" />
+                <p className="text-xs text-muted-foreground">Ready</p>
+                <p className="font-semibold text-sm">{stats.readyCount}</p>
+              </CardContent>
+            </Card>
+            <Card className="bg-gradient-to-br from-warning/10 to-warning/5 border-0">
+              <CardContent className="p-3 text-center">
+                <Sparkles className="h-4 w-4 mx-auto mb-1 text-warning" />
+                <p className="text-xs text-muted-foreground">Potential</p>
+                <p className="font-semibold text-sm">{formatAmount(stats.potentialReward)}</p>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         <AnimatePresence mode="popLayout">
           {opportunities.length === 0 ? (
             <motion.div
