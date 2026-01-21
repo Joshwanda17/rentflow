@@ -503,17 +503,26 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <FoodReceiptPromoCard userId={user.id} />
 
         {/* Collapse All Button - Show when any section is expanded */}
-        {anyExpanded && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={collapseAll}
-            className="w-full text-muted-foreground gap-2"
-          >
-            <ChevronUp className="h-4 w-4" />
-            Collapse All Sections
-          </Button>
-        )}
+        <AnimatePresence>
+          {anyExpanded && (
+            <motion.div
+              initial={{ opacity: 0, height: 0, marginBottom: 0 }}
+              animate={{ opacity: 1, height: 'auto', marginBottom: 0 }}
+              exit={{ opacity: 0, height: 0, marginBottom: 0 }}
+              transition={{ duration: 0.2, ease: 'easeOut' }}
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={collapseAll}
+                className="w-full text-muted-foreground gap-2"
+              >
+                <ChevronUp className="h-4 w-4" />
+                Collapse All Sections
+              </Button>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* Rent Requests - Hidden behind collapsible button */}
         <CollapsibleRentRequests 
