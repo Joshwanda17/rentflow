@@ -119,7 +119,8 @@ export default function SupporterDashboard({
   const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
-  const { fireSuccess } = useConfetti();
+  const { fireSuccess, fireFirstFunding } = useConfetti();
+  const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
   
   // Agreement status
   const { 
@@ -237,6 +238,11 @@ export default function SupporterDashboard({
       setFundedRequests(newFundedRequests);
       setAccounts(newAccounts);
       
+      // Track if user has ever funded (for first-time celebration)
+      if (hasEverFunded === null) {
+        setHasEverFunded(newFundedRequests.length > 0);
+      }
+      
       // Cache the data for offline use
       localStorage.setItem(`supporter_dashboard_${user.id}`, JSON.stringify({
         availableRequests: newAvailableRequests,
@@ -280,12 +286,25 @@ export default function SupporterDashboard({
         description: 'Rent facilitation funding'
       });
 
-      fireSuccess();
-
-      toast({
-        title: '🎉 Request Funded!',
-        description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
-      });
+      // Check if this is their first funding
+      const isFirstFunding = hasEverFunded === false;
+      
+      if (isFirstFunding) {
+        // Extra special celebration for first-time funders!
+        fireFirstFunding();
+        setHasEverFunded(true);
+        toast({
+          title: '🎊 Congratulations on Your First Investment!',
+          description: `You've funded ${formatUGX(rentAmount)} and started your journey as a Welile Supporter!`
+        });
+      } else {
+        fireSuccess();
+        toast({
+          title: '🎉 Request Funded!',
+          description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
+        });
+      }
+      
       fetchData();
     }
   };

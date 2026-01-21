@@ -117,7 +117,114 @@ export function useConfetti() {
     }, 500);
   }, [fire]);
 
-  return { fire, fireSuccess };
+  // Extra special celebration for first-time achievements
+  const fireFirstFunding = useCallback(() => {
+    // Initial big burst
+    fire();
+
+    // Continuous celebration with multiple waves
+    const colors = [
+      ['#10b981', '#22c55e', '#4ade80'], // Green
+      ['#f59e0b', '#fbbf24', '#fcd34d'], // Gold
+      ['#8b5cf6', '#a78bfa', '#c4b5fd'], // Purple
+      ['#ec4899', '#f472b6', '#f9a8d4'], // Pink
+      ['#06b6d4', '#22d3ee', '#67e8f9'], // Cyan
+    ];
+
+    // Wave 1 - Side bursts
+    setTimeout(() => {
+      confetti({
+        particleCount: 80,
+        angle: 60,
+        spread: 70,
+        origin: { x: 0, y: 0.7 },
+        colors: colors[0],
+        zIndex: 9999,
+      });
+      confetti({
+        particleCount: 80,
+        angle: 120,
+        spread: 70,
+        origin: { x: 1, y: 0.7 },
+        colors: colors[1],
+        zIndex: 9999,
+      });
+    }, 200);
+
+    // Wave 2 - Center burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 100,
+        spread: 120,
+        origin: { y: 0.6 },
+        colors: colors[2],
+        zIndex: 9999,
+        scalar: 1.3,
+      });
+    }, 400);
+
+    // Wave 3 - More side bursts
+    setTimeout(() => {
+      confetti({
+        particleCount: 60,
+        angle: 45,
+        spread: 60,
+        origin: { x: 0.1, y: 0.8 },
+        colors: colors[3],
+        zIndex: 9999,
+      });
+      confetti({
+        particleCount: 60,
+        angle: 135,
+        spread: 60,
+        origin: { x: 0.9, y: 0.8 },
+        colors: colors[4],
+        zIndex: 9999,
+      });
+    }, 600);
+
+    // Wave 4 - Grand finale shower
+    setTimeout(() => {
+      const end = Date.now() + 800;
+      const frame = () => {
+        confetti({
+          particleCount: 3,
+          angle: 60,
+          spread: 55,
+          origin: { x: 0, y: Math.random() * 0.5 + 0.3 },
+          colors: colors[Math.floor(Math.random() * colors.length)],
+          zIndex: 9999,
+        });
+        confetti({
+          particleCount: 3,
+          angle: 120,
+          spread: 55,
+          origin: { x: 1, y: Math.random() * 0.5 + 0.3 },
+          colors: colors[Math.floor(Math.random() * colors.length)],
+          zIndex: 9999,
+        });
+        if (Date.now() < end) {
+          requestAnimationFrame(frame);
+        }
+      };
+      frame();
+    }, 800);
+
+    // Final center burst
+    setTimeout(() => {
+      confetti({
+        particleCount: 150,
+        spread: 180,
+        origin: { y: 0.5 },
+        colors: colors.flat(),
+        zIndex: 9999,
+        scalar: 1.5,
+        gravity: 0.8,
+      });
+    }, 1200);
+  }, [fire]);
+
+  return { fire, fireSuccess, fireFirstFunding };
 }
 
 export function Confetti({ trigger, onComplete }: ConfettiProps) {
