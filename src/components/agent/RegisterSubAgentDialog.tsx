@@ -10,6 +10,36 @@ import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles } 
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
+// User-friendly error messages mapping
+const getErrorMessage = (error: string): string => {
+  const errorLower = error.toLowerCase();
+  
+  if (errorLower.includes('email already exists') || errorLower.includes('user with this email')) {
+    return 'This phone number is already registered as an agent.';
+  }
+  if (errorLower.includes('invite for this email already exists')) {
+    return 'An invitation was already sent to this phone number. Ask them to check their link.';
+  }
+  if (errorLower.includes('unauthorized') || errorLower.includes('not authenticated')) {
+    return 'Your session has expired. Please log in again.';
+  }
+  if (errorLower.includes('only managers')) {
+    return 'You don\'t have permission to register sub-agents.';
+  }
+  if (errorLower.includes('missing required')) {
+    return 'Please fill in all required fields.';
+  }
+  if (errorLower.includes('failed to fetch') || errorLower.includes('network')) {
+    return 'Connection error. Please check your internet and try again.';
+  }
+  
+  if (error.length < 100 && !errorLower.includes('error')) {
+    return error;
+  }
+  
+  return 'Something went wrong. Please try again.';
+};
+
 interface RegisterSubAgentDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -90,9 +120,10 @@ export function RegisterSubAgentDialog({ open, onOpenChange, onSuccess }: Regist
 
       onSuccess?.();
     } catch (error: any) {
+      const rawMessage = error.message || 'Failed to create invite';
       toast({
-        title: 'Error',
-        description: error.message || 'Failed to create invite',
+        title: 'Registration Failed',
+        description: getErrorMessage(rawMessage),
         variant: 'destructive',
       });
     } finally {
