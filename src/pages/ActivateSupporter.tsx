@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
+import { Skeleton } from '@/components/ui/skeleton';
 
 type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'success';
 
@@ -20,17 +21,20 @@ export default function ActivateSupporter() {
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageState, setPageState] = useState<PageState>('loading');
+  const [pageState, setPageState] = useState<PageState>('ready'); // Start ready for instant form display
+  const [isValidating, setIsValidating] = useState(true); // Background validation
   const [activatedEmail, setActivatedEmail] = useState('');
   const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string } | null>(null);
 
+  // Validate invite in background while showing form immediately
   useEffect(() => {
     if (!token) {
       setPageState('invalid');
+      setIsValidating(false);
       return;
     }
 
-    // Fetch invite details
+    // Fetch invite details in background
     const fetchInvite = async () => {
       try {
         const { data, error } = await supabase
@@ -41,6 +45,7 @@ export default function ActivateSupporter() {
 
         if (error || !data) {
           setPageState('invalid');
+          setIsValidating(false);
           return;
         }
 
@@ -52,13 +57,15 @@ export default function ActivateSupporter() {
         }
       } catch {
         setPageState('invalid');
+      } finally {
+        setIsValidating(false);
       }
     };
 
     fetchInvite();
   }, [token]);
 
-  const handleActivate = async (e: React.FormEvent) => {
+  const handleActivate = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !password) return;
 
@@ -115,7 +122,7 @@ export default function ActivateSupporter() {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [token, password, toast, navigate]);
 
   const handleLogin = async () => {
     setIsLoading(true);
@@ -139,17 +146,6 @@ export default function ActivateSupporter() {
       setIsLoading(false);
     }
   };
-
-  // Loading state
-  if (pageState === 'loading') {
-    return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
-        <WelileLogo linkToHome={false} />
-        <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        <p className="text-sm text-muted-foreground">Verifying your invitation...</p>
-      </div>
-    );
-  }
 
   // Invalid token state
   if (pageState === 'invalid') {
@@ -253,7 +249,7 @@ export default function ActivateSupporter() {
     );
   }
 
-  // Ready state - show activation form
+  // Ready state - show activation form immediately (no loading spinner)
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
@@ -263,7 +259,11 @@ export default function ActivateSupporter() {
           </div>
           <CardTitle className="text-2xl">Activate Your Account</CardTitle>
           <CardDescription>
-            Welcome {inviteDetails?.full_name}! Enter your password to activate.
+            {isValidating ? (
+              <Skeleton className="h-4 w-48 mx-auto" />
+            ) : (
+              <>Welcome {inviteDetails?.full_name || 'there'}! Enter your password to activate.</>
+            )}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -279,6 +279,8 @@ export default function ActivateSupporter() {
                   onChange={(e) => setPassword(e.target.value)}
                   required
                   minLength={6}
+                  autoFocus
+                  className="h-12 text-base"
                 />
                 <Button
                   type="button"
@@ -291,11 +293,11 @@ export default function ActivateSupporter() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Use the password shared with you by the manager
+                Use the password shared with you
               </p>
             </div>
 
-            <Button type="submit" className="w-full" disabled={isLoading}>
+            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || isValidating}>
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
