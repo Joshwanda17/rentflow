@@ -105,10 +105,18 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
 
-  // Count unseen opportunities
-  const unseenCount = useMemo(() => {
-    if (!lastSeenAt) return opportunities.length;
-    return opportunities.filter(opp => new Date(opp.created_at) > lastSeenAt).length;
+  // Count unseen opportunities and calculate potential earnings
+  const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
+    const unseenOpps = opportunities.filter(opp => 
+      !lastSeenAt || new Date(opp.created_at) > lastSeenAt
+    );
+    const totalEarnings = unseenOpps.reduce((sum, opp) => 
+      sum + calculateSupporterReward(opp.rent_amount), 0
+    );
+    return { 
+      unseenCount: unseenOpps.length, 
+      unseenPotentialEarnings: totalEarnings 
+    };
   }, [opportunities, lastSeenAt]);
 
   const handleMarkAllSeen = () => {
@@ -486,13 +494,17 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                 <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20">
                   <Sparkles className="h-5 w-5 text-primary" />
                 </div>
-                <div>
+                <div className="flex-1">
                   <p className="font-bold text-sm text-foreground">
                     {unseenCount} new {unseenCount === 1 ? 'opportunity' : 'opportunities'} since last visit
                   </p>
-                  <p className="text-xs text-muted-foreground">
-                    Tap to explore and earn 15% ROI
-                  </p>
+                  <div className="flex items-center gap-2 mt-0.5">
+                    <span className="text-xs text-muted-foreground">Potential earnings:</span>
+                    <span className="text-xs font-bold text-success flex items-center gap-1">
+                      <TrendingUp className="h-3 w-3" />
+                      +{formatUGX(unseenPotentialEarnings)}
+                    </span>
+                  </div>
                 </div>
               </div>
               <Button
