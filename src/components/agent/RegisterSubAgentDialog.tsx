@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles, RefreshCw, AlertCircle } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Sparkles, RefreshCw, AlertCircle, Link2, ExternalLink } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -304,7 +304,7 @@ Password: ${createdInvite?.password}`;
             <span className="text-4xl">🤝</span>
             <div>
               <p className="font-bold text-xl">{createdInvite?.fullName}</p>
-              <p className="text-sm text-muted-foreground">Sub-Agent Account</p>
+              <p className="text-sm text-muted-foreground">Sub-Agent Account Created!</p>
             </div>
           </div>
           <div className="bg-background rounded-xl p-4">
@@ -314,21 +314,44 @@ Password: ${createdInvite?.password}`;
         </CardContent>
       </Card>
 
-      <div className="space-y-2">
-        <Label className="text-sm font-medium">Activation Link</Label>
-        <div className="flex gap-2">
-          <Input value={getShareLink()} readOnly className="h-12 text-sm rounded-xl" />
-          <Button variant="outline" size="icon" onClick={handleCopyLink} className="h-12 w-12 shrink-0 rounded-xl">
-            {copied ? <Check className="h-5 w-5 text-green-500" /> : <Copy className="h-5 w-5" />}
-          </Button>
+      {/* Prominent Activation Link Section */}
+      <div className="relative p-4 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-accent/10 border-2 border-primary/30 shadow-glow">
+        <div className="absolute -top-3 left-4 px-2 py-0.5 bg-primary text-primary-foreground text-xs font-bold rounded-full flex items-center gap-1">
+          <Link2 className="h-3 w-3" />
+          SHARE THIS LINK
+        </div>
+        
+        <div className="mt-2 space-y-3">
+          <p className="text-sm text-muted-foreground">
+            Send this link to <strong>{createdInvite?.fullName}</strong> to activate their account:
+          </p>
+          
+          <div className="flex gap-2">
+            <div className="flex-1 relative">
+              <Input 
+                value={getShareLink()} 
+                readOnly 
+                className="h-14 text-sm rounded-xl pr-12 bg-background border-2 border-primary/20 font-medium" 
+              />
+              <ExternalLink className="absolute right-4 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            </div>
+            <Button 
+              variant={copied ? "default" : "outline"} 
+              size="icon" 
+              onClick={handleCopyLink} 
+              className={`h-14 w-14 shrink-0 rounded-xl transition-all ${copied ? 'bg-green-600 hover:bg-green-700 border-green-600' : 'border-2 border-primary/30 hover:bg-primary/10'}`}
+            >
+              {copied ? <Check className="h-6 w-6 text-white" /> : <Copy className="h-6 w-6" />}
+            </Button>
+          </div>
         </div>
       </div>
 
       <Button 
         onClick={handleShareWhatsApp} 
-        className="w-full h-14 text-base font-semibold bg-green-600 hover:bg-green-700 rounded-xl"
+        className="w-full h-14 text-base font-semibold bg-green-600 hover:bg-green-700 rounded-xl gap-2"
       >
-        <Share2 className="h-5 w-5 mr-2" />
+        <Share2 className="h-5 w-5" />
         Share on WhatsApp
       </Button>
 
