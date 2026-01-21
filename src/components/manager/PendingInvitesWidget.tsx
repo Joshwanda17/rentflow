@@ -36,6 +36,7 @@ export function PendingInvitesWidget({ onViewAll }: PendingInvitesWidgetProps) {
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [resendingId, setResendingId] = useState<string | null>(null);
+  const [bulkResending, setBulkResending] = useState(false);
 
   const fetchPendingInvites = async () => {
     setLoading(true);
@@ -117,6 +118,59 @@ Just click the link and enter your password to get started!`;
     }
   };
 
+  const handleBulkResend = async () => {
+    if (invites.length === 0) return;
+    
+    setBulkResending(true);
+    let successCount = 0;
+    
+    try {
+      for (const invite of invites) {
+        const newPassword = generateNewPassword();
+        
+        const { error } = await supabase
+          .from('supporter_invites')
+          .update({ temp_password: newPassword })
+          .eq('id', invite.id);
+
+        if (!error) {
+          const roleInfo = roleConfig[invite.role] || { label: 'User', emoji: '👤' };
+          const message = `${roleInfo.emoji} Welcome to Welile, ${invite.full_name}!
+
+You've been invited to join as a ${roleInfo.label}!
+
+🔐 Your password: ${newPassword}
+
+👉 Activate your account here:
+${getShareLink(invite.activation_token)}
+
+Just click the link and enter your password to get started!`;
+          
+          window.open(`https://wa.me/${invite.phone.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+          successCount++;
+          
+          // Small delay between opening tabs
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+      }
+      
+      await fetchPendingInvites();
+      
+      toast({ 
+        title: '✅ Bulk Resend Complete', 
+        description: `Opened WhatsApp for ${successCount} of ${invites.length} invites.` 
+      });
+    } catch (error: any) {
+      toast({ 
+        title: 'Bulk Resend Failed', 
+        description: error.message || 'Some invites could not be resent', 
+        variant: 'destructive' 
+      });
+    } finally {
+      setBulkResending(false);
+    }
+  };
+
   if (loading) {
     return (
       <Card className="border-warning/30 bg-warning/5">
@@ -156,6 +210,20 @@ Just click the link and enter your password to get started!`;
             onClick={fetchPendingInvites}
           >
             <RefreshCw className="h-3 w-3" />
+          </Button>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            className="h-8 gap-1 text-xs"
+            onClick={handleBulkResend}
+            disabled={bulkResending || invites.length === 0}
+          >
+            {bulkResending ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3" />
+            )}
+            Resend All
           </Button>
         </div>
         <p className="text-xs text-muted-foreground">
