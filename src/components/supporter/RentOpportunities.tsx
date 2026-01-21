@@ -473,6 +473,40 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         animate={{ opacity: 1, y: 0 }}
         className="space-y-4"
       >
+        {/* New opportunities banner */}
+        {unseenCount > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: -10, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            className="relative overflow-hidden rounded-xl bg-gradient-to-r from-primary/15 via-primary/10 to-success/15 border border-primary/20 p-3"
+          >
+            <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-primary/10 via-transparent to-transparent" />
+            <div className="relative flex items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <div className="flex items-center justify-center w-10 h-10 rounded-full bg-primary/20">
+                  <Sparkles className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <p className="font-bold text-sm text-foreground">
+                    {unseenCount} new {unseenCount === 1 ? 'opportunity' : 'opportunities'} since last visit
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Tap to explore and earn 15% ROI
+                  </p>
+                </div>
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleMarkAllSeen}
+                className="h-8 px-2 text-xs shrink-0 hover:bg-primary/10"
+              >
+                <CheckCheck className="h-4 w-4" />
+              </Button>
+            </div>
+          </motion.div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
