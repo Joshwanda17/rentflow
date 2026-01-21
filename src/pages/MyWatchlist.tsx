@@ -38,6 +38,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
+import { playSuccessSound } from '@/lib/notificationSound';
 import { useMemo } from 'react';
 
 interface WatchedOpportunity {
@@ -292,6 +293,7 @@ export default function MyWatchlist() {
 
     if (successCount > 0) {
       fireSuccess();
+      playSuccessSound();
       setOpportunities(prev => prev.filter(o => !fundedWatchIds.includes(o.id)));
     }
 
