@@ -1,4 +1,4 @@
-import { useState, useEffect, ReactNode } from 'react';
+import { useState, ReactNode } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ChevronDown, ChevronUp, LucideIcon } from 'lucide-react';
@@ -13,6 +13,9 @@ interface CollapsibleAgentSectionProps {
   pendingLabel?: string;
   iconColor?: string;
   children: ReactNode;
+  // Controlled mode props
+  isOpen?: boolean;
+  onToggle?: () => void;
 }
 
 export function CollapsibleAgentSection({
@@ -23,12 +26,22 @@ export function CollapsibleAgentSection({
   pendingLabel = 'pending',
   iconColor = 'text-primary',
   children,
+  isOpen: controlledIsOpen,
+  onToggle,
 }: CollapsibleAgentSectionProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  
+  // Use controlled state if provided, otherwise use internal state
+  const isControlled = controlledIsOpen !== undefined;
+  const isOpen = isControlled ? controlledIsOpen : internalIsOpen;
 
   const toggleOpen = () => {
     hapticTap();
-    setIsOpen(!isOpen);
+    if (isControlled && onToggle) {
+      onToggle();
+    } else {
+      setInternalIsOpen(!internalIsOpen);
+    }
   };
 
   const displayCount = totalCount !== undefined ? totalCount : pendingCount;

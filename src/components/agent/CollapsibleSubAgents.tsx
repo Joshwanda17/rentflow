@@ -1,12 +1,17 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { UsersRound, Clock } from 'lucide-react';
+import { UsersRound } from 'lucide-react';
 import { CollapsibleAgentSection } from './CollapsibleAgentSection';
 import { SubAgentsList } from './SubAgentsList';
 import { SubAgentInvitesList } from './SubAgentInvitesList';
 
-export function CollapsibleSubAgents() {
+interface CollapsibleSubAgentsProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+export function CollapsibleSubAgents({ isOpen, onToggle }: CollapsibleSubAgentsProps) {
   const { user } = useAuth();
   const [activeCount, setActiveCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -51,6 +56,8 @@ export function CollapsibleSubAgents() {
       totalCount={totalCount}
       pendingLabel="pending"
       iconColor="text-orange-500"
+      isOpen={isOpen}
+      onToggle={onToggle}
     >
       <div className="space-y-4">
         <SubAgentInvitesList />

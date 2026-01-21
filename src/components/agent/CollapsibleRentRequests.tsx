@@ -4,7 +4,12 @@ import { Home } from 'lucide-react';
 import { CollapsibleAgentSection } from './CollapsibleAgentSection';
 import { AgentRentRequestsManager } from './AgentRentRequestsManager';
 
-export function CollapsibleRentRequests() {
+interface CollapsibleRentRequestsProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+export function CollapsibleRentRequests({ isOpen, onToggle }: CollapsibleRentRequestsProps) {
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
@@ -41,6 +46,8 @@ export function CollapsibleRentRequests() {
       pendingCount={pendingCount}
       pendingLabel="pending"
       iconColor="text-primary"
+      isOpen={isOpen}
+      onToggle={onToggle}
     >
       <AgentRentRequestsManager />
     </CollapsibleAgentSection>

@@ -5,7 +5,12 @@ import { Users } from 'lucide-react';
 import { CollapsibleAgentSection } from './CollapsibleAgentSection';
 import { AgentInvitesList } from './AgentInvitesList';
 
-export function CollapsibleUserInvites() {
+interface CollapsibleUserInvitesProps {
+  isOpen?: boolean;
+  onToggle?: () => void;
+}
+
+export function CollapsibleUserInvites({ isOpen, onToggle }: CollapsibleUserInvitesProps) {
   const { user } = useAuth();
   const [totalCount, setTotalCount] = useState(0);
   const [pendingCount, setPendingCount] = useState(0);
@@ -43,6 +48,8 @@ export function CollapsibleUserInvites() {
       totalCount={totalCount}
       pendingLabel="pending"
       iconColor="text-blue-500"
+      isOpen={isOpen}
+      onToggle={onToggle}
     >
       <AgentInvitesList />
     </CollapsibleAgentSection>
