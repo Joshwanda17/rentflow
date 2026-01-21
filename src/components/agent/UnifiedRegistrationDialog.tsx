@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
-  Sparkles, ArrowLeft, Shield, MapPin, Home
+  Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -124,6 +124,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [lastError, setLastError] = useState<string | null>(null);
   
   // Form data for invite-based registrations
   const [formData, setFormData] = useState({
@@ -164,11 +165,12 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     }
   }, [open]);
 
-  const handleSubmitInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitInvite = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     if (!selectedType || selectedType === 'lc1') return;
     
     setIsLoading(true);
+    setLastError(null);
 
     try {
       const { data: { session } } = await supabase.auth.getSession();
@@ -211,9 +213,11 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       onSuccess?.();
     } catch (error: any) {
       const rawMessage = error.message || 'Failed to create invite';
+      const friendlyMessage = getErrorMessage(rawMessage);
+      setLastError(friendlyMessage);
       toast({
         title: 'Registration Failed',
-        description: getErrorMessage(rawMessage),
+        description: friendlyMessage,
         variant: 'destructive',
       });
     } finally {
@@ -221,9 +225,10 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     }
   };
 
-  const handleSubmitLC1 = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmitLC1 = async (e?: React.FormEvent) => {
+    e?.preventDefault();
     setIsLoading(true);
+    setLastError(null);
 
     try {
       const { error } = await supabase
@@ -249,9 +254,11 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       onSuccess?.();
     } catch (error: any) {
       const rawMessage = error.message || 'Failed to register LC1';
+      const friendlyMessage = getErrorMessage(rawMessage);
+      setLastError(friendlyMessage);
       toast({
         title: 'Registration Failed',
-        description: getErrorMessage(rawMessage),
+        description: friendlyMessage,
         variant: 'destructive',
       });
     } finally {
@@ -317,6 +324,7 @@ Password: ${createdInvite?.password}`;
     setLc1Success(false);
     setCopied(false);
     setSelectedType(null);
+    setLastError(null);
     onOpenChange(false);
   };
 
@@ -326,6 +334,7 @@ Password: ${createdInvite?.password}`;
     setCreatedInvite(null);
     setLc1Success(false);
     setSelectedType(null);
+    setLastError(null);
     generatePassword();
   };
 
@@ -495,6 +504,26 @@ Password: ${createdInvite?.password}`;
           </>
         )}
       </Button>
+
+      {/* Error retry section */}
+      {lastError && !isLoading && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-destructive font-medium">{lastError}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSubmitInvite()}
+              className="mt-2 h-8 px-3 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 
@@ -581,6 +610,26 @@ Password: ${createdInvite?.password}`;
           </>
         )}
       </Button>
+
+      {/* Error retry section */}
+      {lastError && !isLoading && (
+        <div className="flex items-start gap-3 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+          <AlertCircle className="h-5 w-5 text-destructive shrink-0 mt-0.5" />
+          <div className="flex-1 min-w-0">
+            <p className="text-sm text-destructive font-medium">{lastError}</p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => handleSubmitLC1()}
+              className="mt-2 h-8 px-3 text-xs gap-1.5 text-destructive hover:text-destructive hover:bg-destructive/10"
+            >
+              <RefreshCw className="h-3.5 w-3.5" />
+              Try Again
+            </Button>
+          </div>
+        </div>
+      )}
     </form>
   );
 
