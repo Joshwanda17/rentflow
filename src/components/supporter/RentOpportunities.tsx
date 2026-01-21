@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -500,10 +500,19 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   </p>
                   <div className="flex items-center gap-2 mt-0.5">
                     <span className="text-xs text-muted-foreground">Potential earnings:</span>
-                    <span className="text-xs font-bold text-success flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      +{formatUGX(unseenPotentialEarnings)}
-                    </span>
+                    <AnimatePresence mode="wait">
+                      <motion.span 
+                        key={unseenPotentialEarnings}
+                        initial={{ opacity: 0, y: -10, scale: 0.8 }}
+                        animate={{ opacity: 1, y: 0, scale: 1 }}
+                        exit={{ opacity: 0, y: 10, scale: 0.8 }}
+                        transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                        className="text-xs font-bold text-success flex items-center gap-1"
+                      >
+                        <TrendingUp className="h-3 w-3" />
+                        +{formatUGX(unseenPotentialEarnings)}
+                      </motion.span>
+                    </AnimatePresence>
                   </div>
                 </div>
               </div>
