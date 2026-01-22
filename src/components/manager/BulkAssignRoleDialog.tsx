@@ -39,6 +39,14 @@ export default function BulkAssignRoleDialog({
   const [assigning, setAssigning] = useState(false);
   const [progress, setProgress] = useState(0);
 
+  const roleLabels: Record<string, string> = {
+    tenant: '🏠 Tenant',
+    agent: '💼 Agent', 
+    landlord: '🏢 Landlord',
+    supporter: '💰 Supporter',
+    manager: '👑 Manager'
+  };
+
   const logRoleChange = async (userId: string, role: string, userName?: string) => {
     if (!user?.id) return;
     
@@ -60,6 +68,24 @@ export default function BulkAssignRoleDialog({
     }
   };
 
+  const sendBulkNotifications = async (userIds: string[], role: string) => {
+    try {
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds,
+          payload: {
+            title: `✨ New Role: ${roleLabels[role] || role}`,
+            body: `You've been granted the ${role} role! New features are now available in your dashboard.`,
+            url: '/dashboard',
+            type: 'role_change'
+          }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send bulk notifications:', error);
+    }
+  };
+
   const handleAssign = async () => {
     if (!selectedRole) {
       toast.error('Please select a role');
@@ -73,6 +99,7 @@ export default function BulkAssignRoleDialog({
       let successCount = 0;
       let skipCount = 0;
       const totalUsers = selectedUserIds.length;
+      const successfulUserIds: string[] = [];
 
       for (let i = 0; i < selectedUserIds.length; i++) {
         const userId = selectedUserIds[i];
@@ -95,12 +122,18 @@ export default function BulkAssignRoleDialog({
 
           if (!error) {
             successCount++;
+            successfulUserIds.push(userId);
             // Log to audit
             await logRoleChange(userId, selectedRole, selectedUserNames[userId]);
           }
         }
         
         setProgress(Math.round(((i + 1) / totalUsers) * 100));
+      }
+
+      // Send push notifications to all successfully updated users
+      if (successfulUserIds.length > 0) {
+        await sendBulkNotifications(successfulUserIds, selectedRole);
       }
 
       if (successCount > 0) {
