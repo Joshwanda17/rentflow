@@ -586,3 +586,183 @@
     -webkit-overflow-scrolling: touch;
   }
 }
+
+/* ============================================
+   HIGH CONTRAST MODE - Accessibility
+   ============================================ */
+
+.high-contrast {
+  /* Enhanced contrast colors */
+  --background: 0 0% 100%;
+  --foreground: 0 0% 0%;
+  --card: 0 0% 100%;
+  --card-foreground: 0 0% 0%;
+  --primary: 271 100% 40%;
+  --primary-foreground: 0 0% 100%;
+  --muted: 0 0% 95%;
+  --muted-foreground: 0 0% 25%;
+  --border: 0 0% 0%;
+  --ring: 271 100% 40%;
+}
+
+.high-contrast.dark {
+  --background: 0 0% 0%;
+  --foreground: 0 0% 100%;
+  --card: 0 0% 5%;
+  --card-foreground: 0 0% 100%;
+  --primary: 271 100% 70%;
+  --primary-foreground: 0 0% 0%;
+  --muted: 0 0% 15%;
+  --muted-foreground: 0 0% 80%;
+  --border: 0 0% 100%;
+  --ring: 271 100% 70%;
+}
+
+/* Base font size increase */
+.high-contrast {
+  font-size: 18px !important;
+}
+
+/* Increased text sizes for readability */
+.high-contrast p,
+.high-contrast span,
+.high-contrast div {
+  letter-spacing: 0.02em;
+}
+
+.high-contrast h1 {
+  font-size: 2.5rem !important;
+  font-weight: 800 !important;
+}
+
+.high-contrast h2 {
+  font-size: 2rem !important;
+  font-weight: 700 !important;
+}
+
+.high-contrast h3 {
+  font-size: 1.5rem !important;
+  font-weight: 700 !important;
+}
+
+.high-contrast h4 {
+  font-size: 1.25rem !important;
+  font-weight: 600 !important;
+}
+
+/* Larger body text */
+.high-contrast .text-sm {
+  font-size: 1rem !important;
+}
+
+.high-contrast .text-xs {
+  font-size: 0.9rem !important;
+}
+
+.high-contrast .text-base {
+  font-size: 1.125rem !important;
+}
+
+.high-contrast .text-lg {
+  font-size: 1.25rem !important;
+}
+
+.high-contrast .text-xl {
+  font-size: 1.5rem !important;
+}
+
+.high-contrast .text-2xl {
+  font-size: 1.75rem !important;
+}
+
+.high-contrast .text-3xl {
+  font-size: 2rem !important;
+}
+
+/* Thicker borders */
+.high-contrast .border,
+.high-contrast [class*="border-"] {
+  border-width: 2px !important;
+}
+
+/* Enhanced button styling */
+.high-contrast button,
+.high-contrast [role="button"] {
+  font-weight: 700 !important;
+  border-width: 2px !important;
+}
+
+/* Better focus visibility */
+.high-contrast *:focus-visible {
+  outline: 4px solid hsl(var(--primary)) !important;
+  outline-offset: 2px !important;
+}
+
+/* Card enhancements */
+.high-contrast .rounded-xl,
+.high-contrast .rounded-lg,
+.high-contrast .rounded-md {
+  border: 2px solid hsl(var(--border)) !important;
+}
+
+/* Badge readability */
+.high-contrast [class*="badge"],
+.high-contrast .badge {
+  font-weight: 700 !important;
+  font-size: 0.95rem !important;
+  padding: 0.5rem 0.75rem !important;
+}
+
+/* Input fields */
+.high-contrast input,
+.high-contrast textarea,
+.high-contrast select {
+  font-size: 1.1rem !important;
+  border-width: 2px !important;
+  font-weight: 500 !important;
+}
+
+/* Link underlines for visibility */
+.high-contrast a {
+  text-decoration: underline !important;
+  text-underline-offset: 3px !important;
+}
+
+/* Icon sizes */
+.high-contrast svg.h-4 {
+  width: 1.25rem !important;
+  height: 1.25rem !important;
+}
+
+.high-contrast svg.h-5 {
+  width: 1.5rem !important;
+  height: 1.5rem !important;
+}
+
+.high-contrast svg.h-6 {
+  width: 1.75rem !important;
+  height: 1.75rem !important;
+}
+
+/* Enhanced shadows for depth */
+.high-contrast .shadow,
+.high-contrast .shadow-sm,
+.high-contrast .shadow-md,
+.high-contrast .shadow-lg {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3) !important;
+}
+
+/* Progress bars */
+.high-contrast [role="progressbar"] {
+  height: 12px !important;
+}
+
+/* Skeleton loading states - more visible */
+.high-contrast .animate-pulse {
+  background: repeating-linear-gradient(
+    90deg,
+    hsl(var(--muted)) 0%,
+    hsl(var(--muted-foreground) / 0.3) 50%,
+    hsl(var(--muted)) 100%
+  ) !important;
+}

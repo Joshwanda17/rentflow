@@ -14,6 +14,7 @@ import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { OfflineProvider } from "@/contexts/OfflineContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
+import { HighContrastProvider } from "@/hooks/useHighContrast";
 
 // Lazy load non-critical UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
@@ -186,37 +187,39 @@ const App = () => (
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
-        <FontSizeProvider>
-          <HapticSettingsProvider>
-            <LanguageProvider>
-              <CurrencyProvider>
-                <BrowserRouter>
-                  <AuthProvider>
-                    <OfflineProvider>
-                      <CartProvider>
-                        <ComparisonProvider>
-                          <TooltipProvider delayDuration={300}>
-                            <Suspense fallback={null}>
-                              <IOSOptimizations />
-                              <OfflineBanner />
-                              <ConnectionStatus />
-                              <PWAInstallPrompt />
-                              <WhatsNewModal />
-                              <GlobalSettingsToolbar />
-                              <Toaster />
-                              <Sonner />
-                            </Suspense>
-                            <AnimatedRoutes />
-                          </TooltipProvider>
-                        </ComparisonProvider>
-                      </CartProvider>
-                    </OfflineProvider>
-                  </AuthProvider>
-                </BrowserRouter>
-              </CurrencyProvider>
-            </LanguageProvider>
-          </HapticSettingsProvider>
-        </FontSizeProvider>
+        <HighContrastProvider>
+          <FontSizeProvider>
+            <HapticSettingsProvider>
+              <LanguageProvider>
+                <CurrencyProvider>
+                  <BrowserRouter>
+                    <AuthProvider>
+                      <OfflineProvider>
+                        <CartProvider>
+                          <ComparisonProvider>
+                            <TooltipProvider delayDuration={300}>
+                              <Suspense fallback={null}>
+                                <IOSOptimizations />
+                                <OfflineBanner />
+                                <ConnectionStatus />
+                                <PWAInstallPrompt />
+                                <WhatsNewModal />
+                                <GlobalSettingsToolbar />
+                                <Toaster />
+                                <Sonner />
+                              </Suspense>
+                              <AnimatedRoutes />
+                            </TooltipProvider>
+                          </ComparisonProvider>
+                        </CartProvider>
+                      </OfflineProvider>
+                    </AuthProvider>
+                  </BrowserRouter>
+                </CurrencyProvider>
+              </LanguageProvider>
+            </HapticSettingsProvider>
+          </FontSizeProvider>
+        </HighContrastProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
