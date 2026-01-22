@@ -587,6 +587,49 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
   };
 
+  // Render individual verification badges
+  const renderVerificationBadges = (opp: RentOpportunity) => {
+    if (opp.status === 'funded') return null;
+    
+    return (
+      <div className="flex items-center gap-1.5 flex-wrap">
+        {/* Agent Verification Badge */}
+        <Badge 
+          variant="outline" 
+          className={`text-[10px] px-1.5 py-0.5 gap-1 ${
+            opp.agent_verified 
+              ? 'bg-success/10 text-success border-success/30' 
+              : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
+          }`}
+        >
+          {opp.agent_verified ? (
+            <CheckCircle2 className="h-2.5 w-2.5" />
+          ) : (
+            <Clock className="h-2.5 w-2.5" />
+          )}
+          Agent {opp.agent_verified ? '✓' : '○'}
+        </Badge>
+        
+        {/* Manager Verification Badge */}
+        <Badge 
+          variant="outline" 
+          className={`text-[10px] px-1.5 py-0.5 gap-1 ${
+            opp.manager_verified 
+              ? 'bg-primary/10 text-primary border-primary/30' 
+              : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
+          }`}
+        >
+          {opp.manager_verified ? (
+            <CheckCircle2 className="h-2.5 w-2.5" />
+          ) : (
+            <Clock className="h-2.5 w-2.5" />
+          )}
+          Manager {opp.manager_verified ? '✓' : '○'}
+        </Badge>
+      </div>
+    );
+  };
+
   if (loading) {
     return (
       <Card className="border-0 bg-gradient-to-br from-success/5 via-background to-primary/5">
@@ -958,8 +1001,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                           </div>
 
                           {/* Verification Progress */}
-                          <div className="mt-2 space-y-1">
+                          <div className="mt-2 space-y-1.5">
                             <Progress value={verificationProgress} className="h-1.5" />
+                            {renderVerificationBadges(opportunity)}
                           </div>
                         </div>
 
