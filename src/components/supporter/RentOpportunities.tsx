@@ -448,6 +448,27 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     };
   }, [opportunities, watchedIds, lastSeenAt]);
 
+  // Calculate summary stats for the summary card
+  const summaryStats = useMemo(() => {
+    const unfundedOpps = opportunities.filter(opp => opp.status !== 'funded');
+    const verifiedOpps = unfundedOpps.filter(opp => opp.manager_verified && opp.agent_verified);
+    const verifyingOpps = unfundedOpps.filter(opp => (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
+    const pendingOpps = unfundedOpps.filter(opp => !opp.agent_verified && !opp.manager_verified);
+    
+    const calcTotal = (opps: RentOpportunity[]) => ({
+      count: opps.length,
+      amount: opps.reduce((sum, opp) => sum + opp.rent_amount, 0),
+      roi: opps.reduce((sum, opp) => sum + calculateSupporterReward(opp.rent_amount), 0),
+    });
+    
+    return {
+      total: calcTotal(unfundedOpps),
+      verified: calcTotal(verifiedOpps),
+      verifying: calcTotal(verifyingOpps),
+      pending: calcTotal(pendingOpps),
+    };
+  }, [opportunities]);
+
   const handleCardClick = (opportunity: RentOpportunity) => {
     hapticTap();
     if (isLocked) {
@@ -620,6 +641,56 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
               </Button>
             </div>
           </motion.div>
+        )}
+
+        {/* Summary Card - Total Potential Earnings */}
+        {summaryStats.total.count > 0 && (
+          <Card className="border-0 bg-gradient-to-br from-success/10 via-background to-primary/10 overflow-hidden">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-2">
+                  <div className="p-2 rounded-lg bg-success/20">
+                    <TrendingUp className="h-4 w-4 text-success" />
+                  </div>
+                  <span className="text-sm font-semibold text-foreground">Potential Earnings</span>
+                </div>
+                <div className="text-right">
+                  <p className="text-lg font-bold text-success">{formatUGX(summaryStats.total.roi)}</p>
+                  <p className="text-[10px] text-muted-foreground">{summaryStats.total.count} opportunities</p>
+                </div>
+              </div>
+              
+              {/* Breakdown by verification status */}
+              <div className="grid grid-cols-3 gap-2">
+                <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <CheckCircle2 className="h-3 w-3 text-primary" />
+                    <span className="text-[10px] font-medium text-muted-foreground">Verified</span>
+                  </div>
+                  <p className="text-sm font-bold text-primary">{formatUGX(summaryStats.verified.roi)}</p>
+                  <p className="text-[9px] text-muted-foreground">{summaryStats.verified.count} ready</p>
+                </div>
+                
+                <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/20">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Clock className="h-3 w-3 text-warning" />
+                    <span className="text-[10px] font-medium text-muted-foreground">Verifying</span>
+                  </div>
+                  <p className="text-sm font-bold text-warning">{formatUGX(summaryStats.verifying.roi)}</p>
+                  <p className="text-[9px] text-muted-foreground">{summaryStats.verifying.count} in progress</p>
+                </div>
+                
+                <div className="p-2.5 rounded-lg bg-muted/60 border border-border/40">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <Timer className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-[10px] font-medium text-muted-foreground">Pending</span>
+                  </div>
+                  <p className="text-sm font-bold text-foreground">{formatUGX(summaryStats.pending.roi)}</p>
+                  <p className="text-[9px] text-muted-foreground">{summaryStats.pending.count} new</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         )}
 
         {/* Header */}
