@@ -148,21 +148,21 @@ export function FundedHistory() {
           .eq('rent_request_id', request.id)
           .order('payment_date', { ascending: false });
 
-        // Get ROI payments via payment_proofs - using any to avoid deep type issues
-        const { data: paymentProofs } = await (supabase
-          .from('payment_proofs' as any)
+        // Get ROI payments via landlord_payment_proofs
+        const { data: paymentProofs } = await supabase
+          .from('landlord_payment_proofs')
           .select('id')
           .eq('rent_request_id', request.id)
-          .eq('verified', true)
-          .limit(1) as any);
+          .eq('status', 'verified')
+          .limit(1);
 
         let roiPayments: ROIPayment[] = [];
         if (paymentProofs && paymentProofs.length > 0) {
-          const { data: roi } = await (supabase
-            .from('supporter_roi_payments' as any)
+          const { data: roi } = await supabase
+            .from('supporter_roi_payments')
             .select('id, roi_amount, payment_number, due_date, paid_at, status')
             .eq('payment_proof_id', paymentProofs[0].id)
-            .order('payment_number', { ascending: true }) as any);
+            .order('payment_number', { ascending: true });
           
           if (roi) {
             roiPayments = roi;
