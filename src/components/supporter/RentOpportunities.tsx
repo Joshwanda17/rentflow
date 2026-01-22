@@ -94,6 +94,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const navigate = useNavigate();
   const [opportunities, setOpportunities] = useState<RentOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 20;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const [selectedOpportunity, setSelectedOpportunity] = useState<RentOpportunity | null>(null);
   const [showDetails, setShowDetails] = useState(false);
   const [showLandlordDetails, setShowLandlordDetails] = useState(false);
@@ -240,8 +245,17 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     setWatchingId(null);
   };
 
-  const fetchOpportunities = async () => {
-    setLoading(true);
+  const fetchOpportunities = async (reset: boolean = true) => {
+    if (reset) {
+      setLoading(true);
+      setPage(0);
+    } else {
+      setLoadingMore(true);
+    }
+    
+    const currentPage = reset ? 0 : page;
+    const from = currentPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
     
     const { data, error } = await supabase
       .from('rent_requests')
@@ -263,13 +277,45 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       `)
       .in('status', ['pending', 'approved', 'funded'])
       .order('created_at', { ascending: false })
-      .limit(50);
+      .range(from, to);
 
     if (!error && data) {
-      setOpportunities(data as unknown as RentOpportunity[]);
+      const newData = data as unknown as RentOpportunity[];
+      if (reset) {
+        setOpportunities(newData);
+      } else {
+        setOpportunities(prev => [...prev, ...newData]);
+      }
+      setHasMore(newData.length === PAGE_SIZE);
+      setPage(currentPage + 1);
     }
     setLoading(false);
+    setLoadingMore(false);
   };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchOpportunities(false);
+    }
+  };
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading]);
 
   const fetchSingleOpportunity = async (id: string) => {
     const { data, error } = await supabase
@@ -753,6 +799,21 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
               );
             })}
           </AnimatePresence>
+          
+          {/* Infinite scroll trigger */}
+          <div ref={loadMoreRef} className="py-4">
+            {loadingMore && (
+              <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                <span className="text-sm">Loading more...</span>
+              </div>
+            )}
+            {!hasMore && opportunities.length > 0 && (
+              <p className="text-xs text-center text-muted-foreground">
+                You've seen all {opportunities.length} opportunities
+              </p>
+            )}
+          </div>
         </div>
 
         {/* Results info */}
