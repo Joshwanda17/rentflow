@@ -117,10 +117,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Count unseen opportunities and calculate potential earnings
+  // Count unseen opportunities and calculate potential earnings (exclude funded)
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
     const unseenOpps = opportunities.filter(opp => 
-      !lastSeenAt || new Date(opp.created_at) > lastSeenAt
+      opp.status !== 'funded' && (!lastSeenAt || new Date(opp.created_at) > lastSeenAt)
     );
     const totalEarnings = unseenOpps.reduce((sum, opp) => 
       sum + calculateSupporterReward(opp.rent_amount), 0
@@ -409,15 +409,19 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       });
     }
 
-    // Apply filter
+    // Apply filter - 'all' excludes funded by default (funded has its own tab)
     if (filterBy === 'watched') {
-      result = result.filter(opp => watchedIds.has(opp.id));
+      result = result.filter(opp => opp.status !== 'funded' && watchedIds.has(opp.id));
     } else if (filterBy === 'unseen') {
-      result = result.filter(opp => !lastSeenAt || new Date(opp.created_at) > lastSeenAt);
+      result = result.filter(opp => opp.status !== 'funded' && (!lastSeenAt || new Date(opp.created_at) > lastSeenAt));
     } else if (filterBy === 'funded') {
       result = result.filter(opp => opp.status === 'funded');
-    } else if (filterBy !== 'all') {
-      result = result.filter(opp => getVerificationStatus(opp) === filterBy);
+    } else if (filterBy === 'all') {
+      // 'all' shows only unfunded opportunities
+      result = result.filter(opp => opp.status !== 'funded');
+    } else {
+      // verified, verifying, pending filters - exclude funded
+      result = result.filter(opp => opp.status !== 'funded' && getVerificationStatus(opp) === filterBy);
     }
 
     // Apply sort
