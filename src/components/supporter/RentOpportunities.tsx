@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserAvatar } from '@/components/UserAvatar';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
+import { Input } from '@/components/ui/input';
 import { 
   Users, 
   HandCoins, 
@@ -38,7 +39,9 @@ import {
   Bookmark,
   BookmarkCheck,
   CheckCheck,
-  RefreshCw
+  RefreshCw,
+  Search,
+  X
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -112,6 +115,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
+  const [searchQuery, setSearchQuery] = useState('');
 
   // Count unseen opportunities and calculate potential earnings
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
@@ -394,6 +398,17 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const filteredAndSortedOpportunities = useMemo(() => {
     let result = [...opportunities];
 
+    // Apply search filter
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      result = result.filter(opp => {
+        const tenantName = opp.tenant?.full_name?.toLowerCase() || '';
+        const rentAmount = opp.rent_amount.toString();
+        const formattedAmount = formatUGX(opp.rent_amount).toLowerCase();
+        return tenantName.includes(query) || rentAmount.includes(query) || formattedAmount.includes(query);
+      });
+    }
+
     // Apply filter
     if (filterBy === 'watched') {
       result = result.filter(opp => watchedIds.has(opp.id));
@@ -422,7 +437,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
 
     return result;
-  }, [opportunities, sortBy, filterBy, watchedIds, lastSeenAt]);
+  }, [opportunities, sortBy, filterBy, watchedIds, lastSeenAt, searchQuery]);
 
   // Calculate potential ROI for each filter category
   const filterROI = useMemo(() => {
@@ -728,6 +743,26 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
               Live
             </Badge>
           </div>
+        </div>
+
+        {/* Search Bar */}
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            type="text"
+            placeholder="Search by tenant name or amount..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-9 pr-9 h-10 bg-muted/40 border-muted-foreground/20 focus:bg-background"
+          />
+          {searchQuery && (
+            <button
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted transition-colors"
+            >
+              <X className="h-4 w-4 text-muted-foreground" />
+            </button>
+          )}
         </div>
 
         {/* Quick Filter Chips with ROI */}
