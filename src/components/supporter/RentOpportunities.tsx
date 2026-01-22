@@ -277,7 +277,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       
       if (!error) {
         setWatchedIds(prev => new Set([...prev, opportunityId]));
-        toast.success('Added to watchlist! You\'ll be notified when verified.');
+        toast.success('🔔 Watching for verification!', {
+          description: 'You\'ll receive a push notification when this opportunity is verified and ready to fund.'
+        });
       } else if (error.code === '23505') {
         toast.info('Already watching this opportunity');
       }
@@ -1233,22 +1235,52 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
                         {/* Watch & View Actions */}
                         <div className="flex flex-col items-center gap-2">
-                          {/* Watch Button */}
-                          <button
-                            onClick={(e) => handleWatch(e, opportunity.id)}
-                            disabled={watchingId === opportunity.id}
-                            className={`p-2 rounded-full transition-all ${
-                              watchedIds.has(opportunity.id)
-                                ? 'bg-warning/20 text-warning'
-                                : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
-                            }`}
-                          >
-                            {watchedIds.has(opportunity.id) ? (
-                              <BookmarkCheck className="h-4 w-4" />
-                            ) : (
-                              <Bookmark className="h-4 w-4" />
-                            )}
-                          </button>
+                          {/* Watch for Verification Button */}
+                          <TooltipProvider delayDuration={200}>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <button
+                                  onClick={(e) => handleWatch(e, opportunity.id)}
+                                  disabled={watchingId === opportunity.id}
+                                  className={`relative p-2 rounded-full transition-all touch-manipulation active:scale-95 ${
+                                    watchedIds.has(opportunity.id)
+                                      ? 'bg-warning/20 text-warning ring-2 ring-warning/30'
+                                      : getVerificationStatus(opportunity) === 'pending'
+                                        ? 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 ring-1 ring-orange-500/30 animate-pulse'
+                                        : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
+                                  }`}
+                                >
+                                  {watchedIds.has(opportunity.id) ? (
+                                    <BookmarkCheck className="h-4 w-4" />
+                                  ) : (
+                                    <Bell className="h-4 w-4" />
+                                  )}
+                                  {/* Notification dot for pending */}
+                                  {!watchedIds.has(opportunity.id) && getVerificationStatus(opportunity) === 'pending' && (
+                                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />
+                                  )}
+                                </button>
+                              </TooltipTrigger>
+                              <TooltipContent side="left" className="max-w-[180px]">
+                                {watchedIds.has(opportunity.id) ? (
+                                  <p className="text-xs">
+                                    <span className="font-medium text-warning">Watching!</span><br/>
+                                    You'll be notified when verified
+                                  </p>
+                                ) : getVerificationStatus(opportunity) === 'pending' ? (
+                                  <p className="text-xs">
+                                    <span className="font-medium">Watch for Verification</span><br/>
+                                    Get notified when this becomes verified & ready to fund
+                                  </p>
+                                ) : (
+                                  <p className="text-xs">
+                                    <span className="font-medium">Watch Opportunity</span><br/>
+                                    Track this opportunity
+                                  </p>
+                                )}
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
                           {/* View Details */}
                           <div className="p-2 rounded-full bg-success/10 text-success">
                             <Eye className="h-4 w-4" />
