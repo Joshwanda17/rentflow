@@ -11,6 +11,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserAvatar } from '@/components/UserAvatar';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { 
   Users, 
   HandCoins, 
@@ -1211,6 +1212,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           )}
         </DialogContent>
       </Dialog>
+      
+      {/* Scroll to top button */}
+      <ScrollToTopButton scrollThreshold={400} targetId="opportunities" />
     </>
   );
 }
