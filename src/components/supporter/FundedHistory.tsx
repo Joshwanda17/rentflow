@@ -45,6 +45,11 @@ interface FundedRequest {
   funded_at: string;
   created_at: string;
   supporter_id?: string;
+  supporter?: {
+    id: string;
+    full_name: string;
+    avatar_url?: string;
+  };
   tenant?: {
     id: string;
     full_name: string;
@@ -152,6 +157,21 @@ export function FundedHistory() {
       return;
     }
 
+    // Fetch supporter profiles for all requests
+    const supporterIds = [...new Set((requests as any[]).map(r => r.supporter_id).filter(Boolean))];
+    let supporterMap = new Map<string, { id: string; full_name: string; avatar_url?: string }>();
+    
+    if (supporterIds.length > 0) {
+      const { data: supporters } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url')
+        .in('id', supporterIds);
+      
+      if (supporters) {
+        supporterMap = new Map(supporters.map(s => [s.id, s]));
+      }
+    }
+
     // Fetch repayments and ROI for each request
     const requestsWithDetails = await Promise.all(
       (requests as unknown as FundedRequest[]).map(async (request) => {
@@ -193,6 +213,7 @@ export function FundedHistory() {
 
         return {
           ...request,
+          supporter: request.supporter_id ? supporterMap.get(request.supporter_id) : undefined,
           repayments: repayments || [],
           roiPayments,
           totalRepaid,
@@ -411,11 +432,24 @@ export function FundedHistory() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-1">
                               {getStatusBadge(request.repaymentProgress, request.status)}
+                              {request.supporter_id === currentUserId && (
+                                <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-primary/10 text-primary border-primary/30">
+                                  Mine
+                                </Badge>
+                              )}
                             </div>
                             
                             <p className="font-semibold text-sm text-foreground truncate">
                               {request.tenant?.full_name || 'Anonymous Tenant'}
                             </p>
+                            
+                            {/* Supporter who funded */}
+                            {request.supporter && (
+                              <p className="text-[11px] text-muted-foreground flex items-center gap-1 mt-0.5">
+                                <User className="h-3 w-3" />
+                                Funded by <span className="font-medium text-foreground">{request.supporter.full_name}</span>
+                              </p>
+                            )}
                             
                             <div className="flex items-center gap-3 mt-1">
                               <span className="font-black text-lg text-foreground">
