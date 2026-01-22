@@ -81,7 +81,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -163,7 +163,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             setOpportunities(prev => 
               prev.map(opp => 
                 opp.id === payload.new.id ? { ...opp, ...payload.new } : opp
-              ).filter(opp => opp.status === 'pending' || opp.status === 'approved')
+              ).filter(opp => ['pending', 'approved', 'funded'].includes(opp.status))
             );
           } else if (payload.eventType === 'DELETE') {
             setOpportunities(prev => prev.filter(opp => opp.id !== payload.old.id));
@@ -261,9 +261,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         agent:profiles!rent_requests_agent_id_fkey(full_name),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, user_id)
       `)
-      .in('status', ['pending', 'approved'])
+      .in('status', ['pending', 'approved', 'funded'])
       .order('created_at', { ascending: false })
-      .limit(20);
+      .limit(50);
 
     if (!error && data) {
       setOpportunities(data as unknown as RentOpportunity[]);
@@ -342,6 +342,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       result = result.filter(opp => watchedIds.has(opp.id));
     } else if (filterBy === 'unseen') {
       result = result.filter(opp => !lastSeenAt || new Date(opp.created_at) > lastSeenAt);
+    } else if (filterBy === 'funded') {
+      result = result.filter(opp => opp.status === 'funded');
     } else if (filterBy !== 'all') {
       result = result.filter(opp => getVerificationStatus(opp) === filterBy);
     }
@@ -406,6 +408,16 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   };
 
   const getStatusBadge = (opp: RentOpportunity) => {
+    // Show funded status first if funded
+    if (opp.status === 'funded') {
+      return (
+        <Badge className="bg-primary/20 text-primary border-primary/30 gap-1">
+          <HandCoins className="h-3 w-3" />
+          Funded
+        </Badge>
+      );
+    }
+    
     const status = getVerificationStatus(opp);
     switch (status) {
       case 'verified':
@@ -587,6 +599,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Requests</SelectItem>
+              <SelectItem value="funded">💰 Funded</SelectItem>
               <SelectItem value="unseen">🔵 Unseen ({unseenCount})</SelectItem>
               <SelectItem value="watched">⭐ Watching ({watchedIds.size})</SelectItem>
               <SelectItem value="verified">✓ Verified Only</SelectItem>
@@ -611,7 +624,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         {/* Opportunities List */}
         <div className="space-y-3">
           <AnimatePresence>
-            {filteredAndSortedOpportunities.slice(0, 10).map((opportunity, index) => {
+            {filteredAndSortedOpportunities.map((opportunity, index) => {
+              const isFunded = opportunity.status === 'funded';
               const reward = calculateSupporterReward(opportunity.rent_amount);
               const isNew = opportunity.id === newOpportunityId;
               const isUnseen = !lastSeenAt || new Date(opportunity.created_at) > lastSeenAt;
@@ -632,11 +646,13 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   className="cursor-pointer"
                 >
                   <Card className={`border-0 overflow-hidden transition-all hover:scale-[1.02] relative ${
-                    isNew 
-                      ? 'bg-gradient-to-r from-success/20 via-success/10 to-transparent ring-2 ring-success/50' 
-                      : isUnseen
-                        ? 'bg-gradient-to-r from-primary/10 via-card to-success/5 ring-1 ring-primary/20'
-                        : 'bg-gradient-to-r from-card via-card to-success/5 hover:from-success/5'
+                    isFunded
+                      ? 'bg-gradient-to-r from-primary/15 via-primary/5 to-transparent ring-1 ring-primary/30'
+                      : isNew 
+                        ? 'bg-gradient-to-r from-success/20 via-success/10 to-transparent ring-2 ring-success/50' 
+                        : isUnseen
+                          ? 'bg-gradient-to-r from-primary/10 via-card to-success/5 ring-1 ring-primary/20'
+                          : 'bg-gradient-to-r from-card via-card to-success/5 hover:from-success/5'
                   }`}>
                     {/* Unseen indicator dot */}
                     {isUnseen && !isNew && (
