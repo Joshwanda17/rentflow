@@ -111,7 +111,7 @@ export function FundedHistory() {
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Fetch funded requests for this supporter
+    // Fetch ALL funded requests (not just this supporter's)
     const { data: requests, error } = await supabase
       .from('rent_requests')
       .select(`
@@ -123,10 +123,10 @@ export function FundedHistory() {
         status,
         funded_at,
         created_at,
+        supporter_id,
         tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, property_address)
       `)
-      .eq('supporter_id', userData.user.id)
       .eq('status', 'funded')
       .order('funded_at', { ascending: false })
       .range(from, to);
