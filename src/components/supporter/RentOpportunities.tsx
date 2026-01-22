@@ -1255,99 +1255,167 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   </div>
                 </div>
 
-                {/* Verification Process */}
-                <div className="space-y-2">
+                {/* Verification Timeline */}
+                <div className="space-y-3">
                   <h4 className="font-semibold text-sm flex items-center gap-2">
                     <Shield className="h-4 w-4 text-primary" />
-                    Verification Status
+                    Verification Timeline
                   </h4>
 
-                  <div className="space-y-2">
-                    {/* Agent Verification */}
-                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      selectedOpportunity.agent_verified 
-                        ? 'bg-success/10 border-success/30' 
-                        : 'bg-muted/50 border-muted'
-                    }`}>
-                      <div className={`p-2 rounded-full ${
-                        selectedOpportunity.agent_verified 
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-muted text-muted-foreground'
-                      }`}>
-                        <UserCheck className="h-4 w-4" />
+                  <div className="relative pl-6">
+                    {/* Timeline connector line */}
+                    <div className="absolute left-[11px] top-6 bottom-6 w-0.5 bg-gradient-to-b from-muted via-muted to-muted" />
+                    
+                    {/* Step 1: Request Submitted */}
+                    <div className="relative flex items-start gap-3 pb-4">
+                      <div className="absolute left-[-13px] z-10 p-1.5 rounded-full bg-success text-white shadow-md">
+                        <CheckCircle2 className="h-3 w-3" />
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">Agent Verification</p>
+                      <div className="flex-1 ml-2">
+                        <p className="font-medium text-sm text-foreground">Request Submitted</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(selectedOpportunity.created_at), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                    </div>
+
+                    {/* Step 2: Agent Verification */}
+                    <div className="relative flex items-start gap-3 pb-4">
+                      <div className={`absolute left-[-13px] z-10 p-1.5 rounded-full shadow-md ${
+                        selectedOpportunity.agent_verified 
+                          ? 'bg-success text-white' 
+                          : 'bg-muted text-muted-foreground border-2 border-dashed border-muted-foreground/30'
+                      }`}>
+                        {selectedOpportunity.agent_verified ? (
+                          <UserCheck className="h-3 w-3" />
+                        ) : (
+                          <Clock className="h-3 w-3 animate-pulse" />
+                        )}
+                      </div>
+                      <div className="flex-1 ml-2">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-sm ${selectedOpportunity.agent_verified ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            Agent Verification
+                          </p>
+                          {selectedOpportunity.agent_verified && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30">
+                              Complete
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {selectedOpportunity.agent_verified 
-                            ? `Verified ${selectedOpportunity.agent_verified_at ? formatDistanceToNow(new Date(selectedOpportunity.agent_verified_at), { addSuffix: true }) : ''}`
-                            : 'Pending agent review'
+                            ? `Verified by ${selectedOpportunity.agentVerifier?.full_name || 'Agent'} • ${selectedOpportunity.agent_verified_at ? format(new Date(selectedOpportunity.agent_verified_at), 'MMM d, yyyy h:mm a') : ''}`
+                            : 'Awaiting agent review'
                           }
                         </p>
                       </div>
-                      {selectedOpportunity.agent_verified ? (
-                        <CheckCircle2 className="h-5 w-5 text-success" />
-                      ) : (
-                        <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
-                      )}
                     </div>
 
-                    {/* Manager Verification */}
-                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      selectedOpportunity.manager_verified 
-                        ? 'bg-success/10 border-success/30' 
-                        : 'bg-muted/50 border-muted'
-                    }`}>
-                      <div className={`p-2 rounded-full ${
+                    {/* Step 3: Manager Approval */}
+                    <div className="relative flex items-start gap-3 pb-4">
+                      <div className={`absolute left-[-13px] z-10 p-1.5 rounded-full shadow-md ${
                         selectedOpportunity.manager_verified 
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-muted text-muted-foreground'
+                          ? 'bg-success text-white' 
+                          : 'bg-muted text-muted-foreground border-2 border-dashed border-muted-foreground/30'
                       }`}>
-                        <Shield className="h-4 w-4" />
+                        {selectedOpportunity.manager_verified ? (
+                          <Shield className="h-3 w-3" />
+                        ) : (
+                          <Clock className="h-3 w-3 animate-pulse" />
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">Manager Approval</p>
+                      <div className="flex-1 ml-2">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-sm ${selectedOpportunity.manager_verified ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            Manager Approval
+                          </p>
+                          {selectedOpportunity.manager_verified && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-primary/10 text-primary border-primary/30">
+                              Approved
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
                           {selectedOpportunity.manager_verified 
-                            ? `Approved ${selectedOpportunity.manager_verified_at ? formatDistanceToNow(new Date(selectedOpportunity.manager_verified_at), { addSuffix: true }) : ''}`
+                            ? `Approved by ${selectedOpportunity.managerVerifier?.full_name || 'Manager'} • ${selectedOpportunity.manager_verified_at ? format(new Date(selectedOpportunity.manager_verified_at), 'MMM d, yyyy h:mm a') : ''}`
                             : 'Awaiting manager approval'
                           }
                         </p>
                       </div>
-                      {selectedOpportunity.manager_verified ? (
-                        <CheckCircle2 className="h-5 w-5 text-success" />
-                      ) : (
-                        <Clock className="h-5 w-5 text-muted-foreground animate-pulse" />
-                      )}
                     </div>
 
-                    {/* Ready Status */}
-                    <div className={`flex items-center gap-3 p-3 rounded-xl border ${
-                      selectedOpportunity.status === 'approved' 
-                        ? 'bg-success/10 border-success/30' 
-                        : 'bg-muted/50 border-muted'
-                    }`}>
-                      <div className={`p-2 rounded-full ${
-                        selectedOpportunity.status === 'approved' 
-                          ? 'bg-success/20 text-success' 
-                          : 'bg-muted text-muted-foreground'
+                    {/* Step 4: Landlord Ready to Receive */}
+                    <div className="relative flex items-start gap-3 pb-4">
+                      <div className={`absolute left-[-13px] z-10 p-1.5 rounded-full shadow-md ${
+                        selectedOpportunity.landlord?.ready_to_receive 
+                          ? 'bg-warning text-white' 
+                          : 'bg-muted text-muted-foreground border-2 border-dashed border-muted-foreground/30'
                       }`}>
-                        <HandCoins className="h-4 w-4" />
+                        {selectedOpportunity.landlord?.ready_to_receive ? (
+                          <Building className="h-3 w-3" />
+                        ) : (
+                          <Clock className="h-3 w-3 animate-pulse" />
+                        )}
                       </div>
-                      <div className="flex-1">
-                        <p className="font-medium text-sm">Ready for Funding</p>
+                      <div className="flex-1 ml-2">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-sm ${selectedOpportunity.landlord?.ready_to_receive ? 'text-foreground' : 'text-muted-foreground'}`}>
+                            Landlord Ready
+                          </p>
+                          {selectedOpportunity.landlord?.ready_to_receive && (
+                            <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30">
+                              Ready
+                            </Badge>
+                          )}
+                        </div>
                         <p className="text-xs text-muted-foreground">
-                          {selectedOpportunity.status === 'approved' 
-                            ? 'This request is verified and ready!'
-                            : 'Waiting for full verification'
+                          {selectedOpportunity.landlord?.ready_to_receive 
+                            ? `${selectedOpportunity.landlord?.name || 'Landlord'} is ready to receive payment`
+                            : selectedOpportunity.landlord 
+                              ? `Waiting for ${selectedOpportunity.landlord.name} to be marked ready`
+                              : 'No landlord assigned'
                           }
                         </p>
                       </div>
-                      {selectedOpportunity.status === 'approved' ? (
-                        <CheckCircle2 className="h-5 w-5 text-success" />
-                      ) : (
-                        <Clock className="h-5 w-5 text-muted-foreground" />
-                      )}
+                    </div>
+
+                    {/* Step 5: Ready for Funding */}
+                    <div className="relative flex items-start gap-3">
+                      <div className={`absolute left-[-13px] z-10 p-1.5 rounded-full shadow-md ${
+                        selectedOpportunity.status === 'approved' && selectedOpportunity.landlord?.ready_to_receive
+                          ? 'bg-gradient-to-br from-success to-primary text-white' 
+                          : 'bg-muted text-muted-foreground border-2 border-dashed border-muted-foreground/30'
+                      }`}>
+                        {selectedOpportunity.status === 'approved' && selectedOpportunity.landlord?.ready_to_receive ? (
+                          <HandCoins className="h-3 w-3" />
+                        ) : (
+                          <Clock className="h-3 w-3" />
+                        )}
+                      </div>
+                      <div className="flex-1 ml-2">
+                        <div className="flex items-center gap-2">
+                          <p className={`font-medium text-sm ${
+                            selectedOpportunity.status === 'approved' && selectedOpportunity.landlord?.ready_to_receive 
+                              ? 'text-foreground' 
+                              : 'text-muted-foreground'
+                          }`}>
+                            Ready for Funding
+                          </p>
+                          {selectedOpportunity.status === 'approved' && selectedOpportunity.landlord?.ready_to_receive && (
+                            <Badge className="text-[9px] px-1.5 py-0 bg-gradient-to-r from-success to-primary text-white border-0">
+                              <Sparkles className="h-2 w-2 mr-0.5" />
+                              Ready!
+                            </Badge>
+                          )}
+                        </div>
+                        <p className="text-xs text-muted-foreground">
+                          {selectedOpportunity.status === 'approved' && selectedOpportunity.landlord?.ready_to_receive
+                            ? 'All verifications complete — fund this opportunity now!'
+                            : 'Waiting for all verification steps'
+                          }
+                        </p>
+                      </div>
                     </div>
                   </div>
                 </div>
