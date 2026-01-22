@@ -278,22 +278,34 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         agent_verified_at,
         manager_verified,
         manager_verified_at,
-        tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, user_id)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
       `)
       .in('status', ['pending', 'approved', 'funded'])
       .order('created_at', { ascending: false })
       .range(from, to);
 
+    // Fetch tenant profiles separately since tenant_id references auth.users, not profiles
     if (!error && data) {
-      const newData = data as unknown as RentOpportunity[];
+      const tenantIds = [...new Set(data.map(r => r.tenant_id).filter(Boolean))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, phone')
+        .in('id', tenantIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+      
+      const enrichedData = data.map(r => ({
+        ...r,
+        tenant: profileMap.get(r.tenant_id) || null
+      })) as unknown as RentOpportunity[];
+
       if (reset) {
-        setOpportunities(newData);
+        setOpportunities(enrichedData);
       } else {
-        setOpportunities(prev => [...prev, ...newData]);
+        setOpportunities(prev => [...prev, ...enrichedData]);
       }
-      setHasMore(newData.length === PAGE_SIZE);
+      setHasMore(enrichedData.length === PAGE_SIZE);
       setPage(currentPage + 1);
     }
     setLoading(false);
@@ -347,15 +359,25 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         agent_verified_at,
         manager_verified,
         manager_verified_at,
-        tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, user_id)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
       `)
       .eq('id', id)
       .single();
 
     if (!error && data) {
-      const opportunity = data as unknown as RentOpportunity;
+      // Fetch tenant profile separately
+      const { data: tenantProfile } = await supabase
+        .from('profiles')
+        .select('id, full_name, avatar_url, phone')
+        .eq('id', data.tenant_id)
+        .single();
+      
+      const opportunity = {
+        ...data,
+        tenant: tenantProfile || null
+      } as unknown as RentOpportunity;
+      
       setOpportunities(prev => [opportunity, ...prev]);
       setNewOpportunityId(id);
       setTimeout(() => setNewOpportunityId(null), 5000);
