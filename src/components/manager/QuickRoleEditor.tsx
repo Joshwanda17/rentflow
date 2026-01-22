@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -14,9 +15,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { UserCog, Loader2, Plus, Check, X, Sparkles, ShieldAlert } from 'lucide-react';
+import { UserCog, Loader2, Plus, Check, X, Sparkles, ShieldAlert, History } from 'lucide-react';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { RoleHistoryViewer } from './RoleHistoryViewer';
+import { useAuth } from '@/hooks/useAuth';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -45,11 +48,35 @@ export function QuickRoleEditor({
   onRolesUpdated,
   compact = false
 }: QuickRoleEditorProps) {
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [roles, setRoles] = useState<string[]>(currentRoles);
   const [enabledStatus, setEnabledStatus] = useState<Record<string, boolean>>(roleEnabledStatus);
   const [loading, setLoading] = useState<string | null>(null);
   const [confirmManagerRemoval, setConfirmManagerRemoval] = useState(false);
+  const [activeTab, setActiveTab] = useState<string>("roles");
+
+  const logRoleChange = async (actionType: string, role: string, oldEnabled?: boolean, newEnabled?: boolean) => {
+    if (!user?.id) return;
+    
+    try {
+      await supabase.from('audit_logs').insert({
+        action_type: actionType,
+        table_name: 'user_roles',
+        record_id: userId,
+        performed_by: user.id,
+        old_values: actionType === 'role_removed' ? { role } : 
+                    actionType === 'role_disabled' ? { role, enabled: true } :
+                    actionType === 'role_enabled' ? { role, enabled: false } : null,
+        new_values: actionType === 'role_added' ? { role } :
+                    actionType === 'role_enabled' ? { role, enabled: true } :
+                    actionType === 'role_disabled' ? { role, enabled: false } : null,
+        metadata: { user_name: userName }
+      });
+    } catch (error) {
+      console.error('Failed to log role change:', error);
+    }
+  };
 
   const executeRemoveRole = async (role: AppRole) => {
     const { error } = await supabase
@@ -60,6 +87,7 @@ export function QuickRoleEditor({
     
     if (error) throw error;
     
+    await logRoleChange('role_removed', role);
     setRoles(prev => prev.filter(r => r !== role));
     toast.success(`Removed ${role} from ${userName}`);
     onRolesUpdated?.();
@@ -101,6 +129,7 @@ export function QuickRoleEditor({
             throw error;
           }
         } else {
+          await logRoleChange('role_added', role);
           setRoles(prev => [...prev, role]);
           setEnabledStatus(prev => ({ ...prev, [role]: true }));
           hapticSuccess();
@@ -153,6 +182,7 @@ export function QuickRoleEditor({
       
       if (error) throw error;
       
+      await logRoleChange(newEnabled ? 'role_enabled' : 'role_disabled', role);
       setEnabledStatus(prev => ({ ...prev, [role]: newEnabled }));
       toast.success(newEnabled ? `Enabled ${role} for ${userName}` : `Disabled ${role} for ${userName}`);
       onRolesUpdated?.();
@@ -194,79 +224,98 @@ export function QuickRoleEditor({
             </p>
           </div>
           
-          <div className="p-2 space-y-1">
-            {allRoles.map((role) => {
-              const hasRole = roles.includes(role.value);
-              const isEnabled = enabledStatus[role.value] ?? true;
-              const isLoading = loading === role.value || loading === `toggle-${role.value}`;
-              
-              return (
-                <div 
-                  key={role.value}
-                  className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
-                    hasRole 
-                      ? isEnabled 
-                        ? 'bg-card border border-border' 
-                        : 'bg-muted/30 border border-muted opacity-70'
-                      : 'bg-muted/20 hover:bg-muted/40'
-                  }`}
-                >
-                  <div className="flex items-center gap-2.5">
-                    <span className="text-base">{role.emoji}</span>
-                    <div>
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
+            <TabsList className="w-full grid grid-cols-2 h-9 rounded-none border-b">
+              <TabsTrigger value="roles" className="text-xs gap-1.5 data-[state=active]:bg-background">
+                <UserCog className="h-3.5 w-3.5" />
+                Roles
+              </TabsTrigger>
+              <TabsTrigger value="history" className="text-xs gap-1.5 data-[state=active]:bg-background">
+                <History className="h-3.5 w-3.5" />
+                History
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="roles" className="m-0">
+              <div className="p-2 space-y-1">
+                {allRoles.map((role) => {
+                  const hasRole = roles.includes(role.value);
+                  const isEnabled = enabledStatus[role.value] ?? true;
+                  const isLoading = loading === role.value || loading === `toggle-${role.value}`;
+                  
+                  return (
+                    <div 
+                      key={role.value}
+                      className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
+                        hasRole 
+                          ? isEnabled 
+                            ? 'bg-card border border-border' 
+                            : 'bg-muted/30 border border-muted opacity-70'
+                          : 'bg-muted/20 hover:bg-muted/40'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5">
+                        <span className="text-base">{role.emoji}</span>
+                        <div>
+                          <div className="flex items-center gap-2">
+                            <span className="font-medium text-sm">{role.label}</span>
+                            {hasRole && (
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[9px] px-1.5 py-0 ${
+                                  isEnabled 
+                                    ? 'bg-success/10 text-success border-success/30' 
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                {isEnabled ? 'Active' : 'Disabled'}
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                      
                       <div className="flex items-center gap-2">
-                        <span className="font-medium text-sm">{role.label}</span>
                         {hasRole && (
-                          <Badge 
-                            variant="outline" 
-                            className={`text-[9px] px-1.5 py-0 ${
-                              isEnabled 
-                                ? 'bg-success/10 text-success border-success/30' 
-                                : 'bg-muted text-muted-foreground'
-                            }`}
-                          >
-                            {isEnabled ? 'Active' : 'Disabled'}
-                          </Badge>
+                          <Switch
+                            checked={isEnabled}
+                            onCheckedChange={() => handleToggleEnabled(role.value)}
+                            disabled={isLoading}
+                            className="scale-75"
+                          />
                         )}
+                        <Button
+                          variant={hasRole ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => handleToggleRole(role.value)}
+                          disabled={isLoading || (hasRole && roles.length <= 1)}
+                          className={`h-8 w-8 p-0 ${!hasRole ? 'bg-success hover:bg-success/90' : ''}`}
+                        >
+                          {isLoading ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : hasRole ? (
+                            <X className="h-3.5 w-3.5" />
+                          ) : (
+                            <Plus className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
                       </div>
                     </div>
-                  </div>
-                  
-                  <div className="flex items-center gap-2">
-                    {hasRole && (
-                      <Switch
-                        checked={isEnabled}
-                        onCheckedChange={() => handleToggleEnabled(role.value)}
-                        disabled={isLoading}
-                        className="scale-75"
-                      />
-                    )}
-                    <Button
-                      variant={hasRole ? "destructive" : "default"}
-                      size="sm"
-                      onClick={() => handleToggleRole(role.value)}
-                      disabled={isLoading || (hasRole && roles.length <= 1)}
-                      className={`h-8 w-8 p-0 ${!hasRole ? 'bg-success hover:bg-success/90' : ''}`}
-                    >
-                      {isLoading ? (
-                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                      ) : hasRole ? (
-                        <X className="h-3.5 w-3.5" />
-                      ) : (
-                        <Plus className="h-3.5 w-3.5" />
-                      )}
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-          
-          <div className="p-2 border-t bg-muted/20">
-            <p className="text-[10px] text-center text-muted-foreground">
-              Tap + to add • Tap ✕ to remove • Toggle to enable/disable
-            </p>
-          </div>
+                  );
+                })}
+              </div>
+              
+              <div className="p-2 border-t bg-muted/20">
+                <p className="text-[10px] text-center text-muted-foreground">
+                  Tap + to add • Tap ✕ to remove • Toggle to enable/disable
+                </p>
+              </div>
+            </TabsContent>
+            
+            <TabsContent value="history" className="m-0 p-3">
+              <RoleHistoryViewer userId={userId} />
+            </TabsContent>
+          </Tabs>
         </PopoverContent>
       </Popover>
 
