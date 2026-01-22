@@ -47,7 +47,9 @@ import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
 import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
 import { FundingMilestones } from '@/components/supporter/FundingMilestones';
+import { FundedHistory } from '@/components/supporter/FundedHistory';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Tenant request details and payment dialogs
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
@@ -674,22 +676,39 @@ export default function SupporterDashboard({
           </motion.div>
         )} */}
 
-        {/* Investment Opportunities - Real-time - Full Width */}
+        {/* Investment Opportunities & Funded History Tabs */}
         <div id="opportunities" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 scroll-mt-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-          <RentOpportunities
-            onFund={(id, amount) => {
-              if (!effectiveHasAccepted) {
-                setShowAgreementModal(true);
-                return;
-              }
-              setSelectedRequestId(id);
-              setShowRequestDetails(true);
-            }}
-            isLocked={!effectiveHasAccepted}
-            onLockedClick={() => setShowAgreementModal(true)}
-            onRefreshRef={opportunitiesRefreshRef}
-          />
+          <Tabs defaultValue="opportunities" className="w-full">
+            <TabsList className="w-full grid grid-cols-2 mb-4">
+              <TabsTrigger value="opportunities" className="gap-2">
+                <TrendingUp className="h-4 w-4" />
+                Opportunities
+              </TabsTrigger>
+              <TabsTrigger value="funded" className="gap-2">
+                <History className="h-4 w-4" />
+                Funded History
+              </TabsTrigger>
+            </TabsList>
+            <TabsContent value="opportunities">
+              <RentOpportunities
+                onFund={(id, amount) => {
+                  if (!effectiveHasAccepted) {
+                    setShowAgreementModal(true);
+                    return;
+                  }
+                  setSelectedRequestId(id);
+                  setShowRequestDetails(true);
+                }}
+                isLocked={!effectiveHasAccepted}
+                onLockedClick={() => setShowAgreementModal(true)}
+                onRefreshRef={opportunitiesRefreshRef}
+              />
+            </TabsContent>
+            <TabsContent value="funded">
+              <FundedHistory />
+            </TabsContent>
+          </Tabs>
         </div>
 
 
