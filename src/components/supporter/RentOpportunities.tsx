@@ -635,12 +635,41 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </div>
         </div>
 
-        {/* Filters & Sort */}
-        <div className="flex gap-2">
+        {/* Quick Filter Chips */}
+        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+          {[
+            { value: 'all', label: 'All', icon: null },
+            { value: 'unseen', label: `New (${unseenCount})`, icon: '🔵' },
+            { value: 'watched', label: `Watching (${watchedIds.size})`, icon: '⭐' },
+            { value: 'funded', label: 'Funded', icon: '💰' },
+            { value: 'verified', label: 'Verified', icon: '✓' },
+            { value: 'verifying', label: 'Verifying', icon: '⏳' },
+            { value: 'pending', label: 'New', icon: '🆕' },
+          ].map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => {
+                hapticTap();
+                setFilterBy(filter.value as FilterOption);
+              }}
+              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation ${
+                filterBy === filter.value
+                  ? 'bg-primary text-primary-foreground shadow-md'
+                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+              }`}
+            >
+              {filter.icon && <span>{filter.icon}</span>}
+              {filter.label}
+            </button>
+          ))}
+        </div>
+
+        {/* Sort Dropdown */}
+        <div className="flex gap-2 items-center">
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger className="flex-1 h-9 text-xs">
-              <ArrowUpDown className="h-3 w-3 mr-1.5" />
-              <SelectValue placeholder="Sort by" />
+            <SelectTrigger className="w-auto h-8 text-xs gap-1.5 border-dashed">
+              <ArrowUpDown className="h-3 w-3" />
+              <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="newest">Newest First</SelectItem>
@@ -650,31 +679,15 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </SelectContent>
           </Select>
 
-          <Select value={filterBy} onValueChange={(v) => setFilterBy(v as FilterOption)}>
-            <SelectTrigger className="flex-1 h-9 text-xs">
-              <Filter className="h-3 w-3 mr-1.5" />
-              <SelectValue placeholder="Filter" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">All Requests</SelectItem>
-              <SelectItem value="funded">💰 Funded</SelectItem>
-              <SelectItem value="unseen">🔵 Unseen ({unseenCount})</SelectItem>
-              <SelectItem value="watched">⭐ Watching ({watchedIds.size})</SelectItem>
-              <SelectItem value="verified">✓ Verified Only</SelectItem>
-              <SelectItem value="verifying">⏳ Verifying</SelectItem>
-              <SelectItem value="pending">🆕 New/Pending</SelectItem>
-            </SelectContent>
-          </Select>
-
           {watchedIds.size > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={() => navigate('/my-watchlist')}
-              className="h-9 px-2 text-xs shrink-0"
+              className="h-8 px-2 text-xs shrink-0 gap-1"
             >
-              <Bookmark className="h-3.5 w-3.5 mr-1" />
-              View All
+              <Bookmark className="h-3.5 w-3.5" />
+              <span className="hidden sm:inline">View Watchlist</span>
             </Button>
           )}
         </div>
