@@ -676,9 +676,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         );
       default:
         return (
-          <Badge className="bg-muted text-muted-foreground gap-1">
+          <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 gap-1 animate-pulse">
             <Timer className="h-3 w-3" />
-            New
+            Pending Verification
           </Badge>
         );
     }
