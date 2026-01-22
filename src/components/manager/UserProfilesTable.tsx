@@ -8,6 +8,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2 } from 'lucide-react';
+import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -756,6 +757,18 @@ export default function UserProfilesTable() {
 
                     {/* Action Buttons - Large and Clear */}
                     <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+                      {/* Quick Role Editor */}
+                      <div onClick={(e) => e.stopPropagation()}>
+                        <QuickRoleEditor
+                          userId={user.id}
+                          userName={user.full_name}
+                          currentRoles={user.roles}
+                          roleEnabledStatus={user.roleEnabledStatus}
+                          onRolesUpdated={handleRefresh}
+                          compact
+                        />
+                      </div>
+                      
                       {/* Approve/Reject Buttons */}
                       {!user.verified ? (
                         <Button
@@ -763,12 +776,12 @@ export default function UserProfilesTable() {
                           size="sm"
                           onClick={(e) => handleApproveUser(user.id, user.full_name, e)}
                           disabled={approvingUserId === user.id}
-                          className="flex-1 h-11 gap-2 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold"
+                          className="flex-1 h-10 gap-1.5 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold text-xs"
                         >
                           {approvingUserId === user.id ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <CheckCircle className="h-5 w-5" />
+                            <CheckCircle className="h-4 w-4" />
                           )}
                           Approve
                         </Button>
@@ -778,12 +791,12 @@ export default function UserProfilesTable() {
                           size="sm"
                           onClick={(e) => handleRejectUser(user.id, user.full_name, e)}
                           disabled={approvingUserId === user.id}
-                          className="flex-1 h-11 gap-2 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive font-semibold"
+                          className="flex-1 h-10 gap-1.5 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive font-semibold text-xs"
                         >
                           {approvingUserId === user.id ? (
-                            <Loader2 className="h-5 w-5 animate-spin" />
+                            <Loader2 className="h-4 w-4 animate-spin" />
                           ) : (
-                            <XCircle className="h-5 w-5" />
+                            <XCircle className="h-4 w-4" />
                           )}
                           Revoke
                         </Button>
@@ -797,9 +810,9 @@ export default function UserProfilesTable() {
                           hapticTap();
                           window.open(getWhatsAppLink(user.phone), '_blank');
                         }}
-                        className="h-11 w-11 p-0 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success shrink-0"
+                        className="h-10 w-10 p-0 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success shrink-0"
                       >
-                        <MessageCircle className="h-5 w-5" />
+                        <MessageCircle className="h-4 w-4" />
                       </Button>
                       
                       <Button
@@ -810,15 +823,15 @@ export default function UserProfilesTable() {
                           hapticTap();
                           window.location.href = `tel:${user.phone}`;
                         }}
-                        className="h-11 w-11 p-0 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary shrink-0"
+                        className="h-10 w-10 p-0 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary shrink-0"
                       >
-                        <Phone className="h-5 w-5" />
+                        <Phone className="h-4 w-4" />
                       </Button>
                       
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-11 w-11 rounded-xl bg-muted/50 hover:bg-muted shrink-0"
+                        className="h-10 w-10 rounded-xl bg-muted/50 hover:bg-muted shrink-0"
                       >
                         <ChevronRight className="h-5 w-5" />
                       </Button>
