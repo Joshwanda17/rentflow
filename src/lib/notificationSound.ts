@@ -204,6 +204,104 @@ export function playSuccessSound() {
   }
 }
 
+// Special fanfare for first-time funding - more elaborate celebration
+export function playFirstFundingFanfare() {
+  // Check if sounds are enabled
+  if (!areNotificationSoundsEnabled()) {
+    return;
+  }
+
+  try {
+    const ctx = getAudioContext();
+    
+    if (ctx.state === 'suspended') {
+      ctx.resume();
+    }
+
+    const now = ctx.currentTime;
+    
+    // Grand opening chord (C major)
+    const chordNotes = [261.63, 329.63, 392.00, 523.25]; // C4, E4, G4, C5
+    chordNotes.forEach((freq, i) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now);
+      gain.gain.setValueAtTime(0.15, now);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + 0.4);
+      osc.start(now);
+      osc.stop(now + 0.45);
+    });
+
+    // Triumphant ascending fanfare
+    const fanfareNotes = [
+      { freq: 523.25, delay: 0.35, duration: 0.15 },  // C5
+      { freq: 587.33, delay: 0.45, duration: 0.12 },  // D5
+      { freq: 659.25, delay: 0.55, duration: 0.12 },  // E5
+      { freq: 783.99, delay: 0.65, duration: 0.15 },  // G5
+      { freq: 1046.50, delay: 0.80, duration: 0.35 }, // C6 (held)
+    ];
+    
+    fanfareNotes.forEach(({ freq, delay, duration }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'triangle';
+      osc.frequency.setValueAtTime(freq, now + delay);
+      gain.gain.setValueAtTime(0, now + delay);
+      gain.gain.linearRampToValueAtTime(0.25, now + delay + 0.02);
+      gain.gain.setValueAtTime(0.25, now + delay + duration * 0.7);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + delay + duration);
+      osc.start(now + delay);
+      osc.stop(now + delay + duration + 0.05);
+    });
+
+    // Final sparkle flourish
+    const sparkleNotes = [
+      { freq: 1318.51, delay: 1.10 }, // E6
+      { freq: 1567.98, delay: 1.18 }, // G6
+      { freq: 2093.00, delay: 1.26 }, // C7
+    ];
+    
+    sparkleNotes.forEach(({ freq, delay }) => {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.type = 'sine';
+      osc.frequency.setValueAtTime(freq, now + delay);
+      gain.gain.setValueAtTime(0, now + delay);
+      gain.gain.linearRampToValueAtTime(0.18, now + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.01, now + delay + 0.25);
+      osc.start(now + delay);
+      osc.stop(now + delay + 0.3);
+    });
+
+    // Victory shimmer (subtle high harmonics)
+    setTimeout(() => {
+      const shimmerFreqs = [2637, 3136, 3520]; // E7, G7, A7
+      shimmerFreqs.forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.type = 'sine';
+        const shimmerNow = ctx.currentTime;
+        osc.frequency.setValueAtTime(freq, shimmerNow + i * 0.05);
+        gain.gain.setValueAtTime(0.08, shimmerNow + i * 0.05);
+        gain.gain.exponentialRampToValueAtTime(0.01, shimmerNow + i * 0.05 + 0.3);
+        osc.start(shimmerNow + i * 0.05);
+        osc.stop(shimmerNow + i * 0.05 + 0.35);
+      });
+    }, 1400);
+  } catch (error) {
+    console.log('Audio not supported:', error);
+  }
+}
+
 // New opportunity sound - attention-grabbing but pleasant
 export function playOpportunitySound(typeOverride?: 'ding' | 'pop' | 'chime' | 'opportunity') {
   // Check if sounds are enabled
