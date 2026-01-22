@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -61,8 +62,10 @@ interface RentOpportunity {
   created_at: string;
   agent_verified: boolean | null;
   agent_verified_at: string | null;
+  agent_verified_by: string | null;
   manager_verified: boolean | null;
   manager_verified_at: string | null;
+  manager_verified_by: string | null;
   tenant?: {
     id: string;
     full_name: string;
@@ -83,6 +86,12 @@ interface RentOpportunity {
     monthly_rent: number;
     verified: boolean;
     user_id?: string;
+  };
+  agentVerifier?: {
+    full_name: string;
+  };
+  managerVerifier?: {
+    full_name: string;
   };
 }
 
@@ -276,8 +285,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         created_at,
         agent_verified,
         agent_verified_at,
+        agent_verified_by,
         manager_verified,
         manager_verified_at,
+        manager_verified_by,
         agent:profiles!rent_requests_agent_id_fkey(full_name),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
       `)
@@ -285,19 +296,25 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    // Fetch tenant profiles separately since tenant_id references auth.users, not profiles
+    // Fetch tenant profiles and verifier profiles separately
     if (!error && data) {
       const tenantIds = [...new Set(data.map(r => r.tenant_id).filter(Boolean))];
+      const agentVerifierIds = [...new Set(data.map(r => r.agent_verified_by).filter(Boolean))] as string[];
+      const managerVerifierIds = [...new Set(data.map(r => r.manager_verified_by).filter(Boolean))] as string[];
+      const allProfileIds = [...new Set([...tenantIds, ...agentVerifierIds, ...managerVerifierIds])];
+      
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, phone')
-        .in('id', tenantIds);
+        .in('id', allProfileIds);
       
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
       const enrichedData = data.map(r => ({
         ...r,
-        tenant: profileMap.get(r.tenant_id) || null
+        tenant: profileMap.get(r.tenant_id) || null,
+        agentVerifier: r.agent_verified_by ? profileMap.get(r.agent_verified_by) : null,
+        managerVerifier: r.manager_verified_by ? profileMap.get(r.manager_verified_by) : null
       })) as unknown as RentOpportunity[];
 
       if (reset) {
@@ -357,8 +374,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         created_at,
         agent_verified,
         agent_verified_at,
+        agent_verified_by,
         manager_verified,
         manager_verified_at,
+        manager_verified_by,
         agent:profiles!rent_requests_agent_id_fkey(full_name),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
       `)
@@ -366,16 +385,20 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .single();
 
     if (!error && data) {
-      // Fetch tenant profile separately
-      const { data: tenantProfile } = await supabase
+      // Fetch tenant and verifier profiles separately
+      const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by].filter(Boolean) as string[];
+      const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, avatar_url, phone')
-        .eq('id', data.tenant_id)
-        .single();
+        .in('id', profileIds);
+      
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
       
       const opportunity = {
         ...data,
-        tenant: tenantProfile || null
+        tenant: profileMap.get(data.tenant_id) || null,
+        agentVerifier: data.agent_verified_by ? profileMap.get(data.agent_verified_by) : null,
+        managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null
       } as unknown as RentOpportunity;
       
       setOpportunities(prev => [opportunity, ...prev]);
@@ -587,46 +610,70 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
   };
 
-  // Render individual verification badges
+  // Render individual verification badges with tooltips
   const renderVerificationBadges = (opp: RentOpportunity) => {
     if (opp.status === 'funded') return null;
     
+    const agentTooltip = opp.agent_verified 
+      ? `Verified by ${opp.agentVerifier?.full_name || 'Agent'} on ${opp.agent_verified_at ? format(new Date(opp.agent_verified_at), 'MMM d, yyyy h:mm a') : 'N/A'}`
+      : 'Awaiting agent verification';
+    
+    const managerTooltip = opp.manager_verified
+      ? `Verified by ${opp.managerVerifier?.full_name || 'Manager'} on ${opp.manager_verified_at ? format(new Date(opp.manager_verified_at), 'MMM d, yyyy h:mm a') : 'N/A'}`
+      : 'Awaiting manager verification';
+    
     return (
-      <div className="flex items-center gap-1.5 flex-wrap">
-        {/* Agent Verification Badge */}
-        <Badge 
-          variant="outline" 
-          className={`text-[10px] px-1.5 py-0.5 gap-1 ${
-            opp.agent_verified 
-              ? 'bg-success/10 text-success border-success/30' 
-              : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
-          }`}
-        >
-          {opp.agent_verified ? (
-            <CheckCircle2 className="h-2.5 w-2.5" />
-          ) : (
-            <Clock className="h-2.5 w-2.5" />
-          )}
-          Agent {opp.agent_verified ? '✓' : '○'}
-        </Badge>
-        
-        {/* Manager Verification Badge */}
-        <Badge 
-          variant="outline" 
-          className={`text-[10px] px-1.5 py-0.5 gap-1 ${
-            opp.manager_verified 
-              ? 'bg-primary/10 text-primary border-primary/30' 
-              : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
-          }`}
-        >
-          {opp.manager_verified ? (
-            <CheckCircle2 className="h-2.5 w-2.5" />
-          ) : (
-            <Clock className="h-2.5 w-2.5" />
-          )}
-          Manager {opp.manager_verified ? '✓' : '○'}
-        </Badge>
-      </div>
+      <TooltipProvider delayDuration={300}>
+        <div className="flex items-center gap-1.5 flex-wrap">
+          {/* Agent Verification Badge */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
+                  opp.agent_verified 
+                    ? 'bg-success/10 text-success border-success/30' 
+                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
+                }`}
+              >
+                {opp.agent_verified ? (
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                ) : (
+                  <Clock className="h-2.5 w-2.5" />
+                )}
+                Agent {opp.agent_verified ? '✓' : '○'}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[200px] text-xs">
+              <p>{agentTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          {/* Manager Verification Badge */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
+                  opp.manager_verified 
+                    ? 'bg-primary/10 text-primary border-primary/30' 
+                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
+                }`}
+              >
+                {opp.manager_verified ? (
+                  <CheckCircle2 className="h-2.5 w-2.5" />
+                ) : (
+                  <Clock className="h-2.5 w-2.5" />
+                )}
+                Manager {opp.manager_verified ? '✓' : '○'}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[200px] text-xs">
+              <p>{managerTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+        </div>
+      </TooltipProvider>
     );
   };
 
