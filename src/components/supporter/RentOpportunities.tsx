@@ -85,6 +85,7 @@ interface RentOpportunity {
     mobile_money_number: string;
     monthly_rent: number;
     verified: boolean;
+    ready_to_receive: boolean;
     user_id?: string;
   };
   agentVerifier?: {
@@ -290,7 +291,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified_at,
         manager_verified_by,
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
       .in('status', ['pending', 'approved', 'funded'])
       .order('created_at', { ascending: false })
@@ -379,7 +380,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified_at,
         manager_verified_by,
         agent:profiles!rent_requests_agent_id_fkey(full_name),
-        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified)
+        landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
       .eq('id', id)
       .single();
@@ -622,6 +623,13 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       ? `Verified by ${opp.managerVerifier?.full_name || 'Manager'} on ${opp.manager_verified_at ? format(new Date(opp.manager_verified_at), 'MMM d, yyyy h:mm a') : 'N/A'}`
       : 'Awaiting manager verification';
     
+    const landlordReady = opp.landlord?.ready_to_receive;
+    const landlordTooltip = landlordReady
+      ? `${opp.landlord?.name || 'Landlord'} is ready to receive payment`
+      : opp.landlord 
+        ? `${opp.landlord.name} not yet marked as ready to receive`
+        : 'No landlord assigned';
+    
     return (
       <TooltipProvider delayDuration={300}>
         <div className="flex items-center gap-1.5 flex-wrap">
@@ -670,6 +678,30 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </TooltipTrigger>
             <TooltipContent side="top" className="max-w-[200px] text-xs">
               <p>{managerTooltip}</p>
+            </TooltipContent>
+          </Tooltip>
+          
+          {/* Landlord Ready to Receive Badge */}
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Badge 
+                variant="outline" 
+                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
+                  landlordReady 
+                    ? 'bg-warning/10 text-warning border-warning/30' 
+                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
+                }`}
+              >
+                {landlordReady ? (
+                  <Building className="h-2.5 w-2.5" />
+                ) : (
+                  <Clock className="h-2.5 w-2.5" />
+                )}
+                Landlord {landlordReady ? '✓' : '○'}
+              </Badge>
+            </TooltipTrigger>
+            <TooltipContent side="top" className="max-w-[200px] text-xs">
+              <p>{landlordTooltip}</p>
             </TooltipContent>
           </Tooltip>
         </div>
