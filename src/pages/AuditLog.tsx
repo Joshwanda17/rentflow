@@ -45,6 +45,7 @@ export default function AuditLog() {
   const [dateRange, setDateRange] = useState<string>("7days");
   const [isLive, setIsLive] = useState(true);
   const [newEntryIds, setNewEntryIds] = useState<Set<string>>(new Set());
+  const [performerFilter, setPerformerFilter] = useState<string>("all");
 
   // Check if user is manager
   const { data: isManager } = useQuery({
@@ -81,7 +82,7 @@ export default function AuditLog() {
 
   // Fetch audit logs
   const { data: logs, isLoading, refetch } = useQuery({
-    queryKey: ["audit-logs-page", page, actionFilter, tableFilter, dateFilter],
+    queryKey: ["audit-logs-page", page, actionFilter, tableFilter, dateFilter, performerFilter],
     queryFn: async () => {
       let query = supabase
         .from("audit_logs")
@@ -95,6 +96,9 @@ export default function AuditLog() {
       }
       if (tableFilter !== "all") {
         query = query.eq("table_name", tableFilter);
+      }
+      if (performerFilter !== "all") {
+        query = query.eq("performed_by", performerFilter);
       }
 
       const { data, error } = await query;
@@ -159,6 +163,24 @@ export default function AuditLog() {
         .select("id, full_name");
       if (error) throw error;
       return data;
+    },
+    enabled: isManager === true,
+  });
+
+  // Fetch unique performers from audit logs
+  const { data: performers } = useQuery({
+    queryKey: ["audit-performers", dateFilter],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from("audit_logs")
+        .select("performed_by")
+        .gte("created_at", dateFilter.toISOString());
+      
+      if (error) throw error;
+      
+      // Get unique performer IDs
+      const uniqueIds = [...new Set(data?.map(d => d.performed_by) || [])];
+      return uniqueIds;
     },
     enabled: isManager === true,
   });
@@ -425,6 +447,24 @@ export default function AuditLog() {
                   <SelectItem value="loan_applications">Loans</SelectItem>
                   <SelectItem value="investment_accounts">Investments</SelectItem>
                   <SelectItem value="profiles">Profiles</SelectItem>
+                </SelectContent>
+              </Select>
+              
+              <Select value={performerFilter} onValueChange={setPerformerFilter}>
+                <SelectTrigger className="w-[150px] h-9">
+                  <Users className="h-3.5 w-3.5 mr-1.5" />
+                  <SelectValue placeholder="Performed by" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">All Managers</SelectItem>
+                  {performers?.map(performerId => {
+                    const profile = profiles?.find(p => p.id === performerId);
+                    return (
+                      <SelectItem key={performerId} value={performerId}>
+                        {profile?.full_name || "Unknown"}
+                      </SelectItem>
+                    );
+                  })}
                 </SelectContent>
               </Select>
             </div>
