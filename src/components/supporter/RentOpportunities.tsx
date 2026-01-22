@@ -97,7 +97,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -473,6 +473,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       result = result.filter(opp => opp.status !== 'funded' && (!lastSeenAt || new Date(opp.created_at) > lastSeenAt));
     } else if (filterBy === 'funded') {
       result = result.filter(opp => opp.status === 'funded');
+    } else if (filterBy === 'landlord_ready') {
+      result = result.filter(opp => opp.status !== 'funded' && opp.landlord?.ready_to_receive === true);
     } else if (filterBy === 'all') {
       // 'all' shows only unfunded opportunities
       result = result.filter(opp => opp.status !== 'funded');
@@ -512,6 +514,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const verifiedOpps = unfundedOpps.filter(opp => opp.manager_verified && opp.agent_verified);
     const verifyingOpps = unfundedOpps.filter(opp => (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
     const pendingOpps = unfundedOpps.filter(opp => !opp.agent_verified && !opp.manager_verified);
+    const landlordReadyOpps = unfundedOpps.filter(opp => opp.landlord?.ready_to_receive === true);
 
     return {
       all: calcROI(unfundedOpps),
@@ -521,6 +524,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       verified: calcROI(verifiedOpps),
       verifying: calcROI(verifyingOpps),
       pending: calcROI(pendingOpps),
+      landlord_ready: calcROI(landlordReadyOpps),
     };
   }, [opportunities, watchedIds, lastSeenAt]);
 
@@ -930,6 +934,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             { value: 'all', label: 'All', icon: null, count: null },
             { value: 'unseen', label: 'New', icon: '🔵', count: unseenCount },
             { value: 'watched', label: 'Watching', icon: '⭐', count: watchedIds.size },
+            { value: 'landlord_ready', label: 'Landlord Ready', icon: '🏠', count: null },
             { value: 'funded', label: 'Funded', icon: '💰', count: null },
             { value: 'verified', label: 'Verified', icon: '✓', count: null },
             { value: 'verifying', label: 'Verifying', icon: '⏳', count: null },
