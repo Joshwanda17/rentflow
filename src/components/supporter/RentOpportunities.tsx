@@ -314,7 +314,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified,
         manager_verified_at,
         manager_verified_by,
-        agent:profiles!rent_requests_agent_id_fkey(full_name),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
       .in('status', ['pending', 'approved', 'funded'])
@@ -405,7 +404,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified,
         manager_verified_at,
         manager_verified_by,
-        agent:profiles!rent_requests_agent_id_fkey(full_name),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
       .eq('id', id)
