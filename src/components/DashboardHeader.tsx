@@ -35,6 +35,7 @@ interface DashboardHeaderProps {
   onSignOut: () => Promise<void>;
   menuItems?: MenuItemConfig[];
   opportunityCount?: number;
+  onOpportunityBadgeClick?: () => void;
 }
 
 export default function DashboardHeader({
@@ -44,6 +45,7 @@ export default function DashboardHeader({
   onSignOut,
   menuItems = [],
   opportunityCount,
+  onOpportunityBadgeClick,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { isIOS, isInstalled, isInstallable, promptInstall } = usePWAInstall();
@@ -79,9 +81,12 @@ export default function DashboardHeader({
                 </span>
                 {/* Opportunity Count Badge - Only for supporters */}
                 {opportunityCount !== undefined && opportunityCount > 0 && (
-                  <span className="absolute -top-1 -right-5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-white text-primary rounded-full px-1 shadow-md animate-pulse">
+                  <button
+                    onClick={onOpportunityBadgeClick}
+                    className="absolute -top-1 -right-5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-white text-primary rounded-full px-1 shadow-md animate-pulse hover:scale-110 transition-transform touch-manipulation"
+                  >
                     {opportunityCount > 99 ? '99+' : opportunityCount}
-                  </span>
+                  </button>
                 )}
               </div>
               {/* Role Switcher - ALWAYS visible on all screen sizes */}
