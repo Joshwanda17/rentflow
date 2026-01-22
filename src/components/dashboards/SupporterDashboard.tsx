@@ -197,6 +197,32 @@ export default function SupporterDashboard({
 
   useEffect(() => {
     fetchData();
+    
+    // Real-time subscription for opportunity count updates
+    const channel = supabase
+      .channel('supporter-opportunity-count')
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'rent_requests',
+        },
+        async (payload) => {
+          // Refresh opportunity count when rent_requests change
+          const { count } = await supabase
+            .from('rent_requests')
+            .select('id', { count: 'exact', head: true })
+            .in('status', ['pending', 'approved']);
+          
+          setOpportunityCount(count || 0);
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchData = async () => {
