@@ -682,7 +682,11 @@ export default function SupporterDashboard({
           <Tabs defaultValue="opportunities" className="w-full">
             <div className="px-3 sm:px-4">
               <TabsList className="w-full grid grid-cols-2 mb-3 h-12">
-                <TabsTrigger value="opportunities" className="gap-2 text-sm font-bold">
+                <TabsTrigger 
+                  value="opportunities" 
+                  className="gap-2 text-sm font-bold"
+                  onClick={() => navigate('/opportunities')}
+                >
                   <TrendingUp className="h-4 w-4" />
                   Opportunities
                 </TabsTrigger>
