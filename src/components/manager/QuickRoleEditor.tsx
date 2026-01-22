@@ -56,6 +56,48 @@ export function QuickRoleEditor({
   const [confirmManagerRemoval, setConfirmManagerRemoval] = useState(false);
   const [activeTab, setActiveTab] = useState<string>("roles");
 
+  const sendRoleChangeNotification = async (role: string, action: 'added' | 'removed' | 'enabled' | 'disabled') => {
+    try {
+      const roleLabels: Record<string, string> = {
+        tenant: '🏠 Tenant',
+        agent: '💼 Agent', 
+        landlord: '🏢 Landlord',
+        supporter: '💰 Supporter',
+        manager: '👑 Manager'
+      };
+      
+      const messages: Record<string, { title: string; body: string }> = {
+        added: {
+          title: `✨ New Role: ${roleLabels[role] || role}`,
+          body: `You've been granted the ${role} role! New features are now available in your dashboard.`
+        },
+        removed: {
+          title: `🔔 Role Removed: ${roleLabels[role] || role}`,
+          body: `Your ${role} role has been removed. Some features may no longer be accessible.`
+        },
+        enabled: {
+          title: `✅ ${roleLabels[role] || role} Dashboard Enabled`,
+          body: `Your ${role} dashboard has been enabled. You can now access it from the role switcher.`
+        },
+        disabled: {
+          title: `⏸️ ${roleLabels[role] || role} Dashboard Disabled`,
+          body: `Your ${role} dashboard has been temporarily disabled.`
+        }
+      };
+
+      const { title, body } = messages[action];
+      
+      await supabase.functions.invoke('send-push-notification', {
+        body: {
+          userIds: [userId],
+          payload: { title, body, url: '/dashboard', type: 'role_change' }
+        }
+      });
+    } catch (error) {
+      console.error('Failed to send role notification:', error);
+    }
+  };
+
   const logRoleChange = async (actionType: string, role: string, oldEnabled?: boolean, newEnabled?: boolean) => {
     if (!user?.id) return;
     
@@ -88,6 +130,7 @@ export function QuickRoleEditor({
     if (error) throw error;
     
     await logRoleChange('role_removed', role);
+    await sendRoleChangeNotification(role, 'removed');
     setRoles(prev => prev.filter(r => r !== role));
     toast.success(`Removed ${role} from ${userName}`);
     onRolesUpdated?.();
@@ -130,6 +173,7 @@ export function QuickRoleEditor({
           }
         } else {
           await logRoleChange('role_added', role);
+          await sendRoleChangeNotification(role, 'added');
           setRoles(prev => [...prev, role]);
           setEnabledStatus(prev => ({ ...prev, [role]: true }));
           hapticSuccess();
@@ -183,6 +227,7 @@ export function QuickRoleEditor({
       if (error) throw error;
       
       await logRoleChange(newEnabled ? 'role_enabled' : 'role_disabled', role);
+      await sendRoleChangeNotification(role, newEnabled ? 'enabled' : 'disabled');
       setEnabledStatus(prev => ({ ...prev, [role]: newEnabled }));
       toast.success(newEnabled ? `Enabled ${role} for ${userName}` : `Disabled ${role} for ${userName}`);
       onRolesUpdated?.();
