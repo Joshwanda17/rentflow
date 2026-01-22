@@ -502,8 +502,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     return result;
   }, [opportunities, sortBy, filterBy, watchedIds, lastSeenAt, searchQuery]);
 
-  // Calculate potential ROI for each filter category
-  const filterROI = useMemo(() => {
+  // Calculate potential ROI and counts for each filter category
+  const { filterROI, landlordReadyCount } = useMemo(() => {
     const calcROI = (opps: RentOpportunity[]) => 
       opps.reduce((sum, opp) => sum + calculateSupporterReward(opp.rent_amount), 0);
     
@@ -517,14 +517,17 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const landlordReadyOpps = unfundedOpps.filter(opp => opp.landlord?.ready_to_receive === true);
 
     return {
-      all: calcROI(unfundedOpps),
-      unseen: calcROI(unseenOpps),
-      watched: calcROI(watchedOpps),
-      funded: calcROI(fundedOpps),
-      verified: calcROI(verifiedOpps),
-      verifying: calcROI(verifyingOpps),
-      pending: calcROI(pendingOpps),
-      landlord_ready: calcROI(landlordReadyOpps),
+      filterROI: {
+        all: calcROI(unfundedOpps),
+        unseen: calcROI(unseenOpps),
+        watched: calcROI(watchedOpps),
+        funded: calcROI(fundedOpps),
+        verified: calcROI(verifiedOpps),
+        verifying: calcROI(verifyingOpps),
+        pending: calcROI(pendingOpps),
+        landlord_ready: calcROI(landlordReadyOpps),
+      },
+      landlordReadyCount: landlordReadyOpps.length,
     };
   }, [opportunities, watchedIds, lastSeenAt]);
 
@@ -934,7 +937,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             { value: 'all', label: 'All', icon: null, count: null },
             { value: 'unseen', label: 'New', icon: '🔵', count: unseenCount },
             { value: 'watched', label: 'Watching', icon: '⭐', count: watchedIds.size },
-            { value: 'landlord_ready', label: 'Landlord Ready', icon: '🏠', count: null },
+            { value: 'landlord_ready', label: 'Landlord Ready', icon: '🏠', count: landlordReadyCount },
             { value: 'funded', label: 'Funded', icon: '💰', count: null },
             { value: 'verified', label: 'Verified', icon: '✓', count: null },
             { value: 'verifying', label: 'Verifying', icon: '⏳', count: null },
