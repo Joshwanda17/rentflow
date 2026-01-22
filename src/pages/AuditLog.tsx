@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useNavigate } from "react-router-dom";
@@ -9,15 +9,15 @@ import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format, subDays, startOfDay, endOfDay } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import { 
   ArrowLeft, ClipboardList, Search, ChevronLeft, ChevronRight, 
-  Filter, Calendar, Users, Shield, Wallet, Home, Download,
+  Filter, Calendar, Users, Shield, Wallet, Home,
   Plus, Minus, ToggleLeft, ToggleRight, Check, X, RefreshCw,
-  TrendingUp, Activity
+  TrendingUp, Activity, Radio
 } from "lucide-react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
+import { toast } from "sonner";
 
 interface AuditLog {
   id: string;
@@ -37,11 +37,14 @@ const PAGE_SIZE = 25;
 export default function AuditLog() {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [page, setPage] = useState(0);
   const [actionFilter, setActionFilter] = useState<string>("all");
   const [tableFilter, setTableFilter] = useState<string>("all");
   const [searchTerm, setSearchTerm] = useState("");
   const [dateRange, setDateRange] = useState<string>("7days");
+  const [isLive, setIsLive] = useState(true);
+  const [newEntryIds, setNewEntryIds] = useState<Set<string>>(new Set());
 
   // Check if user is manager
   const { data: isManager } = useQuery({
@@ -100,6 +103,52 @@ export default function AuditLog() {
     },
     enabled: isManager === true,
   });
+
+  // Real-time subscription for new audit logs
+  useEffect(() => {
+    if (!isManager || !isLive) return;
+
+    const channel = supabase
+      .channel('audit-logs-realtime')
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'audit_logs'
+        },
+        (payload) => {
+          const newLog = payload.new as AuditLog;
+          
+          // Add to new entries for highlight effect
+          setNewEntryIds(prev => new Set([...prev, newLog.id]));
+          
+          // Clear highlight after 5 seconds
+          setTimeout(() => {
+            setNewEntryIds(prev => {
+              const next = new Set(prev);
+              next.delete(newLog.id);
+              return next;
+            });
+          }, 5000);
+          
+          // Invalidate queries to refresh data
+          queryClient.invalidateQueries({ queryKey: ["audit-logs-page"] });
+          queryClient.invalidateQueries({ queryKey: ["audit-stats"] });
+          
+          // Show toast notification
+          toast.info("New activity logged", {
+            description: `${newLog.action_type} on ${newLog.table_name}`,
+            duration: 3000
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [isManager, isLive, queryClient]);
 
   // Fetch managers for name lookup
   const { data: profiles } = useQuery({
@@ -257,6 +306,18 @@ export default function AuditLog() {
             </h1>
             <p className="text-xs text-muted-foreground">Track all system changes</p>
           </div>
+          
+          {/* Live indicator toggle */}
+          <Button 
+            variant={isLive ? "default" : "outline"} 
+            size="sm" 
+            onClick={() => setIsLive(!isLive)}
+            className={`gap-1.5 ${isLive ? 'bg-success hover:bg-success/90' : ''}`}
+          >
+            <Radio className={`h-3.5 w-3.5 ${isLive ? 'animate-pulse' : ''}`} />
+            {isLive ? 'Live' : 'Paused'}
+          </Button>
+          
           <Button variant="outline" size="sm" onClick={() => refetch()}>
             <RefreshCw className="h-4 w-4" />
           </Button>
@@ -394,14 +455,27 @@ export default function AuditLog() {
             ) : (
               <ScrollArea className="h-[500px]">
                 <div className="divide-y">
-                  {filteredLogs.map((log, index) => (
-                    <motion.div
-                      key={log.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.02 }}
-                      className="p-4 hover:bg-muted/30 transition-colors"
-                    >
+                  {filteredLogs.map((log, index) => {
+                    const isNew = newEntryIds.has(log.id);
+                    return (
+                      <motion.div
+                        key={log.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ 
+                          opacity: 1, 
+                          x: 0,
+                          backgroundColor: isNew ? 'hsl(var(--success) / 0.15)' : 'transparent'
+                        }}
+                        transition={{ delay: index * 0.02 }}
+                        className={`p-4 hover:bg-muted/30 transition-colors relative ${
+                          isNew ? 'ring-1 ring-success/50' : ''
+                        }`}
+                      >
+                        {isNew && (
+                          <Badge className="absolute top-2 right-2 bg-success text-success-foreground text-[9px] px-1.5 py-0 animate-pulse">
+                            NEW
+                          </Badge>
+                        )}
                       <div className="flex items-start gap-3">
                         <div className="mt-0.5 p-2 rounded-full bg-muted/50">
                           {getActionIcon(log.action_type)}
@@ -463,7 +537,8 @@ export default function AuditLog() {
                         </div>
                       </div>
                     </motion.div>
-                  ))}
+                    );
+                  })}
                 </div>
               </ScrollArea>
             )}
