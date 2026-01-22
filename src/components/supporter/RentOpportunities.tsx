@@ -424,6 +424,30 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     return result;
   }, [opportunities, sortBy, filterBy, watchedIds, lastSeenAt]);
 
+  // Calculate potential ROI for each filter category
+  const filterROI = useMemo(() => {
+    const calcROI = (opps: RentOpportunity[]) => 
+      opps.reduce((sum, opp) => sum + calculateSupporterReward(opp.rent_amount), 0);
+    
+    const unfundedOpps = opportunities.filter(opp => opp.status !== 'funded');
+    const unseenOpps = unfundedOpps.filter(opp => !lastSeenAt || new Date(opp.created_at) > lastSeenAt);
+    const watchedOpps = unfundedOpps.filter(opp => watchedIds.has(opp.id));
+    const fundedOpps = opportunities.filter(opp => opp.status === 'funded');
+    const verifiedOpps = unfundedOpps.filter(opp => opp.manager_verified && opp.agent_verified);
+    const verifyingOpps = unfundedOpps.filter(opp => (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
+    const pendingOpps = unfundedOpps.filter(opp => !opp.agent_verified && !opp.manager_verified);
+
+    return {
+      all: calcROI(unfundedOpps),
+      unseen: calcROI(unseenOpps),
+      watched: calcROI(watchedOpps),
+      funded: calcROI(fundedOpps),
+      verified: calcROI(verifiedOpps),
+      verifying: calcROI(verifyingOpps),
+      pending: calcROI(pendingOpps),
+    };
+  }, [opportunities, watchedIds, lastSeenAt]);
+
   const handleCardClick = (opportunity: RentOpportunity) => {
     hapticTap();
     if (isLocked) {
@@ -635,33 +659,60 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </div>
         </div>
 
-        {/* Quick Filter Chips */}
+        {/* Quick Filter Chips with ROI */}
         <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
-            { value: 'all', label: 'All', icon: null },
-            { value: 'unseen', label: `New (${unseenCount})`, icon: '🔵' },
-            { value: 'watched', label: `Watching (${watchedIds.size})`, icon: '⭐' },
-            { value: 'funded', label: 'Funded', icon: '💰' },
-            { value: 'verified', label: 'Verified', icon: '✓' },
-            { value: 'verifying', label: 'Verifying', icon: '⏳' },
-            { value: 'pending', label: 'New', icon: '🆕' },
-          ].map((filter) => (
-            <button
-              key={filter.value}
-              onClick={() => {
-                hapticTap();
-                setFilterBy(filter.value as FilterOption);
-              }}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation ${
-                filterBy === filter.value
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-              }`}
-            >
-              {filter.icon && <span>{filter.icon}</span>}
-              {filter.label}
-            </button>
-          ))}
+            { value: 'all', label: 'All', icon: null, count: null },
+            { value: 'unseen', label: 'New', icon: '🔵', count: unseenCount },
+            { value: 'watched', label: 'Watching', icon: '⭐', count: watchedIds.size },
+            { value: 'funded', label: 'Funded', icon: '💰', count: null },
+            { value: 'verified', label: 'Verified', icon: '✓', count: null },
+            { value: 'verifying', label: 'Verifying', icon: '⏳', count: null },
+            { value: 'pending', label: 'Pending', icon: '🆕', count: null },
+          ].map((filter) => {
+            const roi = filterROI[filter.value as keyof typeof filterROI] || 0;
+            const formattedROI = roi >= 1000000 
+              ? `${(roi / 1000000).toFixed(1)}M` 
+              : roi >= 1000 
+                ? `${Math.round(roi / 1000)}K` 
+                : roi > 0 
+                  ? roi.toString() 
+                  : '';
+            
+            return (
+              <button
+                key={filter.value}
+                onClick={() => {
+                  hapticTap();
+                  setFilterBy(filter.value as FilterOption);
+                }}
+                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation min-w-[60px] ${
+                  filterBy === filter.value
+                    ? 'bg-primary text-primary-foreground shadow-md'
+                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
+                }`}
+              >
+                <div className="flex items-center gap-1">
+                  {filter.icon && <span className="text-[10px]">{filter.icon}</span>}
+                  <span>{filter.label}</span>
+                  {filter.count !== null && filter.count > 0 && (
+                    <span className={`text-[10px] ${filterBy === filter.value ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                      ({filter.count})
+                    </span>
+                  )}
+                </div>
+                {formattedROI && roi > 0 && (
+                  <span className={`text-[9px] font-bold ${
+                    filterBy === filter.value 
+                      ? 'text-primary-foreground/90' 
+                      : 'text-success'
+                  }`}>
+                    +{formattedROI}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
 
         {/* Sort Dropdown */}
