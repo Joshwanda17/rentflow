@@ -676,10 +676,24 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         );
       default:
         return (
-          <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 gap-1 animate-pulse">
-            <Timer className="h-3 w-3" />
-            Pending Verification
-          </Badge>
+          <TooltipProvider delayDuration={200}>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge className="bg-orange-500/20 text-orange-600 dark:text-orange-400 border border-orange-500/30 gap-1 animate-pulse cursor-help">
+                  <Timer className="h-3 w-3" />
+                  Pending Verification
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="bottom" className="max-w-[200px] text-center">
+                <p className="text-xs font-medium">Needs verification from:</p>
+                <ul className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                  <li>• Agent verification</li>
+                  <li>• Manager verification</li>
+                  <li>• Landlord marked ready</li>
+                </ul>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
         );
     }
   };
