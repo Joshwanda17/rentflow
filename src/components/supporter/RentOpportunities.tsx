@@ -169,30 +169,54 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     fetchOpportunities();
     fetchWatchedOpportunities();
     
+    // Set up realtime subscription for new rent requests
     const channel = supabase
-      .channel('rent-opportunities')
+      .channel('rent-opportunities-realtime')
       .on(
         'postgres_changes',
         {
-          event: '*',
+          event: 'INSERT',
           schema: 'public',
           table: 'rent_requests',
         },
         (payload) => {
-          if (payload.eventType === 'INSERT') {
-            fetchSingleOpportunity(payload.new.id);
-          } else if (payload.eventType === 'UPDATE') {
-            setOpportunities(prev => 
-              prev.map(opp => 
-                opp.id === payload.new.id ? { ...opp, ...payload.new } : opp
-              ).filter(opp => ['pending', 'approved', 'funded'].includes(opp.status))
-            );
-          } else if (payload.eventType === 'DELETE') {
-            setOpportunities(prev => prev.filter(opp => opp.id !== payload.old.id));
+          console.log('[RentOpportunities] New rent request received:', payload.new.id);
+          fetchSingleOpportunity(payload.new.id, true); // isNew = true for INSERT
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'rent_requests',
+        },
+        (payload) => {
+          console.log('[RentOpportunities] Rent request updated:', payload.new.id, payload.new.status);
+          // For updates, refresh the specific opportunity to get full data
+          if (['pending', 'approved', 'funded'].includes(payload.new.status)) {
+            fetchSingleOpportunity(payload.new.id, false); // isNew = false for UPDATE
+          } else {
+            // Remove if status changed to rejected or other non-visible status
+            setOpportunities(prev => prev.filter(opp => opp.id !== payload.new.id));
           }
         }
       )
-      .subscribe();
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'rent_requests',
+        },
+        (payload) => {
+          console.log('[RentOpportunities] Rent request deleted:', payload.old.id);
+          setOpportunities(prev => prev.filter(opp => opp.id !== payload.old.id));
+        }
+      )
+      .subscribe((status) => {
+        console.log('[RentOpportunities] Realtime subscription status:', status);
+      });
 
     return () => {
       supabase.removeChannel(channel);
@@ -362,7 +386,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     toast.success('Opportunities refreshed');
   }, []);
 
-  const fetchSingleOpportunity = async (id: string) => {
+  const fetchSingleOpportunity = async (id: string, isNew: boolean = true) => {
+    console.log('[RentOpportunities] Fetching single opportunity:', id, 'isNew:', isNew);
+    
     const { data, error } = await supabase
       .from('rent_requests')
       .select(`
@@ -385,35 +411,55 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .eq('id', id)
       .single();
 
-    if (!error && data) {
-      // Only add if status is valid for opportunities view
-      if (!['pending', 'approved', 'funded'].includes(data.status)) {
-        return;
+    if (error) {
+      console.error('[RentOpportunities] Error fetching opportunity:', error);
+      return;
+    }
+
+    if (!data) {
+      console.log('[RentOpportunities] No data returned for opportunity:', id);
+      return;
+    }
+
+    // Only process if status is valid for opportunities view
+    if (!['pending', 'approved', 'funded'].includes(data.status)) {
+      console.log('[RentOpportunities] Skipping opportunity with status:', data.status);
+      return;
+    }
+    
+    // Fetch tenant and verifier profiles separately
+    const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by].filter(Boolean) as string[];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('id, full_name, avatar_url, phone')
+      .in('id', profileIds);
+    
+    const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+    
+    const opportunity = {
+      ...data,
+      tenant: profileMap.get(data.tenant_id) || null,
+      agentVerifier: data.agent_verified_by ? profileMap.get(data.agent_verified_by) : null,
+      managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null
+    } as unknown as RentOpportunity;
+    
+    // Update or add to opportunities list
+    setOpportunities(prev => {
+      const existingIndex = prev.findIndex(opp => opp.id === id);
+      if (existingIndex >= 0) {
+        // Update existing
+        const updated = [...prev];
+        updated[existingIndex] = opportunity;
+        console.log('[RentOpportunities] Updated existing opportunity at index:', existingIndex);
+        return updated;
       }
-      
-      // Fetch tenant and verifier profiles separately
-      const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by].filter(Boolean) as string[];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url, phone')
-        .in('id', profileIds);
-      
-      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-      
-      const opportunity = {
-        ...data,
-        tenant: profileMap.get(data.tenant_id) || null,
-        agentVerifier: data.agent_verified_by ? profileMap.get(data.agent_verified_by) : null,
-        managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null
-      } as unknown as RentOpportunity;
-      
-      // Check if already exists to prevent duplicates
-      setOpportunities(prev => {
-        if (prev.some(opp => opp.id === id)) {
-          return prev;
-        }
-        return [opportunity, ...prev];
-      });
+      // Add new at the beginning
+      console.log('[RentOpportunities] Adding new opportunity to list');
+      return [opportunity, ...prev];
+    });
+    
+    // Only show notifications for truly new opportunities
+    if (isNew) {
       setNewOpportunityId(id);
       setTimeout(() => setNewOpportunityId(null), 5000);
       
