@@ -386,6 +386,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .single();
 
     if (!error && data) {
+      // Only add if status is valid for opportunities view
+      if (!['pending', 'approved', 'funded'].includes(data.status)) {
+        return;
+      }
+      
       // Fetch tenant and verifier profiles separately
       const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by].filter(Boolean) as string[];
       const { data: profiles } = await supabase
@@ -402,7 +407,13 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null
       } as unknown as RentOpportunity;
       
-      setOpportunities(prev => [opportunity, ...prev]);
+      // Check if already exists to prevent duplicates
+      setOpportunities(prev => {
+        if (prev.some(opp => opp.id === id)) {
+          return prev;
+        }
+        return [opportunity, ...prev];
+      });
       setNewOpportunityId(id);
       setTimeout(() => setNewOpportunityId(null), 5000);
       
