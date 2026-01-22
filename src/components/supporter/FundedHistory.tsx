@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -8,6 +8,7 @@ import { Separator } from '@/components/ui/separator';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { UserAvatar } from '@/components/UserAvatar';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { 
   History, 
   TrendingUp, 
@@ -22,11 +23,14 @@ import {
   CreditCard,
   Banknote,
   AlertCircle,
-  Sparkles
+  Sparkles,
+  RefreshCw
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
+import { hapticSuccess } from '@/lib/haptics';
+import { toast } from 'sonner';
 
 interface FundedRequest {
   id: string;
@@ -218,6 +222,13 @@ export function FundedHistory() {
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading]);
 
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    await fetchFundedHistory(true);
+    hapticSuccess();
+    toast.success('Funded history refreshed');
+  }, []);
+
   const getStatusBadge = (progress: number, status: string) => {
     if (progress >= 100) {
       return (
@@ -284,11 +295,12 @@ export function FundedHistory() {
   }
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      className="space-y-4"
-    >
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-[200px]">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="space-y-4"
+      >
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-2">
         <Card className="border-0 bg-gradient-to-br from-primary/10 to-primary/5">
@@ -557,5 +569,6 @@ export function FundedHistory() {
         </div>
       </div>
     </motion.div>
+    </PullToRefresh>
   );
 }
