@@ -14,6 +14,7 @@ import {
   FileText, ScrollText, BarChart3, Trophy
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
+import { playSuccessSound } from '@/lib/notificationSound';
 import { useToast } from '@/hooks/use-toast';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
@@ -295,6 +296,7 @@ export default function SupporterDashboard({
       if (isFirstFunding) {
         // Extra special celebration for first-time funders!
         fireFirstFunding();
+        playSuccessSound(); // Play celebratory sound with confetti
         setHasEverFunded(true);
         toast({
           title: '🎊 Congratulations on Your First Investment!',
@@ -302,6 +304,7 @@ export default function SupporterDashboard({
         });
       } else {
         fireSuccess();
+        playSuccessSound(); // Play celebratory sound with confetti
         toast({
           title: '🎉 Request Funded!',
           description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
