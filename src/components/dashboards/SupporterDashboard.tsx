@@ -560,6 +560,7 @@ export default function SupporterDashboard({
         onSignOut={signOut}
         menuItems={menuItems}
         opportunityCount={opportunityCount}
+        onOpportunityBadgeClick={() => navigate('/opportunities')}
       />
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
