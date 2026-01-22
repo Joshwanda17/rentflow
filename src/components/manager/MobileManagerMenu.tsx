@@ -13,7 +13,8 @@ import {
   Wallet, 
   Award,
   Download,
-  CreditCard
+  CreditCard,
+  ClipboardList
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -73,11 +74,11 @@ const menuItems = [
     description: 'Financial overview'
   },
   { 
-    icon: Wallet, 
-    label: 'Invest', 
-    path: '/manager-access?tab=investments',
-    color: 'bg-amber-500',
-    description: 'Investment accounts'
+    icon: ClipboardList, 
+    label: 'Audit', 
+    path: '/audit-log',
+    color: 'bg-slate-600',
+    description: 'System audit log'
   },
 ];
 
