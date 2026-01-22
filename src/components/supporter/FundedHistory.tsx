@@ -33,6 +33,8 @@ import { format, formatDistanceToNow, differenceInDays } from 'date-fns';
 import { hapticSuccess } from '@/lib/haptics';
 import { toast } from 'sonner';
 
+type FilterMode = 'all' | 'mine';
+
 interface FundedRequest {
   id: string;
   rent_amount: number;
@@ -42,6 +44,7 @@ interface FundedRequest {
   status: string;
   funded_at: string;
   created_at: string;
+  supporter_id?: string;
   tenant?: {
     id: string;
     full_name: string;
@@ -88,10 +91,12 @@ export function FundedHistory() {
   const PAGE_SIZE = 15;
   const loadMoreRef = useRef<HTMLDivElement>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [filterMode, setFilterMode] = useState<FilterMode>('all');
+  const [currentUserId, setCurrentUserId] = useState<string | null>(null);
 
   useEffect(() => {
     fetchFundedHistory(true);
-  }, []);
+  }, [filterMode]);
 
   const fetchFundedHistory = async (reset: boolean = true) => {
     const { data: userData } = await supabase.auth.getUser();
@@ -99,6 +104,8 @@ export function FundedHistory() {
       setLoading(false);
       return;
     }
+    
+    setCurrentUserId(userData.user.id);
 
     if (reset) {
       setLoading(true);
@@ -111,8 +118,8 @@ export function FundedHistory() {
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
 
-    // Fetch ALL funded requests (not just this supporter's)
-    const { data: requests, error } = await supabase
+    // Build query based on filter mode
+    let query = supabase
       .from('rent_requests')
       .select(`
         id,
@@ -127,7 +134,14 @@ export function FundedHistory() {
         tenant:profiles!rent_requests_tenant_id_fkey(id, full_name, avatar_url, phone),
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, property_address)
       `)
-      .eq('status', 'funded')
+      .eq('status', 'funded');
+    
+    // Filter by current user if "My Funded" is selected
+    if (filterMode === 'mine') {
+      query = query.eq('supporter_id', userData.user.id);
+    }
+    
+    const { data: requests, error } = await query
       .order('funded_at', { ascending: false })
       .range(from, to);
 
@@ -303,6 +317,26 @@ export function FundedHistory() {
         animate={{ opacity: 1, y: 0 }}
         className="space-y-4"
       >
+      {/* Filter Toggle */}
+      <div className="flex items-center gap-2 p-1 bg-muted/50 rounded-lg w-fit">
+        <Button
+          variant={filterMode === 'all' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setFilterMode('all')}
+          className="h-8 px-3 text-xs"
+        >
+          All Funded
+        </Button>
+        <Button
+          variant={filterMode === 'mine' ? 'default' : 'ghost'}
+          size="sm"
+          onClick={() => setFilterMode('mine')}
+          className="h-8 px-3 text-xs"
+        >
+          My Funded
+        </Button>
+      </div>
+
       {/* Summary Stats */}
       <div className="grid grid-cols-3 gap-2">
         <Card className="border-0 bg-gradient-to-br from-primary/10 to-primary/5">
