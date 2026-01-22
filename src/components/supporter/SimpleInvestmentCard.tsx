@@ -24,62 +24,51 @@ export function SimpleInvestmentCard({
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4 }}
+      transition={{ duration: 0.3 }}
     >
-      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-primary/15 via-background to-success/10 shadow-xl">
-        {/* Subtle glow */}
-        <div className="absolute -top-20 -right-20 w-40 h-40 bg-primary/20 rounded-full blur-3xl" />
-        <div className="absolute -bottom-20 -left-20 w-40 h-40 bg-success/20 rounded-full blur-3xl" />
-        
-        <CardContent className="relative p-5 space-y-5">
-          {/* Header */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-3 rounded-2xl bg-gradient-to-br from-primary to-primary/80 shadow-lg shadow-primary/30">
-                <TrendingUp className="h-6 w-6 text-white" />
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-r from-primary/10 via-background to-success/5">
+        <CardContent className="relative p-3">
+          {/* Compact single-row layout */}
+          <div className="flex items-center justify-between gap-3">
+            {/* Left: Icon + Stats */}
+            <div className="flex items-center gap-3 flex-1 min-w-0">
+              <div className="p-2.5 rounded-xl bg-gradient-to-br from-primary to-primary/80 shadow-md shadow-primary/20 shrink-0">
+                <TrendingUp className="h-5 w-5 text-white" />
               </div>
-              <div>
-                <h2 className="text-lg font-black text-foreground">My Investment</h2>
-                <Badge variant="outline" className="text-xs bg-success/10 text-success border-success/30">
-                  15% Monthly Returns
-                </Badge>
+              
+              <div className="flex-1 min-w-0">
+                <div className="flex items-center gap-2 mb-0.5">
+                  <span className="text-sm font-bold text-foreground truncate">My Investment</span>
+                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-success/10 text-success border-success/30 shrink-0">
+                    15% ROI
+                  </Badge>
+                </div>
+                <div className="flex items-center gap-3 text-sm">
+                  <span className="text-muted-foreground">💰 <span className="font-bold text-foreground">{formatUGX(totalInvested)}</span></span>
+                  <span className="text-success font-bold">+{formatUGX(monthlyReturn)}/mo</span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Big Numbers - Super Clear */}
-          <div className="grid grid-cols-2 gap-4">
-            {/* Total Invested */}
-            <div className="p-4 rounded-2xl bg-white/5 border border-white/10 text-center">
-              <p className="text-xs text-muted-foreground font-semibold mb-1">💰 Invested</p>
-              <p className="text-xl font-black text-foreground">{formatUGX(totalInvested)}</p>
+            {/* Right: Actions */}
+            <div className="flex items-center gap-2 shrink-0">
+              <Button 
+                onClick={onAddInvestment}
+                size="sm"
+                className="h-9 px-3 text-xs font-bold bg-primary hover:bg-primary/90 gap-1.5"
+              >
+                <Plus className="h-3.5 w-3.5" />
+                Add
+              </Button>
+              <Button 
+                onClick={onViewDetails}
+                size="sm"
+                variant="ghost"
+                className="h-9 w-9 p-0"
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
-            
-            {/* Monthly Earnings */}
-            <div className="p-4 rounded-2xl bg-success/10 border border-success/20 text-center">
-              <p className="text-xs text-success font-semibold mb-1">✨ Monthly Earnings</p>
-              <p className="text-xl font-black text-success">+{formatUGX(monthlyReturn)}</p>
-            </div>
-          </div>
-
-          {/* Simple Actions */}
-          <div className="flex gap-3">
-            <Button 
-              onClick={onAddInvestment}
-              size="lg"
-              className="flex-1 h-14 text-base font-bold bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70 shadow-lg shadow-primary/25 gap-2"
-            >
-              <Plus className="h-5 w-5" />
-              Add Money
-            </Button>
-            <Button 
-              onClick={onViewDetails}
-              size="lg"
-              variant="outline"
-              className="h-14 px-5 border-primary/30 hover:bg-primary/10"
-            >
-              <ArrowRight className="h-5 w-5" />
-            </Button>
           </div>
         </CardContent>
       </Card>
