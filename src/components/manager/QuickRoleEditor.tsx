@@ -4,7 +4,17 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Switch } from '@/components/ui/switch';
-import { UserCog, Loader2, Plus, Check, X, Sparkles } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
+import { UserCog, Loader2, Plus, Check, X, Sparkles, ShieldAlert } from 'lucide-react';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
@@ -39,6 +49,21 @@ export function QuickRoleEditor({
   const [roles, setRoles] = useState<string[]>(currentRoles);
   const [enabledStatus, setEnabledStatus] = useState<Record<string, boolean>>(roleEnabledStatus);
   const [loading, setLoading] = useState<string | null>(null);
+  const [confirmManagerRemoval, setConfirmManagerRemoval] = useState(false);
+
+  const executeRemoveRole = async (role: AppRole) => {
+    const { error } = await supabase
+      .from('user_roles')
+      .delete()
+      .eq('user_id', userId)
+      .eq('role', role);
+    
+    if (error) throw error;
+    
+    setRoles(prev => prev.filter(r => r !== role));
+    toast.success(`Removed ${role} from ${userName}`);
+    onRolesUpdated?.();
+  };
 
   const handleToggleRole = async (role: AppRole) => {
     hapticTap();
@@ -55,16 +80,14 @@ export function QuickRoleEditor({
           return;
         }
         
-        const { error } = await supabase
-          .from('user_roles')
-          .delete()
-          .eq('user_id', userId)
-          .eq('role', role);
+        // Show confirmation dialog for Manager role
+        if (role === 'manager') {
+          setLoading(null);
+          setConfirmManagerRemoval(true);
+          return;
+        }
         
-        if (error) throw error;
-        
-        setRoles(prev => prev.filter(r => r !== role));
-        toast.success(`Removed ${role} from ${userName}`);
+        await executeRemoveRole(role);
       } else {
         // Add role
         const { error } = await supabase
@@ -82,15 +105,27 @@ export function QuickRoleEditor({
           setEnabledStatus(prev => ({ ...prev, [role]: true }));
           hapticSuccess();
           toast.success(`Added ${role} to ${userName}`);
+          onRolesUpdated?.();
         }
       }
-      
-      onRolesUpdated?.();
     } catch (error) {
       console.error('Error toggling role:', error);
       toast.error('Failed to update role');
     } finally {
       setLoading(null);
+    }
+  };
+
+  const handleConfirmManagerRemoval = async () => {
+    setLoading('manager');
+    try {
+      await executeRemoveRole('manager');
+    } catch (error) {
+      console.error('Error removing manager role:', error);
+      toast.error('Failed to remove Manager role');
+    } finally {
+      setLoading(null);
+      setConfirmManagerRemoval(false);
     }
   };
 
@@ -132,106 +167,151 @@ export function QuickRoleEditor({
   const activeRolesCount = roles.length;
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger asChild>
-        <Button 
-          variant="outline" 
-          size={compact ? "sm" : "default"}
-          className={`gap-1.5 ${compact ? 'h-8 px-2' : 'h-10'}`}
-          onClick={() => hapticTap()}
-        >
-          <UserCog className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
-          {!compact && <span>Roles</span>}
-          <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
-            {activeRolesCount}
-          </Badge>
-        </Button>
-      </PopoverTrigger>
-      <PopoverContent className="w-80 p-0" align="end">
-        <div className="p-3 border-b bg-muted/30">
-          <div className="flex items-center gap-2">
-            <Sparkles className="h-4 w-4 text-primary" />
-            <h4 className="font-semibold text-sm">Quick Role Editor</h4>
+    <>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button 
+            variant="outline" 
+            size={compact ? "sm" : "default"}
+            className={`gap-1.5 ${compact ? 'h-8 px-2' : 'h-10'}`}
+            onClick={() => hapticTap()}
+          >
+            <UserCog className={compact ? "h-3.5 w-3.5" : "h-4 w-4"} />
+            {!compact && <span>Roles</span>}
+            <Badge variant="secondary" className="ml-1 h-5 w-5 p-0 flex items-center justify-center text-[10px]">
+              {activeRolesCount}
+            </Badge>
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-80 p-0" align="end">
+          <div className="p-3 border-b bg-muted/30">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-primary" />
+              <h4 className="font-semibold text-sm">Quick Role Editor</h4>
+            </div>
+            <p className="text-xs text-muted-foreground mt-1">
+              Manage roles for {userName}
+            </p>
           </div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Manage roles for {userName}
-          </p>
-        </div>
-        
-        <div className="p-2 space-y-1">
-          {allRoles.map((role) => {
-            const hasRole = roles.includes(role.value);
-            const isEnabled = enabledStatus[role.value] ?? true;
-            const isLoading = loading === role.value || loading === `toggle-${role.value}`;
-            
-            return (
-              <div 
-                key={role.value}
-                className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
-                  hasRole 
-                    ? isEnabled 
-                      ? 'bg-card border border-border' 
-                      : 'bg-muted/30 border border-muted opacity-70'
-                    : 'bg-muted/20 hover:bg-muted/40'
-                }`}
-              >
-                <div className="flex items-center gap-2.5">
-                  <span className="text-base">{role.emoji}</span>
-                  <div>
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium text-sm">{role.label}</span>
-                      {hasRole && (
-                        <Badge 
-                          variant="outline" 
-                          className={`text-[9px] px-1.5 py-0 ${
-                            isEnabled 
-                              ? 'bg-success/10 text-success border-success/30' 
-                              : 'bg-muted text-muted-foreground'
-                          }`}
-                        >
-                          {isEnabled ? 'Active' : 'Disabled'}
-                        </Badge>
-                      )}
+          
+          <div className="p-2 space-y-1">
+            {allRoles.map((role) => {
+              const hasRole = roles.includes(role.value);
+              const isEnabled = enabledStatus[role.value] ?? true;
+              const isLoading = loading === role.value || loading === `toggle-${role.value}`;
+              
+              return (
+                <div 
+                  key={role.value}
+                  className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
+                    hasRole 
+                      ? isEnabled 
+                        ? 'bg-card border border-border' 
+                        : 'bg-muted/30 border border-muted opacity-70'
+                      : 'bg-muted/20 hover:bg-muted/40'
+                  }`}
+                >
+                  <div className="flex items-center gap-2.5">
+                    <span className="text-base">{role.emoji}</span>
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="font-medium text-sm">{role.label}</span>
+                        {hasRole && (
+                          <Badge 
+                            variant="outline" 
+                            className={`text-[9px] px-1.5 py-0 ${
+                              isEnabled 
+                                ? 'bg-success/10 text-success border-success/30' 
+                                : 'bg-muted text-muted-foreground'
+                            }`}
+                          >
+                            {isEnabled ? 'Active' : 'Disabled'}
+                          </Badge>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-                
-                <div className="flex items-center gap-2">
-                  {hasRole && (
-                    <Switch
-                      checked={isEnabled}
-                      onCheckedChange={() => handleToggleEnabled(role.value)}
-                      disabled={isLoading}
-                      className="scale-75"
-                    />
-                  )}
-                  <Button
-                    variant={hasRole ? "destructive" : "default"}
-                    size="sm"
-                    onClick={() => handleToggleRole(role.value)}
-                    disabled={isLoading || (hasRole && roles.length <= 1)}
-                    className={`h-8 w-8 p-0 ${!hasRole ? 'bg-success hover:bg-success/90' : ''}`}
-                  >
-                    {isLoading ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : hasRole ? (
-                      <X className="h-3.5 w-3.5" />
-                    ) : (
-                      <Plus className="h-3.5 w-3.5" />
+                  
+                  <div className="flex items-center gap-2">
+                    {hasRole && (
+                      <Switch
+                        checked={isEnabled}
+                        onCheckedChange={() => handleToggleEnabled(role.value)}
+                        disabled={isLoading}
+                        className="scale-75"
+                      />
                     )}
-                  </Button>
+                    <Button
+                      variant={hasRole ? "destructive" : "default"}
+                      size="sm"
+                      onClick={() => handleToggleRole(role.value)}
+                      disabled={isLoading || (hasRole && roles.length <= 1)}
+                      className={`h-8 w-8 p-0 ${!hasRole ? 'bg-success hover:bg-success/90' : ''}`}
+                    >
+                      {isLoading ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : hasRole ? (
+                        <X className="h-3.5 w-3.5" />
+                      ) : (
+                        <Plus className="h-3.5 w-3.5" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
-              </div>
-            );
-          })}
-        </div>
-        
-        <div className="p-2 border-t bg-muted/20">
-          <p className="text-[10px] text-center text-muted-foreground">
-            Tap + to add • Tap ✕ to remove • Toggle to enable/disable
-          </p>
-        </div>
-      </PopoverContent>
-    </Popover>
+              );
+            })}
+          </div>
+          
+          <div className="p-2 border-t bg-muted/20">
+            <p className="text-[10px] text-center text-muted-foreground">
+              Tap + to add • Tap ✕ to remove • Toggle to enable/disable
+            </p>
+          </div>
+        </PopoverContent>
+      </Popover>
+
+      {/* Manager Role Removal Confirmation */}
+      <AlertDialog open={confirmManagerRemoval} onOpenChange={setConfirmManagerRemoval}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <ShieldAlert className="h-5 w-5" />
+              Remove Manager Access?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                You are about to remove the <strong>Manager</strong> role from <strong>{userName}</strong>.
+              </p>
+              <p className="text-destructive font-medium">
+                This will revoke their admin access to the platform, including:
+              </p>
+              <ul className="list-disc list-inside text-sm space-y-1 text-muted-foreground">
+                <li>User management and role editing</li>
+                <li>Financial dashboard and reports</li>
+                <li>Deposit and withdrawal approvals</li>
+                <li>System-wide notifications</li>
+              </ul>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={loading === 'manager'}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleConfirmManagerRemoval}
+              disabled={loading === 'manager'}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {loading === 'manager' ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Removing...
+                </>
+              ) : (
+                'Remove Manager Role'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
