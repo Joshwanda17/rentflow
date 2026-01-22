@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import { useState, useEffect, useMemo, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
@@ -10,6 +10,7 @@ import { Separator } from '@/components/ui/separator';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { UserAvatar } from '@/components/UserAvatar';
+import { PullToRefresh } from '@/components/PullToRefresh';
 import { 
   Users, 
   HandCoins, 
@@ -35,7 +36,8 @@ import {
   Home,
   Bookmark,
   BookmarkCheck,
-  CheckCheck
+  CheckCheck,
+  RefreshCw
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -317,6 +319,14 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     return () => observer.disconnect();
   }, [hasMore, loadingMore, loading]);
 
+  // Pull-to-refresh handler
+  const handleRefresh = useCallback(async () => {
+    await fetchOpportunities(true);
+    await fetchWatchedOpportunities();
+    hapticSuccess();
+    toast.success('Opportunities refreshed');
+  }, []);
+
   const fetchSingleOpportunity = async (id: string) => {
     const { data, error } = await supabase
       .from('rent_requests')
@@ -534,11 +544,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="space-y-4"
-      >
+      <PullToRefresh onRefresh={handleRefresh} className="min-h-[200px]">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="space-y-4"
+        >
         {/* New opportunities banner */}
         {unseenCount > 0 && (
           <motion.div
@@ -836,6 +847,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </div>
         </div>
       </motion.div>
+      </PullToRefresh>
 
       {/* Opportunity Details Dialog */}
       <Dialog open={showDetails} onOpenChange={setShowDetails}>
