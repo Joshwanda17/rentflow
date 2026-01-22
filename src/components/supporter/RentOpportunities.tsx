@@ -716,81 +716,108 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       : opp.landlord 
         ? `${opp.landlord.name} not yet marked as ready to receive`
         : 'No landlord assigned';
+
+    // Calculate missing steps for pending opportunities
+    const missingSteps: string[] = [];
+    if (!opp.agent_verified) missingSteps.push('Agent');
+    if (!opp.manager_verified) missingSteps.push('Manager');
+    if (!landlordReady) missingSteps.push('Landlord');
+    const isPending = missingSteps.length === 3;
     
     return (
       <TooltipProvider delayDuration={300}>
-        <div className="flex items-center gap-1.5 flex-wrap">
-          {/* Agent Verification Badge */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
-                  opp.agent_verified 
-                    ? 'bg-success/10 text-success border-success/30' 
-                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
-                }`}
-              >
-                {opp.agent_verified ? (
-                  <CheckCircle2 className="h-2.5 w-2.5" />
-                ) : (
-                  <Clock className="h-2.5 w-2.5" />
-                )}
-                Agent {opp.agent_verified ? '✓' : '○'}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[200px] text-xs">
-              <p>{agentTooltip}</p>
-            </TooltipContent>
-          </Tooltip>
+        <div className="space-y-1.5">
+          {/* Missing Steps Indicator for Pending */}
+          {isPending && (
+            <div className="flex items-center gap-1.5 text-[10px] text-orange-600 dark:text-orange-400 bg-orange-500/10 px-2 py-1 rounded-md border border-orange-500/20">
+              <AlertTriangle className="h-3 w-3" />
+              <span className="font-medium">Needs: Agent → Manager → Landlord</span>
+            </div>
+          )}
           
-          {/* Manager Verification Badge */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
-                  opp.manager_verified 
-                    ? 'bg-primary/10 text-primary border-primary/30' 
-                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
-                }`}
-              >
-                {opp.manager_verified ? (
-                  <CheckCircle2 className="h-2.5 w-2.5" />
-                ) : (
-                  <Clock className="h-2.5 w-2.5" />
-                )}
-                Manager {opp.manager_verified ? '✓' : '○'}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[200px] text-xs">
-              <p>{managerTooltip}</p>
-            </TooltipContent>
-          </Tooltip>
-          
-          {/* Landlord Ready to Receive Badge */}
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Badge 
-                variant="outline" 
-                className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help ${
-                  landlordReady 
-                    ? 'bg-warning/10 text-warning border-warning/30' 
-                    : 'bg-muted/50 text-muted-foreground border-muted-foreground/20'
-                }`}
-              >
-                {landlordReady ? (
-                  <Building className="h-2.5 w-2.5" />
-                ) : (
-                  <Clock className="h-2.5 w-2.5" />
-                )}
-                Landlord {landlordReady ? '✓' : '○'}
-              </Badge>
-            </TooltipTrigger>
-            <TooltipContent side="top" className="max-w-[200px] text-xs">
-              <p>{landlordTooltip}</p>
-            </TooltipContent>
-          </Tooltip>
+          {/* Partial verification - show what's missing */}
+          {!isPending && missingSteps.length > 0 && (
+            <div className="flex items-center gap-1.5 text-[10px] text-warning bg-warning/10 px-2 py-1 rounded-md border border-warning/20">
+              <Clock className="h-3 w-3" />
+              <span className="font-medium">
+                Still needs: {missingSteps.join(' & ')}
+              </span>
+            </div>
+          )}
+
+          <div className="flex items-center gap-1.5 flex-wrap">
+            {/* Agent Verification Badge */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help transition-all ${
+                    opp.agent_verified 
+                      ? 'bg-success/10 text-success border-success/30' 
+                      : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 border-dashed'
+                  }`}
+                >
+                  {opp.agent_verified ? (
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                  ) : (
+                    <Timer className="h-2.5 w-2.5 animate-pulse" />
+                  )}
+                  Agent {opp.agent_verified ? '✓' : '○'}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[200px] text-xs">
+                <p>{agentTooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            {/* Manager Verification Badge */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help transition-all ${
+                    opp.manager_verified 
+                      ? 'bg-primary/10 text-primary border-primary/30' 
+                      : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 border-dashed'
+                  }`}
+                >
+                  {opp.manager_verified ? (
+                    <CheckCircle2 className="h-2.5 w-2.5" />
+                  ) : (
+                    <Timer className="h-2.5 w-2.5 animate-pulse" />
+                  )}
+                  Manager {opp.manager_verified ? '✓' : '○'}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[200px] text-xs">
+                <p>{managerTooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+            
+            {/* Landlord Ready to Receive Badge */}
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Badge 
+                  variant="outline" 
+                  className={`text-[10px] px-1.5 py-0.5 gap-1 cursor-help transition-all ${
+                    landlordReady 
+                      ? 'bg-warning/10 text-warning border-warning/30' 
+                      : 'bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 border-dashed'
+                  }`}
+                >
+                  {landlordReady ? (
+                    <Building className="h-2.5 w-2.5" />
+                  ) : (
+                    <Timer className="h-2.5 w-2.5 animate-pulse" />
+                  )}
+                  Landlord {landlordReady ? '✓' : '○'}
+                </Badge>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[200px] text-xs">
+                <p>{landlordTooltip}</p>
+              </TooltipContent>
+            </Tooltip>
+          </div>
         </div>
       </TooltipProvider>
     );
