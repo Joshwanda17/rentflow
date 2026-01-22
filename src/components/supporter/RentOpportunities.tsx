@@ -435,9 +435,20 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
   const getVerificationProgress = (opp: RentOpportunity) => {
     let progress = 0;
-    if (opp.agent_verified) progress += 50;
-    if (opp.manager_verified) progress += 50;
+    if (opp.agent_verified) progress += 25;
+    if (opp.manager_verified) progress += 25;
+    if (opp.landlord?.ready_to_receive) progress += 25;
+    if (opp.status === 'approved' && opp.landlord?.ready_to_receive) progress += 25;
     return progress;
+  };
+
+  const getVerificationStepCount = (opp: RentOpportunity) => {
+    let steps = 0;
+    if (opp.agent_verified) steps++;
+    if (opp.manager_verified) steps++;
+    if (opp.landlord?.ready_to_receive) steps++;
+    if (opp.status === 'approved' && opp.landlord?.ready_to_receive) steps++;
+    return steps;
   };
 
   // Filter and sort opportunities
@@ -1079,9 +1090,39 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                             </span>
                           </div>
 
-                          {/* Verification Progress */}
+                          {/* Verification Progress - 4 Steps */}
                           <div className="mt-2 space-y-1.5">
-                            <Progress value={verificationProgress} className="h-1.5" />
+                            <div className="flex items-center gap-1">
+                              <div className="flex-1 flex gap-0.5">
+                                {/* Step 1: Agent */}
+                                <div className={`h-1.5 flex-1 rounded-l-full transition-colors ${
+                                  opportunity.agent_verified 
+                                    ? 'bg-success' 
+                                    : 'bg-muted'
+                                }`} />
+                                {/* Step 2: Manager */}
+                                <div className={`h-1.5 flex-1 transition-colors ${
+                                  opportunity.manager_verified 
+                                    ? 'bg-primary' 
+                                    : 'bg-muted'
+                                }`} />
+                                {/* Step 3: Landlord Ready */}
+                                <div className={`h-1.5 flex-1 transition-colors ${
+                                  opportunity.landlord?.ready_to_receive 
+                                    ? 'bg-warning' 
+                                    : 'bg-muted'
+                                }`} />
+                                {/* Step 4: Funding Ready */}
+                                <div className={`h-1.5 flex-1 rounded-r-full transition-colors ${
+                                  opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive
+                                    ? 'bg-gradient-to-r from-success to-primary' 
+                                    : 'bg-muted'
+                                }`} />
+                              </div>
+                              <span className="text-[10px] font-medium text-muted-foreground ml-1.5">
+                                {getVerificationStepCount(opportunity)}/4
+                              </span>
+                            </div>
                             {renderVerificationBadges(opportunity)}
                           </div>
                         </div>
