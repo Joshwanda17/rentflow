@@ -155,10 +155,10 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       return [
         ...baseItems,
         { 
-          href: '/dashboard#opportunities', 
+          href: '/opportunities', 
           icon: TrendingUp, 
           label: 'Invest',
-          active: location.hash === '#opportunities',
+          active: location.pathname === '/opportunities',
           badge: pendingOpportunities > 0 ? pendingOpportunities : undefined
         },
         { 
