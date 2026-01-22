@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -77,19 +77,34 @@ interface FundedRequestWithDetails extends FundedRequest {
 export function FundedHistory() {
   const [fundedRequests, setFundedRequests] = useState<FundedRequestWithDetails[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMore, setHasMore] = useState(true);
+  const [page, setPage] = useState(0);
+  const PAGE_SIZE = 15;
+  const loadMoreRef = useRef<HTMLDivElement>(null);
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   useEffect(() => {
-    fetchFundedHistory();
+    fetchFundedHistory(true);
   }, []);
 
-  const fetchFundedHistory = async () => {
-    setLoading(true);
+  const fetchFundedHistory = async (reset: boolean = true) => {
     const { data: userData } = await supabase.auth.getUser();
     if (!userData.user) {
       setLoading(false);
       return;
     }
+
+    if (reset) {
+      setLoading(true);
+      setPage(0);
+    } else {
+      setLoadingMore(true);
+    }
+
+    const currentPage = reset ? 0 : page;
+    const from = currentPage * PAGE_SIZE;
+    const to = from + PAGE_SIZE - 1;
 
     // Fetch funded requests for this supporter
     const { data: requests, error } = await supabase
@@ -108,11 +123,13 @@ export function FundedHistory() {
       `)
       .eq('supporter_id', userData.user.id)
       .eq('status', 'funded')
-      .order('funded_at', { ascending: false });
+      .order('funded_at', { ascending: false })
+      .range(from, to);
 
     if (error || !requests) {
       console.error('Error fetching funded history:', error);
       setLoading(false);
+      setLoadingMore(false);
       return;
     }
 
@@ -166,9 +183,40 @@ export function FundedHistory() {
       })
     );
 
-    setFundedRequests(requestsWithDetails);
+    if (reset) {
+      setFundedRequests(requestsWithDetails);
+    } else {
+      setFundedRequests(prev => [...prev, ...requestsWithDetails]);
+    }
+    setHasMore(requests.length === PAGE_SIZE);
+    setPage(currentPage + 1);
     setLoading(false);
+    setLoadingMore(false);
   };
+
+  const loadMore = () => {
+    if (!loadingMore && hasMore) {
+      fetchFundedHistory(false);
+    }
+  };
+
+  // Intersection Observer for infinite scroll
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loadingMore && !loading) {
+          loadMore();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (loadMoreRef.current) {
+      observer.observe(loadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMore, loadingMore, loading]);
 
   const getStatusBadge = (progress: number, status: string) => {
     if (progress >= 100) {
@@ -492,6 +540,21 @@ export function FundedHistory() {
             );
           })}
         </AnimatePresence>
+        
+        {/* Infinite scroll trigger */}
+        <div ref={loadMoreRef} className="py-4">
+          {loadingMore && (
+            <div className="flex items-center justify-center gap-2 text-muted-foreground">
+              <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span className="text-sm">Loading more...</span>
+            </div>
+          )}
+          {!hasMore && fundedRequests.length > 0 && (
+            <p className="text-xs text-center text-muted-foreground">
+              You've seen all {fundedRequests.length} funded requests
+            </p>
+          )}
+        </div>
       </div>
     </motion.div>
   );
