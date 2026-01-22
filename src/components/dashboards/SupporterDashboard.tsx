@@ -102,6 +102,7 @@ export default function SupporterDashboard({
   const { isOnline } = useOffline();
   const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
   const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
+  const [opportunityCount, setOpportunityCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [showCreateAccount, setShowCreateAccount] = useState(false);
@@ -208,7 +209,7 @@ export default function SupporterDashboard({
     setLoading(true);
     
     try {
-      const [availableRes, fundedRes, accountsRes] = await Promise.all([
+      const [availableRes, fundedRes, accountsRes, opportunityCountRes] = await Promise.all([
         supabase
           .from('rent_requests')
           .select('id, rent_amount, duration_days, status, created_at, agent_verified, manager_verified')
@@ -223,7 +224,12 @@ export default function SupporterDashboard({
           .from('investment_accounts')
           .select('*')
           .eq('user_id', user.id)
-          .order('created_at', { ascending: true })
+          .order('created_at', { ascending: true }),
+        // Count all unfunded opportunities (pending + approved)
+        supabase
+          .from('rent_requests')
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['pending', 'approved'])
       ]);
       
       const newAvailableRequests = availableRes.data || [];
@@ -237,10 +243,12 @@ export default function SupporterDashboard({
         color: acc.color,
         status: acc.status as 'pending' | 'approved' | 'rejected',
       }));
+      const newOpportunityCount = opportunityCountRes.count || 0;
       
       setAvailableRequests(newAvailableRequests);
       setFundedRequests(newFundedRequests);
       setAccounts(newAccounts);
+      setOpportunityCount(newOpportunityCount);
       
       // Track if user has ever funded (for first-time celebration)
       if (hasEverFunded === null) {
@@ -551,6 +559,7 @@ export default function SupporterDashboard({
         onRoleChange={onRoleChange}
         onSignOut={signOut}
         menuItems={menuItems}
+        opportunityCount={opportunityCount}
       />
 
       <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">

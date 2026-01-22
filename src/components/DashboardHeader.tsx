@@ -34,6 +34,7 @@ interface DashboardHeaderProps {
   onRoleChange: (role: AppRole) => void;
   onSignOut: () => Promise<void>;
   menuItems?: MenuItemConfig[];
+  opportunityCount?: number;
 }
 
 export default function DashboardHeader({
@@ -42,6 +43,7 @@ export default function DashboardHeader({
   onRoleChange,
   onSignOut,
   menuItems = [],
+  opportunityCount,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { isIOS, isInstalled, isInstallable, promptInstall } = usePWAInstall();
@@ -67,15 +69,23 @@ export default function DashboardHeader({
           <div className="flex items-center justify-between">
             {/* Left: Logo & Role Switcher - Always visible */}
             <div className="flex items-center gap-2">
-              <span 
-                className="text-lg font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
-                style={{ fontFamily: "'Chewy', cursive" }}
-                onClick={() => navigate('/')}
-              >
-                Welile
-              </span>
+              <div className="relative">
+                <span 
+                  className="text-lg font-bold text-white tracking-tight cursor-pointer hover:opacity-90 transition-opacity"
+                  style={{ fontFamily: "'Chewy', cursive" }}
+                  onClick={() => navigate('/')}
+                >
+                  Welile
+                </span>
+                {/* Opportunity Count Badge - Only for supporters */}
+                {opportunityCount !== undefined && opportunityCount > 0 && (
+                  <span className="absolute -top-1 -right-5 min-w-[18px] h-[18px] flex items-center justify-center text-[10px] font-bold bg-white text-primary rounded-full px-1 shadow-md animate-pulse">
+                    {opportunityCount > 99 ? '99+' : opportunityCount}
+                  </span>
+                )}
+              </div>
               {/* Role Switcher - ALWAYS visible on all screen sizes */}
-              <div className="h-4 w-px bg-white/25 rounded-full" />
+              <div className="h-4 w-px bg-white/25 rounded-full ml-3" />
               <RoleSwitcher
                 currentRole={currentRole}
                 availableRoles={availableRoles}
