@@ -922,72 +922,100 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </motion.div>
         )}
 
-        {/* Summary Card - Total Potential Earnings */}
+        {/* Summary Card - Total Potential Earnings - SIMPLIFIED FOR MOBILE */}
         {summaryStats.total.count > 0 && (
-          <Card className="border-0 bg-gradient-to-br from-success/10 via-background to-primary/10 overflow-hidden">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-2">
-                  <div className="p-2 rounded-lg bg-success/20">
-                    <TrendingUp className="h-4 w-4 text-success" />
+          <Card className="border-0 bg-gradient-to-br from-success/15 via-background to-primary/15 overflow-hidden shadow-lg">
+            <CardContent className="p-5">
+              {/* Main Earnings Display - Large & Clear */}
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-success/20 shadow-inner">
+                    <TrendingUp className="h-6 w-6 text-success" />
                   </div>
-                  <span className="text-sm font-semibold text-foreground">Potential Earnings</span>
+                  <div>
+                    <p className="text-base font-bold text-foreground">Your Potential</p>
+                    <p className="text-xs text-muted-foreground">Earnings from all opportunities</p>
+                  </div>
                 </div>
                 <div className="text-right">
-                  <p className="text-lg font-bold text-success">{formatUGX(summaryStats.total.roi)}</p>
-                  <p className="text-[10px] text-muted-foreground">{summaryStats.total.count} opportunities</p>
+                  <p className="text-2xl font-black text-success tracking-tight">{formatUGX(summaryStats.total.roi)}</p>
+                  <p className="text-sm font-medium text-muted-foreground">{summaryStats.total.count} available</p>
                 </div>
               </div>
               
-              {/* Breakdown by verification status */}
-              <div className="grid grid-cols-3 gap-2">
-                <div className="p-2.5 rounded-lg bg-primary/10 border border-primary/20">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <CheckCircle2 className="h-3 w-3 text-primary" />
-                    <span className="text-[10px] font-medium text-muted-foreground">Verified</span>
-                  </div>
-                  <p className="text-sm font-bold text-primary">{formatUGX(summaryStats.verified.roi)}</p>
-                  <p className="text-[9px] text-muted-foreground">{summaryStats.verified.count} ready</p>
-                </div>
+              {/* Simple 3-Column Stats - Larger Touch Targets */}
+              <div className="grid grid-cols-3 gap-3">
+                <button 
+                  onClick={() => { hapticTap(); setFilterBy('verified'); }}
+                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                    filterBy === 'verified' 
+                      ? 'bg-primary text-primary-foreground ring-2 ring-primary shadow-md' 
+                      : 'bg-primary/10 border-2 border-primary/20 hover:bg-primary/20'
+                  }`}
+                >
+                  <CheckCircle2 className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'verified' ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <p className={`text-lg font-bold ${filterBy === 'verified' ? 'text-primary-foreground' : 'text-primary'}`}>
+                    {summaryStats.verified.count}
+                  </p>
+                  <p className={`text-xs font-medium ${filterBy === 'verified' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                    Ready
+                  </p>
+                </button>
                 
-                <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/20">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Clock className="h-3 w-3 text-warning" />
-                    <span className="text-[10px] font-medium text-muted-foreground">Verifying</span>
-                  </div>
-                  <p className="text-sm font-bold text-warning">{formatUGX(summaryStats.verifying.roi)}</p>
-                  <p className="text-[9px] text-muted-foreground">{summaryStats.verifying.count} in progress</p>
-                </div>
+                <button 
+                  onClick={() => { hapticTap(); setFilterBy('verifying'); }}
+                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                    filterBy === 'verifying' 
+                      ? 'bg-warning text-warning-foreground ring-2 ring-warning shadow-md' 
+                      : 'bg-warning/10 border-2 border-warning/20 hover:bg-warning/20'
+                  }`}
+                >
+                  <Clock className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`} />
+                  <p className={`text-lg font-bold ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`}>
+                    {summaryStats.verifying.count}
+                  </p>
+                  <p className={`text-xs font-medium ${filterBy === 'verifying' ? 'text-warning-foreground/80' : 'text-muted-foreground'}`}>
+                    Verifying
+                  </p>
+                </button>
                 
-                <div className="p-2.5 rounded-lg bg-muted/60 border border-border/40">
-                  <div className="flex items-center gap-1.5 mb-1">
-                    <Timer className="h-3 w-3 text-muted-foreground" />
-                    <span className="text-[10px] font-medium text-muted-foreground">Pending</span>
-                  </div>
-                  <p className="text-sm font-bold text-foreground">{formatUGX(summaryStats.pending.roi)}</p>
-                  <p className="text-[9px] text-muted-foreground">{summaryStats.pending.count} new</p>
-                </div>
+                <button 
+                  onClick={() => { hapticTap(); setFilterBy('pending'); }}
+                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                    filterBy === 'pending' 
+                      ? 'bg-orange-500 text-white ring-2 ring-orange-500 shadow-md' 
+                      : 'bg-orange-500/10 border-2 border-orange-500/20 hover:bg-orange-500/20'
+                  }`}
+                >
+                  <Timer className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'pending' ? 'text-white' : 'text-orange-500'}`} />
+                  <p className={`text-lg font-bold ${filterBy === 'pending' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`}>
+                    {summaryStats.pending.count}
+                  </p>
+                  <p className={`text-xs font-medium ${filterBy === 'pending' ? 'text-white/80' : 'text-muted-foreground'}`}>
+                    New
+                  </p>
+                </button>
               </div>
             </CardContent>
           </Card>
         )}
 
-        {/* Header */}
+        {/* Header - LARGE & ACCESSIBLE */}
         <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-4">
             <div className="relative">
-              <div className="p-2.5 rounded-xl bg-gradient-to-br from-success to-success/80 text-white shadow-lg shadow-success/25">
-                <TrendingUp className="h-5 w-5" />
+              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-success to-success/80 text-white shadow-xl shadow-success/30">
+                <TrendingUp className="h-7 w-7" />
               </div>
               {opportunities.length > 0 && (
-                <span className="absolute -top-1 -right-1 w-5 h-5 bg-warning text-warning-foreground text-[10px] font-bold rounded-full flex items-center justify-center animate-pulse">
+                <span className="absolute -top-2 -right-2 min-w-[24px] h-6 px-1.5 bg-warning text-warning-foreground text-sm font-bold rounded-full flex items-center justify-center shadow-md">
                   {opportunities.length}
                 </span>
               )}
             </div>
             <div>
-              <h3 className="font-bold text-foreground text-lg">Investment Opportunities</h3>
-              <p className="text-xs text-muted-foreground">Earn 15% monthly returns</p>
+              <h3 className="font-black text-foreground text-xl tracking-tight">Opportunities</h3>
+              <p className="text-sm font-medium text-success">Earn 15% monthly</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
@@ -1002,304 +1030,244 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                 <span className="hidden sm:inline">Mark all seen</span>
               </Button>
             )}
-            <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-semibold">
-              <Zap className="h-3 w-3 mr-1" />
+            <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-bold text-sm px-3 py-1">
+              <Zap className="h-4 w-4 mr-1" />
               Live
             </Badge>
           </div>
         </div>
 
-        {/* Search Bar */}
+        {/* Search Bar - Larger for Easy Typing */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
             type="text"
-            placeholder="Search by tenant name or amount..."
+            placeholder="Search tenant or amount..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-9 pr-9 h-10 bg-muted/40 border-muted-foreground/20 focus:bg-background"
+            className="pl-12 pr-12 h-14 text-base bg-muted/40 border-2 border-muted-foreground/20 focus:bg-background focus:border-primary rounded-xl"
+            style={{ fontSize: '16px' }}
           />
           {searchQuery && (
             <button
               onClick={() => setSearchQuery('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 p-0.5 rounded-full hover:bg-muted transition-colors"
+              className="absolute right-3 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted transition-colors touch-manipulation active:scale-95"
             >
-              <X className="h-4 w-4 text-muted-foreground" />
+              <X className="h-5 w-5 text-muted-foreground" />
             </button>
           )}
         </div>
 
-        {/* Quick Filter Chips with ROI */}
-        <div className="flex gap-2 overflow-x-auto pb-2 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Quick Filter Chips - SIMPLIFIED & LARGER */}
+        <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
-            { value: 'all', label: 'All', icon: null, count: null },
-            { value: 'unseen', label: 'New', icon: '🔵', count: unseenCount },
-            { value: 'watched', label: 'Watching', icon: '⭐', count: watchedIds.size },
-            { value: 'landlord_ready', label: 'Landlord Ready', icon: '🏠', count: landlordReadyCount },
-            { value: 'funded', label: 'Funded', icon: '💰', count: null },
-            { value: 'verified', label: 'Verified', icon: '✓', count: null },
-            { value: 'verifying', label: 'Verifying', icon: '⏳', count: null },
-            { value: 'pending', label: 'Pending', icon: '🆕', count: null },
-          ].map((filter) => {
-            const roi = filterROI[filter.value as keyof typeof filterROI] || 0;
-            const formattedROI = roi >= 1000000 
-              ? `${(roi / 1000000).toFixed(1)}M` 
-              : roi >= 1000 
-                ? `${Math.round(roi / 1000)}K` 
-                : roi > 0 
-                  ? roi.toString() 
-                  : '';
-            
-            return (
-              <button
-                key={filter.value}
-                onClick={() => {
-                  hapticTap();
-                  setFilterBy(filter.value as FilterOption);
-                }}
-                className={`flex flex-col items-center gap-0.5 px-3 py-1.5 rounded-xl text-xs font-medium whitespace-nowrap transition-all active:scale-95 touch-manipulation min-w-[60px] ${
-                  filterBy === filter.value
-                    ? 'bg-primary text-primary-foreground shadow-md'
-                    : 'bg-muted/60 text-muted-foreground hover:bg-muted'
-                }`}
-              >
-                <div className="flex items-center gap-1">
-                  {filter.icon && <span className="text-[10px]">{filter.icon}</span>}
-                  <span>{filter.label}</span>
-                  {filter.count !== null && filter.count > 0 && (
-                    <span className={`text-[10px] ${filterBy === filter.value ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
-                      ({filter.count})
-                    </span>
-                  )}
-                </div>
-                {formattedROI && roi > 0 && (
-                  <span className={`text-[9px] font-bold ${
-                    filterBy === filter.value 
-                      ? 'text-primary-foreground/90' 
-                      : 'text-success'
-                  }`}>
-                    +{formattedROI}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+            { value: 'all', label: 'All', icon: '📋' },
+            { value: 'verified', label: 'Ready', icon: '✅' },
+            { value: 'verifying', label: 'Verifying', icon: '⏳' },
+            { value: 'pending', label: 'New', icon: '🆕' },
+            { value: 'watched', label: 'Watching', icon: '👁️' },
+          ].map((filter) => (
+            <button
+              key={filter.value}
+              onClick={() => {
+                hapticTap();
+                setFilterBy(filter.value as FilterOption);
+              }}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 touch-manipulation min-h-[48px] ${
+                filterBy === filter.value
+                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary'
+                  : 'bg-muted/80 text-foreground hover:bg-muted border-2 border-transparent'
+              }`}
+            >
+              <span className="text-base">{filter.icon}</span>
+              <span>{filter.label}</span>
+            </button>
+          ))}
         </div>
 
-        {/* Sort Dropdown */}
-        <div className="flex gap-2 items-center">
+        {/* Sort & Watchlist - SIMPLIFIED */}
+        <div className="flex gap-3 items-center justify-between">
           <Select value={sortBy} onValueChange={(v) => setSortBy(v as SortOption)}>
-            <SelectTrigger className="w-auto h-8 text-xs gap-1.5 border-dashed">
-              <ArrowUpDown className="h-3 w-3" />
+            <SelectTrigger className="h-12 text-sm font-medium gap-2 border-2 rounded-xl min-w-[140px] touch-manipulation">
+              <ArrowUpDown className="h-4 w-4" />
               <SelectValue placeholder="Sort" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="newest">Newest First</SelectItem>
-              <SelectItem value="oldest">Oldest First</SelectItem>
-              <SelectItem value="amount_high">Highest Amount</SelectItem>
-              <SelectItem value="amount_low">Lowest Amount</SelectItem>
+              <SelectItem value="newest" className="text-base py-3">Newest First</SelectItem>
+              <SelectItem value="oldest" className="text-base py-3">Oldest First</SelectItem>
+              <SelectItem value="amount_high" className="text-base py-3">Highest Amount</SelectItem>
+              <SelectItem value="amount_low" className="text-base py-3">Lowest Amount</SelectItem>
             </SelectContent>
           </Select>
 
           {watchedIds.size > 0 && (
             <Button
-              variant="ghost"
-              size="sm"
+              variant="outline"
               onClick={() => navigate('/my-watchlist')}
-              className="h-8 px-2 text-xs shrink-0 gap-1"
+              className="h-12 px-4 text-sm font-bold gap-2 rounded-xl border-2 touch-manipulation active:scale-95"
             >
-              <Bookmark className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">View Watchlist</span>
+              <Bookmark className="h-4 w-4" />
+              Watchlist ({watchedIds.size})
             </Button>
           )}
         </div>
 
-        {/* Opportunities List */}
-        <div className="space-y-3">
+        {/* Opportunities List - OPTIMIZED FOR SMALL SCREENS */}
+        <div className="space-y-4">
           <AnimatePresence>
             {filteredAndSortedOpportunities.map((opportunity, index) => {
               const isFunded = opportunity.status === 'funded';
               const reward = calculateSupporterReward(opportunity.rent_amount);
               const isNew = opportunity.id === newOpportunityId;
               const isUnseen = !lastSeenAt || new Date(opportunity.created_at) > lastSeenAt;
-              const verificationProgress = getVerificationProgress(opportunity);
+              const verificationStatus = getVerificationStatus(opportunity);
+              const stepsComplete = getVerificationStepCount(opportunity);
               
               return (
                 <motion.div
                   key={opportunity.id}
-                  initial={{ opacity: 0, x: -20, scale: 0.95 }}
-                  animate={{ 
-                    opacity: 1, 
-                    x: 0, 
-                    scale: 1,
-                  }}
-                  exit={{ opacity: 0, x: 20, scale: 0.95 }}
-                  transition={{ delay: index * 0.03 }}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -10 }}
+                  transition={{ delay: index * 0.02 }}
                   onClick={() => handleCardClick(opportunity)}
-                  className="cursor-pointer"
+                  className="cursor-pointer touch-manipulation active:scale-[0.98] transition-transform"
                 >
-                  <Card className={`border-0 overflow-hidden transition-all hover:scale-[1.02] relative ${
+                  <Card className={`border-2 overflow-hidden shadow-lg ${
                     isFunded
-                      ? 'bg-gradient-to-r from-primary/15 via-primary/5 to-transparent ring-1 ring-primary/30'
+                      ? 'bg-gradient-to-br from-primary/20 to-primary/5 border-primary/40'
                       : isNew 
-                        ? 'bg-gradient-to-r from-success/20 via-success/10 to-transparent ring-2 ring-success/50' 
-                        : isUnseen
-                          ? 'bg-gradient-to-r from-primary/10 via-card to-success/5 ring-1 ring-primary/20'
-                          : 'bg-gradient-to-r from-card via-card to-success/5 hover:from-success/5'
+                        ? 'bg-gradient-to-br from-success/20 to-success/5 border-success/50 ring-2 ring-success/30' 
+                        : verificationStatus === 'verified'
+                          ? 'bg-gradient-to-br from-primary/15 to-success/10 border-primary/30'
+                          : verificationStatus === 'verifying'
+                            ? 'bg-gradient-to-br from-warning/15 to-warning/5 border-warning/30'
+                            : 'bg-gradient-to-br from-orange-500/10 to-muted/50 border-orange-500/30'
                   }`}>
-                    {/* Unseen indicator dot */}
-                    {isUnseen && !isNew && (
-                      <div className="absolute top-3 right-3 z-10">
-                        <span className="relative flex h-2.5 w-2.5">
-                          <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-primary opacity-75"></span>
-                          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-primary"></span>
-                        </span>
+                    <CardContent className="p-5">
+                      {/* TOP ROW: Status + Watch Button */}
+                      <div className="flex items-center justify-between mb-3">
+                        <div className="flex items-center gap-2">
+                          {isNew && (
+                            <Badge className="bg-success text-success-foreground text-xs font-bold px-2.5 py-1 animate-pulse">
+                              <Sparkles className="h-3.5 w-3.5 mr-1" />
+                              NEW
+                            </Badge>
+                          )}
+                          {getStatusBadge(opportunity)}
+                        </div>
+                        
+                        {/* Watch Button - Large Touch Target */}
+                        <TooltipProvider delayDuration={200}>
+                          <Tooltip>
+                            <TooltipTrigger asChild>
+                              <button
+                                onClick={(e) => handleWatch(e, opportunity.id)}
+                                disabled={watchingId === opportunity.id}
+                                className={`p-3 rounded-xl transition-all touch-manipulation active:scale-90 min-w-[48px] min-h-[48px] flex items-center justify-center ${
+                                  watchedIds.has(opportunity.id)
+                                    ? 'bg-warning text-warning-foreground shadow-md'
+                                    : 'bg-muted/80 text-muted-foreground hover:bg-warning/20 hover:text-warning'
+                                }`}
+                              >
+                                {watchedIds.has(opportunity.id) ? (
+                                  <BookmarkCheck className="h-5 w-5" />
+                                ) : (
+                                  <Bell className="h-5 w-5" />
+                                )}
+                              </button>
+                            </TooltipTrigger>
+                            <TooltipContent side="left">
+                              <p className="text-xs font-medium">
+                                {watchedIds.has(opportunity.id) ? 'Watching' : 'Watch for updates'}
+                              </p>
+                            </TooltipContent>
+                          </Tooltip>
+                        </TooltipProvider>
                       </div>
-                    )}
-                    <CardContent className="p-4">
-                      <div className="flex items-start gap-4">
-                        {/* Tenant Avatar */}
+
+                      {/* MAIN CONTENT: Amount & ROI - LARGE & CLEAR */}
+                      <div className="flex items-center gap-4 mb-4">
                         <UserAvatar 
                           avatarUrl={opportunity.tenant?.avatar_url} 
                           fullName={opportunity.tenant?.full_name || 'Tenant'} 
-                          size="md"
+                          size="lg"
                         />
-
-                        {/* Content */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2 mb-1">
-                            {isNew && (
-                              <Badge className="bg-success text-success-foreground text-[10px] animate-pulse">
-                                <Sparkles className="h-3 w-3 mr-1" />
-                                NEW
-                              </Badge>
-                            )}
-                            {getStatusBadge(opportunity)}
-                          </div>
-                          
-                          {/* Tenant Name - Clickable */}
-                          <p className="font-semibold text-sm text-foreground truncate">
+                          <p className="font-bold text-base text-foreground truncate mb-1">
                             {opportunity.tenant?.full_name || 'Anonymous Tenant'}
                           </p>
                           
-                          <p className="font-black text-xl text-foreground mt-1">
+                          {/* Amount - EXTRA LARGE */}
+                          <p className="font-black text-3xl text-foreground tracking-tight">
                             {formatUGX(opportunity.rent_amount)}
                           </p>
-                          
-                          <div className="flex items-center gap-3 mt-1">
-                            <span className="text-sm font-semibold text-success flex items-center gap-1">
-                              <TrendingUp className="h-3.5 w-3.5" />
-                              +{formatUGX(reward)}
-                            </span>
-                            <span className="text-xs text-muted-foreground">
-                              {opportunity.duration_days} days
-                            </span>
-                          </div>
-
-                          {/* Verification Progress - 4 Steps */}
-                          <div className="mt-2 space-y-1.5">
-                            <div className="flex items-center gap-1">
-                              <div className="flex-1 flex gap-0.5">
-                                {/* Step 1: Agent */}
-                                <div className={`h-1.5 flex-1 rounded-l-full transition-colors ${
-                                  opportunity.agent_verified 
-                                    ? 'bg-success' 
-                                    : 'bg-muted'
-                                }`} />
-                                {/* Step 2: Manager */}
-                                <div className={`h-1.5 flex-1 transition-colors ${
-                                  opportunity.manager_verified 
-                                    ? 'bg-primary' 
-                                    : 'bg-muted'
-                                }`} />
-                                {/* Step 3: Landlord Ready */}
-                                <div className={`h-1.5 flex-1 transition-colors ${
-                                  opportunity.landlord?.ready_to_receive 
-                                    ? 'bg-warning' 
-                                    : 'bg-muted'
-                                }`} />
-                                {/* Step 4: Funding Ready */}
-                                <div className={`h-1.5 flex-1 rounded-r-full transition-colors ${
-                                  opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive
-                                    ? 'bg-gradient-to-r from-success to-primary' 
-                                    : 'bg-muted'
-                                }`} />
-                              </div>
-                              <span className="text-[10px] font-medium text-muted-foreground ml-1.5">
-                                {getVerificationStepCount(opportunity)}/4
-                              </span>
-                            </div>
-                            {renderVerificationBadges(opportunity)}
-                          </div>
-                        </div>
-
-                        {/* Watch & View Actions */}
-                        <div className="flex flex-col items-center gap-2">
-                          {/* Watch for Verification Button */}
-                          <TooltipProvider delayDuration={200}>
-                            <Tooltip>
-                              <TooltipTrigger asChild>
-                                <button
-                                  onClick={(e) => handleWatch(e, opportunity.id)}
-                                  disabled={watchingId === opportunity.id}
-                                  className={`relative p-2 rounded-full transition-all touch-manipulation active:scale-95 ${
-                                    watchedIds.has(opportunity.id)
-                                      ? 'bg-warning/20 text-warning ring-2 ring-warning/30'
-                                      : getVerificationStatus(opportunity) === 'pending'
-                                        ? 'bg-orange-500/10 text-orange-500 hover:bg-orange-500/20 ring-1 ring-orange-500/30 animate-pulse'
-                                        : 'bg-muted/50 text-muted-foreground hover:bg-warning/10 hover:text-warning'
-                                  }`}
-                                >
-                                  {watchedIds.has(opportunity.id) ? (
-                                    <BookmarkCheck className="h-4 w-4" />
-                                  ) : (
-                                    <Bell className="h-4 w-4" />
-                                  )}
-                                  {/* Notification dot for pending */}
-                                  {!watchedIds.has(opportunity.id) && getVerificationStatus(opportunity) === 'pending' && (
-                                    <span className="absolute -top-0.5 -right-0.5 w-2 h-2 bg-orange-500 rounded-full" />
-                                  )}
-                                </button>
-                              </TooltipTrigger>
-                              <TooltipContent side="left" className="max-w-[180px]">
-                                {watchedIds.has(opportunity.id) ? (
-                                  <p className="text-xs">
-                                    <span className="font-medium text-warning">Watching!</span><br/>
-                                    You'll be notified when verified
-                                  </p>
-                                ) : getVerificationStatus(opportunity) === 'pending' ? (
-                                  <p className="text-xs">
-                                    <span className="font-medium">Watch for Verification</span><br/>
-                                    Get notified when this becomes verified & ready to fund
-                                  </p>
-                                ) : (
-                                  <p className="text-xs">
-                                    <span className="font-medium">Watch Opportunity</span><br/>
-                                    Track this opportunity
-                                  </p>
-                                )}
-                              </TooltipContent>
-                            </Tooltip>
-                          </TooltipProvider>
-                          {/* View Details */}
-                          <div className="p-2 rounded-full bg-success/10 text-success">
-                            <Eye className="h-4 w-4" />
-                          </div>
                         </div>
                       </div>
 
-                      {/* Time & Landlord info */}
-                      <div className="flex items-center justify-between mt-3 pt-2 border-t border-border/50">
-                        <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                          <Clock className="h-3 w-3" />
+                      {/* ROI & Duration - PROMINENT */}
+                      <div className="flex items-center gap-4 p-3 rounded-xl bg-success/10 border border-success/20 mb-4">
+                        <div className="flex items-center gap-2">
+                          <div className="p-2 rounded-lg bg-success/20">
+                            <TrendingUp className="h-5 w-5 text-success" />
+                          </div>
+                          <div>
+                            <p className="text-xs text-muted-foreground font-medium">Your Earnings</p>
+                            <p className="text-xl font-black text-success">+{formatUGX(reward)}</p>
+                          </div>
+                        </div>
+                        <div className="ml-auto text-right">
+                          <p className="text-xs text-muted-foreground font-medium">Duration</p>
+                          <p className="text-lg font-bold text-foreground">{opportunity.duration_days} days</p>
+                        </div>
+                      </div>
+
+                      {/* Verification Progress - SIMPLIFIED */}
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-sm font-medium text-muted-foreground">Verification Progress</span>
+                          <span className="text-sm font-bold text-foreground">{stepsComplete}/4 Complete</span>
+                        </div>
+                        <div className="flex gap-1.5">
+                          {/* Step 1: Agent */}
+                          <div className={`h-3 flex-1 rounded-full transition-colors ${
+                            opportunity.agent_verified ? 'bg-success' : 'bg-muted'
+                          }`} />
+                          {/* Step 2: Manager */}
+                          <div className={`h-3 flex-1 rounded-full transition-colors ${
+                            opportunity.manager_verified ? 'bg-primary' : 'bg-muted'
+                          }`} />
+                          {/* Step 3: Landlord */}
+                          <div className={`h-3 flex-1 rounded-full transition-colors ${
+                            opportunity.landlord?.ready_to_receive ? 'bg-warning' : 'bg-muted'
+                          }`} />
+                          {/* Step 4: Ready */}
+                          <div className={`h-3 flex-1 rounded-full transition-colors ${
+                            opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive
+                              ? 'bg-gradient-to-r from-success to-primary' 
+                              : 'bg-muted'
+                          }`} />
+                        </div>
+                      </div>
+
+                      {/* Footer: Time & Landlord */}
+                      <div className="flex items-center justify-between mt-4 pt-3 border-t border-border/50">
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                          <Clock className="h-4 w-4" />
                           <span>{formatDistanceToNow(new Date(opportunity.created_at), { addSuffix: true })}</span>
                         </div>
                         {opportunity.landlord && (
-                          <div className="flex items-center gap-1 text-[10px] text-muted-foreground">
-                            <Home className="h-3 w-3" />
-                            <span className="truncate max-w-[120px]">{opportunity.landlord.name}</span>
+                          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            <Home className="h-4 w-4" />
+                            <span className="truncate max-w-[100px] font-medium">{opportunity.landlord.name}</span>
                           </div>
                         )}
+                      </div>
+
+                      {/* TAP TO VIEW - Clear CTA */}
+                      <div className="mt-4 flex items-center justify-center gap-2 text-sm font-medium text-primary">
+                        <Eye className="h-4 w-4" />
+                        <span>Tap to view details</span>
                       </div>
                     </CardContent>
                   </Card>
@@ -1324,22 +1292,22 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </div>
         </div>
 
-        {/* Results info */}
+        {/* Results info - LARGER */}
         {filterBy !== 'all' && (
-          <p className="text-xs text-center text-muted-foreground">
-            Showing {filteredAndSortedOpportunities.length} of {opportunities.length} opportunities
+          <p className="text-sm text-center text-muted-foreground font-medium py-2">
+            Showing {filteredAndSortedOpportunities.length} of {opportunities.length}
           </p>
         )}
 
-        {/* Tip */}
-        <div className="flex items-start gap-3 p-4 rounded-xl bg-gradient-to-r from-primary/10 to-success/10 border border-primary/20">
-          <div className="p-2 rounded-lg bg-primary/20">
-            <Shield className="h-4 w-4 text-primary" />
+        {/* Tip - LARGER & CLEARER */}
+        <div className="flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/15 to-success/15 border-2 border-primary/20 shadow-sm">
+          <div className="p-3 rounded-xl bg-primary/20 shrink-0">
+            <Shield className="h-6 w-6 text-primary" />
           </div>
           <div>
-            <p className="text-sm font-semibold text-foreground">Secure Investment</p>
-            <p className="text-xs text-muted-foreground mt-0.5">
-              Tap any opportunity to view details, chat with tenant, or see landlord info.
+            <p className="text-base font-bold text-foreground">Safe & Secure</p>
+            <p className="text-sm text-muted-foreground mt-1">
+              Tap any card to see full details
             </p>
           </div>
         </div>
