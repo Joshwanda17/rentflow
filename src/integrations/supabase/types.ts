@@ -2612,6 +2612,7 @@ export type Database = {
         Args: { _conversation_id: string; _user_id: string }
         Returns: boolean
       }
+      is_supporter: { Args: never; Returns: boolean }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
     }
     Enums: {
