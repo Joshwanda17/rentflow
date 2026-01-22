@@ -676,21 +676,23 @@ export default function SupporterDashboard({
           </motion.div>
         )} */}
 
-        {/* Investment Opportunities & Funded History Tabs */}
-        <div id="opportunities" className="relative -mx-3 sm:-mx-4 px-3 sm:px-4 scroll-mt-4">
+        {/* Investment Opportunities & Funded History Tabs - Full Width Priority Section */}
+        <div id="opportunities" className="relative -mx-3 sm:-mx-4 scroll-mt-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           <Tabs defaultValue="opportunities" className="w-full">
-            <TabsList className="w-full grid grid-cols-2 mb-4">
-              <TabsTrigger value="opportunities" className="gap-2">
-                <TrendingUp className="h-4 w-4" />
-                Opportunities
-              </TabsTrigger>
-              <TabsTrigger value="funded" className="gap-2">
-                <History className="h-4 w-4" />
-                Funded History
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="opportunities">
+            <div className="px-3 sm:px-4">
+              <TabsList className="w-full grid grid-cols-2 mb-3 h-12">
+                <TabsTrigger value="opportunities" className="gap-2 text-sm font-bold">
+                  <TrendingUp className="h-4 w-4" />
+                  Opportunities
+                </TabsTrigger>
+                <TabsTrigger value="funded" className="gap-2 text-sm font-bold">
+                  <History className="h-4 w-4" />
+                  Funded History
+                </TabsTrigger>
+              </TabsList>
+            </div>
+            <TabsContent value="opportunities" className="px-2 sm:px-3">
               <RentOpportunities
                 onFund={(id, amount) => {
                   if (!effectiveHasAccepted) {
@@ -705,7 +707,7 @@ export default function SupporterDashboard({
                 onRefreshRef={opportunitiesRefreshRef}
               />
             </TabsContent>
-            <TabsContent value="funded">
+            <TabsContent value="funded" className="px-2 sm:px-3">
               <FundedHistory />
             </TabsContent>
           </Tabs>
