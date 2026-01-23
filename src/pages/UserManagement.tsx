@@ -1,7 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
-import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -19,6 +18,7 @@ import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
+import { InlineRoleToggle } from '@/components/manager/InlineRoleToggle';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
@@ -26,6 +26,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
+import { Badge } from '@/components/ui/badge';
 
 interface UserWithRating {
   id: string;
@@ -633,26 +634,21 @@ export default function UserManagement() {
                         </div>
                       )}
                       
-                      {/* Roles */}
-                      <div className="flex flex-wrap gap-1.5 mt-2">
-                        {user.roles.map((role) => {
-                          const isEnabled = user.roleEnabledStatus[role] ?? true;
-                          return (
-                            <Badge 
-                              key={role} 
-                              variant="outline"
-                              className={`text-xs font-semibold px-2.5 py-1 ${getRoleBadgeColor(role)} ${!isEnabled ? 'opacity-40 line-through' : ''}`}
-                            >
-                              {role}
-                            </Badge>
-                          );
-                        })}
+                      {/* Inline Role Toggle */}
+                      <div className="mt-2">
+                        <InlineRoleToggle
+                          userId={user.id}
+                          userName={user.full_name}
+                          currentRoles={user.roles}
+                          roleEnabledStatus={user.roleEnabledStatus}
+                          onRolesUpdated={handleRefresh}
+                        />
                         
                         {/* Sub-agents count badge for agents */}
                         {user.roles.includes('agent') && user.subagent_count > 0 && (
                           <Badge 
                             variant="outline"
-                            className="text-xs font-semibold px-2.5 py-1 bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                            className="text-xs font-semibold px-2.5 py-1 mt-1.5 bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
                           >
                             <UsersRound className="h-3 w-3 mr-1" />
                             {user.subagent_count} sub-agent{user.subagent_count !== 1 ? 's' : ''}
