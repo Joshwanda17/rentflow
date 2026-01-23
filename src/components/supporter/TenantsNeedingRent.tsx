@@ -141,42 +141,33 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                     {/* Hover gradient */}
                     <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-transparent to-success/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
                     
-                    {/* Collapsed View - Always visible */}
+                    {/* Collapsed View - Compact button-like row */}
                     <button
                       onClick={() => toggleCard(request.id)}
-                      className="w-full relative flex items-center justify-between gap-3 p-3 sm:p-4 text-left"
+                      className="w-full relative flex items-center justify-between gap-2 px-3 py-2 sm:px-4 sm:py-2.5 text-left touch-manipulation active:scale-[0.98] transition-transform"
                     >
-                      <div className="flex items-center gap-3 flex-1 min-w-0">
-                        <Avatar className={`h-10 w-10 border-2 border-white/20 shadow-lg relative shrink-0`}>
-                          <AvatarFallback className={`bg-gradient-to-br ${avatarColor} text-white font-bold text-xs sm:text-sm`}>
+                      <div className="flex items-center gap-2 flex-1 min-w-0">
+                        <Avatar className={`h-7 w-7 sm:h-8 sm:w-8 border border-white/20 shadow shrink-0`}>
+                          <AvatarFallback className={`bg-gradient-to-br ${avatarColor} text-white font-bold text-[10px] sm:text-xs`}>
                             {getInitials(request.tenant_name)}
                           </AvatarFallback>
                         </Avatar>
                         
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-foreground text-sm sm:text-base truncate">
-                            {request.tenant_name || 'Anonymous Tenant'}
-                          </p>
-                          <div className="flex items-center gap-1.5 mt-0.5">
-                            <div className="flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-success/20">
-                              <TrendingUp className="h-2.5 w-2.5 text-success" />
-                              <span className="text-[10px] sm:text-xs font-bold text-success">
-                                +{formatUGX(reward)}
-                              </span>
-                            </div>
-                            <span className="text-xs text-muted-foreground">earnings</span>
-                          </div>
-                        </div>
+                        <p className="font-semibold text-foreground text-sm truncate">
+                          {request.tenant_name || 'Anonymous Tenant'}
+                        </p>
                       </div>
                       
-                      <div className="flex items-center gap-2 shrink-0">
-                        <Badge className="text-[9px] sm:text-[10px] px-1.5 py-0.5 bg-white/10 text-foreground/80 border-0">
-                          {request.duration_days}d
-                        </Badge>
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <div className="flex items-center gap-0.5 px-1.5 py-0.5 rounded-full bg-success/20">
+                          <TrendingUp className="h-2.5 w-2.5 text-success" />
+                          <span className="text-[10px] sm:text-xs font-bold text-success">
+                            +{formatUGX(reward)}
+                          </span>
+                        </div>
                         <motion.div
                           animate={{ rotate: isExpanded ? 180 : 0 }}
                           transition={{ duration: 0.2 }}
-                          className="p-1 rounded-full bg-muted/50"
                         >
                           <ChevronDown className="h-4 w-4 text-muted-foreground" />
                         </motion.div>
