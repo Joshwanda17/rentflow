@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,6 +9,8 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
 import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
+import { hapticSuccess } from '@/lib/haptics';
+import { playSuccessSound } from '@/lib/notificationSound';
 
 interface UserInvite {
   id: string;
@@ -45,6 +47,7 @@ export function AgentInvitesList() {
   const [invites, setInvites] = useState<UserInvite[]>([]);
   const [loading, setLoading] = useState(true);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const activatedIdsRef = useRef<Set<string>>(new Set());
 
   const fetchInvites = async () => {
     if (!user) return;
@@ -58,6 +61,12 @@ export function AgentInvitesList() {
       .order('created_at', { ascending: false });
 
     if (!error && data) {
+      // Initialize the set of already-activated invite IDs
+      data.forEach(invite => {
+        if (invite.status === 'activated') {
+          activatedIdsRef.current.add(invite.id);
+        }
+      });
       setInvites(data);
     }
     setLoading(false);
@@ -66,6 +75,53 @@ export function AgentInvitesList() {
   useEffect(() => {
     fetchInvites();
   }, [user]);
+
+  // Real-time subscription for activation events
+  useEffect(() => {
+    if (!user) return;
+
+    const channel = supabase
+      .channel('agent-invite-activations')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'supporter_invites',
+          filter: `created_by=eq.${user.id}`,
+        },
+        (payload) => {
+          const updated = payload.new as UserInvite;
+          
+          // Check if this is a new activation (wasn't activated before)
+          if (updated.status === 'activated' && !activatedIdsRef.current.has(updated.id)) {
+            // Mark as seen so we don't trigger again
+            activatedIdsRef.current.add(updated.id);
+            
+            // Play celebration sound and haptic
+            playSuccessSound();
+            hapticSuccess();
+            
+            // Show toast notification
+            const config = roleConfig[updated.role] || roleConfig.tenant;
+            toast({
+              title: `🎉 ${updated.full_name} activated!`,
+              description: `Your ${config.label.toLowerCase()} just joined Welile!`,
+            });
+            
+            // Update local state
+            setInvites(prev => 
+              prev.map(inv => inv.id === updated.id ? updated : inv)
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user, toast]);
 
   const getShareLink = (token: string) => {
     return `${window.location.origin}/join?t=${token}`;
