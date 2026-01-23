@@ -173,10 +173,10 @@ function LimitedTimeOfferBanner({ onClaim }: { onClaim: () => void }) {
                 </div>
                 
                 <h3 className="font-bold text-lg mb-1">
-                  🎁 Get <span className="text-amber-500">DOUBLE BONUS</span> - UGX 200 Per Referral!
+                  🎁 Get <span className="text-amber-500">BONUS</span> - UGX 500 Per Referral!
                 </h3>
                 <p className="text-sm text-muted-foreground">
-                  Sign up now and earn 2x rewards on your first 10 referrals. Don't miss out!
+                  Invite friends and earn UGX 500 for each signup. Don't miss out!
                 </p>
 
                 {/* Countdown Timer & Spots Remaining */}

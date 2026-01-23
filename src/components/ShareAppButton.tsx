@@ -76,7 +76,7 @@ export function ShareAppButton() {
               Invite & Earn
             </DialogTitle>
             <DialogDescription className="text-center">
-              Share your unique link! When friends sign up, you'll automatically receive <span className="font-bold text-primary">UGX 100</span> in your wallet!
+              Share your unique link! When friends sign up, you'll automatically receive <span className="font-bold text-primary">UGX 500</span> in your wallet!
             </DialogDescription>
           </DialogHeader>
 
@@ -85,7 +85,7 @@ export function ShareAppButton() {
             <div className="bg-gradient-to-r from-primary/10 to-success/10 rounded-lg p-3 border border-primary/20">
               <div className="flex items-center justify-center gap-6">
                 <div className="text-center">
-                  <p className="text-xl font-bold text-primary">UGX 100</p>
+                  <p className="text-xl font-bold text-primary">UGX 500</p>
                   <p className="text-xs text-muted-foreground">On signup</p>
                 </div>
                 <div className="text-2xl text-muted-foreground">+</div>
@@ -95,7 +95,7 @@ export function ShareAppButton() {
                 </div>
               </div>
               <p className="text-xs text-center text-muted-foreground mt-2">
-                Earn up to <span className="font-bold">UGX 300</span> per referral!
+                Earn up to <span className="font-bold">UGX 700</span> per referral!
               </p>
             </div>
 
