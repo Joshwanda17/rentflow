@@ -26,6 +26,7 @@ interface WithdrawalRequest {
   status: string;
   mobile_money_number: string | null;
   mobile_money_provider: string | null;
+  transaction_id: string | null;
   created_at: string;
   rejection_reason: string | null;
   processed_at: string | null;
@@ -283,11 +284,18 @@ export function UserWithdrawalRequests() {
                 )}
                 
                 {request.status === 'approved' && request.processed_at && (
-                  <div className="mt-2 flex items-center gap-1.5 text-xs text-success">
-                    <CheckCircle className="h-3 w-3" />
-                    <span>
-                      Sent {format(new Date(request.processed_at), 'MMM d • h:mm a')}
-                    </span>
+                  <div className="mt-2 p-2 bg-success/10 rounded-lg space-y-1">
+                    <div className="flex items-center gap-1.5 text-xs text-success">
+                      <CheckCircle className="h-3 w-3" />
+                      <span>
+                        Sent {format(new Date(request.processed_at), 'MMM d • h:mm a')}
+                      </span>
+                    </div>
+                    {request.transaction_id && (
+                      <p className="text-xs text-muted-foreground font-mono">
+                        Txn ID: {request.transaction_id}
+                      </p>
+                    )}
                   </div>
                 )}
               </motion.div>
