@@ -9,6 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
+import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
 import { useHapticSettings, hapticIntensityOptions } from '@/hooks/useHapticSettings';
 import { hapticSelection } from '@/lib/haptics';
 import { useAuth, AppRole } from '@/hooks/useAuth';
@@ -588,6 +589,11 @@ export default function Settings() {
         {/* PIN Security Section */}
         <motion.div variants={itemVariants} className="mb-6">
           <PinSecuritySection />
+        </motion.div>
+
+        {/* Biometric Security Section */}
+        <motion.div variants={itemVariants} className="mb-6">
+          <BiometricSecuritySection />
         </motion.div>
 
         {/* Appearance Card */}

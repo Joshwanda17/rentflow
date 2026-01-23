@@ -7,6 +7,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PinAuthProvider } from "@/hooks/usePinAuth";
+import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { FontSizeProvider } from "@/hooks/useFontSize";
@@ -199,25 +200,27 @@ const App = () => (
                   <BrowserRouter>
                     <AuthProvider>
                       <PinAuthProvider>
-                        <OfflineProvider>
-                          <CartProvider>
-                            <ComparisonProvider>
-                              <TooltipProvider delayDuration={300}>
-                                <Suspense fallback={null}>
-                                  <IOSOptimizations />
-                                  <OfflineBanner />
-                                  <ConnectionStatus />
-                                  <PWAInstallPrompt />
-                                  <WhatsNewModal />
-                                  <GlobalSettingsToolbar />
-                                  <Toaster />
-                                  <Sonner />
-                                </Suspense>
-                                <AnimatedRoutes />
-                              </TooltipProvider>
-                            </ComparisonProvider>
-                          </CartProvider>
-                        </OfflineProvider>
+                        <BiometricAuthProvider>
+                          <OfflineProvider>
+                            <CartProvider>
+                              <ComparisonProvider>
+                                <TooltipProvider delayDuration={300}>
+                                  <Suspense fallback={null}>
+                                    <IOSOptimizations />
+                                    <OfflineBanner />
+                                    <ConnectionStatus />
+                                    <PWAInstallPrompt />
+                                    <WhatsNewModal />
+                                    <GlobalSettingsToolbar />
+                                    <Toaster />
+                                    <Sonner />
+                                  </Suspense>
+                                  <AnimatedRoutes />
+                                </TooltipProvider>
+                              </ComparisonProvider>
+                            </CartProvider>
+                          </OfflineProvider>
+                        </BiometricAuthProvider>
                       </PinAuthProvider>
                     </AuthProvider>
                   </BrowserRouter>
