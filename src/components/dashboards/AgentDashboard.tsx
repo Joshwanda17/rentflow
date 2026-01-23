@@ -44,7 +44,7 @@ import { CollapsibleSubAgents } from '@/components/agent/CollapsibleSubAgents';
 import { CollapsibleUserInvites } from '@/components/agent/CollapsibleUserInvites';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
-import { LinkSignupsList } from '@/components/agent/LinkSignupsList';
+import { CollapsibleLinkSignups } from '@/components/agent/CollapsibleLinkSignups';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -92,6 +92,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     rentRequests: false,
     subAgents: false,
     userInvites: false,
+    linkSignups: false,
   });
   
   const anyExpanded = Object.values(sectionsOpen).some(v => v);
@@ -102,6 +103,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       rentRequests: false,
       subAgents: false,
       userInvites: false,
+      linkSignups: false,
     });
   };
   
@@ -498,8 +500,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           items={otherActions}
         />
 
-        {/* Users who signed up via referral link */}
-        <LinkSignupsList />
+        {/* Link Signups - Hidden behind collapsible button */}
+        <CollapsibleLinkSignups 
+          isOpen={sectionsOpen.linkSignups}
+          onToggle={() => toggleSection('linkSignups')}
+        />
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
