@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -48,7 +48,9 @@ const roleColors: Record<string, string> = {
   manager: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
 };
 
-// Swipeable Role Badge Component
+const LONG_PRESS_DURATION = 600; // ms
+
+// Swipeable Role Badge Component with Long Press
 function SwipeableRoleBadge({
   role,
   roleInfo,
@@ -69,18 +71,75 @@ function SwipeableRoleBadge({
   const deleteScale = useTransform(x, [-60, -30], [1, 0.8]);
   const badgeOpacity = useTransform(x, [-80, -60], [0.5, 1]);
   
+  // Long press state
+  const [longPressProgress, setLongPressProgress] = useState(0);
+  const [isLongPressing, setIsLongPressing] = useState(false);
+  const longPressTimer = useRef<NodeJS.Timeout | null>(null);
+  const progressInterval = useRef<NodeJS.Timeout | null>(null);
+  const isDragging = useRef(false);
+  
+  const clearTimers = useCallback(() => {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current);
+      longPressTimer.current = null;
+    }
+    if (progressInterval.current) {
+      clearInterval(progressInterval.current);
+      progressInterval.current = null;
+    }
+    setLongPressProgress(0);
+    setIsLongPressing(false);
+  }, []);
+  
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    if (!canRemove || isLoading) return;
+    
+    isDragging.current = false;
+    setIsLongPressing(true);
+    
+    // Start progress animation
+    const startTime = Date.now();
+    progressInterval.current = setInterval(() => {
+      const elapsed = Date.now() - startTime;
+      const progress = Math.min((elapsed / LONG_PRESS_DURATION) * 100, 100);
+      setLongPressProgress(progress);
+      
+      // Haptic at 50% progress
+      if (progress >= 50 && progress < 55) {
+        hapticTap();
+      }
+    }, 16);
+    
+    // Trigger action after duration
+    longPressTimer.current = setTimeout(() => {
+      if (!isDragging.current) {
+        hapticSuccess();
+        onRemove();
+      }
+      clearTimers();
+    }, LONG_PRESS_DURATION);
+  }, [canRemove, isLoading, onRemove, clearTimers]);
+  
+  const handleTouchEnd = useCallback(() => {
+    clearTimers();
+  }, [clearTimers]);
+  
+  const handleTouchMove = useCallback(() => {
+    // Cancel long press if finger moves (user is swiping)
+    isDragging.current = true;
+    clearTimers();
+  }, [clearTimers]);
+  
   const handleDragEnd = (_: any, info: PanInfo) => {
     const threshold = -50;
     
     if (info.offset.x < threshold && canRemove) {
-      // Swiped past threshold - trigger remove
       hapticSuccess();
       animate(x, -100, { duration: 0.2 });
       setTimeout(() => {
         onRemove();
       }, 100);
     } else {
-      // Snap back
       animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
     }
   };
@@ -97,36 +156,47 @@ function SwipeableRoleBadge({
         </div>
       </motion.div>
       
-      {/* Swipeable badge */}
+      {/* Swipeable badge with long-press */}
       <motion.div
         drag={canRemove && !isLoading ? 'x' : false}
         dragConstraints={{ left: -80, right: 0 }}
         dragElastic={0.1}
         onDragEnd={handleDragEnd}
+        onDragStart={() => { isDragging.current = true; clearTimers(); }}
         style={{ x, opacity: badgeOpacity }}
         className="relative touch-pan-y"
+        onTouchStart={handleTouchStart}
+        onTouchEnd={handleTouchEnd}
+        onTouchMove={handleTouchMove}
       >
         <Badge 
           variant="outline"
-          className={`text-xs font-semibold px-2.5 py-1.5 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1.5 select-none cursor-grab active:cursor-grabbing`}
+          className={`text-xs font-semibold px-2.5 py-1.5 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1.5 select-none cursor-grab active:cursor-grabbing relative overflow-hidden`}
           style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
         >
-          {isLoading ? (
-            <Loader2 className="h-3.5 w-3.5 animate-spin" />
-          ) : (
-            <span>{roleInfo?.emoji}</span>
+          {/* Long press progress indicator */}
+          {isLongPressing && canRemove && (
+            <motion.div 
+              className="absolute inset-0 bg-destructive/30 origin-left"
+              initial={{ scaleX: 0 }}
+              animate={{ scaleX: longPressProgress / 100 }}
+              transition={{ duration: 0.05 }}
+            />
           )}
-          <span className={!isEnabled ? 'line-through' : ''}>{role}</span>
+          
+          <span className="relative z-10">
+            {isLoading ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <span>{roleInfo?.emoji}</span>
+            )}
+          </span>
+          <span className={`relative z-10 ${!isEnabled ? 'line-through' : ''}`}>{role}</span>
           {!canRemove && (
-            <span className="text-[10px] opacity-60 ml-0.5">•</span>
+            <span className="text-[10px] opacity-60 ml-0.5 relative z-10">•</span>
           )}
         </Badge>
       </motion.div>
-      
-      {/* Swipe hint indicator */}
-      {canRemove && !isLoading && (
-        <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-destructive/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
-      )}
     </div>
   );
 }
@@ -294,8 +364,10 @@ export function InlineRoleToggle({
       >
         {/* Swipe hint for mobile */}
         {localRoles.length > 1 && (
-          <span className="text-[10px] text-muted-foreground/60 w-full mb-0.5 flex items-center gap-1">
-            <span className="inline-block">←</span> Swipe to remove
+          <span className="text-[10px] text-muted-foreground/60 w-full mb-0.5 flex items-center gap-1.5">
+            <span>← Swipe</span>
+            <span className="opacity-50">or</span>
+            <span>hold to remove</span>
           </span>
         )}
         
