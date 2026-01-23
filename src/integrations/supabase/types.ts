@@ -428,6 +428,33 @@ export type Database = {
         }
         Relationships: []
       }
+      force_refresh_signals: {
+        Row: {
+          expires_at: string
+          id: string
+          message: string | null
+          target_user_id: string | null
+          triggered_at: string
+          triggered_by: string
+        }
+        Insert: {
+          expires_at?: string
+          id?: string
+          message?: string | null
+          target_user_id?: string | null
+          triggered_at?: string
+          triggered_by: string
+        }
+        Update: {
+          expires_at?: string
+          id?: string
+          message?: string | null
+          target_user_id?: string | null
+          triggered_at?: string
+          triggered_by?: string
+        }
+        Relationships: []
+      }
       investment_accounts: {
         Row: {
           approved_at: string | null
