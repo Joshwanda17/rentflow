@@ -45,6 +45,7 @@ import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
+import { MyInvestmentRequests } from '@/components/supporter/MyInvestmentRequests';
 import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
 import { FundingMilestones } from '@/components/supporter/FundingMilestones';
@@ -693,6 +694,9 @@ export default function SupporterDashboard({
 
         {/* ROI Earnings Section */}
         <ROIEarningsCard />
+
+        {/* My Investment Requests - Track manager-assisted investments */}
+        <MyInvestmentRequests />
 
         {/* Funding Milestones - Hidden to give more space to opportunities */}
         {/* {fundedRequests.length > 0 && (
