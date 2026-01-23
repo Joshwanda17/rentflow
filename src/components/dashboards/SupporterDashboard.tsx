@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useConfetti } from '@/components/Confetti';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -6,12 +6,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { 
-  LogOut, Wallet, TrendingUp, Settings, Plus, 
+  Wallet, TrendingUp, Plus, 
   Receipt, History, Share2, Download, CreditCard,
-  Calculator, Target, ChevronRight, Sparkles, Store, Users,
-  FileText, ScrollText, BarChart3, Trophy
+  Calculator, Store, Users,
+  FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
@@ -21,7 +20,7 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { CollapsibleWalletCard } from '@/components/wallet/CollapsibleWalletCard';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -38,20 +37,21 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 
-// Simple components
-import { SimpleInvestmentCard } from '@/components/supporter/SimpleInvestmentCard';
-import { QuickStatsRow } from '@/components/supporter/QuickStatsRow';
+// Modern fintech components
+import { HeroBalanceCard } from '@/components/supporter/HeroBalanceCard';
+import { ModernQuickActions } from '@/components/supporter/ModernQuickActions';
+import { ModernSectionHeader } from '@/components/supporter/ModernSectionHeader';
+import { ModernInviteCard } from '@/components/supporter/ModernInviteCard';
+import { ModernQuickLinks } from '@/components/supporter/ModernQuickLinks';
+
 import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
 import { MyInvestmentRequests } from '@/components/supporter/MyInvestmentRequests';
-import { SupporterROILeaderboard } from '@/components/supporter/SupporterROILeaderboard';
 import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
-import { FundingMilestones } from '@/components/supporter/FundingMilestones';
 import { FundedHistory } from '@/components/supporter/FundedHistory';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 // Tenant request details and payment dialogs
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
@@ -60,7 +60,6 @@ import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 // Agreement components
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { 
-  SupporterAgreementBanner, 
   SupporterAgreementModal, 
   LockedOverlay 
 } from '@/components/supporter/agreement';
@@ -578,8 +577,11 @@ export default function SupporterDashboard({
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
+  // Active tab state for opportunities section
+  const [activeOpportunityTab, setActiveOpportunityTab] = useState<'opportunities' | 'funded'>('opportunities');
+
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5 pb-24 sm:pb-20 md:pb-0">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-24 sm:pb-20 md:pb-0">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -590,227 +592,196 @@ export default function SupporterDashboard({
         onOpportunityBadgeClick={() => navigate('/opportunities')}
       />
 
-      <main className="container mx-auto px-3 sm:px-4 py-4 sm:py-6 space-y-5">
+      <main className="container mx-auto px-4 py-5 space-y-5 max-w-lg">
         
-        {/* Role Switcher - Prominent placement for multi-role users */}
-        {availableRoles.length > 1 && (
-          <RoleSwitcher
-            currentRole={currentRole}
-            availableRoles={availableRoles}
-            onRoleChange={onRoleChange}
-            variant="prominent"
-          />
-        )}
-
-        {/* Welcome Message */}
+        {/* Greeting - Minimal & Clean */}
         <motion.div
-          initial={{ opacity: 0, y: -10 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="text-center py-2"
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex items-center justify-between"
         >
-          <h1 className="text-xl font-black text-foreground">
-            Welcome, {profile?.full_name?.split(' ')[0] || 'Supporter'} 👋
-          </h1>
-          <p className="text-sm text-muted-foreground">Earn 15% monthly by helping tenants</p>
-          
-          {/* Easy Agreement Access */}
-          {effectiveHasAccepted ? (
-            <div className="flex items-center justify-center gap-3 mt-2">
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
-                className="text-xs text-muted-foreground hover:text-primary gap-1.5"
-              >
-                <ScrollText className="h-3.5 w-3.5" />
-                Summary
-              </Button>
-              <span className="text-muted-foreground/50">•</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => { setViewAgreementTab('full'); setShowViewAgreementModal(true); }}
-                className="text-xs text-muted-foreground hover:text-primary gap-1.5"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                Full Agreement
-              </Button>
-            </div>
-          ) : (
+          <div>
+            <p className="text-sm text-muted-foreground">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</p>
+            <h1 className="text-xl font-bold text-foreground">
+              {profile?.full_name?.split(' ')[0] || 'Investor'} 👋
+            </h1>
+          </div>
+          {!effectiveHasAccepted && (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAgreementModal(true)}
-              className="mt-2 text-xs border-warning text-warning hover:bg-warning/10 gap-1.5"
+              className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl"
             >
               <FileText className="h-3.5 w-3.5" />
-              Accept Terms to Continue
+              Accept Terms
             </Button>
           )}
         </motion.div>
 
-        {/* Quick Stats */}
-        <QuickStatsRow 
-          stats={[
-            { emoji: '💰', label: 'Invested', value: formatUGX(totalInvested) },
-            { emoji: '📈', label: 'Earnings', value: formatUGX(completedRewards), color: 'text-success' },
-            { emoji: '🏠', label: 'Funded', value: `${activeFundings}` },
-          ]}
-        />
-
-        {/* Collapsible Quick Navigation */}
-        <CollapsibleQuickNav
-          buttonLabel="Quick Actions"
-          items={[
-            { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
-            { icon: Users, label: 'Help Tenants', onClick: () => document.getElementById('tenants-section')?.scrollIntoView({ behavior: 'smooth' }), variant: 'success' },
-            { icon: Wallet, label: 'My Portfolio', onClick: () => navigate('/investment-portfolio'), variant: 'default' },
-            { icon: Calculator, label: 'ROI Calculator', onClick: () => setShowCalculator(true) },
-            { icon: BarChart3, label: 'Projections', onClick: () => setShowCalculator(true) },
-            { icon: TrendingUp, label: 'ROI Earnings', onClick: () => navigate('/supporter-earnings') },
-            { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
-            { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
-            { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
-            { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
-            { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
-            { icon: Store, label: 'Marketplace', onClick: () => navigate('/marketplace') },
-            // Agreement action - show "Accept" if not accepted, otherwise view options
-            ...(!effectiveHasAccepted ? [
-              { icon: FileText, label: 'Accept Terms', onClick: () => setShowAgreementModal(true), variant: 'warning' as const },
-            ] : [
-              { icon: ScrollText, label: 'Quick Terms', onClick: () => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); } },
-              { icon: FileText, label: 'Full Agreement', onClick: () => { setViewAgreementTab('full'); setShowViewAgreementModal(true); } },
-            ]),
-          ]}
-        />
-
-        {/* Main Investment Card */}
-        <SimpleInvestmentCard
+        {/* Hero Balance Card - Y Combinator Fintech Style */}
+        <HeroBalanceCard
           totalInvested={totalInvested}
-          expectedReturns={expectedRewards}
+          monthlyReturns={totalInvested * 0.15}
+          completedRewards={completedRewards}
+          activeFundings={activeFundings}
           onAddInvestment={() => setShowPaymentPartners(true)}
-          onViewDetails={() => navigate('/investment-portfolio')}
+          onViewPortfolio={() => navigate('/investment-portfolio')}
         />
 
-        {/* ROI Earnings Section */}
+        {/* Quick Actions - Uber/PayPal style grid */}
+        <ModernQuickActions
+          actions={[
+            { icon: Plus, label: 'Invest', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
+            { icon: Users, label: 'Fund', onClick: () => navigate('/opportunities'), variant: 'success', badge: opportunityCount > 0 ? String(opportunityCount) : undefined },
+            { icon: PieChart, label: 'Portfolio', onClick: () => navigate('/investment-portfolio') },
+            { icon: Calculator, label: 'Calculator', onClick: () => setShowCalculator(true) },
+          ]}
+        />
+
+        {/* ROI Earnings - Compact */}
         <ROIEarningsCard />
 
-        {/* My Investment Requests - Track manager-assisted investments */}
+        {/* My Investment Requests */}
         <MyInvestmentRequests />
 
-        {/* Funding Milestones - Hidden to give more space to opportunities */}
-        {/* {fundedRequests.length > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.2 }}
-          >
-            <Card className="border-0 bg-gradient-to-br from-card via-card to-primary/5">
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
-                  <div className="p-1.5 rounded-lg bg-primary/10">
-                    <Trophy className="h-4 w-4 text-primary" />
-                  </div>
-                  <h3 className="font-bold text-sm text-foreground">Your Achievements</h3>
-                </div>
-                <FundingMilestones fundingCount={fundedRequests.length} />
-              </CardContent>
-            </Card>
-          </motion.div>
-        )} */}
-
-        {/* Investment Opportunities & Funded History Tabs - Full Width Priority Section */}
-        <div id="opportunities" className="relative -mx-3 sm:-mx-4 scroll-mt-4">
+        {/* Opportunities Section - Modern Tabs */}
+        <div id="opportunities" className="relative scroll-mt-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-          <Tabs defaultValue="opportunities" className="w-full">
-            <div className="px-3 sm:px-4">
-              <TabsList className="w-full grid grid-cols-2 mb-3 h-12">
-                <TabsTrigger 
-                  value="opportunities" 
-                  className="gap-2 text-sm font-bold"
-                  onClick={() => navigate('/opportunities')}
-                >
-                  <TrendingUp className="h-4 w-4" />
-                  Opportunities
-                </TabsTrigger>
-                <TabsTrigger value="funded" className="gap-2 text-sm font-bold">
-                  <History className="h-4 w-4" />
-                  Funded History
-                </TabsTrigger>
-              </TabsList>
-            </div>
-            <TabsContent value="opportunities" className="px-2 sm:px-3">
-              <RentOpportunities
-                onFund={(id, amount) => {
-                  if (!effectiveHasAccepted) {
-                    setShowAgreementModal(true);
-                    return;
-                  }
-                  setSelectedRequestId(id);
-                  setShowRequestDetails(true);
+          
+          {/* Custom Modern Tabs */}
+          <div className="bg-muted/40 p-1.5 rounded-2xl mb-4">
+            <div className="grid grid-cols-2 gap-1">
+              <button
+                onClick={() => {
+                  setActiveOpportunityTab('opportunities');
+                  navigate('/opportunities');
                 }}
-                isLocked={!effectiveHasAccepted}
-                onLockedClick={() => setShowAgreementModal(true)}
-                onRefreshRef={opportunitiesRefreshRef}
-              />
-            </TabsContent>
-            <TabsContent value="funded" className="px-2 sm:px-3">
-              <FundedHistory />
-            </TabsContent>
-          </Tabs>
-        </div>
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
+                  activeOpportunityTab === 'opportunities'
+                    ? 'bg-primary text-white shadow-lg'
+                    : 'text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                <TrendingUp className="h-4 w-4" />
+                <span>Opportunities</span>
+                {opportunityCount > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                    activeOpportunityTab === 'opportunities'
+                      ? 'bg-white/25'
+                      : 'bg-primary/15 text-primary'
+                  }`}>
+                    {opportunityCount > 99 ? '99+' : opportunityCount}
+                  </span>
+                )}
+              </button>
+              <button
+                onClick={() => setActiveOpportunityTab('funded')}
+                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
+                  activeOpportunityTab === 'funded'
+                    ? 'bg-emerald-500 text-white shadow-lg'
+                    : 'text-muted-foreground hover:bg-muted/60'
+                }`}
+              >
+                <HandCoins className="h-4 w-4" />
+                <span>Funded</span>
+                {fundedRequests.length > 0 && (
+                  <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
+                    activeOpportunityTab === 'funded'
+                      ? 'bg-white/25'
+                      : 'bg-emerald-500/15 text-emerald-600'
+                  }`}>
+                    {fundedRequests.length}
+                  </span>
+                )}
+              </button>
+            </div>
+          </div>
 
+          <AnimatePresence mode="wait">
+            {activeOpportunityTab === 'opportunities' ? (
+              <motion.div
+                key="opportunities"
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: 10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <RentOpportunities
+                  onFund={(id) => {
+                    if (!effectiveHasAccepted) {
+                      setShowAgreementModal(true);
+                      return;
+                    }
+                    setSelectedRequestId(id);
+                    setShowRequestDetails(true);
+                  }}
+                  isLocked={!effectiveHasAccepted}
+                  onLockedClick={() => setShowAgreementModal(true)}
+                  onRefreshRef={opportunitiesRefreshRef}
+                />
+              </motion.div>
+            ) : (
+              <motion.div
+                key="funded"
+                initial={{ opacity: 0, x: 10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.2 }}
+              >
+                <FundedHistory />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
 
         {/* Wallet - Collapsible */}
         <div id="wallet-section">
           <CollapsibleWalletCard />
         </div>
-        {/* ROI Leaderboard - Hidden to give more space to opportunities */}
-        {/* <SupporterROILeaderboard limit={5} compact /> */}
 
-        {/* Invite Friends Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
-        >
-          <Card className="border-0 bg-gradient-to-r from-primary/10 to-success/10">
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="p-3 rounded-xl bg-primary/20">
-                    <Share2 className="h-5 w-5 text-primary" />
-                  </div>
-                  <div>
-                    <p className="font-bold text-foreground">Invite Friends</p>
-                    <p className="text-xs text-muted-foreground">Earn rewards together</p>
-                  </div>
-                </div>
-                <ShareSupporterLink variant="default" className="bg-primary hover:bg-primary/90" />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+        {/* Invite Friends - Modern gradient card */}
+        <ModernInviteCard onShare={() => {}} />
 
-        {/* Quick Links */}
-        <div className="grid grid-cols-2 gap-3">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/transactions')}
-            className="h-14 justify-start gap-3 border-border/50"
+        {/* Quick Links - Amazon/Uber style */}
+        <ModernQuickLinks
+          links={[
+            { icon: History, label: 'Transaction History', sublabel: 'View all activity', onClick: () => navigate('/transactions') },
+            { icon: BarChart3, label: 'ROI Analytics', sublabel: 'Earnings & projections', onClick: () => navigate('/supporter-earnings'), variant: 'success' },
+            { icon: Receipt, label: 'My Receipts', sublabel: 'Payment records', onClick: () => navigate('/my-receipts') },
+            { icon: Share2, label: 'Referrals', sublabel: 'Invite & earn', onClick: () => navigate('/referrals'), variant: 'primary' },
+            { icon: Store, label: 'Marketplace', sublabel: 'Shop products', onClick: () => navigate('/marketplace') },
+          ]}
+        />
+
+        {/* Terms Footer - Subtle access */}
+        {effectiveHasAccepted && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            className="flex items-center justify-center gap-4 pt-2 pb-4"
           >
-            <History className="h-5 w-5 text-muted-foreground" />
-            <span className="font-semibold">History</span>
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => navigate('/referrals')}
-            className="h-14 justify-start gap-3 border-border/50"
-          >
-            <Share2 className="h-5 w-5 text-muted-foreground" />
-            <span className="font-semibold">Referrals</span>
-          </Button>
-        </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+              className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <ScrollText className="h-3.5 w-3.5" />
+              Terms Summary
+            </Button>
+            <span className="text-muted-foreground/30">|</span>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => { setViewAgreementTab('full'); setShowViewAgreementModal(true); }}
+              className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
+            >
+              <FileText className="h-3.5 w-3.5" />
+              Full Agreement
+            </Button>
+          </motion.div>
+        )}
       </main>
 
       {/* Dialogs */}
