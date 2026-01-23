@@ -15,14 +15,13 @@ import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 
 const signUpSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Full name is required'),
   phone: z.string().min(10, 'Please enter a valid phone number'),
 });
 
 const signInSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  phone: z.string().min(10, 'Please enter a valid phone number'),
   password: z.string().min(1, 'Password is required')
 });
 
@@ -33,7 +32,7 @@ export default function Auth() {
   
   const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(''); // Used for forgot password only
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -84,18 +83,27 @@ export default function Auth() {
           setIsForgotPassword(false);
         }
       } else if (isSignUp) {
-        const validation = signUpSchema.safeParse({ email, password, fullName, phone });
+        const validation = signUpSchema.safeParse({ password, fullName, phone });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
 
+        // Generate email from phone number
+        const cleanPhone = phone.replace(/\D/g, '');
+        const generatedEmail = `${cleanPhone}@welile.user`;
+
         const storedReferrerId = localStorage.getItem('referral_agent_id');
-        const { error } = await signUpWithoutRole(email, password, fullName, phone, storedReferrerId || undefined);
+        const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
         if (!error) localStorage.removeItem('referral_agent_id');
         if (error) {
-          toast({ title: 'Sign Up Failed', description: error.message, variant: 'destructive' });
+          // Translate common errors
+          let errorMessage = error.message;
+          if (error.message.includes('already registered')) {
+            errorMessage = 'This phone number is already registered. Please sign in instead.';
+          }
+          toast({ title: 'Sign Up Failed', description: errorMessage, variant: 'destructive' });
         } else {
           toast({ title: 'Account Created!', description: 'Welcome to Welile' });
           
@@ -117,16 +125,25 @@ export default function Auth() {
           }).catch(console.error);
         }
       } else {
-        const validation = signInSchema.safeParse({ email, password });
+        const validation = signInSchema.safeParse({ phone, password });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
 
-        const { error } = await signIn(email, password);
+        // Generate email from phone for sign in
+        const cleanPhone = phone.replace(/\D/g, '');
+        const generatedEmail = `${cleanPhone}@welile.user`;
+
+        const { error } = await signIn(generatedEmail, password);
         if (error) {
-          toast({ title: 'Sign In Failed', description: error.message, variant: 'destructive' });
+          // Translate common errors
+          let errorMessage = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'Invalid phone number or password. Please try again.';
+          }
+          toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
         } else {
           // Update location on sign in (in background)
           getLocationData().then(async (locationData) => {
@@ -235,61 +252,66 @@ export default function Auth() {
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && !isForgotPassword && (
-                <div className="space-y-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="fullName">Full Name</Label>
-                    <div className="relative">
-                      <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="fullName"
-                        value={fullName}
-                        onChange={(e) => setFullName(e.target.value)}
-                        placeholder="Enter your full name"
-                        className="pl-10 h-12 text-base"
-                        style={{ fontSize: '16px' }}
-                        required
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <Label htmlFor="phone">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                      <Input
-                        id="phone"
-                        type="tel"
-                        inputMode="tel"
-                        value={phone}
-                        onChange={(e) => setPhone(e.target.value)}
-                        placeholder="e.g., 0700123456"
-                        className="pl-10 h-12 text-base"
-                        style={{ fontSize: '16px' }}
-                        required
-                      />
-                    </div>
+                <div className="space-y-2">
+                  <Label htmlFor="fullName">Full Name</Label>
+                  <div className="relative">
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="fullName"
+                      value={fullName}
+                      onChange={(e) => setFullName(e.target.value)}
+                      placeholder="Enter your full name"
+                      className="pl-10 h-12 text-base"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
                   </div>
                 </div>
               )}
 
-              <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                  <Input
-                    id="email"
-                    type="email"
-                    inputMode="email"
-                    autoComplete="email"
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
-                    placeholder="you@example.com"
-                    className="pl-10 h-12 text-base"
-                    style={{ fontSize: '16px' }}
-                    required
-                  />
+              {!isForgotPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="phone">Phone Number</Label>
+                  <div className="relative">
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="phone"
+                      type="tel"
+                      inputMode="tel"
+                      value={phone}
+                      onChange={(e) => setPhone(e.target.value)}
+                      placeholder="e.g., 0700123456"
+                      className="pl-10 h-12 text-base"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                  </div>
                 </div>
-              </div>
+              )}
+
+              {isForgotPassword && (
+                <div className="space-y-2">
+                  <Label htmlFor="email">Email</Label>
+                  <div className="relative">
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="email"
+                      type="email"
+                      inputMode="email"
+                      autoComplete="email"
+                      value={email}
+                      onChange={(e) => setEmail(e.target.value)}
+                      placeholder="you@example.com"
+                      className="pl-10 h-12 text-base"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    If you signed up with phone only, please contact support.
+                  </p>
+                </div>
+              )}
 
               {!isForgotPassword && (
                 <div className="space-y-2">
