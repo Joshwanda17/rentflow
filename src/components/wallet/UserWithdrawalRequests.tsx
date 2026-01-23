@@ -9,16 +9,23 @@ import {
   CheckCircle, 
   XCircle,
   RefreshCw,
-  Loader2
+  Loader2,
+  Smartphone,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { toast } from 'sonner';
+import { hapticSuccess } from '@/lib/haptics';
 
 interface WithdrawalRequest {
   id: string;
   amount: number;
   status: string;
+  mobile_money_number: string | null;
+  mobile_money_provider: string | null;
   created_at: string;
   rejection_reason: string | null;
   processed_at: string | null;
@@ -28,6 +35,7 @@ export function UserWithdrawalRequests() {
   const { user } = useAuth();
   const [requests, setRequests] = useState<WithdrawalRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -63,17 +71,60 @@ export function UserWithdrawalRequests() {
     // Subscribe to real-time updates for this user
     if (user) {
       const channel = supabase
-        .channel(`user_withdrawals_${user.id}`)
+        .channel(`user_withdrawals_realtime_${user.id}`)
         .on(
           'postgres_changes',
           {
-            event: '*',
+            event: 'UPDATE',
             schema: 'public',
             table: 'withdrawal_requests',
             filter: `user_id=eq.${user.id}`
           },
-          () => {
-            fetchRequests();
+          (payload) => {
+            const updated = payload.new as WithdrawalRequest;
+            const old = payload.old as WithdrawalRequest;
+            
+            // Update local state
+            setRequests((prev) =>
+              prev.map((req) =>
+                req.id === updated.id ? updated : req
+              )
+            );
+
+            // Show toast notification for status changes
+            if (old.status === 'pending' && updated.status === 'approved') {
+              hapticSuccess();
+              toast.success(
+                `Withdrawal of ${formatCurrency(updated.amount)} approved! 🎉`,
+                { 
+                  description: updated.mobile_money_number 
+                    ? `Funds sent to ${updated.mobile_money_provider?.toUpperCase() || 'MoMo'} ${updated.mobile_money_number}`
+                    : 'Funds sent to your mobile money',
+                  duration: 6000
+                }
+              );
+            } else if (old.status === 'pending' && updated.status === 'rejected') {
+              toast.error(
+                'Withdrawal request rejected',
+                { 
+                  description: updated.rejection_reason || 'Contact support for details',
+                  duration: 6000
+                }
+              );
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'withdrawal_requests',
+            filter: `user_id=eq.${user.id}`
+          },
+          (payload) => {
+            const newRequest = payload.new as WithdrawalRequest;
+            setRequests((prev) => [newRequest, ...prev]);
           }
         )
         .subscribe();
@@ -84,33 +135,49 @@ export function UserWithdrawalRequests() {
     }
   }, [user, fetchRequests]);
 
-  const getStatusBadge = (status: string) => {
+  const getStatusConfig = (status: string) => {
     switch (status) {
       case 'pending':
-        return (
-          <Badge variant="outline" className="gap-1 bg-warning/10 text-warning border-warning/30">
-            <Clock className="h-3 w-3" />
-            Pending
-          </Badge>
-        );
+        return {
+          icon: Clock,
+          color: 'text-amber-500',
+          bgColor: 'bg-amber-500/10',
+          borderColor: 'border-amber-500/30',
+          label: 'Pending',
+          pulse: true,
+        };
       case 'approved':
-        return (
-          <Badge variant="outline" className="gap-1 bg-success/10 text-success border-success/30">
-            <CheckCircle className="h-3 w-3" />
-            Approved
-          </Badge>
-        );
+        return {
+          icon: CheckCircle,
+          color: 'text-success',
+          bgColor: 'bg-success/10',
+          borderColor: 'border-success/30',
+          label: 'Approved',
+          pulse: false,
+        };
       case 'rejected':
-        return (
-          <Badge variant="outline" className="gap-1 bg-destructive/10 text-destructive border-destructive/30">
-            <XCircle className="h-3 w-3" />
-            Rejected
-          </Badge>
-        );
+        return {
+          icon: XCircle,
+          color: 'text-destructive',
+          bgColor: 'bg-destructive/10',
+          borderColor: 'border-destructive/30',
+          label: 'Rejected',
+          pulse: false,
+        };
       default:
-        return <Badge variant="outline">{status}</Badge>;
+        return {
+          icon: Clock,
+          color: 'text-muted-foreground',
+          bgColor: 'bg-muted',
+          borderColor: 'border-border',
+          label: status,
+          pulse: false,
+        };
     }
   };
+
+  const pendingCount = requests.filter(r => r.status === 'pending').length;
+  const displayedRequests = expanded ? requests : requests.slice(0, 3);
 
   if (loading) {
     return (
@@ -132,7 +199,12 @@ export function UserWithdrawalRequests() {
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <ArrowDownToLine className="h-4 w-4 text-primary" />
-            My Withdrawal Requests
+            My Withdrawals
+            {pendingCount > 0 && (
+              <Badge variant="secondary" className="text-xs animate-pulse">
+                {pendingCount} pending
+              </Badge>
+            )}
           </CardTitle>
           <Button 
             variant="ghost" 
@@ -145,41 +217,104 @@ export function UserWithdrawalRequests() {
         </div>
       </CardHeader>
       <CardContent className="space-y-2">
-        <AnimatePresence>
-          {requests.map((request) => (
-            <motion.div
-              key={request.id}
-              initial={{ opacity: 0, y: 5 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, x: -20 }}
-              className="p-3 rounded-xl bg-muted/30 border border-border/50"
-            >
-              <div className="flex items-center justify-between">
-                <div>
-                  <p className="font-bold text-lg">{formatCurrency(request.amount)}</p>
-                  <p className="text-xs text-muted-foreground">
-                    {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                  </p>
+        <AnimatePresence mode="popLayout">
+          {displayedRequests.map((request, index) => {
+            const statusConfig = getStatusConfig(request.status);
+            const StatusIcon = statusConfig.icon;
+
+            return (
+              <motion.div
+                key={request.id}
+                initial={{ opacity: 0, y: -10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ delay: index * 0.05 }}
+                className={`p-3 rounded-xl border ${statusConfig.borderColor} ${
+                  request.status === 'pending' 
+                    ? 'bg-amber-500/5' 
+                    : 'bg-muted/30'
+                }`}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3">
+                    <div className={`p-2 rounded-lg ${statusConfig.bgColor}`}>
+                      <StatusIcon className={`h-4 w-4 ${statusConfig.color}`} />
+                    </div>
+                    <div className="space-y-1">
+                      <p className="font-bold text-base">
+                        {formatCurrency(request.amount)}
+                      </p>
+                      {request.mobile_money_number && (
+                        <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                          <Smartphone className="h-3 w-3" />
+                          <span className={`uppercase font-medium ${
+                            request.mobile_money_provider === 'mtn' 
+                              ? 'text-yellow-600' 
+                              : 'text-red-500'
+                          }`}>
+                            {request.mobile_money_provider || 'MoMo'}
+                          </span>
+                          <span>•</span>
+                          <span>{request.mobile_money_number}</span>
+                        </div>
+                      )}
+                      <p className="text-xs text-muted-foreground">
+                        {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                      </p>
+                    </div>
+                  </div>
+                  <Badge 
+                    variant="outline"
+                    className={`text-xs gap-1 ${statusConfig.bgColor} ${statusConfig.color} ${statusConfig.borderColor} ${
+                      statusConfig.pulse ? 'animate-pulse' : ''
+                    }`}
+                  >
+                    <StatusIcon className="h-3 w-3" />
+                    {statusConfig.label}
+                  </Badge>
                 </div>
-                {getStatusBadge(request.status)}
-              </div>
-              
-              {request.status === 'rejected' && request.rejection_reason && (
-                <div className="mt-2 p-2 bg-destructive/10 rounded-lg">
-                  <p className="text-xs text-destructive">
-                    <strong>Reason:</strong> {request.rejection_reason}
-                  </p>
-                </div>
-              )}
-              
-              {request.status === 'approved' && request.processed_at && (
-                <p className="text-xs text-success mt-1">
-                  Processed {formatDistanceToNow(new Date(request.processed_at), { addSuffix: true })}
-                </p>
-              )}
-            </motion.div>
-          ))}
+                
+                {request.status === 'rejected' && request.rejection_reason && (
+                  <div className="mt-2 p-2 bg-destructive/10 rounded-lg">
+                    <p className="text-xs text-destructive">
+                      <strong>Reason:</strong> {request.rejection_reason}
+                    </p>
+                  </div>
+                )}
+                
+                {request.status === 'approved' && request.processed_at && (
+                  <div className="mt-2 flex items-center gap-1.5 text-xs text-success">
+                    <CheckCircle className="h-3 w-3" />
+                    <span>
+                      Sent {format(new Date(request.processed_at), 'MMM d • h:mm a')}
+                    </span>
+                  </div>
+                )}
+              </motion.div>
+            );
+          })}
         </AnimatePresence>
+
+        {requests.length > 3 && (
+          <Button
+            variant="ghost"
+            size="sm"
+            className="w-full h-10 text-muted-foreground touch-manipulation"
+            onClick={() => setExpanded(!expanded)}
+          >
+            {expanded ? (
+              <>
+                <ChevronUp className="h-4 w-4 mr-2" />
+                Show less
+              </>
+            ) : (
+              <>
+                <ChevronDown className="h-4 w-4 mr-2" />
+                Show {requests.length - 3} more
+              </>
+            )}
+          </Button>
+        )}
       </CardContent>
     </Card>
   );
