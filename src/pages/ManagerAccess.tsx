@@ -43,6 +43,7 @@ import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
+import { ManagerInvestmentRequestsSection } from '@/components/manager/ManagerInvestmentRequestsSection';
 import { DepositRequestsManager } from '@/components/manager/DepositRequestsManager';
 import { ActivityManager } from '@/components/manager/ActivityManager';
 import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
@@ -700,7 +701,10 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="investments" className="mt-4">
-            <InvestmentAccountsManager />
+            <div className="space-y-4">
+              <ManagerInvestmentRequestsSection />
+              <InvestmentAccountsManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="payments" className="mt-4">

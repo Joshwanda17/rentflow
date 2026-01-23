@@ -895,6 +895,56 @@ export type Database = {
         }
         Relationships: []
       }
+      manager_investment_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          investment_account_id: string | null
+          manager_id: string | null
+          manager_notes: string | null
+          processed_at: string | null
+          status: string
+          supporter_id: string
+          supporter_name: string | null
+          supporter_phone: string | null
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          investment_account_id?: string | null
+          manager_id?: string | null
+          manager_notes?: string | null
+          processed_at?: string | null
+          status?: string
+          supporter_id: string
+          supporter_name?: string | null
+          supporter_phone?: string | null
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          investment_account_id?: string | null
+          manager_id?: string | null
+          manager_notes?: string | null
+          processed_at?: string | null
+          status?: string
+          supporter_id?: string
+          supporter_name?: string | null
+          supporter_phone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "manager_investment_requests_investment_account_id_fkey"
+            columns: ["investment_account_id"]
+            isOneToOne: false
+            referencedRelation: "investment_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       manager_recorded_transactions: {
         Row: {
           amount: number

@@ -14,6 +14,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Input } from '@/components/ui/input';
+import { RequestManagerInvestDialog } from './RequestManagerInvestDialog';
 import { 
   Users, 
   HandCoins, 
@@ -42,7 +43,8 @@ import {
   CheckCheck,
   RefreshCw,
   Search,
-  X
+  X,
+  UserPlus
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -127,6 +129,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [watchingId, setWatchingId] = useState<string | null>(null);
   const [lastSeenAt, setLastSeenAt] = useState<Date | null>(getLastSeenAt());
   const [searchQuery, setSearchQuery] = useState('');
+  const [showManagerInvestDialog, setShowManagerInvestDialog] = useState(false);
+  const [managerInvestAmount, setManagerInvestAmount] = useState(0);
 
   // Count unseen opportunities and calculate potential earnings (exclude funded)
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
@@ -1243,7 +1247,24 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         </Button>
                       )}
 
-                      {/* Verification Progress - SIMPLIFIED */}
+                      {/* LET MANAGER INVEST BUTTON - Always visible for non-funded */}
+                      {opportunity.status !== 'funded' && (
+                        <Button
+                          size="lg"
+                          variant="outline"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            hapticTap();
+                            setManagerInvestAmount(opportunity.rent_amount);
+                            setShowManagerInvestDialog(true);
+                          }}
+                          className="w-full h-12 text-base font-bold gap-2 border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary touch-manipulation active:scale-[0.98] mb-4"
+                        >
+                          <UserPlus className="h-5 w-5" />
+                          Let Manager Invest For Me
+                        </Button>
+                      )}
+
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
                           <span className="text-sm font-medium text-muted-foreground">Verification Progress</span>
@@ -1934,6 +1955,14 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       
       {/* Scroll to top button */}
       <ScrollToTopButton scrollThreshold={400} targetId="opportunities" />
+
+      {/* Request Manager Invest Dialog */}
+      <RequestManagerInvestDialog
+        open={showManagerInvestDialog}
+        onOpenChange={setShowManagerInvestDialog}
+        suggestedAmount={managerInvestAmount}
+        tenantsCount={opportunities.filter(o => o.status !== 'funded').length}
+      />
     </>
   );
 }
