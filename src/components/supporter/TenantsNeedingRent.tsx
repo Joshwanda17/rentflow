@@ -5,6 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Users, ArrowRight, Clock, Shield } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useCurrency } from '@/hooks/useCurrency';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 interface RentRequest {
   id: string;
@@ -26,6 +28,7 @@ interface TenantsNeedingRentProps {
 
 export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }: TenantsNeedingRentProps) {
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const { formatAmount } = useCurrency();
 
   const toggleCard = (id: string) => {
     setExpandedId(prev => prev === id ? null : id);
@@ -55,9 +58,12 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
               </div>
               <CardTitle className="text-sm font-semibold">Opportunities</CardTitle>
             </div>
-            <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-medium">
-              {requests.length}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <CurrencySwitcher variant="compact" />
+              <Badge variant="secondary" className="text-[10px] px-2 py-0.5 font-medium">
+                {requests.length}
+              </Badge>
+            </div>
           </div>
         </CardHeader>
         
@@ -88,7 +94,7 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                         {request.tenant_name || 'Anonymous Tenant'}
                       </span>
                       <span className="text-xs font-bold text-success shrink-0">
-                        +{formatUGX(reward)}
+                        +{formatAmount(reward)}
                       </span>
                     </button>
                     
@@ -107,11 +113,11 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                             <div className="flex items-center justify-between">
                               <div>
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Rent</p>
-                                <p className="text-base font-bold">{formatUGX(Number(request.rent_amount))}</p>
+                                <p className="text-base font-bold">{formatAmount(Number(request.rent_amount))}</p>
                               </div>
                               <div className="text-right">
                                 <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Reward</p>
-                                <p className="text-base font-bold text-success">+{formatUGX(reward)}</p>
+                                <p className="text-base font-bold text-success">+{formatAmount(reward)}</p>
                               </div>
                             </div>
                             
