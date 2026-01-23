@@ -112,7 +112,7 @@ export function MobileQuickActions({
   return (
     <Card className="border-0 bg-transparent shadow-none">
       <CardContent className="p-0">
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-3 gap-3">
           {quickActions.map((action, index) => {
             const Icon = action.icon;
             return (
@@ -123,7 +123,7 @@ export function MobileQuickActions({
                 transition={{ delay: index * 0.05 }}
                 onClick={() => handleAction(action.path)}
                 className={cn(
-                  "relative flex flex-col items-center justify-center gap-1 p-4 rounded-2xl border-2 border-border/50 transition-all touch-manipulation active:scale-95",
+                  "relative flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-border/50 transition-all touch-manipulation active:scale-95 min-h-[110px]",
                   action.bgColor
                 )}
               >
@@ -132,17 +132,17 @@ export function MobileQuickActions({
                   <motion.div
                     initial={{ scale: 0 }}
                     animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 w-3 h-3 bg-destructive rounded-full animate-pulse"
+                    className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full animate-pulse"
                   />
                 )}
                 
                 {/* Large icon */}
                 <div className="relative">
-                  <Icon className={cn("h-8 w-8", action.color)} strokeWidth={1.5} />
+                  <Icon className={cn("h-10 w-10", action.color)} strokeWidth={1.5} />
                   {action.count !== undefined && action.count > 0 && (
                     <Badge 
                       className={cn(
-                        "absolute -top-2 -right-3 h-5 min-w-[20px] px-1 text-[10px] font-bold",
+                        "absolute -top-2 -right-4 h-6 min-w-[24px] px-1.5 text-xs font-bold",
                         action.urgent ? "bg-destructive" : "bg-primary"
                       )}
                     >
@@ -152,12 +152,12 @@ export function MobileQuickActions({
                 </div>
                 
                 {/* Label - Large and clear */}
-                <span className={cn("text-sm font-bold leading-tight", action.color)}>
+                <span className={cn("text-base font-bold leading-tight", action.color)}>
                   {action.label}
                 </span>
                 
                 {/* Sublabel */}
-                <span className="text-[10px] text-muted-foreground font-medium">
+                <span className="text-xs text-muted-foreground font-medium">
                   {action.sublabel}
                 </span>
               </motion.button>
@@ -165,8 +165,8 @@ export function MobileQuickActions({
           })}
         </div>
 
-        {/* Broadcast & Add User Buttons */}
-        <div className="mt-3 grid grid-cols-3 gap-2">
+        {/* Broadcast & Add User Buttons - Larger touch targets */}
+        <div className="mt-4 grid grid-cols-3 gap-3">
           {/* Broadcast Notification Button */}
           <BroadcastNotificationDialog 
             trigger={
@@ -175,12 +175,12 @@ export function MobileQuickActions({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
                 onClick={() => hapticTap()}
-                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-orange-500/20 via-orange-500/15 to-orange-500/10 border-2 border-orange-500/30 touch-manipulation active:scale-[0.98]"
+                className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-orange-500/20 via-orange-500/15 to-orange-500/10 border-2 border-orange-500/30 touch-manipulation active:scale-[0.98] min-h-[90px]"
               >
-                <div className="p-2 rounded-xl bg-orange-500 text-white">
-                  <Megaphone className="h-5 w-5" />
+                <div className="p-3 rounded-xl bg-orange-500 text-white">
+                  <Megaphone className="h-6 w-6" />
                 </div>
-                <p className="text-xs font-bold text-orange-600 dark:text-orange-400">Notify All</p>
+                <p className="text-sm font-bold text-orange-600 dark:text-orange-400">Notify All</p>
               </motion.button>
             }
           />
@@ -193,12 +193,12 @@ export function MobileQuickActions({
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.32 }}
                 onClick={() => hapticTap()}
-                className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-blue-500/20 via-blue-500/15 to-blue-500/10 border-2 border-blue-500/30 touch-manipulation active:scale-[0.98]"
+                className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-blue-500/20 via-blue-500/15 to-blue-500/10 border-2 border-blue-500/30 touch-manipulation active:scale-[0.98] min-h-[90px]"
               >
-                <div className="p-2 rounded-xl bg-blue-500 text-white">
-                  <MessageSquare className="h-5 w-5" />
+                <div className="p-3 rounded-xl bg-blue-500 text-white">
+                  <MessageSquare className="h-6 w-6" />
                 </div>
-                <p className="text-xs font-bold text-blue-600 dark:text-blue-400">Message All</p>
+                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Message All</p>
               </motion.button>
             }
           />
@@ -212,12 +212,12 @@ export function MobileQuickActions({
               hapticTap();
               navigate('/manager-access?tab=users&action=add');
             }}
-            className="w-full flex flex-col items-center justify-center gap-1.5 p-3 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98]"
+            className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98] min-h-[90px]"
           >
-            <div className="p-2 rounded-xl bg-primary text-primary-foreground">
-              <UserPlus className="h-5 w-5" />
+            <div className="p-3 rounded-xl bg-primary text-primary-foreground">
+              <UserPlus className="h-6 w-6" />
             </div>
-            <p className="text-xs font-bold text-primary">Add User</p>
+            <p className="text-sm font-bold text-primary">Add User</p>
           </motion.button>
         </div>
       </CardContent>

@@ -1275,25 +1275,27 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                             return (
                               <div 
                                 key={role}
-                                className={`flex items-center justify-between p-4 rounded-xl border transition-all ${
-                                  isEnabled ? 'bg-card border-border' : 'bg-muted/30 border-muted opacity-60'
+                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
+                                  isEnabled ? 'bg-card border-primary/30' : 'bg-muted/30 border-muted opacity-60'
                                 }`}
                               >
                                 <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <Badge className={`${roleInfo?.color || 'bg-muted'} ${!isEnabled ? 'opacity-50' : ''}`}>
-                                    {roleInfo?.label || role}
-                                  </Badge>
-                                  <span className={`text-xs font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
-                                    {isEnabled ? '✓ Active' : '✗ Disabled'}
-                                  </span>
+                                  <span className="text-2xl">{roleInfo?.label === 'Tenant' ? '🏠' : roleInfo?.label === 'Agent' ? '💼' : roleInfo?.label === 'Landlord' ? '🏢' : roleInfo?.label === 'Supporter' ? '💰' : '👑'}</span>
+                                  <div>
+                                    <p className="font-bold text-base">{roleInfo?.label || role}</p>
+                                    <span className={`text-sm font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
+                                      {isEnabled ? '✓ Active' : '✗ Disabled'}
+                                    </span>
+                                  </div>
                                 </div>
-                                <div className="flex items-center gap-2 shrink-0">
+                                <div className="flex items-center gap-3 shrink-0">
+                                  {/* Toggle Enable/Disable - Large button */}
                                   <Button
-                                    variant="ghost"
-                                    size="sm"
+                                    variant={isEnabled ? "default" : "outline"}
+                                    size="lg"
                                     onClick={() => handleToggleRoleEnabled(role as AppRole)}
                                     disabled={togglingRole === role || (!canDisable && isEnabled)}
-                                    className={`h-10 w-10 p-0 ${isEnabled ? 'text-success' : 'text-muted-foreground'}`}
+                                    className={`h-12 w-12 p-0 rounded-xl ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
                                   >
                                     {togglingRole === role ? (
                                       <Loader2 className="h-5 w-5 animate-spin" />
@@ -1303,14 +1305,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                       <ToggleLeft className="h-6 w-6" />
                                     )}
                                   </Button>
+                                  {/* Remove Role - Large button */}
                                   <Button
-                                    variant="ghost"
-                                    size="sm"
+                                    variant="destructive"
+                                    size="lg"
                                     onClick={() => handleRemoveRole(role as AppRole)}
                                     disabled={removingRole === role || userRoles.length <= 1}
-                                    className="text-destructive h-10 w-10 p-0"
+                                    className="h-12 w-12 p-0 rounded-xl"
                                   >
-                                    {removingRole === role ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                    {removingRole === role ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
                                   </Button>
                                 </div>
                               </div>
@@ -1331,25 +1334,28 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                         </CardTitle>
                       </CardHeader>
                       <CardContent className="pt-0">
-                        <div className="space-y-2">
+                        <div className="grid grid-cols-1 gap-3">
                           {availableRolesToAdd.map((role) => (
-                            <div 
+                            <Button
                               key={role.value}
-                              className="flex items-center justify-between p-4 rounded-xl border bg-muted/30"
+                              variant="outline"
+                              onClick={() => handleAddRole(role.value)}
+                              disabled={addingRole === role.value}
+                              className="h-16 justify-between px-4 rounded-2xl border-2 border-dashed border-success/40 hover:border-success hover:bg-success/5"
                             >
-                              <Badge variant="outline" className={role.color}>
-                                {role.label}
-                              </Badge>
-                              <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => handleAddRole(role.value)}
-                                disabled={addingRole === role.value}
-                                className="text-success h-10 w-10 p-0"
-                              >
-                                {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Plus className="h-5 w-5" />}
-                              </Button>
-                            </div>
+                              <div className="flex items-center gap-3">
+                                <span className="text-2xl">{role.value === 'tenant' ? '🏠' : role.value === 'agent' ? '💼' : role.value === 'landlord' ? '🏢' : role.value === 'supporter' ? '💰' : '👑'}</span>
+                                <div className="text-left">
+                                  <p className="font-bold">{role.label}</p>
+                                  <p className="text-xs text-muted-foreground">{role.description}</p>
+                                </div>
+                              </div>
+                              {addingRole === role.value ? (
+                                <Loader2 className="h-6 w-6 animate-spin text-success" />
+                              ) : (
+                                <Plus className="h-6 w-6 text-success" />
+                              )}
+                            </Button>
                           ))}
                         </div>
                       </CardContent>

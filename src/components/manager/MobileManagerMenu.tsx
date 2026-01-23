@@ -160,8 +160,8 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
               </p>
             </div>
 
-            {/* Grid of Actions - Large icons */}
-            <div className="p-3 grid grid-cols-4 gap-2">
+            {/* Grid of Actions - Extra large icons for easy tapping */}
+            <div className="p-4 grid grid-cols-4 gap-3">
               {menuItems.map((item, index) => (
                 <motion.button
                   key={item.path}
@@ -169,33 +169,33 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
                   animate={{ opacity: 1, scale: 1 }}
                   transition={{ delay: index * 0.03 }}
                   onClick={() => handleItemClick(item.path)}
-                  className="flex flex-col items-center gap-2 p-3 rounded-2xl bg-muted/50 hover:bg-muted active:scale-90 transition-all touch-manipulation min-h-[80px]"
+                  className="flex flex-col items-center gap-2 p-4 rounded-2xl bg-muted/50 hover:bg-muted active:scale-90 transition-all touch-manipulation min-h-[100px]"
                 >
-                  <div className={cn("p-3 rounded-2xl shadow-lg", item.color)}>
-                    <item.icon className="h-6 w-6 text-white" />
+                  <div className={cn("p-4 rounded-2xl shadow-lg", item.color)}>
+                    <item.icon className="h-7 w-7 text-white" />
                   </div>
-                  <span className="text-xs font-bold text-center leading-tight">
+                  <span className="text-sm font-bold text-center leading-tight">
                     {item.label}
                   </span>
                 </motion.button>
               ))}
             </div>
 
-            {/* Bottom Actions - Large buttons */}
-            <div className="p-3 border-t border-border bg-muted/30 flex gap-2">
+            {/* Bottom Actions - Extra large buttons */}
+            <div className="p-4 border-t border-border bg-muted/30 flex gap-3">
               <button
                 onClick={handleProductivity}
-                className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold active:scale-95 transition-all touch-manipulation"
+                className="flex-1 flex items-center justify-center gap-3 p-5 rounded-2xl bg-amber-500/20 text-amber-600 dark:text-amber-400 font-bold active:scale-95 transition-all touch-manipulation"
               >
-                <Award className="h-6 w-6" />
-                <span className="text-base">📊 Stats</span>
+                <Award className="h-7 w-7" />
+                <span className="text-lg">📊 Stats</span>
               </button>
               <button
                 onClick={() => handleItemClick('/install')}
-                className="flex-1 flex items-center justify-center gap-2 p-4 rounded-2xl bg-primary/20 text-primary font-bold active:scale-95 transition-all touch-manipulation"
+                className="flex-1 flex items-center justify-center gap-3 p-5 rounded-2xl bg-primary/20 text-primary font-bold active:scale-95 transition-all touch-manipulation"
               >
-                <Download className="h-6 w-6" />
-                <span className="text-base">📤 Share</span>
+                <Download className="h-7 w-7" />
+                <span className="text-lg">📤 Share</span>
               </button>
             </div>
           </motion.div>
