@@ -4,16 +4,21 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, TrendingUp, Gift, Percent, Calendar, RefreshCw, ArrowDownLeft } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Gift, Percent, Calendar, RefreshCw, ArrowDownLeft, Banknote } from 'lucide-react';
 import { useAuth } from '@/hooks/useAuth';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { MobileMoneySettings } from '@/components/agent/MobileMoneySettings';
+import { RequestCommissionPayoutDialog } from '@/components/agent/RequestCommissionPayoutDialog';
+import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
+import { hapticTap } from '@/lib/haptics';
 
 export default function AgentEarnings() {
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
   const { earnings, loading, totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -191,6 +196,30 @@ export default function AgentEarnings() {
           </Card>
         </div>
 
+        {/* Request Payout Button */}
+        {totalEarnings > 0 && (
+          <Button
+            onClick={() => {
+              hapticTap();
+              setPayoutDialogOpen(true);
+            }}
+            className="w-full h-14 mb-6 bg-success hover:bg-success/90 text-lg gap-2"
+          >
+            <Banknote className="h-5 w-5" />
+            Request Commission Payout
+          </Button>
+        )}
+
+        {/* Mobile Money Settings */}
+        <div className="mb-6">
+          <MobileMoneySettings />
+        </div>
+
+        {/* My Payout Requests */}
+        <div className="mb-6">
+          <MyCommissionPayouts />
+        </div>
+
         {/* Earnings Breakdown */}
         <Card>
           <CardHeader>
@@ -258,6 +287,14 @@ export default function AgentEarnings() {
           </CardContent>
         </Card>
       </div>
+
+      {/* Payout Request Dialog */}
+      <RequestCommissionPayoutDialog
+        open={payoutDialogOpen}
+        onOpenChange={setPayoutDialogOpen}
+        availableBalance={totalEarnings}
+        onSuccess={refreshEarnings}
+      />
     </div>
   );
 }

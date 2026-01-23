@@ -47,6 +47,54 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_commission_payouts: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          processed_at: string | null
+          processed_by: string | null
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          mobile_money_number?: string
+          mobile_money_provider?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       agent_earnings: {
         Row: {
           agent_id: string
@@ -1495,6 +1543,8 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          mobile_money_number: string | null
+          mobile_money_provider: string | null
           monthly_rent: number | null
           phone: string
           referrer_id: string | null
@@ -1511,6 +1561,8 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          mobile_money_number?: string | null
+          mobile_money_provider?: string | null
           monthly_rent?: number | null
           phone: string
           referrer_id?: string | null
@@ -1527,6 +1579,8 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          mobile_money_number?: string | null
+          mobile_money_provider?: string | null
           monthly_rent?: number | null
           phone?: string
           referrer_id?: string | null
