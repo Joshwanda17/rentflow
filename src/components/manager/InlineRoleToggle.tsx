@@ -1,10 +1,11 @@
 import { useState } from 'react';
 import { Badge } from '@/components/ui/badge';
-import { Loader2, Plus, X } from 'lucide-react';
+import { Loader2, Plus, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { hapticTap, hapticSuccess, hapticError } from '@/lib/haptics';
 import { useAuth } from '@/hooks/useAuth';
+import { motion, useMotionValue, useTransform, animate, PanInfo } from 'framer-motion';
 import {
   Popover,
   PopoverContent,
@@ -46,6 +47,89 @@ const roleColors: Record<string, string> = {
   landlord: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
   manager: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
 };
+
+// Swipeable Role Badge Component
+function SwipeableRoleBadge({
+  role,
+  roleInfo,
+  isEnabled,
+  isLoading,
+  canRemove,
+  onRemove,
+}: {
+  role: string;
+  roleInfo: { value: AppRole; emoji: string; label: string } | undefined;
+  isEnabled: boolean;
+  isLoading: boolean;
+  canRemove: boolean;
+  onRemove: () => void;
+}) {
+  const x = useMotionValue(0);
+  const deleteOpacity = useTransform(x, [-60, -30], [1, 0]);
+  const deleteScale = useTransform(x, [-60, -30], [1, 0.8]);
+  const badgeOpacity = useTransform(x, [-80, -60], [0.5, 1]);
+  
+  const handleDragEnd = (_: any, info: PanInfo) => {
+    const threshold = -50;
+    
+    if (info.offset.x < threshold && canRemove) {
+      // Swiped past threshold - trigger remove
+      hapticSuccess();
+      animate(x, -100, { duration: 0.2 });
+      setTimeout(() => {
+        onRemove();
+      }, 100);
+    } else {
+      // Snap back
+      animate(x, 0, { type: 'spring', stiffness: 500, damping: 30 });
+    }
+  };
+
+  return (
+    <div className="relative overflow-visible">
+      {/* Delete indicator behind the badge */}
+      <motion.div 
+        className="absolute inset-y-0 right-0 flex items-center justify-end pr-2 pointer-events-none"
+        style={{ opacity: deleteOpacity, scale: deleteScale }}
+      >
+        <div className="bg-destructive text-destructive-foreground rounded-full p-1.5">
+          <Trash2 className="h-3 w-3" />
+        </div>
+      </motion.div>
+      
+      {/* Swipeable badge */}
+      <motion.div
+        drag={canRemove && !isLoading ? 'x' : false}
+        dragConstraints={{ left: -80, right: 0 }}
+        dragElastic={0.1}
+        onDragEnd={handleDragEnd}
+        style={{ x, opacity: badgeOpacity }}
+        className="relative touch-pan-y"
+      >
+        <Badge 
+          variant="outline"
+          className={`text-xs font-semibold px-2.5 py-1.5 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1.5 select-none cursor-grab active:cursor-grabbing`}
+          style={{ WebkitUserSelect: 'none', WebkitTouchCallout: 'none' }}
+        >
+          {isLoading ? (
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+          ) : (
+            <span>{roleInfo?.emoji}</span>
+          )}
+          <span className={!isEnabled ? 'line-through' : ''}>{role}</span>
+          {!canRemove && (
+            <span className="text-[10px] opacity-60 ml-0.5">•</span>
+          )}
+        </Badge>
+      </motion.div>
+      
+      {/* Swipe hint indicator */}
+      {canRemove && !isLoading && (
+        <div className="absolute -right-1 top-1/2 -translate-y-1/2 w-1 h-3 bg-destructive/30 rounded-full opacity-0 group-hover:opacity-100 transition-opacity" />
+      )}
+    </div>
+  );
+}
 
 export function InlineRoleToggle({
   userId,
@@ -174,8 +258,7 @@ export function InlineRoleToggle({
     setConfirmDialog({ open: true, action: 'add', role });
   };
 
-  const handleRemoveRoleClick = (role: AppRole, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleSwipeRemove = (role: AppRole) => {
     if (!localRoles.includes(role)) return;
     
     // Prevent removing last role
@@ -185,7 +268,6 @@ export function InlineRoleToggle({
       return;
     }
     
-    hapticTap();
     setConfirmDialog({ open: true, action: 'remove', role });
   };
 
@@ -207,37 +289,33 @@ export function InlineRoleToggle({
   return (
     <>
       <div 
-        className="flex flex-wrap items-center gap-1.5" 
+        className="flex flex-wrap items-center gap-2" 
         onClick={(e) => e.stopPropagation()}
       >
-        {/* Current Roles with Remove Button */}
+        {/* Swipe hint for mobile */}
+        {localRoles.length > 1 && (
+          <span className="text-[10px] text-muted-foreground/60 w-full mb-0.5 flex items-center gap-1">
+            <span className="inline-block">←</span> Swipe to remove
+          </span>
+        )}
+        
+        {/* Swipeable Role Badges */}
         {localRoles.map((role) => {
           const roleInfo = roles.find(r => r.value === role);
           const isEnabled = roleEnabledStatus[role] ?? true;
           const isLoading = loadingRole === role;
+          const canRemove = localRoles.length > 1;
           
           return (
-            <div key={role} className="group relative">
-              <Badge 
-                variant="outline"
-                className={`text-xs font-semibold pl-2 pr-1 py-1 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1`}
-              >
-                <span>{roleInfo?.emoji}</span>
-                <span className={!isEnabled ? 'line-through' : ''}>{role}</span>
-                <button
-                  onClick={(e) => handleRemoveRoleClick(role as AppRole, e)}
-                  disabled={isLoading || localRoles.length <= 1}
-                  className="ml-0.5 p-1 rounded-full hover:bg-destructive/20 disabled:opacity-50 transition-colors touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  {isLoading ? (
-                    <Loader2 className="h-3 w-3 animate-spin" />
-                  ) : (
-                    <X className="h-3 w-3" />
-                  )}
-                </button>
-              </Badge>
-            </div>
+            <SwipeableRoleBadge
+              key={role}
+              role={role}
+              roleInfo={roleInfo}
+              isEnabled={isEnabled}
+              isLoading={isLoading}
+              canRemove={canRemove}
+              onRemove={() => handleSwipeRemove(role as AppRole)}
+            />
           );
         })}
         
@@ -250,14 +328,15 @@ export function InlineRoleToggle({
                   e.stopPropagation();
                   hapticTap();
                 }}
-                className="h-7 w-7 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center hover:bg-primary/20 active:scale-95 transition-all touch-manipulation"
+                className="h-8 px-3 rounded-full bg-primary/10 border border-primary/30 flex items-center gap-1.5 hover:bg-primary/20 active:scale-95 transition-all touch-manipulation"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <Plus className="h-4 w-4 text-primary" />
+                <span className="text-xs font-medium text-primary">Add</span>
               </button>
             </PopoverTrigger>
             <PopoverContent 
-              className="w-48 p-2" 
+              className="w-52 p-2" 
               align="start"
               onClick={(e) => e.stopPropagation()}
             >
@@ -268,15 +347,15 @@ export function InlineRoleToggle({
                     key={role.value}
                     onClick={(e) => handleAddRoleClick(role.value, e)}
                     disabled={loadingRole === role.value}
-                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted active:scale-[0.98] transition-all text-left touch-manipulation"
+                    className="w-full flex items-center gap-3 px-3 py-3 rounded-xl hover:bg-muted active:scale-[0.98] transition-all text-left touch-manipulation"
                     style={{ WebkitTapHighlightColor: 'transparent' }}
                   >
                     {loadingRole === role.value ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <Loader2 className="h-5 w-5 animate-spin" />
                     ) : (
-                      <span className="text-lg">{role.emoji}</span>
+                      <span className="text-xl">{role.emoji}</span>
                     )}
-                    <span className="font-medium text-sm">{role.label}</span>
+                    <span className="font-medium">{role.label}</span>
                   </button>
                 ))}
               </div>
@@ -292,34 +371,33 @@ export function InlineRoleToggle({
       >
         <AlertDialogContent onClick={(e) => e.stopPropagation()}>
           <AlertDialogHeader>
-            <AlertDialogTitle className="flex items-center gap-2">
-              {pendingRole?.emoji}
+            <AlertDialogTitle className="flex items-center gap-2 text-xl">
+              <span className="text-2xl">{pendingRole?.emoji}</span>
               {confirmDialog.action === 'add' ? 'Add' : 'Remove'} {pendingRole?.label} Role
             </AlertDialogTitle>
-            <AlertDialogDescription>
+            <AlertDialogDescription className="text-base">
               {confirmDialog.action === 'add' ? (
                 <>
-                  Are you sure you want to give <span className="font-semibold text-foreground">{userName}</span> the{' '}
+                  Give <span className="font-semibold text-foreground">{userName}</span> the{' '}
                   <span className="font-semibold text-foreground">{pendingRole?.label}</span> role? 
-                  They will receive a notification and gain access to {pendingRole?.label.toLowerCase()} features.
+                  They'll get access to {pendingRole?.label.toLowerCase()} features.
                 </>
               ) : (
                 <>
-                  Are you sure you want to remove the{' '}
-                  <span className="font-semibold text-foreground">{pendingRole?.label}</span> role from{' '}
+                  Remove <span className="font-semibold text-foreground">{pendingRole?.label}</span> from{' '}
                   <span className="font-semibold text-foreground">{userName}</span>? 
-                  They will lose access to {pendingRole?.label.toLowerCase()} features immediately.
+                  They'll lose access immediately.
                 </>
               )}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="gap-3 sm:gap-2">
             <AlertDialogCancel 
               onClick={(e) => {
                 e.stopPropagation();
                 hapticTap();
               }}
-              className="h-12"
+              className="h-14 text-base font-semibold"
             >
               Cancel
             </AlertDialogCancel>
@@ -329,10 +407,10 @@ export function InlineRoleToggle({
                 handleConfirm();
               }}
               disabled={loadingRole !== null}
-              className={`h-12 ${confirmDialog.action === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+              className={`h-14 text-base font-semibold ${confirmDialog.action === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
             >
               {loadingRole ? (
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                <Loader2 className="h-5 w-5 animate-spin mr-2" />
               ) : null}
               {confirmDialog.action === 'add' ? 'Add Role' : 'Remove Role'}
             </AlertDialogAction>
