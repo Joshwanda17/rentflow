@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { LucideIcon, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -33,12 +32,9 @@ export function ModernQuickLinks({ links, className }: ModernQuickLinksProps) {
 
   return (
     <div className={cn('space-y-2', className)}>
-      {links.map((link, index) => (
-        <motion.button
+      {links.map((link) => (
+        <button
           key={link.label}
-          initial={{ opacity: 0, x: -10 }}
-          animate={{ opacity: 1, x: 0 }}
-          transition={{ delay: index * 0.05 }}
           onClick={() => {
             hapticTap();
             link.onClick();
@@ -60,7 +56,7 @@ export function ModernQuickLinks({ links, className }: ModernQuickLinksProps) {
             </span>
           )}
           <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors" />
-        </motion.button>
+        </button>
       ))}
     </div>
   );

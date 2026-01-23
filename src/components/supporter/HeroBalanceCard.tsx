@@ -1,8 +1,6 @@
-import { motion } from 'framer-motion';
 import { TrendingUp, Plus, ChevronRight, Sparkles, ArrowUpRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { formatUGX } from '@/lib/rentCalculations';
-import { cn } from '@/lib/utils';
 
 interface HeroBalanceCardProps {
   totalInvested: number;
@@ -24,12 +22,7 @@ export function HeroBalanceCard({
   const roiRate = 15;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.98 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="relative"
-    >
+    <div className="relative">
       {/* Glass morphism card with gradient */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-br from-primary via-primary to-primary/80 p-5 shadow-2xl shadow-primary/25">
         {/* Animated background pattern */}
@@ -48,26 +41,17 @@ export function HeroBalanceCard({
               </div>
               <span className="text-sm font-medium text-white/80">Total Portfolio</span>
             </div>
-            <motion.div
-              initial={{ scale: 0.9 }}
-              animate={{ scale: 1 }}
-              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm"
-            >
+            <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-white/20 backdrop-blur-sm">
               <Sparkles className="h-3 w-3 text-amber-300" />
               <span className="text-xs font-bold text-white">{roiRate}% ROI</span>
-            </motion.div>
+            </div>
           </div>
 
           {/* Main balance */}
           <div className="mb-5">
-            <motion.h2
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
-              className="text-3xl sm:text-4xl font-black text-white tracking-tight"
-            >
+            <h2 className="text-3xl sm:text-4xl font-black text-white tracking-tight">
               {formatUGX(totalInvested)}
-            </motion.h2>
+            </h2>
             <div className="flex items-center gap-2 mt-1">
               <ArrowUpRight className="h-4 w-4 text-emerald-300" />
               <span className="text-sm font-semibold text-emerald-300">
@@ -112,6 +96,6 @@ export function HeroBalanceCard({
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }
