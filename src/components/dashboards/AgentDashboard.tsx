@@ -45,6 +45,7 @@ import { CollapsibleUserInvites } from '@/components/agent/CollapsibleUserInvite
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { CollapsibleLinkSignups } from '@/components/agent/CollapsibleLinkSignups';
+import { ShareReferralLink } from '@/components/agent/ShareReferralLink';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -420,7 +421,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </motion.button>
         </div>
 
-        {/* Share Sub-Agent Referral Link - Prominent */}
+        {/* General Referral Link - Invite Anyone */}
+        <ShareReferralLink />
+
+        {/* Share Sub-Agent Referral Link */}
         <ShareSubAgentLink />
 
         {/* Invite Sub-Agent Quick Action (for direct registration) */}
