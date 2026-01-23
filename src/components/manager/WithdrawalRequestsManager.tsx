@@ -58,8 +58,10 @@ export function WithdrawalRequestsManager() {
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [transactionId, setTransactionId] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
   const copyToClipboard = async (text: string, requestId: string) => {
@@ -151,48 +153,63 @@ export function WithdrawalRequestsManager() {
     };
   }, [fetchRequests]);
 
-  const handleApprove = async (request: WithdrawalRequest) => {
-    if (!user) return;
-
+  const handleApproveClick = (request: WithdrawalRequest) => {
     // Check if user has sufficient balance
     if (request.wallet_balance !== undefined && request.amount > request.wallet_balance) {
       toast.error('User has insufficient balance for this withdrawal');
       return;
     }
+    setSelectedRequest(request);
+    setTransactionId('');
+    setApproveDialogOpen(true);
+  };
 
-    setProcessing(request.id);
+  const handleApprove = async () => {
+    if (!user || !selectedRequest) return;
+
+    if (!transactionId.trim()) {
+      toast.error('Please enter the transaction ID');
+      return;
+    }
+
+    setProcessing(selectedRequest.id);
     try {
       // 1. Deduct from user's wallet
       const { error: walletError } = await supabase
         .from('wallets')
         .update({ 
-          balance: (request.wallet_balance || 0) - request.amount 
+          balance: (selectedRequest.wallet_balance || 0) - selectedRequest.amount 
         })
-        .eq('user_id', request.user_id);
+        .eq('user_id', selectedRequest.user_id);
 
       if (walletError) throw walletError;
 
-      // 2. Update request status
+      // 2. Update request status with transaction ID
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
           status: 'approved',
           processed_by: user.id,
-          processed_at: new Date().toISOString()
+          processed_at: new Date().toISOString(),
+          transaction_id: transactionId.trim()
         })
-        .eq('id', request.id);
+        .eq('id', selectedRequest.id);
 
       if (requestError) throw requestError;
 
-      // 3. Send notification to user
+      // 3. Send notification to user with transaction ID
       await supabase.from('notifications').insert({
-        user_id: request.user_id,
+        user_id: selectedRequest.user_id,
         title: 'Withdrawal Approved ✅',
-        message: `Your withdrawal request of ${formatCurrency(request.amount)} has been approved!`,
-        type: 'success'
+        message: `Your withdrawal of ${formatCurrency(selectedRequest.amount)} has been sent! Transaction ID: ${transactionId.trim()}`,
+        type: 'success',
+        metadata: { transaction_id: transactionId.trim() }
       });
 
       toast.success('Withdrawal approved successfully!');
+      setApproveDialogOpen(false);
+      setTransactionId('');
+      setSelectedRequest(null);
       fetchRequests();
     } catch (error: any) {
       console.error('Error approving withdrawal:', error);
@@ -395,7 +412,7 @@ export function WithdrawalRequestsManager() {
                             </Button>
                             <Button
                               size="sm"
-                              onClick={() => handleApprove(request)}
+                              onClick={() => handleApproveClick(request)}
                               disabled={processing === request.id || (request.wallet_balance !== undefined && request.amount > request.wallet_balance)}
                               className="gap-1"
                             >
@@ -460,6 +477,65 @@ export function WithdrawalRequestsManager() {
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
               Reject Request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Approval Dialog with Transaction ID */}
+      <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle className="h-5 w-5 text-success" />
+              Approve Withdrawal
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              Confirm the payout of{' '}
+              <strong className="text-foreground">{formatCurrency(selectedRequest?.amount || 0)}</strong> to{' '}
+              <strong className="text-foreground">{selectedRequest?.user?.full_name}</strong>
+              {selectedRequest?.mobile_money_number && (
+                <span className="block mt-1">
+                  via <span className="uppercase font-medium">{selectedRequest?.mobile_money_provider}</span>{' '}
+                  <span className="font-mono">{selectedRequest?.mobile_money_number}</span>
+                </span>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <div className="py-4 space-y-3">
+            <div className="space-y-2">
+              <label className="text-sm font-medium">
+                Transaction ID <span className="text-destructive">*</span>
+              </label>
+              <Input
+                placeholder="Enter MoMo transaction ID..."
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value)}
+                className="h-12 text-base font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the mobile money transaction reference for tracking
+              </p>
+            </div>
+          </div>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => {
+              setTransactionId('');
+              setSelectedRequest(null);
+            }}>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleApprove}
+              disabled={!transactionId.trim() || processing === selectedRequest?.id}
+              className="bg-success text-success-foreground hover:bg-success/90"
+            >
+              {processing === selectedRequest?.id ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <CheckCircle className="h-4 w-4 mr-2" />
+              )}
+              Confirm Payout
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
