@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePinAuth } from '@/hooks/usePinAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -14,6 +15,8 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
+import PinEntry from '@/components/auth/PinEntry';
+import PinSetupDialog from '@/components/auth/PinSetupDialog';
 
 const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -43,11 +46,23 @@ export default function Auth() {
     const saved = localStorage.getItem('welile_remember_me');
     return saved !== 'false';
   });
+  const [showPinSetup, setShowPinSetup] = useState(false);
+  const [showPinEntry, setShowPinEntry] = useState(false);
   
-  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
+  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles, session } = useAuth();
+  const { isPinEnabled } = usePinAuth();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+
+  // Check if we should show PIN entry on page load
+  useEffect(() => {
+    // Check if there's a previous session indicator and PIN is enabled
+    const hadPreviousSession = localStorage.getItem('welile_had_session') === 'true';
+    if (hadPreviousSession && isPinEnabled && !user) {
+      setShowPinEntry(true);
+    }
+  }, [isPinEnabled, user]);
 
   useEffect(() => {
     if (referralId) {
@@ -60,13 +75,21 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
+      // Mark that user has had a session (for PIN entry on next visit)
+      localStorage.setItem('welile_had_session', 'true');
+      
       if (roles.length === 0) {
         navigate('/select-role');
       } else {
-        navigate('/dashboard');
+        // Offer PIN setup if not enabled and signed in successfully
+        if (!isPinEnabled) {
+          setShowPinSetup(true);
+        } else {
+          navigate('/dashboard');
+        }
       }
     }
-  }, [user, roles, navigate]);
+  }, [user, roles, navigate, isPinEnabled]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -197,8 +220,41 @@ export default function Auth() {
     }
   };
 
+  const handlePinSuccess = () => {
+    setShowPinEntry(false);
+    navigate('/dashboard');
+  };
+
+  const handlePinSetupComplete = () => {
+    setShowPinSetup(false);
+    navigate('/dashboard');
+  };
+
+  const handleSkipPinSetup = () => {
+    setShowPinSetup(false);
+    navigate('/dashboard');
+  };
+
+  // Show PIN entry screen
+  if (showPinEntry) {
+    return (
+      <PinEntry 
+        onSuccess={handlePinSuccess}
+        onFallbackToPassword={() => setShowPinEntry(false)}
+      />
+    );
+  }
+
   return (
-    <div className="min-h-screen bg-background flex items-center justify-center p-4">
+    <>
+      <PinSetupDialog 
+        open={showPinSetup} 
+        onOpenChange={(open) => {
+          if (!open) handleSkipPinSetup();
+        }}
+        onComplete={handlePinSetupComplete}
+      />
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
         <div className="absolute top-1/4 -left-20 w-72 h-72 bg-primary/10 rounded-full blur-3xl" />
@@ -464,5 +520,6 @@ export default function Auth() {
         </p>
       </div>
     </div>
+    </>
   );
 }
