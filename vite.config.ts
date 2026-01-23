@@ -46,12 +46,16 @@ export default defineConfig(({ mode }) => ({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+        // Maximum file size for precaching (5MB)
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
         // Skip waiting to activate new SW immediately
         skipWaiting: true,
         clientsClaim: true,
-        // Precache app shell for instant loading
+        // Precache app shell for instant offline loading
         navigateFallback: '/index.html',
-        navigateFallbackDenylist: [/^\/api/, /^\/rest/],
+        navigateFallbackDenylist: [/^\/api/, /^\/rest/, /^\/auth\/callback/],
+        // Clean old caches
+        cleanupOutdatedCaches: true,
         runtimeCaching: [
           // Google Fonts - cache forever
           {
