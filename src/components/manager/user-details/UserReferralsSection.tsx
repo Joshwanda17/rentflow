@@ -13,11 +13,14 @@ import {
   Clock,
   RefreshCw,
   TrendingUp,
-  UserPlus
+  UserPlus,
+  ChevronRight
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
 import { toast } from 'sonner';
+import UserDetailsDialog from '../UserDetailsDialog';
+import { hapticTap } from '@/lib/haptics';
 
 interface Referral {
   id: string;
@@ -29,6 +32,7 @@ interface Referral {
   profile?: {
     full_name: string;
     phone: string;
+    email?: string;
     avatar_url: string | null;
   };
   roles?: string[];
@@ -36,6 +40,20 @@ interface Referral {
 
 interface UserReferralsSectionProps {
   userId: string;
+}
+
+interface SelectedUser {
+  id: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  avatar_url: string | null;
+  rent_discount_active: boolean;
+  monthly_rent: number | null;
+  roles: string[];
+  average_rating: number | null;
+  rating_count: number;
+  verified?: boolean;
 }
 
 const roleColors: Record<string, { bg: string; text: string }> = {
@@ -51,6 +69,8 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [totalEarned, setTotalEarned] = useState(0);
+  const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
+  const [userDialogOpen, setUserDialogOpen] = useState(false);
 
   const fetchReferrals = async () => {
     try {
@@ -73,7 +93,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
       const referredIds = referralsData.map(r => r.referred_id);
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name, phone, avatar_url')
+        .select('id, full_name, phone, email, avatar_url, rent_discount_active, monthly_rent, verified')
         .in('id', referredIds);
 
       // Fetch roles for referred users
@@ -119,6 +139,30 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
   const handleRefresh = () => {
     setRefreshing(true);
     fetchReferrals();
+  };
+
+  const handleUserClick = (referral: Referral) => {
+    hapticTap();
+    if (!referral.profile) return;
+    
+    // Find the profile data for this referral
+    const profile = referral.profile;
+    
+    // Build the selected user object
+    setSelectedUser({
+      id: referral.referred_id,
+      full_name: profile.full_name || 'Unknown',
+      email: profile.email || '',
+      phone: profile.phone || '',
+      avatar_url: profile.avatar_url,
+      rent_discount_active: false,
+      monthly_rent: null,
+      roles: referral.roles || [],
+      average_rating: null,
+      rating_count: 0,
+      verified: false
+    });
+    setUserDialogOpen(true);
   };
 
   const getInitials = (name: string) => {
@@ -205,10 +249,11 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
               {referrals.map((referral) => (
                 <div
                   key={referral.id}
-                  className={`flex items-center justify-between p-3 rounded-xl border transition-colors ${
+                  onClick={() => handleUserClick(referral)}
+                  className={`flex items-center justify-between p-3 rounded-xl border transition-all cursor-pointer active:scale-[0.98] hover:shadow-md ${
                     referral.credited 
-                      ? 'bg-success/5 border-success/20' 
-                      : 'bg-muted/30 border-muted'
+                      ? 'bg-success/5 border-success/20 hover:border-success/40' 
+                      : 'bg-muted/30 border-muted hover:border-primary/30'
                   }`}
                 >
                   <div className="flex items-center gap-3 flex-1 min-w-0">
@@ -221,7 +266,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
                       </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <p className="font-semibold text-sm truncate">
+                      <p className="font-semibold text-sm truncate text-primary">
                         {referral.profile?.full_name || 'Unknown User'}
                       </p>
                       <p className="text-xs text-muted-foreground truncate">
@@ -247,23 +292,26 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
                     </div>
                   </div>
 
-                  <div className="text-right shrink-0 ml-2">
-                    <div className="flex items-center gap-1 justify-end">
-                      {referral.credited ? (
-                        <Badge className="bg-success/20 text-success text-xs gap-1">
-                          <CheckCircle className="h-3 w-3" />
-                          {formatUGX(referral.bonus_amount)}
-                        </Badge>
-                      ) : (
-                        <Badge variant="outline" className="bg-warning/10 text-warning text-xs gap-1">
-                          <Clock className="h-3 w-3" />
-                          Pending
-                        </Badge>
-                      )}
+                  <div className="flex items-center gap-2 shrink-0 ml-2">
+                    <div className="text-right">
+                      <div className="flex items-center gap-1 justify-end">
+                        {referral.credited ? (
+                          <Badge className="bg-success/20 text-success text-xs gap-1">
+                            <CheckCircle className="h-3 w-3" />
+                            {formatUGX(referral.bonus_amount)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="bg-warning/10 text-warning text-xs gap-1">
+                            <Clock className="h-3 w-3" />
+                            Pending
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        {formatDistanceToNow(new Date(referral.created_at), { addSuffix: true })}
+                      </p>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      {formatDistanceToNow(new Date(referral.created_at), { addSuffix: true })}
-                    </p>
+                    <ChevronRight className="h-4 w-4 text-muted-foreground" />
                   </div>
                 </div>
               ))}
@@ -271,6 +319,15 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
           )}
         </CardContent>
       </Card>
+
+      {/* User Details Dialog */}
+      <UserDetailsDialog
+        open={userDialogOpen}
+        onOpenChange={setUserDialogOpen}
+        user={selectedUser}
+        onRolesUpdated={fetchReferrals}
+        onUserUpdated={fetchReferrals}
+      />
     </div>
   );
 }
