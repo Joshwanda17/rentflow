@@ -6,6 +6,8 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { 
   Users, 
   Calendar, 
@@ -17,13 +19,15 @@ import {
   UserPlus,
   ChevronRight,
   Search,
-  X
+  X,
+  CalendarDays
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
 import { toast } from 'sonner';
 import UserDetailsDialog from '../UserDetailsDialog';
 import { hapticTap } from '@/lib/haptics';
+import { cn } from '@/lib/utils';
 
 interface Referral {
   id: string;
@@ -76,6 +80,11 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
   const [userDialogOpen, setUserDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'credited' | 'pending'>('all');
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined
+  });
+  const [datePreset, setDatePreset] = useState<'all' | '7days' | '30days' | 'custom'>('all');
 
   const fetchReferrals = async () => {
     try {
@@ -174,7 +183,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  // Filter referrals based on search and status
+  // Filter referrals based on search, status, and date range
   const filteredReferrals = useMemo(() => {
     let filtered = referrals;
 
@@ -183,6 +192,30 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
       filtered = filtered.filter(r => r.credited);
     } else if (statusFilter === 'pending') {
       filtered = filtered.filter(r => !r.credited);
+    }
+
+    // Filter by date range
+    if (dateRange.from || dateRange.to) {
+      filtered = filtered.filter(r => {
+        const referralDate = new Date(r.created_at);
+        
+        if (dateRange.from && dateRange.to) {
+          return isWithinInterval(referralDate, {
+            start: startOfDay(dateRange.from),
+            end: endOfDay(dateRange.to)
+          });
+        }
+        
+        if (dateRange.from) {
+          return referralDate >= startOfDay(dateRange.from);
+        }
+        
+        if (dateRange.to) {
+          return referralDate <= endOfDay(dateRange.to);
+        }
+        
+        return true;
+      });
     }
 
     // Filter by search query
@@ -197,14 +230,28 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
     }
 
     return filtered;
-  }, [referrals, searchQuery, statusFilter]);
+  }, [referrals, searchQuery, statusFilter, dateRange]);
+
+  const setQuickDateRange = (preset: 'all' | '7days' | '30days' | 'custom') => {
+    setDatePreset(preset);
+    if (preset === 'all') {
+      setDateRange({ from: undefined, to: undefined });
+    } else if (preset === '7days') {
+      setDateRange({ from: subDays(new Date(), 7), to: new Date() });
+    } else if (preset === '30days') {
+      setDateRange({ from: subDays(new Date(), 30), to: new Date() });
+    }
+    // 'custom' doesn't change the range - it just opens the picker
+  };
 
   const clearFilters = () => {
     setSearchQuery('');
     setStatusFilter('all');
+    setDateRange({ from: undefined, to: undefined });
+    setDatePreset('all');
   };
 
-  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all' || dateRange.from !== undefined || dateRange.to !== undefined;
 
   if (loading) {
     return (
@@ -326,24 +373,91 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
                   <Clock className="h-3 w-3" />
                   Pending ({pendingCount})
                 </Button>
-                {hasActiveFilters && (
+              </div>
+
+              {/* Date Range Filter */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-muted-foreground">Period:</span>
+                <Button
+                  variant={datePreset === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setQuickDateRange('all')}
+                  className="h-8 text-xs"
+                >
+                  All Time
+                </Button>
+                <Button
+                  variant={datePreset === '7days' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setQuickDateRange('7days')}
+                  className="h-8 text-xs"
+                >
+                  Last 7 Days
+                </Button>
+                <Button
+                  variant={datePreset === '30days' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setQuickDateRange('30days')}
+                  className="h-8 text-xs"
+                >
+                  Last 30 Days
+                </Button>
+                
+                {/* Custom Date Range Picker */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={datePreset === 'custom' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs gap-1"
+                    >
+                      <CalendarDays className="h-3 w-3" />
+                      {datePreset === 'custom' && dateRange.from ? (
+                        dateRange.to ? (
+                          <>
+                            {format(dateRange.from, 'MMM d')} - {format(dateRange.to, 'MMM d')}
+                          </>
+                        ) : (
+                          format(dateRange.from, 'MMM d, yyyy')
+                        )
+                      ) : (
+                        'Custom'
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="range"
+                      selected={{ from: dateRange.from, to: dateRange.to }}
+                      onSelect={(range) => {
+                        setDateRange({ from: range?.from, to: range?.to });
+                        setDatePreset('custom');
+                      }}
+                      numberOfMonths={1}
+                      disabled={(date) => date > new Date()}
+                      initialFocus
+                      className={cn("p-3 pointer-events-auto")}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Clear All Filters */}
+              {hasActiveFilters && (
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Showing {filteredReferrals.length} of {referrals.length} referrals
+                  </p>
                   <Button
                     variant="ghost"
                     size="sm"
                     onClick={clearFilters}
-                    className="h-8 text-xs text-muted-foreground"
+                    className="h-7 text-xs text-muted-foreground"
                   >
                     <X className="h-3 w-3 mr-1" />
-                    Clear
+                    Clear all filters
                   </Button>
-                )}
-              </div>
-
-              {/* Filter Results Count */}
-              {hasActiveFilters && (
-                <p className="text-xs text-muted-foreground">
-                  Showing {filteredReferrals.length} of {referrals.length} referrals
-                </p>
+                </div>
               )}
             </div>
           )}
