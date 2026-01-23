@@ -1,10 +1,11 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { 
   Users, 
   Calendar, 
@@ -14,7 +15,9 @@ import {
   RefreshCw,
   TrendingUp,
   UserPlus,
-  ChevronRight
+  ChevronRight,
+  Search,
+  X
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow } from 'date-fns';
@@ -71,6 +74,8 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
   const [totalEarned, setTotalEarned] = useState(0);
   const [selectedUser, setSelectedUser] = useState<SelectedUser | null>(null);
   const [userDialogOpen, setUserDialogOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'credited' | 'pending'>('all');
 
   const fetchReferrals = async () => {
     try {
@@ -169,6 +174,38 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // Filter referrals based on search and status
+  const filteredReferrals = useMemo(() => {
+    let filtered = referrals;
+
+    // Filter by status
+    if (statusFilter === 'credited') {
+      filtered = filtered.filter(r => r.credited);
+    } else if (statusFilter === 'pending') {
+      filtered = filtered.filter(r => !r.credited);
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase().trim();
+      filtered = filtered.filter(r => {
+        const name = r.profile?.full_name?.toLowerCase() || '';
+        const phone = r.profile?.phone?.toLowerCase() || '';
+        const roles = r.roles?.join(' ').toLowerCase() || '';
+        return name.includes(query) || phone.includes(query) || roles.includes(query);
+      });
+    }
+
+    return filtered;
+  }, [referrals, searchQuery, statusFilter]);
+
+  const clearFilters = () => {
+    setSearchQuery('');
+    setStatusFilter('all');
+  };
+
+  const hasActiveFilters = searchQuery.trim() !== '' || statusFilter !== 'all';
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -235,7 +272,82 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
             </Button>
           </div>
         </CardHeader>
-        <CardContent className="pt-0">
+        <CardContent className="pt-0 space-y-3">
+          {/* Search and Filter Controls */}
+          {referrals.length > 0 && (
+            <div className="space-y-2">
+              {/* Search Input */}
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  placeholder="Search by name, phone, or role..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="pl-9 pr-9 h-10"
+                  maxLength={100}
+                />
+                {searchQuery && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => setSearchQuery('')}
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                )}
+              </div>
+
+              {/* Status Filter Pills */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <Button
+                  variant={statusFilter === 'all' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('all')}
+                  className="h-8 text-xs"
+                >
+                  All ({referrals.length})
+                </Button>
+                <Button
+                  variant={statusFilter === 'credited' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('credited')}
+                  className={`h-8 text-xs gap-1 ${statusFilter === 'credited' ? 'bg-success hover:bg-success/90' : 'text-success border-success/30 hover:bg-success/10'}`}
+                >
+                  <CheckCircle className="h-3 w-3" />
+                  Credited ({creditedCount})
+                </Button>
+                <Button
+                  variant={statusFilter === 'pending' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setStatusFilter('pending')}
+                  className={`h-8 text-xs gap-1 ${statusFilter === 'pending' ? 'bg-warning hover:bg-warning/90' : 'text-warning border-warning/30 hover:bg-warning/10'}`}
+                >
+                  <Clock className="h-3 w-3" />
+                  Pending ({pendingCount})
+                </Button>
+                {hasActiveFilters && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={clearFilters}
+                    className="h-8 text-xs text-muted-foreground"
+                  >
+                    <X className="h-3 w-3 mr-1" />
+                    Clear
+                  </Button>
+                )}
+              </div>
+
+              {/* Filter Results Count */}
+              {hasActiveFilters && (
+                <p className="text-xs text-muted-foreground">
+                  Showing {filteredReferrals.length} of {referrals.length} referrals
+                </p>
+              )}
+            </div>
+          )}
+
           {referrals.length === 0 ? (
             <div className="text-center py-8">
               <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
@@ -244,9 +356,25 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
                 This user hasn't referred anyone
               </p>
             </div>
+          ) : filteredReferrals.length === 0 ? (
+            <div className="text-center py-8">
+              <Search className="h-10 w-10 mx-auto text-muted-foreground mb-3" />
+              <p className="text-muted-foreground font-medium">No results found</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Try adjusting your search or filters
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={clearFilters}
+                className="mt-3"
+              >
+                Clear filters
+              </Button>
+            </div>
           ) : (
             <div className="space-y-3 max-h-[400px] overflow-y-auto pr-1">
-              {referrals.map((referral) => (
+              {filteredReferrals.map((referral) => (
                 <div
                   key={referral.id}
                   onClick={() => handleUserClick(referral)}
