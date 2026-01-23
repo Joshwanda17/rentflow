@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Loader2, Plus, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +10,16 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -49,6 +58,13 @@ export function InlineRoleToggle({
   const [loadingRole, setLoadingRole] = useState<string | null>(null);
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [localRoles, setLocalRoles] = useState<string[]>(currentRoles);
+  
+  // Confirmation dialog state
+  const [confirmDialog, setConfirmDialog] = useState<{
+    open: boolean;
+    action: 'add' | 'remove';
+    role: AppRole | null;
+  }>({ open: false, action: 'add', role: null });
 
   const logRoleChange = async (actionType: string, role: string) => {
     if (!user?.id) return;
@@ -67,11 +83,7 @@ export function InlineRoleToggle({
     }
   };
 
-  const handleAddRole = async (role: AppRole, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (localRoles.includes(role)) return;
-    
-    hapticTap();
+  const executeAddRole = async (role: AppRole) => {
     setLoadingRole(role);
     
     try {
@@ -100,7 +112,7 @@ export function InlineRoleToggle({
       } catch {}
       
       hapticSuccess();
-      toast.success(`Added ${role} role`);
+      toast.success(`Added ${role} role to ${userName}`);
       onRolesUpdated?.();
     } catch (error) {
       console.error('Error adding role:', error);
@@ -111,18 +123,7 @@ export function InlineRoleToggle({
     }
   };
 
-  const handleRemoveRole = async (role: AppRole, e: React.MouseEvent) => {
-    e.stopPropagation();
-    if (!localRoles.includes(role)) return;
-    
-    // Prevent removing last role
-    if (localRoles.length <= 1) {
-      hapticError();
-      toast.error('User must have at least one role');
-      return;
-    }
-    
-    hapticTap();
+  const executeRemoveRole = async (role: AppRole) => {
     setLoadingRole(role);
     
     try {
@@ -153,7 +154,7 @@ export function InlineRoleToggle({
       } catch {}
       
       hapticSuccess();
-      toast.success(`Removed ${role} role`);
+      toast.success(`Removed ${role} role from ${userName}`);
       onRolesUpdated?.();
     } catch (error) {
       console.error('Error removing role:', error);
@@ -164,89 +165,180 @@ export function InlineRoleToggle({
     }
   };
 
+  const handleAddRoleClick = (role: AppRole, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (localRoles.includes(role)) return;
+    
+    hapticTap();
+    setPopoverOpen(false);
+    setConfirmDialog({ open: true, action: 'add', role });
+  };
+
+  const handleRemoveRoleClick = (role: AppRole, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!localRoles.includes(role)) return;
+    
+    // Prevent removing last role
+    if (localRoles.length <= 1) {
+      hapticError();
+      toast.error('User must have at least one role');
+      return;
+    }
+    
+    hapticTap();
+    setConfirmDialog({ open: true, action: 'remove', role });
+  };
+
+  const handleConfirm = async () => {
+    if (!confirmDialog.role) return;
+    
+    if (confirmDialog.action === 'add') {
+      await executeAddRole(confirmDialog.role);
+    } else {
+      await executeRemoveRole(confirmDialog.role);
+    }
+    
+    setConfirmDialog({ open: false, action: 'add', role: null });
+  };
+
   const availableRoles = roles.filter(r => !localRoles.includes(r.value));
+  const pendingRole = confirmDialog.role ? roles.find(r => r.value === confirmDialog.role) : null;
 
   return (
-    <div 
-      className="flex flex-wrap items-center gap-1.5" 
-      onClick={(e) => e.stopPropagation()}
-    >
-      {/* Current Roles with Remove Button */}
-      {localRoles.map((role) => {
-        const roleInfo = roles.find(r => r.value === role);
-        const isEnabled = roleEnabledStatus[role] ?? true;
-        const isLoading = loadingRole === role;
+    <>
+      <div 
+        className="flex flex-wrap items-center gap-1.5" 
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Current Roles with Remove Button */}
+        {localRoles.map((role) => {
+          const roleInfo = roles.find(r => r.value === role);
+          const isEnabled = roleEnabledStatus[role] ?? true;
+          const isLoading = loadingRole === role;
+          
+          return (
+            <div key={role} className="group relative">
+              <Badge 
+                variant="outline"
+                className={`text-xs font-semibold pl-2 pr-1 py-1 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1`}
+              >
+                <span>{roleInfo?.emoji}</span>
+                <span className={!isEnabled ? 'line-through' : ''}>{role}</span>
+                <button
+                  onClick={(e) => handleRemoveRoleClick(role as AppRole, e)}
+                  disabled={isLoading || localRoles.length <= 1}
+                  className="ml-0.5 p-1 rounded-full hover:bg-destructive/20 disabled:opacity-50 transition-colors touch-manipulation"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  {isLoading ? (
+                    <Loader2 className="h-3 w-3 animate-spin" />
+                  ) : (
+                    <X className="h-3 w-3" />
+                  )}
+                </button>
+              </Badge>
+            </div>
+          );
+        })}
         
-        return (
-          <div key={role} className="group relative">
-            <Badge 
-              variant="outline"
-              className={`text-xs font-semibold pl-2 pr-1 py-1 ${roleColors[role] || 'bg-muted'} ${!isEnabled ? 'opacity-40' : ''} flex items-center gap-1`}
-            >
-              <span>{roleInfo?.emoji}</span>
-              <span className={!isEnabled ? 'line-through' : ''}>{role}</span>
+        {/* Add Role Button with Popover */}
+        {availableRoles.length > 0 && (
+          <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <PopoverTrigger asChild>
               <button
-                onClick={(e) => handleRemoveRole(role as AppRole, e)}
-                disabled={isLoading || localRoles.length <= 1}
-                className="ml-0.5 p-1 rounded-full hover:bg-destructive/20 disabled:opacity-50 transition-colors touch-manipulation"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  hapticTap();
+                }}
+                className="h-7 w-7 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center hover:bg-primary/20 active:scale-95 transition-all touch-manipulation"
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
-                {isLoading ? (
-                  <Loader2 className="h-3 w-3 animate-spin" />
-                ) : (
-                  <X className="h-3 w-3" />
-                )}
+                <Plus className="h-4 w-4 text-primary" />
               </button>
-            </Badge>
-          </div>
-        );
-      })}
-      
-      {/* Add Role Button with Popover */}
-      {availableRoles.length > 0 && (
-        <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
-          <PopoverTrigger asChild>
-            <button
+            </PopoverTrigger>
+            <PopoverContent 
+              className="w-48 p-2" 
+              align="start"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Add Role</p>
+              <div className="space-y-1">
+                {availableRoles.map((role) => (
+                  <button
+                    key={role.value}
+                    onClick={(e) => handleAddRoleClick(role.value, e)}
+                    disabled={loadingRole === role.value}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted active:scale-[0.98] transition-all text-left touch-manipulation"
+                    style={{ WebkitTapHighlightColor: 'transparent' }}
+                  >
+                    {loadingRole === role.value ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <span className="text-lg">{role.emoji}</span>
+                    )}
+                    <span className="font-medium text-sm">{role.label}</span>
+                  </button>
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog 
+        open={confirmDialog.open} 
+        onOpenChange={(open) => setConfirmDialog(prev => ({ ...prev, open }))}
+      >
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {pendingRole?.emoji}
+              {confirmDialog.action === 'add' ? 'Add' : 'Remove'} {pendingRole?.label} Role
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmDialog.action === 'add' ? (
+                <>
+                  Are you sure you want to give <span className="font-semibold text-foreground">{userName}</span> the{' '}
+                  <span className="font-semibold text-foreground">{pendingRole?.label}</span> role? 
+                  They will receive a notification and gain access to {pendingRole?.label.toLowerCase()} features.
+                </>
+              ) : (
+                <>
+                  Are you sure you want to remove the{' '}
+                  <span className="font-semibold text-foreground">{pendingRole?.label}</span> role from{' '}
+                  <span className="font-semibold text-foreground">{userName}</span>? 
+                  They will lose access to {pendingRole?.label.toLowerCase()} features immediately.
+                </>
+              )}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel 
               onClick={(e) => {
                 e.stopPropagation();
                 hapticTap();
               }}
-              className="h-7 w-7 rounded-full bg-primary/10 border border-primary/30 flex items-center justify-center hover:bg-primary/20 active:scale-95 transition-all touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
+              className="h-12"
             >
-              <Plus className="h-4 w-4 text-primary" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent 
-            className="w-48 p-2" 
-            align="start"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <p className="text-xs font-semibold text-muted-foreground mb-2 px-2">Add Role</p>
-            <div className="space-y-1">
-              {availableRoles.map((role) => (
-                <button
-                  key={role.value}
-                  onClick={(e) => {
-                    handleAddRole(role.value, e);
-                    setPopoverOpen(false);
-                  }}
-                  disabled={loadingRole === role.value}
-                  className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg hover:bg-muted active:scale-[0.98] transition-all text-left touch-manipulation"
-                  style={{ WebkitTapHighlightColor: 'transparent' }}
-                >
-                  {loadingRole === role.value ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <span className="text-lg">{role.emoji}</span>
-                  )}
-                  <span className="font-medium text-sm">{role.label}</span>
-                </button>
-              ))}
-            </div>
-          </PopoverContent>
-        </Popover>
-      )}
-    </div>
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => {
+                e.stopPropagation();
+                handleConfirm();
+              }}
+              disabled={loadingRole !== null}
+              className={`h-12 ${confirmDialog.action === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+            >
+              {loadingRole ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : null}
+              {confirmDialog.action === 'add' ? 'Add Role' : 'Remove Role'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
