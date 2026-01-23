@@ -54,8 +54,10 @@ export function ShareSubAgentLink() {
 
 ✨ It's FREE to join and start earning!
 
-👉 Sign up here:
+👉 TAP THIS LINK TO SIGN UP:
 ${getShareLink()}
+
+📱 You'll create a NEW account with your email and password.
 
 Let's grow together! 🤝`;
   };
@@ -134,9 +136,14 @@ Let's grow together! 🤝`;
 
           {/* Link Section */}
           <div className="relative p-3 rounded-xl bg-background/80 border border-orange-500/20">
-            <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
-              <Link2 className="h-3 w-3" />
-              <span>Your referral link</span>
+            <div className="flex items-center justify-between gap-2 text-xs text-muted-foreground mb-2">
+              <div className="flex items-center gap-2">
+                <Link2 className="h-3 w-3" />
+                <span>Your signup link (for NEW users)</span>
+              </div>
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0.5 bg-orange-500/10 text-orange-600 border-orange-500/20">
+                Sign Up Only
+              </Badge>
             </div>
             <div className="flex gap-2">
               <Input 
@@ -175,6 +182,11 @@ Let's grow together! 🤝`;
           </div>
 
           {/* Info */}
+          <div className="p-2 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <p className="text-[11px] text-center text-amber-700 dark:text-amber-400">
+              ⚠️ This link is for <strong>NEW users only</strong>. For registered invites, use "Register Sub-Agent" button above.
+            </p>
+          </div>
           <p className="text-[11px] text-center text-muted-foreground">
             When someone signs up using your link, they become your sub-agent and you earn 1% of their earnings!
           </p>
