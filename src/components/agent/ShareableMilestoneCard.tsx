@@ -3,7 +3,7 @@ import { toPng } from "html-to-image";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import { Download, Share2, Trophy, Star, Users, Coins, Sparkles } from "lucide-react";
+import { Download, Share2, Trophy, Star, Users, Coins, Sparkles, MessageCircle } from "lucide-react";
 import { motion } from "framer-motion";
 import { formatUGX } from "@/lib/rentCalculations";
 
@@ -141,6 +141,21 @@ export function ShareableMilestoneCard({
     }
   };
 
+  const handleWhatsAppShare = () => {
+    const message = `🏆 *I just reached the ${milestone.label} milestone on Welile!*
+
+✨ ${milestone.count} referrals completed
+💰 Earned +${formatUGX(milestone.bonus)} bonus
+
+I'm building my referral network and helping friends access easy rent payments!
+
+👉 Join Welile and start earning too: https://welile.com
+
+#Welile #ReferralChampion`;
+    
+    window.open(`https://wa.me/?text=${encodeURIComponent(message)}`, '_blank');
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md p-0 overflow-hidden bg-transparent border-none shadow-none">
@@ -231,24 +246,37 @@ export function ShareableMilestoneCard({
           </div>
 
           {/* Action buttons */}
-          <div className="p-4 pt-0 flex gap-3">
+          <div className="p-4 pt-0 space-y-2">
+            {/* Primary WhatsApp button */}
             <Button
-              variant="outline"
-              className="flex-1"
-              onClick={handleDownload}
-              disabled={isGenerating}
+              className="w-full h-12 gap-2 bg-[#25D366] hover:bg-[#1fb855] text-white font-semibold touch-manipulation"
+              onClick={handleWhatsAppShare}
             >
-              <Download className="h-4 w-4 mr-2" />
-              Download
+              <MessageCircle className="h-5 w-5" />
+              Share on WhatsApp
             </Button>
-            <Button
-              className="flex-1"
-              onClick={handleShare}
-              disabled={isGenerating}
-            >
-              <Share2 className="h-4 w-4 mr-2" />
-              Share
-            </Button>
+            
+            {/* Secondary buttons */}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="flex-1 h-11 touch-manipulation"
+                onClick={handleDownload}
+                disabled={isGenerating}
+              >
+                <Download className="h-4 w-4 mr-2" />
+                Download
+              </Button>
+              <Button
+                variant="outline"
+                className="flex-1 h-11 touch-manipulation"
+                onClick={handleShare}
+                disabled={isGenerating}
+              >
+                <Share2 className="h-4 w-4 mr-2" />
+                Share
+              </Button>
+            </div>
           </div>
         </div>
       </DialogContent>
