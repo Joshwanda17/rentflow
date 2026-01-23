@@ -41,8 +41,9 @@ export function WithdrawRequestDialog({
       return;
     }
 
-    if (amount <= 0) {
-      toast.error('Please enter an amount');
+    const MIN_WITHDRAWAL = 500;
+    if (amount < MIN_WITHDRAWAL) {
+      toast.error(`Minimum withdrawal is UGX ${MIN_WITHDRAWAL.toLocaleString()}`);
       return;
     }
 
@@ -93,7 +94,7 @@ export function WithdrawRequestDialog({
             Withdraw Funds
           </DialogTitle>
           <DialogDescription>
-            Request a withdrawal from your wallet. Manager will approve shortly.
+            Withdraw to MTN or Airtel Mobile Money. Min: UGX 500
           </DialogDescription>
         </DialogHeader>
 
@@ -141,10 +142,10 @@ export function WithdrawRequestDialog({
                     <Input
                       id="amount"
                       type="number"
-                      placeholder="Enter amount"
+                      placeholder="Min: UGX 500"
                       value={amount || ''}
                       onChange={(e) => setAmount(Number(e.target.value))}
-                      min={0}
+                      min={500}
                       max={walletBalance}
                       className="text-lg font-semibold"
                     />
@@ -155,12 +156,12 @@ export function WithdrawRequestDialog({
                         value={[amount]}
                         onValueChange={handleSliderChange}
                         max={walletBalance}
-                        min={0}
-                        step={1000}
+                        min={500}
+                        step={500}
                         className="cursor-pointer"
                       />
                       <div className="flex justify-between mt-2 text-xs text-muted-foreground">
-                        <span>UGX 0</span>
+                        <span>UGX 500</span>
                         <span>{formatCurrency(walletBalance)}</span>
                       </div>
                     </div>
@@ -204,7 +205,7 @@ export function WithdrawRequestDialog({
               </Button>
               <Button 
                 onClick={handleSubmit} 
-                disabled={loading || amount <= 0 || amount > walletBalance}
+                disabled={loading || amount < 500 || amount > walletBalance}
                 className="flex-1 gap-2"
               >
                 {loading ? (
