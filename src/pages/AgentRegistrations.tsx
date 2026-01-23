@@ -370,12 +370,17 @@ Just click the link and enter your password to get started!`;
                                       )}
                                     </Badge>
                                   </div>
-                                  <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                                  <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground flex-wrap">
                                     <Badge variant="secondary" className="text-xs font-normal">
                                       {config.emoji} {config.label}
                                     </Badge>
                                     <span>•</span>
                                     <span>{formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}</span>
+                                    {isPending && (
+                                      <Badge variant="outline" className="text-[10px] px-1.5 py-0 h-4 bg-green-500/10 text-green-600 border-green-500/30">
+                                        ∞ Never expires
+                                      </Badge>
+                                    )}
                                   </div>
                                 </div>
                               </div>
