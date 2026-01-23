@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Smartphone } from 'lucide-react';
+import { ArrowDownToLine, Wallet, Loader2, CheckCircle, AlertCircle, Smartphone, Clock } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -18,6 +18,72 @@ interface WithdrawRequestDialogProps {
 }
 
 type MobileProvider = 'mtn' | 'airtel';
+
+// Working hours configuration (East Africa Time - UTC+3)
+const WORKING_HOURS = {
+  start: 8, // 8:00 AM
+  end: 17,  // 5:00 PM (for weekdays)
+  saturdayEnd: 13, // 1:00 PM (for Saturday)
+};
+
+const checkWorkingHours = (): { isOpen: boolean; message: string; nextOpen: string } => {
+  // Get current time in East Africa Time (UTC+3)
+  const now = new Date();
+  const utcOffset = now.getTimezoneOffset() * 60000;
+  const eatOffset = 3 * 60 * 60000; // UTC+3
+  const eatTime = new Date(now.getTime() + utcOffset + eatOffset);
+  
+  const day = eatTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
+  const hour = eatTime.getHours();
+  const minutes = eatTime.getMinutes();
+  
+  // Sunday - closed
+  if (day === 0) {
+    return {
+      isOpen: false,
+      message: 'Withdrawals are not available on Sundays',
+      nextOpen: 'Monday at 8:00 AM'
+    };
+  }
+  
+  // Saturday - 8am to 1pm
+  if (day === 6) {
+    if (hour < WORKING_HOURS.start) {
+      return {
+        isOpen: false,
+        message: 'Withdrawals open at 8:00 AM on Saturdays',
+        nextOpen: 'Today at 8:00 AM'
+      };
+    }
+    if (hour >= WORKING_HOURS.saturdayEnd) {
+      return {
+        isOpen: false,
+        message: 'Withdrawals closed for today (Saturday ends at 1:00 PM)',
+        nextOpen: 'Monday at 8:00 AM'
+      };
+    }
+    return { isOpen: true, message: '', nextOpen: '' };
+  }
+  
+  // Weekdays (Monday-Friday) - 8am to 5pm
+  if (hour < WORKING_HOURS.start) {
+    return {
+      isOpen: false,
+      message: 'Withdrawals open at 8:00 AM',
+      nextOpen: 'Today at 8:00 AM'
+    };
+  }
+  if (hour >= WORKING_HOURS.end) {
+    const nextDay = day === 5 ? 'Monday' : 'Tomorrow';
+    return {
+      isOpen: false,
+      message: 'Withdrawals closed for today (ends at 5:00 PM)',
+      nextOpen: `${nextDay} at 8:00 AM`
+    };
+  }
+  
+  return { isOpen: true, message: '', nextOpen: '' };
+};
 
 export function WithdrawRequestDialog({ 
   open, 
@@ -33,6 +99,14 @@ export function WithdrawRequestDialog({
   const [loading, setLoading] = useState(false);
   const [fetchingProfile, setFetchingProfile] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
+
+  // Update working hours status when dialog opens
+  useEffect(() => {
+    if (open) {
+      setWorkingHoursStatus(checkWorkingHours());
+    }
+  }, [open]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -78,6 +152,14 @@ export function WithdrawRequestDialog({
   const handleSubmit = async () => {
     if (!user) {
       toast.error('Please log in first');
+      return;
+    }
+
+    // Re-check working hours at submission time
+    const currentStatus = checkWorkingHours();
+    if (!currentStatus.isOpen) {
+      toast.error(currentStatus.message);
+      setWorkingHoursStatus(currentStatus);
       return;
     }
 
@@ -143,7 +225,7 @@ export function WithdrawRequestDialog({
     setAmount(value[0]);
   };
 
-  const isFormValid = amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber);
+  const isFormValid = amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -189,12 +271,34 @@ export function WithdrawRequestDialog({
                 </div>
               </div>
 
+              {/* Working Hours Notice */}
+              {!workingHoursStatus.isOpen && (
+                <div className="bg-warning/10 border border-warning/20 rounded-xl p-4 space-y-2">
+                  <div className="flex items-center gap-2 text-warning">
+                    <Clock className="h-5 w-5 flex-shrink-0" />
+                    <p className="font-medium">Outside Working Hours</p>
+                  </div>
+                  <p className="text-sm text-muted-foreground">
+                    {workingHoursStatus.message}
+                  </p>
+                  <p className="text-sm">
+                    <span className="text-muted-foreground">Next available: </span>
+                    <span className="font-medium text-foreground">{workingHoursStatus.nextOpen}</span>
+                  </p>
+                  <div className="pt-2 border-t border-warning/20 mt-2">
+                    <p className="text-xs text-muted-foreground">
+                      🕐 Working hours: Mon-Fri 8AM-5PM, Sat 8AM-1PM (EAT)
+                    </p>
+                  </div>
+                </div>
+              )}
+
               {walletBalance <= 0 ? (
                 <div className="flex items-center gap-2 p-3 bg-warning/10 rounded-lg text-warning">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm">No funds available to withdraw</p>
                 </div>
-              ) : (
+              ) : workingHoursStatus.isOpen ? (
                 <>
                   {/* Mobile Money Provider */}
                   <div className="space-y-3">
@@ -327,7 +431,7 @@ export function WithdrawRequestDialog({
                     </div>
                   )}
                 </>
-              )}
+              ) : null}
             </div>
 
             <DialogFooter className="gap-2">
