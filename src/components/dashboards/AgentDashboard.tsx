@@ -30,7 +30,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { WalletCard } from '@/components/wallet/WalletCard';
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -436,16 +436,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <ChevronRight className="h-5 w-5 text-primary/60" />
         </motion.button>
 
-        {showWallet && (
-          <motion.div
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={{ opacity: 0, height: 0 }}
-            transition={{ duration: 0.25 }}
-          >
-            <WalletCard />
-          </motion.div>
-        )}
+        {/* Full-screen wallet sheet for mobile */}
+        <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
 
         {/* Quick Earnings Indicator with Breakdown */}
         <button 
