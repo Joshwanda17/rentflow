@@ -1181,6 +1181,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   const isExpanded = expandedId === opportunity.id;
                   const verificationStatus = getVerificationStatus(opportunity);
                   const stepsComplete = getVerificationStepCount(opportunity);
+                  const isReady = verificationStatus === 'verified' && !isFunded && !isRejected;
                   
                   return (
                     <div key={opportunity.id}>
@@ -1197,6 +1198,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                             ? 'bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary' 
                             : isRejected
                             ? 'bg-destructive/5 hover:bg-destructive/10 border-l-4 border-l-destructive opacity-60'
+                            : isReady
+                            ? 'bg-amber-500/5 hover:bg-amber-500/10 border-l-4 border-l-amber-500'
                             : 'hover:bg-muted/50 active:bg-muted'
                         }`}
                       >
@@ -1204,17 +1207,27 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
                           isFunded ? 'bg-primary ring-2 ring-primary/30' :
                           isRejected ? 'bg-destructive' :
-                          verificationStatus === 'verified' ? 'bg-success' :
+                          isReady ? 'bg-amber-500 ring-2 ring-amber-500/30 animate-pulse' :
                           verificationStatus === 'verifying' ? 'bg-warning' :
                           'bg-orange-500'
                         }`} />
                         
                         <div className="flex-1 min-w-0">
-                          <span className={`font-medium text-sm block truncate ${
-                            isFunded ? 'text-primary' : isRejected ? 'text-muted-foreground line-through' : 'text-foreground'
+                          <span className={`font-semibold text-sm block truncate ${
+                            isFunded ? 'text-primary' 
+                            : isRejected ? 'text-muted-foreground line-through' 
+                            : isReady ? 'text-amber-600 dark:text-amber-400' 
+                            : 'text-foreground'
                           }`}>
                             {opportunity.tenant?.full_name || 'Anonymous Tenant'}
+                            {isReady && ' ⭐'}
                           </span>
+                          {isReady && (
+                            <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              Ready to fund • Earn {formatAmount(reward)}
+                            </span>
+                          )}
                           {isFunded && opportunity.funder && (
                             <span className="text-[10px] text-primary/70 flex items-center gap-1">
                               <HandCoins className="h-2.5 w-2.5" />
@@ -1230,7 +1243,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         </div>
                         
                         <span className={`text-xs font-bold shrink-0 ${
-                          isFunded ? 'text-primary' : isRejected ? 'text-muted-foreground' : 'text-success'
+                          isFunded ? 'text-primary' 
+                          : isRejected ? 'text-muted-foreground' 
+                          : isReady ? 'text-amber-600 dark:text-amber-400'
+                          : 'text-success'
                         }`}>
                           {isFunded ? '✓ ' : isRejected ? '' : '+'}{formatAmount(reward)}
                         </span>
