@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
 import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
@@ -37,6 +38,11 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [rememberMe, setRememberMe] = useState(() => {
+    // Default to true, check localStorage for saved preference
+    const saved = localStorage.getItem('welile_remember_me');
+    return saved !== 'false';
+  });
   
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
   const navigate = useNavigate();
@@ -145,6 +151,13 @@ export default function Auth() {
           }
           toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
         } else {
+          // If "Remember me" is unchecked, set up session cleanup on browser close
+          if (!rememberMe) {
+            sessionStorage.setItem('welile_session_only', 'true');
+          } else {
+            sessionStorage.removeItem('welile_session_only');
+          }
+          
           // Update location on sign in (in background)
           getLocationData().then(async (locationData) => {
             if (locationData.country || locationData.city) {
@@ -334,13 +347,32 @@ export default function Auth() {
               )}
 
               {!isSignUp && !isForgotPassword && (
-                <button
-                  type="button"
-                  onClick={() => setIsForgotPassword(true)}
-                  className="text-sm text-primary hover:text-primary/80 transition-colors"
-                >
-                  Forgot your password?
-                </button>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <Checkbox 
+                      id="remember" 
+                      checked={rememberMe}
+                      onCheckedChange={(checked) => {
+                        setRememberMe(!!checked);
+                        localStorage.setItem('welile_remember_me', String(!!checked));
+                      }}
+                      className="h-5 w-5 touch-manipulation"
+                    />
+                    <Label 
+                      htmlFor="remember" 
+                      className="text-sm font-normal cursor-pointer touch-manipulation"
+                    >
+                      Remember me
+                    </Label>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setIsForgotPassword(true)}
+                    className="text-sm text-primary hover:text-primary/80 transition-colors touch-manipulation py-1"
+                  >
+                    Forgot password?
+                  </button>
+                </div>
               )}
 
               <Button 

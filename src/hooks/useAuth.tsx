@@ -55,7 +55,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setLoading(false);
     });
 
-    return () => subscription.unsubscribe();
+    // Handle "Remember me" - sign out when browser closes if unchecked
+    const handleBeforeUnload = () => {
+      const sessionOnly = sessionStorage.getItem('welile_session_only');
+      if (sessionOnly === 'true') {
+        // Sign out synchronously by clearing storage
+        localStorage.removeItem('sb-wirntoujqoyjobfhyelc-auth-token');
+      }
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => {
+      subscription.unsubscribe();
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
   }, []);
 
   const fetchUserRoles = async (userId: string) => {
