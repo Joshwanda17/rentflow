@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -11,6 +11,9 @@ import { formatDistanceToNow } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { toast } from 'sonner';
+import { playSuccessSound } from '@/lib/notificationSound';
+import { hapticSuccess } from '@/lib/haptics';
 
 interface LinkSignup {
   id: string;
@@ -33,10 +36,75 @@ export function LinkSignupsList() {
   const [signups, setSignups] = useState<LinkSignup[]>([]);
   const [loading, setLoading] = useState(true);
   const [totalEarned, setTotalEarned] = useState(0);
+  const knownIdsRef = useRef<Set<string>>(new Set());
 
   useEffect(() => {
     if (user) {
       fetchSignups();
+
+      // Subscribe to real-time referral inserts
+      const channel = supabase
+        .channel('agent-link-signups')
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'referrals',
+            filter: `referrer_id=eq.${user.id}`,
+          },
+          async (payload) => {
+            const newReferral = payload.new as {
+              id: string;
+              referred_id: string;
+              bonus_amount: number;
+              credited: boolean;
+              credited_at: string | null;
+              created_at: string;
+            };
+
+            // Skip if we already know about this referral
+            if (knownIdsRef.current.has(newReferral.id)) return;
+            knownIdsRef.current.add(newReferral.id);
+
+            // Fetch the new user's profile
+            const { data: profile } = await supabase
+              .from('profiles')
+              .select('id, full_name, phone, avatar_url')
+              .eq('id', newReferral.referred_id)
+              .single();
+
+            // Fetch their roles
+            const { data: roles } = await supabase
+              .from('user_roles')
+              .select('role')
+              .eq('user_id', newReferral.referred_id);
+
+            const enrichedSignup: LinkSignup = {
+              ...newReferral,
+              profile: profile || undefined,
+              roles: roles?.map(r => r.role) || [],
+            };
+
+            // Add to the top of the list
+            setSignups(prev => [enrichedSignup, ...prev]);
+
+            // Play sound and haptic feedback
+            playSuccessSound();
+            hapticSuccess();
+
+            // Show toast notification
+            toast.success('🎉 New signup via your link!', {
+              description: `${profile?.full_name || 'Someone'} just signed up using your referral link!`,
+              duration: 5000,
+            });
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [user]);
 
@@ -57,9 +125,13 @@ export function LinkSignupsList() {
       if (!referrals || referrals.length === 0) {
         setSignups([]);
         setTotalEarned(0);
+        knownIdsRef.current = new Set();
         setLoading(false);
         return;
       }
+
+      // Initialize known IDs to prevent duplicate notifications
+      knownIdsRef.current = new Set(referrals.map(r => r.id));
 
       // Fetch profiles for referred users
       const referredIds = referrals.map(r => r.referred_id);
