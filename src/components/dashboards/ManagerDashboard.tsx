@@ -88,6 +88,7 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
+import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1079,6 +1080,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Pending Invites Widget - Quick view of unactivated users */}
         <PendingInvitesWidget />
+
+        {/* Pending Investment Requests - Quick view of supporter requests */}
+        <PendingInvestmentRequestsWidget />
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
