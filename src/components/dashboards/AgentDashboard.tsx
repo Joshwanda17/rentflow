@@ -44,6 +44,7 @@ import { CollapsibleSubAgents } from '@/components/agent/CollapsibleSubAgents';
 import { CollapsibleUserInvites } from '@/components/agent/CollapsibleUserInvites';
 import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialog';
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
+import { LinkSignupsList } from '@/components/agent/LinkSignupsList';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -496,6 +497,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           title="All Features"
           items={otherActions}
         />
+
+        {/* Users who signed up via referral link */}
+        <LinkSignupsList />
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
