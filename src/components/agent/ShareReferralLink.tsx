@@ -5,9 +5,19 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Link2, Gift, Users, Coins } from 'lucide-react';
+import { Copy, Check, Share2, Link2, Gift, Users, Coins, Trophy, Star } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
+import { Progress } from '@/components/ui/progress';
+
+// Milestone thresholds and bonus amounts
+const MILESTONES = [
+  { count: 5, bonus: 2500, label: 'Starter' },
+  { count: 10, bonus: 5000, label: 'Rising Star' },
+  { count: 25, bonus: 15000, label: 'Champion' },
+  { count: 50, bonus: 35000, label: 'Elite' },
+  { count: 100, bonus: 75000, label: 'Legend' },
+];
 
 export function ShareReferralLink() {
   const { user } = useAuth();
@@ -152,6 +162,58 @@ Let's make rent easy! 💪`;
               </div>
             </div>
           </div>
+
+          {/* Milestone Progress */}
+          {!loading && (() => {
+            const nextMilestone = MILESTONES.find(m => m.count > stats.signups);
+            const prevMilestone = MILESTONES.filter(m => m.count <= stats.signups).pop();
+            const startCount = prevMilestone?.count || 0;
+            const endCount = nextMilestone?.count || MILESTONES[MILESTONES.length - 1].count;
+            const progress = nextMilestone 
+              ? ((stats.signups - startCount) / (endCount - startCount)) * 100 
+              : 100;
+            
+            return (
+              <div className="p-3 rounded-xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border border-amber-500/20">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Trophy className="h-4 w-4 text-amber-500" />
+                    <span className="text-xs font-semibold text-foreground">
+                      {nextMilestone ? `Next: ${nextMilestone.label}` : '🏆 All milestones achieved!'}
+                    </span>
+                  </div>
+                  {nextMilestone && (
+                    <span className="text-xs font-bold text-amber-600">
+                      +{formatUGX(nextMilestone.bonus)}
+                    </span>
+                  )}
+                </div>
+                {nextMilestone && (
+                  <>
+                    <Progress 
+                      value={progress} 
+                      className="h-2 bg-amber-500/20" 
+                    />
+                    <div className="flex items-center justify-between mt-1.5">
+                      <span className="text-[10px] text-muted-foreground">
+                        {stats.signups} / {nextMilestone.count} signups
+                      </span>
+                      <span className="text-[10px] text-amber-600 font-medium">
+                        {nextMilestone.count - stats.signups} more to go!
+                      </span>
+                    </div>
+                  </>
+                )}
+                {!nextMilestone && (
+                  <div className="flex items-center gap-1 mt-1">
+                    {[...Array(5)].map((_, i) => (
+                      <Star key={i} className="h-3 w-3 fill-amber-500 text-amber-500" />
+                    ))}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Link Section */}
           <div className="relative p-3 rounded-xl bg-background/80 border border-primary/20">
