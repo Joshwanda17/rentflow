@@ -131,6 +131,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [searchQuery, setSearchQuery] = useState('');
   const [showManagerInvestDialog, setShowManagerInvestDialog] = useState(false);
   const [managerInvestAmount, setManagerInvestAmount] = useState(0);
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Count unseen opportunities and calculate potential earnings (exclude funded)
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
@@ -1117,319 +1118,193 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           )}
         </div>
 
-        {/* Opportunities List - OPTIMIZED FOR SMALL SCREENS */}
-        <div className="space-y-4">
-          <AnimatePresence>
-            {filteredAndSortedOpportunities.map((opportunity, index) => {
-              const isFunded = opportunity.status === 'funded';
-              const reward = calculateSupporterReward(opportunity.rent_amount);
-              const isNew = opportunity.id === newOpportunityId;
-              const isUnseen = !lastSeenAt || new Date(opportunity.created_at) > lastSeenAt;
-              const verificationStatus = getVerificationStatus(opportunity);
-              const stepsComplete = getVerificationStepCount(opportunity);
-              
-              return (
-                <motion.div
-                  key={opportunity.id}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -10 }}
-                  transition={{ delay: index * 0.02 }}
-                  onClick={() => handleCardClick(opportunity)}
-                  className="cursor-pointer touch-manipulation active:scale-[0.98] transition-transform"
-                >
-                  <Card className={`border-2 overflow-hidden shadow-lg ${
-                    isFunded
-                      ? 'bg-gradient-to-br from-primary/20 to-primary/5 border-primary/40'
-                      : isNew 
-                        ? 'bg-gradient-to-br from-success/20 to-success/5 border-success/50 ring-2 ring-success/30' 
-                        : verificationStatus === 'verified'
-                          ? 'bg-gradient-to-br from-primary/15 to-success/10 border-primary/30'
-                          : verificationStatus === 'verifying'
-                            ? 'bg-gradient-to-br from-warning/15 to-warning/5 border-warning/30'
-                            : 'bg-gradient-to-br from-orange-500/10 to-muted/50 border-orange-500/30'
-                  }`}>
-                    <CardContent className="p-5">
-                      {/* TOP ROW: Status + Watch Button */}
-                      <div className="flex items-center justify-between mb-3">
-                        <div className="flex items-center gap-2">
-                          {isNew && (
-                            <Badge className="bg-success text-success-foreground text-xs font-bold px-2.5 py-1 animate-pulse">
-                              <Sparkles className="h-3.5 w-3.5 mr-1" />
-                              NEW
-                            </Badge>
-                          )}
-                          {getStatusBadge(opportunity)}
-                        </div>
+        {/* Opportunities List - Collapsible Names */}
+        <Card className="border shadow-sm">
+          <CardContent className="p-0">
+            <div className="divide-y divide-border">
+              <AnimatePresence>
+                {filteredAndSortedOpportunities.map((opportunity) => {
+                  const isFunded = opportunity.status === 'funded';
+                  const reward = calculateSupporterReward(opportunity.rent_amount);
+                  const isNew = opportunity.id === newOpportunityId;
+                  const isExpanded = expandedId === opportunity.id;
+                  const verificationStatus = getVerificationStatus(opportunity);
+                  const stepsComplete = getVerificationStepCount(opportunity);
+                  
+                  return (
+                    <div key={opportunity.id}>
+                      {/* Compact name row */}
+                      <button
+                        onClick={() => {
+                          hapticTap();
+                          setExpandedId(prev => prev === opportunity.id ? null : opportunity.id);
+                        }}
+                        className={`w-full px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation flex items-center gap-3 ${isExpanded ? 'bg-muted/30' : ''}`}
+                      >
+                        {/* Status indicator dot */}
+                        <div className={`w-2 h-2 rounded-full shrink-0 ${
+                          isFunded ? 'bg-primary' :
+                          verificationStatus === 'verified' ? 'bg-success' :
+                          verificationStatus === 'verifying' ? 'bg-warning' :
+                          'bg-orange-500'
+                        }`} />
                         
-                        {/* Watch Button - Large Touch Target */}
-                        <TooltipProvider delayDuration={200}>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <button
-                                onClick={(e) => handleWatch(e, opportunity.id)}
-                                disabled={watchingId === opportunity.id}
-                                className={`p-3 rounded-xl transition-all touch-manipulation active:scale-90 min-w-[48px] min-h-[48px] flex items-center justify-center ${
-                                  watchedIds.has(opportunity.id)
-                                    ? 'bg-warning text-warning-foreground shadow-md'
-                                    : 'bg-muted/80 text-muted-foreground hover:bg-warning/20 hover:text-warning'
-                                }`}
-                              >
-                                {watchedIds.has(opportunity.id) ? (
-                                  <BookmarkCheck className="h-5 w-5" />
-                                ) : (
-                                  <Bell className="h-5 w-5" />
-                                )}
-                              </button>
-                            </TooltipTrigger>
-                            <TooltipContent side="left">
-                              <p className="text-xs font-medium">
-                                {watchedIds.has(opportunity.id) ? 'Watching' : 'Watch for updates'}
-                              </p>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-
-                      {/* MAIN CONTENT: Amount & ROI - LARGE & CLEAR */}
-                      <div className="flex items-center gap-4 mb-4">
-                        <UserAvatar 
-                          avatarUrl={opportunity.tenant?.avatar_url} 
-                          fullName={opportunity.tenant?.full_name || 'Tenant'} 
-                          size="lg"
-                        />
-                        <div className="flex-1 min-w-0">
-                          <p className="font-bold text-base text-foreground truncate mb-1">
-                            {opportunity.tenant?.full_name || 'Anonymous Tenant'}
-                          </p>
-                          
-                          {/* Amount - EXTRA LARGE */}
-                          <p className="font-black text-3xl text-foreground tracking-tight">
-                            {formatUGX(opportunity.rent_amount)}
-                          </p>
-                        </div>
-                      </div>
-
-                      {/* ROI & Duration - PROMINENT */}
-                      <div className="flex items-center gap-4 p-3 rounded-xl bg-success/10 border border-success/20 mb-4">
-                        <div className="flex items-center gap-2">
-                          <div className="p-2 rounded-lg bg-success/20">
-                            <TrendingUp className="h-5 w-5 text-success" />
-                          </div>
-                          <div>
-                            <p className="text-xs text-muted-foreground font-medium">Your Earnings</p>
-                            <p className="text-xl font-black text-success">+{formatUGX(reward)}</p>
-                          </div>
-                        </div>
-                        <div className="ml-auto text-right">
-                          <p className="text-xs text-muted-foreground font-medium">Duration</p>
-                          <p className="text-lg font-bold text-foreground">{opportunity.duration_days} days</p>
-                        </div>
-                      </div>
-
-                      {/* QUICK FUND BUTTON - Only for verified opportunities */}
-                      {opportunity.agent_verified && opportunity.manager_verified && opportunity.status !== 'funded' && (
-                        <Button
-                          size="lg"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            hapticTap();
-                            if (isLocked) {
-                              onLockedClick?.();
-                            } else {
-                              onFund(opportunity.id, opportunity.rent_amount);
-                            }
-                          }}
-                          className="w-full h-14 text-lg font-black gap-3 bg-gradient-to-r from-success to-primary hover:from-success/90 hover:to-primary/90 text-white shadow-lg touch-manipulation active:scale-[0.98] mb-4"
-                        >
-                          <Zap className="h-6 w-6" />
-                          Quick Fund — Earn {formatUGX(reward)}
-                        </Button>
-                      )}
-
-                      {/* LET MANAGER INVEST BUTTON - Always visible for non-funded */}
-                      {opportunity.status !== 'funded' && (
-                        <Button
-                          size="lg"
-                          variant="outline"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            hapticTap();
-                            setManagerInvestAmount(opportunity.rent_amount);
-                            setShowManagerInvestDialog(true);
-                          }}
-                          className="w-full h-12 text-base font-bold gap-2 border-2 border-primary/30 bg-primary/5 hover:bg-primary/10 text-primary touch-manipulation active:scale-[0.98] mb-4"
-                        >
-                          <UserPlus className="h-5 w-5" />
-                          Let Manager Invest For Me
-                        </Button>
-                      )}
-
-                      <div className="space-y-2">
-                        <div className="flex items-center justify-between">
-                          <span className="text-sm font-medium text-muted-foreground">Verification Progress</span>
-                          <span className="text-sm font-bold text-foreground">{stepsComplete}/4 Complete</span>
-                        </div>
-                        <div className="flex gap-1.5">
-                          {/* Step 1: Agent */}
-                          <div className={`h-3 flex-1 rounded-full transition-colors ${
-                            opportunity.agent_verified ? 'bg-success' : 'bg-muted'
-                          }`} />
-                          {/* Step 2: Manager */}
-                          <div className={`h-3 flex-1 rounded-full transition-colors ${
-                            opportunity.manager_verified ? 'bg-primary' : 'bg-muted'
-                          }`} />
-                          {/* Step 3: Landlord */}
-                          <div className={`h-3 flex-1 rounded-full transition-colors ${
-                            opportunity.landlord?.ready_to_receive ? 'bg-warning' : 'bg-muted'
-                          }`} />
-                          {/* Step 4: Ready */}
-                          <div className={`h-3 flex-1 rounded-full transition-colors ${
-                            opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive
-                              ? 'bg-gradient-to-r from-success to-primary' 
-                              : 'bg-muted'
-                          }`} />
-                        </div>
-                      </div>
-
-                      {/* QUICK CONTACT BUTTONS - Large Touch Targets */}
-                      <div className="mt-4 pt-3 border-t border-border/50 space-y-3">
-                        <p className="text-xs font-bold text-muted-foreground uppercase tracking-wide">Quick Contact</p>
+                        <span className="font-medium text-sm text-foreground flex-1 truncate">
+                          {opportunity.tenant?.full_name || 'Anonymous Tenant'}
+                        </span>
                         
-                        {/* Tenant Contact Row */}
-                        <div className="flex gap-2">
-                          <Button
-                            size="sm"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              hapticTap();
-                              handleStartChat(opportunity.tenant_id);
-                            }}
-                            disabled={startingChat}
-                            className="flex-1 h-12 gap-2 bg-primary hover:bg-primary/90 text-base font-bold touch-manipulation active:scale-95"
-                          >
-                            <MessageCircle className="h-5 w-5" />
-                            Chat Tenant
-                          </Button>
-                          
-                          {opportunity.tenant?.phone && (
-                            <>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  hapticTap();
-                                  window.open(getWhatsAppLink(opportunity.tenant!.phone!), '_blank');
-                                }}
-                                className="h-12 w-12 p-0 border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 touch-manipulation active:scale-95"
-                              >
-                                <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                                  <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                </svg>
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  hapticTap();
-                                  window.open(`tel:${opportunity.tenant!.phone}`, '_self');
-                                }}
-                                className="h-12 w-12 p-0 border-2 text-foreground touch-manipulation active:scale-95"
-                              >
-                                <Phone className="h-5 w-5" />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-
-                        {/* Landlord Contact Row */}
-                        {opportunity.landlord && (
-                          <div className="flex gap-2">
-                            {opportunity.landlord.user_id ? (
-                              <Button
-                                size="sm"
-                                variant="secondary"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  hapticTap();
-                                  handleStartChat(opportunity.landlord!.user_id!);
-                                }}
-                                disabled={startingChat}
-                                className="flex-1 h-12 gap-2 text-base font-bold touch-manipulation active:scale-95"
-                              >
-                                <Building className="h-5 w-5" />
-                                Chat Landlord
-                              </Button>
-                            ) : (
-                              <div className="flex-1 h-12 flex items-center justify-center gap-2 text-sm font-medium text-muted-foreground bg-muted/50 rounded-md">
-                                <Building className="h-4 w-4" />
-                                <span className="truncate">{opportunity.landlord.name}</span>
-                              </div>
-                            )}
-                            
-                            {opportunity.landlord.phone && (
-                              <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    hapticTap();
-                                    window.open(getWhatsAppLink(opportunity.landlord!.phone), '_blank');
-                                  }}
-                                  className="h-12 w-12 p-0 border-2 border-[#25D366] text-[#25D366] hover:bg-[#25D366]/10 touch-manipulation active:scale-95"
-                                >
-                                  <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-                                  </svg>
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    hapticTap();
-                                    window.open(`tel:${opportunity.landlord!.phone}`, '_self');
-                                  }}
-                                  className="h-12 w-12 p-0 border-2 text-foreground touch-manipulation active:scale-95"
-                                >
-                                  <Phone className="h-5 w-5" />
-                                </Button>
-                              </>
-                            )}
-                          </div>
+                        {isNew && (
+                          <Badge className="bg-success/20 text-success text-[9px] px-1.5 py-0 shrink-0">
+                            NEW
+                          </Badge>
                         )}
-                      </div>
-
-                      {/* Footer: Time */}
-                      <div className="flex items-center justify-center mt-3 pt-2 text-xs text-muted-foreground">
-                        <Clock className="h-3.5 w-3.5 mr-1.5" />
-                        <span>{formatDistanceToNow(new Date(opportunity.created_at), { addSuffix: true })}</span>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
-          
-          {/* Infinite scroll trigger */}
-          <div ref={loadMoreRef} className="py-4">
-            {loadingMore && (
-              <div className="flex items-center justify-center gap-2 text-muted-foreground">
-                <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-                <span className="text-sm">Loading more...</span>
-              </div>
-            )}
-            {!hasMore && opportunities.length > 0 && (
-              <p className="text-xs text-center text-muted-foreground">
-                You've seen all {opportunities.length} opportunities
-              </p>
-            )}
-          </div>
-        </div>
+                        
+                        {watchedIds.has(opportunity.id) && (
+                          <Bell className="h-3.5 w-3.5 text-warning shrink-0" />
+                        )}
+                      </button>
+                      
+                      {/* Expanded details */}
+                      <AnimatePresence>
+                        {isExpanded && (
+                          <motion.div
+                            initial={{ height: 0, opacity: 0 }}
+                            animate={{ height: 'auto', opacity: 1 }}
+                            exit={{ height: 0, opacity: 0 }}
+                            transition={{ duration: 0.15 }}
+                            className="overflow-hidden bg-muted/20"
+                          >
+                            <div className="px-4 py-4 space-y-4">
+                              {/* Amount & Reward */}
+                              <div className="flex items-center justify-between">
+                                <div>
+                                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Rent Amount</p>
+                                  <p className="text-xl font-bold">{formatUGX(opportunity.rent_amount)}</p>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Your Reward</p>
+                                  <p className="text-xl font-bold text-success">+{formatUGX(reward)}</p>
+                                </div>
+                              </div>
+                              
+                              {/* Meta info */}
+                              <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                                <span className="flex items-center gap-1">
+                                  <Clock className="h-3 w-3" />
+                                  {formatDistanceToNow(new Date(opportunity.created_at), { addSuffix: true })}
+                                </span>
+                                <span>•</span>
+                                <span>{opportunity.duration_days} days</span>
+                                <span>•</span>
+                                {getStatusBadge(opportunity)}
+                              </div>
+                              
+                              {/* Verification progress */}
+                              <div className="space-y-1.5">
+                                <div className="flex items-center justify-between text-xs">
+                                  <span className="text-muted-foreground">Verification</span>
+                                  <span className="font-medium">{stepsComplete}/4</span>
+                                </div>
+                                <div className="flex gap-1">
+                                  <div className={`h-1.5 flex-1 rounded-full ${opportunity.agent_verified ? 'bg-success' : 'bg-muted'}`} />
+                                  <div className={`h-1.5 flex-1 rounded-full ${opportunity.manager_verified ? 'bg-primary' : 'bg-muted'}`} />
+                                  <div className={`h-1.5 flex-1 rounded-full ${opportunity.landlord?.ready_to_receive ? 'bg-warning' : 'bg-muted'}`} />
+                                  <div className={`h-1.5 flex-1 rounded-full ${opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive ? 'bg-success' : 'bg-muted'}`} />
+                                </div>
+                              </div>
+                              
+                              {/* Action buttons */}
+                              <div className="flex gap-2">
+                                {/* Watch button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={(e) => handleWatch(e, opportunity.id)}
+                                  disabled={watchingId === opportunity.id}
+                                  className={`h-10 px-3 ${watchedIds.has(opportunity.id) ? 'bg-warning/10 border-warning text-warning' : ''}`}
+                                >
+                                  {watchedIds.has(opportunity.id) ? (
+                                    <BookmarkCheck className="h-4 w-4" />
+                                  ) : (
+                                    <Bell className="h-4 w-4" />
+                                  )}
+                                </Button>
+                                
+                                {/* View Details button */}
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => handleCardClick(opportunity)}
+                                  className="flex-1 h-10 font-medium"
+                                >
+                                  <Eye className="h-4 w-4 mr-1.5" />
+                                  Details
+                                </Button>
+                                
+                                {/* Fund button - for verified */}
+                                {opportunity.agent_verified && opportunity.manager_verified && !isFunded && (
+                                  <Button
+                                    size="sm"
+                                    onClick={(e) => {
+                                      e.stopPropagation();
+                                      hapticTap();
+                                      if (isLocked) {
+                                        onLockedClick?.();
+                                      } else {
+                                        onFund(opportunity.id, opportunity.rent_amount);
+                                      }
+                                    }}
+                                    className="flex-1 h-10 font-bold bg-success hover:bg-success/90"
+                                  >
+                                    <Zap className="h-4 w-4 mr-1.5" />
+                                    Fund
+                                  </Button>
+                                )}
+                              </div>
+                              
+                              {/* Let Manager Invest */}
+                              {!isFunded && (
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    hapticTap();
+                                    setManagerInvestAmount(opportunity.rent_amount);
+                                    setShowManagerInvestDialog(true);
+                                  }}
+                                  className="w-full h-9 text-xs text-primary hover:bg-primary/10"
+                                >
+                                  <UserPlus className="h-3.5 w-3.5 mr-1.5" />
+                                  Let Manager Invest For Me
+                                </Button>
+                              )}
+                            </div>
+                          </motion.div>
+                        )}
+                      </AnimatePresence>
+                    </div>
+                  );
+                })}
+              </AnimatePresence>
+            </div>
+            
+            {/* Infinite scroll trigger */}
+            <div ref={loadMoreRef} className="py-3">
+              {loadingMore && (
+                <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                  <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                  <span className="text-xs">Loading more...</span>
+                </div>
+              )}
+              {!hasMore && opportunities.length > 0 && (
+                <p className="text-xs text-center text-muted-foreground">
+                  All {opportunities.length} opportunities loaded
+                </p>
+              )}
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Results info - LARGER */}
         {filterBy !== 'all' && (
