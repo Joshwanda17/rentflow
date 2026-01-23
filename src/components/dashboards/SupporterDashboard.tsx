@@ -594,6 +594,16 @@ export default function SupporterDashboard({
 
       <main className="container mx-auto px-4 py-5 space-y-5 max-w-lg">
         
+        {/* Role Switcher - Prominent placement for multi-role users */}
+        {availableRoles.length > 1 && (
+          <RoleSwitcher
+            currentRole={currentRole}
+            availableRoles={availableRoles}
+            onRoleChange={onRoleChange}
+            variant="prominent"
+          />
+        )}
+
         {/* Greeting - Minimal & Clean */}
         <motion.div
           initial={{ opacity: 0 }}
