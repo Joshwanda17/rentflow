@@ -1133,7 +1133,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                   
                   return (
                     <div key={opportunity.id}>
-                      {/* Compact name row */}
+                      {/* Name + Reward row */}
                       <button
                         onClick={() => {
                           hapticTap();
@@ -1151,6 +1151,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         
                         <span className="font-medium text-sm text-foreground flex-1 truncate">
                           {opportunity.tenant?.full_name || 'Anonymous Tenant'}
+                        </span>
+                        
+                        <span className="text-xs font-bold text-success shrink-0">
+                          +{formatUGX(reward)}
                         </span>
                         
                         {isNew && (
