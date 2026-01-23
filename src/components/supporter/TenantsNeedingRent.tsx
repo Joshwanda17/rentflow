@@ -79,13 +79,16 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                 
                 return (
                   <div key={request.id}>
-                    {/* Simple name row */}
+                    {/* Name + Reward row */}
                     <button
                       onClick={() => toggleCard(request.id)}
-                      className={`w-full px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation ${isExpanded ? 'bg-muted/30' : ''}`}
+                      className={`w-full px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation flex items-center justify-between gap-2 ${isExpanded ? 'bg-muted/30' : ''}`}
                     >
-                      <span className="font-medium text-sm text-foreground">
+                      <span className="font-medium text-sm text-foreground truncate">
                         {request.tenant_name || 'Anonymous Tenant'}
+                      </span>
+                      <span className="text-xs font-bold text-success shrink-0">
+                        +{formatUGX(reward)}
                       </span>
                     </button>
                     
