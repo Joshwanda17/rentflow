@@ -71,6 +71,7 @@ interface RentOpportunity {
   manager_verified: boolean | null;
   manager_verified_at: string | null;
   manager_verified_by: string | null;
+  supporter_id: string | null;
   tenant?: {
     id: string;
     full_name: string;
@@ -99,10 +100,13 @@ interface RentOpportunity {
   managerVerifier?: {
     full_name: string;
   };
+  funder?: {
+    full_name: string;
+  };
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -202,13 +206,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         },
         (payload) => {
           console.log('[RentOpportunities] Rent request updated:', payload.new.id, payload.new.status);
-          // For updates, refresh the specific opportunity to get full data
-          if (['pending', 'approved', 'funded'].includes(payload.new.status)) {
-            fetchSingleOpportunity(payload.new.id, false); // isNew = false for UPDATE
-          } else {
-            // Remove if status changed to rejected or other non-visible status
-            setOpportunities(prev => prev.filter(opp => opp.id !== payload.new.id));
-          }
+          // For updates, always refresh the specific opportunity to get full data
+          // We now show all statuses including rejected
+          fetchSingleOpportunity(payload.new.id, false); // isNew = false for UPDATE
         }
       )
       .on(
@@ -309,6 +309,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const from = currentPage * PAGE_SIZE;
     const to = from + PAGE_SIZE - 1;
     
+    // Fetch ALL opportunities regardless of status
     const { data, error } = await supabase
       .from('rent_requests')
       .select(`
@@ -325,18 +326,19 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified,
         manager_verified_at,
         manager_verified_by,
+        supporter_id,
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
-      .in('status', ['pending', 'approved', 'funded'])
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    // Fetch tenant profiles and verifier profiles separately
+    // Fetch tenant profiles, verifier profiles, and funder profiles separately
     if (!error && data) {
       const tenantIds = [...new Set(data.map(r => r.tenant_id).filter(Boolean))];
       const agentVerifierIds = [...new Set(data.map(r => r.agent_verified_by).filter(Boolean))] as string[];
       const managerVerifierIds = [...new Set(data.map(r => r.manager_verified_by).filter(Boolean))] as string[];
-      const allProfileIds = [...new Set([...tenantIds, ...agentVerifierIds, ...managerVerifierIds])];
+      const supporterIds = [...new Set(data.map(r => r.supporter_id).filter(Boolean))] as string[];
+      const allProfileIds = [...new Set([...tenantIds, ...agentVerifierIds, ...managerVerifierIds, ...supporterIds])];
       
       const { data: profiles } = await supabase
         .from('profiles')
@@ -349,7 +351,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         ...r,
         tenant: profileMap.get(r.tenant_id) || null,
         agentVerifier: r.agent_verified_by ? profileMap.get(r.agent_verified_by) : null,
-        managerVerifier: r.manager_verified_by ? profileMap.get(r.manager_verified_by) : null
+        managerVerifier: r.manager_verified_by ? profileMap.get(r.manager_verified_by) : null,
+        funder: r.supporter_id ? profileMap.get(r.supporter_id) : null
       })) as unknown as RentOpportunity[];
 
       if (reset) {
@@ -415,6 +418,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         manager_verified,
         manager_verified_at,
         manager_verified_by,
+        supporter_id,
         landlord:landlords!rent_requests_landlord_id_fkey(id, name, phone, property_address, bank_name, account_number, mobile_money_number, monthly_rent, verified, ready_to_receive)
       `)
       .eq('id', id)
@@ -430,14 +434,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       return;
     }
 
-    // Only process if status is valid for opportunities view
-    if (!['pending', 'approved', 'funded'].includes(data.status)) {
-      console.log('[RentOpportunities] Skipping opportunity with status:', data.status);
-      return;
-    }
-    
-    // Fetch tenant and verifier profiles separately
-    const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by].filter(Boolean) as string[];
+    // Process all statuses - we now show everything
+    // Fetch tenant, verifier, and funder profiles separately
+    const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by, data.supporter_id].filter(Boolean) as string[];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, phone')
@@ -449,7 +448,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       ...data,
       tenant: profileMap.get(data.tenant_id) || null,
       agentVerifier: data.agent_verified_by ? profileMap.get(data.agent_verified_by) : null,
-      managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null
+      managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null,
+      funder: data.supporter_id ? profileMap.get(data.supporter_id) : null
     } as unknown as RentOpportunity;
     
     // Update or add to opportunities list
@@ -528,25 +528,34 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         const tenantName = opp.tenant?.full_name?.toLowerCase() || '';
         const rentAmount = opp.rent_amount.toString();
         const formattedAmount = formatUGX(opp.rent_amount).toLowerCase();
-        return tenantName.includes(query) || rentAmount.includes(query) || formattedAmount.includes(query);
+        const funderName = opp.funder?.full_name?.toLowerCase() || '';
+        return tenantName.includes(query) || rentAmount.includes(query) || formattedAmount.includes(query) || funderName.includes(query);
       });
     }
 
-    // Apply filter - 'all' excludes funded by default (funded has its own tab)
+    // Apply filter - 'all' now shows EVERYTHING
     if (filterBy === 'watched') {
-      result = result.filter(opp => opp.status !== 'funded' && watchedIds.has(opp.id));
+      result = result.filter(opp => watchedIds.has(opp.id));
     } else if (filterBy === 'unseen') {
       result = result.filter(opp => opp.status !== 'funded' && (!lastSeenAt || new Date(opp.created_at) > lastSeenAt));
     } else if (filterBy === 'funded') {
       result = result.filter(opp => opp.status === 'funded');
+    } else if (filterBy === 'rejected') {
+      result = result.filter(opp => opp.status === 'rejected');
     } else if (filterBy === 'landlord_ready') {
-      result = result.filter(opp => opp.status !== 'funded' && opp.landlord?.ready_to_receive === true);
+      result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && opp.landlord?.ready_to_receive === true);
+    } else if (filterBy === 'ready') {
+      // Ready to fund = verified by both agent and manager, approved status
+      result = result.filter(opp => opp.status === 'approved' && opp.agent_verified && opp.manager_verified);
     } else if (filterBy === 'all') {
-      // 'all' shows only unfunded opportunities
-      result = result.filter(opp => opp.status !== 'funded');
-    } else {
-      // verified, verifying, pending filters - exclude funded
-      result = result.filter(opp => opp.status !== 'funded' && getVerificationStatus(opp) === filterBy);
+      // 'all' shows ALL opportunities - funded, rejected, pending, etc.
+      // No filtering needed
+    } else if (filterBy === 'verified') {
+      result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && opp.agent_verified && opp.manager_verified);
+    } else if (filterBy === 'verifying') {
+      result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
+    } else if (filterBy === 'pending') {
+      result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && !opp.agent_verified && !opp.manager_verified);
     }
 
     // Apply sort
@@ -599,10 +608,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
   // Calculate summary stats for the summary card
   const summaryStats = useMemo(() => {
-    const unfundedOpps = opportunities.filter(opp => opp.status !== 'funded');
-    const verifiedOpps = unfundedOpps.filter(opp => opp.manager_verified && opp.agent_verified);
-    const verifyingOpps = unfundedOpps.filter(opp => (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
-    const pendingOpps = unfundedOpps.filter(opp => !opp.agent_verified && !opp.manager_verified);
+    const activeOpps = opportunities.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected');
+    const fundedOpps = opportunities.filter(opp => opp.status === 'funded');
+    const rejectedOpps = opportunities.filter(opp => opp.status === 'rejected');
+    const verifiedOpps = activeOpps.filter(opp => opp.manager_verified && opp.agent_verified);
+    const verifyingOpps = activeOpps.filter(opp => (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
+    const pendingOpps = activeOpps.filter(opp => !opp.agent_verified && !opp.manager_verified);
     
     const calcTotal = (opps: RentOpportunity[]) => ({
       count: opps.length,
@@ -611,10 +622,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     });
     
     return {
-      total: calcTotal(unfundedOpps),
+      total: calcTotal(activeOpps),
       verified: calcTotal(verifiedOpps),
       verifying: calcTotal(verifyingOpps),
       pending: calcTotal(pendingOpps),
+      funded: calcTotal(fundedOpps),
+      rejected: calcTotal(rejectedOpps),
     };
   }, [opportunities]);
 
@@ -665,6 +678,16 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         <Badge className="bg-primary/20 text-primary border-primary/30 gap-1">
           <HandCoins className="h-3 w-3" />
           Funded
+        </Badge>
+      );
+    }
+    
+    // Show rejected status
+    if (opp.status === 'rejected') {
+      return (
+        <Badge className="bg-destructive/20 text-destructive border-destructive/30 gap-1">
+          <X className="h-3 w-3" />
+          Rejected
         </Badge>
       );
     }
@@ -952,56 +975,73 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                 </div>
               </div>
               
-              {/* Simple 3-Column Stats - Larger Touch Targets */}
-              <div className="grid grid-cols-3 gap-3">
+              {/* Simple 4-Column Stats - Larger Touch Targets */}
+              <div className="grid grid-cols-4 gap-2">
                 <button 
-                  onClick={() => { hapticTap(); setFilterBy('verified'); }}
-                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
-                    filterBy === 'verified' 
+                  onClick={() => { hapticTap(); setFilterBy('funded'); }}
+                  className={`p-2.5 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                    filterBy === 'funded' 
                       ? 'bg-primary text-primary-foreground ring-2 ring-primary shadow-md' 
-                      : 'bg-primary/10 border-2 border-primary/20 hover:bg-primary/20'
+                      : 'bg-primary/10 border border-primary/20 hover:bg-primary/20'
                   }`}
                 >
-                  <CheckCircle2 className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'verified' ? 'text-primary-foreground' : 'text-primary'}`} />
-                  <p className={`text-lg font-bold ${filterBy === 'verified' ? 'text-primary-foreground' : 'text-primary'}`}>
+                  <HandCoins className={`h-4 w-4 mx-auto mb-0.5 ${filterBy === 'funded' ? 'text-primary-foreground' : 'text-primary'}`} />
+                  <p className={`text-base font-bold ${filterBy === 'funded' ? 'text-primary-foreground' : 'text-primary'}`}>
+                    {summaryStats.funded.count}
+                  </p>
+                  <p className={`text-[10px] font-medium ${filterBy === 'funded' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                    Funded
+                  </p>
+                </button>
+                
+                <button 
+                  onClick={() => { hapticTap(); setFilterBy('ready'); }}
+                  className={`p-2.5 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                    filterBy === 'ready' 
+                      ? 'bg-success text-success-foreground ring-2 ring-success shadow-md' 
+                      : 'bg-success/10 border border-success/20 hover:bg-success/20'
+                  }`}
+                >
+                  <CheckCircle2 className={`h-4 w-4 mx-auto mb-0.5 ${filterBy === 'ready' ? 'text-success-foreground' : 'text-success'}`} />
+                  <p className={`text-base font-bold ${filterBy === 'ready' ? 'text-success-foreground' : 'text-success'}`}>
                     {summaryStats.verified.count}
                   </p>
-                  <p className={`text-xs font-medium ${filterBy === 'verified' ? 'text-primary-foreground/80' : 'text-muted-foreground'}`}>
+                  <p className={`text-[10px] font-medium ${filterBy === 'ready' ? 'text-success-foreground/80' : 'text-muted-foreground'}`}>
                     Ready
                   </p>
                 </button>
                 
                 <button 
                   onClick={() => { hapticTap(); setFilterBy('verifying'); }}
-                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                  className={`p-2.5 rounded-xl transition-all active:scale-95 touch-manipulation ${
                     filterBy === 'verifying' 
                       ? 'bg-warning text-warning-foreground ring-2 ring-warning shadow-md' 
-                      : 'bg-warning/10 border-2 border-warning/20 hover:bg-warning/20'
+                      : 'bg-warning/10 border border-warning/20 hover:bg-warning/20'
                   }`}
                 >
-                  <Clock className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`} />
-                  <p className={`text-lg font-bold ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`}>
+                  <Clock className={`h-4 w-4 mx-auto mb-0.5 ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`} />
+                  <p className={`text-base font-bold ${filterBy === 'verifying' ? 'text-warning-foreground' : 'text-warning'}`}>
                     {summaryStats.verifying.count}
                   </p>
-                  <p className={`text-xs font-medium ${filterBy === 'verifying' ? 'text-warning-foreground/80' : 'text-muted-foreground'}`}>
+                  <p className={`text-[10px] font-medium ${filterBy === 'verifying' ? 'text-warning-foreground/80' : 'text-muted-foreground'}`}>
                     Verifying
                   </p>
                 </button>
                 
                 <button 
                   onClick={() => { hapticTap(); setFilterBy('pending'); }}
-                  className={`p-3 rounded-xl transition-all active:scale-95 touch-manipulation ${
+                  className={`p-2.5 rounded-xl transition-all active:scale-95 touch-manipulation ${
                     filterBy === 'pending' 
                       ? 'bg-orange-500 text-white ring-2 ring-orange-500 shadow-md' 
-                      : 'bg-orange-500/10 border-2 border-orange-500/20 hover:bg-orange-500/20'
+                      : 'bg-orange-500/10 border border-orange-500/20 hover:bg-orange-500/20'
                   }`}
                 >
-                  <Timer className={`h-5 w-5 mx-auto mb-1 ${filterBy === 'pending' ? 'text-white' : 'text-orange-500'}`} />
-                  <p className={`text-lg font-bold ${filterBy === 'pending' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`}>
+                  <Timer className={`h-4 w-4 mx-auto mb-0.5 ${filterBy === 'pending' ? 'text-white' : 'text-orange-500'}`} />
+                  <p className={`text-base font-bold ${filterBy === 'pending' ? 'text-white' : 'text-orange-600 dark:text-orange-400'}`}>
                     {summaryStats.pending.count}
                   </p>
-                  <p className={`text-xs font-medium ${filterBy === 'pending' ? 'text-white/80' : 'text-muted-foreground'}`}>
-                    New
+                  <p className={`text-[10px] font-medium ${filterBy === 'pending' ? 'text-white/80' : 'text-muted-foreground'}`}>
+                    Pending
                   </p>
                 </button>
               </div>
@@ -1068,14 +1108,16 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           )}
         </div>
 
-        {/* Quick Filter Chips - SIMPLIFIED & LARGER */}
-        <div className="flex gap-2.5 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
+        {/* Quick Filter Chips - ALL STATUSES */}
+        <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { value: 'all', label: 'All', icon: '📋' },
-            { value: 'verified', label: 'Ready', icon: '✅' },
+            { value: 'funded', label: 'Funded', icon: '💚' },
+            { value: 'ready', label: 'Ready', icon: '✅' },
             { value: 'verifying', label: 'Verifying', icon: '⏳' },
-            { value: 'pending', label: 'New', icon: '🆕' },
+            { value: 'pending', label: 'Pending', icon: '🆕' },
             { value: 'watched', label: 'Watching', icon: '👁️' },
+            { value: 'rejected', label: 'Rejected', icon: '❌' },
           ].map((filter) => (
             <button
               key={filter.value}
@@ -1083,13 +1125,17 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                 hapticTap();
                 setFilterBy(filter.value as FilterOption);
               }}
-              className={`flex items-center gap-2 px-4 py-3 rounded-xl text-sm font-bold whitespace-nowrap transition-all active:scale-95 touch-manipulation min-h-[48px] ${
+              className={`flex items-center gap-1.5 px-3 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all active:scale-95 touch-manipulation min-h-[44px] ${
                 filterBy === filter.value
-                  ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary'
-                  : 'bg-muted/80 text-foreground hover:bg-muted border-2 border-transparent'
+                  ? filter.value === 'funded' 
+                    ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary'
+                    : filter.value === 'rejected'
+                    ? 'bg-destructive text-destructive-foreground shadow-lg shadow-destructive/30 ring-2 ring-destructive'
+                    : 'bg-primary text-primary-foreground shadow-lg shadow-primary/30 ring-2 ring-primary'
+                  : 'bg-muted/80 text-foreground hover:bg-muted border border-transparent'
               }`}
             >
-              <span className="text-base">{filter.icon}</span>
+              <span>{filter.icon}</span>
               <span>{filter.label}</span>
             </button>
           ))}
@@ -1129,6 +1175,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
               <AnimatePresence>
                 {filteredAndSortedOpportunities.map((opportunity) => {
                   const isFunded = opportunity.status === 'funded';
+                  const isRejected = opportunity.status === 'rejected';
                   const reward = calculateSupporterReward(opportunity.rent_amount);
                   const isNew = opportunity.id === newOpportunityId;
                   const isExpanded = expandedId === opportunity.id;
@@ -1143,31 +1190,64 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                           hapticTap();
                           setExpandedId(prev => prev === opportunity.id ? null : opportunity.id);
                         }}
-                        className={`w-full px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation flex items-center gap-3 ${isExpanded ? 'bg-muted/30' : ''}`}
+                        className={`w-full px-4 py-3 text-left transition-colors touch-manipulation flex items-center gap-3 ${
+                          isExpanded ? 'bg-muted/30' : ''
+                        } ${
+                          isFunded 
+                            ? 'bg-primary/5 hover:bg-primary/10 border-l-4 border-l-primary' 
+                            : isRejected
+                            ? 'bg-destructive/5 hover:bg-destructive/10 border-l-4 border-l-destructive opacity-60'
+                            : 'hover:bg-muted/50 active:bg-muted'
+                        }`}
                       >
                         {/* Status indicator dot */}
-                        <div className={`w-2 h-2 rounded-full shrink-0 ${
-                          isFunded ? 'bg-primary' :
+                        <div className={`w-2.5 h-2.5 rounded-full shrink-0 ${
+                          isFunded ? 'bg-primary ring-2 ring-primary/30' :
+                          isRejected ? 'bg-destructive' :
                           verificationStatus === 'verified' ? 'bg-success' :
                           verificationStatus === 'verifying' ? 'bg-warning' :
                           'bg-orange-500'
                         }`} />
                         
-                        <span className="font-medium text-sm text-foreground flex-1 truncate">
-                          {opportunity.tenant?.full_name || 'Anonymous Tenant'}
+                        <div className="flex-1 min-w-0">
+                          <span className={`font-medium text-sm block truncate ${
+                            isFunded ? 'text-primary' : isRejected ? 'text-muted-foreground line-through' : 'text-foreground'
+                          }`}>
+                            {opportunity.tenant?.full_name || 'Anonymous Tenant'}
+                          </span>
+                          {isFunded && opportunity.funder && (
+                            <span className="text-[10px] text-primary/70 flex items-center gap-1">
+                              <HandCoins className="h-2.5 w-2.5" />
+                              Funded by {opportunity.funder.full_name}
+                            </span>
+                          )}
+                          {isRejected && (
+                            <span className="text-[10px] text-destructive flex items-center gap-1">
+                              <X className="h-2.5 w-2.5" />
+                              Rejected
+                            </span>
+                          )}
+                        </div>
+                        
+                        <span className={`text-xs font-bold shrink-0 ${
+                          isFunded ? 'text-primary' : isRejected ? 'text-muted-foreground' : 'text-success'
+                        }`}>
+                          {isFunded ? '✓ ' : isRejected ? '' : '+'}{formatAmount(reward)}
                         </span>
                         
-                        <span className="text-xs font-bold text-success shrink-0">
-                          +{formatAmount(reward)}
-                        </span>
+                        {isFunded && (
+                          <Badge className="bg-primary/20 text-primary text-[9px] px-1.5 py-0 shrink-0 border border-primary/30">
+                            FUNDED
+                          </Badge>
+                        )}
                         
-                        {isNew && (
+                        {isNew && !isFunded && (
                           <Badge className="bg-success/20 text-success text-[9px] px-1.5 py-0 shrink-0">
                             NEW
                           </Badge>
                         )}
                         
-                        {watchedIds.has(opportunity.id) && (
+                        {watchedIds.has(opportunity.id) && !isFunded && (
                           <Bell className="h-3.5 w-3.5 text-warning shrink-0" />
                         )}
                       </button>
@@ -1249,8 +1329,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                   Details
                                 </Button>
                                 
-                                {/* Fund button - for verified */}
-                                {opportunity.agent_verified && opportunity.manager_verified && !isFunded && (
+                                {/* Fund button - for verified and not rejected */}
+                                {opportunity.agent_verified && opportunity.manager_verified && !isFunded && !isRejected && (
                                   <Button
                                     size="sm"
                                     onClick={(e) => {
@@ -1270,8 +1350,30 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                 )}
                               </div>
                               
-                              {/* Let Manager Invest */}
-                              {!isFunded && (
+                              {/* Funded by info */}
+                              {isFunded && opportunity.funder && (
+                                <div className="flex items-center gap-2 p-3 rounded-xl bg-primary/10 border border-primary/20">
+                                  <HandCoins className="h-4 w-4 text-primary" />
+                                  <div className="flex-1">
+                                    <p className="text-xs font-medium text-primary">Funded by {opportunity.funder.full_name}</p>
+                                    <p className="text-[10px] text-muted-foreground">This opportunity has been taken</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Rejected notice */}
+                              {isRejected && (
+                                <div className="flex items-center gap-2 p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                                  <X className="h-4 w-4 text-destructive" />
+                                  <div className="flex-1">
+                                    <p className="text-xs font-medium text-destructive">Request Rejected</p>
+                                    <p className="text-[10px] text-muted-foreground">This opportunity is no longer available</p>
+                                  </div>
+                                </div>
+                              )}
+                              
+                              {/* Let Manager Invest - only for active opportunities */}
+                              {!isFunded && !isRejected && (
                                 <Button
                                   variant="ghost"
                                   size="sm"
