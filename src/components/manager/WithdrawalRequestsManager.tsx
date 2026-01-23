@@ -10,12 +10,14 @@ import {
   CheckCircle, 
   XCircle, 
   Clock, 
-  User, 
   Loader2,
   AlertCircle,
   RefreshCw,
   Phone,
-  Wallet
+  Wallet,
+  Smartphone,
+  Copy,
+  Check
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
@@ -38,6 +40,8 @@ interface WithdrawalRequest {
   user_id: string;
   amount: number;
   status: string;
+  mobile_money_number: string | null;
+  mobile_money_provider: string | null;
   created_at: string;
   rejection_reason: string | null;
   user?: {
@@ -56,6 +60,18 @@ export function WithdrawalRequestsManager() {
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<WithdrawalRequest | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  const copyToClipboard = async (text: string, requestId: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(requestId);
+      toast.success('Number copied!');
+      setTimeout(() => setCopiedId(null), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -297,6 +313,60 @@ export function WithdrawalRequestsManager() {
                           <Phone className="h-3 w-3" />
                           <span>{request.user?.phone || 'No phone'}</span>
                         </div>
+
+                        {/* Mobile Money Number - Highlighted for easy payout */}
+                        {request.mobile_money_number && (
+                          <div className={`mt-2 p-2.5 rounded-lg border-2 ${
+                            request.mobile_money_provider === 'mtn' 
+                              ? 'bg-yellow-500/10 border-yellow-500/30' 
+                              : 'bg-red-500/10 border-red-500/30'
+                          }`}>
+                            <div className="flex items-center justify-between gap-2">
+                              <div className="flex items-center gap-2">
+                                <div className={`p-1.5 rounded-full ${
+                                  request.mobile_money_provider === 'mtn' 
+                                    ? 'bg-yellow-500' 
+                                    : 'bg-red-500'
+                                }`}>
+                                  <Smartphone className={`h-3.5 w-3.5 ${
+                                    request.mobile_money_provider === 'mtn' 
+                                      ? 'text-black' 
+                                      : 'text-white'
+                                  }`} />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-medium text-muted-foreground uppercase">
+                                    {request.mobile_money_provider || 'MoMo'} Payout
+                                  </p>
+                                  <p className="font-bold text-base tracking-wide">
+                                    {request.mobile_money_number}
+                                  </p>
+                                </div>
+                              </div>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-9 w-9 shrink-0"
+                                onClick={() => copyToClipboard(request.mobile_money_number!, request.id)}
+                              >
+                                {copiedId === request.id ? (
+                                  <Check className="h-4 w-4 text-success" />
+                                ) : (
+                                  <Copy className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+                        )}
+
+                        {!request.mobile_money_number && (
+                          <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border">
+                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                              <AlertCircle className="h-3.5 w-3.5" />
+                              No mobile money number provided - use account phone
+                            </p>
+                          </div>
+                        )}
 
                         <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
                           <div>
