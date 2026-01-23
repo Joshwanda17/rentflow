@@ -13,22 +13,26 @@ interface CollapsibleLinkSignupsProps {
 export function CollapsibleLinkSignups({ isOpen, onToggle }: CollapsibleLinkSignupsProps) {
   const { user } = useAuth();
   const [totalCount, setTotalCount] = useState(0);
+  const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
     if (user) {
-      fetchCount();
+      fetchCounts();
     }
   }, [user]);
 
-  const fetchCount = async () => {
+  const fetchCounts = async () => {
     if (!user) return;
 
-    const { count } = await supabase
+    const { data } = await supabase
       .from('referrals')
-      .select('*', { count: 'exact', head: true })
+      .select('credited')
       .eq('referrer_id', user.id);
 
-    setTotalCount(count || 0);
+    if (data) {
+      setTotalCount(data.length);
+      setPendingCount(data.filter(r => !r.credited).length);
+    }
   };
 
   // Don't show if no signups
@@ -38,7 +42,9 @@ export function CollapsibleLinkSignups({ isOpen, onToggle }: CollapsibleLinkSign
     <CollapsibleAgentSection
       icon={Link2}
       label="Link Signups"
+      pendingCount={pendingCount}
       totalCount={totalCount}
+      pendingLabel="pending"
       iconColor="text-primary"
       isOpen={isOpen}
       onToggle={onToggle}
