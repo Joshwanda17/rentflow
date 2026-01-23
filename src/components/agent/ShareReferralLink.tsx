@@ -5,8 +5,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Link2, Gift, Users, Coins, Trophy, Star } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { Copy, Check, Share2, Link2, Gift, Users, Coins, Trophy, Star, CheckCircle, Lock, ChevronDown, ChevronUp } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Progress } from '@/components/ui/progress';
 
@@ -25,6 +25,7 @@ export function ShareReferralLink() {
   const [copied, setCopied] = useState(false);
   const [stats, setStats] = useState({ signups: 0, earned: 0 });
   const [loading, setLoading] = useState(true);
+  const [showMilestones, setShowMilestones] = useState(false);
 
   useEffect(() => {
     if (!user) return;
@@ -214,6 +215,106 @@ Let's make rent easy! 💪`;
               </div>
             );
           })()}
+
+          {/* Milestone History */}
+          {!loading && (
+            <div className="rounded-xl border border-muted overflow-hidden">
+              <button
+                onClick={() => setShowMilestones(!showMilestones)}
+                className="w-full flex items-center justify-between p-3 bg-muted/30 hover:bg-muted/50 transition-colors"
+              >
+                <div className="flex items-center gap-2">
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span className="text-xs font-semibold">Milestone Rewards</span>
+                  <span className="text-[10px] text-muted-foreground">
+                    ({MILESTONES.filter(m => m.count <= stats.signups).length}/{MILESTONES.length} earned)
+                  </span>
+                </div>
+                {showMilestones ? (
+                  <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                ) : (
+                  <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                )}
+              </button>
+              
+              <AnimatePresence>
+                {showMilestones && (
+                  <motion.div
+                    initial={{ height: 0, opacity: 0 }}
+                    animate={{ height: 'auto', opacity: 1 }}
+                    exit={{ height: 0, opacity: 0 }}
+                    transition={{ duration: 0.2 }}
+                    className="overflow-hidden"
+                  >
+                    <div className="p-2 space-y-1.5 bg-background/50">
+                      {MILESTONES.map((milestone, index) => {
+                        const isEarned = stats.signups >= milestone.count;
+                        const isNext = !isEarned && (index === 0 || stats.signups >= MILESTONES[index - 1].count);
+                        
+                        return (
+                          <div
+                            key={milestone.count}
+                            className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
+                              isEarned 
+                                ? 'bg-success/10 border border-success/20' 
+                                : isNext
+                                  ? 'bg-amber-500/10 border border-amber-500/20'
+                                  : 'bg-muted/30 border border-transparent opacity-60'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2.5">
+                              {isEarned ? (
+                                <div className="p-1 rounded-full bg-success/20">
+                                  <CheckCircle className="h-3.5 w-3.5 text-success" />
+                                </div>
+                              ) : isNext ? (
+                                <div className="p-1 rounded-full bg-amber-500/20">
+                                  <Star className="h-3.5 w-3.5 text-amber-500" />
+                                </div>
+                              ) : (
+                                <div className="p-1 rounded-full bg-muted">
+                                  <Lock className="h-3.5 w-3.5 text-muted-foreground" />
+                                </div>
+                              )}
+                              <div>
+                                <p className={`text-xs font-semibold ${isEarned ? 'text-success' : isNext ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                  {milestone.label}
+                                </p>
+                                <p className="text-[10px] text-muted-foreground">
+                                  {milestone.count} signups
+                                </p>
+                              </div>
+                            </div>
+                            <div className="text-right">
+                              <p className={`text-xs font-bold ${isEarned ? 'text-success' : isNext ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                {isEarned ? '✓ ' : ''}+{formatUGX(milestone.bonus)}
+                              </p>
+                              {isEarned && (
+                                <p className="text-[9px] text-success">Earned</p>
+                              )}
+                              {isNext && (
+                                <p className="text-[9px] text-amber-600">{milestone.count - stats.signups} more</p>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                      
+                      {/* Total Milestone Earnings */}
+                      {MILESTONES.filter(m => m.count <= stats.signups).length > 0 && (
+                        <div className="flex items-center justify-between p-2.5 mt-2 rounded-lg bg-gradient-to-r from-success/10 to-primary/10 border border-success/20">
+                          <span className="text-xs font-semibold text-foreground">Total Milestone Bonus</span>
+                          <span className="text-sm font-bold text-success">
+                            {formatUGX(MILESTONES.filter(m => m.count <= stats.signups).reduce((sum, m) => sum + m.bonus, 0))}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+          )}
 
           {/* Link Section */}
           <div className="relative p-3 rounded-xl bg-background/80 border border-primary/20">
