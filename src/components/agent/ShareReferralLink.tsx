@@ -1,16 +1,66 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Link2, Gift, Users } from 'lucide-react';
+import { Copy, Check, Share2, Link2, Gift, Users, Coins } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { formatUGX } from '@/lib/rentCalculations';
 
 export function ShareReferralLink() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
+  const [stats, setStats] = useState({ signups: 0, earned: 0 });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchStats = async () => {
+      const { data, error } = await supabase
+        .from('referrals')
+        .select('bonus_amount, credited')
+        .eq('referrer_id', user.id);
+
+      if (!error && data) {
+        setStats({
+          signups: data.length,
+          earned: data.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0),
+        });
+      }
+      setLoading(false);
+    };
+
+    fetchStats();
+
+    // Real-time subscription for new referrals
+    const channel = supabase
+      .channel(`referral-stats-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'referrals',
+          filter: `referrer_id=eq.${user.id}`,
+        },
+        (payload) => {
+          const newReferral = payload.new as { bonus_amount: number; credited: boolean };
+          setStats(prev => ({
+            signups: prev.signups + 1,
+            earned: newReferral.credited ? prev.earned + Number(newReferral.bonus_amount) : prev.earned,
+          }));
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user]);
 
   const getShareLink = () => {
     if (!user) return '';
@@ -27,7 +77,7 @@ export function ShareReferralLink() {
 • Access rent loans when needed
 • Track all your payments
 
-🎁 Sign up using my link and we both earn rewards!
+🎁 Sign up using my link and earn UGX 500!
 
 👉 TAP HERE TO JOIN:
 ${getShareLink()}
@@ -85,6 +135,24 @@ Let's make rent easy! 💪`;
             </div>
           </div>
 
+          {/* Stats Row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/10 border border-primary/20">
+              <Users className="h-4 w-4 text-primary" />
+              <div>
+                <p className="text-lg font-bold text-foreground">{loading ? '-' : stats.signups}</p>
+                <p className="text-[10px] text-muted-foreground">Signups</p>
+              </div>
+            </div>
+            <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/10 border border-success/20">
+              <Coins className="h-4 w-4 text-success" />
+              <div>
+                <p className="text-lg font-bold text-success">{loading ? '-' : formatUGX(stats.earned)}</p>
+                <p className="text-[10px] text-muted-foreground">Earned</p>
+              </div>
+            </div>
+          </div>
+
           {/* Link Section */}
           <div className="relative p-3 rounded-xl bg-background/80 border border-primary/20">
             <div className="flex items-center gap-2 text-xs text-muted-foreground mb-2">
@@ -131,7 +199,7 @@ Let's make rent easy! 💪`;
           <div className="flex items-center gap-2 p-2.5 rounded-lg bg-primary/5 border border-primary/10">
             <Users className="h-4 w-4 text-primary shrink-0" />
             <p className="text-[11px] text-muted-foreground">
-              Share with friends & family. When they sign up, you both earn rewards!
+              Share with friends & family. When they sign up, you both earn UGX 500!
             </p>
           </div>
         </CardContent>
