@@ -15,6 +15,8 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 import { Input } from '@/components/ui/input';
 import { RequestManagerInvestDialog } from './RequestManagerInvestDialog';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { useCurrency } from '@/hooks/useCurrency';
 import { 
   Users, 
   HandCoins, 
@@ -111,6 +113,7 @@ interface RentOpportunitiesProps {
 
 export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRef }: RentOpportunitiesProps) {
   const navigate = useNavigate();
+  const { formatAmount } = useCurrency();
   const [opportunities, setOpportunities] = useState<RentOpportunity[]>([]);
   const [loading, setLoading] = useState(true);
   const [loadingMore, setLoadingMore] = useState(false);
@@ -1025,6 +1028,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </div>
           </div>
           <div className="flex items-center gap-2">
+            <CurrencySwitcher variant="compact" />
             {unseenCount > 0 && (
               <Button
                 variant="ghost"
@@ -1154,7 +1158,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         </span>
                         
                         <span className="text-xs font-bold text-success shrink-0">
-                          +{formatUGX(reward)}
+                          +{formatAmount(reward)}
                         </span>
                         
                         {isNew && (
@@ -1183,11 +1187,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               <div className="flex items-center justify-between">
                                 <div>
                                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Rent Amount</p>
-                                  <p className="text-xl font-bold">{formatUGX(opportunity.rent_amount)}</p>
+                                  <p className="text-xl font-bold">{formatAmount(opportunity.rent_amount)}</p>
                                 </div>
                                 <div className="text-right">
                                   <p className="text-[10px] text-muted-foreground uppercase tracking-wide">Your Reward</p>
-                                  <p className="text-xl font-bold text-success">+{formatUGX(reward)}</p>
+                                  <p className="text-xl font-bold text-success">+{formatAmount(reward)}</p>
                                 </div>
                               </div>
                               
