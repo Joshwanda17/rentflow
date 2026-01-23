@@ -6,6 +6,7 @@ import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
+import { PinAuthProvider } from "@/hooks/usePinAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { FontSizeProvider } from "@/hooks/useFontSize";
@@ -197,25 +198,27 @@ const App = () => (
                 <CurrencyProvider>
                   <BrowserRouter>
                     <AuthProvider>
-                      <OfflineProvider>
-                        <CartProvider>
-                          <ComparisonProvider>
-                            <TooltipProvider delayDuration={300}>
-                              <Suspense fallback={null}>
-                                <IOSOptimizations />
-                                <OfflineBanner />
-                                <ConnectionStatus />
-                                <PWAInstallPrompt />
-                                <WhatsNewModal />
-                                <GlobalSettingsToolbar />
-                                <Toaster />
-                                <Sonner />
-                              </Suspense>
-                              <AnimatedRoutes />
-                            </TooltipProvider>
-                          </ComparisonProvider>
-                        </CartProvider>
-                      </OfflineProvider>
+                      <PinAuthProvider>
+                        <OfflineProvider>
+                          <CartProvider>
+                            <ComparisonProvider>
+                              <TooltipProvider delayDuration={300}>
+                                <Suspense fallback={null}>
+                                  <IOSOptimizations />
+                                  <OfflineBanner />
+                                  <ConnectionStatus />
+                                  <PWAInstallPrompt />
+                                  <WhatsNewModal />
+                                  <GlobalSettingsToolbar />
+                                  <Toaster />
+                                  <Sonner />
+                                </Suspense>
+                                <AnimatedRoutes />
+                              </TooltipProvider>
+                            </ComparisonProvider>
+                          </CartProvider>
+                        </OfflineProvider>
+                      </PinAuthProvider>
                     </AuthProvider>
                   </BrowserRouter>
                 </CurrencyProvider>
