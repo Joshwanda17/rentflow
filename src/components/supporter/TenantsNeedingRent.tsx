@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Users, ArrowRight, Clock, Sparkles, TrendingUp, Zap, Eye, Shield, ChevronRight } from 'lucide-react';
+import { Users, ArrowRight, Clock, Shield } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -73,32 +73,20 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
             </div>
           ) : (
             <div className="divide-y divide-border">
-              {requests.slice(0, 8).map((request, index) => {
+              {requests.slice(0, 8).map((request) => {
                 const reward = calculateSupporterReward(Number(request.rent_amount));
                 const isExpanded = expandedId === request.id;
                 
                 return (
                   <div key={request.id}>
-                    {/* Pulse-style row - just name */}
+                    {/* Simple name row */}
                     <button
                       onClick={() => toggleCard(request.id)}
-                      className="w-full flex items-center justify-between px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation"
+                      className={`w-full px-4 py-3 text-left hover:bg-muted/50 active:bg-muted transition-colors touch-manipulation ${isExpanded ? 'bg-muted/30' : ''}`}
                     >
-                      <div className="flex items-center gap-3 min-w-0 flex-1">
-                        {/* Blue dot indicator */}
-                        <div className="w-2 h-2 rounded-full bg-primary shrink-0" />
-                        <span className="font-medium text-sm text-foreground truncate">
-                          {request.tenant_name || 'Anonymous Tenant'}
-                        </span>
-                      </div>
-                      
-                      <motion.div
-                        animate={{ rotate: isExpanded ? 90 : 0 }}
-                        transition={{ duration: 0.15 }}
-                        className="shrink-0 ml-2"
-                      >
-                        <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                      </motion.div>
+                      <span className="font-medium text-sm text-foreground">
+                        {request.tenant_name || 'Anonymous Tenant'}
+                      </span>
                     </button>
                     
                     {/* Expanded details */}
@@ -109,7 +97,7 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                           animate={{ height: 'auto', opacity: 1 }}
                           exit={{ height: 0, opacity: 0 }}
                           transition={{ duration: 0.15 }}
-                          className="overflow-hidden bg-muted/30"
+                          className="overflow-hidden bg-muted/20"
                         >
                           <div className="px-4 py-3 space-y-3">
                             {/* Amount row */}
@@ -125,16 +113,16 @@ export function TenantsNeedingRent({ requests, onFund, onViewDetails, loading }:
                             </div>
                             
                             {/* Meta */}
-                            <div className="flex items-center gap-2 flex-wrap">
-                              <span className="text-xs text-muted-foreground flex items-center gap-1">
+                            <div className="flex items-center gap-2 flex-wrap text-xs text-muted-foreground">
+                              <span className="flex items-center gap-1">
                                 <Clock className="h-3 w-3" />
                                 {getDaysAgo(request.created_at)}
                               </span>
-                              <span className="text-xs text-muted-foreground">•</span>
-                              <span className="text-xs text-muted-foreground">{request.duration_days} days</span>
+                              <span>•</span>
+                              <span>{request.duration_days} days</span>
                               {request.agent_verified && (
                                 <>
-                                  <span className="text-xs text-muted-foreground">•</span>
+                                  <span>•</span>
                                   <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30">
                                     <Shield className="h-2 w-2 mr-0.5" />
                                     Verified
