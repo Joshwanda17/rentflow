@@ -89,6 +89,7 @@ import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDia
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
 import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
+import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1083,6 +1084,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
+
+        {/* Pending Agent Commission Payouts */}
+        <AgentCommissionPayoutsManager />
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
