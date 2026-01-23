@@ -17,13 +17,15 @@ import {
   Wallet,
   Smartphone,
   Copy,
-  Check
+  Check,
+  Download
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { UserAvatar } from '@/components/UserAvatar';
-import { formatDistanceToNow } from 'date-fns';
+import { format, formatDistanceToNow } from 'date-fns';
+import { exportToCSV } from '@/lib/exportUtils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -63,6 +65,8 @@ export function WithdrawalRequestsManager() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [allRequests, setAllRequests] = useState<WithdrawalRequest[]>([]);
+  const [exporting, setExporting] = useState(false);
 
   const copyToClipboard = async (text: string, requestId: string) => {
     try {
@@ -72,6 +76,71 @@ export function WithdrawalRequestsManager() {
       setTimeout(() => setCopiedId(null), 2000);
     } catch {
       toast.error('Failed to copy');
+    }
+  };
+
+  const handleExportCSV = async () => {
+    setExporting(true);
+    try {
+      // Fetch all withdrawal requests for export (not just pending)
+      const { data: exportData, error } = await supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) throw error;
+
+      if (!exportData || exportData.length === 0) {
+        toast.error('No withdrawal requests to export');
+        return;
+      }
+
+      // Fetch user profiles for all requests
+      const userIds = [...new Set(exportData.map(r => r.user_id))];
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, full_name, phone')
+        .in('id', userIds);
+
+      const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+      // Format data for CSV
+      const headers = [
+        'Date',
+        'User Name',
+        'User Phone',
+        'Amount (UGX)',
+        'MoMo Provider',
+        'MoMo Number',
+        'Status',
+        'Transaction ID',
+        'Rejection Reason',
+        'Processed At'
+      ];
+
+      const rows = exportData.map(req => {
+        const profile = profileMap.get(req.user_id);
+        return [
+          format(new Date(req.created_at), 'yyyy-MM-dd HH:mm'),
+          profile?.full_name || 'Unknown',
+          profile?.phone || '',
+          req.amount,
+          req.mobile_money_provider?.toUpperCase() || '',
+          req.mobile_money_number || '',
+          req.status,
+          req.transaction_id || '',
+          req.rejection_reason || '',
+          req.processed_at ? format(new Date(req.processed_at), 'yyyy-MM-dd HH:mm') : ''
+        ];
+      });
+
+      exportToCSV({ headers, rows }, 'withdrawal_requests');
+      toast.success(`Exported ${exportData.length} withdrawal requests`);
+    } catch (error) {
+      console.error('Export error:', error);
+      toast.error('Failed to export data');
+    } finally {
+      setExporting(false);
     }
   };
 
@@ -279,14 +348,29 @@ export function WithdrawalRequestsManager() {
                 </Badge>
               )}
             </CardTitle>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={fetchRequests}
-              disabled={loading}
-            >
-              <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
-            </Button>
+            <div className="flex items-center gap-1">
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handleExportCSV}
+                disabled={exporting}
+                title="Export to CSV"
+              >
+                {exporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={fetchRequests}
+                disabled={loading}
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+              </Button>
+            </div>
           </div>
         </CardHeader>
         <CardContent className="p-0">
