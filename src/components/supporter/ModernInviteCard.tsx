@@ -1,5 +1,4 @@
-import { motion } from 'framer-motion';
-import { Share2, Users, Gift, ChevronRight, Copy } from 'lucide-react';
+import { Share2, Gift, Copy } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -33,12 +32,7 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-      className={cn('relative overflow-hidden rounded-2xl', className)}
-    >
+    <div className={cn('relative overflow-hidden rounded-2xl', className)}>
       {/* Gradient background */}
       <div className="absolute inset-0 bg-gradient-to-br from-violet-500/90 via-purple-500/85 to-fuchsia-500/80" />
       
@@ -79,6 +73,6 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
           </div>
         </div>
       </div>
-    </motion.div>
+    </div>
   );
 }

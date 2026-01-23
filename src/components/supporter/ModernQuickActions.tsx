@@ -1,4 +1,3 @@
-import { motion } from 'framer-motion';
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
@@ -45,12 +44,9 @@ export function ModernQuickActions({ actions }: ModernQuickActionsProps) {
 
   return (
     <div className="grid grid-cols-4 gap-2">
-      {actions.slice(0, 4).map((action, index) => (
-        <motion.button
+      {actions.slice(0, 4).map((action) => (
+        <button
           key={action.label}
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: index * 0.05 }}
           onClick={() => {
             hapticTap();
             action.onClick();
@@ -69,7 +65,7 @@ export function ModernQuickActions({ actions }: ModernQuickActionsProps) {
             <action.icon className="h-5 w-5" />
           </div>
           <span className="text-[11px] font-semibold text-center leading-tight">{action.label}</span>
-        </motion.button>
+        </button>
       ))}
     </div>
   );

@@ -20,7 +20,6 @@ import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { CollapsibleWalletCard } from '@/components/wallet/CollapsibleWalletCard';
-import { motion, AnimatePresence } from 'framer-motion';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
@@ -126,6 +125,7 @@ export default function SupporterDashboard({
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
+  const [activeOpportunityTab, setActiveOpportunityTab] = useState<'opportunities' | 'funded'>('opportunities');
   
   // Agreement status
   const { 
@@ -577,8 +577,6 @@ export default function SupporterDashboard({
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
-  // Active tab state for opportunities section
-  const [activeOpportunityTab, setActiveOpportunityTab] = useState<'opportunities' | 'funded'>('opportunities');
 
   return (
     <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-24 sm:pb-20 md:pb-0">
@@ -605,11 +603,7 @@ export default function SupporterDashboard({
         )}
 
         {/* Greeting - Minimal & Clean */}
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="flex items-center justify-between"
-        >
+        <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</p>
             <h1 className="text-xl font-bold text-foreground">
@@ -627,7 +621,7 @@ export default function SupporterDashboard({
               Accept Terms
             </Button>
           )}
-        </motion.div>
+        </div>
 
         {/* Hero Balance Card - Y Combinator Fintech Style */}
         <HeroBalanceCard
@@ -708,41 +702,23 @@ export default function SupporterDashboard({
             </div>
           </div>
 
-          <AnimatePresence mode="wait">
-            {activeOpportunityTab === 'opportunities' ? (
-              <motion.div
-                key="opportunities"
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: 10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <RentOpportunities
-                  onFund={(id) => {
-                    if (!effectiveHasAccepted) {
-                      setShowAgreementModal(true);
-                      return;
-                    }
-                    setSelectedRequestId(id);
-                    setShowRequestDetails(true);
-                  }}
-                  isLocked={!effectiveHasAccepted}
-                  onLockedClick={() => setShowAgreementModal(true)}
-                  onRefreshRef={opportunitiesRefreshRef}
-                />
-              </motion.div>
-            ) : (
-              <motion.div
-                key="funded"
-                initial={{ opacity: 0, x: 10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
-              >
-                <FundedHistory />
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {activeOpportunityTab === 'opportunities' ? (
+            <RentOpportunities
+              onFund={(id) => {
+                if (!effectiveHasAccepted) {
+                  setShowAgreementModal(true);
+                  return;
+                }
+                setSelectedRequestId(id);
+                setShowRequestDetails(true);
+              }}
+              isLocked={!effectiveHasAccepted}
+              onLockedClick={() => setShowAgreementModal(true)}
+              onRefreshRef={opportunitiesRefreshRef}
+            />
+          ) : (
+            <FundedHistory />
+          )}
         </div>
 
         {/* Wallet - Collapsible */}
@@ -766,11 +742,7 @@ export default function SupporterDashboard({
 
         {/* Terms Footer - Subtle access */}
         {effectiveHasAccepted && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            className="flex items-center justify-center gap-4 pt-2 pb-4"
-          >
+          <div className="flex items-center justify-center gap-4 pt-2 pb-4">
             <Button
               variant="ghost"
               size="sm"
@@ -790,7 +762,7 @@ export default function SupporterDashboard({
               <FileText className="h-3.5 w-3.5" />
               Full Agreement
             </Button>
-          </motion.div>
+          </div>
         )}
       </main>
 
