@@ -2,6 +2,40 @@ import { useEffect, useCallback, useRef } from "react";
 
 declare const __BUILD_TIME__: number;
 
+// Pre-cache app shell assets for offline launch
+async function precacheAppShell() {
+  if (!("caches" in window)) return;
+  
+  try {
+    const cache = await caches.open("welile-v8");
+    
+    // Cache the current page (app shell)
+    const currentUrl = window.location.href;
+    const response = await fetch(currentUrl);
+    if (response.ok) {
+      await cache.put(currentUrl, response.clone());
+      await cache.put("/", response.clone());
+      await cache.put("/index.html", response);
+      console.log("[SW] App shell cached for offline");
+    }
+    
+    // Also cache critical routes
+    const criticalRoutes = ["/dashboard", "/auth", "/settings"];
+    for (const route of criticalRoutes) {
+      try {
+        const routeResponse = await fetch(route);
+        if (routeResponse.ok) {
+          await cache.put(route, routeResponse);
+        }
+      } catch (e) {
+        // Ignore individual route failures
+      }
+    }
+  } catch (error) {
+    console.warn("[SW] Failed to precache app shell:", error);
+  }
+}
+
 export function useServiceWorkerUpdate() {
   const isReloading = useRef(false);
   const hasCheckedOnMount = useRef(false);
@@ -69,8 +103,9 @@ export function useServiceWorkerUpdate() {
             console.log('[SW Update] New worker installed, activating...');
             activateWaitingWorker(registration!);
           } else {
-            // First install - content cached for offline
-            console.log('[SW Update] Content cached for offline use');
+            // First install - cache app shell for offline
+            console.log('[SW Update] First install - caching app shell for offline...');
+            precacheAppShell();
           }
         }
       });
@@ -100,12 +135,15 @@ export function useServiceWorkerUpdate() {
       }
     };
     
-    // Check immediately on mount (only once)
+    // Check immediately on mount (only once) and precache app shell
     if (!hasCheckedOnMount.current) {
       hasCheckedOnMount.current = true;
       navigator.serviceWorker.ready.then((reg) => {
         reg.update().catch(() => {});
       });
+      
+      // Pre-cache app shell for offline on every app load
+      precacheAppShell();
     }
     
     // Check every 3 seconds for instant feature propagation

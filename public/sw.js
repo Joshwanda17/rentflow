@@ -1,21 +1,22 @@
-// Welile Service Worker - Offline-First with Smart Caching
-// Optimized for fast smartphone loading and offline dashboard access
+// Welile Service Worker - Offline-First PWA
+// Optimized for instant offline loading when tapped from home screen
 // Auto-updates across all devices when new version is published
-const CACHE_NAME = 'welile-v7';
+const CACHE_NAME = 'welile-v8';
 const OFFLINE_URL = '/offline.html';
-const API_CACHE_NAME = 'welile-api-v2';
-const STATIC_CACHE_NAME = 'welile-static-v2';
+const API_CACHE_NAME = 'welile-api-v3';
+const STATIC_CACHE_NAME = 'welile-static-v3';
 
-// Core assets to cache immediately on install for instant loading
+// Core assets to cache immediately on install for INSTANT offline loading
 const PRECACHE_ASSETS = [
   '/',
+  '/index.html',
   '/offline.html',
   '/favicon.png',
   '/welile-logo.png',
   '/manifest.json',
 ];
 
-// App routes to precache for offline navigation
+// App routes to precache for offline navigation (SPA)
 const APP_SHELL_ROUTES = [
   '/dashboard',
   '/auth',
@@ -24,6 +25,7 @@ const APP_SHELL_ROUTES = [
   '/chat',
   '/marketplace',
   '/referrals',
+  '/earnings',
 ];
 
 // API endpoints to cache for offline dashboard access
@@ -36,26 +38,46 @@ const CACHEABLE_API_PATTERNS = [
   /\/rest\/v1\/repayments/,
   /\/rest\/v1\/investment_accounts/,
   /\/rest\/v1\/platform_transactions/,
+  /\/rest\/v1\/agent_subagents/,
+  /\/rest\/v1\/agent_earnings/,
 ];
 
 // Install event - cache critical assets and skip waiting immediately
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing new version - optimized for fast smartphone loading...');
+  console.log('[SW] Installing v8 - optimized for offline app launch...');
   event.waitUntil(
     Promise.all([
-      // Cache core assets
-      caches.open(CACHE_NAME).then((cache) => {
-        return cache.addAll(PRECACHE_ASSETS).catch(err => {
-          console.warn('[SW] Some core assets failed to cache:', err);
-        });
+      // Cache core assets including index.html for offline app shell
+      caches.open(CACHE_NAME).then(async (cache) => {
+        console.log('[SW] Precaching core assets for offline...');
+        // Cache each asset individually to handle failures gracefully
+        for (const asset of PRECACHE_ASSETS) {
+          try {
+            await cache.add(asset);
+            console.log('[SW] Cached:', asset);
+          } catch (err) {
+            console.warn('[SW] Failed to cache:', asset, err);
+          }
+        }
+        
+        // Also try to cache the main entry point variations
+        try {
+          const indexResponse = await fetch('/');
+          if (indexResponse.ok) {
+            await cache.put('/', indexResponse.clone());
+            await cache.put('/index.html', indexResponse);
+            console.log('[SW] Cached index.html for offline app shell');
+          }
+        } catch (err) {
+          console.warn('[SW] Could not cache index:', err);
+        }
       }),
-      // Pre-cache static resources
+      // Pre-cache static resources cache
       caches.open(STATIC_CACHE_NAME).then((cache) => {
-        // These will be cached on first request
-        console.log('[SW] Static cache ready');
+        console.log('[SW] Static cache ready for offline assets');
       })
     ]).then(() => {
-      console.log('[SW] Skipping waiting for instant update...');
+      console.log('[SW] Install complete - skipping waiting...');
       return self.skipWaiting();
     })
   );
@@ -144,28 +166,51 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests, use network-first with offline fallback
+  // For navigation requests (page loads), serve cached app shell for offline
   if (request.mode === 'navigate') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
+      (async () => {
+        try {
+          // Try network first for fresh content
+          const networkResponse = await fetch(request);
+          if (networkResponse.ok) {
+            // Cache the response for offline use
+            const cache = await caches.open(CACHE_NAME);
+            cache.put(request, networkResponse.clone());
+            return networkResponse;
           }
-          return response;
-        })
-        .catch(() => {
-          return caches.match(request).then((cached) => {
-            if (cached) return cached;
-            // For SPA routes, return the main index
-            return caches.match('/').then((indexCached) => {
-              return indexCached || caches.match(OFFLINE_URL);
-            });
-          });
-        })
+          throw new Error('Network response not ok');
+        } catch (error) {
+          console.log('[SW] Network failed, serving from cache...');
+          
+          // Try to serve from cache
+          const cachedResponse = await caches.match(request);
+          if (cachedResponse) {
+            console.log('[SW] Serving cached page:', request.url);
+            return cachedResponse;
+          }
+          
+          // For SPA routes, return the cached index.html (app shell)
+          const indexResponse = await caches.match('/') || await caches.match('/index.html');
+          if (indexResponse) {
+            console.log('[SW] Serving cached app shell for:', request.url);
+            return indexResponse;
+          }
+          
+          // Last resort: offline page
+          const offlineResponse = await caches.match(OFFLINE_URL);
+          if (offlineResponse) {
+            console.log('[SW] Serving offline page');
+            return offlineResponse;
+          }
+          
+          // Create a basic offline response if nothing is cached
+          return new Response(
+            '<html><body><h1>Offline</h1><p>Please check your internet connection.</p><a href="/dashboard">Try Dashboard</a></body></html>',
+            { headers: { 'Content-Type': 'text/html' } }
+          );
+        }
+      })()
     );
     return;
   }
