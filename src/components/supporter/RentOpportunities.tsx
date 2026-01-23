@@ -1223,6 +1223,26 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         </div>
                       </div>
 
+                      {/* QUICK FUND BUTTON - Only for verified opportunities */}
+                      {opportunity.agent_verified && opportunity.manager_verified && opportunity.status !== 'funded' && (
+                        <Button
+                          size="lg"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            hapticTap();
+                            if (isLocked) {
+                              onLockedClick?.();
+                            } else {
+                              onFund(opportunity.id, opportunity.rent_amount);
+                            }
+                          }}
+                          className="w-full h-14 text-lg font-black gap-3 bg-gradient-to-r from-success to-primary hover:from-success/90 hover:to-primary/90 text-white shadow-lg touch-manipulation active:scale-[0.98] mb-4"
+                        >
+                          <Zap className="h-6 w-6" />
+                          Quick Fund — Earn {formatUGX(reward)}
+                        </Button>
+                      )}
+
                       {/* Verification Progress - SIMPLIFIED */}
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
