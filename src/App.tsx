@@ -1,5 +1,6 @@
 import { lazy, Suspense, memo } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
+import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
@@ -122,6 +123,8 @@ function AnimatedRoutes() {
   // Auto-update service worker for real-time feature deployment
   useServiceWorkerUpdate();
   
+  // Listen for force refresh signals from managers
+  useForceRefresh();
   return (
     <AnimatePresence mode="wait" initial={false}>
       <motion.div

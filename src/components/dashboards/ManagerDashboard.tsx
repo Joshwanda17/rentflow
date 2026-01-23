@@ -97,7 +97,7 @@ import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { UserMinus } from 'lucide-react';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
-
+import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
 interface ManagerDashboardProps {
   user: User;
   signOut: () => Promise<void>;
@@ -1087,6 +1087,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Pending Agent Commission Payouts */}
         <AgentCommissionPayoutsManager />
+
+        {/* Force Refresh Manager - Push updates to users */}
+        <ForceRefreshManager />
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
