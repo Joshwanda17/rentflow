@@ -9,6 +9,8 @@ import { Copy, Check, Share2, Link2, Gift, Users, Coins, Trophy, Star, CheckCirc
 import { motion, AnimatePresence } from 'framer-motion';
 import { formatUGX } from '@/lib/rentCalculations';
 import { Progress } from '@/components/ui/progress';
+import { useProfile } from '@/hooks/useProfile';
+import { ShareableMilestoneCard } from './ShareableMilestoneCard';
 
 // Milestone thresholds and bonus amounts
 const MILESTONES = [
@@ -21,11 +23,13 @@ const MILESTONES = [
 
 export function ShareReferralLink() {
   const { user } = useAuth();
+  const { profile } = useProfile();
   const { toast } = useToast();
   const [copied, setCopied] = useState(false);
   const [stats, setStats] = useState({ signups: 0, earned: 0 });
   const [loading, setLoading] = useState(true);
   const [showMilestones, setShowMilestones] = useState(false);
+  const [shareMilestone, setShareMilestone] = useState<typeof MILESTONES[0] | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -252,14 +256,16 @@ Let's make rent easy! 💪`;
                         const isNext = !isEarned && (index === 0 || stats.signups >= MILESTONES[index - 1].count);
                         
                         return (
-                          <div
+                          <button
                             key={milestone.count}
-                            className={`flex items-center justify-between p-2.5 rounded-lg transition-all ${
+                            onClick={() => isEarned && setShareMilestone(milestone)}
+                            disabled={!isEarned}
+                            className={`w-full flex items-center justify-between p-2.5 rounded-lg transition-all ${
                               isEarned 
-                                ? 'bg-success/10 border border-success/20' 
+                                ? 'bg-success/10 border border-success/20 hover:bg-success/20 cursor-pointer' 
                                 : isNext
-                                  ? 'bg-amber-500/10 border border-amber-500/20'
-                                  : 'bg-muted/30 border border-transparent opacity-60'
+                                  ? 'bg-amber-500/10 border border-amber-500/20 cursor-default'
+                                  : 'bg-muted/30 border border-transparent opacity-60 cursor-default'
                             }`}
                           >
                             <div className="flex items-center gap-2.5">
@@ -276,7 +282,7 @@ Let's make rent easy! 💪`;
                                   <Lock className="h-3.5 w-3.5 text-muted-foreground" />
                                 </div>
                               )}
-                              <div>
+                              <div className="text-left">
                                 <p className={`text-xs font-semibold ${isEarned ? 'text-success' : isNext ? 'text-amber-600' : 'text-muted-foreground'}`}>
                                   {milestone.label}
                                 </p>
@@ -285,18 +291,23 @@ Let's make rent easy! 💪`;
                                 </p>
                               </div>
                             </div>
-                            <div className="text-right">
-                              <p className={`text-xs font-bold ${isEarned ? 'text-success' : isNext ? 'text-amber-600' : 'text-muted-foreground'}`}>
-                                {isEarned ? '✓ ' : ''}+{formatUGX(milestone.bonus)}
-                              </p>
+                            <div className="text-right flex items-center gap-2">
+                              <div>
+                                <p className={`text-xs font-bold ${isEarned ? 'text-success' : isNext ? 'text-amber-600' : 'text-muted-foreground'}`}>
+                                  {isEarned ? '✓ ' : ''}+{formatUGX(milestone.bonus)}
+                                </p>
+                                {isEarned && (
+                                  <p className="text-[9px] text-success">Tap to share</p>
+                                )}
+                                {isNext && (
+                                  <p className="text-[9px] text-amber-600">{milestone.count - stats.signups} more</p>
+                                )}
+                              </div>
                               {isEarned && (
-                                <p className="text-[9px] text-success">Earned</p>
-                              )}
-                              {isNext && (
-                                <p className="text-[9px] text-amber-600">{milestone.count - stats.signups} more</p>
+                                <Share2 className="h-3.5 w-3.5 text-success" />
                               )}
                             </div>
-                          </div>
+                          </button>
                         );
                       })}
                       
@@ -367,6 +378,18 @@ Let's make rent easy! 💪`;
           </div>
         </CardContent>
       </Card>
+
+      {/* Shareable Milestone Card Dialog */}
+      {shareMilestone && (
+        <ShareableMilestoneCard
+          milestone={shareMilestone}
+          userName={profile?.full_name || 'Agent'}
+          totalSignups={stats.signups}
+          totalEarned={stats.earned + MILESTONES.filter(m => m.count <= stats.signups).reduce((sum, m) => sum + m.bonus, 0)}
+          open={!!shareMilestone}
+          onOpenChange={(open) => !open && setShareMilestone(null)}
+        />
+      )}
     </motion.div>
   );
 }
