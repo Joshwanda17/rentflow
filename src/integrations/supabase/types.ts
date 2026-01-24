@@ -1615,6 +1615,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          last_active_at: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
@@ -1633,6 +1634,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
@@ -1651,6 +1653,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null

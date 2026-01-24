@@ -48,11 +48,28 @@ interface UserWithRating {
   country_code: string | null;
   verified: boolean;
   subagent_count: number;
+  last_active_at: string | null;
 }
 
-type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active';
-type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low';
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active' | 'inactive';
+type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low' | 'last_active' | 'least_active';
 type VerificationFilter = 'all' | 'verified' | 'pending';
+
+// Helper to check if user is inactive (no activity in last 30 days)
+const isUserInactive = (lastActiveAt: string | null): boolean => {
+  if (!lastActiveAt) return true;
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+  return new Date(lastActiveAt) < thirtyDaysAgo;
+};
+
+// Helper to get days since last activity
+const getDaysSinceActive = (lastActiveAt: string | null): number => {
+  if (!lastActiveAt) return 999;
+  const now = new Date();
+  const lastActive = new Date(lastActiveAt);
+  return Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+};
 
 export default function UserManagement() {
   const navigate = useNavigate();
@@ -93,7 +110,7 @@ export default function UserManagement() {
 
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified')
+      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified, last_active_at')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -156,7 +173,8 @@ export default function UserManagement() {
         city: p.city || null,
         country_code: p.country_code || null,
         verified: p.verified || false,
-        subagent_count: subagentCountByAgent.get(p.id) || 0
+        subagent_count: subagentCountByAgent.get(p.id) || 0,
+        last_active_at: p.last_active_at || null
       };
     });
 
@@ -243,6 +261,10 @@ export default function UserManagement() {
           return (b.average_rating || 0) - (a.average_rating || 0);
         case 'rating_low':
           return (a.average_rating || 0) - (b.average_rating || 0);
+        case 'last_active':
+          return new Date(b.last_active_at || 0).getTime() - new Date(a.last_active_at || 0).getTime();
+        case 'least_active':
+          return new Date(a.last_active_at || 0).getTime() - new Date(b.last_active_at || 0).getTime();
         default:
           return 0;
       }
@@ -250,25 +272,25 @@ export default function UserManagement() {
   };
 
   const filteredUsers = sortUsers(users.filter(u => {
+    const searchLower = searchTerm.toLowerCase().trim();
     const matchesSearch = 
-      u.full_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      u.phone.includes(searchTerm);
+      u.full_name.toLowerCase().includes(searchLower) ||
+      u.email.toLowerCase().includes(searchLower) ||
+      u.phone.includes(searchTerm) ||
+      // Also search by phone without country code
+      u.phone.replace(/^\+\d+/, '').includes(searchTerm);
     
-    const matchesRole = 
-      roleFilter === 'all' || 
-      roleFilter === 'active' ? isOnline(u.id) : u.roles.includes(roleFilter);
-    
-    // Handle active filter separately
+    // Handle active/inactive filters
     const matchesActiveFilter = roleFilter !== 'active' || isOnline(u.id);
-    const matchesRoleFilter = roleFilter === 'all' || roleFilter === 'active' || u.roles.includes(roleFilter);
+    const matchesInactiveFilter = roleFilter !== 'inactive' || isUserInactive(u.last_active_at);
+    const matchesRoleFilter = roleFilter === 'all' || roleFilter === 'active' || roleFilter === 'inactive' || u.roles.includes(roleFilter);
     
     const matchesVerification = 
       verificationFilter === 'all' || 
       (verificationFilter === 'verified' && u.verified) ||
       (verificationFilter === 'pending' && !u.verified);
     
-    return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesVerification;
+    return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesInactiveFilter && matchesVerification;
   }));
 
   const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
@@ -336,13 +358,17 @@ export default function UserManagement() {
     { value: 'name_desc', label: 'Z-A', icon: ArrowDown },
     { value: 'rating_high', label: 'Top Rated', icon: ArrowDown },
     { value: 'rating_low', label: 'Low Rated', icon: ArrowUp },
+    { value: 'last_active', label: 'Recently Active', icon: ArrowDown },
+    { value: 'least_active', label: 'Least Active', icon: ArrowUp },
   ];
 
   const activeUserCount = users.filter(u => isOnline(u.id)).length;
+  const inactiveUserCount = users.filter(u => isUserInactive(u.last_active_at)).length;
 
   const roleFilters: { value: RoleFilter; label: string; count: number; icon?: typeof Wifi }[] = [
     { value: 'all', label: 'All', count: users.length },
     { value: 'active', label: '🟢 Active', count: activeUserCount, icon: Wifi },
+    { value: 'inactive', label: '😴 Inactive', count: inactiveUserCount },
     { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
     { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
     { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
@@ -651,6 +677,18 @@ export default function UserManagement() {
                           <span className="text-sm text-muted-foreground truncate">
                             {user.city && user.country ? `${user.city}, ${user.country}` : user.country || user.city}
                           </span>
+                        </div>
+                      )}
+                      
+                      {/* Last Active Indicator */}
+                      {isUserInactive(user.last_active_at) && (
+                        <div className="flex items-center gap-1.5 mt-1.5">
+                          <Badge 
+                            variant="outline" 
+                            className="text-xs font-semibold px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
+                          >
+                            😴 {getDaysSinceActive(user.last_active_at)} days inactive
+                          </Badge>
                         </div>
                       )}
                       
