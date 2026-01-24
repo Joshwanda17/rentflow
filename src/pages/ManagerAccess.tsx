@@ -51,9 +51,11 @@ import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
+import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Home } from 'lucide-react';
 
 interface SearchResult {
   type: 'user' | 'rent_request' | 'order' | 'loan';
@@ -666,6 +668,10 @@ export default function ManagerAccess() {
               <BadgeCheck className="h-3.5 w-3.5" />
               Proofs
             </TabsTrigger>
+            <TabsTrigger value="welile-homes" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <Home className="h-3.5 w-3.5" />
+              Welile Homes
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities" className="mt-4">
@@ -722,6 +728,10 @@ export default function ManagerAccess() {
 
           <TabsContent value="proofs" className="mt-4">
             <PaymentProofsManager />
+          </TabsContent>
+
+          <TabsContent value="welile-homes" className="mt-4">
+            <WelileHomesSubscriptionsManager />
           </TabsContent>
         </Tabs>
       </main>
