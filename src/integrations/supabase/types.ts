@@ -311,41 +311,53 @@ export type Database = {
       }
       deposit_requests: {
         Row: {
-          agent_id: string
+          agent_id: string | null
           amount: number
           approved_at: string | null
           created_at: string
           id: string
+          notes: string | null
           processed_by: string | null
+          provider: string | null
           rejected_at: string | null
           rejection_reason: string | null
           status: string
+          transaction_date: string | null
+          transaction_id: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
-          agent_id: string
+          agent_id?: string | null
           amount: number
           approved_at?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           processed_by?: string | null
+          provider?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string
+          transaction_date?: string | null
+          transaction_id?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
-          agent_id?: string
+          agent_id?: string | null
           amount?: number
           approved_at?: string | null
           created_at?: string
           id?: string
+          notes?: string | null
           processed_by?: string | null
+          provider?: string | null
           rejected_at?: string | null
           rejection_reason?: string | null
           status?: string
+          transaction_date?: string | null
+          transaction_id?: string | null
           updated_at?: string
           user_id?: string
         }
