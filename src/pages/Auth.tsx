@@ -37,7 +37,8 @@ export default function Auth() {
   
   const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
-  const [email, setEmail] = useState(''); // Used for forgot password only
+  const [isForgotPhone, setIsForgotPhone] = useState(false);
+  const [email, setEmail] = useState(''); // Used for forgot password/phone recovery
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -98,7 +99,25 @@ export default function Auth() {
     setIsLoading(true);
 
     try {
-      if (isForgotPassword) {
+      if (isForgotPhone) {
+        // Handle forgot phone - sign in with Google email
+        const emailValidation = z.string().email('Please enter a valid email').safeParse(email);
+        if (!emailValidation.success) {
+          toast({ title: 'Error', description: emailValidation.error.errors[0].message, variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
+        // Try to sign in with the email directly (for Google users)
+        const { error } = await signIn(email, password);
+        if (error) {
+          let errorMessage = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'No account found with this email, or the password is incorrect. If you signed in with Google, please use the "Continue with Google" button instead.';
+          }
+          toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
+        }
+      } else if (isForgotPassword) {
         const emailValidation = z.string().email('Please enter a valid email').safeParse(email);
         if (!emailValidation.success) {
           toast({ title: 'Error', description: emailValidation.error.errors[0].message, variant: 'destructive' });
@@ -348,16 +367,18 @@ export default function Auth() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
-                {isForgotPassword ? <Mail className="h-5 w-5 text-primary" /> : isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
+                {isForgotPassword || isForgotPhone ? <Mail className="h-5 w-5 text-primary" /> : isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
               </div>
-              {isForgotPassword ? 'Reset Password' : isSignUp ? 'Create Account' : 'Welcome Back'}
+              {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : 'Welcome Back'}
             </CardTitle>
             <CardDescription>
               {isForgotPassword 
                 ? 'Enter your email to receive a reset link'
-                : isSignUp 
-                  ? 'Join Welile Platform to get started' 
-                  : 'Sign in to continue to your dashboard'}
+                : isForgotPhone
+                  ? 'Enter the email you used with Google sign-in'
+                  : isSignUp 
+                    ? 'Join Welile Platform to get started' 
+                    : 'Sign in to continue to your dashboard'}
             </CardDescription>
           </CardHeader>
           
@@ -381,7 +402,7 @@ export default function Auth() {
                 </div>
               )}
 
-              {!isForgotPassword && (
+              {!isForgotPassword && !isForgotPhone && (
               <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
@@ -431,7 +452,7 @@ export default function Auth() {
                 </div>
               )}
 
-              {isForgotPassword && (
+              {(isForgotPassword || isForgotPhone) && (
                 <div className="space-y-2">
                   <Label htmlFor="email">Email</Label>
                   <div className="relative">
@@ -450,12 +471,38 @@ export default function Auth() {
                     />
                   </div>
                   <p className="text-xs text-muted-foreground">
-                    If you signed up with phone only, please contact support.
+                    {isForgotPhone 
+                      ? 'Enter the email you used to sign in with Google, or try the "Continue with Google" button below.'
+                      : 'If you signed up with phone only, please contact support.'}
                   </p>
                 </div>
               )}
 
-              {!isForgotPassword && (
+              {/* Password field - show for forgot phone (email login) but not forgot password */}
+              {isForgotPhone && (
+                <div className="space-y-2">
+                  <Label htmlFor="password">Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="password"
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className="pl-10 h-12 text-base"
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                  </div>
+                  <p className="text-xs text-muted-foreground">
+                    If you only used Google sign-in, you may not have a password. Use the Google button instead.
+                  </p>
+                </div>
+              )}
+
+              {!isForgotPassword && !isForgotPhone && (
                 <div className="space-y-2">
                   <Label htmlFor="password">Password</Label>
                   <div className="relative">
@@ -474,8 +521,24 @@ export default function Auth() {
                   </div>
                 </div>
               )}
+              
+              {/* Back button for forgot phone/password flows */}
+              {(isForgotPassword || isForgotPhone) && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsForgotPassword(false);
+                    setIsForgotPhone(false);
+                    setEmail('');
+                  }}
+                  className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation"
+                >
+                  <ArrowLeft className="h-3 w-3" />
+                  Back to phone login
+                </button>
+              )}
 
-              {!isSignUp && !isForgotPassword && (
+              {!isSignUp && !isForgotPassword && !isForgotPhone && (
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-2">
                     <Checkbox 
@@ -503,6 +566,22 @@ export default function Auth() {
                   </button>
                 </div>
               )}
+              
+              {/* Forgot Phone Number option */}
+              {!isSignUp && !isForgotPassword && !isForgotPhone && (
+                <div className="text-center">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsForgotPhone(true);
+                      setLoginError(null);
+                    }}
+                    className="text-xs text-muted-foreground hover:text-primary transition-colors touch-manipulation py-1"
+                  >
+                    Forgot phone number? Sign in with email instead
+                  </button>
+                </div>
+              )}
 
               <Button 
                 type="submit" 
@@ -518,8 +597,8 @@ export default function Auth() {
                   <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
                 ) : (
                   <>
-                    {isForgotPassword ? <Mail className="h-5 w-5" /> : isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-                    {isForgotPassword ? 'Send Reset Link' : isSignUp ? 'Create Account' : 'Sign In'}
+                    {isForgotPassword ? <Mail className="h-5 w-5" /> : isForgotPhone ? <LogIn className="h-5 w-5" /> : isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+                    {isForgotPassword ? 'Send Reset Link' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : 'Sign In'}
                   </>
                 )}
               </Button>
