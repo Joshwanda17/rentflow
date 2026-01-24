@@ -1,25 +1,48 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
-import { Loader2, Plus, Coins, CheckCircle, Sparkles, Phone, Clock } from 'lucide-react';
+import { 
+  Loader2, 
+  Plus, 
+  Coins, 
+  CheckCircle2, 
+  Sparkles, 
+  Phone, 
+  Clock, 
+  Hash,
+  Calendar,
+  AlertCircle,
+  History,
+  Copy
+} from 'lucide-react';
 
 interface DepositDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
+
+const MERCHANT_CODES = {
+  mtn: '090777',
+  airtel: '4380664',
+};
+
+const MERCHANT_NAME = 'WELILE TECHNOLOGIES LIMITTED';
+
+const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
 const formVariants = {
   hidden: { opacity: 0 },
@@ -41,10 +64,15 @@ const itemVariants = {
 
 export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [amount, setAmount] = useState('');
-  const [agentPhone, setAgentPhone] = useState('');
+  const [provider, setProvider] = useState<'mtn' | 'airtel'>('mtn');
+  const [transactionId, setTransactionId] = useState('');
+  const [transactionDate, setTransactionDate] = useState('');
+  const [transactionTime, setTransactionTime] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [copiedCode, setCopiedCode] = useState(false);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -54,7 +82,55 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     }).format(value);
   };
 
-  const quickAmounts = [10000, 50000, 100000, 500000];
+  const today = new Date().toISOString().split('T')[0];
+  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+
+  const copyMerchantCode = async () => {
+    try {
+      await navigator.clipboard.writeText(MERCHANT_CODES[provider]);
+      setCopiedCode(true);
+      toast.success(`Merchant code ${MERCHANT_CODES[provider]} copied!`);
+      setTimeout(() => setCopiedCode(false), 2000);
+    } catch {
+      toast.error('Failed to copy');
+    }
+  };
+
+  const validateForm = () => {
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) {
+      toast.error('Please enter a valid amount');
+      return false;
+    }
+    if (!transactionId.trim()) {
+      toast.error('Please enter the transaction ID from your SMS');
+      return false;
+    }
+    if (!transactionDate) {
+      toast.error('Please select the transaction date');
+      return false;
+    }
+    if (!transactionTime) {
+      toast.error('Please enter the transaction time');
+      return false;
+    }
+
+    // Validate date is not in the future and within last 7 days
+    const txDate = new Date(`${transactionDate}T${transactionTime}`);
+    const now = new Date();
+    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+
+    if (txDate > now) {
+      toast.error('Transaction date cannot be in the future');
+      return false;
+    }
+    if (txDate < sevenDaysAgoDate) {
+      toast.error('Transaction must be within the last 7 days');
+      return false;
+    }
+
+    return true;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -64,45 +140,37 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       return;
     }
 
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount');
-      return;
-    }
-
-    if (!agentPhone.trim()) {
-      toast.error('Please enter the agent phone number');
-      return;
-    }
+    if (!validateForm()) return;
 
     setLoading(true);
 
     try {
-      // Find agent by phone number
-      const { data: agentProfile, error: agentError } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .eq('phone', agentPhone.trim())
-        .maybeSingle();
+      const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
+      const normalizedTxId = transactionId.trim().toUpperCase();
 
-      if (agentError || !agentProfile) {
-        toast.error('Agent not found with this phone number');
+      // Check for duplicate transaction ID
+      const { data: existingDeposits } = await supabase
+        .from('deposit_requests')
+        .select('id')
+        .filter('transaction_id', 'eq', normalizedTxId);
+
+      if (existingDeposits && existingDeposits.length > 0) {
+        toast.error('This transaction ID has already been used');
         setLoading(false);
         return;
       }
 
-      // Verify the user is an agent
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('role')
-        .eq('user_id', agentProfile.id)
-        .eq('role', 'agent')
+      // Check if this matches a manager-recorded transaction
+      const { data: managerRecord } = await supabase
+        .from('manager_recorded_transactions')
+        .select('*')
+        .eq('transaction_id', normalizedTxId)
+        .eq('matched', false)
         .maybeSingle();
 
-      if (roleError || !roleData) {
-        toast.error('This phone number does not belong to an agent');
-        setLoading(false);
-        return;
+      let autoVerified = false;
+      if (managerRecord) {
+        autoVerified = true;
       }
 
       // Create deposit request
@@ -110,30 +178,67 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
         .from('deposit_requests')
         .insert({
           user_id: user.id,
-          agent_id: agentProfile.id,
-          amount: amountNum,
-          status: 'pending',
+          amount: parseFloat(amount),
+          status: autoVerified ? 'approved' : 'pending',
+          provider: provider,
+          transaction_id: normalizedTxId,
+          transaction_date: txDateTime.toISOString(),
+          notes: `${provider.toUpperCase()} deposit - TX: ${normalizedTxId}`,
+        } as any);
+
+      if (depositError) throw depositError;
+
+      // If auto-verified, credit wallet immediately
+      if (autoVerified && managerRecord) {
+        // Update wallet balance
+        const { data: wallet } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', user.id)
+          .single();
+
+        if (wallet) {
+          await supabase
+            .from('wallets')
+            .update({ balance: wallet.balance + parseFloat(amount) })
+            .eq('user_id', user.id);
+        } else {
+          await supabase
+            .from('wallets')
+            .insert({ user_id: user.id, balance: parseFloat(amount) });
+        }
+
+        // Mark manager record as matched
+        await supabase
+          .from('manager_recorded_transactions')
+          .update({ matched: true })
+          .eq('id', managerRecord.id);
+
+        // Send notification
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Deposit Verified!',
+          message: `Your deposit of ${formatCurrency(parseFloat(amount))} has been automatically verified and added to your wallet.`,
+          type: 'success',
         });
 
-      if (depositError) {
-        console.error('Deposit request error:', depositError);
-        toast.error('Failed to create deposit request');
-        setLoading(false);
-        return;
+        toast.success('Deposit verified and added to your wallet!');
+      } else {
+        // Send notification for pending
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: 'Deposit Request Submitted',
+          message: `Your deposit request of ${formatCurrency(parseFloat(amount))} is being verified. You'll be notified once approved.`,
+          type: 'info',
+        });
+
+        toast.success('Deposit request submitted for verification');
       }
 
       setSuccess(true);
-      toast.success(`Deposit request sent to ${agentProfile.full_name}`);
-      
-      setTimeout(() => {
-        setAmount('');
-        setAgentPhone('');
-        setSuccess(false);
-        onOpenChange(false);
-      }, 2000);
-    } catch (error) {
-      console.error('Error:', error);
-      toast.error('Something went wrong');
+    } catch (error: any) {
+      console.error('Deposit error:', error);
+      toast.error(error.message || 'Failed to submit deposit request');
     } finally {
       setLoading(false);
     }
@@ -142,7 +247,10 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const handleClose = (value: boolean) => {
     if (!value) {
       setAmount('');
-      setAgentPhone('');
+      setProvider('mtn');
+      setTransactionId('');
+      setTransactionDate('');
+      setTransactionTime('');
       setSuccess(false);
     }
     onOpenChange(value);
@@ -150,7 +258,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md overflow-hidden border-border/50 glass-card">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto border-border/50 glass-card">
         <div className="absolute inset-0 bg-gradient-to-br from-success/5 via-transparent to-primary/5 pointer-events-none" />
         
         <AnimatePresence mode="wait">
@@ -160,15 +268,15 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.8 }}
-              className="py-12 flex flex-col items-center justify-center relative"
+              className="py-8 flex flex-col items-center justify-center relative text-center space-y-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring' as const, stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-20 h-20 rounded-full bg-yellow-500/20 flex items-center justify-center mb-4"
+                className="w-16 h-16 rounded-full bg-success/20 flex items-center justify-center"
               >
-                <Clock className="h-10 w-10 text-yellow-500" />
+                <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
               <motion.p
                 initial={{ opacity: 0, y: 10 }}
@@ -176,16 +284,30 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                 transition={{ delay: 0.2 }}
                 className="text-lg font-semibold"
               >
-                Request Sent!
+                Request Submitted!
               </motion.p>
               <motion.p
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 0.3 }}
-                className="text-muted-foreground text-sm text-center px-4"
+                className="text-muted-foreground text-sm px-4"
               >
-                Your deposit of {formatCurrency(parseFloat(amount))} is pending agent approval
+                Your deposit of {formatCurrency(parseFloat(amount || '0'))} is being verified
               </motion.p>
+              <div className="space-y-2 w-full px-4">
+                <Button onClick={() => handleClose(false)} className="w-full">Done</Button>
+                <Button 
+                  variant="outline" 
+                  className="w-full"
+                  onClick={() => {
+                    handleClose(false);
+                    navigate('/deposit-history');
+                  }}
+                >
+                  <History className="h-4 w-4 mr-2" />
+                  View Deposit History
+                </Button>
+              </div>
             </motion.div>
           ) : (
             <motion.div
@@ -207,7 +329,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                   Deposit Money
                 </DialogTitle>
                 <DialogDescription>
-                  Request a deposit through an agent. The agent will approve once they receive your cash.
+                  Pay via mobile money and enter your transaction details below
                 </DialogDescription>
               </DialogHeader>
 
@@ -218,26 +340,93 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                 initial="hidden"
                 animate="visible"
               >
-                <motion.div variants={itemVariants} className="space-y-2">
-                  <Label htmlFor="agentPhone" className="flex items-center gap-2">
-                    <Phone className="h-3.5 w-3.5 text-muted-foreground" />
-                    Agent Phone Number
-                  </Label>
-                  <Input
-                    id="agentPhone"
-                    type="tel"
-                    placeholder="Enter agent's phone number"
-                    value={agentPhone}
-                    onChange={(e) => setAgentPhone(e.target.value)}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 transition-all"
-                    required
-                  />
+                {/* How to deposit instructions */}
+                <motion.div variants={itemVariants} className="p-3 bg-primary/10 rounded-lg border border-primary/20">
+                  <h4 className="font-medium text-sm mb-2 flex items-center gap-2">
+                    <Phone className="h-4 w-4" />
+                    How to deposit:
+                  </h4>
+                  <ol className="text-xs text-muted-foreground space-y-1 list-decimal list-inside">
+                    <li>Dial *165# (MTN) or *185# (Airtel)</li>
+                    <li>Select "Pay Bill" or "Merchant Payment"</li>
+                    <li>Enter the merchant code shown below</li>
+                    <li>Enter amount and confirm with PIN</li>
+                    <li>Come back here and enter your transaction details</li>
+                  </ol>
                 </motion.div>
 
+                {/* Provider Selection */}
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label>Select Provider</Label>
+                  <RadioGroup 
+                    value={provider} 
+                    onValueChange={(v) => setProvider(v as 'mtn' | 'airtel')}
+                    className="grid grid-cols-2 gap-3"
+                  >
+                    <Label 
+                      htmlFor="mtn-wallet" 
+                      className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        provider === 'mtn' 
+                          ? 'border-yellow-500 bg-yellow-500/10' 
+                          : 'border-border hover:border-yellow-500/50'
+                      }`}
+                    >
+                      <RadioGroupItem value="mtn" id="mtn-wallet" className="sr-only" />
+                      <div className="w-7 h-7 rounded-full bg-yellow-500 flex items-center justify-center text-white font-bold text-xs">
+                        MTN
+                      </div>
+                      <span className="font-medium text-sm">MTN MoMo</span>
+                    </Label>
+                    <Label 
+                      htmlFor="airtel-wallet" 
+                      className={`flex items-center justify-center gap-2 p-3 rounded-lg border-2 cursor-pointer transition-colors ${
+                        provider === 'airtel' 
+                          ? 'border-red-500 bg-red-500/10' 
+                          : 'border-border hover:border-red-500/50'
+                      }`}
+                    >
+                      <RadioGroupItem value="airtel" id="airtel-wallet" className="sr-only" />
+                      <div className="w-7 h-7 rounded-full bg-red-500 flex items-center justify-center text-white font-bold text-xs">
+                        AIR
+                      </div>
+                      <span className="font-medium text-sm">Airtel Money</span>
+                    </Label>
+                  </RadioGroup>
+                </motion.div>
+
+                {/* Merchant Code Display */}
+                <motion.div 
+                  variants={itemVariants} 
+                  className="p-4 bg-muted rounded-lg text-center space-y-1"
+                >
+                  <p className="text-xs text-muted-foreground">Merchant Code for {provider.toUpperCase()}</p>
+                  <div className="flex items-center justify-center gap-2">
+                    <p className="text-2xl font-mono font-bold tracking-wider">
+                      {MERCHANT_CODES[provider]}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={copyMerchantCode}
+                      className="h-8 w-8 p-0"
+                    >
+                      {copiedCode ? (
+                        <CheckCircle2 className="h-4 w-4 text-success" />
+                      ) : (
+                        <Copy className="h-4 w-4" />
+                      )}
+                    </Button>
+                  </div>
+                  <p className="text-xs text-primary font-medium">{MERCHANT_NAME}</p>
+                  <p className="text-xs text-muted-foreground">You'll see this name when making payment</p>
+                </motion.div>
+
+                {/* Amount */}
                 <motion.div variants={itemVariants} className="space-y-2">
                   <Label htmlFor="amount" className="flex items-center gap-2">
                     <Coins className="h-3.5 w-3.5 text-muted-foreground" />
-                    Amount (UGX)
+                    Amount Deposited (UGX)
                   </Label>
                   <Input
                     id="amount"
@@ -246,7 +435,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                     value={amount}
                     onChange={(e) => setAmount(e.target.value)}
                     className="bg-background/50 border-border/50 focus:border-primary/50 transition-all text-lg font-medium"
-                    min="1"
+                    min="500"
                     required
                   />
                 </motion.div>
@@ -257,7 +446,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                     Quick amounts
                   </Label>
                   <div className="flex flex-wrap gap-2">
-                    {quickAmounts.map((amt, index) => (
+                    {QUICK_AMOUNTS.map((amt, index) => (
                       <motion.div
                         key={amt}
                         initial={{ opacity: 0, scale: 0.8 }}
@@ -280,34 +469,85 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                   </div>
                 </motion.div>
 
+                {/* Transaction ID */}
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="txId" className="flex items-center gap-2">
+                    <Hash className="h-3.5 w-3.5 text-muted-foreground" />
+                    Transaction ID (Required)
+                  </Label>
+                  <Input
+                    id="txId"
+                    type="text"
+                    placeholder="e.g. MP123456789"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
+                    className="bg-background/50 border-border/50 focus:border-primary/50 font-mono uppercase"
+                    required
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Find this in your SMS confirmation from {provider.toUpperCase()}
+                  </p>
+                </motion.div>
+
+                {/* Date and Time */}
+                <motion.div variants={itemVariants} className="grid grid-cols-2 gap-3">
+                  <div className="space-y-2">
+                    <Label htmlFor="txDate" className="flex items-center gap-2">
+                      <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
+                      Date
+                    </Label>
+                    <Input
+                      id="txDate"
+                      type="date"
+                      value={transactionDate}
+                      onChange={(e) => setTransactionDate(e.target.value)}
+                      min={sevenDaysAgo}
+                      max={today}
+                      className="bg-background/50 border-border/50"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="txTime" className="flex items-center gap-2">
+                      <Clock className="h-3.5 w-3.5 text-muted-foreground" />
+                      Time
+                    </Label>
+                    <Input
+                      id="txTime"
+                      type="time"
+                      value={transactionTime}
+                      onChange={(e) => setTransactionTime(e.target.value)}
+                      className="bg-background/50 border-border/50"
+                      required
+                    />
+                  </div>
+                </motion.div>
+
+                {/* Warning */}
                 <motion.div 
                   variants={itemVariants}
-                  className="p-3 rounded-lg bg-yellow-500/10 border border-yellow-500/20"
+                  className="flex items-start gap-2 p-3 bg-warning/10 rounded-lg border border-warning/20"
                 >
-                  <p className="text-xs text-yellow-600 dark:text-yellow-400">
-                    <Clock className="h-3.5 w-3.5 inline mr-1" />
-                    Your balance will update after the agent approves your deposit
+                  <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    Please ensure all details match your mobile money SMS. Incorrect information may delay verification.
                   </p>
                 </motion.div>
 
                 <motion.div variants={itemVariants}>
-                  <DialogFooter className="gap-2 sm:gap-0">
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="button" variant="outline" onClick={() => handleClose(false)}>
-                        Cancel
-                      </Button>
-                    </motion.div>
-                    <motion.div whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}>
-                      <Button type="submit" disabled={loading} className="gap-2">
-                        {loading ? (
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                        ) : (
-                          <Plus className="h-4 w-4" />
-                        )}
-                        Request Deposit
-                      </Button>
-                    </motion.div>
-                  </DialogFooter>
+                  <Button 
+                    type="submit" 
+                    disabled={loading} 
+                    className="w-full gap-2"
+                    size="lg"
+                  >
+                    {loading ? (
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="h-4 w-4" />
+                    )}
+                    Submit Deposit Request
+                  </Button>
                 </motion.div>
               </motion.form>
             </motion.div>
