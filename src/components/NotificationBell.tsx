@@ -42,6 +42,9 @@ const CONTACTABLE_NOTIFICATIONS = [
   'Payment Overdue',
   'Missed Payment',
   'Repayment',
+  'Loan Application',
+  'Loan Request',
+  'New Loan',
 ];
 
 export function NotificationBell() {
@@ -126,6 +129,8 @@ export function NotificationBell() {
       messageText += `I'm following up on your rent request. How can I help you?`;
     } else if (title?.includes('Payment') || title?.includes('Repayment') || title?.includes('Missed') || title?.includes('Overdue')) {
       messageText += `I'm reaching out about your repayment schedule. Please let me know if you need any assistance.`;
+    } else if (title?.includes('Loan')) {
+      messageText += `I'm following up on your loan application. How can I help you?`;
     } else {
       messageText += `I'm following up from Welile. How can I help you?`;
     }
