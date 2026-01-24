@@ -34,6 +34,7 @@ import MobileQuickMenu from '@/components/MobileQuickMenu';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { LandlordAgreementButton } from '@/components/landlord/agreement';
 import { LandlordWelileHomesSection } from '@/components/landlord/LandlordWelileHomesSection';
+import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 
 interface LandlordDashboardProps {
   user: User;
@@ -156,9 +157,12 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         >
           <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
           <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate">
-              {profile?.full_name || 'Landlord'}
-            </h2>
+            <div className="flex items-center gap-2">
+              <h2 className="font-semibold text-base truncate">
+                {profile?.full_name || 'Landlord'}
+              </h2>
+              <WelileHomesLandlordBadge userId={user.id} variant="compact" />
+            </div>
             <p className="text-sm text-muted-foreground truncate">
               Tap to view profile
             </p>
