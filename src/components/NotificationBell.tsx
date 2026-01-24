@@ -36,6 +36,8 @@ const CONTACTABLE_NOTIFICATIONS = [
   'New Deposit Request',
   'Withdrawal Request',
   'New Investment Request',
+  'Rent Request',
+  'New Rent Request',
 ];
 
 export function NotificationBell() {
@@ -116,6 +118,8 @@ export function NotificationBell() {
       messageText += `I'm following up on your withdrawal request. How can I help you?`;
     } else if (title?.includes('Investment')) {
       messageText += `I'm following up on your investment request. How can I help you?`;
+    } else if (title?.includes('Rent')) {
+      messageText += `I'm following up on your rent request. How can I help you?`;
     } else {
       messageText += `I'm following up from Welile. How can I help you?`;
     }
