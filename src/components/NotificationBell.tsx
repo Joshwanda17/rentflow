@@ -53,6 +53,23 @@ export function NotificationBell() {
   const [open, setOpen] = useState(false);
   const [loadingContact, setLoadingContact] = useState<string | null>(null);
   const [userPhones, setUserPhones] = useState<Record<string, { phone: string; name: string }>>({});
+  const [showContactableOnly, setShowContactableOnly] = useState(false);
+
+  // Helper to check if notification is contactable
+  const isContactable = useCallback((title: string, metadata: NotificationMetadata | null): boolean => {
+    const matchesType = CONTACTABLE_NOTIFICATIONS.some(type => title.includes(type));
+    if (!matchesType) return false;
+    return !!(metadata?.phone || metadata?.user_id || metadata?.supporter_id);
+  }, []);
+
+  // Filtered notifications
+  const filteredNotifications = showContactableOnly 
+    ? notifications.filter(n => isContactable(n.title, n.metadata as NotificationMetadata | null))
+    : notifications;
+
+  const contactableCount = notifications.filter(n => 
+    isContactable(n.title, n.metadata as NotificationMetadata | null)
+  ).length;
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -221,15 +238,33 @@ export function NotificationBell() {
             </Button>
           )}
         </div>
-        <ScrollArea className="h-80">
-          {notifications.length === 0 ? (
+        
+        {/* Filter toggle */}
+        {contactableCount > 0 && (
+          <div className="px-4 py-2 border-b bg-muted/20">
+            <Button
+              variant={showContactableOnly ? "default" : "outline"}
+              size="sm"
+              className="w-full h-8 text-xs gap-1.5"
+              onClick={() => setShowContactableOnly(!showContactableOnly)}
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              {showContactableOnly ? 'Show All' : `Actionable Only (${contactableCount})`}
+            </Button>
+          </div>
+        )}
+        
+        <ScrollArea className="h-72">
+          {filteredNotifications.length === 0 ? (
             <div className="p-6 text-center">
-              <span className="text-4xl mb-2 block">📭</span>
-              <p className="text-muted-foreground font-medium">No notifications yet</p>
+              <span className="text-4xl mb-2 block">{showContactableOnly ? '📋' : '📭'}</span>
+              <p className="text-muted-foreground font-medium">
+                {showContactableOnly ? 'No actionable notifications' : 'No notifications yet'}
+              </p>
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => {
+              {filteredNotifications.map((notification) => {
                 const metadata = notification.metadata as NotificationMetadata | null;
                 const showContact = shouldShowContactButton(notification.title, metadata);
                 const isLoadingThisContact = loadingContact === notification.id;
