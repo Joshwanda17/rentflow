@@ -72,9 +72,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Agents can only create tenant, landlord, and agent (sub-agent) accounts
-    if (creatorRole === 'agent' && !['tenant', 'landlord', 'agent'].includes(role)) {
-      return new Response(JSON.stringify({ error: "Agents can only create tenant, landlord, and sub-agent accounts" }), {
+    // Agents can create tenant, landlord, agent (sub-agent), and supporter accounts
+    if (creatorRole === 'agent' && !['tenant', 'landlord', 'agent', 'supporter'].includes(role)) {
+      return new Response(JSON.stringify({ error: "Agents can only create tenant, landlord, sub-agent, and supporter accounts" }), {
         status: 403,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
