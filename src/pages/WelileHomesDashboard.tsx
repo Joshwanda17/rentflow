@@ -17,6 +17,7 @@ import { WithdrawalRequestDialog } from '@/components/welile-homes/WithdrawalReq
 import { TenantSavingsGrowthChart } from '@/components/welile-homes/TenantSavingsGrowthChart';
 import { ContributionHistoryTimeline } from '@/components/welile-homes/ContributionHistoryTimeline';
 import { SavingsStatementPDF } from '@/components/welile-homes/SavingsStatementPDF';
+import { InviteFriendWelileHomes } from '@/components/welile-homes/InviteFriendWelileHomes';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -479,6 +480,20 @@ Let's build a better future together! 🏡`;
                 />
               </CardContent>
             </Card>
+          </motion.div>
+        )}
+
+        {/* Invite Friends to Welile Homes */}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.21 }}
+          >
+            <InviteFriendWelileHomes 
+              currentSavings={currentSavings} 
+              monthlyRent={monthlyRent} 
+            />
           </motion.div>
         )}
 
