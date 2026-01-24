@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle } from 'lucide-react';
+import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle, History, Plus, Percent } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -62,6 +62,23 @@ export default function WelileHomesDashboard() {
         .select('*')
         .eq('tenant_id', user.id)
         .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id
+  });
+
+  // Fetch contribution history
+  const { data: contributions = [] } = useQuery({
+    queryKey: ['welile-homes-contributions', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('welile_homes_contributions')
+        .select('*')
+        .eq('tenant_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(10);
       if (error) throw error;
       return data;
     },
@@ -487,6 +504,60 @@ Let's build a better future together! 🏡`;
                     </div>
                   );
                 })}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Contribution History */}
+        {isSubscribed && contributions.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.45 }}
+          >
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <History className="h-5 w-5 text-purple-600" />
+                  Recent Contributions
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {contributions.map((contribution: any) => (
+                  <div 
+                    key={contribution.id}
+                    className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border"
+                  >
+                    <div className="flex items-center gap-3">
+                      {contribution.contribution_type === 'repayment' ? (
+                        <div className="w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center">
+                          <Plus className="h-4 w-4 text-emerald-600" />
+                        </div>
+                      ) : (
+                        <div className="w-8 h-8 rounded-full bg-purple-100 flex items-center justify-center">
+                          <Percent className="h-4 w-4 text-purple-600" />
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-medium">
+                          {contribution.contribution_type === 'repayment' ? 'Rent Payment' : 'Interest'}
+                        </p>
+                        <p className="text-xs text-muted-foreground">
+                          {new Date(contribution.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm font-bold text-emerald-600">
+                        +{formatUGX(contribution.amount)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Balance: {formatUGX(contribution.balance_after)}
+                      </p>
+                    </div>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </motion.div>
