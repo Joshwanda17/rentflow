@@ -2733,10 +2733,12 @@ export type Database = {
       welile_homes_subscriptions: {
         Row: {
           created_at: string
+          email_statements_enabled: boolean | null
           id: string
           landlord_id: string | null
           landlord_registered: boolean
           last_interest_applied_at: string | null
+          last_statement_sent_at: string | null
           monthly_rent: number
           months_enrolled: number
           notes: string | null
@@ -2747,10 +2749,12 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          email_statements_enabled?: boolean | null
           id?: string
           landlord_id?: string | null
           landlord_registered?: boolean
           last_interest_applied_at?: string | null
+          last_statement_sent_at?: string | null
           monthly_rent?: number
           months_enrolled?: number
           notes?: string | null
@@ -2761,10 +2765,12 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          email_statements_enabled?: boolean | null
           id?: string
           landlord_id?: string | null
           landlord_registered?: boolean
           last_interest_applied_at?: string | null
+          last_statement_sent_at?: string | null
           monthly_rent?: number
           months_enrolled?: number
           notes?: string | null
