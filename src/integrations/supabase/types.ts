@@ -2679,12 +2679,64 @@ export type Database = {
           },
         ]
       }
+      welile_homes_contributions: {
+        Row: {
+          amount: number
+          balance_after: number
+          contribution_type: string
+          created_at: string
+          id: string
+          notes: string | null
+          repayment_id: string | null
+          subscription_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          balance_after: number
+          contribution_type: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          repayment_id?: string | null
+          subscription_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          balance_after?: number
+          contribution_type?: string
+          created_at?: string
+          id?: string
+          notes?: string | null
+          repayment_id?: string | null
+          subscription_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welile_homes_contributions_repayment_id_fkey"
+            columns: ["repayment_id"]
+            isOneToOne: false
+            referencedRelation: "repayments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "welile_homes_contributions_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "welile_homes_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       welile_homes_subscriptions: {
         Row: {
           created_at: string
           id: string
           landlord_id: string | null
           landlord_registered: boolean
+          last_interest_applied_at: string | null
           monthly_rent: number
           months_enrolled: number
           notes: string | null
@@ -2698,6 +2750,7 @@ export type Database = {
           id?: string
           landlord_id?: string | null
           landlord_registered?: boolean
+          last_interest_applied_at?: string | null
           monthly_rent?: number
           months_enrolled?: number
           notes?: string | null
@@ -2711,6 +2764,7 @@ export type Database = {
           id?: string
           landlord_id?: string | null
           landlord_registered?: boolean
+          last_interest_applied_at?: string | null
           monthly_rent?: number
           months_enrolled?: number
           notes?: string | null
@@ -2820,6 +2874,7 @@ export type Database = {
       }
     }
     Functions: {
+      apply_welile_homes_monthly_interest: { Args: never; Returns: number }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
