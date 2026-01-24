@@ -22,8 +22,12 @@ import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicat
 
 const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
+  confirmPassword: z.string(),
   fullName: z.string().min(2, 'Full name is required'),
   phone: z.string().min(10, 'Please enter a valid phone number'),
+}).refine((data) => data.password === data.confirmPassword, {
+  message: "Passwords don't match",
+  path: ["confirmPassword"],
 });
 
 const signInSchema = z.object({
@@ -41,6 +45,8 @@ export default function Auth() {
   const [isForgotPhone, setIsForgotPhone] = useState(false);
   const [email, setEmail] = useState(''); // Used for forgot password/phone recovery
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -135,7 +141,7 @@ export default function Auth() {
           setIsForgotPassword(false);
         }
       } else if (isSignUp) {
-        const validation = signUpSchema.safeParse({ password, fullName, phone });
+        const validation = signUpSchema.safeParse({ password, confirmPassword, fullName, phone });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
@@ -540,6 +546,41 @@ export default function Auth() {
                   
                   {/* Password strength indicator for signup */}
                   {isSignUp && <PasswordStrengthIndicator password={password} />}
+                </div>
+              )}
+
+              {/* Confirm Password field for signup */}
+              {isSignUp && !isForgotPassword && !isForgotPhone && (
+                <div className="space-y-2">
+                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      id="confirmPassword"
+                      type={showConfirmPassword ? "text" : "password"}
+                      autoComplete="new-password"
+                      value={confirmPassword}
+                      onChange={(e) => setConfirmPassword(e.target.value)}
+                      placeholder="••••••••"
+                      className={`pl-10 pr-10 h-12 text-base ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
+                      style={{ fontSize: '16px' }}
+                      required
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
+                      aria-label={showConfirmPassword ? "Hide password" : "Show password"}
+                    >
+                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
+                  </div>
+                  {confirmPassword && password !== confirmPassword && (
+                    <p className="text-xs text-destructive">Passwords don't match</p>
+                  )}
+                  {confirmPassword && password === confirmPassword && (
+                    <p className="text-xs text-emerald-600">Passwords match ✓</p>
+                  )}
                 </div>
               )}
               
