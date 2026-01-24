@@ -28,7 +28,7 @@ import {
   TableHeader,
   TableRow,
 } from '@/components/ui/table';
-import { Home, Search, Edit2, Trash2, Loader2, CheckCircle, XCircle, Users } from 'lucide-react';
+import { Home, Search, Edit2, Trash2, Loader2, CheckCircle, XCircle, Users, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
@@ -131,6 +131,22 @@ export function WelileHomesSubscriptionsManager() {
     },
     onError: (error) => {
       toast.error('Failed to delete subscription: ' + error.message);
+    },
+  });
+
+  // Apply interest mutation
+  const applyInterestMutation = useMutation({
+    mutationFn: async () => {
+      const { data, error } = await supabase.functions.invoke('apply-welile-homes-interest');
+      if (error) throw error;
+      return data;
+    },
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['welile-homes-subscriptions'] });
+      toast.success(`Applied 5% interest to ${data?.updated_count || 0} subscriptions`);
+    },
+    onError: (error) => {
+      toast.error('Failed to apply interest: ' + error.message);
     },
   });
 
@@ -237,15 +253,29 @@ export function WelileHomesSubscriptionsManager() {
         </Card>
       </div>
 
-      {/* Search */}
-      <div className="relative">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          placeholder="Search by tenant or landlord name..."
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="pl-10"
-        />
+      {/* Actions Row */}
+      <div className="flex gap-3 flex-wrap">
+        <div className="relative flex-1 min-w-[200px]">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Search by tenant or landlord name..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10"
+          />
+        </div>
+        <Button
+          onClick={() => applyInterestMutation.mutate()}
+          disabled={applyInterestMutation.isPending}
+          className="bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 h-10"
+        >
+          {applyInterestMutation.isPending ? (
+            <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+          ) : (
+            <TrendingUp className="h-4 w-4 mr-2" />
+          )}
+          Apply 5% Interest
+        </Button>
       </div>
 
       {/* Table */}
