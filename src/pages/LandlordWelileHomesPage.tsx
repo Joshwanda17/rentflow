@@ -25,6 +25,7 @@ import EncouragementMessageDialog from '@/components/landlord/EncouragementMessa
 import { WelileHomesLandlordLeaderboard } from '@/components/landlord/WelileHomesLandlordLeaderboard';
 import { ManageTenantSubscriptionDialog } from '@/components/landlord/ManageTenantSubscriptionDialog';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
+import { SavingsGrowthChart } from '@/components/welile-homes/SavingsGrowthChart';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -298,6 +299,17 @@ export default function LandlordWelileHomesPage() {
                           <span className="text-emerald-600">+5% monthly</span>
                         </div>
                       </div>
+
+                      {/* Savings Growth Chart */}
+                      {tenant.months_enrolled > 0 && (
+                        <div className="mt-3">
+                          <SavingsGrowthChart 
+                            monthlyRent={tenant.monthly_rent}
+                            monthsEnrolled={tenant.months_enrolled}
+                            totalSavings={tenant.total_savings}
+                          />
+                        </div>
+                      )}
                     </motion.div>
                   );
                 })
