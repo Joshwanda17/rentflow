@@ -73,6 +73,7 @@ const AuditLog = lazy(() => import('./pages/AuditLog'));
 const DepositHistory = lazy(() => import('./pages/DepositHistory'));
 const WelileHomes = lazy(() => import('./pages/WelileHomes'));
 const WelileHomesDashboard = lazy(() => import('./pages/WelileHomesDashboard'));
+const LandlordWelileHomesPage = lazy(() => import('./pages/LandlordWelileHomesPage'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -154,6 +155,7 @@ function AppRoutes() {
           <Route path="/deposit-history" element={<DepositHistory />} />
           <Route path="/welile-homes" element={<WelileHomes />} />
           <Route path="/welile-homes-dashboard" element={<WelileHomesDashboard />} />
+          <Route path="/landlord-welile-homes" element={<LandlordWelileHomesPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>

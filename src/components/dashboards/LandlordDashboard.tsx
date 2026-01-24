@@ -13,7 +13,8 @@ import {
   ArrowRight,
   TrendingUp,
   Users,
-  Download
+  Download,
+  Home
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -32,6 +33,7 @@ import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { LandlordAgreementButton } from '@/components/landlord/agreement';
+import { LandlordWelileHomesSection } from '@/components/landlord/LandlordWelileHomesSection';
 
 interface LandlordDashboardProps {
   user: User;
@@ -117,6 +119,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   };
 
   const menuItems = [
+    { icon: Home, label: 'Welile Homes', onClick: () => navigate('/landlord-welile-homes') },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
     { icon: History, label: 'Payment History', onClick: () => navigate('/transactions'), separator: true },
@@ -173,7 +176,8 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         <CollapsibleQuickNav 
           buttonLabel="Quick Actions"
           items={[
-            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts'), variant: 'primary' },
+            { icon: Home, label: 'Welile Homes', onClick: () => navigate('/landlord-welile-homes'), variant: 'primary' },
+            { icon: Receipt, label: 'Receipts', onClick: () => navigate('/my-receipts') },
             { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
             { icon: History, label: 'Payments', onClick: () => navigate('/transactions'), variant: 'success' },
             { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
@@ -221,6 +225,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </CardContent>
           </Card>
         </button>
+
+        {/* Welile Homes Impact Section */}
+        <LandlordWelileHomesSection userId={user.id} />
 
         {/* Food Receipt Promo */}
         <FoodReceiptPromoCard userId={user.id} />
