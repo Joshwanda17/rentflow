@@ -99,3 +99,63 @@ export function parsePhoneNumber(phone: string): PhoneInfo {
 export function getWhatsAppLink(phone: string): string {
   return parsePhoneNumber(phone).whatsappLink;
 }
+
+/**
+ * Normalize a phone number by removing all non-digit characters
+ */
+export function cleanPhoneNumber(phone: string): string {
+  return phone.replace(/\D/g, '');
+}
+
+/**
+ * Generate all possible email variants for a phone number
+ * This helps users who may have registered with different formats
+ */
+export function generatePhoneEmailVariants(phone: string): string[] {
+  const cleaned = cleanPhoneNumber(phone);
+  const variants: string[] = [];
+  
+  // Original cleaned version
+  variants.push(`${cleaned}@welile.user`);
+  
+  // If starts with country code (256 for Uganda), also try without
+  if (cleaned.startsWith('256') && cleaned.length > 9) {
+    const withoutCountryCode = cleaned.slice(3);
+    variants.push(`${withoutCountryCode}@welile.user`);
+    // Also try with leading 0
+    variants.push(`0${withoutCountryCode}@welile.user`);
+  }
+  
+  // If starts with 0, also try without the 0
+  if (cleaned.startsWith('0') && cleaned.length >= 10) {
+    const withoutLeadingZero = cleaned.slice(1);
+    variants.push(`${withoutLeadingZero}@welile.user`);
+    // Also try with country code
+    variants.push(`256${withoutLeadingZero}@welile.user`);
+  }
+  
+  // If doesn't start with 0 or 256, try adding them
+  if (!cleaned.startsWith('0') && !cleaned.startsWith('256') && cleaned.length >= 9) {
+    variants.push(`0${cleaned}@welile.user`);
+    variants.push(`256${cleaned}@welile.user`);
+  }
+  
+  // Also check for agent emails (phone@welile.agent)
+  variants.push(`${cleaned}@welile.agent`);
+  if (cleaned.startsWith('0')) {
+    variants.push(`${cleaned.slice(1)}@welile.agent`);
+    variants.push(`256${cleaned.slice(1)}@welile.agent`);
+  }
+  
+  // Remove duplicates
+  return [...new Set(variants)];
+}
+
+/**
+ * Validate if phone number looks valid
+ */
+export function isValidPhoneNumber(phone: string): boolean {
+  const cleaned = cleanPhoneNumber(phone);
+  // Accept 9-12 digits (local or with country code)
+  return cleaned.length >= 9 && cleaned.length <= 12;
+}
