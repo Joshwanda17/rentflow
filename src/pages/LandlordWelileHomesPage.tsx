@@ -15,13 +15,15 @@ import {
   Heart,
   Loader2,
   Calendar,
-  MessageCircleHeart
+  MessageCircleHeart,
+  Settings
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
 import EncouragementMessageDialog from '@/components/landlord/EncouragementMessageDialog';
 import { WelileHomesLandlordLeaderboard } from '@/components/landlord/WelileHomesLandlordLeaderboard';
+import { ManageTenantSubscriptionDialog } from '@/components/landlord/ManageTenantSubscriptionDialog';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -216,7 +218,7 @@ export default function LandlordWelileHomesPage() {
                             Enrolled {format(new Date(tenant.created_at), 'MMM d, yyyy')}
                           </p>
                         </div>
-                        <div className="flex items-center gap-2">
+                        <div className="flex items-center gap-1">
                           <EncouragementMessageDialog 
                             tenant={{
                               tenant_id: tenant.tenant_id,
@@ -230,9 +232,31 @@ export default function LandlordWelileHomesPage() {
                               </Button>
                             }
                           />
+                          <ManageTenantSubscriptionDialog
+                            subscription={{
+                              subscription_id: tenant.subscription_id,
+                              tenant_id: tenant.tenant_id,
+                              tenant_name: tenant.tenant_name,
+                              monthly_rent: tenant.monthly_rent,
+                              total_savings: tenant.total_savings,
+                              months_enrolled: tenant.months_enrolled,
+                              subscription_status: tenant.subscription_status,
+                            }}
+                            trigger={
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-foreground">
+                                <Settings className="h-4 w-4" />
+                              </Button>
+                            }
+                          />
                           <Badge 
                             variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
-                            className={tenant.subscription_status === 'active' ? 'bg-emerald-100 text-emerald-700' : ''}
+                            className={
+                              tenant.subscription_status === 'active' 
+                                ? 'bg-emerald-100 text-emerald-700' 
+                                : tenant.subscription_status === 'paused'
+                                ? 'bg-amber-100 text-amber-700'
+                                : ''
+                            }
                           >
                             {tenant.subscription_status}
                           </Badge>
