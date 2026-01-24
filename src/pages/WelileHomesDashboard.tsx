@@ -14,6 +14,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { WithdrawalRequestDialog } from '@/components/welile-homes/WithdrawalRequestDialog';
+import { TenantSavingsGrowthChart } from '@/components/welile-homes/TenantSavingsGrowthChart';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -456,6 +457,22 @@ Let's build a better future together! 🏡`;
                 )}
               </CardContent>
             </Card>
+          </motion.div>
+        )}
+
+        {/* Savings Growth Chart */}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.22 }}
+          >
+            <TenantSavingsGrowthChart
+              monthlyRent={monthlyRent}
+              monthsEnrolled={enrolledMonths}
+              totalSavings={currentSavings}
+              contributions={contributions}
+            />
           </motion.div>
         )}
 
