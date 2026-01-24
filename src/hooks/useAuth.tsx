@@ -39,6 +39,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setTimeout(() => {
             fetchUserRoles(session.user.id);
           }, 0);
+          
+          // Update last_active_at on auth state change (login, token refresh, etc.)
+          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
+            supabase
+              .from('profiles')
+              .update({ last_active_at: new Date().toISOString() })
+              .eq('id', session.user.id)
+              .then(() => {});
+          }
         } else {
           setRole(null);
           setRoles([]);
@@ -157,10 +166,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
+    const { data, error } = await supabase.auth.signInWithPassword({
       email,
       password
     });
+    
+    // Update last_active_at on successful login
+    if (!error && data?.user) {
+      supabase
+        .from('profiles')
+        .update({ last_active_at: new Date().toISOString() })
+        .eq('id', data.user.id)
+        .then(() => {});
+    }
     
     return { error: error as Error | null };
   };
