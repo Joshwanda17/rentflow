@@ -18,8 +18,16 @@ import {
   Smartphone,
   Copy,
   Check,
-  Download
+  Download,
+  History,
+  Filter,
+  Calendar,
+  ChevronDown
 } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -68,6 +76,17 @@ export function WithdrawalRequestsManager() {
   const [allRequests, setAllRequests] = useState<WithdrawalRequest[]>([]);
   const [exporting, setExporting] = useState(false);
   const [lastBalanceUpdate, setLastBalanceUpdate] = useState<Date>(new Date());
+  
+  // History state
+  const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
+  const [historyRequests, setHistoryRequests] = useState<WithdrawalRequest[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected'>('all');
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined; to: Date | undefined }>({
+    from: undefined,
+    to: undefined
+  });
+  const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
 
   // Function to refresh only wallet balances (lightweight)
   const refreshWalletBalances = useCallback(async () => {
@@ -228,6 +247,93 @@ export function WithdrawalRequestsManager() {
     }
   }, []);
 
+  // Fetch history with filters
+  const fetchHistory = useCallback(async () => {
+    setHistoryLoading(true);
+    try {
+      let query = supabase
+        .from('withdrawal_requests')
+        .select('*')
+        .in('status', statusFilter === 'all' ? ['approved', 'rejected'] : [statusFilter])
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Apply date filters
+      if (dateRange.from) {
+        query = query.gte('created_at', dateRange.from.toISOString());
+      }
+      if (dateRange.to) {
+        const endOfDay = new Date(dateRange.to);
+        endOfDay.setHours(23, 59, 59, 999);
+        query = query.lte('created_at', endOfDay.toISOString());
+      }
+
+      const { data: historyData, error } = await query;
+
+      if (error) throw error;
+
+      if (historyData && historyData.length > 0) {
+        const userIds = [...new Set(historyData.map(r => r.user_id))];
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, avatar_url')
+          .in('id', userIds);
+
+        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
+
+        const enrichedHistory = historyData.map(r => ({
+          ...r,
+          user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null }
+        }));
+
+        setHistoryRequests(enrichedHistory);
+      } else {
+        setHistoryRequests([]);
+      }
+    } catch (error) {
+      console.error('Error fetching history:', error);
+      toast.error('Failed to load withdrawal history');
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [statusFilter, dateRange]);
+
+  // Apply date presets
+  const applyDatePreset = (preset: typeof datePreset) => {
+    setDatePreset(preset);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    switch (preset) {
+      case 'today':
+        setDateRange({ from: today, to: today });
+        break;
+      case '7days':
+        const sevenDaysAgo = new Date(today);
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+        setDateRange({ from: sevenDaysAgo, to: today });
+        break;
+      case '30days':
+        const thirtyDaysAgo = new Date(today);
+        thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+        setDateRange({ from: thirtyDaysAgo, to: today });
+        break;
+      case 'all':
+        setDateRange({ from: undefined, to: undefined });
+        break;
+      case 'custom':
+        // Keep current range for custom
+        break;
+    }
+  };
+
+  // Fetch history when tab changes or filters change
+  useEffect(() => {
+    if (activeTab === 'history') {
+      fetchHistory();
+    }
+  }, [activeTab, fetchHistory]);
+
   useEffect(() => {
     fetchRequests();
 
@@ -243,6 +349,9 @@ export function WithdrawalRequestsManager() {
         },
         () => {
           fetchRequests();
+          if (activeTab === 'history') {
+            fetchHistory();
+          }
         }
       )
       .subscribe();
@@ -267,7 +376,7 @@ export function WithdrawalRequestsManager() {
       supabase.removeChannel(withdrawalChannel);
       supabase.removeChannel(walletChannel);
     };
-  }, [fetchRequests, refreshWalletBalances]);
+  }, [fetchRequests, refreshWalletBalances, activeTab, fetchHistory]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {
     // Fetch the CURRENT wallet balance to avoid stale data
@@ -426,7 +535,7 @@ export function WithdrawalRequestsManager() {
           <div className="flex items-center justify-between">
             <CardTitle className="flex items-center gap-2 text-base">
               <ArrowDownToLine className="h-5 w-5 text-warning" />
-              Withdrawal Requests
+              Withdrawals
               {pendingCount > 0 && (
                 <Badge variant="destructive" className="ml-2 animate-pulse">
                   {pendingCount} pending
@@ -450,179 +559,368 @@ export function WithdrawalRequestsManager() {
               <Button 
                 variant="ghost" 
                 size="icon"
-                onClick={fetchRequests}
-                disabled={loading}
+                onClick={() => activeTab === 'pending' ? fetchRequests() : fetchHistory()}
+                disabled={loading || historyLoading}
               >
-                <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
+                <RefreshCw className={`h-4 w-4 ${(loading || historyLoading) ? 'animate-spin' : ''}`} />
               </Button>
             </div>
           </div>
         </CardHeader>
-        <CardContent className="p-0">
-          {loading ? (
-            <div className="p-8 text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
-            </div>
-          ) : requests.length === 0 ? (
-            <div className="p-8 text-center text-muted-foreground">
-              <CheckCircle className="h-12 w-12 mx-auto mb-3 text-success/50" />
-              <p className="font-medium">No pending requests</p>
-              <p className="text-sm">All withdrawal requests have been processed</p>
-            </div>
-          ) : (
-            <div className="divide-y divide-border">
-              <AnimatePresence>
-                {requests.map((request) => (
-                  <motion.div
-                    key={request.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, x: -100 }}
-                    className="p-4 hover:bg-muted/30 transition-colors"
-                  >
-                    <div className="flex items-start gap-3">
-                      <UserAvatar 
-                        avatarUrl={request.user?.avatar_url} 
-                        fullName={request.user?.full_name} 
-                        size="md" 
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-semibold truncate">{request.user?.full_name}</p>
-                          <Badge variant="outline" className="gap-1 text-xs">
-                            <Clock className="h-3 w-3" />
-                            {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
-                          </Badge>
-                        </div>
-                        
-                        <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
-                          <Phone className="h-3 w-3" />
-                          <span>{request.user?.phone || 'No phone'}</span>
-                        </div>
+        
+        <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as 'pending' | 'history')} className="w-full">
+          <div className="px-4 pt-2">
+            <TabsList className="grid w-full grid-cols-2 h-9">
+              <TabsTrigger value="pending" className="gap-1.5 text-xs">
+                <Clock className="h-3.5 w-3.5" />
+                Pending
+                {pendingCount > 0 && (
+                  <Badge variant="destructive" className="h-5 px-1.5 text-[10px]">
+                    {pendingCount}
+                  </Badge>
+                )}
+              </TabsTrigger>
+              <TabsTrigger value="history" className="gap-1.5 text-xs">
+                <History className="h-3.5 w-3.5" />
+                History
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
-                        {/* Mobile Money Number - Highlighted for easy payout */}
-                        {request.mobile_money_number && (
-                          <div className={`mt-2 p-2.5 rounded-lg border-2 ${
-                            request.mobile_money_provider === 'mtn' 
-                              ? 'bg-yellow-500/10 border-yellow-500/30' 
-                              : 'bg-red-500/10 border-red-500/30'
-                          }`}>
-                            <div className="flex items-center justify-between gap-2">
-                              <div className="flex items-center gap-2">
-                                <div className={`p-1.5 rounded-full ${
-                                  request.mobile_money_provider === 'mtn' 
-                                    ? 'bg-yellow-500' 
-                                    : 'bg-red-500'
-                                }`}>
-                                  <Smartphone className={`h-3.5 w-3.5 ${
-                                    request.mobile_money_provider === 'mtn' 
-                                      ? 'text-black' 
-                                      : 'text-white'
-                                  }`} />
-                                </div>
-                                <div>
-                                  <p className="text-xs font-medium text-muted-foreground uppercase">
-                                    {request.mobile_money_provider || 'MoMo'} Payout
-                                  </p>
-                                  <p className="font-bold text-base tracking-wide">
-                                    {request.mobile_money_number}
-                                  </p>
+          {/* Pending Tab */}
+          <TabsContent value="pending" className="mt-0">
+            <CardContent className="p-0">
+              {loading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                </div>
+              ) : requests.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <CheckCircle className="h-12 w-12 mx-auto mb-3 text-success/50" />
+                  <p className="font-medium">No pending requests</p>
+                  <p className="text-sm">All withdrawal requests have been processed</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  <AnimatePresence>
+                    {requests.map((request) => (
+                      <motion.div
+                        key={request.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, x: -100 }}
+                        className="p-4 hover:bg-muted/30 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <UserAvatar 
+                            avatarUrl={request.user?.avatar_url} 
+                            fullName={request.user?.full_name} 
+                            size="md" 
+                          />
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <p className="font-semibold truncate">{request.user?.full_name}</p>
+                              <Badge variant="outline" className="gap-1 text-xs">
+                                <Clock className="h-3 w-3" />
+                                {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
+                              </Badge>
+                            </div>
+                            
+                            <div className="flex items-center gap-2 mt-1 text-sm text-muted-foreground">
+                              <Phone className="h-3 w-3" />
+                              <span>{request.user?.phone || 'No phone'}</span>
+                            </div>
+
+                            {/* Mobile Money Number - Highlighted for easy payout */}
+                            {request.mobile_money_number && (
+                              <div className={`mt-2 p-2.5 rounded-lg border-2 ${
+                                request.mobile_money_provider === 'mtn' 
+                                  ? 'bg-yellow-500/10 border-yellow-500/30' 
+                                  : 'bg-red-500/10 border-red-500/30'
+                              }`}>
+                                <div className="flex items-center justify-between gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <div className={`p-1.5 rounded-full ${
+                                      request.mobile_money_provider === 'mtn' 
+                                        ? 'bg-yellow-500' 
+                                        : 'bg-red-500'
+                                    }`}>
+                                      <Smartphone className={`h-3.5 w-3.5 ${
+                                        request.mobile_money_provider === 'mtn' 
+                                          ? 'text-black' 
+                                          : 'text-white'
+                                      }`} />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium text-muted-foreground uppercase">
+                                        {request.mobile_money_provider || 'MoMo'} Payout
+                                      </p>
+                                      <p className="font-bold text-base tracking-wide">
+                                        {request.mobile_money_number}
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-8 w-8 p-0"
+                                    onClick={() => copyToClipboard(request.mobile_money_number || '', request.id)}
+                                  >
+                                    {copiedId === request.id ? (
+                                      <Check className="h-4 w-4 text-success" />
+                                    ) : (
+                                      <Copy className="h-4 w-4" />
+                                    )}
+                                  </Button>
                                 </div>
                               </div>
-                              <Button
-                                variant="ghost"
-                                size="icon"
-                                className="h-9 w-9 shrink-0"
-                                onClick={() => copyToClipboard(request.mobile_money_number!, request.id)}
-                              >
-                                {copiedId === request.id ? (
-                                  <Check className="h-4 w-4 text-success" />
-                                ) : (
-                                  <Copy className="h-4 w-4" />
-                                )}
-                              </Button>
+                            )}
+
+                            {!request.mobile_money_number && (
+                              <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border">
+                                <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                                  <AlertCircle className="h-3.5 w-3.5" />
+                                  No mobile money number provided - use account phone
+                                </p>
+                              </div>
+                            )}
+
+                            <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
+                              <div>
+                                <p className="text-2xl font-bold text-primary">
+                                  {formatCurrency(request.amount)}
+                                </p>
+                                <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                                  <Wallet className="h-3 w-3" />
+                                  <span>Balance:</span>
+                                  <span className={`font-mono font-semibold ${
+                                    (request.wallet_balance || 0) >= request.amount 
+                                      ? 'text-success' 
+                                      : 'text-destructive'
+                                  }`}>
+                                    {formatCurrency(request.wallet_balance || 0)}
+                                  </span>
+                                  <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+                                    <span className="relative flex h-1.5 w-1.5">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                      <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
+                                    </span>
+                                    live
+                                  </span>
+                                </div>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  onClick={() => {
+                                    setSelectedRequest(request);
+                                    setRejectDialogOpen(true);
+                                  }}
+                                  disabled={processing === request.id}
+                                  className="gap-1 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                                >
+                                  <XCircle className="h-4 w-4" />
+                                  Reject
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  onClick={() => handleApproveClick(request)}
+                                  disabled={processing === request.id || (request.wallet_balance !== undefined && request.amount > request.wallet_balance)}
+                                  className="gap-1"
+                                >
+                                  {processing === request.id ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" />
+                                  ) : (
+                                    <CheckCircle className="h-4 w-4" />
+                                  )}
+                                  Approve
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        )}
 
-                        {!request.mobile_money_number && (
-                          <div className="mt-2 p-2 rounded-lg bg-muted/50 border border-border">
-                            <p className="text-xs text-muted-foreground flex items-center gap-1.5">
-                              <AlertCircle className="h-3.5 w-3.5" />
-                              No mobile money number provided - use account phone
-                            </p>
-                          </div>
-                        )}
-
-                        <div className="flex items-center justify-between mt-3 flex-wrap gap-2">
-                          <div>
-                            <p className="text-2xl font-bold text-primary">
-                              {formatCurrency(request.amount)}
-                            </p>
-                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                              <Wallet className="h-3 w-3" />
-                              <span>Balance:</span>
-                              <span className={`font-mono font-semibold ${
-                                (request.wallet_balance || 0) >= request.amount 
-                                  ? 'text-success' 
-                                  : 'text-destructive'
-                              }`}>
-                                {formatCurrency(request.wallet_balance || 0)}
-                              </span>
-                              <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
-                                <span className="relative flex h-1.5 w-1.5">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
-                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
-                                </span>
-                                live
-                              </span>
-                            </div>
-                          </div>
-
-                          <div className="flex gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setRejectDialogOpen(true);
-                              }}
-                              disabled={processing === request.id}
-                              className="gap-1 border-destructive/50 text-destructive hover:bg-destructive hover:text-destructive-foreground"
-                            >
-                              <XCircle className="h-4 w-4" />
-                              Reject
-                            </Button>
-                            <Button
-                              size="sm"
-                              onClick={() => handleApproveClick(request)}
-                              disabled={processing === request.id || (request.wallet_balance !== undefined && request.amount > request.wallet_balance)}
-                              className="gap-1"
-                            >
-                              {processing === request.id ? (
-                                <Loader2 className="h-4 w-4 animate-spin" />
-                              ) : (
-                                <CheckCircle className="h-4 w-4" />
-                              )}
-                              Approve
-                            </Button>
+                            {request.wallet_balance !== undefined && request.amount > request.wallet_balance && (
+                              <div className="flex items-center gap-2 mt-2 p-2 bg-destructive/10 rounded-lg text-destructive text-sm">
+                                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                                <span>Insufficient balance for this withdrawal</span>
+                              </div>
+                            )}
                           </div>
                         </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </div>
+              )}
+            </CardContent>
+          </TabsContent>
 
-                        {request.wallet_balance !== undefined && request.amount > request.wallet_balance && (
-                          <div className="flex items-center gap-2 mt-2 p-2 bg-destructive/10 rounded-lg text-destructive text-sm">
-                            <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                            <span>Insufficient balance for this withdrawal</span>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
+          {/* History Tab */}
+          <TabsContent value="history" className="mt-0">
+            {/* Filters */}
+            <div className="px-4 py-3 border-b bg-muted/30 space-y-3">
+              <div className="flex items-center gap-2 flex-wrap">
+                <Filter className="h-4 w-4 text-muted-foreground" />
+                <span className="text-sm font-medium text-muted-foreground">Filters:</span>
+              </div>
+              
+              <div className="flex flex-wrap gap-2">
+                {/* Status Filter */}
+                <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as typeof statusFilter)}>
+                  <SelectTrigger className="w-[130px] h-8 text-xs">
+                    <SelectValue placeholder="Status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Status</SelectItem>
+                    <SelectItem value="approved">✅ Approved</SelectItem>
+                    <SelectItem value="rejected">❌ Rejected</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                {/* Date Presets */}
+                <div className="flex gap-1">
+                  {[
+                    { value: 'all', label: 'All Time' },
+                    { value: 'today', label: 'Today' },
+                    { value: '7days', label: '7 Days' },
+                    { value: '30days', label: '30 Days' },
+                  ].map((preset) => (
+                    <Button
+                      key={preset.value}
+                      variant={datePreset === preset.value ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs px-2.5"
+                      onClick={() => applyDatePreset(preset.value as typeof datePreset)}
+                    >
+                      {preset.label}
+                    </Button>
+                  ))}
+                </div>
+
+                {/* Custom Date Range */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={datePreset === 'custom' ? 'default' : 'outline'}
+                      size="sm"
+                      className="h-8 text-xs gap-1.5"
+                    >
+                      <Calendar className="h-3.5 w-3.5" />
+                      Custom
+                      <ChevronDown className="h-3 w-3" />
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0" align="start">
+                    <CalendarComponent
+                      mode="range"
+                      selected={{ from: dateRange.from, to: dateRange.to }}
+                      onSelect={(range) => {
+                        setDateRange({ from: range?.from, to: range?.to });
+                        setDatePreset('custom');
+                      }}
+                      numberOfMonths={1}
+                    />
+                  </PopoverContent>
+                </Popover>
+              </div>
+
+              {/* Active filters display */}
+              {(statusFilter !== 'all' || dateRange.from || dateRange.to) && (
+                <div className="flex items-center gap-2 flex-wrap">
+                  <span className="text-xs text-muted-foreground">Active:</span>
+                  {statusFilter !== 'all' && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      {statusFilter === 'approved' ? '✅' : '❌'} {statusFilter}
+                      <button onClick={() => setStatusFilter('all')} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  )}
+                  {dateRange.from && (
+                    <Badge variant="secondary" className="text-xs gap-1">
+                      📅 {format(dateRange.from, 'MMM d')} - {dateRange.to ? format(dateRange.to, 'MMM d') : 'now'}
+                      <button onClick={() => { setDateRange({ from: undefined, to: undefined }); setDatePreset('all'); }} className="ml-1 hover:text-destructive">×</button>
+                    </Badge>
+                  )}
+                </div>
+              )}
             </div>
-          )}
-        </CardContent>
+
+            <CardContent className="p-0">
+              {historyLoading ? (
+                <div className="p-8 text-center">
+                  <Loader2 className="h-8 w-8 animate-spin mx-auto text-muted-foreground" />
+                </div>
+              ) : historyRequests.length === 0 ? (
+                <div className="p-8 text-center text-muted-foreground">
+                  <History className="h-12 w-12 mx-auto mb-3 opacity-50" />
+                  <p className="font-medium">No history found</p>
+                  <p className="text-sm">Try adjusting your filters</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-border">
+                  {historyRequests.map((request) => (
+                    <motion.div
+                      key={request.id}
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="p-4 hover:bg-muted/30 transition-colors"
+                    >
+                      <div className="flex items-start gap-3">
+                        <UserAvatar 
+                          avatarUrl={request.user?.avatar_url} 
+                          fullName={request.user?.full_name} 
+                          size="md" 
+                        />
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-semibold truncate">{request.user?.full_name}</p>
+                            <Badge 
+                              variant={request.status === 'approved' ? 'default' : 'destructive'}
+                              className="gap-1 text-xs"
+                            >
+                              {request.status === 'approved' ? (
+                                <><CheckCircle className="h-3 w-3" /> Approved</>
+                              ) : (
+                                <><XCircle className="h-3 w-3" /> Rejected</>
+                              )}
+                            </Badge>
+                          </div>
+                          
+                          <div className="flex items-center gap-3 mt-1 text-xs text-muted-foreground flex-wrap">
+                            <span className="flex items-center gap-1">
+                              <Calendar className="h-3 w-3" />
+                              {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
+                            </span>
+                            {request.mobile_money_number && (
+                              <span className="flex items-center gap-1">
+                                <Smartphone className="h-3 w-3" />
+                                <span className="uppercase">{request.mobile_money_provider}</span> {request.mobile_money_number}
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex items-center justify-between mt-2">
+                            <p className={`text-xl font-bold ${request.status === 'approved' ? 'text-success' : 'text-destructive'}`}>
+                              {formatCurrency(request.amount)}
+                            </p>
+                          </div>
+
+                          {request.rejection_reason && (
+                            <div className="mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                              <p className="text-xs text-destructive">
+                                <strong>Rejection reason:</strong> {request.rejection_reason}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              )}
+            </CardContent>
+          </TabsContent>
+        </Tabs>
       </Card>
 
       {/* Rejection Dialog with Quick Reject Options */}
