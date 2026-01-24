@@ -1,4 +1,4 @@
-import { Bell } from 'lucide-react';
+import { Bell, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -20,6 +20,10 @@ interface NotificationMetadata {
   rent_request_id?: string;
   user_id?: string;
   amount?: number;
+  phone?: string;
+  email?: string;
+  full_name?: string;
+  role?: string;
 }
 
 export function NotificationBell() {
@@ -35,8 +39,18 @@ export function NotificationBell() {
       case 'alert': return '⚠️';
       case 'warning': return '🔔';
       case 'investment_funding': return '💰';
+      case 'info': return '🔑';
       default: return 'ℹ️';
     }
+  };
+
+  const handleContactWhatsApp = (e: React.MouseEvent, phone: string, name?: string) => {
+    e.stopPropagation();
+    const cleanPhone = phone.replace(/\D/g, '');
+    const message = encodeURIComponent(
+      `Hi ${name || 'there'}! I'm following up on your Welile activation. How can I help you?`
+    );
+    window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
   };
 
   const handleNotificationClick = (notification: { 
@@ -120,33 +134,51 @@ export function NotificationBell() {
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 cursor-pointer hover:bg-secondary/50 transition-colors touch-manipulation active:bg-secondary ${
-                    !notification.read ? 'bg-primary/5' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex gap-3">
-                    <span className="text-2xl">{getTypeIcon(notification.type)}</span>
-                    <div className="flex-1 min-w-0">
-                      <p className={`text-sm font-bold ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
-                        {notification.title}
-                      </p>
-                      <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-muted-foreground mt-1.5 font-medium">
-                        {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
-                      </p>
+              {notifications.map((notification) => {
+                const metadata = notification.metadata as NotificationMetadata | null;
+                const hasContactAction = metadata?.phone && notification.title.includes('Password Reset');
+                
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-4 cursor-pointer hover:bg-secondary/50 transition-colors touch-manipulation active:bg-secondary ${
+                      !notification.read ? 'bg-primary/5' : ''
+                    }`}
+                    onClick={() => handleNotificationClick(notification)}
+                  >
+                    <div className="flex gap-3">
+                      <span className="text-2xl">{getTypeIcon(notification.type)}</span>
+                      <div className="flex-1 min-w-0">
+                        <p className={`text-sm font-bold ${!notification.read ? 'text-foreground' : 'text-muted-foreground'}`}>
+                          {notification.title}
+                        </p>
+                        <p className="text-sm text-muted-foreground line-clamp-2 mt-0.5">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-muted-foreground mt-1.5 font-medium">
+                          {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
+                        </p>
+                        
+                        {/* Quick Contact Action for Password Reset notifications */}
+                        {hasContactAction && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="mt-2 h-8 gap-1.5 text-xs"
+                            onClick={(e) => handleContactWhatsApp(e, metadata.phone!, metadata.full_name)}
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                            Contact User
+                          </Button>
+                        )}
+                      </div>
+                      {!notification.read && (
+                        <div className="w-2.5 h-2.5 bg-primary rounded-full mt-1.5 animate-pulse" />
+                      )}
                     </div>
-                    {!notification.read && (
-                      <div className="w-2.5 h-2.5 bg-primary rounded-full mt-1.5 animate-pulse" />
-                    )}
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>
