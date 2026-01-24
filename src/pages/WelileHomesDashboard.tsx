@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle, History, Plus, Percent } from 'lucide-react';
+import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle, History, Plus, Percent, Banknote } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -13,6 +13,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
+import { WithdrawalRequestDialog } from '@/components/welile-homes/WithdrawalRequestDialog';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -36,6 +37,7 @@ export default function WelileHomesDashboard() {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [showWithdrawalDialog, setShowWithdrawalDialog] = useState(false);
   
   // Fetch user profile for rent amount
   const { data: profile } = useQuery({
@@ -79,6 +81,22 @@ export default function WelileHomesDashboard() {
         .eq('tenant_id', user.id)
         .order('created_at', { ascending: false })
         .limit(10);
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id
+  });
+
+  // Fetch pending withdrawals
+  const { data: pendingWithdrawals = [] } = useQuery({
+    queryKey: ['welile-homes-withdrawals', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return [];
+      const { data, error } = await supabase
+        .from('welile_homes_withdrawals')
+        .select('*')
+        .eq('tenant_id', user.id)
+        .order('created_at', { ascending: false });
       if (error) throw error;
       return data;
     },
@@ -424,6 +442,73 @@ Let's build a better future together! 🏡`;
                   </div>
                   <span className="font-bold text-purple-700">{formatUGX(targetSavings)}</span>
                 </div>
+                
+                {/* Withdrawal Button */}
+                {currentSavings > 0 && (
+                  <Button
+                    onClick={() => setShowWithdrawalDialog(true)}
+                    variant="outline"
+                    className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 h-12"
+                  >
+                    <Banknote className="h-4 w-4 mr-2" />
+                    Request Withdrawal
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Pending Withdrawals */}
+        {isSubscribed && pendingWithdrawals.length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.25 }}
+          >
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Banknote className="h-5 w-5 text-purple-600" />
+                  Your Withdrawal Requests
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                {pendingWithdrawals.slice(0, 3).map((withdrawal: any) => (
+                  <div 
+                    key={withdrawal.id}
+                    className={`flex items-center justify-between p-3 rounded-lg border ${
+                      withdrawal.status === 'pending' 
+                        ? 'bg-amber-50 border-amber-200'
+                        : withdrawal.status === 'approved'
+                        ? 'bg-emerald-50 border-emerald-200'
+                        : withdrawal.status === 'rejected'
+                        ? 'bg-red-50 border-red-200'
+                        : 'bg-blue-50 border-blue-200'
+                    }`}
+                  >
+                    <div>
+                      <p className="text-sm font-medium">{formatUGX(withdrawal.amount)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        {withdrawal.purpose.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                    <Badge 
+                      variant={
+                        withdrawal.status === 'approved' ? 'default' :
+                        withdrawal.status === 'rejected' ? 'destructive' :
+                        withdrawal.status === 'disbursed' ? 'default' : 'secondary'
+                      }
+                      className={
+                        withdrawal.status === 'approved' ? 'bg-emerald-100 text-emerald-700' :
+                        withdrawal.status === 'disbursed' ? 'bg-blue-100 text-blue-700' :
+                        withdrawal.status === 'pending' ? 'bg-amber-100 text-amber-700' : ''
+                      }
+                    >
+                      {withdrawal.status}
+                    </Badge>
+                  </div>
+                ))}
               </CardContent>
             </Card>
           </motion.div>
@@ -652,6 +737,17 @@ Let's build a better future together! 🏡`;
           </h2>
         </motion.div>
       </div>
+
+      {/* Withdrawal Request Dialog */}
+      {subscription && (
+        <WithdrawalRequestDialog
+          open={showWithdrawalDialog}
+          onOpenChange={setShowWithdrawalDialog}
+          subscriptionId={subscription.id}
+          currentSavings={currentSavings}
+          monthsEnrolled={enrolledMonths}
+        />
+      )}
     </div>
   );
 }
