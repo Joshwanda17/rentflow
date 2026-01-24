@@ -444,7 +444,7 @@ export default function ActivateSupporter() {
                 onClick={handleShareWhatsApp}
               >
                 <MessageCircle className="h-4 w-4" />
-                Send to My WhatsApp
+                Resend to WhatsApp
               </Button>
             )}
 
