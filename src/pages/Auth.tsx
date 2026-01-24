@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -17,6 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import PinEntry from '@/components/auth/PinEntry';
 import PinSetupDialog from '@/components/auth/PinSetupDialog';
+import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber } from '@/lib/phoneUtils';
 
 const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -25,7 +26,7 @@ const signUpSchema = z.object({
 });
 
 const signInSchema = z.object({
-  phone: z.string().min(10, 'Please enter a valid phone number'),
+  phone: z.string().min(9, 'Please enter a valid phone number'),
   password: z.string().min(1, 'Password is required')
 });
 
@@ -154,26 +155,61 @@ export default function Auth() {
           }).catch(console.error);
         }
       } else {
-        const validation = signInSchema.safeParse({ phone, password });
+        const cleanedPhone = cleanPhoneNumber(phone);
+        
+        if (!isValidPhoneNumber(phone)) {
+          toast({ 
+            title: 'Invalid Phone Number', 
+            description: 'Please enter a valid phone number (e.g., 0700123456 or 256700123456)', 
+            variant: 'destructive' 
+          });
+          setIsLoading(false);
+          return;
+        }
+
+        const validation = signInSchema.safeParse({ phone: cleanedPhone, password });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
 
-        // Generate email from phone for sign in
-        const cleanPhone = phone.replace(/\D/g, '');
-        const generatedEmail = `${cleanPhone}@welile.user`;
+        // Try multiple phone format variants to find the user
+        const emailVariants = generatePhoneEmailVariants(phone);
+        let loginSuccess = false;
+        let lastError: Error | null = null;
 
-        const { error } = await signIn(generatedEmail, password);
-        if (error) {
-          // Translate common errors
-          let errorMessage = error.message;
-          if (error.message.includes('Invalid login credentials')) {
-            errorMessage = 'Invalid phone number or password. Please try again.';
+        for (const emailVariant of emailVariants) {
+          const { error } = await signIn(emailVariant, password);
+          if (!error) {
+            loginSuccess = true;
+            break;
           }
-          toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
-        } else {
+          lastError = error;
+          
+          // If it's a wrong password error, don't try other variants
+          if (error.message.includes('Invalid login credentials')) {
+            continue; // Try next variant
+          } else {
+            // For other errors (rate limit, etc.), stop trying
+            break;
+          }
+        }
+
+        if (!loginSuccess && lastError) {
+          // Provide helpful error message
+          let errorMessage = lastError.message;
+          if (lastError.message.includes('Invalid login credentials')) {
+            errorMessage = 'Could not find an account with this phone number, or the password is incorrect. Please check your phone number and try again.';
+          } else if (lastError.message.includes('rate')) {
+            errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+          }
+          toast({ 
+            title: 'Sign In Failed', 
+            description: errorMessage, 
+            variant: 'destructive' 
+          });
+        } else if (loginSuccess) {
           // If "Remember me" is unchecked, set up session cleanup on browser close
           if (!rememberMe) {
             sessionStorage.setItem('welile_session_only', 'true');
@@ -339,7 +375,7 @@ export default function Auth() {
               )}
 
               {!isForgotPassword && (
-                <div className="space-y-2">
+              <div className="space-y-2">
                   <Label htmlFor="phone">Phone Number</Label>
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -355,6 +391,11 @@ export default function Auth() {
                       required
                     />
                   </div>
+                  {!isSignUp && (
+                    <p className="text-xs text-muted-foreground">
+                      Enter your phone number with or without country code
+                    </p>
+                  )}
                 </div>
               )}
 
