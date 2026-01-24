@@ -183,6 +183,30 @@ export default function ActivateSupporter() {
       
       if (error) throw error;
       
+      // Notify managers about the password reset request
+      const { data: managers } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'manager')
+        .eq('enabled', true);
+      
+      if (managers && managers.length > 0) {
+        const notifications = managers.map(m => ({
+          user_id: m.user_id,
+          title: '🔑 Password Reset Request',
+          message: `${inviteDetails?.full_name || 'A user'} (${emailForReset}) requested a new activation password.`,
+          type: 'info',
+          metadata: { 
+            email: emailForReset, 
+            phone: resetPhone,
+            full_name: inviteDetails?.full_name,
+            role: inviteDetails?.role
+          }
+        }));
+        
+        await supabase.from('notifications').insert(notifications);
+      }
+      
       setNewTempPassword(newPassword);
       setPageState('password-reset');
       
