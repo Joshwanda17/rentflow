@@ -110,45 +110,82 @@ export function cleanPhoneNumber(phone: string): string {
 /**
  * Generate all possible email variants for a phone number
  * This helps users who may have registered with different formats
+ * Returns objects with email and display format
  */
-export function generatePhoneEmailVariants(phone: string): string[] {
+export function generatePhoneEmailVariantsWithDisplay(phone: string): { email: string; display: string }[] {
   const cleaned = cleanPhoneNumber(phone);
-  const variants: string[] = [];
+  const variants: { email: string; display: string }[] = [];
+  const seen = new Set<string>();
+  
+  const addVariant = (num: string, suffix: string) => {
+    const email = `${num}@welile.${suffix}`;
+    if (!seen.has(email)) {
+      seen.add(email);
+      // Format display nicely
+      let display = num;
+      if (num.startsWith('256') && num.length >= 12) {
+        display = `+256 ${num.slice(3)}`;
+      } else if (num.startsWith('0')) {
+        display = num;
+      } else if (num.length === 9) {
+        display = `0${num}`;
+      }
+      variants.push({ email, display: `${display} (${suffix})` });
+    }
+  };
   
   // Original cleaned version
-  variants.push(`${cleaned}@welile.user`);
+  addVariant(cleaned, 'user');
   
   // If starts with country code (256 for Uganda), also try without
   if (cleaned.startsWith('256') && cleaned.length > 9) {
     const withoutCountryCode = cleaned.slice(3);
-    variants.push(`${withoutCountryCode}@welile.user`);
-    // Also try with leading 0
-    variants.push(`0${withoutCountryCode}@welile.user`);
+    addVariant(withoutCountryCode, 'user');
+    addVariant(`0${withoutCountryCode}`, 'user');
   }
   
   // If starts with 0, also try without the 0
   if (cleaned.startsWith('0') && cleaned.length >= 10) {
     const withoutLeadingZero = cleaned.slice(1);
-    variants.push(`${withoutLeadingZero}@welile.user`);
-    // Also try with country code
-    variants.push(`256${withoutLeadingZero}@welile.user`);
+    addVariant(withoutLeadingZero, 'user');
+    addVariant(`256${withoutLeadingZero}`, 'user');
   }
   
   // If doesn't start with 0 or 256, try adding them
   if (!cleaned.startsWith('0') && !cleaned.startsWith('256') && cleaned.length >= 9) {
-    variants.push(`0${cleaned}@welile.user`);
-    variants.push(`256${cleaned}@welile.user`);
+    addVariant(`0${cleaned}`, 'user');
+    addVariant(`256${cleaned}`, 'user');
   }
   
-  // Also check for agent emails (phone@welile.agent)
-  variants.push(`${cleaned}@welile.agent`);
+  // Also check for agent emails
+  addVariant(cleaned, 'agent');
   if (cleaned.startsWith('0')) {
-    variants.push(`${cleaned.slice(1)}@welile.agent`);
-    variants.push(`256${cleaned.slice(1)}@welile.agent`);
+    addVariant(cleaned.slice(1), 'agent');
+    addVariant(`256${cleaned.slice(1)}`, 'agent');
   }
   
-  // Remove duplicates
-  return [...new Set(variants)];
+  return variants;
+}
+
+/**
+ * Get display-friendly list of phone formats being tried
+ */
+export function getTriedPhoneFormats(phone: string): string[] {
+  const variants = generatePhoneEmailVariantsWithDisplay(phone);
+  // Return unique display formats (without the email suffix)
+  const formats = new Set<string>();
+  for (const v of variants) {
+    const displayWithoutSuffix = v.display.replace(/ \(user\)| \(agent\)/g, '');
+    formats.add(displayWithoutSuffix);
+  }
+  return [...formats];
+}
+
+/**
+ * Generate all possible email variants for a phone number (string array version)
+ */
+export function generatePhoneEmailVariants(phone: string): string[] {
+  return generatePhoneEmailVariantsWithDisplay(phone).map(v => v.email);
 }
 
 /**

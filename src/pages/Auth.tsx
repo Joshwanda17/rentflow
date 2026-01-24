@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import PinEntry from '@/components/auth/PinEntry';
 import PinSetupDialog from '@/components/auth/PinSetupDialog';
-import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber } from '@/lib/phoneUtils';
+import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 
 const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -42,6 +42,7 @@ export default function Auth() {
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [loginError, setLoginError] = useState<{ message: string; triedFormats: string[] } | null>(null);
   const [rememberMe, setRememberMe] = useState(() => {
     // Default to true, check localStorage for saved preference
     const saved = localStorage.getItem('welile_remember_me');
@@ -197,19 +198,25 @@ export default function Auth() {
         }
 
         if (!loginSuccess && lastError) {
+          // Get the formats we tried for helpful display
+          const triedFormats = getTriedPhoneFormats(phone);
+          
           // Provide helpful error message
           let errorMessage = lastError.message;
           if (lastError.message.includes('Invalid login credentials')) {
-            errorMessage = 'Could not find an account with this phone number, or the password is incorrect. Please check your phone number and try again.';
+            errorMessage = 'Could not find an account with this phone number, or the password is incorrect.';
           } else if (lastError.message.includes('rate')) {
             errorMessage = 'Too many login attempts. Please wait a moment and try again.';
           }
+          
+          setLoginError({ message: errorMessage, triedFormats });
           toast({ 
             title: 'Sign In Failed', 
             description: errorMessage, 
             variant: 'destructive' 
           });
         } else if (loginSuccess) {
+          setLoginError(null);
           // If "Remember me" is unchecked, set up session cleanup on browser close
           if (!rememberMe) {
             sessionStorage.setItem('welile_session_only', 'true');
@@ -384,17 +391,42 @@ export default function Auth() {
                       type="tel"
                       inputMode="tel"
                       value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
+                      onChange={(e) => {
+                        setPhone(e.target.value);
+                        setLoginError(null); // Clear error when user types
+                      }}
                       placeholder="e.g., 0700123456"
-                      className="pl-10 h-12 text-base"
+                      className={`pl-10 h-12 text-base ${loginError ? 'border-destructive' : ''}`}
                       style={{ fontSize: '16px' }}
                       required
                     />
                   </div>
-                  {!isSignUp && (
+                  {!isSignUp && !loginError && (
                     <p className="text-xs text-muted-foreground">
                       Enter your phone number with or without country code
                     </p>
+                  )}
+                  
+                  {/* Show tried formats on login failure */}
+                  {!isSignUp && loginError && loginError.triedFormats.length > 0 && (
+                    <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <p className="text-xs text-destructive font-medium mb-2">
+                        We tried these phone formats:
+                      </p>
+                      <div className="flex flex-wrap gap-1.5">
+                        {loginError.triedFormats.slice(0, 4).map((format, idx) => (
+                          <span 
+                            key={idx} 
+                            className="px-2 py-0.5 text-xs rounded-full bg-background border border-border text-muted-foreground"
+                          >
+                            {format}
+                          </span>
+                        ))}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Make sure you're using the same phone number you registered with.
+                      </p>
+                    </div>
                   )}
                 </div>
               )}
