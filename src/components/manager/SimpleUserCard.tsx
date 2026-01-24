@@ -14,6 +14,7 @@ import {
 import { motion } from 'framer-motion';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import { hapticTap } from '@/lib/haptics';
+import OnlineIndicator from '@/components/chat/OnlineIndicator';
 
 interface SimpleUserCardProps {
   user: {
@@ -32,6 +33,7 @@ interface SimpleUserCardProps {
   onSelect: (id: string) => void;
   onClick: () => void;
   index: number;
+  isOnline?: boolean;
 }
 
 const roleColors: Record<string, { bg: string; text: string; border: string }> = {
@@ -42,7 +44,7 @@ const roleColors: Record<string, { bg: string; text: string; border: string }> =
   manager: { bg: 'bg-rose-500/15', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/30' },
 };
 
-export function SimpleUserCard({ user, isSelected, onSelect, onClick, index }: SimpleUserCardProps) {
+export function SimpleUserCard({ user, isSelected, onSelect, onClick, index, isOnline = false }: SimpleUserCardProps) {
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
@@ -110,12 +112,20 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, index }: S
 
       {/* User Info */}
       <div className="flex items-start gap-3 pl-8">
-        <Avatar className="h-14 w-14 border-2 border-background shadow-lg">
-          <AvatarImage src={user.avatar_url || undefined} />
-          <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
-            {getInitials(user.full_name)}
-          </AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="h-14 w-14 border-2 border-background shadow-lg">
+            <AvatarImage src={user.avatar_url || undefined} />
+            <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+              {getInitials(user.full_name)}
+            </AvatarFallback>
+          </Avatar>
+          {/* Online Status Indicator */}
+          <OnlineIndicator 
+            isOnline={isOnline} 
+            size="md" 
+            className="absolute bottom-0 right-0"
+          />
+        </div>
 
         <div className="flex-1 min-w-0">
           <button 
