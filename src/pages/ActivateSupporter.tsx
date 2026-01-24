@@ -6,11 +6,11 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus } from 'lucide-react';
+import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { Skeleton } from '@/components/ui/skeleton';
 
-type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'success';
+type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'success' | 'forgot-password' | 'password-reset';
 
 export default function ActivateSupporter() {
   const [searchParams] = useSearchParams();
@@ -24,7 +24,13 @@ export default function ActivateSupporter() {
   const [pageState, setPageState] = useState<PageState>('ready'); // Start ready for instant form display
   const [isValidating, setIsValidating] = useState(true); // Background validation
   const [activatedEmail, setActivatedEmail] = useState('');
-  const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string } | null>(null);
+  const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string; phone?: string } | null>(null);
+  
+  // Forgot password state
+  const [emailForReset, setEmailForReset] = useState('');
+  const [newTempPassword, setNewTempPassword] = useState('');
+  const [resetPhone, setResetPhone] = useState('');
+  const [copied, setCopied] = useState(false);
 
   // Validate invite in background while showing form immediately
   useEffect(() => {
@@ -39,7 +45,7 @@ export default function ActivateSupporter() {
       try {
         const { data, error } = await supabase
           .from('supporter_invites')
-          .select('full_name, status, role, email, activated_user_id')
+          .select('full_name, status, role, email, phone, activated_user_id')
           .eq('activation_token', token)
           .maybeSingle();
 
@@ -54,7 +60,9 @@ export default function ActivateSupporter() {
           setPageState('activated-already');
           setActivatedEmail(data.email);
         } else {
-          setInviteDetails({ full_name: data.full_name, role: data.role });
+          setInviteDetails({ full_name: data.full_name, role: data.role, phone: data.phone });
+          setEmailForReset(data.email);
+          setResetPhone(data.phone || '');
           setPageState('ready');
         }
       } catch {
@@ -147,6 +155,74 @@ export default function ActivateSupporter() {
     } finally {
       setIsLoading(false);
     }
+  };
+
+  // Generate new temporary password
+  const generatePassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const handleResetPassword = async () => {
+    if (!token) return;
+    
+    setIsLoading(true);
+    try {
+      const newPassword = generatePassword();
+      
+      // Update the invite with new password
+      const { error } = await supabase
+        .from('supporter_invites')
+        .update({ temp_password: newPassword })
+        .eq('activation_token', token)
+        .eq('status', 'pending');
+      
+      if (error) throw error;
+      
+      setNewTempPassword(newPassword);
+      setPageState('password-reset');
+      
+      toast({
+        title: '🔑 New Password Generated',
+        description: 'Use this password to activate your account.',
+      });
+    } catch (error: any) {
+      toast({
+        title: 'Reset Failed',
+        description: error.message || 'Could not reset password. Please contact support.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCopyPassword = async () => {
+    try {
+      await navigator.clipboard.writeText(newTempPassword);
+      setCopied(true);
+      toast({ title: 'Password copied!' });
+      setTimeout(() => setCopied(false), 2000);
+    } catch {
+      toast({ title: 'Failed to copy', variant: 'destructive' });
+    }
+  };
+
+  const handleShareWhatsApp = () => {
+    const phone = resetPhone.replace(/\D/g, '');
+    const message = encodeURIComponent(
+      `🔑 Your new Welile password: ${newTempPassword}\n\nUse this to activate your account.`
+    );
+    window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+  };
+
+  const handleBackToActivation = () => {
+    setPassword(newTempPassword);
+    setPageState('ready');
   };
 
   // Invalid token state
@@ -257,6 +333,128 @@ export default function ActivateSupporter() {
     );
   }
 
+  // Forgot password state
+  if (pageState === 'forgot-password') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-warning/5 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <WelileLogo linkToHome={false} />
+            </div>
+            <div className="mx-auto p-3 rounded-full bg-warning/10 w-fit mb-4">
+              <KeyRound className="h-8 w-8 text-warning" />
+            </div>
+            <CardTitle className="text-2xl">Lost Your Password?</CardTitle>
+            <CardDescription>
+              No worries! We can generate a new password for you.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="p-3 rounded-lg bg-muted text-center">
+              <p className="text-xs text-muted-foreground mb-1">Account for</p>
+              <p className="font-medium text-sm">{inviteDetails?.full_name}</p>
+              {emailForReset && (
+                <p className="text-xs text-muted-foreground">{emailForReset}</p>
+              )}
+            </div>
+            
+            <Button 
+              onClick={handleResetPassword} 
+              className="w-full h-12 gap-2" 
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating...
+                </>
+              ) : (
+                <>
+                  <KeyRound className="h-4 w-4" />
+                  Generate New Password
+                </>
+              )}
+            </Button>
+            
+            <Button 
+              variant="ghost" 
+              className="w-full" 
+              onClick={() => setPageState('ready')}
+            >
+              Back to Activation
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Password reset success state
+  if (pageState === 'password-reset') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-success/5 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4">
+              <WelileLogo linkToHome={false} />
+            </div>
+            <div className="mx-auto p-3 rounded-full bg-success/10 w-fit mb-4">
+              <CheckCircle2 className="h-8 w-8 text-success" />
+            </div>
+            <CardTitle className="text-2xl">New Password Ready!</CardTitle>
+            <CardDescription>
+              Use this password to activate your account.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {/* New Password Display */}
+            <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
+              <p className="text-xs text-muted-foreground mb-2 text-center">Your new password</p>
+              <div className="flex items-center justify-center gap-2">
+                <code className="text-2xl font-mono font-bold tracking-wider text-primary">
+                  {newTempPassword}
+                </code>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleCopyPassword}
+                  className="h-8 w-8"
+                >
+                  <Copy className={`h-4 w-4 ${copied ? 'text-success' : ''}`} />
+                </Button>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <Button 
+              onClick={handleBackToActivation} 
+              className="w-full h-12 gap-2"
+            >
+              <ArrowRight className="h-4 w-4" />
+              Continue to Activate
+            </Button>
+
+            {resetPhone && (
+              <Button 
+                variant="outline" 
+                className="w-full gap-2"
+                onClick={handleShareWhatsApp}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Send via WhatsApp
+              </Button>
+            )}
+
+            <p className="text-xs text-center text-muted-foreground">
+              Save this password somewhere safe before continuing.
+            </p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   // Ready state - show activation form immediately (no loading spinner)
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
@@ -315,6 +513,17 @@ export default function ActivateSupporter() {
                 'Activate Account'
               )}
             </Button>
+
+            {/* Forgot Password Link */}
+            <div className="text-center">
+              <button
+                type="button"
+                onClick={() => setPageState('forgot-password')}
+                className="text-sm text-primary hover:underline"
+              >
+                Lost your password?
+              </button>
+            </div>
           </form>
         </CardContent>
       </Card>
