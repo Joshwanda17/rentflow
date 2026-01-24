@@ -11,11 +11,13 @@ import {
   Sparkles,
   ChevronRight,
   Loader2,
-  Heart
+  Heart,
+  UserPlus
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { EnrollTenantWelileHomesDialog } from './EnrollTenantWelileHomesDialog';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -103,15 +105,22 @@ export function LandlordWelileHomesSection({ userId }: { userId: string }) {
   if (tenants.length === 0) {
     return (
       <Card className="border-purple-200 bg-gradient-to-br from-purple-50 to-white">
-        <CardContent className="p-5 text-center space-y-3">
+        <CardContent className="p-5 text-center space-y-4">
           <div className="w-14 h-14 rounded-full bg-purple-100 flex items-center justify-center mx-auto">
             <Home className="h-7 w-7 text-purple-600" />
           </div>
           <h3 className="font-bold text-lg">Welile Homes</h3>
           <p className="text-sm text-muted-foreground">
-            None of your tenants are enrolled in Welile Homes yet. When they subscribe, 
-            you'll see their savings journey here.
+            Enroll your tenants in Welile Homes to help them build savings towards homeownership.
           </p>
+          <EnrollTenantWelileHomesDialog 
+            trigger={
+              <Button className="gap-2 bg-purple-600 hover:bg-purple-700">
+                <UserPlus className="h-4 w-4" />
+                Enroll a Tenant
+              </Button>
+            }
+          />
           <div className="p-3 bg-purple-50 rounded-lg text-left">
             <p className="text-xs text-purple-700">
               <strong>How it works:</strong> When tenants pay rent through Welile Wallet, 
@@ -137,7 +146,7 @@ export function LandlordWelileHomesSection({ userId }: { userId: string }) {
       <Card className="border-purple-200 overflow-hidden">
         {/* Header */}
         <div className="bg-gradient-to-r from-purple-600 to-purple-800 p-4 text-white">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center">
                 <Home className="h-5 w-5" />
@@ -151,6 +160,14 @@ export function LandlordWelileHomesSection({ userId }: { userId: string }) {
               {totalTenants} {totalTenants === 1 ? 'Tenant' : 'Tenants'}
             </Badge>
           </div>
+          <EnrollTenantWelileHomesDialog 
+            trigger={
+              <Button size="sm" variant="secondary" className="gap-2 bg-white/20 hover:bg-white/30 text-white border-0">
+                <UserPlus className="h-4 w-4" />
+                Enroll Another Tenant
+              </Button>
+            }
+          />
         </div>
 
         <CardContent className="p-4 space-y-4">
