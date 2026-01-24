@@ -2895,6 +2895,10 @@ export type Database = {
         Returns: boolean
       }
       is_supporter: { Args: never; Returns: boolean }
+      notify_landlord_registration_helper: {
+        Args: { p_landlord_id: string }
+        Returns: undefined
+      }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
     }
     Enums: {
