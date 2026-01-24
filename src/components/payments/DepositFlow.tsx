@@ -15,9 +15,11 @@ interface DepositFlowProps {
 }
 
 const MERCHANT_CODES = {
-  mtn: '123456', // Replace with actual MTN merchant code
-  airtel: '789012', // Replace with actual Airtel merchant code
+  mtn: '090777',
+  airtel: '4380664',
 };
+
+const MERCHANT_NAME = 'WELILE TECHNOLOGIES LIMITTED';
 
 const QUICK_AMOUNTS = [50000, 100000, 250000, 500000];
 
@@ -285,12 +287,15 @@ export default function DepositFlow({
 
             {/* Merchant Code Display */}
             <div className="p-4 bg-muted rounded-lg text-center">
-              <p className="text-xs text-muted-foreground mb-1">Merchant Code</p>
+              <p className="text-xs text-muted-foreground mb-1">Merchant Code for {provider.toUpperCase()}</p>
               <p className="text-2xl font-mono font-bold tracking-wider">
                 {MERCHANT_CODES[provider]}
               </p>
+              <p className="text-xs text-primary font-medium mt-1">
+                {MERCHANT_NAME}
+              </p>
               <p className="text-xs text-muted-foreground mt-1">
-                Use this code when making your {provider.toUpperCase()} payment
+                You'll see this name when making payment
               </p>
             </div>
 
