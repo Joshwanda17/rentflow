@@ -54,6 +54,7 @@ import UserRentSection from './user-details/UserRentSection';
 import UserInvestmentsSection from './user-details/UserInvestmentsSection';
 import UserTermsSection from './user-details/UserTermsSection';
 import UserReferralsSection from './user-details/UserReferralsSection';
+import UserActivityTimeline from './user-details/UserActivityTimeline';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -1426,61 +1427,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
               <TabsContent value="activity" className="mt-0">
                 <div className="p-4">
-                  <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                    <h3 className="font-semibold flex items-center gap-2">
-                      <Activity className="h-5 w-5 text-primary" />
-                      Activity
-                    </h3>
-                    <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
-                      <SelectTrigger className="w-[120px] h-10">
-                        <SelectValue placeholder="All Types" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {activityTypeOptions.map((option) => (
-                          <SelectItem key={option.value} value={option.value}>
-                            {option.label}
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-
-                  {activityLoading ? (
-                    <div className="space-y-3">
-                      {[1, 2, 3].map(i => <Skeleton key={i} className="h-16 w-full" />)}
-                    </div>
-                  ) : filteredActivityLog.length === 0 ? (
-                    <Card className="p-8 text-center">
-                      <Activity className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
-                      <p className="text-muted-foreground">No activity found</p>
-                    </Card>
-                  ) : (
-                    <div className="space-y-2">
-                      {filteredActivityLog.map((activity) => (
-                        <Card key={activity.id} className="p-3">
-                          <div className="flex items-start gap-3">
-                            <div className="p-2 rounded-full bg-muted shrink-0">
-                              {getActivityIcon(activity.type)}
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between gap-2">
-                                <div className="min-w-0">
-                                  <p className="text-sm font-medium truncate">{activity.description}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}
-                                  </p>
-                                </div>
-                                <span className={`text-sm font-semibold shrink-0 ${getActivityColor(activity.type)}`}>
-                                  {activity.type === 'transaction_sent' || activity.type === 'withdrawal' || activity.type === 'order' ? '-' : '+'}
-                                  {formatUGX(activity.amount)}
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      ))}
-                    </div>
-                  )}
+                  <UserActivityTimeline userId={user.id} userName={user.full_name} />
                 </div>
               </TabsContent>
             </div>
@@ -1785,41 +1732,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
             <TabsContent value="activity" className="mt-0">
               <div className="p-6 pt-4">
-                <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
-                  <h3 className="font-semibold flex items-center gap-2"><Activity className="h-5 w-5 text-primary" />Activity Log</h3>
-                  <Select value={activityTypeFilter} onValueChange={setActivityTypeFilter}>
-                    <SelectTrigger className={`w-[130px] h-8 text-xs ${activityTypeFilter !== 'all' ? 'border-primary text-primary' : ''}`}>
-                      <SelectValue placeholder="All Types" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {activityTypeOptions.map((option) => (<SelectItem key={option.value} value={option.value} className="text-xs">{option.label}</SelectItem>))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                {activityLoading ? (
-                  <div className="space-y-3">{[1, 2, 3, 4, 5].map(i => <Skeleton key={i} className="h-16 w-full" />)}</div>
-                ) : filteredActivityLog.length === 0 ? (
-                  <Card className="p-8 text-center"><Activity className="h-10 w-10 mx-auto text-muted-foreground mb-2" /><p className="text-muted-foreground">No activity recorded yet</p></Card>
-                ) : (
-                  <div className="space-y-2">
-                    {filteredActivityLog.map((activity) => (
-                      <Card key={activity.id} className="p-3">
-                        <div className="flex items-start gap-3">
-                          <div className="p-2 rounded-full bg-muted shrink-0">{getActivityIcon(activity.type)}</div>
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-start justify-between gap-2">
-                              <div className="min-w-0">
-                                <p className="text-sm font-medium truncate">{activity.description}</p>
-                                <p className="text-xs text-muted-foreground">{formatDistanceToNow(new Date(activity.created_at), { addSuffix: true })}<span className="mx-1">•</span>{format(new Date(activity.created_at), 'MMM d, yyyy')}</p>
-                              </div>
-                              <span className={`text-sm font-semibold shrink-0 ${getActivityColor(activity.type)}`}>{activity.type === 'transaction_sent' || activity.type === 'withdrawal' || activity.type === 'order' ? '-' : '+'}{formatUGX(activity.amount)}</span>
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    ))}
-                  </div>
-                )}
+                <UserActivityTimeline userId={user.id} userName={user.full_name} />
               </div>
             </TabsContent>
           </ScrollArea>

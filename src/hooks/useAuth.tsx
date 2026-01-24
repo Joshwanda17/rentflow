@@ -171,12 +171,35 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     });
     
-    // Update last_active_at on successful login
+    // Update last_active_at and log login on successful sign in
     if (!error && data?.user) {
+      const userId = data.user.id;
+      
+      // Update last_active_at
       supabase
         .from('profiles')
         .update({ last_active_at: new Date().toISOString() })
-        .eq('id', data.user.id)
+        .eq('id', userId)
+        .then(() => {});
+      
+      // Log login to user_login_history
+      supabase
+        .from('user_login_history')
+        .insert({
+          user_id: userId,
+          login_method: 'password',
+          success: true
+        })
+        .then(() => {});
+      
+      // Log to user_activity_log
+      supabase
+        .from('user_activity_log')
+        .insert({
+          user_id: userId,
+          activity_type: 'login',
+          description: 'Logged in with password'
+        })
         .then(() => {});
     }
     
@@ -197,6 +220,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   };
 
   const signOut = async () => {
+    // Log logout before signing out
+    if (user) {
+      await supabase
+        .from('user_activity_log')
+        .insert({
+          user_id: user.id,
+          activity_type: 'logout',
+          description: 'Logged out'
+        });
+    }
+    
     await supabase.auth.signOut();
     setUser(null);
     setSession(null);
