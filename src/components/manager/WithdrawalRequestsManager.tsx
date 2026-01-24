@@ -222,13 +222,29 @@ export function WithdrawalRequestsManager() {
     };
   }, [fetchRequests]);
 
-  const handleApproveClick = (request: WithdrawalRequest) => {
-    // Check if user has sufficient balance
-    if (request.wallet_balance !== undefined && request.amount > request.wallet_balance) {
-      toast.error('User has insufficient balance for this withdrawal');
+  const handleApproveClick = async (request: WithdrawalRequest) => {
+    // Fetch the CURRENT wallet balance to avoid stale data
+    const { data: currentWallet, error } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', request.user_id)
+      .maybeSingle();
+    
+    const currentBalance = currentWallet?.balance || 0;
+    
+    if (error) {
+      toast.error('Failed to verify user balance');
       return;
     }
-    setSelectedRequest(request);
+    
+    // Check if user has sufficient balance with CURRENT data
+    if (request.amount > currentBalance) {
+      toast.error(`Insufficient balance! User has ${formatCurrency(currentBalance)} but requested ${formatCurrency(request.amount)}`);
+      return;
+    }
+    
+    // Update the request with current balance for the approval flow
+    setSelectedRequest({ ...request, wallet_balance: currentBalance });
     setTransactionId('');
     setApproveDialogOpen(true);
   };
@@ -243,17 +259,37 @@ export function WithdrawalRequestsManager() {
 
     setProcessing(selectedRequest.id);
     try {
-      // 1. Deduct from user's wallet
+      // 1. Re-fetch CURRENT wallet balance to ensure accuracy
+      const { data: currentWallet, error: fetchError } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', selectedRequest.user_id)
+        .maybeSingle();
+      
+      if (fetchError) throw fetchError;
+      
+      const currentBalance = currentWallet?.balance || 0;
+      
+      // Double-check sufficient balance with real-time data
+      if (selectedRequest.amount > currentBalance) {
+        toast.error(`Insufficient balance! User now has ${formatCurrency(currentBalance)}`);
+        setProcessing(null);
+        setApproveDialogOpen(false);
+        fetchRequests(); // Refresh the list
+        return;
+      }
+
+      // 2. Deduct from user's wallet using CURRENT balance
       const { error: walletError } = await supabase
         .from('wallets')
         .update({ 
-          balance: (selectedRequest.wallet_balance || 0) - selectedRequest.amount 
+          balance: currentBalance - selectedRequest.amount 
         })
         .eq('user_id', selectedRequest.user_id);
 
       if (walletError) throw walletError;
 
-      // 2. Update request status with transaction ID
+      // 3. Update request status with transaction ID
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
@@ -263,6 +299,8 @@ export function WithdrawalRequestsManager() {
           transaction_id: transactionId.trim()
         })
         .eq('id', selectedRequest.id);
+
+      if (requestError) throw requestError;
 
       if (requestError) throw requestError;
 
