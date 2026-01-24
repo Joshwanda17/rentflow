@@ -625,25 +625,63 @@ export function WithdrawalRequestsManager() {
         </CardContent>
       </Card>
 
-      {/* Rejection Dialog */}
+      {/* Rejection Dialog with Quick Reject Options */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
-            <AlertDialogTitle>Reject Withdrawal Request</AlertDialogTitle>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              Reject Withdrawal Request
+            </AlertDialogTitle>
             <AlertDialogDescription>
-              Please provide a reason for rejecting this withdrawal request of{' '}
-              <strong>{formatCurrency(selectedRequest?.amount || 0)}</strong> from{' '}
-              <strong>{selectedRequest?.user?.full_name}</strong>.
+              Rejecting withdrawal of{' '}
+              <strong className="text-foreground">{formatCurrency(selectedRequest?.amount || 0)}</strong> from{' '}
+              <strong className="text-foreground">{selectedRequest?.user?.full_name}</strong>.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4">
-            <Textarea
-              placeholder="Enter rejection reason..."
-              value={rejectionReason}
-              onChange={(e) => setRejectionReason(e.target.value)}
-              className="min-h-[100px]"
-            />
+          
+          <div className="py-4 space-y-4">
+            {/* Quick Reject Options */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Quick Reject Reasons</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Insufficient balance', icon: '💰' },
+                  { label: 'Invalid mobile number', icon: '📱' },
+                  { label: 'Number not registered', icon: '❌' },
+                  { label: 'Duplicate request', icon: '🔄' },
+                  { label: 'Suspicious activity', icon: '⚠️' },
+                  { label: 'Try again later', icon: '⏰' },
+                ].map((reason) => (
+                  <Button
+                    key={reason.label}
+                    type="button"
+                    variant={rejectionReason === reason.label ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-1.5 h-8 text-xs"
+                    onClick={() => setRejectionReason(reason.label)}
+                  >
+                    <span>{reason.icon}</span>
+                    {reason.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Reason Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Or enter custom reason
+              </label>
+              <Textarea
+                placeholder="Enter rejection reason..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[80px] resize-none"
+              />
+            </div>
           </div>
+          
           <AlertDialogFooter>
             <AlertDialogCancel onClick={() => {
               setRejectionReason('');
@@ -658,7 +696,9 @@ export function WithdrawalRequestsManager() {
             >
               {processing === selectedRequest?.id ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
-              ) : null}
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
               Reject Request
             </AlertDialogAction>
           </AlertDialogFooter>
