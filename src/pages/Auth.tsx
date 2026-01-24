@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2, Eye, EyeOff, MessageCircle, HelpCircle } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -51,6 +51,7 @@ export default function Auth() {
   const [phone, setPhone] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<{ message: string; triedFormats: string[] } | null>(null);
+  const [failedAttempts, setFailedAttempts] = useState(0);
   const [rememberMe, setRememberMe] = useState(() => {
     // Default to true, check localStorage for saved preference
     const saved = localStorage.getItem('welile_remember_me');
@@ -228,6 +229,9 @@ export default function Auth() {
           // Get the formats we tried for helpful display
           const triedFormats = getTriedPhoneFormats(phone);
           
+          // Increment failed attempts counter
+          setFailedAttempts(prev => prev + 1);
+          
           // Provide helpful error message
           let errorMessage = lastError.message;
           if (lastError.message.includes('Invalid login credentials')) {
@@ -244,6 +248,7 @@ export default function Auth() {
           });
         } else if (loginSuccess) {
           setLoginError(null);
+          setFailedAttempts(0); // Reset failed attempts on success
           // If "Remember me" is unchecked, set up session cleanup on browser close
           if (!rememberMe) {
             sessionStorage.setItem('welile_session_only', 'true');
@@ -455,6 +460,40 @@ export default function Auth() {
                       <p className="text-xs text-muted-foreground mt-2">
                         Make sure you're using the same phone number you registered with.
                       </p>
+                    </div>
+                  )}
+
+                  {/* Show Contact Support after 3+ failed attempts */}
+                  {!isSignUp && failedAttempts >= 3 && (
+                    <div className="mt-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
+                      <div className="flex items-start gap-3">
+                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
+                          <HelpCircle className="h-5 w-5 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-sm font-medium text-foreground">
+                            Still having trouble?
+                          </p>
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Our support team can help you access your account.
+                          </p>
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            className="mt-3 gap-2 border-primary/30 text-primary hover:bg-primary/10"
+                            onClick={() => {
+                              const message = encodeURIComponent(
+                                `Hello Welile Support,\n\nI'm having trouble logging into my account.\n\nPhone: ${phone}\nAttempts: ${failedAttempts}\n\nPlease help me access my account.`
+                              );
+                              window.open(`https://wa.me/256700000000?text=${message}`, '_blank');
+                            }}
+                          >
+                            <MessageCircle className="h-4 w-4" />
+                            Contact Support
+                          </Button>
+                        </div>
+                      </div>
                     </div>
                   )}
                 </div>
