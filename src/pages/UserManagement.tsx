@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
   Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi
+  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi, Clock
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
@@ -17,6 +17,7 @@ import BulkNotificationDialog from '@/components/manager/BulkNotificationDialog'
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
+import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { InlineRoleToggle } from '@/components/manager/InlineRoleToggle';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -92,6 +93,7 @@ export default function UserManagement() {
   const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
+  const [reachOutInactiveOpen, setReachOutInactiveOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
 
   // Check if user is manager
@@ -822,6 +824,22 @@ export default function UserManagement() {
               </div>
               
               <div className="flex items-center gap-2">
+                {/* Reach Out to Inactive - Show when inactive users are selected */}
+                {getSelectedUsers().some(u => isUserInactive(u.last_active_at)) && (
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      hapticTap();
+                      setReachOutInactiveOpen(true);
+                    }}
+                    className="h-10 gap-1.5 px-3 text-orange-600 border-orange-500/30 bg-orange-500/10"
+                  >
+                    <Clock className="h-4 w-4" />
+                    <span className="text-xs font-semibold">Reach Out</span>
+                  </Button>
+                )}
+
                 <Button
                   size="sm"
                   variant="outline"
@@ -987,6 +1005,20 @@ export default function UserManagement() {
       <CreateUserInviteDialog
         open={addUserOpen}
         onOpenChange={setAddUserOpen}
+      />
+
+      <InactiveUsersReachOutDialog
+        open={reachOutInactiveOpen}
+        onOpenChange={setReachOutInactiveOpen}
+        inactiveUsers={getSelectedUsers()
+          .filter(u => isUserInactive(u.last_active_at))
+          .map(u => ({
+            id: u.id,
+            full_name: u.full_name,
+            phone: u.phone,
+            avatar_url: u.avatar_url,
+            last_active_at: u.last_active_at
+          }))}
       />
 
       {/* Floating Add User Button - visible when no selection */}
