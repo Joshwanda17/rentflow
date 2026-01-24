@@ -31,6 +31,7 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
 import RoleSwitcher from '@/components/RoleSwitcher';
+import { LandlordAgreementButton } from '@/components/landlord/agreement';
 
 interface LandlordDashboardProps {
   user: User;
@@ -161,6 +162,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
           </div>
           {addRoleComponent}
         </button>
+
+        {/* Landlord Terms & Benefits */}
+        <LandlordAgreementButton />
 
         {/* Wallet Card */}
         <WalletCard />

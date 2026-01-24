@@ -550,6 +550,39 @@ export type Database = {
           },
         ]
       }
+      landlord_agreement_acceptance: {
+        Row: {
+          accepted_at: string
+          agreement_version: string
+          created_at: string
+          device_info: string | null
+          id: string
+          ip_address: string | null
+          landlord_id: string
+          status: string
+        }
+        Insert: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          landlord_id: string
+          status?: string
+        }
+        Update: {
+          accepted_at?: string
+          agreement_version?: string
+          created_at?: string
+          device_info?: string | null
+          id?: string
+          ip_address?: string | null
+          landlord_id?: string
+          status?: string
+        }
+        Relationships: []
+      }
       landlord_payment_proofs: {
         Row: {
           amount: number
