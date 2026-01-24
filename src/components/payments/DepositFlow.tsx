@@ -1,10 +1,11 @@
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Phone, Calendar, Clock, Hash, AlertCircle, History } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -27,6 +28,7 @@ export default function DepositFlow({
   open,
   onOpenChange,
 }: DepositFlowProps) {
+  const navigate = useNavigate();
   const [step, setStep] = useState<'form' | 'submitting' | 'success'>('form');
   const [provider, setProvider] = useState<'mtn' | 'airtel'>('mtn');
   const [amount, setAmount] = useState('');
@@ -225,7 +227,20 @@ export default function DepositFlow({
             <p className="text-muted-foreground text-sm">
               Your deposit request is being verified. You'll receive a notification once it's approved.
             </p>
-            <Button onClick={handleClose} className="w-full">Done</Button>
+            <div className="space-y-2">
+              <Button onClick={handleClose} className="w-full">Done</Button>
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => {
+                  handleClose();
+                  navigate('/deposit-history');
+                }}
+              >
+                <History className="h-4 w-4 mr-2" />
+                View Deposit History
+              </Button>
+            </div>
           </div>
         ) : step === 'submitting' ? (
           <div className="py-12 text-center space-y-4">
