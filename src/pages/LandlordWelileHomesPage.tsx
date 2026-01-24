@@ -14,11 +14,13 @@ import {
   Sparkles,
   Heart,
   Loader2,
-  Calendar
+  Calendar,
+  MessageCircleHeart
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { format } from 'date-fns';
+import EncouragementMessageDialog from '@/components/landlord/EncouragementMessageDialog';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -213,12 +215,27 @@ export default function LandlordWelileHomesPage() {
                             Enrolled {format(new Date(tenant.created_at), 'MMM d, yyyy')}
                           </p>
                         </div>
-                        <Badge 
-                          variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
-                          className={tenant.subscription_status === 'active' ? 'bg-emerald-100 text-emerald-700' : ''}
-                        >
-                          {tenant.subscription_status}
-                        </Badge>
+                        <div className="flex items-center gap-2">
+                          <EncouragementMessageDialog 
+                            tenant={{
+                              tenant_id: tenant.tenant_id,
+                              tenant_name: tenant.tenant_name,
+                              total_savings: tenant.total_savings,
+                              months_enrolled: tenant.months_enrolled
+                            }}
+                            trigger={
+                              <Button variant="ghost" size="icon" className="h-8 w-8 text-purple-600 hover:text-purple-700 hover:bg-purple-50">
+                                <MessageCircleHeart className="h-4 w-4" />
+                              </Button>
+                            }
+                          />
+                          <Badge 
+                            variant={tenant.subscription_status === 'active' ? 'default' : 'secondary'}
+                            className={tenant.subscription_status === 'active' ? 'bg-emerald-100 text-emerald-700' : ''}
+                          >
+                            {tenant.subscription_status}
+                          </Badge>
+                        </div>
                       </div>
 
                       {/* Savings Display */}
