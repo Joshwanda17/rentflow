@@ -98,6 +98,9 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { UserMinus } from 'lucide-react';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
+import { usePresence } from '@/hooks/usePresence';
+import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
+
 interface ManagerDashboardProps {
   user: User;
   signOut: () => Promise<void>;
@@ -113,6 +116,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
+  const { onlineUsers, isOnline: isUserOnline } = usePresence();
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [accessVerified, setAccessVerified] = useState(() => {
@@ -208,6 +212,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
+
+  // Compute online users from topOnboarders list
+  const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
+    id: u.id,
+    full_name: u.full_name,
+    avatar_url: u.avatar_url,
+    roles: u.roles || [],
+  }));
 
   // Helper to get activity status
   const getActivityStatus = (updatedAt?: string): 'today' | 'week' | 'inactive' => {
@@ -1093,15 +1105,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
-          <Card className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation">
+          <Card 
+            className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
+            onClick={() => navigate('/users?filter=active')}
+          >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
-                <div className="p-3 rounded-xl bg-success/20">
+                <div className="p-3 rounded-xl bg-success/20 relative">
                   <UserCheck className="h-6 w-6 text-success" />
+                  {activeOnlineUsers.length > 0 && (
+                    <span className="absolute -top-1 -right-1 flex h-3 w-3">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-3 w-3 bg-success"></span>
+                    </span>
+                  )}
                 </div>
                 <div>
-                  <p className="text-2xl font-bold text-success">{activeUsers}</p>
-                  <p className="text-xs text-muted-foreground font-medium">Active</p>
+                  <p className="text-2xl font-bold text-success">{activeOnlineUsers.length}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Online Now</p>
                 </div>
               </div>
             </CardContent>
@@ -1120,6 +1141,29 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         </div>
+
+        {/* Active Users Card - Real-time online users */}
+        <ActiveUsersCard 
+          activeUsers={activeOnlineUsers}
+          totalUsers={totalUsers}
+          onUserClick={(userId) => {
+            const user = topOnboarders.find(u => u.id === userId);
+            if (user) {
+              setSelectedUser({
+                id: user.id,
+                full_name: user.full_name,
+                email: user.email,
+                phone: user.phone,
+                avatar_url: user.avatar_url,
+                roles: user.roles || [],
+                rent_discount_active: false,
+                monthly_rent: null,
+                average_rating: null,
+                rating_count: 0,
+              });
+            }
+          }}
+        />
 
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">

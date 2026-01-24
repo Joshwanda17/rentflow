@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
   Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus
+  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
@@ -27,6 +27,8 @@ import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
+import { usePresence } from '@/hooks/usePresence';
+import OnlineIndicator from '@/components/chat/OnlineIndicator';
 
 interface UserWithRating {
   id: string;
@@ -48,13 +50,14 @@ interface UserWithRating {
   subagent_count: number;
 }
 
-type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
+type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager' | 'active';
 type SortOption = 'newest' | 'oldest' | 'name_asc' | 'name_desc' | 'rating_high' | 'rating_low';
 type VerificationFilter = 'all' | 'verified' | 'pending';
 
 export default function UserManagement() {
   const navigate = useNavigate();
   const { user, roles } = useAuth();
+  const { onlineUsers, isOnline } = usePresence();
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -252,14 +255,20 @@ export default function UserManagement() {
       u.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       u.phone.includes(searchTerm);
     
-    const matchesRole = roleFilter === 'all' || u.roles.includes(roleFilter);
+    const matchesRole = 
+      roleFilter === 'all' || 
+      roleFilter === 'active' ? isOnline(u.id) : u.roles.includes(roleFilter);
+    
+    // Handle active filter separately
+    const matchesActiveFilter = roleFilter !== 'active' || isOnline(u.id);
+    const matchesRoleFilter = roleFilter === 'all' || roleFilter === 'active' || u.roles.includes(roleFilter);
     
     const matchesVerification = 
       verificationFilter === 'all' || 
       (verificationFilter === 'verified' && u.verified) ||
       (verificationFilter === 'pending' && !u.verified);
     
-    return matchesSearch && matchesRole && matchesVerification;
+    return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesVerification;
   }));
 
   const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
@@ -329,8 +338,11 @@ export default function UserManagement() {
     { value: 'rating_low', label: 'Low Rated', icon: ArrowUp },
   ];
 
-  const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
+  const activeUserCount = users.filter(u => isOnline(u.id)).length;
+
+  const roleFilters: { value: RoleFilter; label: string; count: number; icon?: typeof Wifi }[] = [
     { value: 'all', label: 'All', count: users.length },
+    { value: 'active', label: '🟢 Active', count: activeUserCount, icon: Wifi },
     { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
     { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
     { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
@@ -613,12 +625,20 @@ export default function UserManagement() {
 
                   {/* User Info */}
                   <div className="flex items-start gap-4 pl-12">
-                    <Avatar className="h-16 w-16 border-2 border-background shadow-lg shrink-0">
-                      <AvatarImage src={user.avatar_url || undefined} />
-                      <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                        {getInitials(user.full_name)}
-                      </AvatarFallback>
-                    </Avatar>
+                    <div className="relative shrink-0">
+                      <Avatar className="h-16 w-16 border-2 border-background shadow-lg">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {/* Online Status Indicator */}
+                      <OnlineIndicator 
+                        isOnline={isOnline(user.id)} 
+                        size="md" 
+                        className="absolute bottom-0 right-0"
+                      />
+                    </div>
 
                     <div className="flex-1 min-w-0">
                       <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
