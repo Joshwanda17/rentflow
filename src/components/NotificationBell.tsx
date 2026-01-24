@@ -11,6 +11,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { useState, useCallback } from 'react';
+import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationMetadata {
@@ -49,8 +50,10 @@ const CONTACTABLE_NOTIFICATIONS = [
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
+  const { role } = useAuth();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const isManager = role === 'manager';
   const [loadingContact, setLoadingContact] = useState<string | null>(null);
   const [userPhones, setUserPhones] = useState<Record<string, { phone: string; name: string }>>({});
   const [showContactableOnly, setShowContactableOnly] = useState(false);
@@ -228,8 +231,8 @@ export function NotificationBell() {
               {unreadCount > 9 ? '9+' : unreadCount}
             </Badge>
           )}
-          {/* Actionable count badge - bottom right */}
-          {contactableCount > 0 && (
+          {/* Actionable count badge - bottom right (managers only) */}
+          {isManager && contactableCount > 0 && (
             <Badge 
               className="absolute -bottom-0.5 -right-0.5 h-4 min-w-[16px] flex items-center justify-center px-1 text-[10px] font-bold bg-orange-500 text-white border border-white"
             >
@@ -248,8 +251,8 @@ export function NotificationBell() {
           )}
         </div>
         
-        {/* Filter toggle */}
-        {contactableCount > 0 && (
+        {/* Filter toggle (managers only) */}
+        {isManager && contactableCount > 0 && (
           <div className="px-4 py-2 border-b bg-muted/20">
             <Button
               variant={showContactableOnly ? "default" : "outline"}
