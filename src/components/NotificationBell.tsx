@@ -1,4 +1,4 @@
-import { Bell, MessageCircle } from 'lucide-react';
+import { Bell, MessageCircle, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -10,7 +10,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
+import { supabase } from '@/integrations/supabase/client';
 
 interface NotificationMetadata {
   account_id?: string;
@@ -24,12 +25,25 @@ interface NotificationMetadata {
   email?: string;
   full_name?: string;
   role?: string;
+  deposit_request_id?: string;
+  withdrawal_id?: string;
+  mobile_money_number?: string;
 }
+
+// Notification types that should show Contact User button
+const CONTACTABLE_NOTIFICATIONS = [
+  'Password Reset',
+  'New Deposit Request',
+  'Withdrawal Request',
+  'New Investment Request',
+];
 
 export function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
+  const [loadingContact, setLoadingContact] = useState<string | null>(null);
+  const [userPhones, setUserPhones] = useState<Record<string, { phone: string; name: string }>>({});
 
   const getTypeIcon = (type: string) => {
     switch (type) {
@@ -44,13 +58,79 @@ export function NotificationBell() {
     }
   };
 
-  const handleContactWhatsApp = (e: React.MouseEvent, phone: string, name?: string) => {
+  const fetchUserPhone = useCallback(async (userId: string): Promise<{ phone: string; name: string } | null> => {
+    // Check cache first
+    if (userPhones[userId]) {
+      return userPhones[userId];
+    }
+
+    const { data, error } = await supabase
+      .from('profiles')
+      .select('phone, full_name')
+      .eq('id', userId)
+      .single();
+
+    if (error || !data?.phone) return null;
+
+    const result = { phone: data.phone, name: data.full_name || '' };
+    setUserPhones(prev => ({ ...prev, [userId]: result }));
+    return result;
+  }, [userPhones]);
+
+  const handleContactWhatsApp = async (
+    e: React.MouseEvent, 
+    notificationId: string,
+    metadata: NotificationMetadata | null,
+    notificationTitle: string
+  ) => {
     e.stopPropagation();
+    
+    // If we already have phone in metadata, use it directly
+    if (metadata?.phone) {
+      openWhatsApp(metadata.phone, metadata.full_name, notificationTitle);
+      return;
+    }
+
+    // Otherwise fetch from user_id
+    const userId = metadata?.user_id || metadata?.supporter_id;
+    if (!userId) return;
+
+    setLoadingContact(notificationId);
+    try {
+      const userInfo = await fetchUserPhone(userId);
+      if (userInfo) {
+        openWhatsApp(userInfo.phone, userInfo.name, notificationTitle);
+      }
+    } finally {
+      setLoadingContact(null);
+    }
+  };
+
+  const openWhatsApp = (phone: string, name?: string, title?: string) => {
     const cleanPhone = phone.replace(/\D/g, '');
-    const message = encodeURIComponent(
-      `Hi ${name || 'there'}! I'm following up on your Welile activation. How can I help you?`
-    );
+    let messageText = `Hi ${name || 'there'}! `;
+    
+    if (title?.includes('Deposit')) {
+      messageText += `I'm following up on your deposit request. How can I help you?`;
+    } else if (title?.includes('Withdrawal')) {
+      messageText += `I'm following up on your withdrawal request. How can I help you?`;
+    } else if (title?.includes('Investment')) {
+      messageText += `I'm following up on your investment request. How can I help you?`;
+    } else {
+      messageText += `I'm following up from Welile. How can I help you?`;
+    }
+    
+    const message = encodeURIComponent(messageText);
     window.open(`https://wa.me/${cleanPhone}?text=${message}`, '_blank');
+  };
+
+  const shouldShowContactButton = (title: string, metadata: NotificationMetadata | null): boolean => {
+    // Check if notification title matches any contactable type
+    const isContactable = CONTACTABLE_NOTIFICATIONS.some(type => title.includes(type));
+    if (!isContactable) return false;
+    
+    // Must have either phone directly or user_id to fetch it
+    return !!(metadata?.phone || metadata?.user_id || metadata?.supporter_id);
   };
 
   const handleNotificationClick = (notification: { 
@@ -136,7 +216,8 @@ export function NotificationBell() {
             <div className="divide-y">
               {notifications.map((notification) => {
                 const metadata = notification.metadata as NotificationMetadata | null;
-                const hasContactAction = metadata?.phone && notification.title.includes('Password Reset');
+                const showContact = shouldShowContactButton(notification.title, metadata);
+                const isLoadingThisContact = loadingContact === notification.id;
                 
                 return (
                   <div
@@ -159,15 +240,20 @@ export function NotificationBell() {
                           {formatDistanceToNow(new Date(notification.created_at), { addSuffix: true })}
                         </p>
                         
-                        {/* Quick Contact Action for Password Reset notifications */}
-                        {hasContactAction && (
+                        {/* Quick Contact Action for various notification types */}
+                        {showContact && (
                           <Button
                             variant="outline"
                             size="sm"
                             className="mt-2 h-8 gap-1.5 text-xs"
-                            onClick={(e) => handleContactWhatsApp(e, metadata.phone!, metadata.full_name)}
+                            disabled={isLoadingThisContact}
+                            onClick={(e) => handleContactWhatsApp(e, notification.id, metadata, notification.title)}
                           >
-                            <MessageCircle className="h-3.5 w-3.5" />
+                            {isLoadingThisContact ? (
+                              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                            ) : (
+                              <MessageCircle className="h-3.5 w-3.5" />
+                            )}
                             Contact User
                           </Button>
                         )}
