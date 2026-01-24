@@ -24,6 +24,7 @@ import { format } from 'date-fns';
 import EncouragementMessageDialog from '@/components/landlord/EncouragementMessageDialog';
 import { WelileHomesLandlordLeaderboard } from '@/components/landlord/WelileHomesLandlordLeaderboard';
 import { ManageTenantSubscriptionDialog } from '@/components/landlord/ManageTenantSubscriptionDialog';
+import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 
 interface TenantWithSavings {
   tenant_id: string;
@@ -136,6 +137,16 @@ export default function LandlordWelileHomesPage() {
       </div>
 
       <div className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
+        {/* Landlord Badge */}
+        {user?.id && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <WelileHomesLandlordBadge userId={user.id} variant="full" showProgress />
+          </motion.div>
+        )}
+
         {/* Stats Overview */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
