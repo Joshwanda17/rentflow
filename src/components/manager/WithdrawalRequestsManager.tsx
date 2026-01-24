@@ -67,6 +67,36 @@ export function WithdrawalRequestsManager() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [allRequests, setAllRequests] = useState<WithdrawalRequest[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [lastBalanceUpdate, setLastBalanceUpdate] = useState<Date>(new Date());
+
+  // Function to refresh only wallet balances (lightweight)
+  const refreshWalletBalances = useCallback(async () => {
+    if (requests.length === 0) return;
+    
+    const userIds = [...new Set(requests.map(r => r.user_id))];
+    const { data: wallets } = await supabase
+      .from('wallets')
+      .select('user_id, balance')
+      .in('user_id', userIds);
+    
+    if (wallets) {
+      const walletMap = new Map(wallets.map(w => [w.user_id, w.balance]));
+      setRequests(prev => prev.map(r => ({
+        ...r,
+        wallet_balance: walletMap.get(r.user_id) ?? r.wallet_balance
+      })));
+      setLastBalanceUpdate(new Date());
+    }
+  }, [requests]);
+
+  // Auto-refresh wallet balances every 5 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      refreshWalletBalances();
+    }, 5000);
+    
+    return () => clearInterval(interval);
+  }, [refreshWalletBalances]);
 
   const copyToClipboard = async (text: string, requestId: string) => {
     try {
@@ -201,8 +231,8 @@ export function WithdrawalRequestsManager() {
   useEffect(() => {
     fetchRequests();
 
-    // Subscribe to real-time updates
-    const channel = supabase
+    // Subscribe to real-time updates for withdrawal requests
+    const withdrawalChannel = supabase
       .channel('withdrawal_requests_changes')
       .on(
         'postgres_changes',
@@ -217,10 +247,27 @@ export function WithdrawalRequestsManager() {
       )
       .subscribe();
 
+    // Subscribe to real-time wallet balance changes
+    const walletChannel = supabase
+      .channel('wallet_balance_changes')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets'
+        },
+        () => {
+          refreshWalletBalances();
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(withdrawalChannel);
+      supabase.removeChannel(walletChannel);
     };
-  }, [fetchRequests]);
+  }, [fetchRequests, refreshWalletBalances]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {
     // Fetch the CURRENT wallet balance to avoid stale data
@@ -512,9 +559,23 @@ export function WithdrawalRequestsManager() {
                             <p className="text-2xl font-bold text-primary">
                               {formatCurrency(request.amount)}
                             </p>
-                            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                               <Wallet className="h-3 w-3" />
-                              Balance: {formatCurrency(request.wallet_balance || 0)}
+                              <span>Balance:</span>
+                              <span className={`font-mono font-semibold ${
+                                (request.wallet_balance || 0) >= request.amount 
+                                  ? 'text-success' 
+                                  : 'text-destructive'
+                              }`}>
+                                {formatCurrency(request.wallet_balance || 0)}
+                              </span>
+                              <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
+                                <span className="relative flex h-1.5 w-1.5">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
+                                  <span className="relative inline-flex rounded-full h-1.5 w-1.5 bg-success"></span>
+                                </span>
+                                live
+                              </span>
                             </div>
                           </div>
 
