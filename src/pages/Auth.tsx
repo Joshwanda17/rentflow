@@ -486,7 +486,7 @@ export default function Auth() {
                               const message = encodeURIComponent(
                                 `Hello Welile Support,\n\nI'm having trouble logging into my account.\n\nPhone: ${phone}\nAttempts: ${failedAttempts}\n\nPlease help me access my account.`
                               );
-                              window.open(`https://wa.me/256700000000?text=${message}`, '_blank');
+                              window.open(`https://wa.me/256783673998?text=${message}`, '_blank');
                             }}
                           >
                             <MessageCircle className="h-4 w-4" />
