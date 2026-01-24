@@ -665,27 +665,90 @@ export function WithdrawalRequestsManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Approval Dialog with Transaction ID */}
+      {/* Approval Dialog with Balance Confirmation + Transaction ID */}
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-w-md">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success" />
-              Approve Withdrawal
+              Confirm Withdrawal Approval
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Confirm the payout of{' '}
-              <strong className="text-foreground">{formatCurrency(selectedRequest?.amount || 0)}</strong> to{' '}
-              <strong className="text-foreground">{selectedRequest?.user?.full_name}</strong>
-              {selectedRequest?.mobile_money_number && (
-                <span className="block mt-1">
-                  via <span className="uppercase font-medium">{selectedRequest?.mobile_money_provider}</span>{' '}
-                  <span className="font-mono">{selectedRequest?.mobile_money_number}</span>
-                </span>
-              )}
+              Review the details below before approving this withdrawal.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <div className="py-4 space-y-3">
+          
+          <div className="py-4 space-y-4">
+            {/* User Info */}
+            <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+              <UserAvatar 
+                avatarUrl={selectedRequest?.user?.avatar_url} 
+                fullName={selectedRequest?.user?.full_name} 
+                size="md" 
+              />
+              <div>
+                <p className="font-semibold">{selectedRequest?.user?.full_name}</p>
+                <p className="text-sm text-muted-foreground">{selectedRequest?.user?.phone}</p>
+              </div>
+            </div>
+
+            {/* Balance Comparison Card */}
+            <div className="border rounded-xl overflow-hidden">
+              <div className="bg-muted/30 px-4 py-2 border-b">
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Balance Summary</p>
+              </div>
+              <div className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Current Balance</span>
+                  <span className="font-mono font-bold text-lg">
+                    {formatCurrency(selectedRequest?.wallet_balance || 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-destructive">
+                  <span className="text-sm">Withdrawal Amount</span>
+                  <span className="font-mono font-bold text-lg">
+                    - {formatCurrency(selectedRequest?.amount || 0)}
+                  </span>
+                </div>
+                <div className="border-t pt-3 flex items-center justify-between">
+                  <span className="text-sm font-medium">Balance After</span>
+                  <span className={`font-mono font-bold text-lg ${
+                    ((selectedRequest?.wallet_balance || 0) - (selectedRequest?.amount || 0)) >= 0 
+                      ? 'text-success' 
+                      : 'text-destructive'
+                  }`}>
+                    {formatCurrency((selectedRequest?.wallet_balance || 0) - (selectedRequest?.amount || 0))}
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Insufficient Balance Warning */}
+            {selectedRequest && (selectedRequest.wallet_balance || 0) < selectedRequest.amount && (
+              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
+                <AlertCircle className="h-4 w-4 flex-shrink-0" />
+                <span className="font-medium">Warning: Insufficient balance! This will result in a negative balance.</span>
+              </div>
+            )}
+
+            {/* Mobile Money Details */}
+            {selectedRequest?.mobile_money_number && (
+              <div className={`p-3 rounded-lg border-2 ${
+                selectedRequest?.mobile_money_provider === 'mtn' 
+                  ? 'bg-yellow-500/10 border-yellow-500/30' 
+                  : 'bg-red-500/10 border-red-500/30'
+              }`}>
+                <div className="flex items-center gap-2">
+                  <Smartphone className={`h-4 w-4 ${
+                    selectedRequest?.mobile_money_provider === 'mtn' ? 'text-yellow-600' : 'text-red-500'
+                  }`} />
+                  <span className="text-sm font-medium uppercase">{selectedRequest?.mobile_money_provider}</span>
+                  <span className="font-mono font-bold">{selectedRequest?.mobile_money_number}</span>
+                </div>
+              </div>
+            )}
+
+            {/* Transaction ID Input */}
             <div className="space-y-2">
               <label className="text-sm font-medium">
                 Transaction ID <span className="text-destructive">*</span>
