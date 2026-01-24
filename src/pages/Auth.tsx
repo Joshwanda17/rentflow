@@ -8,7 +8,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2 } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2, Eye, EyeOff } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -51,6 +51,7 @@ export default function Auth() {
   });
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [showPinEntry, setShowPinEntry] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
   
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles, session } = useAuth();
   const { isPinEnabled } = usePinAuth();
@@ -486,15 +487,23 @@ export default function Auth() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete="current-password"
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="pl-10 h-12 text-base"
+                      className="pl-10 pr-10 h-12 text-base"
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                   <p className="text-xs text-muted-foreground">
                     If you only used Google sign-in, you may not have a password. Use the Google button instead.
@@ -509,15 +518,23 @@ export default function Auth() {
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
                       id="password"
-                      type="password"
+                      type={showPassword ? "text" : "password"}
                       autoComplete={isSignUp ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="pl-10 h-12 text-base"
+                      className="pl-10 pr-10 h-12 text-base"
                       style={{ fontSize: '16px' }}
                       required
                     />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                    </button>
                   </div>
                 </div>
               )}
