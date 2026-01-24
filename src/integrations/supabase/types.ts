@@ -2367,6 +2367,36 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_log: {
+        Row: {
+          activity_type: string
+          created_at: string
+          description: string
+          id: string
+          metadata: Json | null
+          performed_by: string | null
+          user_id: string
+        }
+        Insert: {
+          activity_type: string
+          created_at?: string
+          description: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          user_id: string
+        }
+        Update: {
+          activity_type?: string
+          created_at?: string
+          description?: string
+          id?: string
+          metadata?: Json | null
+          performed_by?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_loan_repayments: {
         Row: {
           amount: number
@@ -2441,6 +2471,39 @@ export type Database = {
           repaid_at?: string | null
           status?: string
           total_repayment?: number
+        }
+        Relationships: []
+      }
+      user_login_history: {
+        Row: {
+          id: string
+          ip_address: string | null
+          login_at: string
+          login_method: string | null
+          metadata: Json | null
+          success: boolean | null
+          user_agent: string | null
+          user_id: string
+        }
+        Insert: {
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          login_method?: string | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id: string
+        }
+        Update: {
+          id?: string
+          ip_address?: string | null
+          login_at?: string
+          login_method?: string | null
+          metadata?: Json | null
+          success?: boolean | null
+          user_agent?: string | null
+          user_id?: string
         }
         Relationships: []
       }
