@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle, Gift } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle, Gift } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -16,14 +16,13 @@ import { motion } from 'framer-motion';
 import { z } from 'zod';
 
 const signUpSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
   password: z.string().min(6, 'Password must be at least 6 characters'),
   fullName: z.string().min(2, 'Full name is required'),
   phone: z.string().min(10, 'Please enter a valid phone number'),
 });
 
 const signInSchema = z.object({
-  email: z.string().email('Please enter a valid email'),
+  phone: z.string().min(10, 'Please enter a valid phone number'),
   password: z.string().min(1, 'Password is required')
 });
 
@@ -38,7 +37,6 @@ export default function BecomeSupporter() {
   const referrerId = searchParams.get('ref');
   
   const [isSignUp, setIsSignUp] = useState(true);
-  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
@@ -143,34 +141,50 @@ export default function BecomeSupporter() {
 
     try {
       if (isSignUp) {
-        const validation = signUpSchema.safeParse({ email, password, fullName, phone });
+        const validation = signUpSchema.safeParse({ password, fullName, phone });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
 
+        // Generate email from phone number
+        const cleanPhone = phone.replace(/\D/g, '');
+        const generatedEmail = `${cleanPhone}@welile.user`;
+
         // Store that this user should become a supporter
         localStorage.setItem('pending_supporter_signup', 'true');
 
-        const { error } = await signUpWithoutRole(email, password, fullName, phone);
+        const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone);
         if (error) {
-          toast({ title: 'Sign Up Failed', description: error.message, variant: 'destructive' });
+          let errorMessage = error.message;
+          if (error.message.includes('already registered')) {
+            errorMessage = 'This phone number is already registered. Please sign in instead.';
+          }
+          toast({ title: 'Sign Up Failed', description: errorMessage, variant: 'destructive' });
           localStorage.removeItem('pending_supporter_signup');
         } else {
           toast({ title: 'Account Created!', description: 'Welcome to Welile as a Supporter!' });
         }
       } else {
-        const validation = signInSchema.safeParse({ email, password });
+        const validation = signInSchema.safeParse({ phone, password });
         if (!validation.success) {
           toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
 
-        const { error } = await signIn(email, password);
+        // Generate email from phone for sign in
+        const cleanPhone = phone.replace(/\D/g, '');
+        const generatedEmail = `${cleanPhone}@welile.user`;
+
+        const { error } = await signIn(generatedEmail, password);
         if (error) {
-          toast({ title: 'Sign In Failed', description: error.message, variant: 'destructive' });
+          let errorMessage = error.message;
+          if (error.message.includes('Invalid login credentials')) {
+            errorMessage = 'Invalid phone number or password. Please try again.';
+          }
+          toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
         }
         // After sign in, the useEffect will handle adding supporter role
       }
@@ -356,50 +370,36 @@ export default function BecomeSupporter() {
                 <CardContent>
                   <form onSubmit={handleSubmit} className="space-y-4">
                     {isSignUp && (
-                      <>
-                        <div className="space-y-2">
-                          <Label htmlFor="fullName">Full Name</Label>
-                          <div className="relative">
-                            <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="fullName"
-                              value={fullName}
-                              onChange={(e) => setFullName(e.target.value)}
-                              placeholder="Enter your full name"
-                              className="pl-10"
-                              required
-                            />
-                          </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="fullName">Full Name</Label>
+                        <div className="relative">
+                          <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                          <Input
+                            id="fullName"
+                            value={fullName}
+                            onChange={(e) => setFullName(e.target.value)}
+                            placeholder="Enter your full name"
+                            className="pl-10 h-12 text-base"
+                            style={{ fontSize: '16px' }}
+                            required
+                          />
                         </div>
-
-                        <div className="space-y-2">
-                          <Label htmlFor="phone">Phone Number</Label>
-                          <div className="relative">
-                            <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                            <Input
-                              id="phone"
-                              value={phone}
-                              onChange={(e) => setPhone(e.target.value)}
-                              placeholder="e.g., 0700123456"
-                              className="pl-10"
-                              required
-                            />
-                          </div>
-                        </div>
-                      </>
+                      </div>
                     )}
 
                     <div className="space-y-2">
-                      <Label htmlFor="email">Email</Label>
+                      <Label htmlFor="phone">Phone Number</Label>
                       <div className="relative">
-                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                         <Input
-                          id="email"
-                          type="email"
-                          value={email}
-                          onChange={(e) => setEmail(e.target.value)}
-                          placeholder="you@example.com"
-                          className="pl-10"
+                          id="phone"
+                          type="tel"
+                          inputMode="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                          placeholder="e.g., 0700123456"
+                          className="pl-10 h-12 text-base"
+                          style={{ fontSize: '16px' }}
                           required
                         />
                       </div>
@@ -412,10 +412,12 @@ export default function BecomeSupporter() {
                         <Input
                           id="password"
                           type="password"
+                          autoComplete={isSignUp ? "new-password" : "current-password"}
                           value={password}
                           onChange={(e) => setPassword(e.target.value)}
                           placeholder="••••••••"
-                          className="pl-10"
+                          className="pl-10 h-12 text-base"
+                          style={{ fontSize: '16px' }}
                           required
                         />
                       </div>
