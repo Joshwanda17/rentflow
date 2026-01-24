@@ -15,6 +15,7 @@ import { toast } from 'sonner';
 import confetti from 'canvas-confetti';
 import { WithdrawalRequestDialog } from '@/components/welile-homes/WithdrawalRequestDialog';
 import { TenantSavingsGrowthChart } from '@/components/welile-homes/TenantSavingsGrowthChart';
+import { ContributionHistoryTimeline } from '@/components/welile-homes/ContributionHistoryTimeline';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -473,6 +474,17 @@ Let's build a better future together! 🏡`;
               totalSavings={currentSavings}
               contributions={contributions}
             />
+          </motion.div>
+        )}
+
+        {/* Contribution History Timeline */}
+        {isSubscribed && user?.id && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.24 }}
+          >
+            <ContributionHistoryTimeline userId={user.id} limit={5} />
           </motion.div>
         )}
 
