@@ -18,6 +18,7 @@ import { getLocationData } from '@/hooks/useGeolocation';
 import PinEntry from '@/components/auth/PinEntry';
 import PinSetupDialog from '@/components/auth/PinSetupDialog';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
+import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 
 const signUpSchema = z.object({
   password: z.string().min(6, 'Password must be at least 6 characters'),
@@ -536,6 +537,9 @@ export default function Auth() {
                       {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                     </button>
                   </div>
+                  
+                  {/* Password strength indicator for signup */}
+                  {isSignUp && <PasswordStrengthIndicator password={password} />}
                 </div>
               )}
               
