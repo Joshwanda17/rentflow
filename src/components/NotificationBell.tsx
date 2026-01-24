@@ -90,6 +90,7 @@ export function NotificationBell() {
       case 'welile_homes_withdrawal': return '💵';
       case 'welile_homes_withdrawal_request': return '🏠';
       case 'welile_homes_encouragement': return '💜';
+      case 'welile_homes_monthly_summary': return '📊';
       default: return 'ℹ️';
     }
   };
