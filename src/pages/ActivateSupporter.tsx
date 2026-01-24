@@ -439,13 +439,18 @@ export default function ActivateSupporter() {
 
             {/* Action Buttons */}
             {resetPhone && (
-              <Button 
-                className="w-full h-12 gap-2"
-                onClick={handleShareWhatsApp}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Resend to WhatsApp
-              </Button>
+              <div className="space-y-1">
+                <Button 
+                  className="w-full h-12 gap-2"
+                  onClick={handleShareWhatsApp}
+                >
+                  <MessageCircle className="h-4 w-4" />
+                  Resend to WhatsApp
+                </Button>
+                <p className="text-[10px] text-center text-muted-foreground">
+                  Tap here if WhatsApp didn't open automatically
+                </p>
+              </div>
             )}
 
             <Button 
