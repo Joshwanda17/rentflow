@@ -220,11 +220,20 @@ export function NotificationBell() {
           className="relative h-11 w-11 min-w-[44px] min-h-[44px] text-white/90 hover:text-white hover:bg-white/15 rounded-xl touch-manipulation"
         >
           <Bell className="h-5 w-5" />
+          {/* Unread count badge - top right */}
           {unreadCount > 0 && (
             <Badge 
               className="absolute -top-0.5 -right-0.5 h-5 min-w-[20px] flex items-center justify-center px-1 text-xs font-bold bg-white text-primary animate-pulse"
             >
               {unreadCount > 9 ? '9+' : unreadCount}
+            </Badge>
+          )}
+          {/* Actionable count badge - bottom right */}
+          {contactableCount > 0 && (
+            <Badge 
+              className="absolute -bottom-0.5 -right-0.5 h-4 min-w-[16px] flex items-center justify-center px-1 text-[10px] font-bold bg-orange-500 text-white border border-white"
+            >
+              {contactableCount > 9 ? '9+' : contactableCount}
             </Badge>
           )}
         </Button>
