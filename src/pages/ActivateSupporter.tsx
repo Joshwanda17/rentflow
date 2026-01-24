@@ -427,24 +427,24 @@ export default function ActivateSupporter() {
             </div>
 
             {/* Action Buttons */}
+            {resetPhone && (
+              <Button 
+                className="w-full h-12 gap-2"
+                onClick={handleShareWhatsApp}
+              >
+                <MessageCircle className="h-4 w-4" />
+                Send to My WhatsApp
+              </Button>
+            )}
+
             <Button 
+              variant="outline"
               onClick={handleBackToActivation} 
-              className="w-full h-12 gap-2"
+              className="w-full gap-2"
             >
               <ArrowRight className="h-4 w-4" />
               Continue to Activate
             </Button>
-
-            {resetPhone && (
-              <Button 
-                variant="outline" 
-                className="w-full gap-2"
-                onClick={handleShareWhatsApp}
-              >
-                <MessageCircle className="h-4 w-4" />
-                Send via WhatsApp
-              </Button>
-            )}
 
             <p className="text-xs text-center text-muted-foreground">
               Save this password somewhere safe before continuing.
