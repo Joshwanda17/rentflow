@@ -188,8 +188,19 @@ export default function ActivateSupporter() {
       
       toast({
         title: '🔑 New Password Generated',
-        description: 'Use this password to activate your account.',
+        description: 'Opening WhatsApp...',
       });
+
+      // Auto-open WhatsApp with the new password
+      if (resetPhone) {
+        const phone = resetPhone.replace(/\D/g, '');
+        const message = encodeURIComponent(
+          `🔑 Your new Welile password: ${newPassword}\n\nUse this to activate your account.`
+        );
+        setTimeout(() => {
+          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
+        }, 500);
+      }
     } catch (error: any) {
       toast({
         title: 'Reset Failed',
