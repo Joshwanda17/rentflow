@@ -39,7 +39,7 @@ const howItWorks = [
 export default function WelileHomes() {
   const navigate = useNavigate();
   const [monthlyRent, setMonthlyRent] = useState<string>('');
-  const [duration, setDuration] = useState<string>('12');
+  const [duration, setDuration] = useState<string>('60');
   const [showResult, setShowResult] = useState(false);
 
   const calculatedFund = useMemo(() => {
@@ -181,17 +181,30 @@ Let's build a better future together! 🏡`;
                 <motion.div
                   initial={{ opacity: 0, scale: 0.95 }}
                   animate={{ opacity: 1, scale: 1 }}
-                  className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl text-center space-y-2"
+                  className="mt-4 p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl text-center space-y-3"
                 >
                   <p className="text-sm text-purple-600 font-medium">Your Future Home Fund</p>
                   <p className="text-3xl font-bold text-purple-700">{formatUGX(calculatedFund)}</p>
                   <p className="text-xs text-muted-foreground">
                     This is money built from rent you already pay.
                   </p>
-                  <div className="flex items-center justify-center gap-2 mt-2">
+                  <div className="flex items-center justify-center gap-2">
                     <TrendingUp className="h-4 w-4 text-emerald-500" />
                     <span className="text-xs text-emerald-600">Growing at 5% monthly compound</span>
                   </div>
+                  
+                  <Separator className="my-3" />
+                  
+                  <Button 
+                    onClick={() => navigate('/welile-homes-dashboard')}
+                    className="w-full bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-600 hover:to-emerald-700"
+                  >
+                    <Home className="h-4 w-4 mr-2" />
+                    Subscribe & Start Saving
+                  </Button>
+                  <p className="text-xs text-muted-foreground">
+                    View your dashboard and learn how to start
+                  </p>
                 </motion.div>
               )}
             </CardContent>
