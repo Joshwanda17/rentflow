@@ -997,6 +997,62 @@ export function WithdrawalRequestsManager() {
               )}
             </div>
 
+            {/* Summary Statistics */}
+            {!historyLoading && historyRequests.length > 0 && (
+              <div className="px-4 py-3 border-b">
+                <div className="grid grid-cols-2 gap-3">
+                  {/* Approved Stats */}
+                  <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <CheckCircle className="h-4 w-4 text-success" />
+                      <span className="text-xs font-medium text-success">Approved</span>
+                    </div>
+                    <p className="text-lg font-bold text-success">
+                      {formatCurrency(
+                        historyRequests
+                          .filter(r => r.status === 'approved')
+                          .reduce((sum, r) => sum + r.amount, 0)
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {historyRequests.filter(r => r.status === 'approved').length} request{historyRequests.filter(r => r.status === 'approved').length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+
+                  {/* Rejected Stats */}
+                  <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                    <div className="flex items-center gap-2 mb-1">
+                      <XCircle className="h-4 w-4 text-destructive" />
+                      <span className="text-xs font-medium text-destructive">Rejected</span>
+                    </div>
+                    <p className="text-lg font-bold text-destructive">
+                      {formatCurrency(
+                        historyRequests
+                          .filter(r => r.status === 'rejected')
+                          .reduce((sum, r) => sum + r.amount, 0)
+                      )}
+                    </p>
+                    <p className="text-[10px] text-muted-foreground">
+                      {historyRequests.filter(r => r.status === 'rejected').length} request{historyRequests.filter(r => r.status === 'rejected').length !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Total Summary */}
+                <div className="mt-3 p-2 rounded-lg bg-muted/50 flex items-center justify-between">
+                  <span className="text-xs text-muted-foreground">Total processed</span>
+                  <div className="flex items-center gap-3">
+                    <span className="text-xs font-medium">
+                      {historyRequests.length} request{historyRequests.length !== 1 ? 's' : ''}
+                    </span>
+                    <span className="text-sm font-bold">
+                      {formatCurrency(historyRequests.reduce((sum, r) => sum + r.amount, 0))}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
+
             <CardContent className="p-0">
               {historyLoading ? (
                 <div className="p-8 text-center">
