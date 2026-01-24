@@ -1,6 +1,6 @@
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle, History, Plus, Percent, Banknote } from 'lucide-react';
+import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle, History, Plus, Percent, Banknote, FileText } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -16,6 +16,7 @@ import confetti from 'canvas-confetti';
 import { WithdrawalRequestDialog } from '@/components/welile-homes/WithdrawalRequestDialog';
 import { TenantSavingsGrowthChart } from '@/components/welile-homes/TenantSavingsGrowthChart';
 import { ContributionHistoryTimeline } from '@/components/welile-homes/ContributionHistoryTimeline';
+import { SavingsStatementPDF } from '@/components/welile-homes/SavingsStatementPDF';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -456,6 +457,26 @@ Let's build a better future together! 🏡`;
                     Request Withdrawal
                   </Button>
                 )}
+                
+                {/* Download Statement Button */}
+                <SavingsStatementPDF
+                  userName={profile?.full_name || 'Tenant'}
+                  monthlyRent={monthlyRent}
+                  totalSavings={currentSavings}
+                  monthsEnrolled={enrolledMonths}
+                  subscriptionStatus={subscription?.subscription_status || 'active'}
+                  createdAt={subscription?.created_at || new Date().toISOString()}
+                  contributions={contributions}
+                  trigger={
+                    <Button
+                      variant="outline"
+                      className="w-full border-purple-300 text-purple-700 hover:bg-purple-50 h-12"
+                    >
+                      <FileText className="h-4 w-4 mr-2" />
+                      Download Statement
+                    </Button>
+                  }
+                />
               </CardContent>
             </Card>
           </motion.div>
