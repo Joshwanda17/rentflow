@@ -70,6 +70,7 @@ const InvestmentPortfolio = lazy(() => import('./pages/InvestmentPortfolio'));
 const MyWatchlist = lazy(() => import('./pages/MyWatchlist'));
 const Opportunities = lazy(() => import('./pages/Opportunities'));
 const AuditLog = lazy(() => import('./pages/AuditLog'));
+const DepositHistory = lazy(() => import('./pages/DepositHistory'));
 
 // Optimized QueryClient
 const queryClient = new QueryClient({
@@ -148,6 +149,7 @@ function AppRoutes() {
           <Route path="/my-watchlist" element={<MyWatchlist />} />
           <Route path="/opportunities" element={<Opportunities />} />
           <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="/deposit-history" element={<DepositHistory />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
