@@ -50,6 +50,7 @@ import {
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { RepaymentHistoryDrawer } from '@/components/tenant/RepaymentHistoryDrawer';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
+import { WelileHomesButton } from '@/components/tenant/WelileHomesButton';
 
 interface TenantDashboardProps {
   user: User;
@@ -273,6 +274,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             {addRoleComponent}
           </div>
         </button>
+
+        {/* Welile Homes - Turn rent into future home */}
+        <WelileHomesButton />
 
         {/* Rent Access Limit Card - Featured prominently */}
         <RentAccessLimitCard userId={user.id} />
