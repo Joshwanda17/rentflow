@@ -8,7 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
-  Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle
+  Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -80,7 +80,7 @@ interface UnifiedRegistrationDialogProps {
   onSuccess?: () => void;
 }
 
-type RegistrationType = 'tenant' | 'landlord' | 'sub-agent' | 'lc1' | null;
+type RegistrationType = 'tenant' | 'landlord' | 'sub-agent' | 'supporter' | 'lc1' | null;
 
 const registrationConfig = {
   tenant: {
@@ -106,6 +106,14 @@ const registrationConfig = {
     color: 'text-orange-500',
     bgColor: 'bg-orange-500/10 border-orange-500/30',
     emoji: '🤝',
+  },
+  supporter: {
+    label: 'Supporter',
+    icon: Heart,
+    description: 'Fund rent for tenants',
+    color: 'text-pink-500',
+    bgColor: 'bg-pink-500/10 border-pink-500/30',
+    emoji: '💝',
   },
   lc1: {
     label: 'LC1 Chairman',
@@ -181,9 +189,10 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
       const role = selectedType === 'sub-agent' ? 'agent' : selectedType;
       const isSubAgent = selectedType === 'sub-agent';
+      const isSupporter = selectedType === 'supporter';
 
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: { ...formData, role, isSubAgent },
+        body: { ...formData, role, isSubAgent, isSupporter },
       });
 
       if (response.error) {
@@ -290,6 +299,21 @@ ${getShareLink()}
 
 Just click the link and enter your password to start earning!`;
     }
+
+    if (createdInvite.role === 'supporter') {
+      return `💝 Welcome to Welile, ${createdInvite.fullName}!
+
+You've been invited to join as a Supporter!
+
+💰 Earn 15% monthly ROI by funding rent for tenants!
+
+🔐 Your password: ${createdInvite.password}
+
+👉 Activate your account here:
+${getShareLink()}
+
+Click the link and enter your password to start investing!`;
+    }
     
     return `${config?.emoji || '🎉'} Welcome to Welile, ${createdInvite.fullName}!
 
@@ -395,6 +419,8 @@ Password: ${createdInvite?.password}`;
             <p className="text-sm text-muted-foreground">
               {selectedType === 'sub-agent' 
                 ? 'They earn 4%, you earn 1% of their tenants' 
+                : selectedType === 'supporter'
+                ? 'They earn 15% ROI monthly on rent funded'
                 : registrationConfig[selectedType].description}
             </p>
           </div>
