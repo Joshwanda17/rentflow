@@ -22,12 +22,17 @@ import {
   History,
   Filter,
   Calendar,
-  ChevronDown
+  ChevronDown,
+  Square,
+  CheckSquare,
+  Minus
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -87,6 +92,35 @@ export function WithdrawalRequestsManager() {
     to: undefined
   });
   const [datePreset, setDatePreset] = useState<'all' | 'today' | '7days' | '30days' | 'custom'>('all');
+
+  // Batch selection state
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [batchRejectDialogOpen, setBatchRejectDialogOpen] = useState(false);
+  const [batchProcessing, setBatchProcessing] = useState(false);
+  const [batchProgress, setBatchProgress] = useState(0);
+
+  // Selection helpers
+  const toggleSelection = (id: string) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) {
+        next.delete(id);
+      } else {
+        next.add(id);
+      }
+      return next;
+    });
+  };
+
+  const selectAll = () => {
+    if (selectedIds.size === requests.length) {
+      setSelectedIds(new Set());
+    } else {
+      setSelectedIds(new Set(requests.map(r => r.id)));
+    }
+  };
+
+  const clearSelection = () => setSelectedIds(new Set());
 
   // Function to refresh only wallet balances (lightweight)
   const refreshWalletBalances = useCallback(async () => {
@@ -526,6 +560,66 @@ export function WithdrawalRequestsManager() {
     }
   };
 
+  // Batch reject handler
+  const handleBatchReject = async () => {
+    if (!user || selectedIds.size === 0 || !rejectionReason.trim()) {
+      toast.error('Please select requests and provide a rejection reason');
+      return;
+    }
+
+    setBatchProcessing(true);
+    setBatchProgress(0);
+    
+    const selectedRequests = requests.filter(r => selectedIds.has(r.id));
+    const total = selectedRequests.length;
+    let processed = 0;
+    let failed = 0;
+
+    for (const request of selectedRequests) {
+      try {
+        // Update request status
+        const { error } = await supabase
+          .from('withdrawal_requests')
+          .update({
+            status: 'rejected',
+            processed_by: user.id,
+            processed_at: new Date().toISOString(),
+            rejection_reason: rejectionReason
+          })
+          .eq('id', request.id);
+
+        if (error) throw error;
+
+        // Send notification to user
+        await supabase.from('notifications').insert({
+          user_id: request.user_id,
+          title: 'Withdrawal Rejected ❌',
+          message: `Your withdrawal request of ${formatCurrency(request.amount)} was rejected. Reason: ${rejectionReason}`,
+          type: 'warning'
+        });
+
+        processed++;
+      } catch (error) {
+        console.error('Error rejecting request:', request.id, error);
+        failed++;
+      }
+      
+      setBatchProgress(Math.round(((processed + failed) / total) * 100));
+    }
+
+    setBatchProcessing(false);
+    setBatchRejectDialogOpen(false);
+    setRejectionReason('');
+    clearSelection();
+    fetchRequests();
+
+    if (failed === 0) {
+      toast.success(`Successfully rejected ${processed} request${processed > 1 ? 's' : ''}`);
+    } else {
+      toast.warning(`Rejected ${processed} request${processed > 1 ? 's' : ''}, ${failed} failed`);
+    }
+  };
+
   const pendingCount = requests.length;
 
   return (
@@ -589,6 +683,54 @@ export function WithdrawalRequestsManager() {
 
           {/* Pending Tab */}
           <TabsContent value="pending" className="mt-0">
+            {/* Batch Actions Bar */}
+            {requests.length > 0 && (
+              <div className="px-4 py-2 border-b bg-muted/30 flex items-center justify-between gap-2 flex-wrap">
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={selectAll}
+                    className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    {selectedIds.size === 0 ? (
+                      <Square className="h-4 w-4" />
+                    ) : selectedIds.size === requests.length ? (
+                      <CheckSquare className="h-4 w-4 text-primary" />
+                    ) : (
+                      <div className="relative">
+                        <Square className="h-4 w-4" />
+                        <Minus className="h-2.5 w-2.5 absolute top-0.5 left-0.5 text-primary" />
+                      </div>
+                    )}
+                    <span className="text-xs">
+                      {selectedIds.size === 0 
+                        ? 'Select all' 
+                        : `${selectedIds.size} selected`}
+                    </span>
+                  </button>
+                  {selectedIds.size > 0 && (
+                    <button
+                      onClick={clearSelection}
+                      className="text-xs text-muted-foreground hover:text-foreground"
+                    >
+                      Clear
+                    </button>
+                  )}
+                </div>
+                
+                {selectedIds.size > 0 && (
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="gap-1.5 h-8"
+                    onClick={() => setBatchRejectDialogOpen(true)}
+                  >
+                    <XCircle className="h-3.5 w-3.5" />
+                    Reject {selectedIds.size} Request{selectedIds.size > 1 ? 's' : ''}
+                  </Button>
+                )}
+              </div>
+            )}
+
             <CardContent className="p-0">
               {loading ? (
                 <div className="p-8 text-center">
@@ -609,9 +751,19 @@ export function WithdrawalRequestsManager() {
                         initial={{ opacity: 0, y: 10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, x: -100 }}
-                        className="p-4 hover:bg-muted/30 transition-colors"
+                        className={`p-4 hover:bg-muted/30 transition-colors ${
+                          selectedIds.has(request.id) ? 'bg-primary/5' : ''
+                        }`}
                       >
                         <div className="flex items-start gap-3">
+                          {/* Checkbox */}
+                          <div className="pt-1">
+                            <Checkbox
+                              checked={selectedIds.has(request.id)}
+                              onCheckedChange={() => toggleSelection(request.id)}
+                              className="h-5 w-5"
+                            />
+                          </div>
                           <UserAvatar 
                             avatarUrl={request.user?.avatar_url} 
                             fullName={request.user?.full_name} 
@@ -998,6 +1150,116 @@ export function WithdrawalRequestsManager() {
                 <XCircle className="h-4 w-4 mr-2" />
               )}
               Reject Request
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Batch Rejection Dialog */}
+      <AlertDialog open={batchRejectDialogOpen} onOpenChange={setBatchRejectDialogOpen}>
+        <AlertDialogContent className="max-w-md">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <XCircle className="h-5 w-5 text-destructive" />
+              Batch Reject Requests
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              You are about to reject <strong className="text-foreground">{selectedIds.size}</strong> withdrawal request{selectedIds.size > 1 ? 's' : ''} totaling{' '}
+              <strong className="text-foreground">
+                {formatCurrency(
+                  requests
+                    .filter(r => selectedIds.has(r.id))
+                    .reduce((sum, r) => sum + r.amount, 0)
+                )}
+              </strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          
+          <div className="py-4 space-y-4">
+            {/* Selected requests summary */}
+            <div className="max-h-32 overflow-y-auto space-y-1 p-2 bg-muted/50 rounded-lg">
+              {requests.filter(r => selectedIds.has(r.id)).map(request => (
+                <div key={request.id} className="flex items-center justify-between text-sm">
+                  <span className="truncate">{request.user?.full_name}</span>
+                  <span className="font-mono text-muted-foreground">{formatCurrency(request.amount)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Quick Reject Options */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">Select Rejection Reason</label>
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { label: 'Insufficient balance', icon: '💰' },
+                  { label: 'Invalid mobile number', icon: '📱' },
+                  { label: 'Number not registered', icon: '❌' },
+                  { label: 'Duplicate request', icon: '🔄' },
+                  { label: 'Suspicious activity', icon: '⚠️' },
+                  { label: 'Try again later', icon: '⏰' },
+                ].map((reason) => (
+                  <Button
+                    key={reason.label}
+                    type="button"
+                    variant={rejectionReason === reason.label ? 'default' : 'outline'}
+                    size="sm"
+                    className="gap-1.5 h-8 text-xs"
+                    onClick={() => setRejectionReason(reason.label)}
+                    disabled={batchProcessing}
+                  >
+                    <span>{reason.icon}</span>
+                    {reason.label}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            {/* Custom Reason Input */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium text-muted-foreground">
+                Or enter custom reason
+              </label>
+              <Textarea
+                placeholder="Enter rejection reason..."
+                value={rejectionReason}
+                onChange={(e) => setRejectionReason(e.target.value)}
+                className="min-h-[60px] resize-none"
+                disabled={batchProcessing}
+              />
+            </div>
+
+            {/* Progress bar when processing */}
+            {batchProcessing && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Processing...</span>
+                  <span className="font-mono">{batchProgress}%</span>
+                </div>
+                <Progress value={batchProgress} className="h-2" />
+              </div>
+            )}
+          </div>
+          
+          <AlertDialogFooter>
+            <AlertDialogCancel 
+              onClick={() => {
+                setRejectionReason('');
+              }}
+              disabled={batchProcessing}
+            >
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBatchReject}
+              disabled={!rejectionReason.trim() || batchProcessing}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {batchProcessing ? (
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+              ) : (
+                <XCircle className="h-4 w-4 mr-2" />
+              )}
+              Reject {selectedIds.size} Request{selectedIds.size > 1 ? 's' : ''}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
