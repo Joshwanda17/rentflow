@@ -2679,6 +2679,48 @@ export type Database = {
           },
         ]
       }
+      welile_homes_subscriptions: {
+        Row: {
+          created_at: string
+          id: string
+          landlord_id: string | null
+          landlord_registered: boolean
+          monthly_rent: number
+          months_enrolled: number
+          notes: string | null
+          subscription_status: string
+          tenant_id: string
+          total_savings: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_registered?: boolean
+          monthly_rent?: number
+          months_enrolled?: number
+          notes?: string | null
+          subscription_status?: string
+          tenant_id: string
+          total_savings?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landlord_id?: string | null
+          landlord_registered?: boolean
+          monthly_rent?: number
+          months_enrolled?: number
+          notes?: string | null
+          subscription_status?: string
+          tenant_id?: string
+          total_savings?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       wishlists: {
         Row: {
           created_at: string

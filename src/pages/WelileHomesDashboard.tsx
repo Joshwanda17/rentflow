@@ -1,16 +1,18 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2 } from 'lucide-react';
+import { ArrowLeft, Home, TrendingUp, Calendar, Wallet, CheckCircle2, Clock, Target, ChevronRight, Sparkles, Info, CreditCard, Building2, MessageCircle, PartyPopper, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { formatUGX } from '@/lib/rentCalculations';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
+import confetti from 'canvas-confetti';
 
 const MONTHLY_GROWTH_RATE = 0.05;
 const LANDLORD_FEE_RATE = 0.10;
@@ -32,6 +34,8 @@ function calculateProjectedSavings(monthlyRent: number, months: number): number[
 export default function WelileHomesDashboard() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
   
   // Fetch user profile for rent amount
   const { data: profile } = useQuery({
@@ -48,16 +52,65 @@ export default function WelileHomesDashboard() {
     enabled: !!user?.id
   });
 
-  // Mock data - In production this would come from actual savings records
-  const monthlyRent = profile?.monthly_rent || 500000;
-  const enrolledMonths = 3; // Months since enrollment
+  // Check if user has existing subscription
+  const { data: subscription, isLoading: loadingSubscription } = useQuery({
+    queryKey: ['welile-homes-subscription', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data, error } = await supabase
+        .from('welile_homes_subscriptions')
+        .select('*')
+        .eq('tenant_id', user.id)
+        .maybeSingle();
+      if (error) throw error;
+      return data;
+    },
+    enabled: !!user?.id
+  });
+
+  // Subscribe mutation
+  const subscribeMutation = useMutation({
+    mutationFn: async () => {
+      if (!user?.id) throw new Error('Not authenticated');
+      const { error } = await supabase
+        .from('welile_homes_subscriptions')
+        .insert({
+          tenant_id: user.id,
+          monthly_rent: profile?.monthly_rent || 500000,
+          subscription_status: 'active',
+          landlord_registered: false,
+          total_savings: 0,
+          months_enrolled: 0,
+        });
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['welile-homes-subscription', user?.id] });
+      setShowSuccessModal(true);
+      // Trigger confetti
+      confetti({
+        particleCount: 100,
+        spread: 70,
+        origin: { y: 0.6 }
+      });
+    },
+    onError: (error) => {
+      toast.error('Failed to subscribe: ' + error.message);
+    }
+  });
+
+  const monthlyRent = subscription?.monthly_rent || profile?.monthly_rent || 500000;
+  const enrolledMonths = subscription?.months_enrolled || 0;
   const targetMonths = 60; // 5 year goal
+  const isSubscribed = !!subscription;
+  const landlordRegistered = subscription?.landlord_registered || false;
   
   // Calculate current savings (with compound interest)
   const currentSavings = useMemo(() => {
+    if (subscription?.total_savings) return subscription.total_savings;
     const projections = calculateProjectedSavings(monthlyRent, enrolledMonths);
     return projections[projections.length - 1] || 0;
-  }, [monthlyRent, enrolledMonths]);
+  }, [monthlyRent, enrolledMonths, subscription?.total_savings]);
   
   // Calculate target savings (at 60 months)
   const targetSavings = useMemo(() => {
@@ -76,7 +129,6 @@ export default function WelileHomesDashboard() {
   }, [monthlyRent]);
 
   const progressPercent = Math.min((enrolledMonths / targetMonths) * 100, 100);
-  const savingsProgressPercent = Math.min((currentSavings / targetSavings) * 100, 100);
 
   const paymentSteps = [
     { step: 1, title: 'Pay Rent via Welile Wallet', description: 'Make your monthly rent payment through the Welile Wallet system.' },
@@ -84,6 +136,27 @@ export default function WelileHomesDashboard() {
     { step: 3, title: '10% Added to Home Savings', description: 'The 10% fee is deposited into your Welile Homes Savings Account.' },
     { step: 4, title: 'Savings Grow Monthly', description: 'Your savings earn 5% compound interest every month automatically.' },
   ];
+
+  const handleSubscribe = () => {
+    subscribeMutation.mutate();
+  };
+
+  const handleInviteLandlord = () => {
+    const message = `Hello! I'm a tenant using Welile to build my future home savings. When you receive rent through Welile Wallet, 10% of the platform fee goes into my Welile Homes Savings Account which grows at 5% monthly compound interest.
+
+🏠 Benefits for landlords:
+✅ Receive rent 1 month upfront
+✅ Only 10% platform fee
+✅ Welile manages tenant coordination
+✅ Reduced vacancy risk
+
+Please join Welile so I can start building my housing fund! Join here: https://welile2.lovable.app/join
+
+Let's build a better future together! 🏡`;
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-purple-50 via-background to-purple-50/30">
@@ -102,132 +175,328 @@ export default function WelileHomesDashboard() {
               <p className="text-xs text-muted-foreground">Your savings dashboard</p>
             </div>
           </div>
-          <Badge className="bg-emerald-100 text-emerald-700">Active</Badge>
+          {isSubscribed ? (
+            <Badge className="bg-emerald-100 text-emerald-700">Subscribed</Badge>
+          ) : (
+            <Badge variant="secondary">Not Subscribed</Badge>
+          )}
         </div>
       </div>
 
       <div className="p-4 pb-24 space-y-6 max-w-lg mx-auto">
-        {/* Current Savings Card */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-        >
-          <Card className="overflow-hidden border-purple-200">
-            <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-5 text-white">
-              <div className="flex items-start justify-between">
-                <div>
-                  <p className="text-purple-200 text-sm">Your Home Savings</p>
-                  <p className="text-3xl font-bold mt-1">{formatUGX(currentSavings)}</p>
-                  <div className="flex items-center gap-2 mt-2">
-                    <TrendingUp className="h-4 w-4 text-emerald-300" />
-                    <span className="text-sm text-emerald-300">+5% monthly compound</span>
+        {/* Subscribe Section (if not subscribed) */}
+        {!isSubscribed && !loadingSubscription && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="border-purple-300 bg-gradient-to-br from-purple-50 to-white">
+              <CardContent className="p-5 space-y-4 text-center">
+                <div className="w-16 h-16 rounded-full bg-purple-100 flex items-center justify-center mx-auto">
+                  <Home className="h-8 w-8 text-purple-600" />
+                </div>
+                <h2 className="text-xl font-bold">Start Your Home Savings Journey</h2>
+                <p className="text-sm text-muted-foreground">
+                  Subscribe to Welile Homes and start building your future home fund with every rent payment.
+                </p>
+                
+                {/* Summary Card */}
+                <Card className="bg-white border-purple-200">
+                  <CardContent className="p-4 space-y-3">
+                    <h3 className="font-semibold text-sm">What You'll Get:</h3>
+                    <div className="space-y-2 text-left">
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
+                        <span className="text-sm">10% of landlord fee saved for you</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
+                        <span className="text-sm">5% monthly compound interest growth</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
+                        <span className="text-sm">Projected {formatUGX(targetSavings)} in 5 years</span>
+                      </div>
+                      <div className="flex items-start gap-2">
+                        <CheckCircle2 className="h-4 w-4 text-emerald-600 mt-0.5" />
+                        <span className="text-sm">Use funds for land, home, or mortgage</span>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+
+                <Button 
+                  onClick={handleSubscribe}
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 hover:from-purple-700 hover:to-purple-800 h-12"
+                  disabled={subscribeMutation.isPending}
+                >
+                  {subscribeMutation.isPending ? 'Subscribing...' : 'Subscribe Now - It\'s Free!'}
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Success Modal */}
+        <AnimatePresence>
+          {showSuccessModal && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+              onClick={() => setShowSuccessModal(false)}
+            >
+              <motion.div
+                initial={{ scale: 0.9, opacity: 0 }}
+                animate={{ scale: 1, opacity: 1 }}
+                exit={{ scale: 0.9, opacity: 0 }}
+                onClick={(e) => e.stopPropagation()}
+              >
+                <Card className="max-w-sm">
+                  <CardContent className="p-6 space-y-4 text-center">
+                    <div className="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center mx-auto">
+                      <PartyPopper className="h-10 w-10 text-emerald-600" />
+                    </div>
+                    <h2 className="text-2xl font-bold text-emerald-700">Successfully Subscribed!</h2>
+                    <p className="text-muted-foreground">
+                      Welcome to Welile Homes! You're now on your journey to homeownership.
+                    </p>
+                    
+                    <Separator />
+                    
+                    <div className="space-y-3 text-left">
+                      <h3 className="font-semibold">Here's what to expect:</h3>
+                      <div className="space-y-2">
+                        <div className="flex items-start gap-2">
+                          <Wallet className="h-4 w-4 text-purple-600 mt-0.5" />
+                          <span className="text-sm">Pay rent through <strong>Welile Wallet</strong> to build savings</span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <TrendingUp className="h-4 w-4 text-emerald-600 mt-0.5" />
+                          <span className="text-sm">Watch your fund grow at <strong>5% monthly</strong></span>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <Home className="h-4 w-4 text-blue-600 mt-0.5" />
+                          <span className="text-sm">Use savings for land, home, or mortgage</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="bg-amber-50 p-3 rounded-lg border border-amber-200">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5" />
+                        <p className="text-xs text-amber-700">
+                          <strong>Important:</strong> Your savings only grow when your landlord is registered on Welile and you pay rent via Welile Wallet.
+                        </p>
+                      </div>
+                    </div>
+                    
+                    <Button 
+                      onClick={() => setShowSuccessModal(false)}
+                      className="w-full bg-gradient-to-r from-purple-600 to-purple-700"
+                    >
+                      Got It!
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Landlord Not Registered Alert */}
+        {isSubscribed && !landlordRegistered && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <Card className="border-amber-300 bg-gradient-to-br from-amber-50 to-amber-100">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-amber-200 flex items-center justify-center flex-shrink-0">
+                    <Building2 className="h-5 w-5 text-amber-700" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-amber-800">Landlord Not Yet Registered</h3>
+                    <p className="text-sm text-amber-700 mt-1">
+                      Your savings will only start growing when your landlord joins Welile. Invite them now!
+                    </p>
                   </div>
                 </div>
-                <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
-                  <Home className="h-7 w-7" />
-                </div>
-              </div>
-            </div>
-            <CardContent className="p-4 space-y-4">
-              <div className="space-y-2">
-                <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Progress to 5-Year Goal</span>
-                  <span className="font-medium">{enrolledMonths} of {targetMonths} months</span>
-                </div>
-                <Progress value={progressPercent} className="h-2" />
-              </div>
-              <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
-                <div className="flex items-center gap-2">
-                  <Target className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm">5-Year Target</span>
-                </div>
-                <span className="font-bold text-purple-700">{formatUGX(targetSavings)}</span>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+                <Button 
+                  onClick={handleInviteLandlord}
+                  className="w-full bg-amber-600 hover:bg-amber-700 text-white h-12"
+                >
+                  <MessageCircle className="h-4 w-4 mr-2" />
+                  Invite My Landlord via WhatsApp
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
-        {/* Monthly Contribution */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-        >
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+        {/* Pay with Wallet Encouragement */}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <Card className="border-emerald-200 bg-gradient-to-br from-emerald-50 to-white">
+              <CardContent className="p-4 space-y-3">
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 flex items-center justify-center flex-shrink-0">
                     <Wallet className="h-5 w-5 text-emerald-600" />
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Monthly Contribution</p>
-                    <p className="font-bold">{formatUGX(monthlyRent * LANDLORD_FEE_RATE)}</p>
+                    <h3 className="font-semibold text-emerald-800">Pay Rent with Welile Wallet</h3>
+                    <p className="text-sm text-emerald-700 mt-1">
+                      Every rent payment through Welile Wallet adds to your home savings. Start building your future today!
+                    </p>
                   </div>
                 </div>
-                <div className="text-right">
-                  <p className="text-xs text-muted-foreground">From rent of</p>
-                  <p className="text-sm font-medium">{formatUGX(monthlyRent)}</p>
+                <Button 
+                  onClick={() => navigate('/dashboard')}
+                  variant="outline"
+                  className="w-full border-emerald-300 text-emerald-700 hover:bg-emerald-50 h-12"
+                >
+                  <Wallet className="h-4 w-4 mr-2" />
+                  Go to Wallet
+                </Button>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Current Savings Card (only show if subscribed) */}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <Card className="overflow-hidden border-purple-200">
+              <div className="bg-gradient-to-br from-purple-600 to-purple-800 p-5 text-white">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <p className="text-purple-200 text-sm">Your Home Savings</p>
+                    <p className="text-3xl font-bold mt-1">{formatUGX(currentSavings)}</p>
+                    <div className="flex items-center gap-2 mt-2">
+                      <TrendingUp className="h-4 w-4 text-emerald-300" />
+                      <span className="text-sm text-emerald-300">+5% monthly compound</span>
+                    </div>
+                  </div>
+                  <div className="w-14 h-14 rounded-full bg-white/20 flex items-center justify-center">
+                    <Home className="h-7 w-7" />
+                  </div>
                 </div>
               </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              <CardContent className="p-4 space-y-4">
+                <div className="space-y-2">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-muted-foreground">Progress to 5-Year Goal</span>
+                    <span className="font-medium">{enrolledMonths} of {targetMonths} months</span>
+                  </div>
+                  <Progress value={progressPercent} className="h-2" />
+                </div>
+                <div className="flex items-center justify-between p-3 bg-purple-50 rounded-lg">
+                  <div className="flex items-center gap-2">
+                    <Target className="h-4 w-4 text-purple-600" />
+                    <span className="text-sm">5-Year Target</span>
+                  </div>
+                  <span className="font-bold text-purple-700">{formatUGX(targetSavings)}</span>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
+        {/* Monthly Contribution */}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.3 }}
+          >
+            <Card>
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-lg bg-emerald-100 flex items-center justify-center">
+                      <Wallet className="h-5 w-5 text-emerald-600" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-muted-foreground">Monthly Contribution</p>
+                      <p className="font-bold">{formatUGX(monthlyRent * LANDLORD_FEE_RATE)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-xs text-muted-foreground">From rent of</p>
+                    <p className="text-sm font-medium">{formatUGX(monthlyRent)}</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* Milestones */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-        >
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Sparkles className="h-5 w-5 text-purple-600" />
-                Savings Milestones
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-3">
-              {milestones.map((milestone, index) => {
-                const isReached = enrolledMonths >= milestone.months;
-                const isNext = !isReached && (index === 0 || enrolledMonths >= milestones[index - 1].months);
-                
-                return (
-                  <div 
-                    key={milestone.months}
-                    className={`flex items-center justify-between p-3 rounded-lg border ${
-                      isReached 
-                        ? 'bg-emerald-50 border-emerald-200' 
-                        : isNext 
-                          ? 'bg-purple-50 border-purple-200' 
-                          : 'bg-muted/30 border-border'
-                    }`}
-                  >
-                    <div className="flex items-center gap-3">
-                      {isReached ? (
-                        <CheckCircle2 className="h-5 w-5 text-emerald-600" />
-                      ) : (
-                        <div className={`w-5 h-5 rounded-full border-2 ${isNext ? 'border-purple-400' : 'border-muted-foreground/30'}`} />
-                      )}
-                      <span className={`font-medium ${isReached ? 'text-emerald-700' : ''}`}>
-                        {milestone.label}
+        {isSubscribed && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+          >
+            <Card>
+              <CardHeader className="pb-3">
+                <CardTitle className="text-base flex items-center gap-2">
+                  <Sparkles className="h-5 w-5 text-purple-600" />
+                  Savings Milestones
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                {milestones.map((milestone, index) => {
+                  const isReached = enrolledMonths >= milestone.months;
+                  const isNext = !isReached && (index === 0 || enrolledMonths >= milestones[index - 1].months);
+                  
+                  return (
+                    <div 
+                      key={milestone.months}
+                      className={`flex items-center justify-between p-3 rounded-lg border ${
+                        isReached 
+                          ? 'bg-emerald-50 border-emerald-200' 
+                          : isNext 
+                            ? 'bg-purple-50 border-purple-200' 
+                            : 'bg-muted/30 border-border'
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        {isReached ? (
+                          <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+                        ) : (
+                          <div className={`w-5 h-5 rounded-full border-2 ${isNext ? 'border-purple-400' : 'border-muted-foreground/30'}`} />
+                        )}
+                        <span className={`font-medium ${isReached ? 'text-emerald-700' : ''}`}>
+                          {milestone.label}
+                        </span>
+                      </div>
+                      <span className={`font-bold ${isReached ? 'text-emerald-700' : 'text-muted-foreground'}`}>
+                        {formatUGX(milestone.amount)}
                       </span>
                     </div>
-                    <span className={`font-bold ${isReached ? 'text-emerald-700' : 'text-muted-foreground'}`}>
-                      {formatUGX(milestone.amount)}
-                    </span>
-                  </div>
-                );
-              })}
-            </CardContent>
-          </Card>
-        </motion.div>
+                  );
+                })}
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
 
         {/* How to Pay Section */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          transition={{ delay: 0.5 }}
         >
           <Card className="border-purple-200">
             <CardHeader className="pb-3">
@@ -261,7 +530,7 @@ export default function WelileHomesDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+          transition={{ delay: 0.6 }}
         >
           <Card className="bg-gradient-to-br from-amber-50 to-amber-100 border-amber-200">
             <CardContent className="p-4">
@@ -287,7 +556,7 @@ export default function WelileHomesDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
+          transition={{ delay: 0.7 }}
         >
           <Button 
             onClick={() => navigate('/welile-homes')}
@@ -304,7 +573,7 @@ export default function WelileHomesDashboard() {
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.8 }}
           className="text-center py-6"
         >
           <h2 className="text-xl font-bold bg-gradient-to-r from-purple-600 to-purple-800 bg-clip-text text-transparent">
