@@ -2,8 +2,7 @@ import { lazy, Suspense, memo } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
-import { AnimatePresence, motion } from "framer-motion";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PinAuthProvider } from "@/hooks/usePinAuth";
@@ -97,94 +96,62 @@ const PageLoader = memo(() => (
 ));
 PageLoader.displayName = 'PageLoader';
 
-// Page transition variants
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 8,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  exit: {
-    opacity: 0,
-    y: -8,
-  },
-};
-
-const pageTransition = {
-  duration: 0.2,
-  ease: [0.25, 0.46, 0.45, 0.94] as const,
-};
-
-// Animated routes wrapper
-function AnimatedRoutes() {
-  const location = useLocation();
-  
+// Stable routes wrapper (no JS-based page transitions to avoid mobile “shaking”)
+function AppRoutes() {
   // Auto-update service worker for real-time feature deployment
   useServiceWorkerUpdate();
-  
+
   // Listen for force refresh signals from managers
   useForceRefresh();
+
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="min-h-screen"
-      >
-        <Suspense fallback={<PageLoader />}>
-          <Routes location={location}>
-            <Route path="/" element={<Index />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/dashboard" element={<Dashboard />} />
-            <Route path="/select-role" element={<SelectRole />} />
-            <Route path="/transactions" element={<TransactionHistory />} />
-            <Route path="/settings" element={<Settings />} />
-            <Route path="/earnings" element={<AgentEarnings />} />
-            <Route path="/update-password" element={<UpdatePassword />} />
-            <Route path="/orders" element={<OrderHistory />} />
-            <Route path="/wishlist" element={<Wishlist />} />
-            <Route path="/analytics" element={<AgentAnalytics />} />
-            <Route path="/flash-sales" element={<FlashSales />} />
-            <Route path="/marketplace" element={<Marketplace />} />
-            <Route path="/categories" element={<Categories />} />
-            <Route path="/seller/:sellerId" element={<SellerProfile />} />
-            <Route path="/my-receipts" element={<MyReceipts />} />
-            <Route path="/my-loans" element={<MyLoans />} />
-            <Route path="/payment-schedule" element={<PaymentSchedule />} />
-            <Route path="/pay-landlord" element={<PayLandlord />} />
-            <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
-            <Route path="/benefits" element={<Benefits />} />
-            <Route path="/referrals" element={<Referrals />} />
-            <Route path="/manager-access" element={<ManagerAccess />} />
-            <Route path="/become-supporter" element={<BecomeSupporter />} />
-            <Route path="/vendor-portal" element={<VendorPortal />} />
-            <Route path="/deposits-management" element={<DepositsManagement />} />
-            <Route path="/install" element={<Install />} />
-            <Route path="/activate-supporter" element={<ActivateSupporter />} />
-            <Route path="/chat" element={<Chat />} />
-            <Route path="/chat/invite/:userId" element={<ChatInvite />} />
-            <Route path="/agent-registrations" element={<AgentRegistrations />} />
-            <Route path="/sub-agents" element={<SubAgentAnalytics />} />
-            <Route path="/join" element={<Join />} />
-            <Route path="/calculator" element={<Calculator />} />
-            <Route path="/users" element={<UserManagement />} />
-            <Route path="/supporter-earnings" element={<SupporterEarnings />} />
-            <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
-            <Route path="/my-watchlist" element={<MyWatchlist />} />
-            <Route path="/opportunities" element={<Opportunities />} />
-            <Route path="/audit-log" element={<AuditLog />} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </Suspense>
-      </motion.div>
-    </AnimatePresence>
+    <div className="min-h-screen">
+      <Suspense fallback={<PageLoader />}>
+        <Routes>
+          <Route path="/" element={<Index />} />
+          <Route path="/auth" element={<Auth />} />
+          <Route path="/dashboard" element={<Dashboard />} />
+          <Route path="/select-role" element={<SelectRole />} />
+          <Route path="/transactions" element={<TransactionHistory />} />
+          <Route path="/settings" element={<Settings />} />
+          <Route path="/earnings" element={<AgentEarnings />} />
+          <Route path="/update-password" element={<UpdatePassword />} />
+          <Route path="/orders" element={<OrderHistory />} />
+          <Route path="/wishlist" element={<Wishlist />} />
+          <Route path="/analytics" element={<AgentAnalytics />} />
+          <Route path="/flash-sales" element={<FlashSales />} />
+          <Route path="/marketplace" element={<Marketplace />} />
+          <Route path="/categories" element={<Categories />} />
+          <Route path="/seller/:sellerId" element={<SellerProfile />} />
+          <Route path="/my-receipts" element={<MyReceipts />} />
+          <Route path="/my-loans" element={<MyLoans />} />
+          <Route path="/payment-schedule" element={<PaymentSchedule />} />
+          <Route path="/pay-landlord" element={<PayLandlord />} />
+          <Route path="/rent-discount-history" element={<RentDiscountHistory />} />
+          <Route path="/benefits" element={<Benefits />} />
+          <Route path="/referrals" element={<Referrals />} />
+          <Route path="/manager-access" element={<ManagerAccess />} />
+          <Route path="/become-supporter" element={<BecomeSupporter />} />
+          <Route path="/vendor-portal" element={<VendorPortal />} />
+          <Route path="/deposits-management" element={<DepositsManagement />} />
+          <Route path="/install" element={<Install />} />
+          <Route path="/activate-supporter" element={<ActivateSupporter />} />
+          <Route path="/chat" element={<Chat />} />
+          <Route path="/chat/invite/:userId" element={<ChatInvite />} />
+          <Route path="/agent-registrations" element={<AgentRegistrations />} />
+          <Route path="/sub-agents" element={<SubAgentAnalytics />} />
+          <Route path="/join" element={<Join />} />
+          <Route path="/calculator" element={<Calculator />} />
+          <Route path="/users" element={<UserManagement />} />
+          <Route path="/supporter-earnings" element={<SupporterEarnings />} />
+          <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
+          <Route path="/my-watchlist" element={<MyWatchlist />} />
+          <Route path="/opportunities" element={<Opportunities />} />
+          <Route path="/audit-log" element={<AuditLog />} />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </div>
   );
 }
 
@@ -215,7 +182,7 @@ const App = () => (
                                     <Toaster />
                                     <Sonner />
                                   </Suspense>
-                                  <AnimatedRoutes />
+                                  <AppRoutes />
                                 </TooltipProvider>
                               </ComparisonProvider>
                             </CartProvider>
