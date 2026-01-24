@@ -46,6 +46,7 @@ const CONTACTABLE_NOTIFICATIONS = [
   'Loan Application',
   'Loan Request',
   'New Loan',
+  'Landlord Registered',
 ];
 
 export function NotificationBell() {
@@ -83,6 +84,8 @@ export function NotificationBell() {
       case 'warning': return '🔔';
       case 'investment_funding': return '💰';
       case 'info': return '🔑';
+      case 'landlord_registered': return '🏠';
+      case 'welile_homes_activated': return '🎉';
       default: return 'ℹ️';
     }
   };
@@ -185,6 +188,20 @@ export function NotificationBell() {
     if (notification.type === 'investment_funding') {
       setOpen(false);
       navigate('/manager-access?tab=investments');
+      return;
+    }
+
+    // Handle landlord registered notification - navigate to Welile Homes tab
+    if (notification.type === 'landlord_registered') {
+      setOpen(false);
+      navigate('/manager-access?tab=welile-homes');
+      return;
+    }
+
+    // Handle tenant notification - navigate to Welile Homes dashboard
+    if (notification.type === 'welile_homes_activated') {
+      setOpen(false);
+      navigate('/welile-homes-dashboard');
       return;
     }
     
