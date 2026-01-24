@@ -2775,6 +2775,71 @@ export type Database = {
         }
         Relationships: []
       }
+      welile_homes_withdrawals: {
+        Row: {
+          amount: number
+          created_at: string
+          disbursed_at: string | null
+          disbursement_method: string | null
+          disbursement_reference: string | null
+          id: string
+          purpose: string
+          purpose_details: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: string
+          subscription_id: string
+          supporting_documents: string[] | null
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          disbursed_at?: string | null
+          disbursement_method?: string | null
+          disbursement_reference?: string | null
+          id?: string
+          purpose: string
+          purpose_details?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subscription_id: string
+          supporting_documents?: string[] | null
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          disbursed_at?: string | null
+          disbursement_method?: string | null
+          disbursement_reference?: string | null
+          id?: string
+          purpose?: string
+          purpose_details?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?: string
+          subscription_id?: string
+          supporting_documents?: string[] | null
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "welile_homes_withdrawals_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "welile_homes_subscriptions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       wishlists: {
         Row: {
           created_at: string

@@ -47,6 +47,7 @@ const CONTACTABLE_NOTIFICATIONS = [
   'Loan Request',
   'New Loan',
   'Landlord Registered',
+  'Welile Homes Withdrawal',
 ];
 
 export function NotificationBell() {
@@ -86,6 +87,8 @@ export function NotificationBell() {
       case 'info': return '🔑';
       case 'landlord_registered': return '🏠';
       case 'welile_homes_activated': return '🎉';
+      case 'welile_homes_withdrawal': return '💵';
+      case 'welile_homes_withdrawal_request': return '🏠';
       default: return 'ℹ️';
     }
   };
@@ -199,9 +202,16 @@ export function NotificationBell() {
     }
 
     // Handle tenant notification - navigate to Welile Homes dashboard
-    if (notification.type === 'welile_homes_activated') {
+    if (notification.type === 'welile_homes_activated' || notification.type === 'welile_homes_withdrawal') {
       setOpen(false);
       navigate('/welile-homes-dashboard');
+      return;
+    }
+
+    // Handle withdrawal request notification - navigate to Welile Homes tab
+    if (notification.type === 'welile_homes_withdrawal_request') {
+      setOpen(false);
+      navigate('/manager-access?tab=welile-homes');
       return;
     }
     

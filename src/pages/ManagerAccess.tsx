@@ -55,7 +55,8 @@ import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHome
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, isWithinInterval } from 'date-fns';
 import { cn } from '@/lib/utils';
-import { Home } from 'lucide-react';
+import { Home, Banknote as BanknoteIcon } from 'lucide-react';
+import { WelileHomesWithdrawalsManager } from '@/components/manager/WelileHomesWithdrawalsManager';
 
 interface SearchResult {
   type: 'user' | 'rent_request' | 'order' | 'loan';
@@ -731,7 +732,10 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="welile-homes" className="mt-4">
-            <WelileHomesSubscriptionsManager />
+            <div className="space-y-6">
+              <WelileHomesSubscriptionsManager />
+              <WelileHomesWithdrawalsManager />
+            </div>
           </TabsContent>
         </Tabs>
       </main>
