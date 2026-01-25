@@ -96,6 +96,7 @@ export default function TryCalculator() {
 📊 Try this FREE Investment Calculator - no signup needed!
 📈 See exactly how much you can earn
 🔄 With compounding up to 60 months!
+🎁 Sign up & we BOTH earn UGX 500!
 
 👉 Try it: ${shareLink}`;
 
