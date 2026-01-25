@@ -21,7 +21,8 @@ export function CalculatorShareCard({ className }: CalculatorShareCardProps) {
 
 📊 Try our FREE Investment Calculator - no signup needed!
 📈 See exactly how much you can earn
-🔒 Start with as little as UGX 50,000
+🔄 With compounding up to 60 months!
+🎁 Sign up & we BOTH earn UGX 500!
 
 👉 Try it now: ${calculatorLink}`;
 
@@ -94,7 +95,7 @@ export function CalculatorShareCard({ className }: CalculatorShareCardProps) {
               <Sparkles className="h-4 w-4 text-yellow-300" />
             </div>
             <p className="text-xs text-white/80 mb-3">
-              Let strangers try it free - they sign up as Supporters!
+              Let strangers try it free - you both earn UGX 500 on signup!
             </p>
             
             <div className="flex gap-2">
@@ -116,7 +117,7 @@ export function CalculatorShareCard({ className }: CalculatorShareCardProps) {
             
             {/* Quick info */}
             <p className="text-[10px] text-white/70 mt-2 text-center">
-              Works offline • No signup needed • Auto-assigns Supporter role
+              Works offline • No signup needed • UGX 500 bonus each
             </p>
           </div>
         </div>
