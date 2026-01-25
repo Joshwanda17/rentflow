@@ -175,7 +175,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data?.user) {
       const userId = data.user.id;
       
-      // First, check if user was inactive for 90+ days before updating last_active_at
+      // First, check if user was inactive for 30+ days before updating last_active_at
       const { data: profileData } = await supabase
         .from('profiles')
         .select('last_active_at, full_name')
@@ -183,7 +183,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         .single();
       
       const wasLongInactive = profileData?.last_active_at 
-        ? (new Date().getTime() - new Date(profileData.last_active_at).getTime()) / (1000 * 60 * 60 * 24) >= 90
+        ? (new Date().getTime() - new Date(profileData.last_active_at).getTime()) / (1000 * 60 * 60 * 24) >= 30
         : false;
       
       // Update last_active_at
@@ -210,12 +210,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           user_id: userId,
           activity_type: 'login',
           description: wasLongInactive 
-            ? 'Returned after 90+ days of inactivity' 
+            ? 'Returned after 30+ days of inactivity' 
             : 'Logged in with password'
         })
         .then(() => {});
       
-      // Notify managers if user was inactive for 90+ days
+      // Notify managers if user was inactive for 30+ days
       if (wasLongInactive && profileData) {
         const daysInactive = Math.floor(
           (new Date().getTime() - new Date(profileData.last_active_at!).getTime()) / (1000 * 60 * 60 * 24)
