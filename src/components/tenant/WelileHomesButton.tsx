@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, ChevronRight, CheckCircle2, TrendingUp, Trophy, Target, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -34,7 +34,6 @@ const MILESTONES = [
 ];
 
 function getMilestone(percent: number) {
-  // Return highest reached milestone
   for (let i = MILESTONES.length - 1; i >= 0; i--) {
     if (percent >= MILESTONES[i].threshold) {
       return MILESTONES[i];
@@ -44,13 +43,58 @@ function getMilestone(percent: number) {
 }
 
 function getNextMilestone(percent: number) {
-  // Return next milestone to reach
   for (const milestone of MILESTONES) {
     if (percent < milestone.threshold) {
       return milestone;
     }
   }
-  return null; // All milestones reached
+  return null;
+}
+
+// Mini sparkline component using SVG
+function MiniSparkline({ data }: { data: number[] }) {
+  const width = 60;
+  const height = 20;
+  const padding = 2;
+  
+  const points = useMemo(() => {
+    if (data.length < 2) return '';
+    
+    const min = Math.min(...data);
+    const max = Math.max(...data);
+    const range = max - min || 1;
+    
+    return data.map((value, i) => {
+      const x = padding + (i / (data.length - 1)) * (width - padding * 2);
+      const y = height - padding - ((value - min) / range) * (height - padding * 2);
+      return `${x},${y}`;
+    }).join(' ');
+  }, [data]);
+
+  if (data.length < 2) return null;
+
+  return (
+    <svg width={width} height={height} className="flex-shrink-0">
+      <polyline
+        points={points}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="1.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        className="text-green-500"
+      />
+      {/* End dot */}
+      {data.length > 0 && (
+        <circle
+          cx={width - padding}
+          cy={height - padding - ((data[data.length - 1] - Math.min(...data)) / (Math.max(...data) - Math.min(...data) || 1)) * (height - padding * 2)}
+          r="2"
+          className="fill-green-600"
+        />
+      )}
+    </svg>
+  );
 }
 
 export function WelileHomesButton() {
@@ -76,7 +120,26 @@ export function WelileHomesButton() {
       return data;
     },
     enabled: !!user?.id,
-    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+    staleTime: 1000 * 60 * 5,
+  });
+
+  // Fetch contribution history for sparkline
+  const { data: contributions } = useQuery({
+    queryKey: ['welile-homes-contributions-sparkline', subscription?.id],
+    queryFn: async () => {
+      if (!subscription?.id) return [];
+      const { data, error } = await supabase
+        .from('welile_homes_contributions')
+        .select('balance_after, created_at')
+        .eq('subscription_id', subscription.id)
+        .order('created_at', { ascending: true })
+        .limit(10);
+      
+      if (error || !data) return [];
+      return data.map(c => c.balance_after);
+    },
+    enabled: !!subscription?.id,
+    staleTime: 1000 * 60 * 5,
   });
 
   const hasSubscription = !!subscription;
@@ -92,6 +155,18 @@ export function WelileHomesButton() {
   const nextMilestone = getNextMilestone(progressPercent);
   const percentToNext = nextMilestone ? (nextMilestone.threshold - progressPercent).toFixed(1) : null;
 
+  // Sparkline data - include current balance at end if different from last contribution
+  const sparklineData = useMemo(() => {
+    const data = contributions ?? [];
+    if (data.length === 0 && totalSavings > 0) {
+      return [0, totalSavings]; // Show growth from 0 to current
+    }
+    if (data.length > 0 && data[data.length - 1] !== totalSavings) {
+      return [...data, totalSavings];
+    }
+    return data;
+  }, [contributions, totalSavings]);
+
   // Check localStorage for celebrated milestones and trigger celebration
   useEffect(() => {
     if (!user?.id || !hasSubscription || progressPercent === 0) return;
@@ -100,17 +175,14 @@ export function WelileHomesButton() {
     const celebratedStr = localStorage.getItem(storageKey);
     const celebrated = celebratedStr ? parseInt(celebratedStr, 10) : 0;
 
-    // Find the highest milestone we've just crossed
     for (const milestone of MILESTONES) {
       if (progressPercent >= milestone.threshold && celebrated < milestone.threshold) {
-        // Fire celebration!
         fireSuccess();
         toast({
           title: `🎉 ${milestone.label} Milestone Reached!`,
           description: `Congratulations! You've saved ${milestone.label} of your 5-year home fund goal!`,
         });
         
-        // Update localStorage
         localStorage.setItem(storageKey, milestone.threshold.toString());
         celebratedMilestoneRef.current = milestone.threshold;
         break;
@@ -169,10 +241,15 @@ export function WelileHomesButton() {
               </div>
               {hasSubscription ? (
                 <div className="mt-1 space-y-1">
-                  <div className="flex items-center gap-1.5">
-                    <TrendingUp className="h-3.5 w-3.5 text-green-600" />
-                    <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
-                    <span className="text-xs text-muted-foreground">saved</span>
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1.5 flex-1">
+                      <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                      <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
+                      <span className="text-xs text-muted-foreground">saved</span>
+                    </div>
+                    {sparklineData.length >= 2 && (
+                      <MiniSparkline data={sparklineData} />
+                    )}
                   </div>
                   <div className="flex items-center gap-2">
                     <Progress 
