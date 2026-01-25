@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown, Flame } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown, Flame, Calendar } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -268,6 +268,45 @@ export function WelileHomesButton() {
   const nextMilestone = getNextMilestone(progressPercent);
   const percentToNext = nextMilestone ? (nextMilestone.threshold - progressPercent).toFixed(1) : null;
 
+  // Calculate projected completion date based on average monthly savings rate
+  const projectedCompletion = useMemo(() => {
+    if (!contributions || contributions.length < 2 || totalSavings >= fiveYearGoal || fiveYearGoal === 0) {
+      return null;
+    }
+    
+    // Calculate average monthly contribution
+    const sortedContributions = [...contributions].sort((a, b) => 
+      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+    );
+    
+    const firstDate = new Date(sortedContributions[0].created_at);
+    const lastDate = new Date(sortedContributions[sortedContributions.length - 1].created_at);
+    const monthsElapsed = Math.max(1, 
+      (lastDate.getFullYear() - firstDate.getFullYear()) * 12 + 
+      (lastDate.getMonth() - firstDate.getMonth()) + 1
+    );
+    
+    const totalContributed = sortedContributions.reduce((sum, c) => sum + c.amount, 0);
+    const avgMonthlyRate = totalContributed / monthsElapsed;
+    
+    if (avgMonthlyRate <= 0) return null;
+    
+    const remaining = fiveYearGoal - totalSavings;
+    // Account for 5% monthly compound growth
+    const monthsToGoal = Math.ceil(remaining / (avgMonthlyRate * 1.05));
+    
+    if (monthsToGoal > 120) return null; // More than 10 years, don't show
+    
+    const completionDate = new Date();
+    completionDate.setMonth(completionDate.getMonth() + monthsToGoal);
+    
+    return {
+      date: completionDate,
+      months: monthsToGoal,
+      formatted: completionDate.toLocaleDateString('en-US', { month: 'short', year: 'numeric' })
+    };
+  }, [contributions, totalSavings, fiveYearGoal]);
+
   // Sparkline data - include current balance at end if different from last contribution
   const sparklineData = useMemo(() => {
     const balances = contributions?.map(c => c.balance_after) ?? [];
@@ -412,9 +451,25 @@ export function WelileHomesButton() {
                     </span>
                   </div>
                   {nextMilestone && percentToNext && (
-                    <p className="text-[10px] text-muted-foreground">
-                      <span className={nextMilestone.color}>{percentToNext}%</span> more to reach {nextMilestone.label}
-                    </p>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-[10px] text-muted-foreground">
+                        <span className={nextMilestone.color}>{percentToNext}%</span> more to reach {nextMilestone.label}
+                      </p>
+                      {projectedCompletion && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground hover:text-foreground cursor-default">
+                              <Calendar className="h-2.5 w-2.5" />
+                              {projectedCompletion.formatted}
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            <p className="font-medium">Projected goal completion</p>
+                            <p>~{projectedCompletion.months} months at current rate</p>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
+                    </div>
                   )}
                   {!nextMilestone && progressPercent >= 100 && (
                     <p className="text-[10px] text-green-600 font-medium">
