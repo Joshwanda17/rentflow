@@ -39,8 +39,9 @@ export default function Auth() {
   const [searchParams] = useSearchParams();
   const referralId = searchParams.get('ref');
   const becomeRole = searchParams.get('become'); // e.g., 'agent' for sub-agent signup
+  const preSelectedRole = searchParams.get('role'); // e.g., 'supporter' from calculator
   
-  const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole);
+  const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole || !!preSelectedRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isForgotPhone, setIsForgotPhone] = useState(false);
   const [email, setEmail] = useState(''); // Used for forgot password/phone recovery
@@ -83,7 +84,11 @@ export default function Auth() {
     if (becomeRole) {
       localStorage.setItem('become_role', becomeRole);
     }
-  }, [referralId, becomeRole]);
+    // Auto-assign supporter role from calculator page
+    if (preSelectedRole) {
+      localStorage.setItem('become_role', preSelectedRole);
+    }
+  }, [referralId, becomeRole, preSelectedRole]);
 
   useEffect(() => {
     if (user) {
