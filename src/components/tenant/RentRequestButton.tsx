@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,6 +25,166 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
+// Weekly/Monthly calculator constants
+const PLATFORM_FEE = 10000;
+const DAILY_ACCESS_FEE_RATE = 0.011;
+
+type RepaymentPeriod = '7' | '14' | '21' | '120';
+
+const repaymentOptions: { value: RepaymentPeriod; label: string; days: number }[] = [
+  { value: '7', label: 'Weekly (7 days)', days: 7 },
+  { value: '14', label: 'After 2 Weeks (14 days)', days: 14 },
+  { value: '21', label: 'After 3 Weeks (21 days)', days: 21 },
+  { value: '120', label: 'After 4 Months (120 days)', days: 120 },
+];
+
+interface ExtendedCalculation extends RentCalculation {
+  periodLabel: string;
+  accessFeePerDay: number;
+}
+
+interface WeeklyMonthlyCalculatorInlineProps {
+  onProceed: (calc: RentCalculation) => void;
+  onBack: () => void;
+  currency: { code: string };
+  formatAmount: (amount: number) => string;
+}
+
+function WeeklyMonthlyCalculatorInline({ onProceed, onBack, currency, formatAmount }: WeeklyMonthlyCalculatorInlineProps) {
+  const [rentAmount, setRentAmount] = useState('');
+  const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
+
+  const calculation: ExtendedCalculation | null = useMemo(() => {
+    const amount = parseInt(rentAmount.replace(/,/g, ''));
+    if (!amount || amount < 50000) return null;
+
+    const selectedOption = repaymentOptions.find(o => o.value === repaymentPeriod);
+    if (!selectedOption) return null;
+
+    const days = selectedOption.days;
+    const accessFee = Math.round(amount * DAILY_ACCESS_FEE_RATE * days);
+    const totalRepayment = amount + accessFee + PLATFORM_FEE;
+
+    return {
+      rentAmount: amount,
+      durationDays: days as 30 | 60 | 90,
+      accessFee,
+      requestFee: PLATFORM_FEE,
+      totalRepayment,
+      dailyRepayment: Math.ceil(totalRepayment / days),
+      accessFeeRate: DAILY_ACCESS_FEE_RATE * days * 100,
+      periodLabel: selectedOption.label,
+      accessFeePerDay: Math.round(amount * DAILY_ACCESS_FEE_RATE),
+    };
+  }, [rentAmount, repaymentPeriod]);
+
+  const formatDisplayAmount = (value: string) => {
+    const num = parseInt(value);
+    if (isNaN(num)) return '';
+    return num.toLocaleString();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="space-y-3">
+        <div className="space-y-2">
+          <Label className="flex items-center gap-2">
+            <Calculator className="h-4 w-4" />
+            Rent Amount ({currency.code})
+          </Label>
+          <Input
+            type="text"
+            value={formatDisplayAmount(rentAmount)}
+            onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="e.g., 500,000"
+            className="text-lg font-mono"
+          />
+          {parseInt(rentAmount) > 0 && parseInt(rentAmount) < 50000 && (
+            <p className="text-xs text-destructive">Minimum rent amount is UGX 50,000</p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <Label>When to Pay Back</Label>
+          <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {repaymentOptions.map(option => (
+                <SelectItem key={option.value} value={option.value}>
+                  {option.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
+      </div>
+
+      {calculation && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 rounded-xl bg-gradient-to-br from-secondary/50 to-secondary/30 space-y-3"
+        >
+          <div className="flex items-center gap-2 mb-3">
+            <Info className="h-4 w-4 text-amber-600" />
+            <span className="font-semibold text-sm">Your Repayment Plan</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">Rent Amount:</span>
+            <span className="font-mono font-medium">{formatAmount(calculation.rentAmount)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">Platform Fee:</span>
+            <span className="font-mono font-medium">{formatAmount(calculation.requestFee)}</span>
+          </div>
+
+          <div className="flex justify-between items-center text-sm">
+            <span className="text-muted-foreground">
+              Access Fee ({calculation.durationDays} days × 1.1%/day):
+            </span>
+            <span className="font-mono font-medium text-amber-600">{formatAmount(calculation.accessFee)}</span>
+          </div>
+
+          <div className="text-xs text-muted-foreground pl-2 border-l-2 border-muted">
+            Daily rate: {formatAmount(calculation.accessFeePerDay)}/day
+          </div>
+
+          <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">Total to Pay Back</p>
+                <p className="text-2xl font-bold text-amber-600 font-mono">{formatAmount(calculation.totalRepayment)}</p>
+              </div>
+              <Badge variant="secondary" className="text-sm bg-amber-500/20 text-amber-700">
+                {calculation.periodLabel}
+              </Badge>
+            </div>
+          </div>
+        </motion.div>
+      )}
+
+      <div className="flex gap-3">
+        <Button variant="outline" onClick={onBack}>
+          Back
+        </Button>
+        <Button 
+          onClick={() => calculation && onProceed(calculation)} 
+          disabled={!calculation}
+          className="flex-1"
+          size="lg"
+        >
+          Continue
+          <ArrowRight className="h-4 w-4 ml-2" />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
 interface RentRequestButtonProps {
   userId: string;
   onSuccess: () => void;
@@ -32,7 +192,8 @@ interface RentRequestButtonProps {
 
 export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [step, setStep] = useState<'calculate' | 'details' | 'confirm'>('calculate');
+  const [step, setStep] = useState<'select-type' | 'calculate' | 'details' | 'confirm'>('select-type');
+  const [incomeType, setIncomeType] = useState<'daily' | 'weekly-monthly' | null>(null);
   const { toast } = useToast();
   const { formatAmount, currency } = useCurrency();
   
@@ -152,7 +313,8 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
       setLc1Name('');
       setLc1Phone('');
       setLc1Village('');
-      setStep('calculate');
+      setStep('select-type');
+      setIncomeType(null);
       setIsOpen(false);
       onSuccess();
 
@@ -202,33 +364,103 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                 <HandCoins className="h-5 w-5 text-primary" />
                 Request Rent Assistance
               </span>
-              <CurrencySwitcher variant="compact" />
+              {step !== 'select-type' && <CurrencySwitcher variant="compact" />}
             </DialogTitle>
             <DialogDescription>
+              {step === 'select-type' && 'Choose your income type to get the right repayment plan'}
               {step === 'calculate' && 'Enter your rent amount to see the repayment breakdown'}
               {step === 'details' && 'Provide your location and landlord details'}
               {step === 'confirm' && 'Review and confirm your request'}
             </DialogDescription>
           </DialogHeader>
 
-          {/* Step Indicator */}
-          <div className="flex items-center gap-2 mb-4">
-            {['calculate', 'details', 'confirm'].map((s, i) => (
-              <div key={s} className="flex items-center">
-                <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
-                  step === s ? 'bg-primary text-primary-foreground' : 
-                  ['calculate', 'details', 'confirm'].indexOf(step) > i ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
-                }`}>
-                  {i + 1}
+          {/* Step Indicator - Only show after type selection */}
+          {step !== 'select-type' && (
+            <div className="flex items-center gap-2 mb-4">
+              {['calculate', 'details', 'confirm'].map((s, i) => (
+                <div key={s} className="flex items-center">
+                  <div className={`h-8 w-8 rounded-full flex items-center justify-center text-sm font-medium transition-colors ${
+                    step === s ? 'bg-primary text-primary-foreground' : 
+                    ['calculate', 'details', 'confirm'].indexOf(step) > i ? 'bg-primary/20 text-primary' : 'bg-muted text-muted-foreground'
+                  }`}>
+                    {i + 1}
+                  </div>
+                  {i < 2 && <div className={`w-8 h-0.5 ${['calculate', 'details', 'confirm'].indexOf(step) > i ? 'bg-primary' : 'bg-muted'}`} />}
                 </div>
-                {i < 2 && <div className={`w-8 h-0.5 ${['calculate', 'details', 'confirm'].indexOf(step) > i ? 'bg-primary' : 'bg-muted'}`} />}
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          )}
 
           <AnimatePresence mode="wait">
-            {/* Step 1: Calculator */}
-            {step === 'calculate' && (
+            {/* Step 0: Income Type Selection */}
+            {step === 'select-type' && (
+              <motion.div
+                key="select-type"
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -10 }}
+                className="space-y-4"
+              >
+                <div className="text-center mb-2">
+                  <p className="text-sm text-muted-foreground">
+                    Select your income type to see the right repayment plan for you
+                  </p>
+                </div>
+
+                <div className="grid gap-3">
+                  {/* Daily Income Earner */}
+                  <button
+                    onClick={() => {
+                      setIncomeType('daily');
+                      setStep('calculate');
+                    }}
+                    className="w-full p-4 rounded-xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-primary/10 hover:border-primary hover:bg-primary/15 transition-all group text-left"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                        <Calculator className="h-6 w-6 text-primary" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">I'm a Daily Income Earner</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Pay back daily over 30, 60, or 90 days
+                        </p>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-primary opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </button>
+
+                  {/* Weekly/Monthly Income Earner */}
+                  <button
+                    onClick={() => {
+                      setIncomeType('weekly-monthly');
+                      setStep('calculate');
+                    }}
+                    className="w-full p-4 rounded-xl border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/5 to-amber-500/10 hover:border-amber-500 hover:bg-amber-500/15 transition-all group text-left"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="h-12 w-12 rounded-xl bg-amber-500/20 flex items-center justify-center group-hover:bg-amber-500/30 transition-colors">
+                        <Calculator className="h-6 w-6 text-amber-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">I'm a Weekly or Monthly Earner</h4>
+                        <p className="text-sm text-muted-foreground">
+                          Pay back weekly or after 2-4 weeks
+                        </p>
+                      </div>
+                      <ArrowRight className="h-5 w-5 text-amber-600 opacity-0 group-hover:opacity-100 group-hover:translate-x-1 transition-all" />
+                    </div>
+                  </button>
+                </div>
+
+                <p className="text-xs text-center text-muted-foreground mt-4">
+                  Choose the option that matches your income pattern for the best repayment experience
+                </p>
+              </motion.div>
+            )}
+
+            {/* Step 1: Calculator (Daily) */}
+            {step === 'calculate' && incomeType === 'daily' && (
               <motion.div
                 key="calculate"
                 initial={{ opacity: 0, x: 20 }}
@@ -301,15 +533,50 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
                   </motion.div>
                 )}
 
-                <Button 
-                  onClick={() => setStep('details')} 
-                  disabled={!canProceedToDetails}
-                  className="w-full"
-                  size="lg"
-                >
-                  Continue
-                  <ArrowRight className="h-4 w-4 ml-2" />
-                </Button>
+                <div className="flex gap-3">
+                  <Button 
+                    variant="outline"
+                    onClick={() => {
+                      setStep('select-type');
+                      setIncomeType(null);
+                    }}
+                  >
+                    Back
+                  </Button>
+                  <Button 
+                    onClick={() => setStep('details')} 
+                    disabled={!canProceedToDetails}
+                    className="flex-1"
+                    size="lg"
+                  >
+                    Continue
+                    <ArrowRight className="h-4 w-4 ml-2" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+
+            {/* Step 1: Calculator (Weekly/Monthly) */}
+            {step === 'calculate' && incomeType === 'weekly-monthly' && (
+              <motion.div
+                key="calculate-weekly"
+                initial={{ opacity: 0, x: 20 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -20 }}
+                className="space-y-4"
+              >
+                <WeeklyMonthlyCalculatorInline 
+                  onProceed={(calc) => {
+                    setCalculation(calc);
+                    setStep('details');
+                  }}
+                  onBack={() => {
+                    setStep('select-type');
+                    setIncomeType(null);
+                  }}
+                  currency={currency}
+                  formatAmount={formatAmount}
+                />
               </motion.div>
             )}
 
