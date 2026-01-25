@@ -30,6 +30,7 @@ const MILESTONES = [
   { threshold: 25, label: '25%', icon: Target, color: 'text-blue-600', bg: 'bg-blue-100' },
   { threshold: 50, label: '50%', icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-100' },
   { threshold: 75, label: '75%', icon: Trophy, color: 'text-purple-600', bg: 'bg-purple-100' },
+  { threshold: 100, label: '100%', icon: Trophy, color: 'text-green-600', bg: 'bg-green-100' },
 ];
 
 function getMilestone(percent: number) {
@@ -40,6 +41,16 @@ function getMilestone(percent: number) {
     }
   }
   return null;
+}
+
+function getNextMilestone(percent: number) {
+  // Return next milestone to reach
+  for (const milestone of MILESTONES) {
+    if (percent < milestone.threshold) {
+      return milestone;
+    }
+  }
+  return null; // All milestones reached
 }
 
 export function WelileHomesButton() {
@@ -76,8 +87,10 @@ export function WelileHomesButton() {
   const fiveYearGoal = monthlyRent > 0 ? calculate5YearProjection(monthlyRent) : 0;
   const progressPercent = fiveYearGoal > 0 ? Math.min((totalSavings / fiveYearGoal) * 100, 100) : 0;
   
-  // Get current milestone
+  // Get current and next milestone
   const currentMilestone = getMilestone(progressPercent);
+  const nextMilestone = getNextMilestone(progressPercent);
+  const percentToNext = nextMilestone ? (nextMilestone.threshold - progressPercent).toFixed(1) : null;
 
   // Check localStorage for celebrated milestones and trigger celebration
   useEffect(() => {
@@ -167,9 +180,19 @@ export function WelileHomesButton() {
                       className="h-1.5 flex-1 bg-green-100" 
                     />
                     <span className="text-[10px] font-medium text-green-600 whitespace-nowrap">
-                      {progressPercent.toFixed(1)}% of 5yr goal
+                      {progressPercent.toFixed(1)}%
                     </span>
                   </div>
+                  {nextMilestone && percentToNext && (
+                    <p className="text-[10px] text-muted-foreground">
+                      <span className={nextMilestone.color}>{percentToNext}%</span> more to reach {nextMilestone.label}
+                    </p>
+                  )}
+                  {!nextMilestone && progressPercent >= 100 && (
+                    <p className="text-[10px] text-green-600 font-medium">
+                      🎉 5-year goal achieved!
+                    </p>
+                  )}
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
