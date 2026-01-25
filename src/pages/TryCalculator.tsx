@@ -8,12 +8,17 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { 
   Calculator, TrendingUp, ArrowRight, Sparkles, Shield, Clock, 
-  Share2, WifiOff, RefreshCw, Download, ArrowUp, ChevronDown 
+  Share2, WifiOff, RefreshCw, Download, ArrowUp, ChevronDown, Settings, Globe
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
 import jsPDF from 'jspdf';
+import { useCurrency } from '@/hooks/useCurrency';
+import { useLanguage } from '@/hooks/useLanguage';
+import { LocaleSwitcher } from '@/components/LocaleSwitcher';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { LanguageSwitcher } from '@/components/LanguageSwitcher';
 
 interface MonthlyProjection {
   month: number;
@@ -31,6 +36,9 @@ export default function TryCalculator() {
   const referrerId = searchParams.get('ref') || searchParams.get('s');
   const projectionRef = useRef<HTMLDivElement>(null);
   
+  const { currency, formatAmount, usdRate, isLoadingRates } = useCurrency();
+  const { t, language } = useLanguage();
+  
   const [amount, setAmount] = useState(500000);
   const [months, setMonths] = useState(12);
   const [isCompounding, setIsCompounding] = useState(false);
@@ -38,6 +46,7 @@ export default function TryCalculator() {
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showSettings, setShowSettings] = useState(false);
 
   // Monitor online status
   useEffect(() => {
@@ -256,6 +265,16 @@ export default function TryCalculator() {
             Welile
           </span>
           <div className="flex items-center gap-2">
+            {/* Settings Toggle */}
+            <Button 
+              variant={showSettings ? "default" : "ghost"} 
+              size="icon" 
+              onClick={() => setShowSettings(!showSettings)} 
+              className="h-9 w-9"
+              aria-label="Settings"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
             <Button variant="ghost" size="icon" onClick={handleShare} className="h-9 w-9">
               <Share2 className="h-4 w-4" />
             </Button>
@@ -268,6 +287,70 @@ export default function TryCalculator() {
       </header>
 
       <div className="container mx-auto px-4 py-6 max-w-lg">
+        {/* Settings Panel */}
+        <AnimatePresence>
+          {showSettings && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden mb-4"
+            >
+              <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-violet-500/5">
+                <CardContent className="pt-4 pb-4">
+                  <div className="flex items-center gap-2 mb-3">
+                    <Globe className="h-4 w-4 text-primary" />
+                    <h3 className="font-semibold text-sm">Language & Currency Settings</h3>
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-4">
+                    View calculations in your preferred language and currency. All world currencies supported!
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Language</Label>
+                      <LanguageSwitcher />
+                    </div>
+                    <div>
+                      <Label className="text-xs text-muted-foreground mb-1.5 block">Currency</Label>
+                      <CurrencySwitcher />
+                    </div>
+                  </div>
+                  {/* Live Rate Display */}
+                  <div className="mt-3 pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">Current Rate:</span>
+                      <span className="font-mono font-medium">
+                        1 USD = {usdRate.toLocaleString(undefined, { maximumFractionDigits: 0 })} UGX
+                        {isLoadingRates && <RefreshCw className="inline h-3 w-3 ml-1 animate-spin" />}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      Rates updated automatically • Works offline with cached rates
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Quick Settings Bar (always visible) */}
+        <div className="flex items-center justify-between mb-4 p-2 rounded-xl bg-muted/50 border">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{currency.flag}</span>
+            <span className="text-sm font-medium">{currency.code}</span>
+          </div>
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setShowSettings(true)}
+            className="text-xs gap-1.5 h-7"
+          >
+            <Settings className="h-3 w-3" />
+            Change Settings
+          </Button>
+        </div>
+
         {/* Hero */}
         <div className="text-center mb-6">
           <div className="inline-flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full text-sm font-medium mb-3">
@@ -386,24 +469,35 @@ export default function TryCalculator() {
                     <p className="text-xs text-muted-foreground mb-1">
                       After {months} months {isCompounding ? '(compounded)' : ''}
                     </p>
-                    <p className="text-3xl font-bold text-success">{formatUGX(finalProjection?.balance || 0)}</p>
+                    <p className="text-3xl font-bold text-success">{formatAmount(finalProjection?.balance || 0)}</p>
+                    {currency.code !== 'UGX' && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        ≈ {formatUGX(finalProjection?.balance || 0)}
+                      </p>
+                    )}
                   </div>
                   
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="text-center p-3 bg-background rounded-xl">
                       <p className="text-[10px] text-muted-foreground">Your Investment</p>
-                      <p className="font-bold text-sm">{formatUGX(amount)}</p>
+                      <p className="font-bold text-sm">{formatAmount(amount)}</p>
+                      {currency.code !== 'UGX' && (
+                        <p className="text-[10px] text-muted-foreground">{formatUGX(amount)}</p>
+                      )}
                     </div>
                     <div className="text-center p-3 bg-background rounded-xl">
                       <p className="text-[10px] text-muted-foreground">Total Earnings</p>
-                      <p className="font-bold text-sm text-success">+{formatUGX(finalProjection?.totalEarnings || 0)}</p>
+                      <p className="font-bold text-sm text-success">+{formatAmount(finalProjection?.totalEarnings || 0)}</p>
+                      {currency.code !== 'UGX' && (
+                        <p className="text-[10px] text-muted-foreground">+{formatUGX(finalProjection?.totalEarnings || 0)}</p>
+                      )}
                     </div>
                   </div>
 
                   {!isCompounding && (
                     <div className="p-2 bg-primary/5 rounded-xl mb-4">
                       <p className="text-center text-xs">
-                        <span className="font-semibold">{formatUGX(monthlyEarnings)}</span>
+                        <span className="font-semibold">{formatAmount(monthlyEarnings)}</span>
                         <span className="text-muted-foreground"> earned every month</span>
                       </p>
                     </div>
@@ -452,17 +546,17 @@ export default function TryCalculator() {
                                 <th className="text-right py-2 px-2 font-semibold">Balance</th>
                               </tr>
                             </thead>
-                            <tbody>
-                              {projections.map((row, i) => (
-                                <tr key={row.month} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
-                                  <td className="py-1.5 px-2 font-medium">{row.month}</td>
-                                  <td className="py-1.5 px-2 text-right text-success">+{formatUGX(row.earnings)}</td>
-                                  <td className="py-1.5 px-2 text-right">{formatUGX(row.totalEarnings)}</td>
-                                  <td className="py-1.5 px-2 text-right font-semibold">{formatUGX(row.balance)}</td>
-                                </tr>
-                              ))}
-                            </tbody>
-                          </table>
+                                            <tbody>
+                                              {projections.map((row, i) => (
+                                                <tr key={row.month} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                                                  <td className="py-1.5 px-2 font-medium">{row.month}</td>
+                                                  <td className="py-1.5 px-2 text-right text-success">+{formatAmount(row.earnings)}</td>
+                                                  <td className="py-1.5 px-2 text-right">{formatAmount(row.totalEarnings)}</td>
+                                                  <td className="py-1.5 px-2 text-right font-semibold">{formatAmount(row.balance)}</td>
+                                                </tr>
+                                              ))}
+                                            </tbody>
+                                          </table>
                         </div>
                       </motion.div>
                     )}
