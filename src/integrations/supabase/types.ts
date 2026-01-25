@@ -2397,6 +2397,54 @@ export type Database = {
         }
         Relationships: []
       }
+      user_activity_reports: {
+        Row: {
+          created_at: string
+          engagement_score: number | null
+          id: string
+          login_count: number | null
+          rent_requests_count: number | null
+          repayments_amount: number | null
+          repayments_count: number | null
+          report_data: Json | null
+          report_week: string
+          total_transaction_amount: number | null
+          transaction_count: number | null
+          trend: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          engagement_score?: number | null
+          id?: string
+          login_count?: number | null
+          rent_requests_count?: number | null
+          repayments_amount?: number | null
+          repayments_count?: number | null
+          report_data?: Json | null
+          report_week: string
+          total_transaction_amount?: number | null
+          transaction_count?: number | null
+          trend?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          engagement_score?: number | null
+          id?: string
+          login_count?: number | null
+          rent_requests_count?: number | null
+          repayments_amount?: number | null
+          repayments_count?: number | null
+          report_data?: Json | null
+          report_week?: string
+          total_transaction_amount?: number | null
+          transaction_count?: number | null
+          trend?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       user_loan_repayments: {
         Row: {
           amount: number
