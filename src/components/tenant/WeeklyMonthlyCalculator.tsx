@@ -44,6 +44,10 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
   const { formatAmount, currency } = useCurrency();
   const [rentAmount, setRentAmount] = useState('');
   const [paybackDays, setPaybackDays] = useState(30);
+  const [repaymentDates, setRepaymentDates] = useState(4);
+
+  // Calculate max possible repayment dates based on payback days
+  const maxRepaymentDates = Math.min(paybackDays, 30);
 
   const calculation = useMemo(() => {
     const amount = parseInt(rentAmount.replace(/,/g, ''));
@@ -54,6 +58,12 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
     
     // Total repayment = rent + access fee + platform fee
     const totalRepayment = amount + accessFee + PLATFORM_FEE;
+    
+    // Per-installment amount
+    const perInstallment = Math.ceil(totalRepayment / repaymentDates);
+    
+    // Days between each payment
+    const daysBetweenPayments = Math.floor(paybackDays / repaymentDates);
 
     return {
       rentAmount: amount,
@@ -61,8 +71,20 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
       platformFee: PLATFORM_FEE,
       accessFee,
       totalRepayment,
+      repaymentDates,
+      perInstallment,
+      daysBetweenPayments,
     };
-  }, [rentAmount, paybackDays]);
+  }, [rentAmount, paybackDays, repaymentDates]);
+
+  // Ensure repayment dates doesn't exceed max when payback days change
+  const handlePaybackDaysChange = (days: number) => {
+    setPaybackDays(days);
+    const newMax = Math.min(days, 30);
+    if (repaymentDates > newMax) {
+      setRepaymentDates(Math.max(1, newMax));
+    }
+  };
 
   return (
     <Card className="glass-card glow-primary">
@@ -104,7 +126,7 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
                 key={option.days}
                 variant={paybackDays === option.days ? "default" : "outline"}
                 size="sm"
-                onClick={() => setPaybackDays(option.days)}
+                onClick={() => handlePaybackDaysChange(option.days)}
                 className="text-xs"
               >
                 {option.label}
@@ -121,7 +143,7 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
           </div>
           <Slider
             value={[paybackDays]}
-            onValueChange={(value) => setPaybackDays(value[0])}
+            onValueChange={(value) => handlePaybackDaysChange(value[0])}
             min={MIN_DAYS}
             max={MAX_DAYS}
             step={1}
@@ -131,6 +153,42 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
             <span>{MIN_DAYS} days</span>
             <span>{MAX_DAYS} days</span>
           </div>
+        </div>
+
+        {/* Number of Repayment Dates */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <Label>Number of Payments</Label>
+            <span className="text-sm font-medium text-primary">{repaymentDates} payment{repaymentDates > 1 ? 's' : ''}</span>
+          </div>
+          <div className="flex flex-wrap gap-2">
+            {[1, 2, 3, 4, 5, 6].filter(n => n <= maxRepaymentDates).map((num) => (
+              <Button
+                key={num}
+                variant={repaymentDates === num ? "default" : "outline"}
+                size="sm"
+                onClick={() => setRepaymentDates(num)}
+                className="text-xs min-w-[40px]"
+              >
+                {num}
+              </Button>
+            ))}
+          </div>
+          <Input
+            type="number"
+            value={repaymentDates}
+            onChange={(e) => {
+              const val = parseInt(e.target.value) || 1;
+              setRepaymentDates(Math.min(Math.max(1, val), maxRepaymentDates));
+            }}
+            min={1}
+            max={maxRepaymentDates}
+            placeholder="Custom number"
+            className="w-full"
+          />
+          <p className="text-xs text-muted-foreground">
+            Max {maxRepaymentDates} payments for {paybackDays} days
+          </p>
         </div>
 
         {calculation && (
@@ -150,7 +208,23 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
               <span className="font-mono font-medium text-warning">{formatAmount(calculation.accessFee)}</span>
             </div>
             
-            <div className="border-t border-border pt-3">
+            <div className="border-t border-border pt-3 space-y-3">
+              {/* Per Installment Amount */}
+              <div className="p-3 rounded-lg bg-accent/20 border border-accent/30">
+                <div className="text-center">
+                  <p className="text-xs text-muted-foreground mb-1">
+                    {calculation.repaymentDates} payment{calculation.repaymentDates > 1 ? 's' : ''} of
+                  </p>
+                  <p className="text-xl font-bold text-accent-foreground font-mono">
+                    {formatAmount(calculation.perInstallment)}
+                  </p>
+                  <p className="text-xs text-muted-foreground mt-1">
+                    every {calculation.daysBetweenPayments} day{calculation.daysBetweenPayments > 1 ? 's' : ''}
+                  </p>
+                </div>
+              </div>
+              
+              {/* Total */}
               <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground mb-1">
