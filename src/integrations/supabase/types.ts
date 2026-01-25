@@ -1832,9 +1832,11 @@ export type Database = {
           manager_verified: boolean | null
           manager_verified_at: string | null
           manager_verified_by: string | null
+          number_of_payments: number | null
           rejected_reason: string | null
           rent_amount: number
           request_fee: number
+          schedule_status: string | null
           status: string | null
           supporter_id: string | null
           tenant_id: string
@@ -1861,9 +1863,11 @@ export type Database = {
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
+          number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount: number
           request_fee: number
+          schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
           tenant_id: string
@@ -1890,9 +1894,11 @@ export type Database = {
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
+          number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount?: number
           request_fee?: number
+          schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
           tenant_id?: string
@@ -1941,6 +1947,53 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      repayment_schedules: {
+        Row: {
+          amount: number
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          payment_number: number
+          rent_request_id: string
+          status: string
+          tenant_id: string
+          updated_at: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          payment_number: number
+          rent_request_id: string
+          status?: string
+          tenant_id: string
+          updated_at?: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_number?: number
+          rent_request_id?: string
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repayment_schedules_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
           },
         ]
       }

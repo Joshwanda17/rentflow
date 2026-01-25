@@ -22,10 +22,9 @@ const MIN_DAYS = 7;
 const quickOptions = [
   { days: 7, label: '1 Week' },
   { days: 14, label: '2 Weeks' },
-  { days: 21, label: '3 Weeks' },
-  { days: 30, label: '1 Month' },
-  { days: 60, label: '2 Months' },
-  { days: 90, label: '3 Months' },
+  { days: 30, label: '30 Days' },
+  { days: 60, label: '60 Days' },
+  { days: 100, label: '100 Days' },
   { days: 120, label: '4 Months' },
 ];
 
