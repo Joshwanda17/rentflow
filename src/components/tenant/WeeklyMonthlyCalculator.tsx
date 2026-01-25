@@ -3,7 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Slider } from '@/components/ui/slider';
 import { Calculator, ArrowLeft } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
@@ -13,48 +13,56 @@ interface WeeklyMonthlyCalculatorProps {
   onBack: () => void;
 }
 
-type RepaymentPeriod = '7' | '14' | '21' | '120'; // 7 days, 14 days, 21 days, 4 months (120 days)
-
 const PLATFORM_FEE = 10000; // UGX 10,000
-const DAILY_ACCESS_FEE_RATE = 0.011; // 1.1% per day
+const MONTHLY_COMPOUND_RATE = 0.33; // 33% per month (compounding)
+const MAX_DAYS = 120;
+const MIN_DAYS = 7;
 
-const repaymentOptions: { value: RepaymentPeriod; label: string; days: number }[] = [
-  { value: '7', label: 'Weekly (7 days)', days: 7 },
-  { value: '14', label: 'After 2 Weeks (14 days)', days: 14 },
-  { value: '21', label: 'After 3 Weeks (21 days)', days: 21 },
-  { value: '120', label: 'After 4 Months (120 days)', days: 120 },
+// Quick select options for common periods
+const quickOptions = [
+  { days: 7, label: '1 Week' },
+  { days: 14, label: '2 Weeks' },
+  { days: 21, label: '3 Weeks' },
+  { days: 30, label: '1 Month' },
+  { days: 60, label: '2 Months' },
+  { days: 90, label: '3 Months' },
+  { days: 120, label: '4 Months' },
 ];
+
+/**
+ * Calculate access fee with monthly compounding (33% per month)
+ * Prorated for partial months
+ */
+function calculateCompoundingAccessFee(amount: number, days: number): number {
+  const months = days / 30;
+  // Compounding 33% per month, prorated
+  const rate = Math.pow(1 + MONTHLY_COMPOUND_RATE, months) - 1;
+  return Math.round(amount * rate);
+}
 
 export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMonthlyCalculatorProps) {
   const { formatAmount, currency } = useCurrency();
   const [rentAmount, setRentAmount] = useState('');
-  const [repaymentPeriod, setRepaymentPeriod] = useState<RepaymentPeriod>('7');
+  const [paybackDays, setPaybackDays] = useState(30);
 
   const calculation = useMemo(() => {
     const amount = parseInt(rentAmount.replace(/,/g, ''));
     if (!amount || amount <= 0) return null;
 
-    const selectedOption = repaymentOptions.find(o => o.value === repaymentPeriod);
-    if (!selectedOption) return null;
-
-    const days = selectedOption.days;
-    
-    // Access fee = 1.1% per day × rent amount × number of days
-    const accessFee = Math.round(amount * DAILY_ACCESS_FEE_RATE * days);
+    // Access fee with monthly compounding
+    const accessFee = calculateCompoundingAccessFee(amount, paybackDays);
     
     // Total repayment = rent + access fee + platform fee
     const totalRepayment = amount + accessFee + PLATFORM_FEE;
 
     return {
       rentAmount: amount,
-      days,
-      periodLabel: selectedOption.label,
+      days: paybackDays,
       platformFee: PLATFORM_FEE,
       accessFee,
-      accessFeePerDay: Math.round(amount * DAILY_ACCESS_FEE_RATE),
       totalRepayment,
     };
-  }, [rentAmount, repaymentPeriod]);
+  }, [rentAmount, paybackDays]);
 
   return (
     <Card className="glass-card glow-primary">
@@ -70,34 +78,58 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
               <ArrowLeft className="h-4 w-4" />
             </Button>
             <Calculator className="h-5 w-5 text-primary" />
-            Weekly/Monthly Repayment Calculator
+            Repayment Calculator
           </span>
           <CurrencySwitcher variant="compact" />
         </CardTitle>
       </CardHeader>
-      <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Rent Amount ({currency.code})</Label>
-            <Input
-              type="text"
-              value={rentAmount}
-              onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="e.g., 500000"
-            />
+      <CardContent className="space-y-5">
+        {/* Rent Amount Input */}
+        <div className="space-y-2">
+          <Label>Rent Amount ({currency.code})</Label>
+          <Input
+            type="text"
+            value={rentAmount}
+            onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+            placeholder="e.g., 500000"
+          />
+        </div>
+
+        {/* Quick Select Buttons */}
+        <div className="space-y-2">
+          <Label>Quick Select</Label>
+          <div className="flex flex-wrap gap-2">
+            {quickOptions.map((option) => (
+              <Button
+                key={option.days}
+                variant={paybackDays === option.days ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPaybackDays(option.days)}
+                className="text-xs"
+              >
+                {option.label}
+              </Button>
+            ))}
           </div>
-          <div className="space-y-2">
-            <Label>When to Pay Back</Label>
-            <Select value={repaymentPeriod} onValueChange={(v) => setRepaymentPeriod(v as RepaymentPeriod)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {repaymentOptions.map(option => (
-                  <SelectItem key={option.value} value={option.value}>
-                    {option.label}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+        </div>
+
+        {/* Custom Days Slider */}
+        <div className="space-y-3">
+          <div className="flex justify-between items-center">
+            <Label>Payback Period</Label>
+            <span className="text-sm font-medium text-primary">{paybackDays} days</span>
+          </div>
+          <Slider
+            value={[paybackDays]}
+            onValueChange={(value) => setPaybackDays(value[0])}
+            min={MIN_DAYS}
+            max={MAX_DAYS}
+            step={1}
+            className="w-full"
+          />
+          <div className="flex justify-between text-xs text-muted-foreground">
+            <span>{MIN_DAYS} days</span>
+            <span>{MAX_DAYS} days</span>
           </div>
         </div>
 
@@ -114,21 +146,15 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
             </div>
             
             <div className="flex justify-between items-center text-sm">
-              <span className="text-muted-foreground">
-                Access Fee ({calculation.days} days × 1.1%/day):
-              </span>
+              <span className="text-muted-foreground">Access Fee:</span>
               <span className="font-mono font-medium text-warning">{formatAmount(calculation.accessFee)}</span>
-            </div>
-            
-            <div className="text-xs text-muted-foreground pl-2 border-l-2 border-muted">
-              Daily access fee: {formatAmount(calculation.accessFeePerDay)}/day
             </div>
             
             <div className="border-t border-border pt-3">
               <div className="p-4 rounded-lg bg-primary/10 border border-primary/20">
                 <div className="text-center">
                   <p className="text-xs text-muted-foreground mb-1">
-                    Total to Pay Back ({calculation.periodLabel})
+                    Total to Pay Back in {calculation.days} days
                   </p>
                   <p className="text-2xl font-bold text-primary font-mono">
                     {formatAmount(calculation.totalRepayment)}
