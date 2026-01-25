@@ -248,15 +248,15 @@ export default function TryCalculator() {
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 dark:from-violet-950/30 dark:via-purple-950/20 dark:to-background">
       {/* Offline indicator */}
       {!isOnline && (
-        <div className="bg-warning/20 border-b border-warning/30 px-4 py-2 flex items-center justify-center gap-2 text-sm">
+        <div className="bg-warning/20 border-b border-warning/30 px-3 py-2.5 flex items-center justify-center gap-2 text-sm">
           <WifiOff className="h-4 w-4 text-warning" />
-          <span className="text-warning-foreground">Offline - Calculator still works!</span>
+          <span className="text-warning-foreground font-medium">Offline - Calculator still works!</span>
         </div>
       )}
 
-      {/* Header */}
-      <header className="sticky top-0 z-50 bg-white/80 dark:bg-background/80 backdrop-blur-xl border-b">
-        <div className="container mx-auto px-4 py-3 flex items-center justify-between">
+      {/* Header - Mobile optimized */}
+      <header className="sticky top-0 z-50 bg-white/90 dark:bg-background/90 backdrop-blur-xl border-b safe-area-top">
+        <div className="px-3 py-2.5 flex items-center justify-between">
           <span 
             className="text-xl font-bold text-primary cursor-pointer"
             style={{ fontFamily: "'Chewy', cursive" }}
@@ -264,30 +264,35 @@ export default function TryCalculator() {
           >
             Welile
           </span>
-          <div className="flex items-center gap-2">
-            {/* Settings Toggle */}
+          <div className="flex items-center gap-1.5">
+            {/* Settings Toggle - Larger touch target */}
             <Button 
               variant={showSettings ? "default" : "ghost"} 
               size="icon" 
               onClick={() => setShowSettings(!showSettings)} 
-              className="h-9 w-9"
+              className="h-11 w-11 min-h-[44px] min-w-[44px]"
               aria-label="Settings"
             >
-              <Settings className="h-4 w-4" />
+              <Settings className="h-5 w-5" />
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleShare} className="h-9 w-9">
-              <Share2 className="h-4 w-4" />
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={handleShare} 
+              className="h-11 w-11 min-h-[44px] min-w-[44px]"
+            >
+              <Share2 className="h-5 w-5" />
             </Button>
-            <Button onClick={handleSignUp} size="sm" className="gap-2">
+            <Button onClick={handleSignUp} size="sm" className="gap-1.5 h-11 px-4 text-sm min-h-[44px]">
               <Sparkles className="h-4 w-4" />
-              Start Earning
+              <span className="hidden xs:inline">Start</span> Earning
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="container mx-auto px-4 py-6 max-w-lg">
-        {/* Settings Panel */}
+      <div className="px-3 py-4 pb-8 max-w-lg mx-auto">
+        {/* Settings Panel - Mobile optimized */}
         <AnimatePresence>
           {showSettings && (
             <motion.div
@@ -297,36 +302,33 @@ export default function TryCalculator() {
               className="overflow-hidden mb-4"
             >
               <Card className="border-primary/30 bg-gradient-to-r from-primary/5 to-violet-500/5">
-                <CardContent className="pt-4 pb-4">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Globe className="h-4 w-4 text-primary" />
-                    <h3 className="font-semibold text-sm">Language & Currency Settings</h3>
+                <CardContent className="p-4">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                    <h3 className="font-semibold">Language & Currency</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-4">
-                    View calculations in your preferred language and currency. All world currencies supported!
+                  <p className="text-sm text-muted-foreground mb-4">
+                    View in your preferred language and any world currency!
                   </p>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-4">
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Language</Label>
+                      <Label className="text-sm text-muted-foreground mb-2 block">Language</Label>
                       <LanguageSwitcher />
                     </div>
                     <div>
-                      <Label className="text-xs text-muted-foreground mb-1.5 block">Currency</Label>
+                      <Label className="text-sm text-muted-foreground mb-2 block">Currency</Label>
                       <CurrencySwitcher />
                     </div>
                   </div>
                   {/* Live Rate Display */}
-                  <div className="mt-3 pt-3 border-t border-border/50">
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">Current Rate:</span>
+                  <div className="mt-4 pt-3 border-t border-border/50">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Rate:</span>
                       <span className="font-mono font-medium">
                         1 USD = {usdRate.toLocaleString(undefined, { maximumFractionDigits: 0 })} UGX
                         {isLoadingRates && <RefreshCw className="inline h-3 w-3 ml-1 animate-spin" />}
                       </span>
                     </div>
-                    <p className="text-[10px] text-muted-foreground mt-1">
-                      Rates updated automatically • Works offline with cached rates
-                    </p>
                   </div>
                 </CardContent>
               </Card>
@@ -334,49 +336,47 @@ export default function TryCalculator() {
           )}
         </AnimatePresence>
 
-        {/* Quick Settings Bar (always visible) */}
-        <div className="flex items-center justify-between mb-4 p-2 rounded-xl bg-muted/50 border">
-          <div className="flex items-center gap-2">
-            <span className="text-lg">{currency.flag}</span>
-            <span className="text-sm font-medium">{currency.code}</span>
+        {/* Quick Settings Bar - Larger touch target */}
+        <button 
+          onClick={() => setShowSettings(true)}
+          className="w-full flex items-center justify-between mb-4 p-3 rounded-xl bg-muted/50 border active:bg-muted/80 transition-colors min-h-[48px]"
+        >
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl">{currency.flag}</span>
+            <span className="font-medium">{currency.code}</span>
           </div>
-          <Button 
-            variant="ghost" 
-            size="sm" 
-            onClick={() => setShowSettings(true)}
-            className="text-xs gap-1.5 h-7"
-          >
-            <Settings className="h-3 w-3" />
-            Change Settings
-          </Button>
-        </div>
+          <div className="flex items-center gap-1.5 text-muted-foreground">
+            <Settings className="h-4 w-4" />
+            <span className="text-sm">Change</span>
+          </div>
+        </button>
 
-        {/* Hero */}
-        <div className="text-center mb-6">
-          <div className="inline-flex items-center gap-2 bg-success/10 text-success px-4 py-2 rounded-full text-sm font-medium mb-3">
+        {/* Hero - Compact for mobile */}
+        <div className="text-center mb-5">
+          <div className="inline-flex items-center gap-2 bg-success/10 text-success px-4 py-2.5 rounded-full text-sm font-semibold mb-3">
             <TrendingUp className="h-4 w-4" />
             15% Monthly Returns
           </div>
-          <h1 className="text-2xl font-bold mb-1">
+          <h1 className="text-xl font-bold mb-1">
             Investment Calculator
           </h1>
           <p className="text-muted-foreground text-sm">
-            With compounding projections up to 60 months
+            With compounding up to 60 months
           </p>
         </div>
 
-        {/* Calculator Card */}
+        {/* Calculator Card - Mobile optimized spacing */}
         <Card className="mb-4 shadow-xl border-2">
-          <CardHeader className="pb-3">
-            <CardTitle className="flex items-center gap-2 text-lg">
+          <CardHeader className="pb-2 px-4 pt-4">
+            <CardTitle className="flex items-center gap-2 text-base">
               <Calculator className="h-5 w-5 text-primary" />
               Calculate Your Earnings
             </CardTitle>
           </CardHeader>
-          <CardContent className="space-y-5">
+          <CardContent className="space-y-5 px-4 pb-5">
             {/* Investment Amount */}
-            <div className="space-y-2">
-              <Label className="text-sm font-medium">Investment Amount</Label>
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold block">Investment Amount</Label>
               <Input
                 type="text"
                 inputMode="numeric"
@@ -385,26 +385,29 @@ export default function TryCalculator() {
                   const value = parseInt(e.target.value.replace(/,/g, '')) || 0;
                   setAmount(Math.max(0, Math.min(value, 100000000)));
                 }}
-                className="text-lg h-12 font-semibold text-center"
+                className="text-xl h-14 font-bold text-center min-h-[56px]"
               />
-              <Slider
-                value={[amount]}
-                onValueChange={([v]) => setAmount(v)}
-                min={50000}
-                max={50000000}
-                step={50000}
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
+              <div className="pt-2 pb-1">
+                <Slider
+                  value={[amount]}
+                  onValueChange={([v]) => setAmount(v)}
+                  min={50000}
+                  max={50000000}
+                  step={50000}
+                  className="py-2"
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground px-1">
                 <span>50K</span>
                 <span>50M</span>
               </div>
             </div>
 
-            {/* Duration */}
-            <div className="space-y-2">
+            {/* Duration - Larger buttons */}
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
-                <Label className="text-sm font-medium">Duration</Label>
-                <span className="text-sm text-primary font-semibold">{months} months</span>
+                <Label className="text-sm font-semibold">Duration</Label>
+                <span className="text-sm text-primary font-bold bg-primary/10 px-2.5 py-1 rounded-lg">{months} months</span>
               </div>
               <div className="grid grid-cols-4 gap-2">
                 {quickMonths.map((m) => (
@@ -412,42 +415,50 @@ export default function TryCalculator() {
                     key={m}
                     variant={months === m ? 'default' : 'outline'}
                     onClick={() => setMonths(m)}
-                    size="sm"
-                    className="h-10"
+                    className="h-12 text-base font-semibold min-h-[48px]"
                   >
                     {m}mo
                   </Button>
                 ))}
               </div>
-              <Slider
-                value={[months]}
-                onValueChange={([v]) => setMonths(v)}
-                min={1}
-                max={60}
-                step={1}
-                className="mt-2"
-              />
-              <div className="flex justify-between text-[10px] text-muted-foreground">
-                <span>1 mo</span>
-                <span>60 mo</span>
+              <div className="pt-2 pb-1">
+                <Slider
+                  value={[months]}
+                  onValueChange={([v]) => setMonths(v)}
+                  min={1}
+                  max={60}
+                  step={1}
+                  className="py-2"
+                />
+              </div>
+              <div className="flex justify-between text-xs text-muted-foreground px-1">
+                <span>1 month</span>
+                <span>60 months</span>
               </div>
             </div>
 
-            {/* Compounding Toggle */}
-            <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border">
-              <div className="flex items-center gap-2">
-                <RefreshCw className={`h-4 w-4 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
-                <div>
-                  <p className="text-sm font-medium">Compound Earnings</p>
-                  <p className="text-[10px] text-muted-foreground">Reinvest monthly returns</p>
+            {/* Compounding Toggle - Larger touch area */}
+            <button 
+              onClick={() => setIsCompounding(!isCompounding)}
+              className="w-full flex items-center justify-between p-4 rounded-xl bg-muted/50 border active:bg-muted/80 transition-colors min-h-[64px]"
+            >
+              <div className="flex items-center gap-3">
+                <RefreshCw className={`h-5 w-5 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
+                <div className="text-left">
+                  <p className="font-semibold">Compound Earnings</p>
+                  <p className="text-xs text-muted-foreground">Reinvest monthly returns</p>
                 </div>
               </div>
-              <Switch checked={isCompounding} onCheckedChange={setIsCompounding} />
-            </div>
+              <Switch 
+                checked={isCompounding} 
+                onCheckedChange={setIsCompounding}
+                className="pointer-events-none"
+              />
+            </button>
 
             <Button 
               onClick={handleCalculate} 
-              className="w-full h-12 text-lg gap-2"
+              className="w-full h-14 text-lg gap-2 font-bold min-h-[56px]"
             >
               <Calculator className="h-5 w-5" />
               Calculate
@@ -455,7 +466,7 @@ export default function TryCalculator() {
           </CardContent>
         </Card>
 
-        {/* Results */}
+        {/* Results - Mobile optimized */}
         <AnimatePresence>
           {hasTriedCalculator && (
             <motion.div
@@ -464,9 +475,9 @@ export default function TryCalculator() {
               exit={{ opacity: 0, y: -20 }}
             >
               <Card className="mb-4 bg-gradient-to-br from-success/10 to-emerald-500/5 border-success/30 shadow-lg">
-                <CardContent className="pt-6">
+                <CardContent className="p-4 pt-5">
                   <div className="text-center mb-4">
-                    <p className="text-xs text-muted-foreground mb-1">
+                    <p className="text-sm text-muted-foreground mb-1">
                       After {months} months {isCompounding ? '(compounded)' : ''}
                     </p>
                     <p className="text-3xl font-bold text-success">{formatAmount(finalProjection?.balance || 0)}</p>
@@ -479,37 +490,36 @@ export default function TryCalculator() {
                   
                   <div className="grid grid-cols-2 gap-3 mb-4">
                     <div className="text-center p-3 bg-background rounded-xl">
-                      <p className="text-[10px] text-muted-foreground">Your Investment</p>
-                      <p className="font-bold text-sm">{formatAmount(amount)}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Your Investment</p>
+                      <p className="font-bold">{formatAmount(amount)}</p>
                       {currency.code !== 'UGX' && (
-                        <p className="text-[10px] text-muted-foreground">{formatUGX(amount)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">{formatUGX(amount)}</p>
                       )}
                     </div>
                     <div className="text-center p-3 bg-background rounded-xl">
-                      <p className="text-[10px] text-muted-foreground">Total Earnings</p>
-                      <p className="font-bold text-sm text-success">+{formatAmount(finalProjection?.totalEarnings || 0)}</p>
+                      <p className="text-xs text-muted-foreground mb-1">Total Earnings</p>
+                      <p className="font-bold text-success">+{formatAmount(finalProjection?.totalEarnings || 0)}</p>
                       {currency.code !== 'UGX' && (
-                        <p className="text-[10px] text-muted-foreground">+{formatUGX(finalProjection?.totalEarnings || 0)}</p>
+                        <p className="text-[10px] text-muted-foreground mt-0.5">+{formatUGX(finalProjection?.totalEarnings || 0)}</p>
                       )}
                     </div>
                   </div>
 
                   {!isCompounding && (
-                    <div className="p-2 bg-primary/5 rounded-xl mb-4">
-                      <p className="text-center text-xs">
-                        <span className="font-semibold">{formatAmount(monthlyEarnings)}</span>
+                    <div className="p-3 bg-primary/5 rounded-xl mb-4">
+                      <p className="text-center text-sm">
+                        <span className="font-bold">{formatAmount(monthlyEarnings)}</span>
                         <span className="text-muted-foreground"> earned every month</span>
                       </p>
                     </div>
                   )}
 
-                  {/* Actions */}
+                  {/* Actions - Larger buttons */}
                   <div className="flex gap-2 mb-4">
                     <Button 
                       onClick={() => setShowBreakdown(!showBreakdown)} 
                       variant="outline" 
-                      className="flex-1 gap-2"
-                      size="sm"
+                      className="flex-1 gap-2 h-12 min-h-[48px]"
                     >
                       <ChevronDown className={`h-4 w-4 transition-transform ${showBreakdown ? 'rotate-180' : ''}`} />
                       {showBreakdown ? 'Hide' : 'View'} Breakdown
@@ -517,8 +527,7 @@ export default function TryCalculator() {
                     <Button 
                       onClick={handleDownloadPDF} 
                       variant="outline" 
-                      className="gap-2"
-                      size="sm"
+                      className="gap-2 h-12 px-4 min-h-[48px]"
                       disabled={isExporting}
                     >
                       <Download className="h-4 w-4" />
@@ -526,7 +535,7 @@ export default function TryCalculator() {
                     </Button>
                   </div>
 
-                  {/* Monthly Breakdown */}
+                  {/* Monthly Breakdown - Mobile scrollable */}
                   <AnimatePresence>
                     {showBreakdown && (
                       <motion.div
@@ -536,27 +545,30 @@ export default function TryCalculator() {
                         exit={{ opacity: 0, height: 0 }}
                         className="overflow-hidden"
                       >
-                        <div className="max-h-64 overflow-y-auto rounded-xl border bg-background">
-                          <table className="w-full text-xs">
-                            <thead className="sticky top-0 bg-muted border-b">
+                        <div 
+                          className="max-h-72 overflow-y-auto rounded-xl border bg-background overscroll-contain"
+                          style={{ WebkitOverflowScrolling: 'touch' }}
+                        >
+                          <table className="w-full text-sm">
+                            <thead className="sticky top-0 bg-muted border-b z-10">
                               <tr>
-                                <th className="text-left py-2 px-2 font-semibold">Mo</th>
-                                <th className="text-right py-2 px-2 font-semibold">Earnings</th>
-                                <th className="text-right py-2 px-2 font-semibold">Total</th>
-                                <th className="text-right py-2 px-2 font-semibold">Balance</th>
+                                <th className="text-left py-3 px-3 font-semibold">Mo</th>
+                                <th className="text-right py-3 px-2 font-semibold">Earn</th>
+                                <th className="text-right py-3 px-2 font-semibold">Total</th>
+                                <th className="text-right py-3 px-3 font-semibold">Balance</th>
                               </tr>
                             </thead>
-                                            <tbody>
-                                              {projections.map((row, i) => (
-                                                <tr key={row.month} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
-                                                  <td className="py-1.5 px-2 font-medium">{row.month}</td>
-                                                  <td className="py-1.5 px-2 text-right text-success">+{formatAmount(row.earnings)}</td>
-                                                  <td className="py-1.5 px-2 text-right">{formatAmount(row.totalEarnings)}</td>
-                                                  <td className="py-1.5 px-2 text-right font-semibold">{formatAmount(row.balance)}</td>
-                                                </tr>
-                                              ))}
-                                            </tbody>
-                                          </table>
+                            <tbody>
+                              {projections.map((row, i) => (
+                                <tr key={row.month} className={i % 2 === 0 ? 'bg-muted/30' : ''}>
+                                  <td className="py-2.5 px-3 font-medium">{row.month}</td>
+                                  <td className="py-2.5 px-2 text-right text-success text-xs">+{formatAmount(row.earnings)}</td>
+                                  <td className="py-2.5 px-2 text-right text-xs">{formatAmount(row.totalEarnings)}</td>
+                                  <td className="py-2.5 px-3 text-right font-semibold text-xs">{formatAmount(row.balance)}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
                         </div>
                       </motion.div>
                     )}
@@ -564,7 +576,7 @@ export default function TryCalculator() {
 
                   <Button 
                     onClick={handleSignUp} 
-                    className="w-full h-12 text-lg gap-2 mt-4 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700"
+                    className="w-full h-14 text-lg gap-2 mt-4 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 font-bold min-h-[56px]"
                   >
                     Start Earning Now
                     <ArrowRight className="h-5 w-5" />
@@ -575,25 +587,25 @@ export default function TryCalculator() {
           )}
         </AnimatePresence>
 
-        {/* Trust Badges */}
+        {/* Trust Badges - Mobile grid */}
         <div className="grid grid-cols-3 gap-2 mb-6">
-          <div className="flex flex-col items-center gap-1 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center">
+          <div className="flex flex-col items-center gap-1.5 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center min-h-[72px] justify-center">
             <Shield className="h-5 w-5 text-primary" />
-            <p className="text-[10px] font-medium">Secure</p>
+            <p className="text-xs font-medium">Secure</p>
           </div>
-          <div className="flex flex-col items-center gap-1 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center">
+          <div className="flex flex-col items-center gap-1.5 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center min-h-[72px] justify-center">
             <Clock className="h-5 w-5 text-primary" />
-            <p className="text-[10px] font-medium">Flexible</p>
+            <p className="text-xs font-medium">Flexible</p>
           </div>
-          <div className="flex flex-col items-center gap-1 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center">
+          <div className="flex flex-col items-center gap-1.5 p-3 bg-white/60 dark:bg-card/60 rounded-xl text-center min-h-[72px] justify-center">
             <WifiOff className="h-5 w-5 text-primary" />
-            <p className="text-[10px] font-medium">Works Offline</p>
+            <p className="text-xs font-medium">Offline</p>
           </div>
         </div>
 
         {/* CTA Footer */}
         {!hasTriedCalculator && (
-          <p className="text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground pb-4">
             Try the calculator above to see your potential earnings!
           </p>
         )}
