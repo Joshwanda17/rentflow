@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown, Flame } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -193,9 +193,11 @@ export function WelileHomesButton() {
     staleTime: 1000 * 60 * 5,
   });
 
-  // Calculate monthly comparison
-  const monthlyComparison = useMemo(() => {
-    if (!contributions || contributions.length === 0) return null;
+  // Calculate monthly comparison and streak
+  const { monthlyComparison, streak } = useMemo(() => {
+    if (!contributions || contributions.length === 0) {
+      return { monthlyComparison: null, streak: 0 };
+    }
     
     const now = new Date();
     const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
@@ -205,8 +207,14 @@ export function WelileHomesButton() {
     let thisMonthTotal = 0;
     let lastMonthTotal = 0;
     
+    // Group contributions by month for streak calculation
+    const monthsWithContributions = new Set<string>();
+    
     contributions.forEach(c => {
       const date = new Date(c.created_at);
+      const monthKey = `${date.getFullYear()}-${date.getMonth()}`;
+      monthsWithContributions.add(monthKey);
+      
       if (date >= thisMonthStart) {
         thisMonthTotal += c.amount;
       } else if (date >= lastMonthStart && date <= lastMonthEnd) {
@@ -214,16 +222,37 @@ export function WelileHomesButton() {
       }
     });
     
-    if (lastMonthTotal === 0 && thisMonthTotal === 0) return null;
-    if (lastMonthTotal === 0) return { percent: 100, direction: 'up' as const, thisMonth: thisMonthTotal, lastMonth: 0 };
+    // Calculate streak - count consecutive months backwards from current
+    let streakCount = 0;
+    let checkDate = new Date(now.getFullYear(), now.getMonth(), 1);
     
-    const change = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
-    return {
-      percent: Math.abs(change).toFixed(0),
-      direction: change >= 0 ? 'up' as const : 'down' as const,
-      thisMonth: thisMonthTotal,
-      lastMonth: lastMonthTotal
-    };
+    for (let i = 0; i < 24; i++) { // Check up to 24 months back
+      const monthKey = `${checkDate.getFullYear()}-${checkDate.getMonth()}`;
+      if (monthsWithContributions.has(monthKey)) {
+        streakCount++;
+        checkDate.setMonth(checkDate.getMonth() - 1);
+      } else {
+        break;
+      }
+    }
+    
+    // Calculate comparison
+    let comparison = null;
+    if (lastMonthTotal > 0 || thisMonthTotal > 0) {
+      if (lastMonthTotal === 0) {
+        comparison = { percent: '100', direction: 'up' as const, thisMonth: thisMonthTotal, lastMonth: 0 };
+      } else {
+        const change = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+        comparison = {
+          percent: Math.abs(change).toFixed(0),
+          direction: change >= 0 ? 'up' as const : 'down' as const,
+          thisMonth: thisMonthTotal,
+          lastMonth: lastMonthTotal
+        };
+      }
+    }
+    
+    return { monthlyComparison: comparison, streak: streakCount };
   }, [contributions]);
 
   const hasSubscription = !!subscription;
@@ -310,6 +339,19 @@ export function WelileHomesButton() {
                       <CheckCircle2 className="h-3 w-3" />
                       Active
                     </Badge>
+                    {streak >= 2 && (
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge className="bg-orange-100 text-orange-600 text-[10px] gap-0.5 animate-scale-in">
+                            <Flame className="h-3 w-3" />
+                            {streak}
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="top" className="text-xs">
+                          {streak} month saving streak! Keep it up!
+                        </TooltipContent>
+                      </Tooltip>
+                    )}
                     {currentMilestone && (
                       <Badge className={`${currentMilestone.bg} ${currentMilestone.color} text-[10px] gap-1 animate-scale-in`}>
                         <currentMilestone.icon className="h-3 w-3" />
