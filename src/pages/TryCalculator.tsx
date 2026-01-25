@@ -8,8 +8,9 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { 
   Calculator, TrendingUp, ArrowRight, Sparkles, Shield, Clock, 
-  Share2, WifiOff, RefreshCw, Download, ArrowUp, ChevronDown, Settings, Globe
+  Share2, WifiOff, RefreshCw, Download, ChevronDown, Settings, Globe, FileDown, Check
 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -45,6 +46,7 @@ export default function TryCalculator() {
   const [hasTriedCalculator, setHasTriedCalculator] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  const [exportSuccess, setExportSuccess] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [showSettings, setShowSettings] = useState(false);
 
@@ -129,8 +131,12 @@ export default function TryCalculator() {
   const handleDownloadPDF = async () => {
     hapticTap();
     setIsExporting(true);
+    setExportSuccess(false);
     
     try {
+      // Small delay for visual feedback
+      await new Promise(resolve => setTimeout(resolve, 300));
+      
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.getWidth();
       
@@ -233,10 +239,24 @@ export default function TryCalculator() {
       doc.text('This projection is for illustration purposes. Past performance does not guarantee future results.', pageWidth / 2, doc.internal.pageSize.getHeight() - 15, { align: 'center' });
       doc.text('Start investing at welile.com', pageWidth / 2, doc.internal.pageSize.getHeight() - 8, { align: 'center' });
       
-      doc.save(`Welile_Projection_${months}months_${isCompounding ? 'compound' : 'simple'}.pdf`);
+      doc.save(`Welile_${months}mo_${isCompounding ? 'compound' : 'simple'}.pdf`);
       hapticSuccess();
+      setExportSuccess(true);
+      
+      toast({
+        title: "PDF Downloaded! ✅",
+        description: `Your ${months}-month projection is ready`,
+      });
+      
+      // Reset success state after 3 seconds
+      setTimeout(() => setExportSuccess(false), 3000);
     } catch (error) {
       console.error('PDF export failed:', error);
+      toast({
+        title: "Download failed",
+        description: "Please try again",
+        variant: "destructive",
+      });
     } finally {
       setIsExporting(false);
     }
@@ -514,26 +534,61 @@ export default function TryCalculator() {
                     </div>
                   )}
 
-                  {/* Actions - Larger buttons */}
-                  <div className="flex gap-2 mb-4">
-                    <Button 
-                      onClick={() => setShowBreakdown(!showBreakdown)} 
-                      variant="outline" 
-                      className="flex-1 gap-2 h-12 min-h-[48px]"
-                    >
-                      <ChevronDown className={`h-4 w-4 transition-transform ${showBreakdown ? 'rotate-180' : ''}`} />
-                      {showBreakdown ? 'Hide' : 'View'} Breakdown
-                    </Button>
-                    <Button 
-                      onClick={handleDownloadPDF} 
-                      variant="outline" 
-                      className="gap-2 h-12 px-4 min-h-[48px]"
-                      disabled={isExporting}
-                    >
-                      <Download className="h-4 w-4" />
-                      {isExporting ? '...' : 'PDF'}
-                    </Button>
+                  {/* Download PDF - Prominent card */}
+                  <div className="mb-4 p-4 rounded-xl bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
+                    <div className="flex items-center justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className={`p-2.5 rounded-xl ${exportSuccess ? 'bg-success/20' : 'bg-primary/20'}`}>
+                          {exportSuccess ? (
+                            <Check className="h-5 w-5 text-success" />
+                          ) : (
+                            <FileDown className="h-5 w-5 text-primary" />
+                          )}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">Download Report</p>
+                          <p className="text-xs text-muted-foreground">{months}-month breakdown PDF</p>
+                        </div>
+                      </div>
+                      <Button 
+                        onClick={handleDownloadPDF} 
+                        size="lg"
+                        className={`gap-2 h-12 px-5 min-h-[48px] font-semibold ${
+                          exportSuccess 
+                            ? 'bg-success hover:bg-success/90' 
+                            : 'bg-primary hover:bg-primary/90'
+                        }`}
+                        disabled={isExporting}
+                      >
+                        {isExporting ? (
+                          <>
+                            <RefreshCw className="h-4 w-4 animate-spin" />
+                            <span className="sr-only">Downloading...</span>
+                          </>
+                        ) : exportSuccess ? (
+                          <>
+                            <Check className="h-4 w-4" />
+                            Done
+                          </>
+                        ) : (
+                          <>
+                            <Download className="h-4 w-4" />
+                            Get PDF
+                          </>
+                        )}
+                      </Button>
+                    </div>
                   </div>
+
+                  {/* View Breakdown Toggle */}
+                  <Button 
+                    onClick={() => setShowBreakdown(!showBreakdown)} 
+                    variant="outline" 
+                    className="w-full gap-2 h-12 min-h-[48px] mb-4"
+                  >
+                    <ChevronDown className={`h-4 w-4 transition-transform ${showBreakdown ? 'rotate-180' : ''}`} />
+                    {showBreakdown ? 'Hide' : 'View'} Monthly Breakdown
+                  </Button>
 
                   {/* Monthly Breakdown - Mobile scrollable */}
                   <AnimatePresence>
