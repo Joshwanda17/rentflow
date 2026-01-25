@@ -1,33 +1,38 @@
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2 } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { formatUGX } from '@/lib/rentCalculations';
 
 export function WelileHomesButton() {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  // Check if user has an active Welile Homes subscription
-  const { data: hasSubscription } = useQuery({
+  // Check if user has an active Welile Homes subscription and get savings
+  const { data: subscription } = useQuery({
     queryKey: ['welile-homes-subscription-check', user?.id],
     queryFn: async () => {
-      if (!user?.id) return false;
+      if (!user?.id) return null;
       const { data, error } = await supabase
         .from('welile_homes_subscriptions')
-        .select('id')
+        .select('id, total_savings, months_enrolled')
         .eq('tenant_id', user.id)
         .eq('subscription_status', 'active')
         .maybeSingle();
       
-      return !!data && !error;
+      if (error || !data) return null;
+      return data;
     },
     enabled: !!user?.id,
     staleTime: 1000 * 60 * 5, // Cache for 5 minutes
   });
+
+  const hasSubscription = !!subscription;
+  const totalSavings = subscription?.total_savings ?? 0;
 
   const handleClick = () => {
     if (hasSubscription) {
@@ -74,11 +79,17 @@ export function WelileHomesButton() {
                   </Badge>
                 )}
               </div>
-              <p className="text-sm text-muted-foreground">
-                {hasSubscription 
-                  ? 'View your savings dashboard' 
-                  : 'Turn your rent into your future home'}
-              </p>
+              {hasSubscription ? (
+                <div className="flex items-center gap-1.5 mt-0.5">
+                  <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                  <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
+                  <span className="text-xs text-muted-foreground">saved</span>
+                </div>
+              ) : (
+                <p className="text-sm text-muted-foreground">
+                  Turn your rent into your future home
+                </p>
+              )}
             </div>
             <ChevronRight className={`h-5 w-5 transition-colors ${
               hasSubscription 
