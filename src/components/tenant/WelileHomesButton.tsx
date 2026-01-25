@@ -1,6 +1,6 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2, TrendingUp, Trophy, Target, Sparkles } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
@@ -181,17 +181,50 @@ export function WelileHomesButton() {
       if (!subscription?.id) return [];
       const { data, error } = await supabase
         .from('welile_homes_contributions')
-        .select('balance_after, created_at')
+        .select('balance_after, amount, created_at')
         .eq('subscription_id', subscription.id)
         .order('created_at', { ascending: true })
         .limit(10);
       
       if (error || !data) return [];
-      return data.map(c => c.balance_after);
+      return data;
     },
     enabled: !!subscription?.id,
     staleTime: 1000 * 60 * 5,
   });
+
+  // Calculate monthly comparison
+  const monthlyComparison = useMemo(() => {
+    if (!contributions || contributions.length === 0) return null;
+    
+    const now = new Date();
+    const thisMonthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+    const lastMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const lastMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0);
+    
+    let thisMonthTotal = 0;
+    let lastMonthTotal = 0;
+    
+    contributions.forEach(c => {
+      const date = new Date(c.created_at);
+      if (date >= thisMonthStart) {
+        thisMonthTotal += c.amount;
+      } else if (date >= lastMonthStart && date <= lastMonthEnd) {
+        lastMonthTotal += c.amount;
+      }
+    });
+    
+    if (lastMonthTotal === 0 && thisMonthTotal === 0) return null;
+    if (lastMonthTotal === 0) return { percent: 100, direction: 'up' as const, thisMonth: thisMonthTotal, lastMonth: 0 };
+    
+    const change = ((thisMonthTotal - lastMonthTotal) / lastMonthTotal) * 100;
+    return {
+      percent: Math.abs(change).toFixed(0),
+      direction: change >= 0 ? 'up' as const : 'down' as const,
+      thisMonth: thisMonthTotal,
+      lastMonth: lastMonthTotal
+    };
+  }, [contributions]);
 
   const hasSubscription = !!subscription;
   const totalSavings = subscription?.total_savings ?? 0;
@@ -208,14 +241,14 @@ export function WelileHomesButton() {
 
   // Sparkline data - include current balance at end if different from last contribution
   const sparklineData = useMemo(() => {
-    const data = contributions ?? [];
-    if (data.length === 0 && totalSavings > 0) {
+    const balances = contributions?.map(c => c.balance_after) ?? [];
+    if (balances.length === 0 && totalSavings > 0) {
       return [0, totalSavings]; // Show growth from 0 to current
     }
-    if (data.length > 0 && data[data.length - 1] !== totalSavings) {
-      return [...data, totalSavings];
+    if (balances.length > 0 && balances[balances.length - 1] !== totalSavings) {
+      return [...balances, totalSavings];
     }
-    return data;
+    return balances;
   }, [contributions, totalSavings]);
 
   // Check localStorage for celebrated milestones and trigger celebration
@@ -297,6 +330,31 @@ export function WelileHomesButton() {
                       <TrendingUp className="h-3.5 w-3.5 text-green-600" />
                       <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
                       <span className="text-xs text-muted-foreground">saved</span>
+                      {monthlyComparison && (
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-1 py-0.5 rounded ${
+                              monthlyComparison.direction === 'up' 
+                                ? 'bg-green-100 text-green-700' 
+                                : 'bg-red-100 text-red-600'
+                            }`}>
+                              {monthlyComparison.direction === 'up' ? (
+                                <ArrowUp className="h-2.5 w-2.5" />
+                              ) : (
+                                <ArrowDown className="h-2.5 w-2.5" />
+                              )}
+                              {monthlyComparison.percent}%
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent side="top" className="text-xs">
+                            <div className="space-y-1">
+                              <p className="font-medium">Monthly Comparison</p>
+                              <p>This month: {formatUGX(monthlyComparison.thisMonth)}</p>
+                              <p>Last month: {formatUGX(monthlyComparison.lastMonth)}</p>
+                            </div>
+                          </TooltipContent>
+                        </Tooltip>
+                      )}
                     </div>
                     {sparklineData.length >= 2 && (
                       <MiniSparkline data={sparklineData} />
