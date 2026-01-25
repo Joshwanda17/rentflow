@@ -110,7 +110,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted';
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -565,6 +565,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && (opp.agent_verified || opp.manager_verified) && !(opp.agent_verified && opp.manager_verified));
     } else if (filterBy === 'pending') {
       result = result.filter(opp => opp.status !== 'funded' && opp.status !== 'rejected' && !opp.agent_verified && !opp.manager_verified);
+    } else if (filterBy === 'agent_posted') {
+      result = result.filter(opp => opp.agent_id != null);
     }
 
     // Apply sort
@@ -1121,6 +1123,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { value: 'all', label: 'All', icon: '📋' },
+            { value: 'agent_posted', label: 'Agent Posted', icon: '👤' },
             { value: 'funded', label: 'Funded', icon: '💚' },
             { value: 'ready', label: 'Ready', icon: '✅' },
             { value: 'verifying', label: 'Verifying', icon: '⏳' },
