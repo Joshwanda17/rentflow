@@ -2,11 +2,26 @@ import { useNavigate } from 'react-router-dom';
 import { Home, ChevronRight, CheckCircle2, TrendingUp } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Progress } from '@/components/ui/progress';
 import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
+
+// Calculate 5-year savings projection (same formula as other components)
+function calculate5YearProjection(monthlyRent: number): number {
+  const MONTHLY_GROWTH_RATE = 0.05;
+  const LANDLORD_FEE_RATE = 0.10;
+  const monthlyContribution = monthlyRent * LANDLORD_FEE_RATE;
+  let balance = 0;
+  
+  for (let month = 1; month <= 60; month++) {
+    balance = (balance + monthlyContribution) * (1 + MONTHLY_GROWTH_RATE);
+  }
+  
+  return Math.round(balance);
+}
 
 export function WelileHomesButton() {
   const navigate = useNavigate();
@@ -19,7 +34,7 @@ export function WelileHomesButton() {
       if (!user?.id) return null;
       const { data, error } = await supabase
         .from('welile_homes_subscriptions')
-        .select('id, total_savings, months_enrolled')
+        .select('id, total_savings, months_enrolled, monthly_rent')
         .eq('tenant_id', user.id)
         .eq('subscription_status', 'active')
         .maybeSingle();
@@ -33,6 +48,11 @@ export function WelileHomesButton() {
 
   const hasSubscription = !!subscription;
   const totalSavings = subscription?.total_savings ?? 0;
+  const monthlyRent = subscription?.monthly_rent ?? 0;
+  
+  // Calculate 5-year goal and progress
+  const fiveYearGoal = monthlyRent > 0 ? calculate5YearProjection(monthlyRent) : 0;
+  const progressPercent = fiveYearGoal > 0 ? Math.min((totalSavings / fiveYearGoal) * 100, 100) : 0;
 
   const handleClick = () => {
     if (hasSubscription) {
@@ -80,10 +100,21 @@ export function WelileHomesButton() {
                 )}
               </div>
               {hasSubscription ? (
-                <div className="flex items-center gap-1.5 mt-0.5">
-                  <TrendingUp className="h-3.5 w-3.5 text-green-600" />
-                  <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
-                  <span className="text-xs text-muted-foreground">saved</span>
+                <div className="mt-1 space-y-1">
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-green-600" />
+                    <span className="text-sm font-bold text-green-700">{formatUGX(totalSavings)}</span>
+                    <span className="text-xs text-muted-foreground">saved</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Progress 
+                      value={progressPercent} 
+                      className="h-1.5 flex-1 bg-green-100" 
+                    />
+                    <span className="text-[10px] font-medium text-green-600 whitespace-nowrap">
+                      {progressPercent.toFixed(1)}% of 5yr goal
+                    </span>
+                  </div>
                 </div>
               ) : (
                 <p className="text-sm text-muted-foreground">
