@@ -24,6 +24,6 @@ export default function Index() {
     return <Navigate to="/select-role" replace />;
   }
 
-  // Not logged in - go to auth page
-  return <Navigate to="/auth" replace />;
+  // Not logged in - go to landing page
+  return <Navigate to="/welcome" replace />;
 }
