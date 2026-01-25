@@ -1,13 +1,15 @@
+import { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2, TrendingUp } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp, Trophy, Target, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { motion } from 'framer-motion';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useConfetti } from '@/components/Confetti';
+import { useToast } from '@/hooks/use-toast';
 
 // Calculate 5-year savings projection (same formula as other components)
 function calculate5YearProjection(monthlyRent: number): number {
@@ -23,9 +25,29 @@ function calculate5YearProjection(monthlyRent: number): number {
   return Math.round(balance);
 }
 
+// Milestone thresholds
+const MILESTONES = [
+  { threshold: 25, label: '25%', icon: Target, color: 'text-blue-600', bg: 'bg-blue-100' },
+  { threshold: 50, label: '50%', icon: Sparkles, color: 'text-amber-600', bg: 'bg-amber-100' },
+  { threshold: 75, label: '75%', icon: Trophy, color: 'text-purple-600', bg: 'bg-purple-100' },
+];
+
+function getMilestone(percent: number) {
+  // Return highest reached milestone
+  for (let i = MILESTONES.length - 1; i >= 0; i--) {
+    if (percent >= MILESTONES[i].threshold) {
+      return MILESTONES[i];
+    }
+  }
+  return null;
+}
+
 export function WelileHomesButton() {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { fireSuccess } = useConfetti();
+  const { toast } = useToast();
+  const celebratedMilestoneRef = useRef<number | null>(null);
 
   // Check if user has an active Welile Homes subscription and get savings
   const { data: subscription } = useQuery({
@@ -53,6 +75,35 @@ export function WelileHomesButton() {
   // Calculate 5-year goal and progress
   const fiveYearGoal = monthlyRent > 0 ? calculate5YearProjection(monthlyRent) : 0;
   const progressPercent = fiveYearGoal > 0 ? Math.min((totalSavings / fiveYearGoal) * 100, 100) : 0;
+  
+  // Get current milestone
+  const currentMilestone = getMilestone(progressPercent);
+
+  // Check localStorage for celebrated milestones and trigger celebration
+  useEffect(() => {
+    if (!user?.id || !hasSubscription || progressPercent === 0) return;
+
+    const storageKey = `welile-homes-milestone-${user.id}`;
+    const celebratedStr = localStorage.getItem(storageKey);
+    const celebrated = celebratedStr ? parseInt(celebratedStr, 10) : 0;
+
+    // Find the highest milestone we've just crossed
+    for (const milestone of MILESTONES) {
+      if (progressPercent >= milestone.threshold && celebrated < milestone.threshold) {
+        // Fire celebration!
+        fireSuccess();
+        toast({
+          title: `🎉 ${milestone.label} Milestone Reached!`,
+          description: `Congratulations! You've saved ${milestone.label} of your 5-year home fund goal!`,
+        });
+        
+        // Update localStorage
+        localStorage.setItem(storageKey, milestone.threshold.toString());
+        celebratedMilestoneRef.current = milestone.threshold;
+        break;
+      }
+    }
+  }, [user?.id, hasSubscription, progressPercent, fireSuccess, toast]);
 
   const handleClick = () => {
     if (hasSubscription) {
@@ -63,13 +114,9 @@ export function WelileHomesButton() {
   };
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: 0.2 }}
-    >
+    <div className="animate-fade-in">
       <Card 
-        className={`cursor-pointer hover:shadow-md transition-all duration-200 overflow-hidden group ${
+        className={`cursor-pointer hover:shadow-md transition-all duration-200 overflow-hidden group touch-manipulation ${
           hasSubscription 
             ? 'border-green-300 bg-gradient-to-r from-green-50 to-background' 
             : 'border-purple-200 bg-gradient-to-r from-purple-50 to-background'
@@ -89,10 +136,18 @@ export function WelileHomesButton() {
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-semibold text-foreground">🏠 Welile Homes</h3>
                 {hasSubscription ? (
-                  <Badge className="bg-green-100 text-green-700 text-[10px] gap-1">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Active
-                  </Badge>
+                  <>
+                    <Badge className="bg-green-100 text-green-700 text-[10px] gap-1">
+                      <CheckCircle2 className="h-3 w-3" />
+                      Active
+                    </Badge>
+                    {currentMilestone && (
+                      <Badge className={`${currentMilestone.bg} ${currentMilestone.color} text-[10px] gap-1 animate-scale-in`}>
+                        <currentMilestone.icon className="h-3 w-3" />
+                        {currentMilestone.label}
+                      </Badge>
+                    )}
+                  </>
                 ) : (
                   <Badge variant="secondary" className="bg-purple-100 text-purple-700 text-[10px]">
                     NEW
@@ -130,6 +185,6 @@ export function WelileHomesButton() {
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
