@@ -1,4 +1,4 @@
-import { Share2, Gift, Copy } from 'lucide-react';
+import { Share2, Gift, Copy, Calculator } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useToast } from '@/hooks/use-toast';
@@ -14,6 +14,7 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
   const { profile } = useProfile();
 
   const referralLink = `${window.location.origin}/join?ref=${profile?.id || ''}`;
+  const calculatorLink = `${window.location.origin}/try-calculator?ref=${profile?.id || ''}`;
 
   const handleCopyLink = async () => {
     try {
@@ -29,6 +30,31 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
         variant: 'destructive',
       });
     }
+  };
+
+  const handleShareCalculator = async () => {
+    const shareMessage = `💰 See how much you can earn with Welile!
+
+📊 Try our Investment Calculator - No sign up needed!
+📈 Earn 15% monthly returns
+
+Try it now: ${calculatorLink}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Try Welile Investment Calculator',
+          text: shareMessage,
+          url: calculatorLink,
+        });
+        return;
+      } catch {
+        // Fall through to WhatsApp
+      }
+    }
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    window.open(whatsappUrl, '_blank');
   };
 
   return (
@@ -49,25 +75,38 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
             <Gift className="h-6 w-6 text-white" />
           </div>
           <div className="flex-1 min-w-0">
-            <h3 className="font-bold text-white mb-0.5">Earn with Friends</h3>
+            <h3 className="font-bold text-white mb-0.5">Invite & Earn</h3>
             <p className="text-xs text-white/80 mb-3">
-              Share your link and earn rewards when friends invest
+              Share your link or let them try the calculator first!
             </p>
             
-            <div className="flex gap-2">
+            <div className="space-y-2">
+              {/* Main share row */}
+              <div className="flex gap-2">
+                <Button
+                  onClick={onShare}
+                  className="flex-1 h-10 rounded-xl bg-white text-purple-600 font-bold text-sm hover:bg-white/95 active:scale-[0.98] transition-all gap-2"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Invite Link
+                </Button>
+                <Button
+                  onClick={handleCopyLink}
+                  variant="ghost"
+                  className="h-10 px-3 rounded-xl bg-white/15 text-white hover:bg-white/25 active:scale-[0.98]"
+                >
+                  <Copy className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              {/* Calculator share button */}
               <Button
-                onClick={onShare}
-                className="flex-1 h-10 rounded-xl bg-white text-purple-600 font-bold text-sm hover:bg-white/95 active:scale-[0.98] transition-all gap-2"
-              >
-                <Share2 className="h-4 w-4" />
-                Share Link
-              </Button>
-              <Button
-                onClick={handleCopyLink}
+                onClick={handleShareCalculator}
                 variant="ghost"
-                className="h-10 px-3 rounded-xl bg-white/15 text-white hover:bg-white/25 active:scale-[0.98]"
+                className="w-full h-9 rounded-xl bg-white/10 text-white hover:bg-white/20 active:scale-[0.98] text-xs gap-2"
               >
-                <Copy className="h-4 w-4" />
+                <Calculator className="h-3.5 w-3.5" />
+                Share Calculator (for strangers)
               </Button>
             </div>
           </div>
