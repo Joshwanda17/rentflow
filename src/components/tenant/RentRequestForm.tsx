@@ -25,7 +25,7 @@ const quickOptions = [
   { days: 14, label: '2 Weeks' },
   { days: 30, label: '30 Days' },
   { days: 60, label: '60 Days' },
-  { days: 100, label: '100 Days' },
+  { days: 90, label: '90 Days' },
   { days: 120, label: '4 Months' },
 ];
 
