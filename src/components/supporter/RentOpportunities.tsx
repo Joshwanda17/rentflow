@@ -60,6 +60,7 @@ import { getWhatsAppLink } from '@/lib/phoneUtils';
 interface RentOpportunity {
   id: string;
   tenant_id: string;
+  agent_id: string | null;
   landlord_id: string | null;
   rent_amount: number;
   duration_days: number;
@@ -78,8 +79,11 @@ interface RentOpportunity {
     avatar_url?: string;
     phone?: string;
   };
-  agent?: {
+  postingAgent?: {
+    id: string;
     full_name: string;
+    phone?: string;
+    avatar_url?: string;
   };
   landlord?: {
     id: string;
@@ -315,6 +319,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .select(`
         id,
         tenant_id,
+        agent_id,
         landlord_id,
         rent_amount,
         duration_days,
@@ -332,13 +337,14 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .order('created_at', { ascending: false })
       .range(from, to);
 
-    // Fetch tenant profiles, verifier profiles, and funder profiles separately
+    // Fetch tenant profiles, posting agent profiles, verifier profiles, and funder profiles separately
     if (!error && data) {
       const tenantIds = [...new Set(data.map(r => r.tenant_id).filter(Boolean))];
+      const postingAgentIds = [...new Set(data.map(r => r.agent_id).filter(Boolean))] as string[];
       const agentVerifierIds = [...new Set(data.map(r => r.agent_verified_by).filter(Boolean))] as string[];
       const managerVerifierIds = [...new Set(data.map(r => r.manager_verified_by).filter(Boolean))] as string[];
       const supporterIds = [...new Set(data.map(r => r.supporter_id).filter(Boolean))] as string[];
-      const allProfileIds = [...new Set([...tenantIds, ...agentVerifierIds, ...managerVerifierIds, ...supporterIds])];
+      const allProfileIds = [...new Set([...tenantIds, ...postingAgentIds, ...agentVerifierIds, ...managerVerifierIds, ...supporterIds])];
       
       const { data: profiles } = await supabase
         .from('profiles')
@@ -350,6 +356,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       const enrichedData = data.map(r => ({
         ...r,
         tenant: profileMap.get(r.tenant_id) || null,
+        postingAgent: r.agent_id ? profileMap.get(r.agent_id) : null,
         agentVerifier: r.agent_verified_by ? profileMap.get(r.agent_verified_by) : null,
         managerVerifier: r.manager_verified_by ? profileMap.get(r.manager_verified_by) : null,
         funder: r.supporter_id ? profileMap.get(r.supporter_id) : null
@@ -407,6 +414,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
       .select(`
         id,
         tenant_id,
+        agent_id,
         landlord_id,
         rent_amount,
         duration_days,
@@ -435,8 +443,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
 
     // Process all statuses - we now show everything
-    // Fetch tenant, verifier, and funder profiles separately
-    const profileIds = [data.tenant_id, data.agent_verified_by, data.manager_verified_by, data.supporter_id].filter(Boolean) as string[];
+    // Fetch tenant, posting agent, verifier, and funder profiles separately
+    const profileIds = [data.tenant_id, data.agent_id, data.agent_verified_by, data.manager_verified_by, data.supporter_id].filter(Boolean) as string[];
     const { data: profiles } = await supabase
       .from('profiles')
       .select('id, full_name, avatar_url, phone')
@@ -447,6 +455,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const opportunity = {
       ...data,
       tenant: profileMap.get(data.tenant_id) || null,
+      postingAgent: data.agent_id ? profileMap.get(data.agent_id) : null,
       agentVerifier: data.agent_verified_by ? profileMap.get(data.agent_verified_by) : null,
       managerVerifier: data.manager_verified_by ? profileMap.get(data.manager_verified_by) : null,
       funder: data.supporter_id ? profileMap.get(data.supporter_id) : null
@@ -1222,7 +1231,14 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                             {opportunity.tenant?.full_name || 'Anonymous Tenant'}
                             {isReady && ' ⭐'}
                           </span>
-                          {isReady && (
+                          {/* Show posting agent if available */}
+                          {opportunity.postingAgent && (
+                            <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                              <UserPlus className="h-2.5 w-2.5" />
+                              Posted by {opportunity.postingAgent.full_name}
+                            </span>
+                          )}
+                          {isReady && !opportunity.postingAgent && (
                             <span className="text-[10px] text-amber-600 dark:text-amber-400 flex items-center gap-1 font-medium">
                               <Sparkles className="h-2.5 w-2.5" />
                               Ready to fund • Earn {formatAmount(reward)}
@@ -1316,6 +1332,57 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                   <div className={`h-1.5 flex-1 rounded-full ${opportunity.status === 'approved' && opportunity.landlord?.ready_to_receive ? 'bg-success' : 'bg-muted'}`} />
                                 </div>
                               </div>
+                              
+                              {/* Posting Agent Info with Contact */}
+                              {opportunity.postingAgent && (
+                                <div className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border border-muted">
+                                  <div className="flex items-center gap-2">
+                                    <div className="p-1.5 rounded-full bg-primary/10">
+                                      <UserPlus className="h-3.5 w-3.5 text-primary" />
+                                    </div>
+                                    <div>
+                                      <p className="text-xs font-medium">Agent: {opportunity.postingAgent.full_name}</p>
+                                      <p className="text-[10px] text-muted-foreground">Posted this request</p>
+                                    </div>
+                                  </div>
+                                  <div className="flex items-center gap-1.5">
+                                    {opportunity.postingAgent.phone && (
+                                      <a
+                                        href={getWhatsAppLink(opportunity.postingAgent.phone)}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                                      >
+                                        <MessageCircle className="h-4 w-4" />
+                                      </a>
+                                    )}
+                                    {opportunity.postingAgent.phone && (
+                                      <a
+                                        href={`tel:${opportunity.postingAgent.phone}`}
+                                        onClick={(e) => e.stopPropagation()}
+                                        className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                                      >
+                                        <Phone className="h-4 w-4" />
+                                      </a>
+                                    )}
+                                    <Button
+                                      variant="outline"
+                                      size="sm"
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        if (opportunity.postingAgent?.id) {
+                                          handleStartChat(opportunity.postingAgent.id);
+                                        }
+                                      }}
+                                      disabled={startingChat}
+                                      className="h-8 px-2 text-xs"
+                                    >
+                                      Chat
+                                    </Button>
+                                  </div>
+                                </div>
+                              )}
                               
                               {/* Action buttons */}
                               <div className="flex gap-2">

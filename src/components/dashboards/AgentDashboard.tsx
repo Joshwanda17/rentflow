@@ -51,6 +51,7 @@ import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { CollapsibleLinkSignups } from '@/components/agent/CollapsibleLinkSignups';
 import { ShareReferralLink } from '@/components/agent/ShareReferralLink';
 import { RecruitTenantWelileHomes } from '@/components/agent/RecruitTenantWelileHomes';
+import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
@@ -174,6 +175,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
+  const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
   
   // Collapsible sections state
@@ -385,16 +387,38 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         ═══════════════════════════════════════════════════════════════════ */}
         <div>
           <SectionHeader icon={Target} title="Quick Actions" />
-          <div className="grid grid-cols-4 gap-2">
+          <div className="grid grid-cols-4 gap-2 mb-2">
             <QuickActionButton icon={UserPlus} label="Register" sublabel="User" onClick={handleRegisterUser} variant="primary" />
             <QuickActionButton icon={Wallet} label="Wallet" onClick={handleViewWallet} variant="success" />
             <QuickActionButton icon={ArrowDownCircle} label="Deposit" onClick={handleDeposit} variant="default" />
             <QuickActionButton icon={ArrowUpCircle} label="Withdraw" onClick={handleWithdrawal} variant="warning" />
           </div>
+          {/* Post Rent Request for Tenant */}
+          <Button
+            onClick={() => { hapticTap(); setRentRequestOpen(true); }}
+            variant="outline"
+            className="w-full h-12 justify-start gap-3 border-primary/30 hover:bg-primary/5"
+          >
+            <div className="p-1.5 rounded-lg bg-primary/10">
+              <FileText className="h-4 w-4 text-primary" />
+            </div>
+            <div className="text-left flex-1">
+              <p className="text-sm font-medium">Post Rent Request</p>
+              <p className="text-[10px] text-muted-foreground">On behalf of tenant without app</p>
+            </div>
+            <ChevronRight className="h-4 w-4 text-muted-foreground" />
+          </Button>
         </div>
 
         {/* Full-screen wallet sheet */}
         <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+
+        {/* Agent Rent Request Dialog */}
+        <AgentRentRequestDialog 
+          open={rentRequestOpen} 
+          onOpenChange={setRentRequestOpen} 
+          onSuccess={() => setRentRequestOpen(false)}
+        />
 
         {/* ═══════════════════════════════════════════════════════════════════
             SECTION 3: EARNINGS OVERVIEW
