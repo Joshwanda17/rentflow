@@ -457,24 +457,74 @@ export default function TryCalculator() {
               </div>
             </div>
 
-            {/* Compounding Toggle - Larger touch area */}
-            <button 
-              onClick={() => setIsCompounding(!isCompounding)}
-              className="w-full flex items-center justify-between p-4 rounded-xl bg-muted/50 border active:bg-muted/80 transition-colors min-h-[64px]"
-            >
-              <div className="flex items-center gap-3">
-                <RefreshCw className={`h-5 w-5 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
-                <div className="text-left">
-                  <p className="font-semibold">Compound Earnings</p>
-                  <p className="text-xs text-muted-foreground">Reinvest monthly returns</p>
-                </div>
+            {/* Compounding Mode - Prominent selection */}
+            <div className="space-y-3">
+              <Label className="text-sm font-semibold block">Earning Mode</Label>
+              <div className="grid grid-cols-2 gap-3">
+                {/* Simple Mode */}
+                <button
+                  onClick={() => setIsCompounding(false)}
+                  className={`relative p-4 rounded-xl border-2 transition-all min-h-[100px] text-left ${
+                    !isCompounding 
+                      ? 'border-primary bg-primary/10 shadow-md' 
+                      : 'border-border bg-muted/30 hover:bg-muted/50'
+                  }`}
+                >
+                  {!isCompounding && (
+                    <div className="absolute top-2 right-2">
+                      <div className="h-5 w-5 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-3 w-3 text-primary-foreground" />
+                      </div>
+                    </div>
+                  )}
+                  <div className="flex flex-col gap-2">
+                    <div className={`p-2 rounded-lg w-fit ${!isCompounding ? 'bg-primary/20' : 'bg-muted'}`}>
+                      <TrendingUp className={`h-5 w-5 ${!isCompounding ? 'text-primary' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">Simple</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                        Fixed monthly earnings
+                      </p>
+                    </div>
+                  </div>
+                </button>
+
+                {/* Compound Mode */}
+                <button
+                  onClick={() => setIsCompounding(true)}
+                  className={`relative p-4 rounded-xl border-2 transition-all min-h-[100px] text-left ${
+                    isCompounding 
+                      ? 'border-success bg-success/10 shadow-md' 
+                      : 'border-border bg-muted/30 hover:bg-muted/50'
+                  }`}
+                >
+                  {isCompounding && (
+                    <div className="absolute top-2 right-2">
+                      <div className="h-5 w-5 rounded-full bg-success flex items-center justify-center">
+                        <Check className="h-3 w-3 text-success-foreground" />
+                      </div>
+                    </div>
+                  )}
+                  <div className="absolute -top-2 left-3">
+                    <span className="text-[10px] font-bold bg-success text-success-foreground px-2 py-0.5 rounded-full">
+                      RECOMMENDED
+                    </span>
+                  </div>
+                  <div className="flex flex-col gap-2 mt-1">
+                    <div className={`p-2 rounded-lg w-fit ${isCompounding ? 'bg-success/20' : 'bg-muted'}`}>
+                      <RefreshCw className={`h-5 w-5 ${isCompounding ? 'text-success' : 'text-muted-foreground'}`} />
+                    </div>
+                    <div>
+                      <p className="font-bold text-sm">Compound</p>
+                      <p className="text-[11px] text-muted-foreground leading-tight mt-0.5">
+                        Earnings grow monthly
+                      </p>
+                    </div>
+                  </div>
+                </button>
               </div>
-              <Switch 
-                checked={isCompounding} 
-                onCheckedChange={setIsCompounding}
-                className="pointer-events-none"
-              />
-            </button>
+            </div>
 
             <Button 
               onClick={handleCalculate} 
