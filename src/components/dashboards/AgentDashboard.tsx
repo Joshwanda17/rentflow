@@ -50,6 +50,7 @@ import { RegisterSubAgentDialog } from '@/components/agent/RegisterSubAgentDialo
 import { ShareSubAgentLink } from '@/components/agent/ShareSubAgentLink';
 import { CollapsibleLinkSignups } from '@/components/agent/CollapsibleLinkSignups';
 import { ShareReferralLink } from '@/components/agent/ShareReferralLink';
+import { CalculatorShareCard } from '@/components/supporter/CalculatorShareCard';
 import { RecruitTenantWelileHomes } from '@/components/agent/RecruitTenantWelileHomes';
 import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
@@ -470,6 +471,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             }
           />
           <div className="space-y-3">
+            {/* Calculator Share - Primary for recruiting supporters */}
+            <CalculatorShareCard />
+            
             <RecruitTenantWelileHomes />
             <ShareReferralLink />
             <ShareSubAgentLink />

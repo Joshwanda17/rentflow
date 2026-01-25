@@ -26,6 +26,7 @@ const APP_SHELL_ROUTES = [
   '/marketplace',
   '/referrals',
   '/earnings',
+  '/try-calculator', // Public calculator for offline use
 ];
 
 // API endpoints to cache for offline dashboard access

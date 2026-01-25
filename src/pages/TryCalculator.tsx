@@ -1,12 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Calculator, TrendingUp, ArrowRight, Sparkles, Shield, Clock } from 'lucide-react';
+import { Calculator, TrendingUp, ArrowRight, Sparkles, Shield, Clock, Share2, WifiOff } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
 export default function TryCalculator() {
   const navigate = useNavigate();
@@ -16,6 +17,19 @@ export default function TryCalculator() {
   const [amount, setAmount] = useState(500000);
   const [months, setMonths] = useState(6);
   const [hasTriedCalculator, setHasTriedCalculator] = useState(false);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+
+  // Monitor online status
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   const monthlyRate = 0.15; // 15% monthly
   const monthlyEarnings = amount * monthlyRate;
@@ -23,18 +37,55 @@ export default function TryCalculator() {
   const finalBalance = amount + totalEarnings;
 
   const handleCalculate = () => {
+    hapticTap();
     setHasTriedCalculator(true);
   };
 
   const handleSignUp = () => {
+    hapticSuccess();
     // Navigate to auth with supporter role pre-selected and referrer
     const params = new URLSearchParams({ role: 'supporter' });
     if (referrerId) params.set('ref', referrerId);
     navigate(`/auth?${params.toString()}`);
   };
 
+  const handleShare = async () => {
+    hapticTap();
+    const shareLink = `${window.location.origin}/try-calculator${referrerId ? `?ref=${referrerId}` : ''}`;
+    const shareMessage = `💰 Want to earn 15% monthly returns?
+
+📊 Try this FREE Investment Calculator - no signup needed!
+📈 See exactly how much you can earn
+
+👉 Try it: ${shareLink}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Welile Investment Calculator',
+          text: shareMessage,
+          url: shareLink,
+        });
+        return;
+      } catch {
+        // Fall through to WhatsApp
+      }
+    }
+    
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 dark:from-violet-950/30 dark:via-purple-950/20 dark:to-background">
+      {/* Offline indicator */}
+      {!isOnline && (
+        <div className="bg-warning/20 border-b border-warning/30 px-4 py-2 flex items-center justify-center gap-2 text-sm">
+          <WifiOff className="h-4 w-4 text-warning" />
+          <span className="text-warning-foreground">Offline - Calculator still works!</span>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-50 bg-white/80 dark:bg-background/80 backdrop-blur-xl border-b">
         <div className="container mx-auto px-4 py-3 flex items-center justify-between">
@@ -45,10 +96,15 @@ export default function TryCalculator() {
           >
             Welile
           </span>
-          <Button onClick={handleSignUp} size="sm" className="gap-2">
-            <Sparkles className="h-4 w-4" />
-            Start Earning
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" onClick={handleShare} className="h-9 w-9">
+              <Share2 className="h-4 w-4" />
+            </Button>
+            <Button onClick={handleSignUp} size="sm" className="gap-2">
+              <Sparkles className="h-4 w-4" />
+              Start Earning
+            </Button>
+          </div>
         </div>
       </header>
 
