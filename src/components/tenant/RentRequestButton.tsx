@@ -29,12 +29,14 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 const PLATFORM_FEE = 10000;
 const DAILY_ACCESS_FEE_RATE = 0.011;
 
-type RepaymentPeriod = '7' | '14' | '21' | '120';
+type RepaymentPeriod = '7' | '14' | '30' | '60' | '90' | '120';
 
 const repaymentOptions: { value: RepaymentPeriod; label: string; days: number }[] = [
   { value: '7', label: 'Weekly (7 days)', days: 7 },
   { value: '14', label: 'After 2 Weeks (14 days)', days: 14 },
-  { value: '21', label: 'After 3 Weeks (21 days)', days: 21 },
+  { value: '30', label: 'After 30 Days (1 month)', days: 30 },
+  { value: '60', label: 'After 60 Days (2 months)', days: 60 },
+  { value: '90', label: 'After 90 Days (3 months)', days: 90 },
   { value: '120', label: 'After 4 Months (120 days)', days: 120 },
 ];
 
