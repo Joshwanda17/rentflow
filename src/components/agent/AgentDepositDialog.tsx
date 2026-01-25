@@ -3,9 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowDownCircle } from 'lucide-react';
+import { Loader2, ArrowDownCircle, Smartphone, AlertCircle } from 'lucide-react';
 
 interface AgentDepositDialogProps {
   open: boolean;
@@ -16,6 +17,8 @@ interface AgentDepositDialogProps {
 export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepositDialogProps) {
   const [phone, setPhone] = useState('');
   const [amount, setAmount] = useState('');
+  const [provider, setProvider] = useState<'mtn' | 'airtel'>('mtn');
+  const [transactionId, setTransactionId] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -46,6 +49,26 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
       return;
     }
 
+    if (!transactionId.trim()) {
+      toast({ 
+        title: 'Transaction ID Required', 
+        description: `Please enter the ${provider.toUpperCase()} transaction ID from the customer's payment`,
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Validate transaction ID format
+    const trimmedTxnId = transactionId.trim().toUpperCase();
+    if (trimmedTxnId.length < 8) {
+      toast({ 
+        title: 'Invalid Transaction ID', 
+        description: 'Transaction ID must be at least 8 characters',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
       toast({ title: 'Please enter a valid amount', variant: 'destructive' });
@@ -57,7 +80,12 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
 
     try {
       const { data, error } = await supabase.functions.invoke('agent-deposit', {
-        body: { user_phone: phone.trim(), amount: amountNum },
+        body: { 
+          user_phone: phone.trim(), 
+          amount: amountNum,
+          provider: provider,
+          transaction_id: trimmedTxnId
+        },
       });
 
       if (error) throw error;
@@ -79,13 +107,15 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
   const handleClose = () => {
     setPhone('');
     setAmount('');
+    setProvider('mtn');
+    setTransactionId('');
     setResult(null);
     onOpenChange(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <ArrowDownCircle className="h-5 w-5 text-success" />
@@ -146,6 +176,7 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 disabled={loading}
+                className="h-12"
               />
             </div>
 
@@ -159,7 +190,72 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
                 onChange={(e) => setAmount(e.target.value)}
                 disabled={loading}
                 min="1"
+                className="h-12"
               />
+            </div>
+
+            {/* Payment Provider Selection */}
+            <div className="space-y-3">
+              <Label className="flex items-center gap-2">
+                <Smartphone className="h-4 w-4" />
+                Payment Provider
+              </Label>
+              <RadioGroup
+                value={provider}
+                onValueChange={(v) => setProvider(v as 'mtn' | 'airtel')}
+                className="grid grid-cols-2 gap-3"
+                disabled={loading}
+              >
+                <Label
+                  htmlFor="mtn"
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    provider === 'mtn'
+                      ? 'border-yellow-500 bg-yellow-500/10'
+                      : 'border-border hover:border-yellow-500/50'
+                  }`}
+                >
+                  <RadioGroupItem value="mtn" id="mtn" className="sr-only" />
+                  <div className="text-center">
+                    <div className="font-bold text-yellow-600">MTN</div>
+                    <div className="text-xs text-muted-foreground">090777</div>
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="airtel"
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 cursor-pointer transition-all ${
+                    provider === 'airtel'
+                      ? 'border-red-500 bg-red-500/10'
+                      : 'border-border hover:border-red-500/50'
+                  }`}
+                >
+                  <RadioGroupItem value="airtel" id="airtel" className="sr-only" />
+                  <div className="text-center">
+                    <div className="font-bold text-red-600">Airtel</div>
+                    <div className="text-xs text-muted-foreground">4380664</div>
+                  </div>
+                </Label>
+              </RadioGroup>
+            </div>
+
+            {/* Transaction ID */}
+            <div className="space-y-2">
+              <Label htmlFor="transactionId" className="flex items-center gap-2">
+                Transaction ID <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="transactionId"
+                type="text"
+                placeholder={provider === 'mtn' ? 'e.g. 12345678901' : 'e.g. CI240125...'}
+                value={transactionId}
+                onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
+                disabled={loading}
+                className="h-12 font-mono uppercase"
+                maxLength={30}
+              />
+              <p className="text-xs text-muted-foreground flex items-start gap-1.5">
+                <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
+                Enter the transaction ID from the customer's {provider.toUpperCase()} payment confirmation SMS
+              </p>
             </div>
 
             <div className="bg-secondary/50 rounded-lg p-3 text-sm">
@@ -169,10 +265,10 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
             </div>
 
             <div className="flex gap-2">
-              <Button type="button" variant="outline" onClick={handleClose} className="flex-1" disabled={loading}>
+              <Button type="button" variant="outline" onClick={handleClose} className="flex-1 h-12" disabled={loading}>
                 Cancel
               </Button>
-              <Button type="submit" className="flex-1" disabled={loading}>
+              <Button type="submit" className="flex-1 h-12" disabled={loading}>
                 {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Process Deposit'}
               </Button>
             </div>
