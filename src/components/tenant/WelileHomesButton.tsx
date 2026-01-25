@@ -3,9 +3,39 @@ import { Home, ChevronRight } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { motion } from 'framer-motion';
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
 
 export function WelileHomesButton() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+
+  // Check if user has an active Welile Homes subscription
+  const { data: hasSubscription } = useQuery({
+    queryKey: ['welile-homes-subscription-check', user?.id],
+    queryFn: async () => {
+      if (!user?.id) return false;
+      const { data, error } = await supabase
+        .from('welile_homes_subscriptions')
+        .select('id')
+        .eq('tenant_id', user.id)
+        .eq('subscription_status', 'active')
+        .maybeSingle();
+      
+      return !!data && !error;
+    },
+    enabled: !!user?.id,
+    staleTime: 1000 * 60 * 5, // Cache for 5 minutes
+  });
+
+  const handleClick = () => {
+    if (hasSubscription) {
+      navigate('/welile-homes-dashboard');
+    } else {
+      navigate('/welile-homes');
+    }
+  };
 
   return (
     <motion.div
@@ -15,7 +45,7 @@ export function WelileHomesButton() {
     >
       <Card 
         className="cursor-pointer hover:shadow-md transition-all duration-200 border-purple-200 bg-gradient-to-r from-purple-50 to-background overflow-hidden group"
-        onClick={() => navigate('/welile-homes')}
+        onClick={handleClick}
       >
         <CardContent className="p-4">
           <div className="flex items-center gap-3">
