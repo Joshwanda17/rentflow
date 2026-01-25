@@ -2,7 +2,7 @@
 
 export interface RentCalculation {
   rentAmount: number;
-  durationDays: 30 | 60 | 90;
+  durationDays: number;
   accessFee: number;
   requestFee: number;
   totalRepayment: number;
@@ -10,14 +10,17 @@ export interface RentCalculation {
   accessFeeRate: number;
 }
 
+// Constants
+const MONTHLY_COMPOUND_RATE = 0.33; // 33% per month
+
 /**
  * Calculate access fee based on duration
- * 33% compounding per month
+ * 33% compounding per month, supports any number of days
  */
-export function calculateAccessFee(rentAmount: number, durationDays: 30 | 60 | 90): number {
+export function calculateAccessFee(rentAmount: number, durationDays: number): number {
   const months = durationDays / 30;
-  // Compounding 33% per month
-  const rate = Math.pow(1.33, months) - 1;
+  // Compounding 33% per month, prorated for partial months
+  const rate = Math.pow(1 + MONTHLY_COMPOUND_RATE, months) - 1;
   return Math.round(rentAmount * rate);
 }
 
@@ -32,8 +35,9 @@ export function calculateRequestFee(rentAmount: number): number {
 
 /**
  * Calculate all rent repayment details
+ * Supports any duration from 7-120 days
  */
-export function calculateRentRepayment(rentAmount: number, durationDays: 30 | 60 | 90): RentCalculation {
+export function calculateRentRepayment(rentAmount: number, durationDays: number): RentCalculation {
   const accessFee = calculateAccessFee(rentAmount, durationDays);
   const requestFee = calculateRequestFee(rentAmount);
   const totalRepayment = rentAmount + accessFee + requestFee;
