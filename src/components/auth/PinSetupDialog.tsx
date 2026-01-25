@@ -38,11 +38,10 @@ export default function PinSetupDialog({ open, onOpenChange, onComplete }: PinSe
       const success = await setupPin(pin);
       if (success) {
         hapticSuccess();
-        toast.success('PIN created successfully!', {
-          description: 'You can now use your PIN for quick access'
-        });
-        onComplete?.();
+        toast.success('PIN created!');
+        // Close immediately and navigate
         handleClose();
+        onComplete?.();
       }
     } else {
       hapticError();
