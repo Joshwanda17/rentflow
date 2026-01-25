@@ -1,8 +1,9 @@
 import { useEffect, useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown, Flame, Calendar } from 'lucide-react';
+import { Home, ChevronRight, CheckCircle2, TrendingUp, TrendingDown, Trophy, Target, Sparkles, ArrowUp, ArrowDown, Flame, Calendar, Plus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
@@ -11,6 +12,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
 import { useConfetti } from '@/components/Confetti';
 import { useToast } from '@/hooks/use-toast';
+import { QuickContributeDialog } from './QuickContributeDialog';
 
 // Calculate 5-year savings projection (same formula as other components)
 function calculate5YearProjection(monthlyRent: number): number {
@@ -154,6 +156,7 @@ export function WelileHomesButton() {
   const { fireSuccess } = useConfetti();
   const { toast } = useToast();
   const celebratedMilestoneRef = useRef<number | null>(null);
+  const [showContributeDialog, setShowContributeDialog] = useState(false);
 
   // Check if user has an active Welile Homes subscription and get savings
   const { data: subscription } = useQuery({
@@ -440,6 +443,24 @@ export function WelileHomesButton() {
                     {sparklineData.length >= 2 && (
                       <MiniSparkline data={sparklineData} />
                     )}
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          className="h-6 w-6 rounded-full bg-green-100 hover:bg-green-200 text-green-700 flex-shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setShowContributeDialog(true);
+                          }}
+                        >
+                          <Plus className="h-3.5 w-3.5" />
+                        </Button>
+                      </TooltipTrigger>
+                      <TooltipContent side="top" className="text-xs">
+                        Quick contribute
+                      </TooltipContent>
+                    </Tooltip>
                   </div>
                   <div className="flex items-center gap-2">
                     <Progress 
@@ -491,6 +512,17 @@ export function WelileHomesButton() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Quick Contribute Dialog */}
+      {hasSubscription && subscription && user && (
+        <QuickContributeDialog
+          open={showContributeDialog}
+          onOpenChange={setShowContributeDialog}
+          subscriptionId={subscription.id}
+          tenantId={user.id}
+          currentBalance={totalSavings}
+        />
+      )}
     </div>
   );
 }
