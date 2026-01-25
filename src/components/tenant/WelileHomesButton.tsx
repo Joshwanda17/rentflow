@@ -1,9 +1,10 @@
-import { useEffect, useRef, useMemo } from 'react';
+import { useEffect, useRef, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, ChevronRight, CheckCircle2, TrendingUp, Trophy, Target, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
+import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -51,49 +52,99 @@ function getNextMilestone(percent: number) {
   return null;
 }
 
-// Mini sparkline component using SVG
+// Mini sparkline component using SVG with tooltip
 function MiniSparkline({ data }: { data: number[] }) {
   const width = 60;
   const height = 20;
   const padding = 2;
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
   
-  const points = useMemo(() => {
-    if (data.length < 2) return '';
+  const { points, dataPoints } = useMemo(() => {
+    if (data.length < 2) return { points: '', dataPoints: [] };
     
     const min = Math.min(...data);
     const max = Math.max(...data);
     const range = max - min || 1;
     
-    return data.map((value, i) => {
+    const pts: { x: number; y: number; value: number }[] = data.map((value, i) => {
       const x = padding + (i / (data.length - 1)) * (width - padding * 2);
       const y = height - padding - ((value - min) / range) * (height - padding * 2);
-      return `${x},${y}`;
-    }).join(' ');
+      return { x, y, value };
+    });
+    
+    return {
+      points: pts.map(p => `${p.x},${p.y}`).join(' '),
+      dataPoints: pts
+    };
   }, [data]);
 
   if (data.length < 2) return null;
 
+  const latestValue = data[data.length - 1];
+  const firstValue = data[0];
+  const growth = latestValue - firstValue;
+  const growthPercent = firstValue > 0 ? ((growth / firstValue) * 100).toFixed(1) : '0';
+
   return (
-    <svg width={width} height={height} className="flex-shrink-0">
-      <polyline
-        points={points}
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-green-500"
-      />
-      {/* End dot */}
-      {data.length > 0 && (
-        <circle
-          cx={width - padding}
-          cy={height - padding - ((data[data.length - 1] - Math.min(...data)) / (Math.max(...data) - Math.min(...data) || 1)) * (height - padding * 2)}
-          r="2"
-          className="fill-green-600"
-        />
-      )}
-    </svg>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <svg 
+          width={width} 
+          height={height} 
+          className="flex-shrink-0 cursor-pointer"
+          onMouseLeave={() => setHoveredIndex(null)}
+        >
+          <polyline
+            points={points}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            className="text-green-500"
+          />
+          {/* Interactive hover areas */}
+          {dataPoints.map((point, i) => (
+            <circle
+              key={i}
+              cx={point.x}
+              cy={point.y}
+              r={hoveredIndex === i ? 3 : 2}
+              className={`transition-all duration-150 ${
+                hoveredIndex === i 
+                  ? 'fill-green-600 opacity-100' 
+                  : i === dataPoints.length - 1 
+                    ? 'fill-green-600 opacity-100' 
+                    : 'fill-green-400 opacity-0'
+              }`}
+              onMouseEnter={() => setHoveredIndex(i)}
+            />
+          ))}
+        </svg>
+      </TooltipTrigger>
+      <TooltipContent 
+        side="top" 
+        className="bg-background border shadow-lg p-2 text-xs"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="space-y-1">
+          <p className="font-medium text-foreground">Savings Trend</p>
+          <div className="flex items-center gap-2 text-muted-foreground">
+            <span>Start: {formatUGX(firstValue)}</span>
+            <span>→</span>
+            <span className="text-green-600 font-medium">{formatUGX(latestValue)}</span>
+          </div>
+          <p className={`text-[10px] ${growth >= 0 ? 'text-green-600' : 'text-red-500'}`}>
+            {growth >= 0 ? '+' : ''}{formatUGX(growth)} ({growthPercent}%)
+          </p>
+          {hoveredIndex !== null && (
+            <p className="text-[10px] border-t pt-1 mt-1">
+              Point {hoveredIndex + 1}: <span className="font-medium">{formatUGX(data[hoveredIndex])}</span>
+            </p>
+          )}
+        </div>
+      </TooltipContent>
+    </Tooltip>
   );
 }
 
