@@ -14,6 +14,51 @@ export type Database = {
   }
   public: {
     Tables: {
+      account_flags: {
+        Row: {
+          created_at: string | null
+          flag_type: string
+          id: string
+          metadata: Json | null
+          reason: string
+          resolution_notes: string | null
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: Database["public"]["Enums"]["flag_severity"]
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          flag_type: string
+          id?: string
+          metadata?: Json | null
+          reason: string
+          resolution_notes?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: Database["public"]["Enums"]["flag_severity"]
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          flag_type?: string
+          id?: string
+          metadata?: Json | null
+          reason?: string
+          resolution_notes?: string | null
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: Database["public"]["Enums"]["flag_severity"]
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       agent_agreement_acceptance: {
         Row: {
           accepted_at: string
@@ -223,6 +268,50 @@ export type Database = {
           table_name?: string
         }
         Relationships: []
+      }
+      automation_actions: {
+        Row: {
+          action_details: Json | null
+          action_type: Database["public"]["Enums"]["automation_action_type"]
+          created_at: string | null
+          error_message: string | null
+          id: string
+          rule_name: string
+          success: boolean | null
+          target_user_id: string | null
+          triggered_by_event_id: string | null
+        }
+        Insert: {
+          action_details?: Json | null
+          action_type: Database["public"]["Enums"]["automation_action_type"]
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          rule_name: string
+          success?: boolean | null
+          target_user_id?: string | null
+          triggered_by_event_id?: string | null
+        }
+        Update: {
+          action_details?: Json | null
+          action_type?: Database["public"]["Enums"]["automation_action_type"]
+          created_at?: string | null
+          error_message?: string | null
+          id?: string
+          rule_name?: string
+          success?: boolean | null
+          target_user_id?: string | null
+          triggered_by_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "automation_actions_triggered_by_event_id_fkey"
+            columns: ["triggered_by_event_id"]
+            isOneToOne: false
+            referencedRelation: "system_events"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       cart_items: {
         Row: {
@@ -2336,6 +2425,42 @@ export type Database = {
           },
         ]
       }
+      system_events: {
+        Row: {
+          created_at: string | null
+          event_type: Database["public"]["Enums"]["system_event_type"]
+          id: string
+          metadata: Json | null
+          processed: boolean | null
+          processed_at: string | null
+          related_entity_id: string | null
+          related_entity_type: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          event_type: Database["public"]["Enums"]["system_event_type"]
+          id?: string
+          metadata?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          event_type?: Database["public"]["Enums"]["system_event_type"]
+          id?: string
+          metadata?: Json | null
+          processed?: boolean | null
+          processed_at?: string | null
+          related_entity_id?: string | null
+          related_entity_type?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       tenant_agreement_acceptance: {
         Row: {
           accepted_at: string
@@ -2654,6 +2779,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      user_risk_scores: {
+        Row: {
+          consecutive_missed_payments: number | null
+          consecutive_on_time_payments: number | null
+          created_at: string | null
+          id: string
+          last_payment_date: string | null
+          last_risk_update: string | null
+          notes: string | null
+          risk_level: string | null
+          risk_score: number | null
+          total_missed_payments: number | null
+          total_on_time_payments: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          consecutive_missed_payments?: number | null
+          consecutive_on_time_payments?: number | null
+          created_at?: string | null
+          id?: string
+          last_payment_date?: string | null
+          last_risk_update?: string | null
+          notes?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          total_missed_payments?: number | null
+          total_on_time_payments?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          consecutive_missed_payments?: number | null
+          consecutive_on_time_payments?: number | null
+          created_at?: string | null
+          id?: string
+          last_payment_date?: string | null
+          last_risk_update?: string | null
+          notes?: string | null
+          risk_level?: string | null
+          risk_score?: number | null
+          total_missed_payments?: number | null
+          total_on_time_payments?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {
@@ -3133,14 +3306,57 @@ export type Database = {
         Returns: boolean
       }
       is_supporter: { Args: never; Returns: boolean }
+      log_system_event: {
+        Args: {
+          p_event_type: Database["public"]["Enums"]["system_event_type"]
+          p_metadata?: Json
+          p_related_entity_id?: string
+          p_related_entity_type?: string
+          p_user_id: string
+        }
+        Returns: string
+      }
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
+      update_user_risk_score: {
+        Args: { p_reason?: string; p_score_change: number; p_user_id: string }
+        Returns: number
+      }
     }
     Enums: {
       app_role: "tenant" | "agent" | "landlord" | "supporter" | "manager"
+      automation_action_type:
+        | "send_notification"
+        | "send_push"
+        | "update_risk_score"
+        | "flag_account"
+        | "unflag_account"
+        | "send_reminder"
+        | "escalate_to_manager"
+        | "apply_late_fee"
+        | "restrict_access"
+      flag_severity: "low" | "medium" | "high" | "critical"
+      system_event_type:
+        | "payment_missed"
+        | "payment_made"
+        | "payment_overdue"
+        | "tenant_created"
+        | "agent_created"
+        | "supporter_created"
+        | "funds_added"
+        | "funds_withdrawn"
+        | "rent_request_created"
+        | "rent_request_approved"
+        | "rent_request_funded"
+        | "rent_request_disbursed"
+        | "account_activated"
+        | "account_inactive"
+        | "risk_score_changed"
+        | "account_flagged"
+        | "reminder_sent"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -3269,6 +3485,37 @@ export const Constants = {
   public: {
     Enums: {
       app_role: ["tenant", "agent", "landlord", "supporter", "manager"],
+      automation_action_type: [
+        "send_notification",
+        "send_push",
+        "update_risk_score",
+        "flag_account",
+        "unflag_account",
+        "send_reminder",
+        "escalate_to_manager",
+        "apply_late_fee",
+        "restrict_access",
+      ],
+      flag_severity: ["low", "medium", "high", "critical"],
+      system_event_type: [
+        "payment_missed",
+        "payment_made",
+        "payment_overdue",
+        "tenant_created",
+        "agent_created",
+        "supporter_created",
+        "funds_added",
+        "funds_withdrawn",
+        "rent_request_created",
+        "rent_request_approved",
+        "rent_request_funded",
+        "rent_request_disbursed",
+        "account_activated",
+        "account_inactive",
+        "risk_score_changed",
+        "account_flagged",
+        "reminder_sent",
+      ],
     },
   },
 } as const
