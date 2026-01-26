@@ -1,8 +1,8 @@
-import { lazy, Suspense, memo } from "react";
+import { lazy, Suspense, memo, useEffect } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PinAuthProvider } from "@/hooks/usePinAuth";
@@ -95,13 +95,47 @@ const queryClient = new QueryClient({
   },
 });
 
-// Minimal page loader
+// Minimal page loader - ultra fast
 const PageLoader = memo(() => (
   <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
   </div>
 ));
 PageLoader.displayName = 'PageLoader';
+
+// Prefetch common routes on idle
+function RoutePrefetcher() {
+  const location = useLocation();
+  
+  useEffect(() => {
+    // Prefetch likely next routes based on current location
+    const prefetchMap: Record<string, string[]> = {
+      '/': ['/auth', '/dashboard', '/welcome'],
+      '/auth': ['/dashboard', '/select-role'],
+      '/select-role': ['/dashboard'],
+      '/welcome': ['/auth', '/rent-calculator', '/try-calculator'],
+      '/rent-calculator': ['/auth'],
+      '/try-calculator': ['/auth'],
+    };
+    
+    const routesToPrefetch = prefetchMap[location.pathname] || [];
+    
+    // Use requestIdleCallback for non-blocking prefetch
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(() => {
+        routesToPrefetch.forEach(route => {
+          const link = document.createElement('link');
+          link.rel = 'prefetch';
+          link.href = route;
+          link.as = 'document';
+          document.head.appendChild(link);
+        });
+      });
+    }
+  }, [location.pathname]);
+  
+  return null;
+}
 
 // Stable routes wrapper (no JS-based page transitions to avoid mobile “shaking”)
 function AppRoutes() {
@@ -113,6 +147,7 @@ function AppRoutes() {
 
   return (
     <div className="min-h-screen">
+      <RoutePrefetcher />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
