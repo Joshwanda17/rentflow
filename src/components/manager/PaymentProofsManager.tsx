@@ -108,8 +108,7 @@ export default function PaymentProofsManager() {
           landlord:landlords!landlord_payment_proofs_landlord_id_fkey(id, name, phone),
           rent_request:rent_requests!landlord_payment_proofs_rent_request_id_fkey(
             id,
-            tenant_id,
-            tenant:profiles!rent_requests_tenant_id_fkey(full_name)
+            tenant_id
           )
         `)
         .order('created_at', { ascending: false });
@@ -120,7 +119,30 @@ export default function PaymentProofsManager() {
 
       const { data, error } = await query;
       if (error) throw error;
-      setProofs((data as unknown as PaymentProof[]) || []);
+      
+      // Fetch tenant names separately if needed
+      const proofsWithTenants = await Promise.all(
+        (data || []).map(async (proof: any) => {
+          if (proof.rent_request?.tenant_id) {
+            const { data: tenant } = await supabase
+              .from('profiles')
+              .select('full_name')
+              .eq('id', proof.rent_request.tenant_id)
+              .maybeSingle();
+            
+            return {
+              ...proof,
+              rent_request: {
+                ...proof.rent_request,
+                tenant: tenant
+              }
+            };
+          }
+          return proof;
+        })
+      );
+      
+      setProofs(proofsWithTenants as unknown as PaymentProof[]);
     } catch (error: any) {
       toast.error('Failed to fetch payment proofs');
       console.error(error);
