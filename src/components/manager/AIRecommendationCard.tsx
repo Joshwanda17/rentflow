@@ -23,7 +23,9 @@ import {
   User,
   ChevronDown,
   ChevronUp,
-  Sparkles
+  Sparkles,
+  Wrench,
+  AlertTriangle
 } from 'lucide-react';
 import { useAIBrain } from '@/hooks/useAIBrain';
 import { formatDistanceToNow } from 'date-fns';
@@ -59,6 +61,7 @@ const typeIcons = {
   risk_adjustment: TrendingUp,
   notification: Bell,
   collection_action: Target,
+  system_health: Wrench,
 };
 
 export function AIRecommendationCard({ recommendation, readonly = false }: AIRecommendationCardProps) {
@@ -88,7 +91,8 @@ export function AIRecommendationCard({ recommendation, readonly = false }: AIRec
   return (
     <Card className={cn(
       "transition-all",
-      recommendation.priority === 'critical' && "border-red-300 bg-red-50/30"
+      recommendation.priority === 'critical' && "border-red-300 bg-red-50/30",
+      recommendation.recommendation_type === 'system_health' && "border-amber-300 bg-amber-50/30"
     )}>
       <CardHeader className="pb-2">
         <div className="flex items-start justify-between gap-4">
@@ -98,12 +102,14 @@ export function AIRecommendationCard({ recommendation, readonly = false }: AIRec
               recommendation.recommendation_type === 'risk_adjustment' && "bg-purple-100",
               recommendation.recommendation_type === 'notification' && "bg-blue-100",
               recommendation.recommendation_type === 'collection_action' && "bg-orange-100",
+              recommendation.recommendation_type === 'system_health' && "bg-amber-100",
             )}>
               <TypeIcon className={cn(
                 "h-5 w-5",
                 recommendation.recommendation_type === 'risk_adjustment' && "text-purple-600",
                 recommendation.recommendation_type === 'notification' && "text-blue-600",
                 recommendation.recommendation_type === 'collection_action' && "text-orange-600",
+                recommendation.recommendation_type === 'system_health' && "text-amber-600",
               )} />
             </div>
             <div className="flex-1">
@@ -139,6 +145,33 @@ export function AIRecommendationCard({ recommendation, readonly = false }: AIRec
             <div className="p-3 bg-muted/50 rounded-lg">
               <p className="text-sm font-medium mb-1">AI Reasoning</p>
               <p className="text-sm text-muted-foreground">{recommendation.reasoning}</p>
+            </div>
+          )}
+          
+          {/* Solution Steps for System Health */}
+          {recommendation.recommendation_type === 'system_health' && 
+           recommendation.suggested_action?.solution_steps && (
+            <div className="p-3 bg-amber-50 border border-amber-200 rounded-lg">
+              <p className="text-sm font-medium mb-2 flex items-center gap-2">
+                <Wrench className="h-4 w-4 text-amber-600" />
+                Recommended Solution Steps
+              </p>
+              <ol className="list-decimal list-inside space-y-1">
+                {(recommendation.suggested_action.solution_steps as string[]).map((step, idx) => (
+                  <li key={idx} className="text-sm text-muted-foreground">{step}</li>
+                ))}
+              </ol>
+              {recommendation.suggested_action.requires_developer && (
+                <div className="mt-2 flex items-center gap-2 text-amber-700">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-xs font-medium">Requires developer intervention</span>
+                </div>
+              )}
+              {recommendation.suggested_action.estimated_impact && (
+                <p className="mt-2 text-xs text-muted-foreground">
+                  <strong>Impact:</strong> {recommendation.suggested_action.estimated_impact}
+                </p>
+              )}
             </div>
           )}
           
