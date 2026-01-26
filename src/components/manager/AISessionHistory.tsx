@@ -118,7 +118,7 @@ export function AISessionHistory({ sessions }: AISessionHistoryProps) {
             </div>
 
             {session.analysis_summary && (
-              <div className="mt-4 pt-4 border-t flex items-center gap-4">
+              <div className="mt-4 pt-4 border-t flex items-center gap-4 flex-wrap">
                 <Badge variant="outline" className="text-purple-600">
                   <Zap className="h-3 w-3 mr-1" />
                   Risk: {session.analysis_summary.risk_recommendations || 0}
@@ -130,6 +130,10 @@ export function AISessionHistory({ sessions }: AISessionHistoryProps) {
                 <Badge variant="outline" className="text-orange-600">
                   <Zap className="h-3 w-3 mr-1" />
                   Collection: {session.analysis_summary.collection_recommendations || 0}
+                </Badge>
+                <Badge variant="outline" className="text-amber-600">
+                  <Zap className="h-3 w-3 mr-1" />
+                  System: {session.analysis_summary.system_health_recommendations || 0}
                 </Badge>
               </div>
             )}

@@ -58,6 +58,10 @@ serve(async (req) => {
     const collectionRecommendations = await analyzeCollectionStrategies(supabase, context);
     recommendations.push(...collectionRecommendations);
     
+    // 4. System Health & Failure Detection
+    const systemRecommendations = await analyzeSystemHealth(supabase);
+    recommendations.push(...systemRecommendations);
+    
     // Process recommendations
     let autoExecuted = 0;
     for (const rec of recommendations) {
@@ -87,6 +91,7 @@ serve(async (req) => {
           risk_recommendations: riskRecommendations.length,
           notification_recommendations: notificationRecommendations.length,
           collection_recommendations: collectionRecommendations.length,
+          system_health_recommendations: systemRecommendations.length,
         }
       })
       .eq('id', sessionId);
@@ -602,6 +607,226 @@ Prioritize accounts that need immediate attention and suggest the best approach 
   return recommendations;
 }
 
+async function analyzeSystemHealth(supabase: any): Promise<any[]> {
+  if (!LOVABLE_API_KEY) return [];
+
+  const recommendations: any[] = [];
+  
+  // Gather system health data
+  const now = new Date();
+  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+
+  const [
+    { data: failedActions },
+    { data: failedSessions },
+    { data: unresolvedFlags },
+    { data: pendingDeposits },
+    { data: staleEvents },
+    { data: recentErrors },
+  ] = await Promise.all([
+    // Failed automation actions in last 24h
+    supabase
+      .from('automation_actions')
+      .select('*')
+      .eq('success', false)
+      .gte('created_at', oneDayAgo.toISOString())
+      .order('created_at', { ascending: false }),
+    
+    // Failed AI sessions
+    supabase
+      .from('ai_analysis_sessions')
+      .select('*')
+      .eq('status', 'failed')
+      .gte('started_at', oneDayAgo.toISOString()),
+    
+    // Long-unresolved critical flags (>3 days)
+    supabase
+      .from('account_flags')
+      .select('*')
+      .eq('resolved', false)
+      .eq('severity', 'critical')
+      .lte('created_at', new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString()),
+    
+    // Pending deposits older than 24h
+    supabase
+      .from('deposit_requests')
+      .select('*')
+      .eq('status', 'pending')
+      .lte('created_at', oneDayAgo.toISOString()),
+    
+    // Unprocessed events older than 1h
+    supabase
+      .from('system_events')
+      .select('*')
+      .eq('processed', false)
+      .lte('created_at', oneHourAgo.toISOString())
+      .limit(50),
+    
+    // Check for patterns in system events that indicate errors
+    supabase
+      .from('system_events')
+      .select('*')
+      .ilike('event_type', '%error%')
+      .gte('created_at', oneDayAgo.toISOString()),
+  ]);
+
+  const healthData = {
+    failedActions: failedActions || [],
+    failedSessions: failedSessions || [],
+    unresolvedFlags: unresolvedFlags || [],
+    pendingDeposits: pendingDeposits || [],
+    staleEvents: staleEvents || [],
+    recentErrors: recentErrors || [],
+  };
+
+  // Skip if no issues found
+  const totalIssues = Object.values(healthData).reduce((sum, arr) => sum + arr.length, 0);
+  if (totalIssues === 0) return recommendations;
+
+  try {
+    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-3-flash-preview",
+        messages: [
+          {
+            role: "system",
+            content: `You are an AI system health analyst for a rent payment platform. Analyze system failures, bottlenecks, and operational issues to recommend solutions.
+
+Your job is to:
+1. Identify patterns in failures (recurring errors, common failure points)
+2. Diagnose root causes when possible
+3. Recommend specific, actionable solutions
+4. Prioritize critical issues that affect users or revenue
+
+Types of issues to look for:
+- Failed automation actions (what's breaking and why)
+- Stale/unprocessed events (processing bottlenecks)
+- Long-pending deposits (user experience issues)
+- Unresolved critical flags (risk management gaps)
+- Error patterns (systematic failures)
+
+Always suggest concrete solutions with step-by-step fixes.`
+          },
+          {
+            role: "user",
+            content: `Analyze these system health issues and provide recommendations:
+
+Failed Automation Actions (last 24h): ${healthData.failedActions.length}
+${JSON.stringify(healthData.failedActions.slice(0, 10), null, 2)}
+
+Failed AI Sessions: ${healthData.failedSessions.length}
+${JSON.stringify(healthData.failedSessions, null, 2)}
+
+Unresolved Critical Flags (>3 days): ${healthData.unresolvedFlags.length}
+${JSON.stringify(healthData.unresolvedFlags.slice(0, 5), null, 2)}
+
+Stale Pending Deposits (>24h): ${healthData.pendingDeposits.length}
+
+Unprocessed Events (>1h old): ${healthData.staleEvents.length}
+${JSON.stringify(healthData.staleEvents.slice(0, 5), null, 2)}
+
+Error Events: ${healthData.recentErrors.length}
+
+Identify issues and suggest solutions.`
+          }
+        ],
+        tools: [
+          {
+            type: "function",
+            function: {
+              name: "generate_system_recommendations",
+              description: "Generate system health and failure recommendations",
+              parameters: {
+                type: "object",
+                properties: {
+                  recommendations: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        issue_type: { 
+                          type: "string", 
+                          enum: ["automation_failure", "processing_bottleneck", "user_experience", "data_integrity", "security_risk", "operational_gap"] 
+                        },
+                        priority: { type: "string", enum: ["low", "medium", "high", "critical"] },
+                        title: { type: "string" },
+                        description: { type: "string" },
+                        root_cause: { type: "string" },
+                        solution_steps: { 
+                          type: "array", 
+                          items: { type: "string" } 
+                        },
+                        requires_developer: { type: "boolean" },
+                        estimated_impact: { type: "string" },
+                        confidence: { type: "number" }
+                      },
+                      required: ["issue_type", "priority", "title", "description", "solution_steps", "confidence"]
+                    }
+                  }
+                },
+                required: ["recommendations"]
+              }
+            }
+          }
+        ],
+        tool_choice: { type: "function", function: { name: "generate_system_recommendations" } }
+      }),
+    });
+
+    if (!response.ok) {
+      console.error('AI API error:', await response.text());
+      return recommendations;
+    }
+
+    const data = await response.json();
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    
+    if (toolCall?.function?.arguments) {
+      const parsed = JSON.parse(toolCall.function.arguments);
+      
+      for (const rec of parsed.recommendations || []) {
+        recommendations.push({
+          recommendation_type: 'system_health',
+          priority: rec.priority,
+          target_user_id: null, // System-level, not user-specific
+          title: `🔧 ${rec.title}`,
+          description: rec.description,
+          reasoning: rec.root_cause || 'Detected through system health analysis',
+          suggested_action: {
+            action_type: 'system_fix',
+            issue_type: rec.issue_type,
+            solution_steps: rec.solution_steps,
+            requires_developer: rec.requires_developer || false,
+            estimated_impact: rec.estimated_impact,
+          },
+          context_data: { 
+            source: 'system_health',
+            issue_type: rec.issue_type,
+            metrics: {
+              failed_actions: healthData.failedActions.length,
+              stale_events: healthData.staleEvents.length,
+              pending_deposits: healthData.pendingDeposits.length,
+            }
+          },
+          confidence_score: rec.confidence,
+          requires_approval: true, // System issues always need review
+          auto_approve_threshold: 1.0, // Never auto-approve system fixes
+        });
+      }
+    }
+  } catch (error) {
+    console.error('System health analysis error:', error);
+  }
+
+  return recommendations;
+}
+
 async function executeRecommendation(supabase: any, recommendation: any): Promise<void> {
   const action = recommendation.suggested_action;
   
@@ -628,6 +853,11 @@ async function executeRecommendation(supabase: any, recommendation: any): Promis
     
     case 'update_collection_strategy':
       // Already handled in analyzeCollectionStrategies
+      break;
+    
+    case 'system_fix':
+      // System fixes require manual intervention - just log for now
+      console.log('System fix recommendation created:', recommendation.title);
       break;
   }
 }
