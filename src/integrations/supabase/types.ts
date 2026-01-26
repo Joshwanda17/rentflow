@@ -2990,6 +2990,57 @@ export type Database = {
         }
         Relationships: []
       }
+      user_locations: {
+        Row: {
+          accuracy: number | null
+          address: string | null
+          captured_at: string
+          city: string | null
+          country: string | null
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          user_id: string
+          verification_notes: string | null
+          verified: boolean | null
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          address?: string | null
+          captured_at?: string
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          user_id: string
+          verification_notes?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          address?: string | null
+          captured_at?: string
+          city?: string | null
+          country?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          user_id?: string
+          verification_notes?: string | null
+          verified?: boolean | null
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       user_login_history: {
         Row: {
           id: string

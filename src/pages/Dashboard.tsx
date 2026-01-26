@@ -11,6 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
+import { useLocationTracking } from '@/hooks/useLocationTracking';
 
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
@@ -64,6 +65,9 @@ export default function Dashboard() {
   
   // Enable real-time notifications for money transfers and requests
   useNotifications();
+
+  // Auto-capture location on dashboard load
+  useLocationTracking();
 
   // Monitor online status
   useEffect(() => {
