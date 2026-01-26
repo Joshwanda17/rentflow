@@ -51,6 +51,7 @@ import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import { RepaymentHistoryDrawer } from '@/components/tenant/RepaymentHistoryDrawer';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import { WelileHomesButton } from '@/components/tenant/WelileHomesButton';
+import { InviteFriendsCard } from '@/components/tenant/InviteFriendsCard';
 
 interface TenantDashboardProps {
   user: User;
@@ -340,6 +341,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
 
         {/* PRIORITY 1: Receipt Submission Prompt */}
         <DashboardReceiptPrompt userId={user.id} />
+
+        {/* Invite Friends - Easy share widget */}
+        <InviteFriendsCard />
 
         {/* Calculator Section - Only show when triggered */}
         {showCalculator && (
