@@ -17,12 +17,21 @@ class ChunkErrorBoundary extends Component<Props, State> {
   }
 
   static getDerivedStateFromError(error: Error): Partial<State> | null {
-    // Detect chunk/dynamic import failures
-    const msg = error?.message || "";
+    // Detect chunk/dynamic import failures - expanded detection
+    const msg = (error?.message || "").toLowerCase();
+    const name = (error?.name || "").toLowerCase();
+    
     if (
-      msg.includes("Failed to fetch dynamically imported module") ||
-      msg.includes("Loading chunk") ||
-      msg.includes("Loading CSS chunk")
+      msg.includes("failed to fetch dynamically imported module") ||
+      msg.includes("loading chunk") ||
+      msg.includes("loading css chunk") ||
+      msg.includes("dynamically imported") ||
+      msg.includes("unable to preload") ||
+      msg.includes("failed to load") ||
+      msg.includes("network error") ||
+      msg.includes("timeout") ||
+      name.includes("chunkerror") ||
+      name.includes("loaderror")
     ) {
       return { hasError: true };
     }
