@@ -40,7 +40,7 @@ import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
-import { AgentWithdrawalDialog } from '@/components/agent/AgentWithdrawalDialog';
+
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
 import { CollapsibleRentRequests } from '@/components/agent/CollapsibleRentRequests';
@@ -174,7 +174,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
   const [fetchError, setFetchError] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
-  const [withdrawalOpen, setWithdrawalOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
@@ -271,14 +270,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
   const handleDeposit = () => { hapticTap(); setDepositOpen(true); };
-  const handleWithdrawal = () => { hapticTap(); setWithdrawalOpen(true); };
   const handleInviteSubAgent = () => { hapticTap(); setInviteSubAgentOpen(true); };
   const handleViewWallet = () => { hapticTap(); setShowWallet(!showWallet); };
 
   const menuItems = [
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
-    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: handleDeposit },
-    { icon: ArrowUpCircle, label: 'Withdraw for User', onClick: handleWithdrawal, separator: true },
+    { icon: ArrowDownCircle, label: 'Deposit for User', onClick: handleDeposit, separator: true },
     { icon: TrendingUp, label: 'My Earnings', onClick: () => navigate('/earnings') },
     { icon: Store, label: 'My Shop', onClick: () => navigate('/marketplace') },
     { icon: History, label: 'Transactions', onClick: () => navigate('/transactions'), separator: true },
@@ -389,11 +386,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         ═══════════════════════════════════════════════════════════════════ */}
         <div>
           <SectionHeader icon={Target} title="Quick Actions" />
-          <div className="grid grid-cols-4 gap-2 mb-2">
+          <div className="grid grid-cols-3 gap-2 mb-2">
             <QuickActionButton icon={UserPlus} label="Register" sublabel="User" onClick={handleRegisterUser} variant="primary" />
             <QuickActionButton icon={Wallet} label="Wallet" onClick={handleViewWallet} variant="success" />
             <QuickActionButton icon={ArrowDownCircle} label="Deposit" onClick={handleDeposit} variant="default" />
-            <QuickActionButton icon={ArrowUpCircle} label="Withdraw" onClick={handleWithdrawal} variant="warning" />
           </div>
           {/* Post Rent Request for Tenant */}
           <Button
@@ -595,7 +591,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       {/* Dialogs */}
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
-      <AgentWithdrawalDialog open={withdrawalOpen} onOpenChange={setWithdrawalOpen} />
       <UnifiedRegistrationDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
