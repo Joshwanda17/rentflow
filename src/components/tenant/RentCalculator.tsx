@@ -67,30 +67,48 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
         <RentCalculatorShareButton calculatorType="daily" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label>Rent Amount ({currency.code})</Label>
-            <Input
-              type="text"
-              value={rentAmount}
-              onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
-              placeholder="e.g., 500000"
-            />
+        {/* Hero Inputs - Uber style */}
+        <div className="space-y-3 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+          {/* Rent Amount - Primary Input */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground font-medium">How much rent?</Label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency.code}</span>
+              <Input
+                type="text"
+                value={rentAmount}
+                onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="500,000"
+                className="h-14 pl-16 text-xl font-bold bg-background border-2 border-primary/30 focus:border-primary rounded-xl"
+              />
+            </div>
           </div>
-          <div className="space-y-2">
-            <Label>Duration</Label>
-            <Select value={duration} onValueChange={(v) => setDuration(v as '30' | '60' | '90')}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="30">30 Days</SelectItem>
-                <SelectItem value="60">60 Days</SelectItem>
-                <SelectItem value="90">90 Days</SelectItem>
-              </SelectContent>
-            </Select>
+
+          {/* Payback Period - Secondary Input */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground font-medium">When to pay back?</Label>
+            <div className="flex gap-2">
+              {(['30', '60', '90'] as const).map((d) => (
+                <Button
+                  key={d}
+                  variant={duration === d ? "default" : "outline"}
+                  onClick={() => setDuration(d)}
+                  className={`flex-1 h-12 text-base font-semibold rounded-xl transition-all ${
+                    duration === d 
+                      ? 'shadow-md scale-[1.02]' 
+                      : 'hover:border-primary/50'
+                  }`}
+                >
+                  {d} Days
+                </Button>
+              ))}
+            </div>
           </div>
         </div>
 
-        <Button onClick={handleCalculate} className="w-full">Calculate</Button>
+        <Button onClick={handleCalculate} className="w-full h-12 text-base font-semibold rounded-xl">
+          Calculate
+        </Button>
 
         {calculation && (
           <div className="mt-4 p-4 rounded-lg bg-secondary/50 space-y-3">

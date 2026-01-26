@@ -106,53 +106,60 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
         </CardTitle>
         <RentCalculatorShareButton calculatorType="weekly-monthly" className="mt-2" />
       </CardHeader>
-      <CardContent className="space-y-5">
-        {/* Rent Amount Input */}
-        <div className="space-y-2">
-          <Label>Rent Amount ({currency.code})</Label>
-          <Input
-            type="text"
-            value={rentAmount}
-            onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
-            placeholder="e.g., 500000"
-          />
-        </div>
-
-        {/* Quick Select Buttons */}
-        <div className="space-y-2">
-          <Label>Quick Select</Label>
-          <div className="flex flex-wrap gap-2">
-            {quickOptions.map((option) => (
-              <Button
-                key={option.days}
-                variant={paybackDays === option.days ? "default" : "outline"}
-                size="sm"
-                onClick={() => handlePaybackDaysChange(option.days)}
-                className="text-xs"
-              >
-                {option.label}
-              </Button>
-            ))}
+      <CardContent className="space-y-4">
+        {/* Hero Inputs - Uber style */}
+        <div className="space-y-3 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
+          {/* Rent Amount - Primary Input */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground font-medium">How much rent?</Label>
+            <div className="relative">
+              <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency.code}</span>
+              <Input
+                type="text"
+                value={rentAmount}
+                onChange={(e) => setRentAmount(e.target.value.replace(/[^0-9]/g, ''))}
+                placeholder="500,000"
+                className="h-14 pl-16 text-xl font-bold bg-background border-2 border-primary/30 focus:border-primary rounded-xl"
+              />
+            </div>
           </div>
-        </div>
 
-        {/* Custom Days Slider */}
-        <div className="space-y-3">
-          <div className="flex justify-between items-center">
-            <Label>Payback Period</Label>
-            <span className="text-sm font-medium text-primary">{paybackDays} days</span>
+          {/* Payback Period - Secondary Input */}
+          <div className="space-y-1.5">
+            <Label className="text-xs text-muted-foreground font-medium">When to pay back?</Label>
+            <div className="flex flex-wrap gap-2">
+              {quickOptions.map((option) => (
+                <Button
+                  key={option.days}
+                  variant={paybackDays === option.days ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => handlePaybackDaysChange(option.days)}
+                  className={`flex-1 min-w-[70px] h-11 text-sm font-semibold rounded-xl transition-all ${
+                    paybackDays === option.days 
+                      ? 'shadow-md scale-[1.02]' 
+                      : 'hover:border-primary/50'
+                  }`}
+                >
+                  {option.label}
+                </Button>
+              ))}
+            </div>
           </div>
-          <Slider
-            value={[paybackDays]}
-            onValueChange={(value) => handlePaybackDaysChange(value[0])}
-            min={MIN_DAYS}
-            max={MAX_DAYS}
-            step={1}
-            className="w-full"
-          />
-          <div className="flex justify-between text-xs text-muted-foreground">
-            <span>{MIN_DAYS} days</span>
-            <span>{MAX_DAYS} days</span>
+
+          {/* Fine-tune slider */}
+          <div className="pt-2 space-y-2">
+            <div className="flex justify-between items-center">
+              <span className="text-xs text-muted-foreground">Fine-tune</span>
+              <span className="text-sm font-bold text-primary">{paybackDays} days</span>
+            </div>
+            <Slider
+              value={[paybackDays]}
+              onValueChange={(value) => handlePaybackDaysChange(value[0])}
+              min={MIN_DAYS}
+              max={MAX_DAYS}
+              step={1}
+              className="w-full"
+            />
           </div>
         </div>
 
