@@ -66,6 +66,7 @@ import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
+import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
 
 interface AgentDashboardProps {
   user: User;
@@ -573,6 +574,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
 
           <div className="space-y-2">
+            <MyCommissionPayouts />
             <CollapsibleLinkSignups isOpen={sectionsOpen.linkSignups} onToggle={() => toggleSection('linkSignups')} />
             <CollapsibleRentRequests isOpen={sectionsOpen.rentRequests} onToggle={() => toggleSection('rentRequests')} />
             <CollapsibleSubAgents isOpen={sectionsOpen.subAgents} onToggle={() => toggleSection('subAgents')} />
