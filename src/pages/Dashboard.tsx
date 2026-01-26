@@ -11,7 +11,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
-import { useLocationTracking } from '@/hooks/useLocationTracking';
+import { LocationPermissionGate } from '@/components/LocationPermissionGate';
 
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
@@ -53,7 +53,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
   </div>
 );
 
-export default function Dashboard() {
+function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -65,9 +65,6 @@ export default function Dashboard() {
   
   // Enable real-time notifications for money transfers and requests
   useNotifications();
-
-  // Auto-capture location on dashboard load
-  useLocationTracking();
 
   // Monitor online status
   useEffect(() => {
@@ -256,5 +253,14 @@ export default function Dashboard() {
       <FloatingChatButton />
       <PushNotificationPrompt />
     </>
+  );
+}
+
+// Main Dashboard component with Location Gate
+export default function Dashboard() {
+  return (
+    <LocationPermissionGate>
+      <DashboardContent />
+    </LocationPermissionGate>
   );
 }
