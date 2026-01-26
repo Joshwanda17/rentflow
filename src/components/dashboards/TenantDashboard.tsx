@@ -345,6 +345,29 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         {/* Invite Friends - Easy share widget */}
         <InviteFriendsCard />
 
+        {/* Uber-style "How much is your rent?" Entry Point */}
+        {!showCalculator && (
+          <button
+            onClick={() => setShowCalculator(true)}
+            className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 hover:border-primary/40 transition-all group active:scale-[0.98]"
+          >
+            <div className="flex items-center gap-3">
+              <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
+                <Banknote className="h-6 w-6 text-primary" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="text-lg font-bold text-foreground">How much is your rent?</p>
+                <p className="text-sm text-muted-foreground">Tap to calculate your daily repayment</p>
+              </div>
+              <div className="h-6 w-6 text-primary group-hover:translate-x-1 transition-transform">
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </div>
+            </div>
+          </button>
+        )}
+
         {/* Calculator Section - Only show when triggered */}
         {showCalculator && (
           <div className="animate-fade-in">
