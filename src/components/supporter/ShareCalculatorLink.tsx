@@ -16,18 +16,18 @@ export function ShareCalculatorLink({ className, variant = 'outline', size = 'de
   const { user } = useAuth();
   const [copied, setCopied] = useState(false);
 
-  // Include referrer ID in the link
+  // Direct to auth page with supporter role and referrer ID
   const shareLink = user 
-    ? `${window.location.origin}/try-calculator?ref=${user.id}`
-    : `${window.location.origin}/try-calculator`;
+    ? `${window.location.origin}/auth?role=supporter&ref=${user.id}`
+    : `${window.location.origin}/auth?role=supporter`;
   
-  const shareMessage = `💰 See how much you can earn with Welile!
+  const shareMessage = `💰 Start earning 15% monthly returns with Welile!
 
-📊 Try our Investment Calculator - No sign up needed!
-📈 Earn 15% monthly returns
+📈 Invest in rent payments
 🔒 Secure and flexible
+✅ Quick signup - takes 2 minutes
 
-Try it now: ${shareLink}`;
+Join now: ${shareLink}`;
 
   const handleShare = async () => {
     // Check if Web Share API is available (mostly mobile)

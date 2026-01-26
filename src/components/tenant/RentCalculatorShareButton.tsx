@@ -17,18 +17,18 @@ export function RentCalculatorShareButton({ calculatorType, className }: RentCal
 
   const calculatorName = calculatorType === 'daily' ? 'Daily Repayment' : 'Flexible Repayment';
   
-  // Include referrer ID in the link
+  // Direct to auth page with tenant role and referrer ID
   const shareLink = user 
-    ? `${window.location.origin}/rent-calculator?type=${calculatorType}&ref=${user.id}`
-    : `${window.location.origin}/rent-calculator?type=${calculatorType}`;
+    ? `${window.location.origin}/auth?role=tenant&ref=${user.id}`
+    : `${window.location.origin}/auth?role=tenant`;
   
-  const shareMessage = `💰 Need help with rent? Try this ${calculatorName} Calculator!
+  const shareMessage = `💰 Need help with rent? Join Welile today!
 
-📊 Calculate your repayment plan
-📅 Flexible payment options
-🏠 Get rent assistance easily
+🏠 Get your rent paid upfront
+📅 Flexible repayment options
+✅ Quick signup - takes 2 minutes
 
-Try it now: ${shareLink}`;
+Join now: ${shareLink}`;
 
   const handleShare = async () => {
     hapticTap();
