@@ -59,6 +59,9 @@ interface WithdrawalRequest {
   mobile_money_provider: string | null;
   created_at: string;
   rejection_reason: string | null;
+  transaction_id: string | null;
+  processed_at: string | null;
+  processed_by: string | null;
   user?: {
     full_name: string;
     phone: string;
@@ -1113,11 +1116,32 @@ export function WithdrawalRequestsManager() {
                             </p>
                           </div>
 
+                          {/* Approved: Show transaction ID and processed time */}
+                          {request.status === 'approved' && request.transaction_id && (
+                            <div className="mt-2 p-2 rounded-lg bg-success/10 border border-success/20 space-y-1">
+                              <div className="flex items-center gap-2 text-xs text-success">
+                                <CheckCircle className="h-3 w-3" />
+                                <span className="font-medium">Transaction ID:</span>
+                                <span className="font-mono font-bold">{request.transaction_id}</span>
+                              </div>
+                              {request.processed_at && (
+                                <p className="text-xs text-muted-foreground">
+                                  Processed: {format(new Date(request.processed_at), 'MMM d, yyyy • h:mm:ss a')}
+                                </p>
+                              )}
+                            </div>
+                          )}
+
                           {request.rejection_reason && (
                             <div className="mt-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
                               <p className="text-xs text-destructive">
                                 <strong>Rejection reason:</strong> {request.rejection_reason}
                               </p>
+                              {request.processed_at && (
+                                <p className="text-xs text-muted-foreground mt-1">
+                                  Rejected: {format(new Date(request.processed_at), 'MMM d, yyyy • h:mm:ss a')}
+                                </p>
+                              )}
                             </div>
                           )}
                         </div>
