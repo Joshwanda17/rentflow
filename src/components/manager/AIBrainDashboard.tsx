@@ -20,6 +20,7 @@ import {
 import { useAIBrain } from '@/hooks/useAIBrain';
 import { AIRecommendationCard } from './AIRecommendationCard';
 import { AISessionHistory } from './AISessionHistory';
+import { AIUserExperienceReport } from './AIUserExperienceReport';
 import { formatDistanceToNow } from 'date-fns';
 
 export function AIBrainDashboard() {
@@ -57,7 +58,7 @@ export function AIBrainDashboard() {
   return (
     <div className="space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div className="flex items-center gap-3">
           <div className="p-2 rounded-lg bg-gradient-to-br from-purple-500 to-indigo-600">
             <Brain className="h-6 w-6 text-white" />
@@ -71,6 +72,9 @@ export function AIBrainDashboard() {
             </p>
           </div>
         </div>
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Prominent User Experience Report Button */}
+          <AIUserExperienceReport />
         <Button 
           onClick={triggerAIAnalysis} 
           disabled={triggeringAI}
@@ -88,6 +92,7 @@ export function AIBrainDashboard() {
             </>
           )}
         </Button>
+        </div>
       </div>
 
       {/* Stats Cards */}
