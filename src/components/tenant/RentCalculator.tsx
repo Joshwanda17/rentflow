@@ -71,7 +71,7 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
         <div className="space-y-3 p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border border-primary/20">
           {/* Rent Amount - Primary Input */}
           <div className="space-y-1.5">
-            <Label className="text-xs text-muted-foreground font-medium">How much rent?</Label>
+            <Label className="text-xs text-muted-foreground font-medium">How much is your rent?</Label>
             <div className="relative">
               <span className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground font-medium">{currency.code}</span>
               <Input
