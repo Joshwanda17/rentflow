@@ -34,7 +34,8 @@ import {
   Wallet,
   Activity,
   CreditCard,
-  BadgeCheck
+  BadgeCheck,
+  MapPin
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -49,6 +50,7 @@ import { ActivityManager } from '@/components/manager/ActivityManager';
 import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
 import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
+import UserLocationsManager from '@/components/manager/UserLocationsManager';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
@@ -673,6 +675,10 @@ export default function ManagerAccess() {
               <Home className="h-3.5 w-3.5" />
               Welile Homes
             </TabsTrigger>
+            <TabsTrigger value="locations" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <MapPin className="h-3.5 w-3.5" />
+              Locations
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities" className="mt-4">
@@ -736,6 +742,10 @@ export default function ManagerAccess() {
               <WelileHomesSubscriptionsManager />
               <WelileHomesWithdrawalsManager />
             </div>
+          </TabsContent>
+
+          <TabsContent value="locations" className="mt-4">
+            <UserLocationsManager />
           </TabsContent>
         </Tabs>
       </main>
