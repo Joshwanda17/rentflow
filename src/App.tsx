@@ -25,6 +25,8 @@ const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
 const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
+const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
+const IOSShareReceiver = lazy(() => import("@/components/IOSShareReceiver"));
 
 // Lazy load routes
 const Landing = lazy(() => import("./pages/Landing"));
@@ -223,6 +225,7 @@ function AppRoutes() {
           <Route path="/landlord-welile-homes" element={<LandlordWelileHomesPage />} />
           <Route path="/try-calculator" element={<TryCalculator />} />
           <Route path="/rent-calculator" element={<PublicRentCalculator />} />
+          <Route path="/share" element={<Index />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
@@ -250,6 +253,8 @@ const App = () => (
                                   <AppRoutes />
                                   <Suspense fallback={null}>
                                     <IOSOptimizations />
+                                    <IOSLinkHandler />
+                                    <IOSShareReceiver />
                                     <PWAInstallPrompt />
                                     <WhatsNewModal />
                                     <GlobalSettingsToolbar />

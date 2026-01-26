@@ -104,12 +104,16 @@
   ],
   "share_target": {
     "action": "/share",
-    "method": "POST",
-    "enctype": "multipart/form-data",
+    "method": "GET",
     "params": {
       "title": "title",
       "text": "text",
       "url": "url"
     }
+  },
+  "related_applications": [],
+  "handle_links": "preferred",
+  "launch_handler": {
+    "client_mode": ["navigate-existing", "auto"]
   }
 }
