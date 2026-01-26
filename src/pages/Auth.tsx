@@ -382,7 +382,43 @@ export default function Auth() {
         )}
 
         <Card className="border-border/50 shadow-lg">
-          <CardHeader>
+          {/* Prominent Login/Signup Toggle - visible on iPads without scrolling */}
+          {!isForgotPassword && !isForgotPhone && (
+            <div className="flex border-b border-border/50">
+              <button
+                type="button"
+                onClick={() => setIsSignUp(false)}
+                className={`flex-1 py-4 px-4 text-base font-medium transition-all touch-manipulation ${
+                  !isSignUp 
+                    ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent', minHeight: '56px' }}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <LogIn className="h-5 w-5" />
+                  Sign In
+                </div>
+              </button>
+              <button
+                type="button"
+                onClick={() => setIsSignUp(true)}
+                className={`flex-1 py-4 px-4 text-base font-medium transition-all touch-manipulation ${
+                  isSignUp 
+                    ? 'bg-primary/10 text-primary border-b-2 border-primary' 
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted/50'
+                }`}
+                style={{ WebkitTapHighlightColor: 'transparent', minHeight: '56px' }}
+              >
+                <div className="flex items-center justify-center gap-2">
+                  <UserPlus className="h-5 w-5" />
+                  Sign Up
+                </div>
+              </button>
+            </div>
+          )}
+          
+          <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4' : ''}>
             <CardTitle className="flex items-center gap-2">
               <div className="p-2 rounded-lg bg-primary/10">
                 {isForgotPassword || isForgotPhone ? <Mail className="h-5 w-5 text-primary" /> : isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
@@ -753,19 +789,15 @@ export default function Auth() {
                 >
                   Back to Sign In
                 </button>
-              ) : (
-                <>
-                  {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}
-                  <button
-                    type="button"
-                    onClick={() => setIsSignUp(!isSignUp)}
-                    className="text-primary hover:text-primary/80 font-medium transition-colors touch-manipulation py-2 px-1"
-                    style={{ WebkitTapHighlightColor: 'transparent' }}
-                  >
-                    {isSignUp ? 'Sign In' : 'Sign Up'}
-                  </button>
-                </>
-              )}
+              ) : isForgotPhone ? (
+                <button
+                  type="button"
+                  onClick={() => setIsForgotPhone(false)}
+                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                >
+                  Back to Sign In
+                </button>
+              ) : null}
             </div>
           </CardContent>
         </Card>
