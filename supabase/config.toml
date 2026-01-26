@@ -62,3 +62,6 @@ verify_jwt = false
 
 [functions.automation-engine]
 verify_jwt = false
+
+[functions.ai-brain]
+verify_jwt = false
