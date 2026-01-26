@@ -230,6 +230,296 @@ export type Database = {
         }
         Relationships: []
       }
+      ai_analysis_sessions: {
+        Row: {
+          analysis_summary: Json | null
+          auto_executed_actions: number | null
+          completed_at: string | null
+          duration_ms: number | null
+          error_message: string | null
+          events_processed: number | null
+          id: string
+          model_used: string | null
+          recommendations_generated: number | null
+          session_type: string
+          started_at: string | null
+          status: string | null
+          tokens_used: number | null
+          trigger_event_id: string | null
+        }
+        Insert: {
+          analysis_summary?: Json | null
+          auto_executed_actions?: number | null
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          events_processed?: number | null
+          id?: string
+          model_used?: string | null
+          recommendations_generated?: number | null
+          session_type: string
+          started_at?: string | null
+          status?: string | null
+          tokens_used?: number | null
+          trigger_event_id?: string | null
+        }
+        Update: {
+          analysis_summary?: Json | null
+          auto_executed_actions?: number | null
+          completed_at?: string | null
+          duration_ms?: number | null
+          error_message?: string | null
+          events_processed?: number | null
+          id?: string
+          model_used?: string | null
+          recommendations_generated?: number | null
+          session_type?: string
+          started_at?: string | null
+          status?: string | null
+          tokens_used?: number | null
+          trigger_event_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_analysis_sessions_trigger_event_id_fkey"
+            columns: ["trigger_event_id"]
+            isOneToOne: false
+            referencedRelation: "system_events"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_collection_strategies: {
+        Row: {
+          ai_notes: string | null
+          contact_attempts: number | null
+          created_at: string | null
+          current_strategy: string
+          escalation_level: number | null
+          id: string
+          last_contact_at: string | null
+          next_contact_at: string | null
+          optimal_contact_time: string | null
+          payment_likelihood: number | null
+          recommended_approach: string | null
+          rent_request_id: string | null
+          response_likelihood: number | null
+          successful_contacts: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_notes?: string | null
+          contact_attempts?: number | null
+          created_at?: string | null
+          current_strategy: string
+          escalation_level?: number | null
+          id?: string
+          last_contact_at?: string | null
+          next_contact_at?: string | null
+          optimal_contact_time?: string | null
+          payment_likelihood?: number | null
+          recommended_approach?: string | null
+          rent_request_id?: string | null
+          response_likelihood?: number | null
+          successful_contacts?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_notes?: string | null
+          contact_attempts?: number | null
+          created_at?: string | null
+          current_strategy?: string
+          escalation_level?: number | null
+          id?: string
+          last_contact_at?: string | null
+          next_contact_at?: string | null
+          optimal_contact_time?: string | null
+          payment_likelihood?: number | null
+          recommended_approach?: string | null
+          rent_request_id?: string | null
+          response_likelihood?: number | null
+          successful_contacts?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ai_collection_strategies_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      ai_notification_patterns: {
+        Row: {
+          active: boolean | null
+          channels: string[] | null
+          created_at: string | null
+          id: string
+          message_template: string
+          optimal_send_times: Json | null
+          pattern_name: string
+          personalization_rules: Json | null
+          response_rate: number | null
+          success_rate: number | null
+          trigger_conditions: Json
+        }
+        Insert: {
+          active?: boolean | null
+          channels?: string[] | null
+          created_at?: string | null
+          id?: string
+          message_template: string
+          optimal_send_times?: Json | null
+          pattern_name: string
+          personalization_rules?: Json | null
+          response_rate?: number | null
+          success_rate?: number | null
+          trigger_conditions: Json
+        }
+        Update: {
+          active?: boolean | null
+          channels?: string[] | null
+          created_at?: string | null
+          id?: string
+          message_template?: string
+          optimal_send_times?: Json | null
+          pattern_name?: string
+          personalization_rules?: Json | null
+          response_rate?: number | null
+          success_rate?: number | null
+          trigger_conditions?: Json
+        }
+        Relationships: []
+      }
+      ai_recommendations: {
+        Row: {
+          auto_approve_threshold: number | null
+          confidence_score: number | null
+          context_data: Json | null
+          created_at: string | null
+          description: string
+          executed_at: string | null
+          execution_result: Json | null
+          expires_at: string | null
+          id: string
+          priority: Database["public"]["Enums"]["ai_priority"]
+          reasoning: string | null
+          recommendation_type: string
+          requires_approval: boolean | null
+          review_notes: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          status: Database["public"]["Enums"]["ai_recommendation_status"] | null
+          suggested_action: Json
+          target_user_id: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          auto_approve_threshold?: number | null
+          confidence_score?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+          description: string
+          executed_at?: string | null
+          execution_result?: Json | null
+          expires_at?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["ai_priority"]
+          reasoning?: string | null
+          recommendation_type: string
+          requires_approval?: boolean | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?:
+            | Database["public"]["Enums"]["ai_recommendation_status"]
+            | null
+          suggested_action: Json
+          target_user_id?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          auto_approve_threshold?: number | null
+          confidence_score?: number | null
+          context_data?: Json | null
+          created_at?: string | null
+          description?: string
+          executed_at?: string | null
+          execution_result?: Json | null
+          expires_at?: string | null
+          id?: string
+          priority?: Database["public"]["Enums"]["ai_priority"]
+          reasoning?: string | null
+          recommendation_type?: string
+          requires_approval?: boolean | null
+          review_notes?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          status?:
+            | Database["public"]["Enums"]["ai_recommendation_status"]
+            | null
+          suggested_action?: Json
+          target_user_id?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      ai_user_behavior_patterns: {
+        Row: {
+          avg_payment_delay_days: number | null
+          best_contact_channel: string | null
+          created_at: string | null
+          id: string
+          income_pattern: string | null
+          last_analyzed_at: string | null
+          notification_response_rate: number | null
+          payment_consistency_score: number | null
+          preferred_payment_day: number | null
+          preferred_payment_time: string | null
+          risk_trajectory: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          avg_payment_delay_days?: number | null
+          best_contact_channel?: string | null
+          created_at?: string | null
+          id?: string
+          income_pattern?: string | null
+          last_analyzed_at?: string | null
+          notification_response_rate?: number | null
+          payment_consistency_score?: number | null
+          preferred_payment_day?: number | null
+          preferred_payment_time?: string | null
+          risk_trajectory?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          avg_payment_delay_days?: number | null
+          best_contact_channel?: string | null
+          created_at?: string | null
+          id?: string
+          income_pattern?: string | null
+          last_analyzed_at?: string | null
+          notification_response_rate?: number | null
+          payment_consistency_score?: number | null
+          preferred_payment_day?: number | null
+          preferred_payment_time?: string | null
+          risk_trajectory?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       audit_logs: {
         Row: {
           action_type: string
@@ -3327,6 +3617,13 @@ export type Database = {
       }
     }
     Enums: {
+      ai_priority: "low" | "medium" | "high" | "critical"
+      ai_recommendation_status:
+        | "pending"
+        | "approved"
+        | "rejected"
+        | "auto_executed"
+        | "expired"
       app_role: "tenant" | "agent" | "landlord" | "supporter" | "manager"
       automation_action_type:
         | "send_notification"
@@ -3484,6 +3781,14 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      ai_priority: ["low", "medium", "high", "critical"],
+      ai_recommendation_status: [
+        "pending",
+        "approved",
+        "rejected",
+        "auto_executed",
+        "expired",
+      ],
       app_role: ["tenant", "agent", "landlord", "supporter", "manager"],
       automation_action_type: [
         "send_notification",
