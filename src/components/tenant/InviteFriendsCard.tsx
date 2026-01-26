@@ -23,6 +23,7 @@ export function InviteFriendsCard() {
 📅 Pay back in small daily amounts
 ✅ Quick signup - just 2 minutes
 🎁 We BOTH get 500 UGX bonus!
+📲 Install the app for the best experience
 
 Join now: ${shareLink}`;
 
