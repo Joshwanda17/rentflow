@@ -37,7 +37,7 @@ export function MyCommissionPayouts() {
   const { user } = useAuth();
   const [payouts, setPayouts] = useState<CommissionPayout[]>([]);
   const [loading, setLoading] = useState(true);
-  const [expanded, setExpanded] = useState(false);
+  const [expanded, setExpanded] = useState(true); // Default to expanded
 
   useEffect(() => {
     if (user) {
@@ -111,9 +111,27 @@ export function MyCommissionPayouts() {
     }
   };
 
-  if (loading || payouts.length === 0) return null;
+  if (loading) {
+    return (
+      <Card className="border-border/50">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-base flex items-center gap-2">
+            <Banknote className="h-4 w-4 text-success" />
+            Withdrawal History
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-2">
+          <div className="flex items-center justify-center py-6">
+            <div className="w-5 h-5 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+          </div>
+        </CardContent>
+      </Card>
+    );
+  }
 
   const pendingCount = payouts.filter(p => p.status === 'pending').length;
+  const approvedCount = payouts.filter(p => p.status === 'approved').length;
+  const totalPaid = payouts.filter(p => p.status === 'approved').reduce((sum, p) => sum + p.amount, 0);
 
   return (
     <Card className="border-border/50">
@@ -127,7 +145,7 @@ export function MyCommissionPayouts() {
         >
           <CardTitle className="text-base flex items-center gap-2">
             <Banknote className="h-4 w-4 text-success" />
-            My Payout Requests
+            Withdrawal History
             {pendingCount > 0 && (
               <Badge variant="secondary" className="ml-2">{pendingCount} pending</Badge>
             )}
@@ -145,52 +163,74 @@ export function MyCommissionPayouts() {
             transition={{ duration: 0.2 }}
           >
             <CardContent className="pt-2 space-y-3">
-              {payouts.map((payout) => (
-                <div
-                  key={payout.id}
-                  className="p-3 rounded-xl bg-muted/50 space-y-2"
-                >
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="font-bold text-lg">{formatUGX(payout.amount)}</p>
-                      <p className="text-xs text-muted-foreground">
-                        {format(new Date(payout.requested_at), 'MMM d, yyyy h:mm a')}
-                      </p>
-                    </div>
-                    {getStatusBadge(payout.status)}
+              {/* Summary Stats */}
+              {payouts.length > 0 && (
+                <div className="grid grid-cols-2 gap-2 mb-3">
+                  <div className="p-2 rounded-lg bg-success/10 text-center">
+                    <p className="text-xs text-muted-foreground">Total Paid</p>
+                    <p className="font-bold text-success">{formatUGX(totalPaid)}</p>
                   </div>
-
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Phone className="h-3.5 w-3.5" />
-                    <span className={payout.mobile_money_provider === 'MTN' ? 'text-yellow-600' : 'text-red-600'}>
-                      {payout.mobile_money_provider}
-                    </span>
-                    <span>{payout.mobile_money_number}</span>
+                  <div className="p-2 rounded-lg bg-muted text-center">
+                    <p className="text-xs text-muted-foreground">Withdrawals</p>
+                    <p className="font-bold">{approvedCount} completed</p>
                   </div>
-
-                  {/* Show transaction ID for approved payouts */}
-                  {payout.status === 'approved' && payout.transaction_id && (
-                    <div className="p-2 rounded-lg bg-success/10 border border-success/20">
-                      <div className="flex items-center gap-2 text-sm">
-                        <Receipt className="h-4 w-4 text-success" />
-                        <span className="font-mono font-semibold">{payout.transaction_id}</span>
-                      </div>
-                      {payout.processor_name && (
-                        <p className="text-xs text-muted-foreground mt-1">
-                          Approved by {payout.processor_name} • {format(new Date(payout.processed_at!), 'MMM d, yyyy')}
-                        </p>
-                      )}
-                    </div>
-                  )}
-
-                  {/* Show rejection reason */}
-                  {payout.status === 'rejected' && payout.rejection_reason && (
-                    <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                      <p className="text-xs text-destructive">{payout.rejection_reason}</p>
-                    </div>
-                  )}
                 </div>
-              ))}
+              )}
+
+              {payouts.length === 0 ? (
+                <div className="text-center py-6 text-muted-foreground">
+                  <Banknote className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                  <p className="text-sm">No withdrawal requests yet</p>
+                  <p className="text-xs mt-1">Request a payout from your earnings to see history here</p>
+                </div>
+              ) : (
+                payouts.map((payout) => (
+                  <div
+                    key={payout.id}
+                    className="p-3 rounded-xl bg-muted/50 space-y-2"
+                  >
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="font-bold text-lg">{formatUGX(payout.amount)}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {format(new Date(payout.requested_at), 'MMM d, yyyy h:mm a')}
+                        </p>
+                      </div>
+                      {getStatusBadge(payout.status)}
+                    </div>
+
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Phone className="h-3.5 w-3.5" />
+                      <span className={payout.mobile_money_provider === 'MTN' ? 'text-yellow-600' : 'text-red-600'}>
+                        {payout.mobile_money_provider}
+                      </span>
+                      <span>{payout.mobile_money_number}</span>
+                    </div>
+
+                    {/* Show transaction ID for approved payouts */}
+                    {payout.status === 'approved' && payout.transaction_id && (
+                      <div className="p-2 rounded-lg bg-success/10 border border-success/20">
+                        <div className="flex items-center gap-2 text-sm">
+                          <Receipt className="h-4 w-4 text-success" />
+                          <span className="font-mono font-semibold">{payout.transaction_id}</span>
+                        </div>
+                        {payout.processor_name && (
+                          <p className="text-xs text-muted-foreground mt-1">
+                            Approved by {payout.processor_name} • {format(new Date(payout.processed_at!), 'MMM d, yyyy')}
+                          </p>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Show rejection reason */}
+                    {payout.status === 'rejected' && payout.rejection_reason && (
+                      <div className="p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                        <p className="text-xs text-destructive">{payout.rejection_reason}</p>
+                      </div>
+                    )}
+                  </div>
+                ))
+              )}
             </CardContent>
           </motion.div>
         )}
