@@ -141,12 +141,37 @@ export function RequestCommissionPayoutDialog({
               type="number"
               placeholder="e.g. 50000"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                const value = e.target.value;
+                // If empty, allow it
+                if (value === '') {
+                  setAmount('');
+                  return;
+                }
+                const numValue = parseFloat(value);
+                // Auto-cap to available balance
+                if (!isNaN(numValue) && numValue > availableBalance) {
+                  setAmount(String(availableBalance));
+                  toast({
+                    title: 'Amount capped to balance',
+                    description: `Maximum withdrawal is ${formatUGX(availableBalance)}`,
+                    variant: 'default',
+                  });
+                } else {
+                  setAmount(value);
+                }
+              }}
               className="h-12 text-base"
               disabled={loading}
               min="1"
               max={availableBalance}
             />
+            {parseFloat(amount) > 0 && parseFloat(amount) === availableBalance && (
+              <p className="text-xs text-amber-600 flex items-center gap-1">
+                <AlertCircle className="h-3 w-3" />
+                Withdrawing full balance
+              </p>
+            )}
             <div className="flex gap-2">
               {quickAmounts.map((amt) => (
                 <Button
