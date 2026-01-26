@@ -1,32 +1,16 @@
-import { useEffect, ReactNode } from 'react';
-import { useLocationTracking } from '@/hooks/useLocationTracking';
-import { useAuth } from '@/hooks/useAuth';
+import { ReactNode } from 'react';
 
 interface LocationPermissionGateProps {
   children: ReactNode;
 }
 
 /**
- * LocationPermissionGate - Silently tracks user location in the background.
- * By using this app, users implicitly consent to location tracking.
- * The browser's native permission dialog will appear, but the app
- * continues functioning regardless of the user's choice.
+ * LocationPermissionGate - Wrapper component for location tracking.
+ * Location tracking is handled automatically by useLocationTracking hook
+ * in the Dashboard. This component simply passes through children.
  */
 export function LocationPermissionGate({ children }: LocationPermissionGateProps) {
-  const { user } = useAuth();
-  const { captureLocation } = useLocationTracking();
-
-  // Silently attempt to capture location when user is logged in
-  useEffect(() => {
-    if (user) {
-      // Small delay to ensure smooth page load, then silently request location
-      const timer = setTimeout(() => {
-        captureLocation();
-      }, 1500);
-      return () => clearTimeout(timer);
-    }
-  }, [user, captureLocation]);
-
-  // Always render children - no blocking UI
+  // Always render children - no blocking UI, no prompts
+  // Location tracking is handled silently by useLocationTracking in Dashboard
   return <>{children}</>;
 }
