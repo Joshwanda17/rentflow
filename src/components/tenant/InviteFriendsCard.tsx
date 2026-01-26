@@ -86,51 +86,55 @@ Join now: ${shareLink}`;
     >
       <Card className="overflow-hidden border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-primary/10">
         <CardContent className="p-4">
-          {/* Header */}
-          <div className="flex items-center gap-3 mb-4">
-            <div className="h-12 w-12 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md">
-              <Users className="h-6 w-6 text-primary-foreground" />
+          {/* Header - more compact on mobile */}
+          <div className="flex items-center gap-3 mb-3">
+            <div className="h-11 w-11 rounded-xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-md flex-shrink-0">
+              <Users className="h-5 w-5 text-primary-foreground" />
             </div>
-            <div className="flex-1">
-              <h3 className="font-bold text-base">Invite Friends, Earn Together</h3>
+            <div className="flex-1 min-w-0">
+              <h3 className="font-bold text-sm leading-tight">Invite Friends</h3>
               <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <Gift className="h-3 w-3 text-amber-500" />
-                You both get 500 UGX bonus!
+                <Gift className="h-3 w-3 text-amber-500 flex-shrink-0" />
+                <span>Both get 500 UGX!</span>
               </p>
             </div>
           </div>
 
-          {/* Share Buttons */}
+          {/* Primary Action - Full width WhatsApp button */}
+          <Button
+            onClick={handleWhatsAppShare}
+            className="w-full h-14 bg-[#25D366] hover:bg-[#20BD5A] text-white gap-2.5 font-bold text-base mb-2 rounded-xl shadow-md active:scale-[0.98] transition-transform"
+          >
+            <MessageCircle className="h-6 w-6" />
+            Share on WhatsApp
+          </Button>
+
+          {/* Secondary actions row */}
           <div className="flex gap-2">
-            {/* WhatsApp - Primary action */}
-            <Button
-              onClick={handleWhatsAppShare}
-              className="flex-1 h-12 bg-[#25D366] hover:bg-[#20BD5A] text-white gap-2 font-semibold"
-            >
-              <MessageCircle className="h-5 w-5" />
-              WhatsApp
-            </Button>
-            
-            {/* Other share options */}
             <Button
               onClick={handleNativeShare}
               variant="outline"
-              className="h-12 px-4 gap-2"
+              className="flex-1 h-11 gap-2 rounded-xl font-medium"
             >
               <Share2 className="h-4 w-4" />
-              <span className="hidden sm:inline">Share</span>
+              Share
             </Button>
             
-            {/* Copy button */}
             <Button
               onClick={handleCopy}
-              variant="ghost"
-              className="h-12 px-3"
+              variant="outline"
+              className="flex-1 h-11 gap-2 rounded-xl font-medium"
             >
               {copied ? (
-                <Check className="h-5 w-5 text-success" />
+                <>
+                  <Check className="h-4 w-4 text-success" />
+                  Copied!
+                </>
               ) : (
-                <Copy className="h-5 w-5" />
+                <>
+                  <Copy className="h-4 w-4" />
+                  Copy Link
+                </>
               )}
             </Button>
           </div>
