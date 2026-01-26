@@ -1,4 +1,4 @@
-import { lazy, Suspense, memo, useEffect } from "react";
+import { lazy, Suspense, memo, useEffect, useState } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -18,15 +18,13 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 import { HighContrastProvider } from "@/hooks/useHighContrast";
 
-// Lazy load non-critical UI components
+// Only lazy load truly optional UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
-const ConnectionStatus = lazy(() => import("@/components/ConnectionStatus").then(m => ({ default: m.ConnectionStatus })));
 const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
 const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
 const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
 const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
-const OfflineBanner = lazy(() => import("@/components/OfflineBanner").then(m => ({ default: m.OfflineBanner })));
 
 // Lazy load routes
 const Landing = lazy(() => import("./pages/Landing"));
@@ -95,12 +93,40 @@ const queryClient = new QueryClient({
   },
 });
 
-// Minimal page loader - ultra fast
-const PageLoader = memo(() => (
-  <div className="min-h-screen flex items-center justify-center bg-background">
-    <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
-  </div>
-));
+// Minimal page loader with timeout fallback for slow connections
+const PageLoader = memo(() => {
+  const [showRetry, setShowRetry] = useState(false);
+  
+  useEffect(() => {
+    // Show retry button after 8 seconds of loading
+    const timer = setTimeout(() => setShowRetry(true), 8000);
+    return () => clearTimeout(timer);
+  }, []);
+  
+  const handleRetry = () => {
+    // Clear chunk recovery flag and reload
+    sessionStorage.removeItem('chunk_retry');
+    window.location.reload();
+  };
+  
+  return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-4">
+      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+      {showRetry && (
+        <div className="flex flex-col items-center gap-3 text-center">
+          <p className="text-sm text-muted-foreground">Taking longer than usual...</p>
+          <button
+            onClick={handleRetry}
+            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
+            style={{ minHeight: '44px' }}
+          >
+            Tap to Retry
+          </button>
+        </div>
+      )}
+    </div>
+  );
+});
 PageLoader.displayName = 'PageLoader';
 
 // Prefetch common routes on idle
@@ -221,17 +247,15 @@ const App = () => (
                             <CartProvider>
                               <ComparisonProvider>
                                 <TooltipProvider delayDuration={300}>
+                                  <AppRoutes />
                                   <Suspense fallback={null}>
                                     <IOSOptimizations />
-                                    <OfflineBanner />
-                                    <ConnectionStatus />
                                     <PWAInstallPrompt />
                                     <WhatsNewModal />
                                     <GlobalSettingsToolbar />
                                     <Toaster />
                                     <Sonner />
                                   </Suspense>
-                                  <AppRoutes />
                                 </TooltipProvider>
                               </ComparisonProvider>
                             </CartProvider>
