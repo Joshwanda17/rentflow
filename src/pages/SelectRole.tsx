@@ -71,17 +71,64 @@ export default function SelectRole() {
   const navigate = useNavigate();
   const { toast } = useToast();
 
+  const [autoSubmitting, setAutoSubmitting] = useState(false);
+
   // Check for become_role and referrer on mount
   useEffect(() => {
-    const becomeRole = localStorage.getItem('become_role');
+    const becomeRole = localStorage.getItem('become_role') as AppRole | null;
     const referrerId = localStorage.getItem('referral_agent_id');
     
     if (becomeRole === 'agent' && referrerId) {
       setIsSubAgentSignup(true);
       setParentAgentId(referrerId);
       setSelectedRoles(['agent']);
+    } else if (becomeRole && ['tenant', 'supporter', 'landlord', 'agent'].includes(becomeRole)) {
+      // Auto-select the role from URL/localStorage
+      setSelectedRoles([becomeRole]);
     }
   }, []);
+
+  // Auto-submit when role is pre-selected from embed/calculator (not sub-agent flow which needs UI)
+  useEffect(() => {
+    const becomeRole = localStorage.getItem('become_role') as AppRole | null;
+    const referrerId = localStorage.getItem('referral_agent_id');
+    
+    // Only auto-submit for simple role assignment (not sub-agent which needs confirmation)
+    const isSimpleRoleAssignment = becomeRole && 
+      ['tenant', 'supporter', 'landlord'].includes(becomeRole) && 
+      !referrerId;
+    
+    if (isSimpleRoleAssignment && selectedRoles.length > 0 && !autoSubmitting && user) {
+      setAutoSubmitting(true);
+      // Small delay to show the UI briefly
+      const timer = setTimeout(() => {
+        handleAutoSubmit();
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [selectedRoles, user]);
+
+  const handleAutoSubmit = async () => {
+    const becomeRole = localStorage.getItem('become_role') as AppRole | null;
+    if (!becomeRole || !user) return;
+
+    const { error } = await addRole(becomeRole);
+    if (!error) {
+      localStorage.removeItem('become_role');
+      toast({
+        title: 'Welcome!',
+        description: `You're now set up as a ${becomeRole}. Redirecting to dashboard...`
+      });
+      navigate('/dashboard');
+    } else {
+      setAutoSubmitting(false);
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  };
 
   // Handle redirects in useEffect to avoid render-time navigation
   useEffect(() => {
@@ -94,11 +141,16 @@ export default function SelectRole() {
     }
   }, [user, roles, loading, navigate]);
 
-  // Show loading while auth is checking
-  if (loading || !user) {
+  // Show loading while auth is checking or auto-submitting
+  if (loading || !user || autoSubmitting) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+        <div className="text-center space-y-4">
+          <div className="w-8 h-8 border-2 border-primary border-t-transparent rounded-full animate-spin mx-auto" />
+          {autoSubmitting && (
+            <p className="text-sm text-muted-foreground">Setting up your account...</p>
+          )}
+        </div>
       </div>
     );
   }
