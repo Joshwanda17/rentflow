@@ -20,7 +20,7 @@ async function precacheAppShell() {
     }
     
     // Also cache critical routes
-    const criticalRoutes = ["/dashboard", "/auth", "/settings"];
+    const criticalRoutes = ["/dashboard", "/auth", "/settings", "/rent-calculator", "/try-calculator"];
     for (const route of criticalRoutes) {
       try {
         const routeResponse = await fetch(route);
