@@ -65,3 +65,6 @@ verify_jwt = false
 
 [functions.ai-brain]
 verify_jwt = false
+
+[functions.ai-user-experience-report]
+verify_jwt = false
