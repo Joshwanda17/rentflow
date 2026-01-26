@@ -94,14 +94,23 @@ export function useLocationTracking() {
     }
   }, [user]);
 
-  // Auto-capture on mount/login
+  // Auto-capture periodically (every 5 minutes while app is active)
   useEffect(() => {
     if (user) {
-      // Small delay to ensure smooth page load
-      const timer = setTimeout(() => {
+      // Initial capture after short delay
+      const initialTimer = setTimeout(() => {
         captureLocation();
       }, 2000);
-      return () => clearTimeout(timer);
+
+      // Periodic updates every 5 minutes for live tracking
+      const intervalId = setInterval(() => {
+        captureLocation();
+      }, 5 * 60 * 1000);
+
+      return () => {
+        clearTimeout(initialTimer);
+        clearInterval(intervalId);
+      };
     }
   }, [user, captureLocation]);
 
