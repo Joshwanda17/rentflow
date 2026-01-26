@@ -10,7 +10,7 @@ import OfflineBanner from '@/components/chat/OfflineBanner';
 import ShareChatLinkButton from '@/components/chat/ShareChatLinkButton';
 import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, MessageCircle, Megaphone } from 'lucide-react';
+import { ArrowLeft, MessageCircle, Megaphone, Home } from 'lucide-react';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { getLastSyncTime } from '@/lib/offlineStorage';
 
@@ -65,8 +65,8 @@ export default function ChatPage() {
                 <ArrowLeft className="h-5 w-5" />
               </Button>
             ) : (
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')}>
+                <Home className="h-5 w-5" />
               </Button>
             )}
             <h1 className="font-bold text-lg flex-1">
@@ -110,8 +110,8 @@ export default function ChatPage() {
           {/* Sidebar */}
           <div className="w-80 border-r flex flex-col">
             <div className="p-4 border-b flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-                <ArrowLeft className="h-5 w-5" />
+              <Button variant="ghost" size="icon" onClick={() => navigate('/')} title="Back to Dashboard">
+                <Home className="h-5 w-5" />
               </Button>
               <h1 className="font-bold text-lg flex-1">Messages</h1>
               <BroadcastMessageDialog 
