@@ -19,18 +19,30 @@ async function precacheAppShell() {
       console.log("[SW] App shell cached for offline");
     }
     
-    // Also cache critical routes
-    const criticalRoutes = ["/dashboard", "/auth", "/settings", "/rent-calculator", "/try-calculator"];
-    for (const route of criticalRoutes) {
-      try {
-        const routeResponse = await fetch(route);
-        if (routeResponse.ok) {
-          await cache.put(route, routeResponse);
+    // Also cache critical routes for referral links
+    const criticalRoutes = [
+      "/dashboard", 
+      "/auth", 
+      "/settings", 
+      "/select-role",
+      "/rent-calculator", 
+      "/try-calculator",
+      "/welcome"
+    ];
+    
+    // Cache routes in parallel for speed
+    await Promise.allSettled(
+      criticalRoutes.map(async (route) => {
+        try {
+          const routeResponse = await fetch(route);
+          if (routeResponse.ok) {
+            await cache.put(route, routeResponse);
+          }
+        } catch (e) {
+          // Ignore individual route failures
         }
-      } catch (e) {
-        // Ignore individual route failures
-      }
-    }
+      })
+    );
   } catch (error) {
     console.warn("[SW] Failed to precache app shell:", error);
   }
