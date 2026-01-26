@@ -7,6 +7,7 @@ import { Slider } from '@/components/ui/slider';
 import { Calculator, ArrowLeft } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import { RentCalculatorShareButton } from './RentCalculatorShareButton';
 
 interface WeeklyMonthlyCalculatorProps {
   onProceed: () => void;
@@ -87,7 +88,7 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
 
   return (
     <Card className="glass-card glow-primary">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Button
@@ -103,6 +104,7 @@ export default function WeeklyMonthlyCalculator({ onProceed, onBack }: WeeklyMon
           </span>
           <CurrencySwitcher variant="compact" />
         </CardTitle>
+        <RentCalculatorShareButton calculatorType="weekly-monthly" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-5">
         {/* Rent Amount Input */}

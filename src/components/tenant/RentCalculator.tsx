@@ -10,6 +10,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import IncomeTypeSelector, { IncomeType } from './IncomeTypeSelector';
 import WeeklyMonthlyCalculator from './WeeklyMonthlyCalculator';
+import { RentCalculatorShareButton } from './RentCalculatorShareButton';
 
 interface RentCalculatorProps {
   onProceed: () => void;
@@ -47,7 +48,7 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
   // Daily income earner calculator (existing)
   return (
     <Card className="glass-card glow-primary">
-      <CardHeader>
+      <CardHeader className="pb-3">
         <CardTitle className="flex items-center justify-between">
           <span className="flex items-center gap-2">
             <Button
@@ -63,6 +64,7 @@ export default function RentCalculator({ onProceed }: RentCalculatorProps) {
           </span>
           <CurrencySwitcher variant="compact" />
         </CardTitle>
+        <RentCalculatorShareButton calculatorType="daily" className="mt-2" />
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
