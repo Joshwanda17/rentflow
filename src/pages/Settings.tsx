@@ -33,6 +33,8 @@ import { TenantAgreementModal } from '@/components/tenant/agreement';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useAgentAgreement } from '@/hooks/useAgentAgreement';
 import { AgentAgreementModal } from '@/components/agent/agreement';
+import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
+import { SupporterAgreementModal } from '@/components/supporter/agreement';
 
 interface Profile {
   id: string;
@@ -70,6 +72,7 @@ export default function Settings() {
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
   const { isAccepted: hasAcceptedTenantTerms, acceptance: tenantAcceptance, acceptAgreement: acceptTenantAgreement } = useTenantAgreement();
   const { isAccepted: hasAcceptedAgentTerms, acceptance: agentAcceptance, acceptAgreement: acceptAgentAgreement } = useAgentAgreement();
+  const { hasAccepted: hasAcceptedSupporterTerms, acceptance: supporterAcceptance, acceptAgreement: acceptSupporterAgreement } = useSupporterAgreement();
   const { isSupported: pushSupported, isSubscribed: pushSubscribed, permission: pushPermission, subscribe: subscribePush, unsubscribe: unsubscribePush, loading: pushLoading } = usePushNotifications();
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -79,6 +82,7 @@ export default function Settings() {
   const [phone, setPhone] = useState('');
   const [showTenantAgreementModal, setShowTenantAgreementModal] = useState(false);
   const [showAgentAgreementModal, setShowAgentAgreementModal] = useState(false);
+  const [showSupporterAgreementModal, setShowSupporterAgreementModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -575,6 +579,58 @@ export default function Settings() {
               onClose={() => setShowAgentAgreementModal(false)}
               onAccept={async () => true}
               viewOnly
+            />
+          </motion.div>
+        )}
+
+        {/* Legal & Agreements Section for Supporters */}
+        {roles.includes('supporter') && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
+              <CardHeader className="relative">
+                <CardTitle className="flex items-center gap-2">
+                  <Scale className="h-5 w-5 text-success" />
+                  Supporter Terms & Conditions
+                </CardTitle>
+                <CardDescription>
+                  View your supporter participation agreement
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4 relative">
+                {/* Implicit Agreement Notice */}
+                <div className="p-3 rounded-xl bg-success/5 border border-success/20">
+                  <p className="text-xs text-success/80 leading-relaxed">
+                    <strong>Note:</strong> By using the Welile platform as a Supporter, you automatically agree to our Supporter Participation Agreement. This ensures a clear understanding of the platform's terms and your rights.
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between p-4 rounded-xl bg-background/50 border border-border/50">
+                  <div className="flex items-center gap-3">
+                    <FileText className="h-5 w-5 text-muted-foreground" />
+                    <div>
+                      <p className="font-medium">Supporter Agreement</p>
+                      <p className="text-sm text-muted-foreground">
+                        {hasAcceptedSupporterTerms 
+                          ? `Accepted on ${new Date(supporterAcceptance?.accepted_at || '').toLocaleDateString()}`
+                          : 'Implicitly agreed by using the platform'}
+                      </p>
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setShowSupporterAgreementModal(true)}
+                  >
+                    View Terms
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+
+            <SupporterAgreementModal
+              open={showSupporterAgreementModal}
+              onOpenChange={setShowSupporterAgreementModal}
+              onAccept={acceptSupporterAgreement}
             />
           </motion.div>
         )}
