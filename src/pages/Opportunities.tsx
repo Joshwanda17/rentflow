@@ -61,7 +61,8 @@ export default function Opportunities() {
     const success = await acceptAgreement();
     if (success) {
       setShowAgreementModal(false);
-      toast({ title: '✅ Agreement Accepted', description: 'You can now fund rent requests.' });
+      toast({ title: '✅ Agreement Accepted', description: 'Redirecting to settings...' });
+      navigate('/settings');
     }
     return success;
   };
