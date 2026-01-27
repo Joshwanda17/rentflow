@@ -115,6 +115,9 @@ export function RequestCommissionPayoutDialog({
   };
 
   const quickAmounts = [10000, 50000, 100000];
+  const hasBalance = availableBalance > 0;
+  const parsedAmount = parseFloat(amount) || 0;
+  const isValidAmount = parsedAmount > 0 && parsedAmount <= availableBalance;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -128,117 +131,126 @@ export function RequestCommissionPayoutDialog({
 
         <form onSubmit={handleSubmit} className="space-y-4">
           {/* Available balance */}
-          <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+          <div className={`p-3 rounded-xl border ${hasBalance ? 'bg-success/10 border-success/20' : 'bg-muted/50 border-muted'}`}>
             <p className="text-xs text-muted-foreground">Available Commission</p>
-            <p className="text-xl font-bold text-success">{formatUGX(availableBalance)}</p>
+            <p className={`text-xl font-bold ${hasBalance ? 'text-success' : 'text-muted-foreground'}`}>
+              {formatUGX(availableBalance)}
+            </p>
           </div>
 
-          {/* Amount */}
-          <div className="space-y-2">
-            <Label htmlFor="amount">Amount to Withdraw (UGX)</Label>
-            <Input
-              id="amount"
-              type="number"
-              placeholder="e.g. 50000"
-              value={amount}
-              onChange={(e) => {
-                const value = e.target.value;
-                // If empty, allow it
-                if (value === '') {
-                  setAmount('');
-                  return;
-                }
-                const numValue = parseFloat(value);
-                // Auto-cap to available balance
-                if (!isNaN(numValue) && numValue > availableBalance) {
-                  setAmount(String(availableBalance));
-                  toast({
-                    title: 'Amount capped to balance',
-                    description: `Maximum withdrawal is ${formatUGX(availableBalance)}`,
-                    variant: 'default',
-                  });
-                } else {
-                  setAmount(value);
-                }
-              }}
-              className="h-12 text-base"
-              disabled={loading}
-              min="1"
-              max={availableBalance}
-            />
-            {parseFloat(amount) > 0 && parseFloat(amount) === availableBalance && (
-              <p className="text-xs text-amber-600 flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Withdrawing full balance
-              </p>
-            )}
-            <div className="flex gap-2">
-              {quickAmounts.map((amt) => (
-                <Button
-                  key={amt}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setAmount(String(Math.min(amt, availableBalance)))}
-                  disabled={amt > availableBalance}
-                  className="flex-1 text-xs"
+          {!hasBalance ? (
+            <div className="flex items-center gap-2 p-4 rounded-xl bg-amber-500/10 border border-amber-500/20 text-amber-600 text-sm">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              <span>You have no commission balance to withdraw. Earn commissions by registering tenants and processing their rent requests.</span>
+            </div>
+          ) : (
+            <>
+              {/* Amount */}
+              <div className="space-y-2">
+                <Label htmlFor="amount">Amount to Withdraw (UGX)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  placeholder="e.g. 50000"
+                  value={amount}
+                  onChange={(e) => {
+                    const value = e.target.value;
+                    if (value === '') {
+                      setAmount('');
+                      return;
+                    }
+                    const numValue = parseFloat(value);
+                    if (!isNaN(numValue) && numValue > availableBalance) {
+                      setAmount(String(availableBalance));
+                      toast({
+                        title: 'Amount capped to balance',
+                        description: `Maximum withdrawal is ${formatUGX(availableBalance)}`,
+                        variant: 'default',
+                      });
+                    } else {
+                      setAmount(value);
+                    }
+                  }}
+                  className="h-12 text-base"
+                  disabled={loading}
+                  min="1"
+                  max={availableBalance}
+                />
+                {parsedAmount > 0 && parsedAmount === availableBalance && (
+                  <p className="text-xs text-amber-600 flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Withdrawing full balance
+                  </p>
+                )}
+                <div className="flex gap-2">
+                  {quickAmounts.map((amt) => (
+                    <Button
+                      key={amt}
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setAmount(String(Math.min(amt, availableBalance)))}
+                      disabled={amt > availableBalance}
+                      className="flex-1 text-xs"
+                    >
+                      {amt >= 1000 ? `${amt / 1000}K` : amt}
+                    </Button>
+                  ))}
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={() => setAmount(String(availableBalance))}
+                    className="flex-1 text-xs"
+                  >
+                    All
+                  </Button>
+                </div>
+              </div>
+
+              {/* Provider */}
+              <div className="space-y-2">
+                <Label>Mobile Money Provider</Label>
+                <RadioGroup
+                  value={provider}
+                  onValueChange={(v) => setProvider(v as 'MTN' | 'Airtel')}
+                  className="flex gap-4"
                 >
-                  {amt >= 1000 ? `${amt / 1000}K` : amt}
-                </Button>
-              ))}
-              <Button
-                type="button"
-                variant="outline"
-                size="sm"
-                onClick={() => setAmount(String(availableBalance))}
-                className="flex-1 text-xs"
-              >
-                All
-              </Button>
-            </div>
-          </div>
-
-          {/* Provider */}
-          <div className="space-y-2">
-            <Label>Mobile Money Provider</Label>
-            <RadioGroup
-              value={provider}
-              onValueChange={(v) => setProvider(v as 'MTN' | 'Airtel')}
-              className="flex gap-4"
-            >
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="MTN" id="payout-mtn" />
-                <Label htmlFor="payout-mtn" className="font-medium text-yellow-600">MTN</Label>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="MTN" id="payout-mtn" />
+                    <Label htmlFor="payout-mtn" className="font-medium text-yellow-600">MTN</Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <RadioGroupItem value="Airtel" id="payout-airtel" />
+                    <Label htmlFor="payout-airtel" className="font-medium text-red-600">Airtel</Label>
+                  </div>
+                </RadioGroup>
               </div>
-              <div className="flex items-center space-x-2">
-                <RadioGroupItem value="Airtel" id="payout-airtel" />
-                <Label htmlFor="payout-airtel" className="font-medium text-red-600">Airtel</Label>
-              </div>
-            </RadioGroup>
-          </div>
 
-          {/* Phone number */}
-          <div className="space-y-2">
-            <Label htmlFor="payout-phone">Phone Number</Label>
-            <div className="relative">
-              <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-              <Input
-                id="payout-phone"
-                type="tel"
-                placeholder="e.g. 0770123456"
-                value={mobileNumber}
-                onChange={(e) => setMobileNumber(e.target.value)}
-                className="h-12 text-base pl-10"
-                disabled={loading}
-              />
-            </div>
-            {hasSavedNumber && (
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <AlertCircle className="h-3 w-3" />
-                Using your saved payout number
-              </p>
-            )}
-          </div>
+              {/* Phone number */}
+              <div className="space-y-2">
+                <Label htmlFor="payout-phone">Phone Number</Label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                  <Input
+                    id="payout-phone"
+                    type="tel"
+                    placeholder="e.g. 0770123456"
+                    value={mobileNumber}
+                    onChange={(e) => setMobileNumber(e.target.value)}
+                    className="h-12 text-base pl-10"
+                    disabled={loading}
+                  />
+                </div>
+                {hasSavedNumber && (
+                  <p className="text-xs text-muted-foreground flex items-center gap-1">
+                    <AlertCircle className="h-3 w-3" />
+                    Using your saved payout number
+                  </p>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="flex gap-2 pt-2">
             <Button
@@ -248,15 +260,17 @@ export function RequestCommissionPayoutDialog({
               disabled={loading}
               className="flex-1 h-12"
             >
-              Cancel
+              {hasBalance ? 'Cancel' : 'Close'}
             </Button>
-            <Button
-              type="submit"
-              disabled={loading || !amount || !mobileNumber.trim()}
-              className="flex-1 h-12"
-            >
-              {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Request Payout'}
-            </Button>
+            {hasBalance && (
+              <Button
+                type="submit"
+                disabled={loading || !isValidAmount || !mobileNumber.trim()}
+                className="flex-1 h-12"
+              >
+                {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Request Payout'}
+              </Button>
+            )}
           </div>
         </form>
       </DialogContent>
