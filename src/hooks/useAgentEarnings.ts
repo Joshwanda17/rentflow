@@ -58,17 +58,53 @@ export function useAgentEarnings() {
     if (!user) return;
 
     const channel = supabase
-      .channel('agent-earnings')
+      .channel(`agent-earnings-${user.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
           schema: 'public',
           table: 'agent_earnings',
           filter: `agent_id=eq.${user.id}`,
         },
         (payload) => {
-          console.log('New earning:', payload);
+          console.log('[useAgentEarnings] Earnings changed:', payload);
+          fetchEarnings();
+        }
+      )
+      .subscribe();
+
+    // Also subscribe to wallet balance changes for agents (for withdrawal updates)
+    const walletChannel = supabase
+      .channel(`agent-wallet-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[useAgentEarnings] Wallet balance updated:', payload);
+          // Trigger re-render by refetching earnings (which updates related displays)
+        }
+      )
+      .subscribe();
+
+    // Subscribe to commission payouts for status updates
+    const payoutChannel = supabase
+      .channel(`agent-payouts-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'agent_commission_payouts',
+          filter: `agent_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[useAgentEarnings] Commission payout status changed:', payload);
           fetchEarnings();
         }
       )
@@ -76,6 +112,8 @@ export function useAgentEarnings() {
 
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(walletChannel);
+      supabase.removeChannel(payoutChannel);
     };
   }, [user, fetchEarnings]);
 
