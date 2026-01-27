@@ -1,4 +1,4 @@
-import { ReactNode, useState } from 'react';
+import { ReactNode, useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import {
@@ -38,7 +38,8 @@ interface DashboardHeaderProps {
   onOpportunityBadgeClick?: () => void;
 }
 
-export default function DashboardHeader({
+// Memoized for performance - prevents re-renders on parent state changes
+const DashboardHeader = memo(function DashboardHeader({
   currentRole,
   availableRoles,
   onRoleChange,
@@ -219,4 +220,6 @@ export default function DashboardHeader({
       )}
     </>
   );
-}
+});
+
+export default DashboardHeader;

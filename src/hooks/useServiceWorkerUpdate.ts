@@ -158,8 +158,8 @@ export function useServiceWorkerUpdate() {
       precacheAppShell();
     }
     
-    // Check every 3 seconds for instant feature propagation
-    const interval = setInterval(checkForUpdates, 3 * 1000);
+    // Check every 30 seconds (reduced from 3s for battery/CPU efficiency)
+    const interval = setInterval(checkForUpdates, 30 * 1000);
     
     // Also check when the page becomes visible or gains focus
     const onVisibilityChange = () => {
