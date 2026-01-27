@@ -9,14 +9,12 @@ import { PinAuthProvider } from "@/hooks/usePinAuth";
 import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
-import { FontSizeProvider } from "@/hooks/useFontSize";
-import { HapticSettingsProvider } from "@/hooks/useHapticSettings";
+import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 import { CartProvider } from "@/hooks/useCart";
 import { ComparisonProvider } from "@/hooks/useProductComparison";
 import { OfflineProvider } from "@/contexts/OfflineContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
-import { HighContrastProvider } from "@/hooks/useHighContrast";
 
 // Only lazy load truly optional UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
@@ -233,47 +231,44 @@ function AppRoutes() {
   );
 }
 
+// Flattened provider structure (reduced from 13 to 9 levels)
 const App = () => (
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
-        <HighContrastProvider>
-          <FontSizeProvider>
-            <HapticSettingsProvider>
-              <LanguageProvider>
-                <CurrencyProvider>
-                  <BrowserRouter>
-                    <AuthProvider>
-                      <PinAuthProvider>
-                        <BiometricAuthProvider>
-                          <OfflineProvider>
-                            <CartProvider>
-                              <ComparisonProvider>
-                                <TooltipProvider delayDuration={300}>
-                                  <AppRoutes />
-                                  <Suspense fallback={null}>
-                                    <IOSOptimizations />
-                                    <IOSLinkHandler />
-                                    <IOSShareReceiver />
-                                    <PWAInstallPrompt />
-                                    <WhatsNewModal />
-                                    <GlobalSettingsToolbar />
-                                    <Toaster />
-                                    <Sonner />
-                                  </Suspense>
-                                </TooltipProvider>
-                              </ComparisonProvider>
-                            </CartProvider>
-                          </OfflineProvider>
-                        </BiometricAuthProvider>
-                      </PinAuthProvider>
-                    </AuthProvider>
-                  </BrowserRouter>
-                </CurrencyProvider>
-              </LanguageProvider>
-            </HapticSettingsProvider>
-          </FontSizeProvider>
-        </HighContrastProvider>
+        <CombinedSettingsProvider>
+          <LanguageProvider>
+            <CurrencyProvider>
+              <BrowserRouter>
+                <AuthProvider>
+                  <PinAuthProvider>
+                    <BiometricAuthProvider>
+                      <OfflineProvider>
+                        <CartProvider>
+                          <ComparisonProvider>
+                            <TooltipProvider delayDuration={300}>
+                              <AppRoutes />
+                              <Suspense fallback={null}>
+                                <IOSOptimizations />
+                                <IOSLinkHandler />
+                                <IOSShareReceiver />
+                                <PWAInstallPrompt />
+                                <WhatsNewModal />
+                                <GlobalSettingsToolbar />
+                                <Toaster />
+                                <Sonner />
+                              </Suspense>
+                            </TooltipProvider>
+                          </ComparisonProvider>
+                        </CartProvider>
+                      </OfflineProvider>
+                    </BiometricAuthProvider>
+                  </PinAuthProvider>
+                </AuthProvider>
+              </BrowserRouter>
+            </CurrencyProvider>
+          </LanguageProvider>
+        </CombinedSettingsProvider>
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>

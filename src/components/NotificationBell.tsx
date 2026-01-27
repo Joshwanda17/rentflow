@@ -10,7 +10,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useNotifications } from '@/hooks/useNotifications';
 import { formatDistanceToNow } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
-import { useState, useCallback } from 'react';
+import { useState, useCallback, memo } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 
@@ -50,7 +50,7 @@ const CONTACTABLE_NOTIFICATIONS = [
   'Welile Homes Withdrawal',
 ];
 
-export function NotificationBell() {
+export const NotificationBell = memo(function NotificationBell() {
   const { notifications, unreadCount, markAsRead, markAllAsRead } = useNotifications();
   const { role } = useAuth();
   const navigate = useNavigate();
@@ -362,4 +362,4 @@ export function NotificationBell() {
       </PopoverContent>
     </Popover>
   );
-}
+});
