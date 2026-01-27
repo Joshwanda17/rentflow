@@ -302,10 +302,46 @@ export function useWallet() {
         )
         .subscribe();
 
+      // Subscribe to referral credits for instant balance updates when someone accepts referral
+      const referralChannel = supabase
+        .channel(`referral-credits-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'referrals',
+            filter: `referrer_id=eq.${user.id}`,
+          },
+          (payload) => {
+            // When a referral is credited, refresh wallet balance
+            if (payload.new && (payload.new as any).credited === true) {
+              console.log('[useWallet] Referral bonus credited, refreshing wallet');
+              fetchWallet();
+            }
+          }
+        )
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'referrals',
+            filter: `referred_id=eq.${user.id}`,
+          },
+          () => {
+            // When current user is referred and signup bonus credited
+            console.log('[useWallet] Signup bonus credited, refreshing wallet');
+            fetchWallet();
+          }
+        )
+        .subscribe();
+
       return () => {
         supabase.removeChannel(walletChannel);
         supabase.removeChannel(transactionChannel);
         supabase.removeChannel(withdrawalChannel);
+        supabase.removeChannel(referralChannel);
       };
     }
   }, [user, fetchWallet, fetchTransactions]);
