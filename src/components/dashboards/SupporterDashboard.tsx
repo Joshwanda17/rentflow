@@ -199,7 +199,7 @@ export default function SupporterDashboard({
     fetchData();
     
     // Real-time subscription for opportunity count updates
-    const channel = supabase
+    const opportunityChannel = supabase
       .channel('supporter-opportunity-count')
       .on(
         'postgres_changes',
@@ -220,10 +220,56 @@ export default function SupporterDashboard({
       )
       .subscribe();
 
+    // Real-time subscription for investment account balance changes (for withdrawals)
+    const investmentChannel = supabase
+      .channel(`supporter-investment-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'investment_accounts',
+          filter: `user_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[SupporterDashboard] Investment account updated:', payload);
+          // Update the account in state immediately
+          if (payload.new) {
+            const updatedAccount = payload.new as any;
+            setAccounts(prev => prev.map(acc => 
+              acc.id === updatedAccount.id 
+                ? { ...acc, balance: Number(updatedAccount.balance), status: updatedAccount.status }
+                : acc
+            ));
+          }
+        }
+      )
+      .subscribe();
+
+    // Real-time subscription for wallet balance (for fund/withdraw operations)
+    const walletChannel = supabase
+      .channel(`supporter-wallet-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets',
+          filter: `user_id=eq.${user.id}`,
+        },
+        () => {
+          console.log('[SupporterDashboard] Wallet updated, triggering refresh');
+          // Wallet hook handles its own update, but we refresh for consistency
+        }
+      )
+      .subscribe();
+
     return () => {
-      supabase.removeChannel(channel);
+      supabase.removeChannel(opportunityChannel);
+      supabase.removeChannel(investmentChannel);
+      supabase.removeChannel(walletChannel);
     };
-  }, []);
+  }, [user]);
 
   const fetchData = async () => {
     // Skip network fetch if offline and we have cached data

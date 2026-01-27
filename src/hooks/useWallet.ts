@@ -241,6 +241,72 @@ export function useWallet() {
       Promise.all([fetchWallet(), fetchTransactions()]).finally(() => {
         setLoading(false);
       });
+
+      // Subscribe to realtime wallet balance changes
+      const walletChannel = supabase
+        .channel(`wallet-balance-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'wallets',
+            filter: `user_id=eq.${user.id}`,
+          },
+          (payload) => {
+            console.log('[useWallet] Wallet balance updated in realtime:', payload);
+            if (payload.new) {
+              setWallet(payload.new as Wallet);
+              setIsOfflineData(false);
+              cacheWallet(payload.new as Wallet);
+            }
+          }
+        )
+        .subscribe();
+
+      // Subscribe to new wallet transactions
+      const transactionChannel = supabase
+        .channel(`wallet-transactions-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'wallet_transactions',
+          },
+          (payload) => {
+            const tx = payload.new as WalletTransaction;
+            if (tx.sender_id === user.id || tx.recipient_id === user.id) {
+              console.log('[useWallet] New transaction detected:', payload);
+              fetchTransactions();
+            }
+          }
+        )
+        .subscribe();
+
+      // Subscribe to wallet withdrawals for instant balance updates
+      const withdrawalChannel = supabase
+        .channel(`wallet-withdrawals-${user.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'wallet_withdrawals',
+            filter: `user_id=eq.${user.id}`,
+          },
+          () => {
+            console.log('[useWallet] Withdrawal detected, refreshing wallet');
+            fetchWallet();
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(walletChannel);
+        supabase.removeChannel(transactionChannel);
+        supabase.removeChannel(withdrawalChannel);
+      };
     }
   }, [user, fetchWallet, fetchTransactions]);
 
