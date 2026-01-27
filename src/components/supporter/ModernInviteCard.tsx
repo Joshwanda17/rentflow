@@ -129,8 +129,14 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
         </div>
       </div>
 
-      {/* Regular Invite Link - Secondary */}
-      <div className="relative overflow-hidden rounded-2xl">
+      {/* Regular Invite Link - Secondary - Fully Clickable */}
+      <div 
+        className="relative overflow-hidden rounded-2xl cursor-pointer active:scale-[0.98] transition-transform touch-manipulation"
+        onClick={onShare}
+        role="button"
+        tabIndex={0}
+        onKeyDown={(e) => e.key === 'Enter' && onShare()}
+      >
         <div className="absolute inset-0 bg-gradient-to-br from-violet-500/90 via-purple-500/85 to-fuchsia-500/80" />
         <div className="relative z-10 p-4">
           <div className="flex items-start gap-3">
@@ -144,14 +150,14 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
               </p>
               <div className="flex gap-2">
                 <Button
-                  onClick={onShare}
+                  onClick={(e) => { e.stopPropagation(); onShare(); }}
                   className="flex-1 h-10 rounded-xl bg-white text-purple-600 font-bold text-xs hover:bg-white/95 active:scale-[0.98] transition-all gap-1.5"
                 >
                   <Share2 className="h-3.5 w-3.5" />
                   Invite Link
                 </Button>
                 <Button
-                  onClick={handleCopyLink}
+                  onClick={(e) => { e.stopPropagation(); handleCopyLink(); }}
                   variant="ghost"
                   className="h-10 px-3 rounded-xl bg-white/15 text-white hover:bg-white/25 active:scale-[0.98]"
                 >
