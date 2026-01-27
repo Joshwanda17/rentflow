@@ -60,7 +60,8 @@ import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { 
   SupporterAgreementModal, 
-  LockedOverlay 
+  LockedOverlay,
+  AgreementAcceptedBadge
 } from '@/components/supporter/agreement';
 import { SupporterAgreementViewModal } from '@/components/supporter/agreement/SupporterAgreementCard';
 
@@ -116,6 +117,7 @@ export default function SupporterDashboard({
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
   const [viewAgreementTab, setViewAgreementTab] = useState<'summary' | 'full'>('summary');
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
+  const [justAccepted, setJustAccepted] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
@@ -155,6 +157,7 @@ export default function SupporterDashboard({
     const success = await acceptAgreement();
     if (success) {
       setLocalHasAccepted(true);
+      setJustAccepted(true);
       setShowAgreementModal(false);
       // Scroll to top and show welcome message
       window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -162,6 +165,8 @@ export default function SupporterDashboard({
         title: '🎉 Welcome to Welile Supporters!',
         description: 'Terms accepted. You can now start investing and helping tenants.',
       });
+      // Reset celebration after 5 seconds
+      setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
   };
@@ -649,19 +654,27 @@ export default function SupporterDashboard({
         )}
 
         {/* Greeting - Minimal & Clean */}
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div>
             <p className="text-sm text-muted-foreground">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</p>
             <h1 className="text-xl font-bold text-foreground">
               {profile?.full_name?.split(' ')[0] || 'Investor'} 👋
             </h1>
           </div>
-          {!effectiveHasAccepted && (
+          
+          {/* Agreement Status Badge */}
+          {effectiveHasAccepted ? (
+            <AgreementAcceptedBadge 
+              acceptedAt={acceptance?.accepted_at}
+              showCelebration={justAccepted}
+              variant="compact"
+            />
+          ) : (
             <Button
               variant="outline"
               size="sm"
               onClick={() => setShowAgreementModal(true)}
-              className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl"
+              className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl w-full sm:w-auto"
             >
               <FileText className="h-3.5 w-3.5" />
               Accept Terms
