@@ -140,10 +140,24 @@ export function CombinedSettingsProvider({ children }: { children: ReactNode }) 
   );
 }
 
+// Default values for when context is not available (prevents white screen)
+const defaultContextValue: CombinedSettingsContextType = {
+  fontSize: 'large',
+  setFontSize: () => {},
+  fontSizeClass: 'text-lg',
+  highContrast: false,
+  toggleHighContrast: () => {},
+  setHighContrast: () => {},
+  hapticIntensity: 'medium',
+  setHapticIntensity: () => {},
+  isHapticEnabled: true,
+};
+
 export function useCombinedSettings() {
   const context = useContext(CombinedSettingsContext);
+  // Return defaults if context not available (prevents crash during initialization)
   if (context === undefined) {
-    throw new Error('useCombinedSettings must be used within a CombinedSettingsProvider');
+    return defaultContextValue;
   }
   return context;
 }
