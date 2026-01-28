@@ -264,13 +264,13 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
                 <>
                   <div className="space-y-2">
                     <Label>Select Supporter</Label>
-                    <div className="relative">
-                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <div className="relative transform-none">
+                      <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
                       <Input
                         placeholder="Search supporters..."
                         value={searchQuery}
                         onChange={(e) => setSearchQuery(e.target.value)}
-                        className="pl-10"
+                        className="pl-10 transform-none"
                       />
                     </div>
                   </div>
@@ -331,14 +331,14 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
                   </div>
 
                   {/* Step 2: Account Details */}
-                  <div className="space-y-2">
+                  <div className="space-y-2 transform-none">
                     <Label htmlFor="account-name">Account Name</Label>
                     <Input
                       id="account-name"
                       value={name}
                       onChange={(e) => setName(e.target.value)}
                       placeholder="e.g., Rent Portfolio, High Yield..."
-                      className="bg-secondary/50"
+                      className="bg-secondary/50 transform-none transition-none"
                     />
                   </div>
 
