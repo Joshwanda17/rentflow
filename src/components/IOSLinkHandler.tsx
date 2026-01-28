@@ -6,9 +6,26 @@ import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
  * - Deep linking from shared links
  * - Opening links within the PWA
  * - Handling external links properly
+ * - Ensuring signup links work reliably
  */
 export default function IOSLinkHandler() {
   const { isIOS, isStandalone } = useIOSCompatibility();
+
+  // Handle URL parameters preservation across redirects
+  useEffect(() => {
+    // Preserve critical signup parameters across page navigations
+    const urlParams = new URLSearchParams(window.location.search);
+    const ref = urlParams.get('ref');
+    const role = urlParams.get('role');
+    const become = urlParams.get('become');
+    const token = urlParams.get('t');
+    
+    // Store these in sessionStorage for reliability
+    if (ref) sessionStorage.setItem('signup_ref', ref);
+    if (role) sessionStorage.setItem('signup_role', role);
+    if (become) sessionStorage.setItem('signup_become', become);
+    if (token) sessionStorage.setItem('signup_token', token);
+  }, []);
 
   useEffect(() => {
     if (!isIOS) return;

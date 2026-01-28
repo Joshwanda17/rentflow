@@ -8,6 +8,33 @@ import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
 export default function IOSOptimizations() {
   const { isIOS, isStandalone, isSafari, preventTextZoom } = useIOSCompatibility();
 
+  // Apply global mobile optimizations immediately on mount
+  useEffect(() => {
+    // Prevent text zoom on ALL mobile devices (not just iOS)
+    const style = document.createElement('style');
+    style.id = 'mobile-input-fix';
+    style.textContent = `
+      input, textarea, select, button {
+        font-size: 16px !important;
+        -webkit-text-size-adjust: 100%;
+        touch-action: manipulation;
+      }
+      input:focus, textarea:focus, select:focus {
+        font-size: 16px !important;
+      }
+    `;
+    if (!document.getElementById('mobile-input-fix')) {
+      document.head.appendChild(style);
+    }
+    
+    return () => {
+      const existingStyle = document.getElementById('mobile-input-fix');
+      if (existingStyle) {
+        existingStyle.remove();
+      }
+    };
+  }, []);
+
   useEffect(() => {
     if (!isIOS) return;
 

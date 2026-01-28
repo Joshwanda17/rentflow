@@ -13,23 +13,37 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
  * - /join?t=TOKEN     - User activation (tenant, landlord, agent, supporter)
  * - /join?r=USER_ID   - Referral signup
  * - /join?s=USER_ID   - Supporter referral (become-supporter)
+ * 
+ * Uses sessionStorage as backup for URL params to handle mobile browser issues
  */
 export default function Join() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const [isRedirecting, setIsRedirecting] = useState(true);
 
-  const token = searchParams.get('t');
-  const referral = searchParams.get('r');
-  const supporterRef = searchParams.get('s');
+  // Get params from URL first, then fallback to sessionStorage for reliability on mobile
+  const token = searchParams.get('t') || sessionStorage.getItem('signup_token');
+  const referral = searchParams.get('r') || sessionStorage.getItem('signup_ref');
+  const supporterRef = searchParams.get('s') || sessionStorage.getItem('signup_supporter_ref');
 
   useEffect(() => {
+    // Store params in sessionStorage for recovery if page reloads (common on mobile)
+    const t = searchParams.get('t');
+    const r = searchParams.get('r');
+    const s = searchParams.get('s');
+    if (t) sessionStorage.setItem('signup_token', t);
+    if (r) sessionStorage.setItem('signup_ref', r);
+    if (s) sessionStorage.setItem('signup_supporter_ref', s);
+    
     // Instant redirect - no delay for faster UX
     if (token) {
+      sessionStorage.removeItem('signup_token'); // Clean up after use
       navigate(`/activate-supporter?token=${token}`, { replace: true });
     } else if (supporterRef) {
+      sessionStorage.removeItem('signup_supporter_ref');
       navigate(`/become-supporter?ref=${supporterRef}`, { replace: true });
     } else if (referral) {
+      sessionStorage.removeItem('signup_ref');
       navigate(`/auth?ref=${referral}`, { replace: true });
     } else {
       // No valid params, show welcome page immediately
