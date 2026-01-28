@@ -24,7 +24,9 @@ export default function LandlordAgreementButton() {
   };
 
   if (isLoading) {
-    return null;
+    return (
+      <div className="w-full h-14 rounded-lg bg-muted/50 animate-pulse" />
+    );
   }
 
   return (
