@@ -11,8 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticSuccess, hapticTap } from '@/lib/haptics';
 import { Loader2, Send, Smartphone, CheckCircle2, Users, Sparkles } from 'lucide-react';
-import { motion } from 'framer-motion';
-
+import { animations } from '@/lib/cssAnimations';
 interface RequestManagerInvestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -151,11 +150,7 @@ export function RequestManagerInvestDialog({
               </div>
 
               {parseFloat(amount) > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="p-4 rounded-xl bg-success/10 border border-success/20"
-                >
+                <div className={`p-4 rounded-xl bg-success/10 border border-success/20 ${animations.fadeInUp}`}>
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Expected Monthly Return</span>
                     <Badge className="bg-success/20 text-success border-0">15% ROI</Badge>
@@ -163,7 +158,7 @@ export function RequestManagerInvestDialog({
                   <p className="text-2xl font-black text-success mt-1">
                     +{formatUGX(estimatedReturn)}
                   </p>
-                </motion.div>
+                </div>
               )}
 
               <Button
@@ -246,11 +241,7 @@ export function RequestManagerInvestDialog({
         )}
 
         {step === 'success' && (
-          <motion.div
-            initial={{ opacity: 0, scale: 0.9 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="text-center py-8 space-y-4"
-          >
+          <div className={`text-center py-8 space-y-4 ${animations.scaleIn}`}>
             <div className="w-20 h-20 mx-auto rounded-full bg-success/20 flex items-center justify-center">
               <CheckCircle2 className="h-10 w-10 text-success" />
             </div>
@@ -266,7 +257,7 @@ export function RequestManagerInvestDialog({
             <Button onClick={handleClose} className="w-full h-12 font-bold">
               Done
             </Button>
-          </motion.div>
+          </div>
         )}
       </DialogContent>
     </Dialog>
