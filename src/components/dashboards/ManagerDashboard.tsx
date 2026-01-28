@@ -100,6 +100,7 @@ import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalReques
 import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
 import { usePresence } from '@/hooks/usePresence';
 import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
+import { ChromecastButton } from '@/components/manager/ChromecastButton';
 
 interface ManagerDashboardProps {
   user: User;
@@ -1076,10 +1077,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Mobile Quick Actions Grid - Shows on all screens but optimized for mobile */}
         <div className="block">
-          <h2 className="text-lg font-bold mb-3 flex items-center gap-2">
-            <Sparkles className="h-5 w-5 text-primary" />
-            Quick Actions
-          </h2>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold flex items-center gap-2">
+              <Sparkles className="h-5 w-5 text-primary" />
+              Quick Actions
+            </h2>
+            <ChromecastButton />
+          </div>
           <MobileQuickActions
             pendingRequests={pendingRequests}
             pendingLoans={pendingLoans}
