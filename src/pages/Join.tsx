@@ -24,21 +24,17 @@ export default function Join() {
   const supporterRef = searchParams.get('s');
 
   useEffect(() => {
-    // Small delay to ensure smooth transition
-    const timer = setTimeout(() => {
-      if (token) {
-        navigate(`/activate-supporter?token=${token}`, { replace: true });
-      } else if (supporterRef) {
-        navigate(`/become-supporter?ref=${supporterRef}`, { replace: true });
-      } else if (referral) {
-        navigate(`/auth?ref=${referral}`, { replace: true });
-      } else {
-        // No valid params, show welcome page
-        setIsRedirecting(false);
-      }
-    }, 100);
-
-    return () => clearTimeout(timer);
+    // Instant redirect - no delay for faster UX
+    if (token) {
+      navigate(`/activate-supporter?token=${token}`, { replace: true });
+    } else if (supporterRef) {
+      navigate(`/become-supporter?ref=${supporterRef}`, { replace: true });
+    } else if (referral) {
+      navigate(`/auth?ref=${referral}`, { replace: true });
+    } else {
+      // No valid params, show welcome page immediately
+      setIsRedirecting(false);
+    }
   }, [searchParams, navigate, token, referral, supporterRef]);
 
   // Show loading while redirecting
