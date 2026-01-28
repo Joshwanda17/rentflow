@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, Sparkles } from 'lucide-react';
+import { Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, Sparkles, UsersRound } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 
@@ -16,7 +16,7 @@ interface CreateUserInviteDialogProps {
   onSuccess?: () => void;
 }
 
-type UserRole = 'tenant' | 'landlord';
+type UserRole = 'tenant' | 'landlord' | 'agent';
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string; bgColor: string; emoji: string }> = {
   tenant: {
@@ -34,6 +34,14 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; des
     color: 'text-emerald-500',
     bgColor: 'bg-emerald-500/10 border-emerald-500/30',
     emoji: '🏢',
+  },
+  agent: {
+    label: 'Sub-Agent',
+    icon: UsersRound,
+    description: 'Team member who helps register tenants',
+    color: 'text-orange-500',
+    bgColor: 'bg-orange-500/10 border-orange-500/30',
+    emoji: '👥',
   },
 };
 
@@ -85,7 +93,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: Create
       }
 
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: { ...formData, role: selectedRole },
+        body: { ...formData, role: selectedRole, isSubAgent: selectedRole === 'agent' },
       });
 
       if (response.error) {
