@@ -88,6 +88,65 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Normalize phone number for comparison (remove all non-digits)
+    const normalizedPhone = phone.replace(/\D/g, '');
+    
+    // Generate phone variants to check (with/without country code, with/without leading 0)
+    const phoneVariants: string[] = [normalizedPhone];
+    
+    // If starts with country code 256, also check without it
+    if (normalizedPhone.startsWith('256') && normalizedPhone.length > 9) {
+      phoneVariants.push(normalizedPhone.slice(3)); // without 256
+      phoneVariants.push('0' + normalizedPhone.slice(3)); // with leading 0
+    }
+    // If starts with 0, also check without it and with 256
+    if (normalizedPhone.startsWith('0') && normalizedPhone.length >= 10) {
+      phoneVariants.push(normalizedPhone.slice(1)); // without 0
+      phoneVariants.push('256' + normalizedPhone.slice(1)); // with 256
+    }
+    // If doesn't start with 0 or 256, add variants
+    if (!normalizedPhone.startsWith('0') && !normalizedPhone.startsWith('256') && normalizedPhone.length >= 9) {
+      phoneVariants.push('0' + normalizedPhone);
+      phoneVariants.push('256' + normalizedPhone);
+    }
+
+    // Check if phone already exists in profiles
+    const { data: existingProfiles } = await adminClient
+      .from("profiles")
+      .select("id, phone")
+      .limit(1000);
+    
+    if (existingProfiles) {
+      for (const profile of existingProfiles) {
+        const profilePhone = profile.phone?.replace(/\D/g, '') || '';
+        if (phoneVariants.some(v => profilePhone.includes(v) || v.includes(profilePhone))) {
+          return new Response(JSON.stringify({ error: "A user with this phone number already exists" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
+    // Check if phone exists in pending invites
+    const { data: existingInviteWithPhone } = await adminClient
+      .from("supporter_invites")
+      .select("id, phone")
+      .eq("status", "pending")
+      .limit(1000);
+    
+    if (existingInviteWithPhone) {
+      for (const invite of existingInviteWithPhone) {
+        const invitePhone = invite.phone?.replace(/\D/g, '') || '';
+        if (phoneVariants.some(v => invitePhone.includes(v) || v.includes(invitePhone))) {
+          return new Response(JSON.stringify({ error: "An invite with this phone number already exists" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
+
     // Check if email already exists in auth
     const { data: existingUsers, error: listUsersError } = await adminClient.auth.admin.listUsers();
     
