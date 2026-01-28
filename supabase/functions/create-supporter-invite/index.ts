@@ -190,7 +190,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create the invite record
+    // If this is a sub-agent being created by an agent, store the parent agent ID
+    let parentAgentId: string | null = null;
+    if (creatorRole === 'agent' && role === 'agent') {
+      parentAgentId = user.id;
+      console.log(`Creating sub-agent invite for ${email} with parent agent ${user.id}`);
+    }
+
+    // Create the invite record with parent_agent_id if applicable
     const { data: invite, error: inviteError } = await adminClient
       .from("supporter_invites")
       .insert({
@@ -200,6 +207,7 @@ Deno.serve(async (req) => {
         temp_password: password,
         role,
         created_by: user.id,
+        parent_agent_id: parentAgentId,
       })
       .select()
       .single();
@@ -212,16 +220,8 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If this is a sub-agent being created by an agent, store the relationship info
-    // The actual relationship will be created when the sub-agent activates their account
-    // We'll store this in the invite metadata for now
-    let subAgentParentId: string | null = null;
-    if (creatorRole === 'agent' && role === 'agent' && isSubAgent) {
-      subAgentParentId = user.id;
-      console.log(`Creating sub-agent invite for ${email} with parent agent ${user.id}`);
-    }
-
-    console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${subAgentParentId ? ' (sub-agent)' : ''}`);
+    console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${parentAgentId ? ' (sub-agent)' : ''}`);
+    // subAgentParentId variable removed - now using parentAgentId from invite creation above
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -231,7 +231,7 @@ Deno.serve(async (req) => {
         email: invite.email,
         full_name: invite.full_name,
         role: invite.role,
-        parent_agent_id: subAgentParentId,
+        parent_agent_id: parentAgentId,
       }
     }), {
       status: 200,

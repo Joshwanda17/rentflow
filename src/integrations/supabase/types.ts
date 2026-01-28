@@ -2592,6 +2592,7 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          parent_agent_id: string | null
           phone: string
           role: string
           status: string
@@ -2606,6 +2607,7 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          parent_agent_id?: string | null
           phone: string
           role?: string
           status?: string
@@ -2620,6 +2622,7 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          parent_agent_id?: string | null
           phone?: string
           role?: string
           status?: string
