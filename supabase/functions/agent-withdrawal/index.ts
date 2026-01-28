@@ -104,11 +104,34 @@ serve(async (req) => {
       );
     }
 
-    // Deduct from user's wallet
-    await adminClient
-      .from('wallets')
-      .update({ balance: userWallet.balance - amount })
-      .eq('user_id', targetUserId);
+    // Deduct from user's wallet using atomic SQL operation to prevent race conditions
+    const { data: updatedWallet, error: updateError } = await adminClient.rpc('atomic_balance_update', {
+      p_user_id: targetUserId,
+      p_amount: -amount
+    });
+
+    // Fallback if RPC doesn't exist - use raw SQL
+    if (updateError?.message?.includes('function') || updateError?.code === '42883') {
+      const { error: directUpdateError } = await adminClient
+        .from('wallets')
+        .update({ balance: userWallet.balance - amount, updated_at: new Date().toISOString() })
+        .eq('user_id', targetUserId)
+        .eq('balance', userWallet.balance); // Optimistic lock - only update if balance unchanged
+
+      if (directUpdateError) {
+        console.error('Wallet update error:', directUpdateError);
+        return new Response(
+          JSON.stringify({ error: 'Failed to update wallet. Please try again.' }),
+          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    } else if (updateError) {
+      console.error('Wallet update error:', updateError);
+      return new Response(
+        JSON.stringify({ error: 'Failed to update wallet' }),
+        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Record withdrawal
     await adminClient

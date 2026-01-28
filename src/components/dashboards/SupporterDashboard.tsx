@@ -453,7 +453,14 @@ export default function SupporterDashboard({
   };
 
   const handleFundAccount = async (accountId: string, amount: number) => {
-    if (!wallet || wallet.balance < amount) {
+    // Get fresh wallet balance to prevent race conditions
+    const { data: freshWallet, error: walletFetchError } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+
+    if (walletFetchError || !freshWallet || freshWallet.balance < amount) {
       toast({ 
         title: 'Insufficient Balance', 
         description: 'You don\'t have enough funds in your wallet',
@@ -462,57 +469,94 @@ export default function SupporterDashboard({
       return;
     }
 
-    const { error: walletError } = await supabase
+    // Update wallet with optimistic locking
+    const { data: updatedWallet, error: walletError } = await supabase
       .from('wallets')
-      .update({ balance: wallet.balance - amount })
-      .eq('user_id', user.id);
+      .update({ balance: freshWallet.balance - amount, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('balance', freshWallet.balance) // Only update if balance unchanged
+      .select()
+      .maybeSingle();
 
-    if (walletError) {
-      toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
+    if (walletError || !updatedWallet) {
+      toast({ 
+        title: 'Transaction Conflict', 
+        description: 'Another transaction occurred. Please try again.',
+        variant: 'destructive' 
+      });
       return;
     }
 
-    const { data: currentAccount } = await supabase
+    // Get fresh account data
+    const { data: currentAccount, error: accountFetchError } = await supabase
       .from('investment_accounts')
       .select('balance, name')
       .eq('id', accountId)
       .single();
 
-    if (currentAccount) {
+    if (accountFetchError || !currentAccount) {
+      // Rollback wallet
       await supabase
-        .from('investment_accounts')
-        .update({ balance: Number(currentAccount.balance) + amount })
-        .eq('id', accountId);
+        .from('wallets')
+        .update({ balance: freshWallet.balance })
+        .eq('user_id', user.id);
+      
+      toast({ title: 'Error', description: 'Account not found', variant: 'destructive' });
+      return;
+    }
 
-      // Notify all managers about the funding for approval
-      const { data: managers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'manager')
-        .eq('enabled', true);
+    // Update investment account with optimistic lock
+    const { data: updatedAccount, error: accountError } = await supabase
+      .from('investment_accounts')
+      .update({ balance: Number(currentAccount.balance) + amount, updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+      .eq('balance', currentAccount.balance)
+      .select()
+      .maybeSingle();
 
-      if (managers && managers.length > 0) {
-        const notifications = managers.map((manager) => ({
-          user_id: manager.user_id,
-          title: '💰 Investment Account Funded!',
-          message: `${profile?.full_name || 'A supporter'} funded ${formatUGX(amount)} to "${currentAccount.name}". Review and approve.`,
-          type: 'investment_funding',
-          metadata: { 
-            account_id: accountId, 
-            supporter_id: user.id,
-            supporter_name: profile?.full_name,
-            amount: amount,
-            account_name: currentAccount.name
-          }
-        }));
+    if (accountError || !updatedAccount) {
+      // Rollback wallet
+      await supabase
+        .from('wallets')
+        .update({ balance: freshWallet.balance })
+        .eq('user_id', user.id);
+      
+      toast({ 
+        title: 'Transaction Conflict', 
+        description: 'Another transaction occurred. Please try again.',
+        variant: 'destructive' 
+      });
+      return;
+    }
 
-        await supabase.from('notifications').insert(notifications);
-      }
+    // Notify all managers about the funding for approval
+    const { data: managers } = await supabase
+      .from('user_roles')
+      .select('user_id')
+      .eq('role', 'manager')
+      .eq('enabled', true);
+
+    if (managers && managers.length > 0) {
+      const notifications = managers.map((manager) => ({
+        user_id: manager.user_id,
+        title: '💰 Investment Account Funded!',
+        message: `${profile?.full_name || 'A supporter'} funded ${formatUGX(amount)} to "${currentAccount.name}". Review and approve.`,
+        type: 'investment_funding',
+        metadata: { 
+          account_id: accountId, 
+          supporter_id: user.id,
+          supporter_name: profile?.full_name,
+          amount: amount,
+          account_name: currentAccount.name
+        }
+      }));
+
+      await supabase.from('notifications').insert(notifications);
     }
 
     setAccounts(prev => prev.map(acc => 
       acc.id === accountId 
-        ? { ...acc, balance: acc.balance + amount, invested: acc.invested + amount }
+        ? { ...acc, balance: updatedAccount.balance, invested: acc.invested + amount }
         : acc
     ));
 
@@ -557,32 +601,80 @@ export default function SupporterDashboard({
       return;
     }
 
-    const { data: currentWallet } = await supabase
+    // Use optimistic locking to prevent race conditions
+    // First, get fresh data and update investment account atomically
+    const { data: freshAccount, error: fetchError } = await supabase
+      .from('investment_accounts')
+      .select('balance')
+      .eq('id', accountId)
+      .single();
+
+    if (fetchError || !freshAccount || freshAccount.balance < amount) {
+      toast({ 
+        title: 'Error', 
+        description: 'Account balance changed. Please try again.',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Update investment account with optimistic lock
+    const { data: updatedAccount, error: accountError } = await supabase
+      .from('investment_accounts')
+      .update({ balance: freshAccount.balance - amount, updated_at: new Date().toISOString() })
+      .eq('id', accountId)
+      .eq('balance', freshAccount.balance) // Only update if balance unchanged
+      .select()
+      .maybeSingle();
+
+    if (accountError || !updatedAccount) {
+      toast({ 
+        title: 'Transaction Conflict', 
+        description: 'Another transaction occurred. Please try again.',
+        variant: 'destructive' 
+      });
+      return;
+    }
+
+    // Now update wallet - get fresh balance first
+    const { data: freshWallet, error: walletFetchError } = await supabase
       .from('wallets')
       .select('balance')
       .eq('user_id', user.id)
       .single();
 
-    const currentWalletBalance = currentWallet?.balance || 0;
+    if (walletFetchError || !freshWallet) {
+      // Rollback investment account
+      await supabase
+        .from('investment_accounts')
+        .update({ balance: freshAccount.balance })
+        .eq('id', accountId);
+      
+      toast({ title: 'Error', description: 'Failed to fetch wallet', variant: 'destructive' });
+      return;
+    }
 
     const { error: walletError } = await supabase
       .from('wallets')
-      .update({ balance: currentWalletBalance + amount })
-      .eq('user_id', user.id);
+      .update({ balance: freshWallet.balance + amount, updated_at: new Date().toISOString() })
+      .eq('user_id', user.id)
+      .eq('balance', freshWallet.balance); // Optimistic lock
 
     if (walletError) {
+      // Rollback investment account
+      await supabase
+        .from('investment_accounts')
+        .update({ balance: freshAccount.balance })
+        .eq('id', accountId);
+      
       toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
       return;
     }
 
-    await supabase
-      .from('investment_accounts')
-      .update({ balance: account.balance - amount })
-      .eq('id', accountId);
-
+    // Update local state
     setAccounts(prev => prev.map(acc => 
       acc.id === accountId 
-        ? { ...acc, balance: acc.balance - amount }
+        ? { ...acc, balance: updatedAccount.balance }
         : acc
     ));
 
