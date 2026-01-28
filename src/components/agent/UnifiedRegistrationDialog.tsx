@@ -13,7 +13,7 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
-
+import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 // User-friendly error messages mapping
 const getErrorMessage = (error: string): string => {
   const errorLower = error.toLowerCase();
@@ -157,6 +157,10 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   } | null>(null);
 
   const [lc1Success, setLc1Success] = useState(false);
+
+  // Real-time duplicate phone checking
+  const { isDuplicate: isPhoneDuplicate, isChecking: isCheckingPhone, duplicateMessage: phoneDuplicateMessage } = usePhoneDuplicateCheck(formData.phone);
+  const { isDuplicate: isLc1PhoneDuplicate, isChecking: isCheckingLc1Phone, duplicateMessage: lc1PhoneDuplicateMessage } = usePhoneDuplicateCheck(lc1Data.phone);
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -458,16 +462,30 @@ Password: ${createdInvite?.password}`;
 
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-          <Input
-            id="phone"
-            placeholder="0700000000"
-            value={formData.phone}
-            onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl touch-manipulation"
-            autoComplete="off"
-            inputMode="tel"
-          />
+          <div className="relative">
+            <Input
+              id="phone"
+              placeholder="0700000000"
+              value={formData.phone}
+              onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
+              required
+              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate ? 'border-red-500 focus:ring-red-500' : ''}`}
+              autoComplete="off"
+              inputMode="tel"
+            />
+            {isCheckingPhone && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+            {!isCheckingPhone && isPhoneDuplicate && (
+              <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+            )}
+          </div>
+          {isPhoneDuplicate && phoneDuplicateMessage && (
+            <p className="text-sm text-red-500 flex items-center gap-1.5 animate-in fade-in duration-200">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              {phoneDuplicateMessage}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -516,12 +534,17 @@ Password: ${createdInvite?.password}`;
             ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600' 
             : ''
         }`}
-        disabled={isLoading}
+        disabled={isLoading || isPhoneDuplicate}
       >
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             Creating...
+          </>
+        ) : isPhoneDuplicate ? (
+          <>
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Phone Number Already Exists
           </>
         ) : (
           <>
@@ -591,16 +614,30 @@ Password: ${createdInvite?.password}`;
 
         <div className="space-y-2">
           <Label htmlFor="lc1Phone" className="text-sm font-medium">Phone Number</Label>
-          <Input
-            id="lc1Phone"
-            placeholder="0700000000"
-            value={lc1Data.phone}
-            onChange={(e) => setLc1Data(prev => ({ ...prev, phone: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl touch-manipulation"
-            autoComplete="off"
-            inputMode="tel"
-          />
+          <div className="relative">
+            <Input
+              id="lc1Phone"
+              placeholder="0700000000"
+              value={lc1Data.phone}
+              onChange={(e) => setLc1Data(prev => ({ ...prev, phone: e.target.value }))}
+              required
+              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isLc1PhoneDuplicate ? 'border-red-500 focus:ring-red-500' : ''}`}
+              autoComplete="off"
+              inputMode="tel"
+            />
+            {isCheckingLc1Phone && (
+              <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+            {!isCheckingLc1Phone && isLc1PhoneDuplicate && (
+              <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+            )}
+          </div>
+          {isLc1PhoneDuplicate && lc1PhoneDuplicateMessage && (
+            <p className="text-sm text-red-500 flex items-center gap-1.5 animate-in fade-in duration-200">
+              <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
+              {lc1PhoneDuplicateMessage}
+            </p>
+          )}
         </div>
 
         <div className="space-y-2">
@@ -622,12 +659,17 @@ Password: ${createdInvite?.password}`;
       <Button 
         type="submit" 
         className="w-full h-14 text-base font-semibold rounded-xl bg-gradient-to-r from-purple-500 to-violet-500 hover:from-purple-600 hover:to-violet-600 touch-manipulation"
-        disabled={isLoading}
+        disabled={isLoading || isLc1PhoneDuplicate}
       >
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             Registering...
+          </>
+        ) : isLc1PhoneDuplicate ? (
+          <>
+            <AlertCircle className="h-5 w-5 mr-2" />
+            Phone Number Already Exists
           </>
         ) : (
           <>
