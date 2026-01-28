@@ -15,6 +15,16 @@ export const slideOutRight = "animate-slide-out-right";
 export const enter = "animate-enter";
 export const exit = "animate-exit";
 
+// Animations object for easy access
+export const animations = {
+  fadeIn: "animate-fade-in",
+  fadeInUp: "animate-fade-in",
+  fadeInDown: "animate-fade-in",
+  scaleIn: "animate-scale-in",
+  slideUp: "animate-slide-up",
+  slideDown: "animate-slide-down",
+} as const;
+
 // Staggered animation delays for lists
 export const staggerDelay = (index: number, baseDelay = 50) => ({
   animationDelay: `${index * baseDelay}ms`,

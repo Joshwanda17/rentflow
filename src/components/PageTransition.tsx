@@ -1,98 +1,50 @@
-import { motion, AnimatePresence } from 'framer-motion';
-import { useLocation } from 'react-router-dom';
 import { ReactNode } from 'react';
 
 interface PageTransitionProps {
   children: ReactNode;
 }
 
-const pageVariants = {
-  initial: {
-    opacity: 0,
-    y: 8,
-  },
-  animate: {
-    opacity: 1,
-    y: 0,
-  },
-  exit: {
-    opacity: 0,
-    y: -4,
-  },
-};
-
-const pageTransition = {
-  duration: 0.2,
-  ease: [0.25, 0.46, 0.45, 0.94] as const,
-};
-
+// Simplified page transition using CSS animations instead of framer-motion
+// This reduces bundle size and improves performance on mobile
 export default function PageTransition({ children }: PageTransitionProps) {
-  const location = useLocation();
-
   return (
-    <AnimatePresence mode="wait" initial={false}>
-      <motion.div
-        key={location.pathname}
-        initial="initial"
-        animate="animate"
-        exit="exit"
-        variants={pageVariants}
-        transition={pageTransition}
-        className="min-h-screen"
-      >
-        {children}
-      </motion.div>
-    </AnimatePresence>
+    <div className="min-h-screen animate-fade-in">
+      {children}
+    </div>
   );
 }
 
-// Reusable animation components for micro-interactions
-export const FadeIn = motion.div;
-
+// CSS animation class names for micro-interactions
+// Use these with regular div elements instead of motion.div
 export const fadeInUp = {
-  initial: { opacity: 0, y: 12 },
-  animate: { opacity: 1, y: 0 },
-  transition: { duration: 0.25, ease: [0.25, 0.46, 0.45, 0.94] },
+  className: "animate-fade-in",
 };
 
 export const staggerContainer = {
-  animate: {
-    transition: {
-      staggerChildren: 0.1,
-      delayChildren: 0.1,
-    },
-  },
+  className: "animate-fade-in",
 };
 
 export const scaleOnHover = {
-  whileHover: { scale: 1.01 },
-  whileTap: { scale: 0.99 },
-  transition: { duration: 0.15, ease: [0.25, 0.46, 0.45, 0.94] },
+  className: "hover:scale-[1.01] active:scale-[0.99] transition-transform duration-150",
 };
 
 export const cardHover = {
-  whileHover: { 
-    y: -2, 
-    boxShadow: '0 8px 24px -8px hsl(var(--foreground) / 0.08)',
-  },
-  transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
+  className: "hover:-translate-y-0.5 hover:shadow-lg transition-all duration-200",
 };
 
 export const buttonTap = {
-  whileTap: { scale: 0.98 },
-  transition: { duration: 0.1 },
+  className: "active:scale-[0.98] transition-transform duration-100",
 };
 
 export const slideInFromRight = {
-  initial: { x: 24, opacity: 0 },
-  animate: { x: 0, opacity: 1 },
-  exit: { x: 24, opacity: 0 },
-  transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
+  className: "animate-slide-in-right",
 };
 
 export const slideInFromLeft = {
-  initial: { x: -24, opacity: 0 },
-  animate: { x: 0, opacity: 1 },
-  exit: { x: -24, opacity: 0 },
-  transition: { duration: 0.2, ease: [0.25, 0.46, 0.45, 0.94] },
+  className: "animate-fade-in",
 };
+
+// Lightweight wrapper that applies animation class
+export function FadeIn({ children, className = '' }: { children: ReactNode; className?: string }) {
+  return <div className={`animate-fade-in ${className}`}>{children}</div>;
+}

@@ -20,9 +20,9 @@ const loadApp = async () => {
         import("./index.css"),
         import("./App.tsx")
       ]),
-      // Timeout after 15 seconds
+      // Timeout after 10 seconds (reduced from 15s for faster feedback)
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Load timeout')), 15000)
+        setTimeout(() => reject(new Error('Load timeout')), 10000)
       )
     ]);
     
