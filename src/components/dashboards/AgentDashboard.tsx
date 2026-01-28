@@ -63,7 +63,7 @@ import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { motion, AnimatePresence } from 'framer-motion';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { hapticTap } from '@/lib/haptics';
-import { AgentAgreementBanner } from '@/components/agent/agreement';
+import { AgentAgreementBanner, AgentTermsQuickAccess } from '@/components/agent/agreement';
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
@@ -581,9 +581,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <Separator className="my-2" />
 
         {/* ═══════════════════════════════════════════════════════════════════
-            SECTION 7: PROMOTIONS & EXTRAS
+            SECTION 7: LEGAL & EXTRAS
         ═══════════════════════════════════════════════════════════════════ */}
         <div className="space-y-4">
+          <AgentTermsQuickAccess />
           <FoodReceiptPromoCard userId={user.id} />
           <FoodShoppingLoansSection />
         </div>
