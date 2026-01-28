@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +8,6 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
-import { Skeleton } from '@/components/ui/skeleton';
 
 type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'success' | 'forgot-password' | 'password-reset';
 
@@ -17,6 +16,7 @@ export default function ActivateSupporter() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const token = searchParams.get('token');
+  const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
@@ -25,6 +25,14 @@ export default function ActivateSupporter() {
   const [isValidating, setIsValidating] = useState(true); // Background validation
   const [activatedEmail, setActivatedEmail] = useState('');
   const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string; phone?: string } | null>(null);
+
+  // Auto-focus password input when ready
+  useEffect(() => {
+    if (pageState === 'ready' && passwordInputRef.current) {
+      // Small delay to ensure DOM is ready
+      setTimeout(() => passwordInputRef.current?.focus(), 100);
+    }
+  }, [pageState]);
   
   // Forgot password state
   const [emailForReset, setEmailForReset] = useState('');
@@ -506,7 +514,7 @@ export default function ActivateSupporter() {
           <CardTitle className="text-2xl">Activate Your Account</CardTitle>
           <CardDescription>
             {isValidating ? (
-              <Skeleton className="h-4 w-48 mx-auto" />
+              <span className="inline-block h-4 w-48 bg-muted/50 rounded animate-pulse" />
             ) : (
               <>Welcome {inviteDetails?.full_name || 'there'}! Enter your password to activate.</>
             )}
@@ -518,15 +526,18 @@ export default function ActivateSupporter() {
               <Label htmlFor="password">Password</Label>
               <div className="relative">
                 <Input
+                  ref={passwordInputRef}
                   id="password"
                   type={showPassword ? 'text' : 'password'}
+                  inputMode="text"
+                  autoComplete="current-password"
                   placeholder="Enter the password you received"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  minLength={6}
-                  autoFocus
+                  minLength={1}
                   className="h-12 text-base"
+                  style={{ fontSize: '16px' }}
                 />
                 <Button
                   type="button"
@@ -543,14 +554,17 @@ export default function ActivateSupporter() {
               </p>
             </div>
 
-            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || isValidating}>
+            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || !password.trim()}>
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
                   Activating...
                 </>
               ) : (
-                'Activate Account'
+                <>
+                  <ArrowRight className="h-4 w-4 mr-2" />
+                  Activate Account
+                </>
               )}
             </Button>
 

@@ -1,30 +1,29 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, CheckCircle, Gift } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, Gift, Loader2, CheckCircle2 } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
-import { useCurrency } from '@/hooks/useCurrency';
-import { motion } from 'framer-motion';
-import { z } from 'zod';
 
-const signUpSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  fullName: z.string().min(2, 'Full name is required'),
-  phone: z.string().min(10, 'Please enter a valid phone number'),
-});
+// Simplified validation - check inline for faster response
+const validateSignUp = (data: { password: string; fullName: string; phone: string }) => {
+  if (data.password.length < 6) return 'Password must be at least 6 characters';
+  if (data.fullName.length < 2) return 'Full name is required';
+  if (data.phone.replace(/\D/g, '').length < 10) return 'Please enter a valid phone number';
+  return null;
+};
 
-const signInSchema = z.object({
-  phone: z.string().min(10, 'Please enter a valid phone number'),
-  password: z.string().min(1, 'Password is required')
-});
+const validateSignIn = (data: { phone: string; password: string }) => {
+  if (data.phone.replace(/\D/g, '').length < 10) return 'Please enter a valid phone number';
+  if (!data.password) return 'Password is required';
+  return null;
+};
 
 const benefits = [
   { icon: TrendingUp, title: '15% Monthly Returns', description: 'Earn interest on your investments' },
@@ -141,9 +140,9 @@ export default function BecomeSupporter() {
 
     try {
       if (isSignUp) {
-        const validation = signUpSchema.safeParse({ password, fullName, phone });
-        if (!validation.success) {
-          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+        const validationError = validateSignUp({ password, fullName, phone });
+        if (validationError) {
+          toast({ title: 'Error', description: validationError, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -167,9 +166,9 @@ export default function BecomeSupporter() {
           toast({ title: 'Account Created!', description: 'Welcome to Welile as a Supporter!' });
         }
       } else {
-        const validation = signInSchema.safeParse({ phone, password });
-        if (!validation.success) {
-          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+        const validationError = validateSignIn({ phone, password });
+        if (validationError) {
+          toast({ title: 'Error', description: validationError, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -242,11 +241,7 @@ export default function BecomeSupporter() {
 
         <div className="max-w-4xl mx-auto">
           {/* Hero Section */}
-          <motion.div 
-            className="text-center mb-8"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          >
+          <div className="text-center mb-8 animate-fadeIn">
             <div className="flex items-center justify-center mb-4">
               <WelileLogo linkToHome={false} />
             </div>
@@ -269,15 +264,11 @@ export default function BecomeSupporter() {
             <p className="text-muted-foreground max-w-md mx-auto">
               Help tenants pay their rent while growing your investment portfolio with guaranteed returns
             </p>
-          </motion.div>
+          </div>
 
           {/* Referral Badge */}
           {referrerName && (
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              className="mb-6"
-            >
+            <div className="mb-6 animate-fadeIn">
               <div className="max-w-md mx-auto p-4 rounded-xl bg-gradient-to-r from-primary/10 to-violet-500/10 border border-primary/20">
                 <div className="flex items-center justify-center gap-3">
                   <div className="p-2 rounded-lg bg-primary/20">
@@ -292,25 +283,17 @@ export default function BecomeSupporter() {
                   Your friend will earn a bonus when you make your first investment!
                 </p>
               </div>
-            </motion.div>
+            </div>
           )}
 
           <div className="grid lg:grid-cols-2 gap-8 items-start">
             {/* Benefits Section */}
-            <motion.div 
-              className="space-y-4"
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.1 }}
-            >
+            <div className="space-y-4 animate-fadeIn">
               <h2 className="text-xl font-bold mb-4">Why Become a Supporter?</h2>
               
-              {benefits.map((benefit, index) => (
-                <motion.div
+              {benefits.map((benefit) => (
+                <div
                   key={benefit.title}
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ delay: 0.2 + index * 0.1 }}
                   className="flex items-start gap-4 p-4 rounded-xl bg-card border shadow-sm"
                 >
                   <div className="p-3 rounded-xl bg-success/10">
@@ -320,16 +303,11 @@ export default function BecomeSupporter() {
                     <h3 className="font-bold">{benefit.title}</h3>
                     <p className="text-sm text-muted-foreground">{benefit.description}</p>
                   </div>
-                </motion.div>
+                </div>
               ))}
 
               {/* Referral Bonus Info */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-                className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-violet-500/5 border border-primary/20"
-              >
+              <div className="p-4 rounded-xl bg-gradient-to-r from-primary/5 to-violet-500/5 border border-primary/20">
                 <div className="flex items-start gap-3">
                   <div className="p-2 rounded-lg bg-primary/20">
                     <Gift className="h-5 w-5 text-primary" />
@@ -341,15 +319,10 @@ export default function BecomeSupporter() {
                     </p>
                   </div>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Stats */}
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
-                className="grid grid-cols-3 gap-3 mt-6"
-              >
+              <div className="grid grid-cols-3 gap-3 mt-6">
                 <div className="p-4 rounded-xl bg-success/5 border border-success/20 text-center">
                   <p className="text-2xl font-black text-success">15%</p>
                   <p className="text-xs text-muted-foreground">Monthly ROI</p>
@@ -362,15 +335,11 @@ export default function BecomeSupporter() {
                   <p className="text-2xl font-black text-warning">100%</p>
                   <p className="text-xs text-muted-foreground">Secure</p>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
 
             {/* Sign Up Form */}
-            <motion.div
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              transition={{ delay: 0.2 }}
-            >
+            <div className="animate-fadeIn">
               <Card className="border-success/20 shadow-xl shadow-success/5">
                 <CardHeader>
                   <CardTitle className="flex items-center gap-2">
@@ -448,10 +417,10 @@ export default function BecomeSupporter() {
                       disabled={isLoading}
                     >
                       {isLoading ? (
-                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        <Loader2 className="h-5 w-5 animate-spin" />
                       ) : (
                         <>
-                          <CheckCircle className="h-5 w-5" />
+                          <CheckCircle2 className="h-5 w-5" />
                           {isSignUp ? 'Become a Supporter' : 'Sign In & Continue'}
                         </>
                       )}
@@ -470,7 +439,7 @@ export default function BecomeSupporter() {
                   </div>
                 </CardContent>
               </Card>
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
