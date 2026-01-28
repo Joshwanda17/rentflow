@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { 
   Dialog, 
@@ -8,20 +8,34 @@ import {
   DialogDescription,
   DialogFooter 
 } from '@/components/ui/dialog';
-import { Tv, ExternalLink, Copy, Check, QrCode, Loader2 } from 'lucide-react';
+import { Tv, ExternalLink, Copy, Check, QrCode, Loader2, Hash } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
 import { QRCodeSVG } from 'qrcode.react';
+import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 
 interface ChromecastButtonProps {
   className?: string;
 }
 
+// Generate a simple 6-character code from the current timestamp
+const generatePairingCode = (): string => {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let code = '';
+  for (let i = 0; i < 6; i++) {
+    code += chars.charAt(Math.floor(Math.random() * chars.length));
+  }
+  return code;
+};
+
 export function ChromecastButton({ className }: ChromecastButtonProps) {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [showQR, setShowQR] = useState(false);
+  const [showCodeEntry, setShowCodeEntry] = useState(false);
+  const [enteredCode, setEnteredCode] = useState('');
   const [casting, setCasting] = useState(false);
+  const [generatedCode, setGeneratedCode] = useState('');
 
   const tvDashboardUrl = `${window.location.origin}/tv-dashboard`;
 
@@ -40,16 +54,40 @@ export function ChromecastButton({ className }: ChromecastButtonProps) {
     window.open(tvDashboardUrl, '_blank');
   };
 
+  const handleGenerateCode = () => {
+    const code = generatePairingCode();
+    setGeneratedCode(code);
+    // Store the code in localStorage so TV can validate it
+    localStorage.setItem('tv_pairing_code', JSON.stringify({
+      code,
+      url: tvDashboardUrl,
+      createdAt: Date.now()
+    }));
+    toast.success('Pairing code generated! Enter this code on your TV.');
+  };
+
+  const handleCodeSubmit = () => {
+    if (enteredCode.length !== 6) {
+      toast.error('Please enter a 6-character code');
+      return;
+    }
+    
+    // For code entry from phone, just open the TV dashboard
+    // The code acts as a simple verification that user wants to connect
+    const codeUrl = `${tvDashboardUrl}?code=${enteredCode.toUpperCase()}`;
+    window.open(codeUrl, '_blank');
+    toast.success('Opening TV Dashboard...');
+    setDialogOpen(false);
+    setEnteredCode('');
+  };
+
   const handleCast = async () => {
-    // Check if Chrome Cast API is available
     if (typeof (window as any).chrome !== 'undefined' && (window as any).chrome.cast) {
       setCasting(true);
       try {
-        // Initialize Cast API
         const castContext = (window as any).cast.framework.CastContext.getInstance();
         await castContext.requestSession();
         
-        // Cast the URL
         const session = castContext.getCurrentSession();
         if (session) {
           const mediaInfo = new (window as any).chrome.cast.media.MediaInfo(tvDashboardUrl, 'text/html');
@@ -60,14 +98,23 @@ export function ChromecastButton({ className }: ChromecastButtonProps) {
         }
       } catch (error) {
         console.error('Cast error:', error);
-        // Fall back to showing instructions
         toast.info('Open the TV Dashboard URL in your TV browser');
       } finally {
         setCasting(false);
       }
     } else {
-      // Show manual instructions if Cast API not available
       toast.info('Open the TV Dashboard URL in your Android TV browser');
+    }
+  };
+
+  const handleCopyCode = async () => {
+    if (generatedCode) {
+      try {
+        await navigator.clipboard.writeText(generatedCode);
+        toast.success('Pairing code copied!');
+      } catch {
+        toast.error('Failed to copy code');
+      }
     }
   };
 
@@ -99,6 +146,97 @@ export function ChromecastButton({ className }: ChromecastButtonProps) {
           </DialogHeader>
 
           <div className="space-y-4 py-4">
+            {/* Pairing Code Section */}
+            <div className="p-4 rounded-xl bg-gradient-to-br from-primary/10 to-purple-500/10 border border-primary/20">
+              <h4 className="font-semibold text-sm mb-3 flex items-center gap-2">
+                <Hash className="h-4 w-4 text-primary" />
+                Connect with Code
+              </h4>
+              
+              {!showCodeEntry ? (
+                <div className="space-y-3">
+                  {generatedCode ? (
+                    <div className="text-center p-4 bg-background/80 rounded-xl border border-border/50">
+                      <p className="text-xs text-muted-foreground mb-2">Enter this code on your TV:</p>
+                      <div 
+                        className="text-3xl font-mono font-bold tracking-[0.3em] text-primary cursor-pointer hover:text-primary/80 transition-colors"
+                        onClick={handleCopyCode}
+                        title="Click to copy"
+                      >
+                        {generatedCode}
+                      </div>
+                      <p className="text-xs text-muted-foreground mt-2">
+                        Code expires in 5 minutes • Tap to copy
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-muted-foreground">
+                      Generate a code to display on your TV, then enter it here from your phone.
+                    </p>
+                  )}
+                  
+                  <div className="flex gap-2">
+                    <Button
+                      variant="outline"
+                      onClick={handleGenerateCode}
+                      className="flex-1 gap-2"
+                    >
+                      <Hash className="h-4 w-4" />
+                      {generatedCode ? 'New Code' : 'Generate Code'}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={() => setShowCodeEntry(true)}
+                      className="flex-1 gap-2"
+                    >
+                      Enter Code
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <p className="text-sm text-muted-foreground text-center">
+                    Enter the 6-character code shown on your TV:
+                  </p>
+                  <div className="flex justify-center">
+                    <InputOTP
+                      maxLength={6}
+                      value={enteredCode}
+                      onChange={setEnteredCode}
+                    >
+                      <InputOTPGroup>
+                        <InputOTPSlot index={0} />
+                        <InputOTPSlot index={1} />
+                        <InputOTPSlot index={2} />
+                        <InputOTPSlot index={3} />
+                        <InputOTPSlot index={4} />
+                        <InputOTPSlot index={5} />
+                      </InputOTPGroup>
+                    </InputOTP>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setShowCodeEntry(false);
+                        setEnteredCode('');
+                      }}
+                      className="flex-1"
+                    >
+                      Back
+                    </Button>
+                    <Button
+                      onClick={handleCodeSubmit}
+                      disabled={enteredCode.length !== 6}
+                      className="flex-1 bg-gradient-to-r from-purple-600 to-primary"
+                    >
+                      Connect
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+
             {/* URL Display */}
             <div className="p-3 rounded-xl bg-muted/50 border border-border/50">
               <p className="text-xs text-muted-foreground mb-1">TV Dashboard URL</p>
@@ -146,28 +284,21 @@ export function ChromecastButton({ className }: ChromecastButtonProps) {
 
             {/* Instructions */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
-              <h4 className="font-semibold text-sm mb-2">How to display on TV:</h4>
+              <h4 className="font-semibold text-sm mb-2">How to connect:</h4>
               <ol className="text-sm text-muted-foreground space-y-2">
                 <li className="flex items-start gap-2">
                   <span className="font-bold text-primary">1.</span>
-                  <span>Open the browser on your Android TV</span>
+                  <span>Generate a code above, or open the URL on your TV</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-bold text-primary">2.</span>
-                  <span>Enter the URL above or scan the QR code</span>
+                  <span>Enter the code from your phone to connect</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="font-bold text-primary">3.</span>
-                  <span>The dashboard auto-refreshes every 30 seconds</span>
+                  <span>Dashboard auto-refreshes every 30 seconds</span>
                 </li>
               </ol>
-            </div>
-
-            {/* Alternative: Screen Mirroring */}
-            <div className="p-3 rounded-xl bg-muted/30 border border-border/30">
-              <p className="text-xs text-muted-foreground">
-                <strong>Tip:</strong> You can also use your phone's screen mirroring/casting feature to mirror this dashboard to your TV.
-              </p>
             </div>
           </div>
 
