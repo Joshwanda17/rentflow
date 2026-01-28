@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   PiggyBank, 
@@ -11,10 +12,17 @@ import {
   XCircle,
   TrendingUp,
   Percent,
-  Wallet
+  Wallet,
+  Plus,
+  DollarSign,
+  Pencil
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { hapticTap } from '@/lib/haptics';
+import CreateAccountForUserDialog from './CreateAccountForUserDialog';
+import { FundInvestmentAccountDialog } from '../FundInvestmentAccountDialog';
+import { EditInvestmentAccountDialog } from '../EditInvestmentAccountDialog';
 
 interface InvestmentAccount {
   id: string;
@@ -38,12 +46,18 @@ interface InterestPayment {
 
 interface UserInvestmentsSectionProps {
   userId: string;
+  userName?: string;
+  userPhone?: string;
 }
 
-export default function UserInvestmentsSection({ userId }: UserInvestmentsSectionProps) {
+export default function UserInvestmentsSection({ userId, userName, userPhone }: UserInvestmentsSectionProps) {
   const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
   const [interestPayments, setInterestPayments] = useState<InterestPayment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [createDialogOpen, setCreateDialogOpen] = useState(false);
+  const [fundDialogOpen, setFundDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [selectedAccount, setSelectedAccount] = useState<InvestmentAccount | null>(null);
 
   useEffect(() => {
     fetchInvestmentData();
@@ -138,12 +152,25 @@ export default function UserInvestmentsSection({ userId }: UserInvestmentsSectio
         </Card>
       </div>
 
+      {/* Manager Actions */}
+      <Button
+        onClick={() => { hapticTap(); setCreateDialogOpen(true); }}
+        className="w-full gap-2 h-12"
+        variant="default"
+      >
+        <Plus className="h-4 w-4" />
+        Create Investment Account
+      </Button>
+
       {/* Investment Accounts List */}
       <Card>
         <CardHeader className="py-3">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <PiggyBank className="h-4 w-4 text-primary" />
-            Investment Accounts
+          <CardTitle className="text-sm flex items-center justify-between">
+            <span className="flex items-center gap-2">
+              <PiggyBank className="h-4 w-4 text-primary" />
+              Investment Accounts
+            </span>
+            <Badge variant="secondary">{accounts.length}</Badge>
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-0">
@@ -151,6 +178,7 @@ export default function UserInvestmentsSection({ userId }: UserInvestmentsSectio
             <div className="text-center py-6">
               <PiggyBank className="h-10 w-10 mx-auto text-muted-foreground mb-2" />
               <p className="text-muted-foreground text-sm">No investment accounts yet</p>
+              <p className="text-xs text-muted-foreground mt-1">Create one using the button above</p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -174,7 +202,7 @@ export default function UserInvestmentsSection({ userId }: UserInvestmentsSectio
                         {getStatusBadge(account.status)}
                       </div>
                       
-                      <div className="grid grid-cols-2 gap-2 text-xs">
+                      <div className="grid grid-cols-2 gap-2 text-xs mb-3">
                         <div>
                           <span className="text-muted-foreground">Balance: </span>
                           <span className="font-semibold">{formatUGX(account.balance)}</span>
@@ -183,6 +211,36 @@ export default function UserInvestmentsSection({ userId }: UserInvestmentsSectio
                           <span className="text-muted-foreground">Interest: </span>
                           <span className="font-semibold text-success">{formatUGX(accountInterest)}</span>
                         </div>
+                      </div>
+
+                      {/* Account Action Buttons - Mobile Optimized */}
+                      <div className="flex gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-10 gap-1.5 text-xs"
+                          onClick={() => {
+                            hapticTap();
+                            setSelectedAccount(account);
+                            setFundDialogOpen(true);
+                          }}
+                        >
+                          <DollarSign className="h-3.5 w-3.5" />
+                          Fund
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="flex-1 h-10 gap-1.5 text-xs"
+                          onClick={() => {
+                            hapticTap();
+                            setSelectedAccount(account);
+                            setEditDialogOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5" />
+                          Edit
+                        </Button>
                       </div>
                     </div>
                   </div>
@@ -221,6 +279,43 @@ export default function UserInvestmentsSection({ userId }: UserInvestmentsSectio
           </CardContent>
         </Card>
       )}
+
+      {/* Dialogs */}
+      {userName && userPhone && (
+        <CreateAccountForUserDialog
+          open={createDialogOpen}
+          onOpenChange={setCreateDialogOpen}
+          user={{ id: userId, full_name: userName, phone: userPhone }}
+          onSuccess={fetchInvestmentData}
+        />
+      )}
+
+      <FundInvestmentAccountDialog
+        open={fundDialogOpen}
+        onOpenChange={setFundDialogOpen}
+        account={selectedAccount ? {
+          id: selectedAccount.id,
+          name: selectedAccount.name,
+          balance: selectedAccount.balance,
+          user_id: userId,
+          user_name: userName
+        } : null}
+        onSuccess={fetchInvestmentData}
+      />
+
+      <EditInvestmentAccountDialog
+        open={editDialogOpen}
+        onOpenChange={setEditDialogOpen}
+        account={selectedAccount ? {
+          id: selectedAccount.id,
+          name: selectedAccount.name,
+          color: selectedAccount.color,
+          balance: selectedAccount.balance,
+          user_id: userId,
+          user_name: userName
+        } : null}
+        onSuccess={fetchInvestmentData}
+      />
     </div>
   );
 }
