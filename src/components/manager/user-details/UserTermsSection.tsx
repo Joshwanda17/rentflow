@@ -10,41 +10,35 @@ import {
   XCircle,
   Smartphone,
   Globe,
-  Shield
+  Shield,
+  Home
 } from 'lucide-react';
 import { format } from 'date-fns';
 
-interface TenantAgreement {
+interface BaseAgreement {
   id: string;
+  agreement_version: string;
+  status: string;
+  accepted_at: string;
+  device_info: string | null;
+  ip_address: string | null;
+  created_at: string;
+}
+
+interface TenantAgreement extends BaseAgreement {
   tenant_id: string;
-  agreement_version: string;
-  status: string;
-  accepted_at: string;
-  device_info: string | null;
-  ip_address: string | null;
-  created_at: string;
 }
 
-interface SupporterAgreement {
-  id: string;
+interface SupporterAgreement extends BaseAgreement {
   supporter_id: string;
-  agreement_version: string;
-  status: string;
-  accepted_at: string;
-  device_info: string | null;
-  ip_address: string | null;
-  created_at: string;
 }
 
-interface AgentAgreement {
-  id: string;
+interface AgentAgreement extends BaseAgreement {
   agent_id: string;
-  agreement_version: string;
-  status: string;
-  accepted_at: string;
-  device_info: string | null;
-  ip_address: string | null;
-  created_at: string;
+}
+
+interface LandlordAgreement extends BaseAgreement {
+  landlord_id: string;
 }
 
 interface UserTermsSectionProps {
@@ -56,6 +50,7 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
   const [tenantAgreement, setTenantAgreement] = useState<TenantAgreement | null>(null);
   const [supporterAgreement, setSupporterAgreement] = useState<SupporterAgreement | null>(null);
   const [agentAgreement, setAgentAgreement] = useState<AgentAgreement | null>(null);
+  const [landlordAgreement, setLandlordAgreement] = useState<LandlordAgreement | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -65,48 +60,50 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
   const fetchAgreements = async () => {
     setLoading(true);
     try {
-      // Fetch tenant agreement if user has tenant role
-      let tenantData: TenantAgreement | null = null;
-      if (userRoles.includes('tenant')) {
-        const { data } = await supabase
-          .from('tenant_agreement_acceptance')
-          .select('*')
-          .eq('tenant_id', userId)
-          .order('accepted_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        tenantData = data;
-      }
+      // Fetch all agreements in parallel based on roles
+      const [tenantResult, supporterResult, agentResult, landlordResult] = await Promise.all([
+        userRoles.includes('tenant')
+          ? supabase
+              .from('tenant_agreement_acceptance')
+              .select('*')
+              .eq('tenant_id', userId)
+              .order('accepted_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        userRoles.includes('supporter')
+          ? supabase
+              .from('supporter_agreement_acceptance')
+              .select('*')
+              .eq('supporter_id', userId)
+              .order('accepted_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        userRoles.includes('agent')
+          ? supabase
+              .from('agent_agreement_acceptance')
+              .select('*')
+              .eq('agent_id', userId)
+              .order('accepted_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+        userRoles.includes('landlord')
+          ? supabase
+              .from('landlord_agreement_acceptance')
+              .select('*')
+              .eq('landlord_id', userId)
+              .order('accepted_at', { ascending: false })
+              .limit(1)
+              .maybeSingle()
+          : Promise.resolve({ data: null }),
+      ]);
 
-      // Fetch supporter agreement if user has supporter role
-      let supporterData: SupporterAgreement | null = null;
-      if (userRoles.includes('supporter')) {
-        const { data } = await supabase
-          .from('supporter_agreement_acceptance')
-          .select('*')
-          .eq('supporter_id', userId)
-          .order('accepted_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        supporterData = data;
-      }
-
-      // Fetch agent agreement if user has agent role
-      let agentData: AgentAgreement | null = null;
-      if (userRoles.includes('agent')) {
-        const { data } = await supabase
-          .from('agent_agreement_acceptance')
-          .select('*')
-          .eq('agent_id', userId)
-          .order('accepted_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-        agentData = data;
-      }
-
-      setTenantAgreement(tenantData);
-      setSupporterAgreement(supporterData);
-      setAgentAgreement(agentData);
+      setTenantAgreement(tenantResult.data);
+      setSupporterAgreement(supporterResult.data);
+      setAgentAgreement(agentResult.data);
+      setLandlordAgreement(landlordResult.data);
     } catch (error) {
       console.error('Error fetching agreements:', error);
     } finally {
@@ -148,7 +145,8 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
   const hasTenantRole = userRoles.includes('tenant');
   const hasSupporterRole = userRoles.includes('supporter');
   const hasAgentRole = userRoles.includes('agent');
-  const noRelevantRoles = !hasTenantRole && !hasSupporterRole && !hasAgentRole;
+  const hasLandlordRole = userRoles.includes('landlord');
+  const noRelevantRoles = !hasTenantRole && !hasSupporterRole && !hasAgentRole && !hasLandlordRole;
 
   if (noRelevantRoles) {
     return (
@@ -159,7 +157,7 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
             No agreement requirements for this user's roles
           </p>
           <p className="text-xs text-muted-foreground mt-1">
-            Agreements are required for Tenant, Supporter, and Agent roles
+            Agreements are required for Tenant, Supporter, Agent, and Landlord roles
           </p>
         </CardContent>
       </Card>
@@ -233,6 +231,31 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
                   <span className="font-semibold text-sm">Accepted</span>
                 </div>
                 <p className="text-xs text-muted-foreground">v{agentAgreement.agreement_version}</p>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-1 text-warning">
+                  <XCircle className="h-4 w-4" />
+                  <span className="font-semibold text-sm">Not Accepted</span>
+                </div>
+                <p className="text-xs text-muted-foreground">Pending</p>
+              </>
+            )}
+          </Card>
+        )}
+        {hasLandlordRole && (
+          <Card className={`p-3 ${landlordAgreement?.status === 'accepted' ? 'border-success/50' : 'border-warning/50'}`}>
+            <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
+              <Home className="h-3 w-3" />
+              Landlord Agreement
+            </div>
+            {landlordAgreement?.status === 'accepted' ? (
+              <>
+                <div className="flex items-center gap-1 text-success">
+                  <CheckCircle className="h-4 w-4" />
+                  <span className="font-semibold text-sm">Accepted</span>
+                </div>
+                <p className="text-xs text-muted-foreground">v{landlordAgreement.agreement_version}</p>
               </>
             ) : (
               <>
@@ -362,6 +385,67 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
                 <XCircle className="h-8 w-8 mx-auto text-warning mb-2" />
                 <p className="text-sm text-muted-foreground">
                   Supporter has not accepted the agreement yet
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
+      {/* Landlord Agreement Details */}
+      {hasLandlordRole && (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Home className="h-4 w-4 text-amber-500" />
+              Landlord Terms & Benefits
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {landlordAgreement ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  {getStatusBadge(landlordAgreement.status)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Version</span>
+                  <span className="text-sm font-medium">v{landlordAgreement.agreement_version}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Accepted
+                  </span>
+                  <span className="text-sm font-medium">
+                    {format(new Date(landlordAgreement.accepted_at), 'MMM d, yyyy HH:mm')}
+                  </span>
+                </div>
+                {landlordAgreement.device_info && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Smartphone className="h-3 w-3" /> Device
+                    </span>
+                    <span className="text-sm font-medium text-right truncate max-w-[150px]">
+                      {parseDeviceInfo(landlordAgreement.device_info)}
+                    </span>
+                  </div>
+                )}
+                {landlordAgreement.ip_address && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Globe className="h-3 w-3" /> IP Address
+                    </span>
+                    <span className="text-sm font-medium font-mono">
+                      {landlordAgreement.ip_address}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <XCircle className="h-8 w-8 mx-auto text-warning mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Landlord has not accepted the agreement yet
                 </p>
               </div>
             )}
