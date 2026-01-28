@@ -218,10 +218,54 @@ export default function SelectRole() {
     // If this is a sub-agent signup, create the sub-agent relationship
     if (isSubAgentSignup && parentAgentId && selectedRoles.includes('agent') && user) {
       try {
-        await supabase.from('agent_subagents').insert({
+        // Create the sub-agent relationship
+        const { error: subAgentError } = await supabase.from('agent_subagents').insert({
           parent_agent_id: parentAgentId,
           sub_agent_id: user.id,
           source: 'link' // Track that this came from shareable link
+        });
+        
+        if (subAgentError) {
+          console.error('Sub-agent relationship error:', subAgentError);
+          // Check if it's a duplicate - that's okay, continue
+          if (!subAgentError.message.includes('duplicate')) {
+            throw subAgentError;
+          }
+        }
+
+        // Credit referral bonus (500 UGX) to parent agent
+        const referralBonus = 500;
+        
+        // Create referral record
+        await supabase.from('referrals').insert({
+          referrer_id: parentAgentId,
+          referred_id: user.id,
+          bonus_amount: referralBonus,
+          credited: true,
+          credited_at: new Date().toISOString(),
+        });
+
+        // Credit parent agent's wallet
+        const { data: walletData } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', parentAgentId)
+          .maybeSingle();
+
+        if (walletData) {
+          await supabase
+            .from('wallets')
+            .update({ balance: walletData.balance + referralBonus })
+            .eq('user_id', parentAgentId);
+        }
+
+        // Notify parent agent
+        await supabase.from('notifications').insert({
+          user_id: parentAgentId,
+          title: '🎉 New Sub-Agent Joined!',
+          message: `A new sub-agent has joined your team via your share link! You earned UGX ${referralBonus} bonus.`,
+          type: 'success',
+          metadata: { sub_agent_id: user.id, source: 'link' },
         });
         
         // Clear the stored values
@@ -232,10 +276,19 @@ export default function SelectRole() {
           title: '🎉 Welcome, Sub-Agent!',
           description: 'You are now connected to your parent agent and can start earning!'
         });
-      } catch (err) {
+      } catch (err: any) {
         console.error('Failed to create sub-agent relationship:', err);
+        // Still navigate to dashboard even if there was an issue
+        toast({
+          title: 'Account Created',
+          description: 'Your agent account is ready. Contact support if you need help.',
+        });
       }
     } else {
+      // Clear any leftover values
+      localStorage.removeItem('become_role');
+      localStorage.removeItem('referral_agent_id');
+      
       toast({
         title: 'Roles Added!',
         description: `You now have access to ${selectedRoles.length} dashboard${selectedRoles.length > 1 ? 's' : ''}`
