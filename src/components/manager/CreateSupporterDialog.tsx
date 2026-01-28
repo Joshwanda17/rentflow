@@ -51,7 +51,7 @@ export function CreateSupporterDialog({ open, onOpenChange }: CreateSupporterDia
       }
 
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: formData,
+        body: { ...formData, role: 'supporter' },
       });
 
       if (response.error) {

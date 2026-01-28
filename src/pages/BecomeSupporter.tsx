@@ -93,26 +93,26 @@ export default function BecomeSupporter() {
           bonus_amount: 500,
         });
         
-        // Create general referral record and credit bonus
+        // Create general referral record and credit bonus (500 UGX standard)
         await supabase.from('referrals').insert({
           referrer_id: storedReferrerId,
           referred_id: user.id,
-          bonus_amount: 100,
+          bonus_amount: 500,
           credited: true,
           credited_at: new Date().toISOString(),
         });
 
-        // Credit the referrer's wallet with UGX 100
+        // Credit the referrer's wallet with UGX 500
         const { data: walletData } = await supabase
           .from('wallets')
           .select('balance')
           .eq('user_id', storedReferrerId)
-          .single();
+          .maybeSingle();
 
         if (walletData) {
           await supabase
             .from('wallets')
-            .update({ balance: walletData.balance + 100 })
+            .update({ balance: walletData.balance + 500 })
             .eq('user_id', storedReferrerId);
         }
 
@@ -120,7 +120,7 @@ export default function BecomeSupporter() {
         await supabase.from('notifications').insert({
           user_id: storedReferrerId,
           title: '🎉 New Supporter Joined!',
-          message: `Someone you referred just became a Supporter! You earned UGX 100.`,
+          message: `Someone you referred just became a Supporter! You earned UGX 500.`,
           type: 'success',
         });
 
@@ -174,14 +174,33 @@ export default function BecomeSupporter() {
           return;
         }
 
-        // Generate email from phone for sign in
+        // Try multiple phone format variants to find the user
         const cleanPhone = phone.replace(/\D/g, '');
-        const generatedEmail = `${cleanPhone}@welile.user`;
+        const emailVariants = [
+          `${cleanPhone}@welile.user`,
+          `${cleanPhone}@welile.agent`,
+          cleanPhone.startsWith('256') ? `${cleanPhone.slice(3)}@welile.user` : `256${cleanPhone}@welile.user`,
+          cleanPhone.startsWith('256') ? `${cleanPhone.slice(3)}@welile.agent` : null,
+        ].filter(Boolean) as string[];
 
-        const { error } = await signIn(generatedEmail, password);
-        if (error) {
-          let errorMessage = error.message;
-          if (error.message.includes('Invalid login credentials')) {
+        let loginSuccess = false;
+        let lastError: Error | null = null;
+
+        for (const emailVariant of emailVariants) {
+          const { error } = await signIn(emailVariant, password);
+          if (!error) {
+            loginSuccess = true;
+            break;
+          }
+          lastError = error;
+          if (!error.message.includes('Invalid login credentials')) {
+            break;
+          }
+        }
+
+        if (!loginSuccess && lastError) {
+          let errorMessage = lastError.message;
+          if (lastError.message.includes('Invalid login credentials')) {
             errorMessage = 'Invalid phone number or password. Please try again.';
           }
           toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
