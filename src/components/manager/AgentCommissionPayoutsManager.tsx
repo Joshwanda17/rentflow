@@ -119,6 +119,40 @@ export function AgentCommissionPayoutsManager() {
     setProcessing(true);
 
     try {
+      // 1. Fetch current wallet balance
+      const { data: currentWallet, error: fetchError } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', selectedPayout.agent_id)
+        .maybeSingle();
+
+      if (fetchError) throw fetchError;
+
+      const currentBalance = currentWallet?.balance || 0;
+
+      // 2. Check if agent has sufficient balance
+      if (selectedPayout.amount > currentBalance) {
+        toast({ 
+          title: 'Insufficient Balance', 
+          description: `Agent only has ${formatUGX(currentBalance)} but requested ${formatUGX(selectedPayout.amount)}`,
+          variant: 'destructive' 
+        });
+        setProcessing(false);
+        return;
+      }
+
+      // 3. Deduct from agent's wallet
+      const { error: walletError } = await supabase
+        .from('wallets')
+        .update({ 
+          balance: currentBalance - selectedPayout.amount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('user_id', selectedPayout.agent_id);
+
+      if (walletError) throw walletError;
+
+      // 4. Update payout status
       const { error } = await supabase
         .from('agent_commission_payouts')
         .update({
@@ -131,7 +165,7 @@ export function AgentCommissionPayoutsManager() {
 
       if (error) throw error;
 
-      // Create notification for agent
+      // 5. Create notification for agent
       await supabase.from('notifications').insert({
         user_id: selectedPayout.agent_id,
         title: 'Commission Paid! 💰',
