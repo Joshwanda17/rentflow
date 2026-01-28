@@ -176,14 +176,30 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
 
     if (!landlordProfile) {
       // Landlord doesn't have a Welile account, just record the payment
-      // Deduct from wallet
-      const { error: walletError } = await supabase
+      // Get fresh wallet balance to prevent race conditions
+      const { data: freshWallet, error: walletFetchError } = await supabase
         .from('wallets')
-        .update({ balance: wallet.balance - finalAmount })
-        .eq('user_id', user?.id);
+        .select('balance')
+        .eq('user_id', user?.id)
+        .single();
 
-      if (walletError) {
-        toast.error('Payment failed');
+      if (walletFetchError || !freshWallet || freshWallet.balance < finalAmount) {
+        toast.error('Insufficient balance. Please try again.');
+        setLoading(false);
+        return;
+      }
+
+      // Deduct from wallet with optimistic lock
+      const { data: updatedWallet, error: walletError } = await supabase
+        .from('wallets')
+        .update({ balance: freshWallet.balance - finalAmount, updated_at: new Date().toISOString() })
+        .eq('user_id', user?.id)
+        .eq('balance', freshWallet.balance) // Only update if balance unchanged
+        .select()
+        .maybeSingle();
+
+      if (walletError || !updatedWallet) {
+        toast.error('Transaction conflict. Please try again.');
         setLoading(false);
         return;
       }

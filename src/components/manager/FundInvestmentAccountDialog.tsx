@@ -49,14 +49,31 @@ export function FundInvestmentAccountDialog({
     try {
       const { data: { user } } = await supabase.auth.getUser();
 
-      // Update investment account balance
-      const newBalance = account.balance + fundAmount;
-      const { error: updateError } = await supabase
+      // Get fresh account balance to prevent race conditions
+      const { data: freshAccount, error: fetchError } = await supabase
+        .from('investment_accounts')
+        .select('balance')
+        .eq('id', account.id)
+        .single();
+
+      if (fetchError || !freshAccount) {
+        throw new Error('Failed to fetch account');
+      }
+
+      // Update investment account balance with optimistic lock
+      const newBalance = freshAccount.balance + fundAmount;
+      const { data: updatedAccount, error: updateError } = await supabase
         .from('investment_accounts')
         .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('id', account.id);
+        .eq('id', account.id)
+        .eq('balance', freshAccount.balance) // Only update if balance unchanged
+        .select()
+        .maybeSingle();
 
       if (updateError) throw updateError;
+      if (!updatedAccount) {
+        throw new Error('Transaction conflict. Please try again.');
+      }
 
       // Log to audit
       await supabase.from('audit_logs').insert({
@@ -64,8 +81,8 @@ export function FundInvestmentAccountDialog({
         table_name: 'investment_accounts',
         action_type: 'fund',
         performed_by: user?.id,
-        old_values: { balance: account.balance },
-        new_values: { balance: newBalance },
+        old_values: { balance: freshAccount.balance },
+        new_values: { balance: updatedAccount.balance },
         reason: notes || `Manager added ${formatUGX(fundAmount)} to account`
       });
 

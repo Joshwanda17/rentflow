@@ -108,11 +108,14 @@ serve(async (req) => {
       recipientWallet = newWallet;
     }
 
-    // Update sender balance
-    const { error: updateSenderError } = await adminClient
+    // Update sender balance using optimistic locking to prevent race conditions
+    const { data: senderUpdateResult, error: updateSenderError } = await adminClient
       .from('wallets')
-      .update({ balance: senderWallet.balance - amount })
-      .eq('user_id', senderId);
+      .update({ balance: senderWallet.balance - amount, updated_at: new Date().toISOString() })
+      .eq('user_id', senderId)
+      .eq('balance', senderWallet.balance) // Optimistic lock - only update if balance unchanged
+      .select()
+      .maybeSingle();
 
     if (updateSenderError) {
       console.error('Update sender error:', updateSenderError);
@@ -122,23 +125,35 @@ serve(async (req) => {
       );
     }
 
-    // Update recipient balance
-    const { error: updateRecipientError } = await adminClient
-      .from('wallets')
-      .update({ balance: recipientWallet.balance + amount })
-      .eq('user_id', recipient_id);
+    // If no rows were updated, balance changed during transaction (race condition)
+    if (!senderUpdateResult) {
+      console.error('Race condition detected: sender balance changed during transaction');
+      return new Response(
+        JSON.stringify({ error: 'Transaction conflict. Please try again.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
 
-    if (updateRecipientError) {
-      console.error('Update recipient error:', updateRecipientError);
-      // Rollback sender update
+    // Update recipient balance using optimistic locking
+    const { data: recipientUpdateResult, error: updateRecipientError } = await adminClient
+      .from('wallets')
+      .update({ balance: recipientWallet.balance + amount, updated_at: new Date().toISOString() })
+      .eq('user_id', recipient_id)
+      .eq('balance', recipientWallet.balance)
+      .select()
+      .maybeSingle();
+
+    if (updateRecipientError || !recipientUpdateResult) {
+      console.error('Update recipient error:', updateRecipientError || 'Race condition');
+      // Rollback sender update to original balance
       await adminClient
         .from('wallets')
-        .update({ balance: senderWallet.balance })
+        .update({ balance: senderWallet.balance, updated_at: new Date().toISOString() })
         .eq('user_id', senderId);
       
       return new Response(
-        JSON.stringify({ error: 'Failed to credit recipient' }),
-        { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        JSON.stringify({ error: 'Failed to credit recipient. Please try again.' }),
+        { status: updateRecipientError ? 500 : 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
