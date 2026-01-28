@@ -2003,6 +2003,8 @@ export type Database = {
           rent_discount_active: boolean
           updated_at: string
           verified: boolean
+          whatsapp_verified: boolean | null
+          whatsapp_verified_at: string | null
         }
         Insert: {
           avatar_url?: string | null
@@ -2022,6 +2024,8 @@ export type Database = {
           rent_discount_active?: boolean
           updated_at?: string
           verified?: boolean
+          whatsapp_verified?: boolean | null
+          whatsapp_verified_at?: string | null
         }
         Update: {
           avatar_url?: string | null
@@ -2041,6 +2045,8 @@ export type Database = {
           rent_discount_active?: boolean
           updated_at?: string
           verified?: boolean
+          whatsapp_verified?: boolean | null
+          whatsapp_verified_at?: string | null
         }
         Relationships: []
       }
