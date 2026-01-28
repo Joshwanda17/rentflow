@@ -1133,7 +1133,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
               <TabsContent value="invest" className="mt-0">
                 <div className="p-4">
-                  <UserInvestmentsSection userId={user.id} />
+                  <UserInvestmentsSection userId={user.id} userName={user.full_name} userPhone={user.phone} />
                 </div>
               </TabsContent>
 
@@ -1577,7 +1577,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
             <TabsContent value="invest" className="mt-0">
               <div className="p-6 pt-4">
-                <UserInvestmentsSection userId={user.id} />
+                <UserInvestmentsSection userId={user.id} userName={user.full_name} userPhone={user.phone} />
               </div>
             </TabsContent>
 
