@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, forwardRef } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,7 +11,7 @@ import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
 import { hapticSuccess, hapticTap } from '@/lib/haptics';
 import { Loader2, Send, Smartphone, CheckCircle2, Users, Sparkles } from 'lucide-react';
-import { animations } from '@/lib/cssAnimations';
+
 interface RequestManagerInvestDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
@@ -25,13 +25,13 @@ const MERCHANT_CODES = {
   airtel: { name: 'Airtel Money', code: '789012', color: 'bg-red-500' }
 };
 
-export function RequestManagerInvestDialog({ 
+export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestManagerInvestDialogProps>(({ 
   open, 
   onOpenChange, 
   suggestedAmount = 0,
   tenantsCount = 0,
   onSuccess 
-}: RequestManagerInvestDialogProps) {
+}, ref) => {
   const { user } = useAuth();
   const { toast } = useToast();
   const [step, setStep] = useState<'amount' | 'deposit' | 'success'>('amount');
@@ -150,7 +150,7 @@ export function RequestManagerInvestDialog({
               </div>
 
               {parseFloat(amount) > 0 && (
-                <div className={`p-4 rounded-xl bg-success/10 border border-success/20 ${animations.fadeInUp}`}>
+                <div className="p-4 rounded-xl bg-success/10 border border-success/20 animate-fade-in">
                   <div className="flex items-center justify-between">
                     <span className="text-sm text-muted-foreground">Expected Monthly Return</span>
                     <Badge className="bg-success/20 text-success border-0">15% ROI</Badge>
@@ -241,7 +241,7 @@ export function RequestManagerInvestDialog({
         )}
 
         {step === 'success' && (
-          <div className={`text-center py-8 space-y-4 ${animations.scaleIn}`}>
+          <div className="text-center py-8 space-y-4 animate-scale-in">
             <div className="w-20 h-20 mx-auto rounded-full bg-success/20 flex items-center justify-center">
               <CheckCircle2 className="h-10 w-10 text-success" />
             </div>
@@ -262,4 +262,6 @@ export function RequestManagerInvestDialog({
       </DialogContent>
     </Dialog>
   );
-}
+});
+
+RequestManagerInvestDialog.displayName = 'RequestManagerInvestDialog';
