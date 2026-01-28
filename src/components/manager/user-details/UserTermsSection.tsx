@@ -331,6 +331,67 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
         </Card>
       )}
 
+      {/* Landlord Agreement Details - placed right after Tenant */}
+      {hasLandlordRole && (
+        <Card>
+          <CardHeader className="py-3">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Home className="h-4 w-4 text-amber-500" />
+              Landlord Terms & Benefits
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            {landlordAgreement ? (
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Status</span>
+                  {getStatusBadge(landlordAgreement.status)}
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Version</span>
+                  <span className="text-sm font-medium">v{landlordAgreement.agreement_version}</span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Calendar className="h-3 w-3" /> Accepted
+                  </span>
+                  <span className="text-sm font-medium">
+                    {format(new Date(landlordAgreement.accepted_at), 'MMM d, yyyy HH:mm')}
+                  </span>
+                </div>
+                {landlordAgreement.device_info && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Smartphone className="h-3 w-3" /> Device
+                    </span>
+                    <span className="text-sm font-medium text-right truncate max-w-[150px]">
+                      {parseDeviceInfo(landlordAgreement.device_info)}
+                    </span>
+                  </div>
+                )}
+                {landlordAgreement.ip_address && (
+                  <div className="flex items-center justify-between">
+                    <span className="text-sm text-muted-foreground flex items-center gap-1">
+                      <Globe className="h-3 w-3" /> IP Address
+                    </span>
+                    <span className="text-sm font-medium font-mono">
+                      {landlordAgreement.ip_address}
+                    </span>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="text-center py-4">
+                <XCircle className="h-8 w-8 mx-auto text-warning mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Landlord has not accepted the agreement yet
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Supporter Agreement Details */}
       {hasSupporterRole && (
         <Card>
@@ -385,67 +446,6 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
                 <XCircle className="h-8 w-8 mx-auto text-warning mb-2" />
                 <p className="text-sm text-muted-foreground">
                   Supporter has not accepted the agreement yet
-                </p>
-              </div>
-            )}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* Landlord Agreement Details */}
-      {hasLandlordRole && (
-        <Card>
-          <CardHeader className="py-3">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Home className="h-4 w-4 text-amber-500" />
-              Landlord Terms & Benefits
-            </CardTitle>
-          </CardHeader>
-          <CardContent className="pt-0">
-            {landlordAgreement ? (
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Status</span>
-                  {getStatusBadge(landlordAgreement.status)}
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Version</span>
-                  <span className="text-sm font-medium">v{landlordAgreement.agreement_version}</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground flex items-center gap-1">
-                    <Calendar className="h-3 w-3" /> Accepted
-                  </span>
-                  <span className="text-sm font-medium">
-                    {format(new Date(landlordAgreement.accepted_at), 'MMM d, yyyy HH:mm')}
-                  </span>
-                </div>
-                {landlordAgreement.device_info && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Smartphone className="h-3 w-3" /> Device
-                    </span>
-                    <span className="text-sm font-medium text-right truncate max-w-[150px]">
-                      {parseDeviceInfo(landlordAgreement.device_info)}
-                    </span>
-                  </div>
-                )}
-                {landlordAgreement.ip_address && (
-                  <div className="flex items-center justify-between">
-                    <span className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Globe className="h-3 w-3" /> IP Address
-                    </span>
-                    <span className="text-sm font-medium font-mono">
-                      {landlordAgreement.ip_address}
-                    </span>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <div className="text-center py-4">
-                <XCircle className="h-8 w-8 mx-auto text-warning mb-2" />
-                <p className="text-sm text-muted-foreground">
-                  Landlord has not accepted the agreement yet
                 </p>
               </div>
             )}
