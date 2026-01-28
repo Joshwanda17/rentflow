@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2 } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle } from 'lucide-react';
 import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
@@ -26,6 +26,7 @@ import { exportToCSV, exportToPDF, formatDateForExport } from '@/lib/exportUtils
 import { toast } from 'sonner';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
 import { hapticTap } from '@/lib/haptics';
+import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 
 interface UserWithRating {
   id: string;
@@ -74,6 +75,9 @@ export default function UserProfilesTable() {
   const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
+  
+  // Hook to detect duplicate phone numbers
+  const { duplicateUserIds, duplicateCount, refetch: refetchDuplicates } = useDuplicatePhoneUsers();
 
   useEffect(() => {
     fetchUsers();
@@ -147,13 +151,13 @@ export default function UserProfilesTable() {
 
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
-    await fetchUsers();
+    await Promise.all([fetchUsers(), refetchDuplicates()]);
     setRefreshing(false);
-  }, []);
+  }, [refetchDuplicates]);
 
   const handlePullToRefresh = useCallback(async () => {
-    await fetchUsers();
-  }, []);
+    await Promise.all([fetchUsers(), refetchDuplicates()]);
+  }, [refetchDuplicates]);
 
   const handleExportCSV = () => {
     if (filteredUsers.length === 0) {
@@ -682,7 +686,9 @@ export default function UserProfilesTable() {
                   <p className="text-sm text-muted-foreground/70 mt-1">Try adjusting your search or filters</p>
                 </motion.div>
               ) : (
-                filteredUsers.map((user, index) => (
+                filteredUsers.map((user, index) => {
+                  const isDuplicate = duplicateUserIds.has(user.id);
+                  return (
                   <motion.div
                     key={user.id}
                     initial={{ opacity: 0, y: 15 }}
@@ -691,11 +697,22 @@ export default function UserProfilesTable() {
                     transition={{ delay: Math.min(index * 0.03, 0.2) }}
                     onClick={() => handleUserClick(user)}
                     className={`relative bg-card rounded-2xl border-2 p-4 transition-all active:scale-[0.98] cursor-pointer ${
-                      selectedUserIds.has(user.id) 
+                      isDuplicate
+                        ? 'border-destructive bg-destructive/5 shadow-lg shadow-destructive/10'
+                        : selectedUserIds.has(user.id) 
                         ? 'border-primary shadow-lg shadow-primary/10' 
                         : 'border-border/50 hover:border-primary/40 hover:shadow-md'
                     }`}
                   >
+                    {/* Duplicate Phone Warning Badge */}
+                    {isDuplicate && (
+                      <div className="absolute right-12 top-3 z-10">
+                        <div className="p-1.5 rounded-full bg-destructive/20" title="Duplicate Phone Number">
+                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                        </div>
+                      </div>
+                    )}
+                    
                     {/* Selection Checkbox - Large touch target */}
                     <div 
                       className="absolute left-3 top-3 z-10"
@@ -872,7 +889,8 @@ export default function UserProfilesTable() {
                       </Button>
                     </div>
                   </motion.div>
-                ))
+                  );
+                })
               )}
             </AnimatePresence>
           </div>

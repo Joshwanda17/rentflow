@@ -48,7 +48,8 @@ import {
   MessageCircle,
   Save,
   BookmarkPlus,
-  Shield
+  Shield,
+  AlertTriangle
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -101,6 +102,7 @@ import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
 import { usePresence } from '@/hooks/usePresence';
 import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
 import { ChromecastButton } from '@/components/manager/ChromecastButton';
+import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 
 interface ManagerDashboardProps {
   user: User;
@@ -118,6 +120,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const { profile } = useProfile();
   const { isOnline } = useOffline();
   const { onlineUsers, isOnline: isUserOnline } = usePresence();
+  const { duplicateUserIds, duplicateCount } = useDuplicatePhoneUsers();
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [accessVerified, setAccessVerified] = useState(() => {
@@ -1146,7 +1149,31 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </div>
 
-        {/* Active Users Card - Real-time online users */}
+        {/* Duplicate Phone Numbers Alert */}
+        {duplicateCount > 0 && (
+          <Card 
+            className="border-2 border-destructive/40 bg-gradient-to-br from-destructive/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
+            onClick={() => navigate('/manager-access?tab=users')}
+          >
+            <CardContent className="p-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-destructive/20">
+                  <AlertTriangle className="h-6 w-6 text-destructive" />
+                </div>
+                <div className="flex-1">
+                  <p className="text-2xl font-bold text-destructive">{duplicateCount}</p>
+                  <p className="text-xs text-muted-foreground font-medium">Duplicate Phone Numbers</p>
+                </div>
+                <Badge variant="destructive" className="shrink-0">
+                  Action Needed
+                </Badge>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                Users with the same phone number detected. Tap to view and resolve.
+              </p>
+            </CardContent>
+          </Card>
+        )}
         <ActiveUsersCard 
           activeUsers={activeOnlineUsers}
           totalUsers={totalUsers}
