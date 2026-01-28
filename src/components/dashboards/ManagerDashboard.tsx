@@ -103,6 +103,7 @@ import { usePresence } from '@/hooks/usePresence';
 import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
 import { ChromecastButton } from '@/components/manager/ChromecastButton';
 import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
+import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 
 interface ManagerDashboardProps {
   user: User;
@@ -120,7 +121,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const { profile } = useProfile();
   const { isOnline } = useOffline();
   const { onlineUsers, isOnline: isUserOnline } = usePresence();
-  const { duplicateUserIds, duplicateCount } = useDuplicatePhoneUsers();
+  const { duplicateUserIds, duplicateCount, duplicateGroups } = useDuplicatePhoneUsers();
+  const [duplicatePhoneSheetOpen, setDuplicatePhoneSheetOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [accessVerified, setAccessVerified] = useState(() => {
@@ -1153,7 +1155,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {duplicateCount > 0 && (
           <Card 
             className="border-2 border-destructive/40 bg-gradient-to-br from-destructive/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
-            onClick={() => navigate('/manager-access?tab=users')}
+            onClick={() => setDuplicatePhoneSheetOpen(true)}
           >
             <CardContent className="p-4">
               <div className="flex items-center gap-3">
@@ -1174,6 +1176,28 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         )}
+
+        {/* Duplicate Phone Users Sheet */}
+        <DuplicatePhoneUsersSheet
+          open={duplicatePhoneSheetOpen}
+          onOpenChange={setDuplicatePhoneSheetOpen}
+          duplicateGroups={duplicateGroups}
+          onUserClick={(userId) => {
+            setDuplicatePhoneSheetOpen(false);
+            const user = topOnboarders.find(u => u.id === userId);
+            if (user) {
+              setSelectedUser({
+                ...user,
+                avatar_url: user.avatar_url,
+                rent_discount_active: false,
+                monthly_rent: null,
+                roles: user.roles || [],
+                average_rating: null,
+                rating_count: 0,
+              });
+            }
+          }}
+        />
         <ActiveUsersCard 
           activeUsers={activeOnlineUsers}
           totalUsers={totalUsers}
