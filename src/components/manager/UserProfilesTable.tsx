@@ -10,7 +10,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2 } from 'lucide-react';
 import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
-import WhatsAppPhoneLink from '@/components/WhatsAppPhoneLink';
+import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from './UserDetailsDialog';
 import BulkNotificationDialog from './BulkNotificationDialog';
@@ -44,6 +44,7 @@ interface UserWithRating {
   city: string | null;
   country_code: string | null;
   verified: boolean;
+  whatsapp_verified: boolean;
 }
 
 type RoleFilter = 'all' | 'tenant' | 'agent' | 'supporter' | 'landlord' | 'manager';
@@ -84,7 +85,7 @@ export default function UserProfilesTable() {
     // Fetch profiles with location data and verified status
     const { data: profiles, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified')
+      .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, created_at, country, city, country_code, verified, whatsapp_verified')
       .order('created_at', { ascending: false });
 
     if (error) {
@@ -135,7 +136,8 @@ export default function UserProfilesTable() {
         country: p.country || null,
         city: p.city || null,
         country_code: p.country_code || null,
-        verified: p.verified || false
+        verified: p.verified || false,
+        whatsapp_verified: p.whatsapp_verified || false
       };
     });
 
@@ -378,6 +380,32 @@ export default function UserProfilesTable() {
       toast.error('Failed to reject user');
     } finally {
       setApprovingUserId(null);
+    }
+  };
+
+  const handleMarkWhatsAppVerified = async (userId: string, userName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ 
+          whatsapp_verified: true,
+          whatsapp_verified_at: new Date().toISOString()
+        })
+        .eq('id', userId);
+      
+      if (error) throw error;
+      
+      // Update local state
+      setUsers(prev => prev.map(u => 
+        u.id === userId ? { ...u, whatsapp_verified: true } : u
+      ));
+      
+      toast.success(`${userName}'s WhatsApp verified`);
+    } catch (error) {
+      console.error('Error verifying WhatsApp:', error);
+      toast.error('Failed to verify WhatsApp');
     }
   };
 
@@ -709,7 +737,14 @@ export default function UserProfilesTable() {
 
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-base truncate pr-8">{user.full_name}</h3>
-                        <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
+                          <WhatsAppVerificationBadge
+                            verified={user.whatsapp_verified}
+                            phone={user.phone}
+                            onMarkVerified={() => handleMarkWhatsAppVerified(user.id, user.full_name, { stopPropagation: () => {} } as React.MouseEvent)}
+                          />
+                        </div>
                         
                         {/* Location */}
                         {(user.country || user.city) && (
