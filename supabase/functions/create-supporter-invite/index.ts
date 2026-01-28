@@ -167,13 +167,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if invite already exists
+    // Check if invite already exists (use maybeSingle to avoid error when no row exists)
     const { data: existingInvite } = await adminClient
       .from("supporter_invites")
       .select("id")
       .eq("email", email)
       .eq("status", "pending")
-      .single();
+      .maybeSingle();
 
     if (existingInvite) {
       return new Response(JSON.stringify({ error: "An invite for this email already exists" }), {
