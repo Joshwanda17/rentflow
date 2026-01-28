@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePinAuth } from '@/hooks/usePinAuth';
@@ -12,7 +12,6 @@ import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2,
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
-import { z } from 'zod';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import PinEntry from '@/components/auth/PinEntry';
@@ -20,20 +19,20 @@ import PinSetupDialog from '@/components/auth/PinSetupDialog';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 
-const signUpSchema = z.object({
-  password: z.string().min(6, 'Password must be at least 6 characters'),
-  confirmPassword: z.string(),
-  fullName: z.string().min(2, 'Full name is required'),
-  phone: z.string().min(10, 'Please enter a valid phone number'),
-}).refine((data) => data.password === data.confirmPassword, {
-  message: "Passwords don't match",
-  path: ["confirmPassword"],
-});
+// Inline validation for faster processing (no zod overhead)
+const validateSignUp = (data: { password: string; confirmPassword: string; fullName: string; phone: string }) => {
+  if (data.password.length < 6) return 'Password must be at least 6 characters';
+  if (data.password !== data.confirmPassword) return "Passwords don't match";
+  if (data.fullName.length < 2) return 'Full name is required';
+  if (data.phone.replace(/\D/g, '').length < 9) return 'Please enter a valid phone number';
+  return null;
+};
 
-const signInSchema = z.object({
-  phone: z.string().min(9, 'Please enter a valid phone number'),
-  password: z.string().min(1, 'Password is required')
-});
+const validateSignIn = (data: { phone: string; password: string }) => {
+  if (data.phone.replace(/\D/g, '').length < 9) return 'Please enter a valid phone number';
+  if (!data.password) return 'Password is required';
+  return null;
+};
 
 export default function Auth() {
   const [searchParams] = useSearchParams();
@@ -61,6 +60,8 @@ export default function Auth() {
   const [showPinSetup, setShowPinSetup] = useState(false);
   const [showPinEntry, setShowPinEntry] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const phoneInputRef = useRef<HTMLInputElement>(null);
+  const passwordInputRef = useRef<HTMLInputElement>(null);
   
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles, session } = useAuth();
   const { isPinEnabled } = usePinAuth();
@@ -108,6 +109,18 @@ export default function Auth() {
     }
   }, [user, roles, navigate, isPinEnabled]);
 
+  // Auto-focus first input for faster entry on mobile
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (isSignUp) {
+        // Focus will be on name field (first in signup)
+      } else {
+        phoneInputRef.current?.focus();
+      }
+    }, 100);
+    return () => clearTimeout(timer);
+  }, [isSignUp]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
@@ -115,9 +128,9 @@ export default function Auth() {
     try {
       if (isForgotPhone) {
         // Handle forgot phone - sign in with Google email
-        const emailValidation = z.string().email('Please enter a valid email').safeParse(email);
-        if (!emailValidation.success) {
-          toast({ title: 'Error', description: emailValidation.error.errors[0].message, variant: 'destructive' });
+        const isValidEmail = email.includes('@') && email.includes('.');
+        if (!isValidEmail) {
+          toast({ title: 'Error', description: 'Please enter a valid email', variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -132,9 +145,9 @@ export default function Auth() {
           toast({ title: 'Sign In Failed', description: errorMessage, variant: 'destructive' });
         }
       } else if (isForgotPassword) {
-        const emailValidation = z.string().email('Please enter a valid email').safeParse(email);
-        if (!emailValidation.success) {
-          toast({ title: 'Error', description: emailValidation.error.errors[0].message, variant: 'destructive' });
+        const isValidEmail = email.includes('@') && email.includes('.');
+        if (!isValidEmail) {
+          toast({ title: 'Error', description: 'Please enter a valid email', variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -147,9 +160,10 @@ export default function Auth() {
           setIsForgotPassword(false);
         }
       } else if (isSignUp) {
-        const validation = signUpSchema.safeParse({ password, confirmPassword, fullName, phone });
-        if (!validation.success) {
-          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+        // Use inline validation for faster response
+        const validationError = validateSignUp({ password, confirmPassword, fullName, phone });
+        if (validationError) {
+          toast({ title: 'Error', description: validationError, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -201,9 +215,10 @@ export default function Auth() {
           return;
         }
 
-        const validation = signInSchema.safeParse({ phone: cleanedPhone, password });
-        if (!validation.success) {
-          toast({ title: 'Error', description: validation.error.errors[0].message, variant: 'destructive' });
+        // Use inline validation for faster response
+        const validationError = validateSignIn({ phone: cleanedPhone, password });
+        if (validationError) {
+          toast({ title: 'Error', description: validationError, variant: 'destructive' });
           setIsLoading(false);
           return;
         }
@@ -462,9 +477,11 @@ export default function Auth() {
                   <div className="relative">
                     <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                     <Input
+                      ref={phoneInputRef}
                       id="phone"
                       type="tel"
                       inputMode="tel"
+                      autoComplete="tel"
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value);

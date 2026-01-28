@@ -100,11 +100,8 @@ export default function SelectRole() {
     
     if (isSimpleRoleAssignment && selectedRoles.length > 0 && !autoSubmitting && user) {
       setAutoSubmitting(true);
-      // Small delay to show the UI briefly
-      const timer = setTimeout(() => {
-        handleAutoSubmit();
-      }, 500);
-      return () => clearTimeout(timer);
+      // Immediate submit - no delay for faster signup
+      handleAutoSubmit();
     }
   }, [selectedRoles, user]);
 
