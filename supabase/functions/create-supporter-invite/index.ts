@@ -2,10 +2,22 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  // Include all headers the browser/Supabase client may send
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const validRoles = ['tenant', 'agent', 'supporter', 'landlord', 'manager'];
+
+// Normalize phone numbers for duplicate checks.
+// We compare by the last 9 digits (UG local number) to avoid false matches from string "includes".
+const toDigits = (value: string) => value.replace(/\D/g, "");
+const ugLocal9 = (value: string) => {
+  const digits = toDigits(value);
+  if (!digits) return null;
+  const last9 = digits.length >= 9 ? digits.slice(-9) : digits;
+  return last9.length === 9 ? last9 : null;
+};
+const unique = <T,>(arr: T[]) => Array.from(new Set(arr));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -88,79 +100,75 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Normalize phone number for comparison (remove all non-digits)
-    const normalizedPhone = phone.replace(/\D/g, '');
-    
-    // Generate phone variants to check (with/without country code, with/without leading 0)
-    const phoneVariants: string[] = [normalizedPhone];
-    
-    // If starts with country code 256, also check without it
-    if (normalizedPhone.startsWith('256') && normalizedPhone.length > 9) {
-      phoneVariants.push(normalizedPhone.slice(3)); // without 256
-      phoneVariants.push('0' + normalizedPhone.slice(3)); // with leading 0
-    }
-    // If starts with 0, also check without it and with 256
-    if (normalizedPhone.startsWith('0') && normalizedPhone.length >= 10) {
-      phoneVariants.push(normalizedPhone.slice(1)); // without 0
-      phoneVariants.push('256' + normalizedPhone.slice(1)); // with 256
-    }
-    // If doesn't start with 0 or 256, add variants
-    if (!normalizedPhone.startsWith('0') && !normalizedPhone.startsWith('256') && normalizedPhone.length >= 9) {
-      phoneVariants.push('0' + normalizedPhone);
-      phoneVariants.push('256' + normalizedPhone);
+    const local9 = ugLocal9(phone);
+    if (!local9) {
+      return new Response(JSON.stringify({ error: "Invalid phone number" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Check if phone already exists in profiles
-    const { data: existingProfiles } = await adminClient
+    // Targeted phone duplicate check: only fetch rows that contain the last-9 digits.
+    // Then compare by last-9 equality to prevent false positives.
+    const { data: profilesMaybeWithPhone, error: profilesPhoneError } = await adminClient
       .from("profiles")
       .select("id, phone")
-      .limit(1000);
-    
-    if (existingProfiles) {
-      for (const profile of existingProfiles) {
-        const profilePhone = profile.phone?.replace(/\D/g, '') || '';
-        if (phoneVariants.some(v => profilePhone.includes(v) || v.includes(profilePhone))) {
-          return new Response(JSON.stringify({ error: "A user with this phone number already exists" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
+      .ilike("phone", `%${local9}%`)
+      .limit(50);
+
+    if (profilesPhoneError) {
+      console.error("Phone check (profiles) error:", profilesPhoneError);
+      return new Response(JSON.stringify({ error: "Failed to validate phone number" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Check if phone exists in pending invites
-    const { data: existingInviteWithPhone } = await adminClient
+    if (profilesMaybeWithPhone?.some((p) => ugLocal9(p.phone ?? "") === local9)) {
+      return new Response(JSON.stringify({ error: "A user with this phone number already exists" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const { data: invitesMaybeWithPhone, error: invitesPhoneError } = await adminClient
       .from("supporter_invites")
       .select("id, phone")
       .eq("status", "pending")
-      .limit(1000);
-    
-    if (existingInviteWithPhone) {
-      for (const invite of existingInviteWithPhone) {
-        const invitePhone = invite.phone?.replace(/\D/g, '') || '';
-        if (phoneVariants.some(v => invitePhone.includes(v) || v.includes(invitePhone))) {
-          return new Response(JSON.stringify({ error: "An invite with this phone number already exists" }), {
-            status: 400,
-            headers: { ...corsHeaders, "Content-Type": "application/json" },
-          });
-        }
-      }
+      .ilike("phone", `%${local9}%`)
+      .limit(50);
+
+    if (invitesPhoneError) {
+      console.error("Phone check (invites) error:", invitesPhoneError);
+      return new Response(JSON.stringify({ error: "Failed to validate phone number" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
     }
 
-    // Check if email already exists in auth
-    const { data: existingUsers, error: listUsersError } = await adminClient.auth.admin.listUsers();
-    
-    if (listUsersError) {
-      console.error("Error listing users:", listUsersError);
+    if (invitesMaybeWithPhone?.some((i) => ugLocal9(i.phone ?? "") === local9)) {
+      return new Response(JSON.stringify({ error: "An invite with this phone number already exists" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check if email already exists (profiles is our source of truth for registered users)
+    const { data: existingProfileByEmail, error: profileEmailError } = await adminClient
+      .from("profiles")
+      .select("id")
+      .ilike("email", email)
+      .maybeSingle();
+
+    if (profileEmailError) {
+      console.error("Error checking profile by email:", profileEmailError);
       return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
-    
-    const emailExists = existingUsers?.users?.some(u => u.email?.toLowerCase() === email.toLowerCase());
-    
-    if (emailExists) {
+
+    if (existingProfileByEmail) {
       return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
