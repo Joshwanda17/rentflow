@@ -110,6 +110,7 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Basic phone format validation (must have at least 9 digits)
     const local9 = ugLocal9(phone);
     console.log("Phone validation:", { original: phone?.substring(0,4) + '***', local9: local9 ? 'valid' : 'invalid' });
     if (!local9) {
@@ -119,50 +120,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Targeted phone duplicate check: only fetch rows that contain the last-9 digits.
-    // Then compare by last-9 equality to prevent false positives.
-    const { data: profilesMaybeWithPhone, error: profilesPhoneError } = await adminClient
-      .from("profiles")
-      .select("id, phone")
-      .ilike("phone", `%${local9}%`)
-      .limit(50);
-
-    if (profilesPhoneError) {
-      console.error("Phone check (profiles) error:", profilesPhoneError);
-      return new Response(JSON.stringify({ error: "Failed to validate phone number" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (profilesMaybeWithPhone?.some((p) => ugLocal9(p.phone ?? "") === local9)) {
-      return new Response(JSON.stringify({ error: "A user with this phone number already exists" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const { data: invitesMaybeWithPhone, error: invitesPhoneError } = await adminClient
-      .from("supporter_invites")
-      .select("id, phone")
-      .eq("status", "pending")
-      .ilike("phone", `%${local9}%`)
-      .limit(50);
-
-    if (invitesPhoneError) {
-      console.error("Phone check (invites) error:", invitesPhoneError);
-      return new Response(JSON.stringify({ error: "Failed to validate phone number" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    if (invitesMaybeWithPhone?.some((i) => ugLocal9(i.phone ?? "") === local9)) {
-      return new Response(JSON.stringify({ error: "An invite with this phone number already exists" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
+    // NOTE: Phone duplicate checks are now handled by database unique constraints
+    // idx_profiles_phone_normalized and idx_supporter_invites_phone_normalized
+    // The insert will fail with a constraint violation if a duplicate exists
 
     // Check if email already exists (profiles is our source of truth for registered users)
     const { data: existingProfileByEmail, error: profileEmailError } = await adminClient
@@ -225,7 +185,25 @@ Deno.serve(async (req) => {
 
     if (inviteError) {
       console.error("Invite error:", inviteError);
-      return new Response(JSON.stringify({ error: "Failed to create invite" }), {
+      
+      // Check for unique constraint violation (duplicate phone)
+      if (inviteError.code === '23505') {
+        const isPhoneDuplicate = inviteError.message?.includes('phone') || 
+                                  inviteError.message?.includes('idx_supporter_invites_phone_normalized');
+        if (isPhoneDuplicate) {
+          return new Response(JSON.stringify({ error: "A user or pending invite with this phone number already exists" }), {
+            status: 400,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+        // Generic duplicate error
+        return new Response(JSON.stringify({ error: "This invite already exists (duplicate detected)" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      
+      return new Response(JSON.stringify({ error: "Failed to create invite", details: inviteError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
