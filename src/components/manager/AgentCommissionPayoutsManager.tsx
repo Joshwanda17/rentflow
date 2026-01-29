@@ -22,6 +22,7 @@ import {
   XCircle, 
   Phone,
   User,
+  Wallet,
   Loader2,
   AlertCircle
 } from 'lucide-react';
@@ -49,9 +50,12 @@ export function AgentCommissionPayoutsManager() {
   const [selectedPayout, setSelectedPayout] = useState<PayoutRequest | null>(null);
   const [approveDialogOpen, setApproveDialogOpen] = useState(false);
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
+  const [detailsDialogOpen, setDetailsDialogOpen] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [rejectionReason, setRejectionReason] = useState('');
   const [processing, setProcessing] = useState(false);
+  const [agentWalletBalance, setAgentWalletBalance] = useState<number | null>(null);
+  const [loadingAgentWallet, setLoadingAgentWallet] = useState(false);
 
   useEffect(() => {
     fetchPayouts();
@@ -106,6 +110,30 @@ export function AgentCommissionPayoutsManager() {
       console.error('Error fetching payouts:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchSelectedAgentWalletBalance = async (agentId: string) => {
+    setLoadingAgentWallet(true);
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', agentId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setAgentWalletBalance(data?.balance ?? 0);
+    } catch (error: any) {
+      console.error('[AgentCommissionPayoutsManager] Failed to fetch wallet balance:', error);
+      setAgentWalletBalance(null);
+      toast({
+        title: 'Failed to load wallet',
+        description: error?.message || 'Could not fetch agent wallet balance.',
+        variant: 'destructive',
+      });
+    } finally {
+      setLoadingAgentWallet(false);
     }
   };
 
@@ -241,7 +269,16 @@ export function AgentCommissionPayoutsManager() {
               className="p-4 rounded-xl bg-background border border-border/50 space-y-3"
             >
               {/* Agent info */}
-              <div className="flex items-center gap-3">
+              <button
+                type="button"
+                className="flex items-center gap-3 w-full text-left"
+                onClick={() => {
+                  hapticTap();
+                  setSelectedPayout(payout);
+                  setDetailsDialogOpen(true);
+                  fetchSelectedAgentWalletBalance(payout.agent_id);
+                }}
+              >
                 <div className="p-2 rounded-full bg-primary/10">
                   <User className="h-4 w-4 text-primary" />
                 </div>
@@ -255,7 +292,7 @@ export function AgentCommissionPayoutsManager() {
                     {format(new Date(payout.requested_at), 'MMM d, h:mm a')}
                   </p>
                 </div>
-              </div>
+              </button>
 
               {/* Mobile money details */}
               <div className={`p-3 rounded-lg ${payout.mobile_money_provider === 'MTN' ? 'bg-yellow-500/10 border border-yellow-500/20' : 'bg-red-500/10 border border-red-500/20'}`}>
@@ -287,6 +324,7 @@ export function AgentCommissionPayoutsManager() {
                     hapticTap();
                     setSelectedPayout(payout);
                     setApproveDialogOpen(true);
+                    fetchSelectedAgentWalletBalance(payout.agent_id);
                   }}
                   className="flex-1 h-12 bg-success hover:bg-success/90"
                 >
@@ -322,6 +360,13 @@ export function AgentCommissionPayoutsManager() {
                   <span className="font-mono">{selectedPayout.mobile_money_number}</span>
                 </div>
                 <p className="text-2xl font-bold mt-3">{formatUGX(selectedPayout.amount)}</p>
+
+                <div className="mt-3 pt-3 border-t border-border/50 flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">Current wallet balance</p>
+                  <p className="font-mono font-semibold">
+                    {loadingAgentWallet ? 'Loading…' : formatUGX(agentWalletBalance ?? 0)}
+                  </p>
+                </div>
               </div>
 
               <div className="space-y-2">
@@ -422,6 +467,57 @@ export function AgentCommissionPayoutsManager() {
                   {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Reject Request'}
                 </Button>
               </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Agent Details (tap name) */}
+      <Dialog open={detailsDialogOpen} onOpenChange={setDetailsDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5 text-primary" />
+              Agent Wallet Balance
+            </DialogTitle>
+          </DialogHeader>
+
+          {selectedPayout && (
+            <div className="space-y-3">
+              <div className="rounded-xl border border-border/50 bg-muted/30 p-3">
+                <p className="font-semibold">{selectedPayout.agent_name || 'Agent'}</p>
+                <p className="text-xs text-muted-foreground">{selectedPayout.agent_phone}</p>
+              </div>
+
+              <div className="rounded-xl border border-border/50 bg-background p-4">
+                <p className="text-xs text-muted-foreground">Wallet balance</p>
+                <p className="mt-1 text-2xl font-bold font-mono">
+                  {loadingAgentWallet ? 'Loading…' : formatUGX(agentWalletBalance ?? 0)}
+                </p>
+
+                <div className="mt-3 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Requested payout</span>
+                  <span className="font-mono font-semibold text-success">{formatUGX(selectedPayout.amount)}</span>
+                </div>
+
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Would remain</span>
+                  <span className="font-mono font-semibold">
+                    {loadingAgentWallet
+                      ? '—'
+                      : formatUGX(Math.max(0, (agentWalletBalance ?? 0) - selectedPayout.amount))}
+                  </span>
+                </div>
+              </div>
+
+              <Button
+                variant="outline"
+                className="w-full h-12"
+                onClick={() => fetchSelectedAgentWalletBalance(selectedPayout.agent_id)}
+                disabled={loadingAgentWallet}
+              >
+                {loadingAgentWallet ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Refresh Balance'}
+              </Button>
             </div>
           )}
         </DialogContent>

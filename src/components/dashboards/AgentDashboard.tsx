@@ -67,6 +67,7 @@ import { AgentAgreementBanner, AgentTermsQuickAccess } from '@/components/agent/
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
+import { useWallet } from '@/hooks/useWallet';
 
 interface AgentDashboardProps {
   user: User;
@@ -165,6 +166,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
+  const { wallet, refreshWallet } = useWallet();
   const { isOnline } = useOffline();
   const [referralCount, setReferralCount] = useState(0);
   const [tenantsCount, setTenantsCount] = useState(0);
@@ -265,7 +267,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   }
 
   const handleRefresh = async () => {
-    await Promise.all([fetchData(), refreshEarnings()]);
+    await Promise.all([fetchData(), refreshEarnings(), refreshWallet()]);
   };
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
@@ -360,10 +362,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             {/* Quick Stats Row */}
             <div className="flex gap-2">
               <StatsCard 
-                value={formatUGX(totalEarnings)} 
-                label="Total Earnings" 
-                icon={Coins}
-                onClick={() => navigate('/earnings')}
+                value={formatUGX(wallet?.balance ?? 0)} 
+                label="Wallet Balance" 
+                icon={Wallet}
+                onClick={handleViewWallet}
               />
               <StatsCard 
                 value={tenantsCount + referralCount} 
