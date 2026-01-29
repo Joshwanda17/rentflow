@@ -119,54 +119,10 @@ export function AgentCommissionPayoutsManager() {
     setProcessing(true);
 
     try {
-      // 1. Fetch current wallet balance
-      const { data: currentWallet, error: fetchError } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', selectedPayout.agent_id)
-        .maybeSingle();
+      // Database trigger (trg_process_agent_commission_payout_approval) will
+      // automatically deduct from wallet when status changes to 'approved'.
+      // If balance is insufficient, the trigger raises an exception.
 
-      if (fetchError) throw fetchError;
-
-      const currentBalance = currentWallet?.balance || 0;
-
-      // 2. Check if agent has sufficient balance
-      if (selectedPayout.amount > currentBalance) {
-        toast({ 
-          title: 'Insufficient Balance', 
-          description: `Agent only has ${formatUGX(currentBalance)} but requested ${formatUGX(selectedPayout.amount)}`,
-          variant: 'destructive' 
-        });
-        setProcessing(false);
-        return;
-      }
-
-      // 3. Deduct from agent's wallet with optimistic locking
-      const { data: updatedWallet, error: walletError } = await supabase
-        .from('wallets')
-        .update({ 
-          balance: currentBalance - selectedPayout.amount,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', selectedPayout.agent_id)
-        .eq('balance', currentBalance) // Optimistic lock - only update if balance unchanged
-        .select()
-        .maybeSingle();
-
-      if (walletError) throw walletError;
-      
-      // If no row was updated, the balance changed between fetch and update
-      if (!updatedWallet) {
-        toast({ 
-          title: 'Balance Changed', 
-          description: 'The agent\'s balance changed. Please try again.',
-          variant: 'destructive' 
-        });
-        setProcessing(false);
-        return;
-      }
-
-      // 4. Update payout status
       const { error } = await supabase
         .from('agent_commission_payouts')
         .update({
@@ -177,7 +133,19 @@ export function AgentCommissionPayoutsManager() {
         })
         .eq('id', selectedPayout.id);
 
-      if (error) throw error;
+      if (error) {
+        // Trigger may raise 'insufficient balance' error
+        if (error.message?.includes('insufficient balance')) {
+          toast({ 
+            title: 'Insufficient Balance', 
+            description: 'Agent does not have enough balance to cover this payout.',
+            variant: 'destructive' 
+          });
+          setProcessing(false);
+          return;
+        }
+        throw error;
+      }
 
       // 5. Create notification for agent
       await supabase.from('notifications').insert({
