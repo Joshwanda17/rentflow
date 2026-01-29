@@ -68,10 +68,20 @@ Deno.serve(async (req) => {
 
     const creatorRole = roleData[0].role;
 
-    const { email, fullName, phone, password, role = 'tenant', isSubAgent = false } = await req.json();
+    const body = await req.json();
+    console.log("Received request body:", JSON.stringify({ 
+      email: body.email, 
+      fullName: body.fullName, 
+      phone: body.phone?.substring(0, 4) + '***', 
+      role: body.role,
+      isSubAgent: body.isSubAgent 
+    }));
+    
+    const { email, fullName, phone, password, role = 'tenant', isSubAgent = false } = body;
 
     if (!email || !fullName || !phone || !password) {
-      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+      console.log("Missing fields:", { email: !!email, fullName: !!fullName, phone: !!phone, password: !!password });
+      return new Response(JSON.stringify({ error: "Missing required fields", details: { email: !!email, fullName: !!fullName, phone: !!phone, password: !!password } }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -101,8 +111,9 @@ Deno.serve(async (req) => {
     }
 
     const local9 = ugLocal9(phone);
+    console.log("Phone validation:", { original: phone?.substring(0,4) + '***', local9: local9 ? 'valid' : 'invalid' });
     if (!local9) {
-      return new Response(JSON.stringify({ error: "Invalid phone number" }), {
+      return new Response(JSON.stringify({ error: "Invalid phone number", phone_received: phone }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
