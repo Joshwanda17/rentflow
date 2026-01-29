@@ -171,7 +171,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent }: AgentDetailsDi
         ) : (
           <div className="space-y-4">
             {/* Performance Metrics */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 gap-3">
               <Card>
                 <CardContent className="p-3 text-center">
                   <Users className="h-4 w-4 mx-auto mb-1 text-primary" />
@@ -186,38 +186,13 @@ export function AgentDetailsDialog({ open, onOpenChange, agent }: AgentDetailsDi
                   <p className="font-mono font-bold text-success">{approvedRequests}</p>
                 </CardContent>
               </Card>
-              <Card>
+              <Card className="bg-primary/5 border-primary/20">
                 <CardContent className="p-3 text-center">
-                  <TrendingUp className="h-4 w-4 mx-auto mb-1 text-warning" />
-                  <p className="text-xs text-muted-foreground">Earnings</p>
-                  <p className="font-mono font-bold text-warning">{formatUGX(totalEarnings)}</p>
+                  <Wallet className="h-4 w-4 mx-auto mb-1 text-primary" />
+                  <p className="text-xs text-muted-foreground">Wallet Balance</p>
+                  <p className="font-mono font-bold text-primary">{formatUGX(Number(agent?.wallet_balance || 0))}</p>
                 </CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3 text-center">
-                  <Wallet className="h-4 w-4 mx-auto mb-1 text-muted-foreground" />
-                  <p className="text-xs text-muted-foreground">Balance</p>
-                  <p className="font-mono font-bold">{formatUGX(Number(agent?.wallet_balance || 0))}</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Earnings Breakdown */}
-            <div className="grid grid-cols-2 gap-3">
-              <div className="p-3 rounded-lg bg-success/10 flex items-center gap-3">
-                <Percent className="h-5 w-5 text-success" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Commissions</p>
-                  <p className="font-mono font-semibold text-success">{formatUGX(commissionTotal)}</p>
-                </div>
-              </div>
-              <div className="p-3 rounded-lg bg-warning/10 flex items-center gap-3">
-                <Gift className="h-5 w-5 text-warning" />
-                <div>
-                  <p className="text-xs text-muted-foreground">Bonuses</p>
-                  <p className="font-mono font-semibold text-warning">{formatUGX(bonusTotal)}</p>
-                </div>
-              </div>
             </div>
 
             <Tabs defaultValue="earnings" className="space-y-3">
