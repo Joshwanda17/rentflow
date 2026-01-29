@@ -55,6 +55,7 @@ import UserInvestmentsSection from './user-details/UserInvestmentsSection';
 import UserTermsSection from './user-details/UserTermsSection';
 import UserReferralsSection from './user-details/UserReferralsSection';
 import UserActivityTimeline from './user-details/UserActivityTimeline';
+import AddBalanceDialog from './AddBalanceDialog';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
@@ -152,7 +153,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [rejectingUser, setRejectingUser] = useState(false);
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [subAgentsLoading, setSubAgentsLoading] = useState(false);
-  
+  const [addBalanceOpen, setAddBalanceOpen] = useState(false);
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
@@ -983,12 +984,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
                   {/* Financial Summary */}
                   <div className="grid grid-cols-2 gap-3">
-                    <Card className="p-3">
+                    <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
                       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                         <Wallet className="h-3 w-3" />
                         Wallet
                       </div>
-                      <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
+                      <div className="flex items-center justify-between">
+                        <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
+                        <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                      </div>
                     </Card>
                     <Card className="p-3">
                       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
@@ -1432,6 +1436,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
               </TabsContent>
             </div>
           </Tabs>
+
+          <AddBalanceDialog
+            open={addBalanceOpen}
+            onOpenChange={setAddBalanceOpen}
+            userId={user.id}
+            userName={user.full_name}
+            currentBalance={walletBalance}
+            onSuccess={fetchUserDetails}
+          />
         </SheetContent>
       </Sheet>
     );
@@ -1481,9 +1494,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
                 {/* Financial Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-                  <Card className="p-3">
+                  <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet</div>
-                    <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
+                    <div className="flex items-center justify-between">
+                      <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
+                      <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />
+                    </div>
                   </Card>
                   <Card className="p-3">
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><PiggyBank className="h-3 w-3" />Invested</div>
@@ -1738,6 +1754,15 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           </ScrollArea>
         </Tabs>
       </DialogContent>
+
+      <AddBalanceDialog
+        open={addBalanceOpen}
+        onOpenChange={setAddBalanceOpen}
+        userId={user.id}
+        userName={user.full_name}
+        currentBalance={walletBalance}
+        onSuccess={fetchUserDetails}
+      />
     </Dialog>
   );
 }
