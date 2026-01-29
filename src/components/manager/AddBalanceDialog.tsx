@@ -137,7 +137,13 @@ export default function AddBalanceDialog({
               type="number"
               placeholder="Enter amount"
               value={amount}
-              onChange={(e) => setAmount(e.target.value)}
+              onChange={(e) => {
+                const val = e.target.value;
+                // Only allow positive numbers
+                if (val === '' || (Number(val) >= 0 && !isNaN(Number(val)))) {
+                  setAmount(val);
+                }
+              }}
               min={1}
               className="h-12 text-lg font-semibold"
             />
