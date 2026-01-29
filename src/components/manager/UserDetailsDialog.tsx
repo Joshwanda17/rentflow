@@ -987,7 +987,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
                       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
                         <Wallet className="h-3 w-3" />
-                        Wallet
+                        Wallet Balance
                       </div>
                       <div className="flex items-center justify-between">
                         <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
@@ -1495,7 +1495,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 {/* Financial Summary */}
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
-                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet</div>
+                    <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet Balance</div>
                     <div className="flex items-center justify-between">
                       <p className="font-semibold text-sm">{formatUGX(walletBalance)}</p>
                       <Plus className="h-4 w-4 text-primary opacity-0 group-hover:opacity-100 transition-opacity" />

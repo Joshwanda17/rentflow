@@ -114,7 +114,7 @@ export function WalletCard() {
               >
                 <Wallet className="h-5 w-5" />
               </motion.div>
-              <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet</span>
+              <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
             </div>
             <Button 
               variant="ghost" 

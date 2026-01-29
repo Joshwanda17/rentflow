@@ -369,7 +369,11 @@ export function WithdrawRequestDialog({
                       type="number"
                       placeholder="Min: UGX 500"
                       value={amount || ''}
-                      onChange={(e) => setAmount(Number(e.target.value))}
+                      onChange={(e) => {
+                        const val = Number(e.target.value);
+                        // Cap at wallet balance to prevent over-withdrawal
+                        setAmount(Math.min(val, walletBalance));
+                      }}
                       min={500}
                       max={walletBalance}
                       className="h-12 text-lg font-semibold"
