@@ -141,16 +141,30 @@ export function AgentCommissionPayoutsManager() {
         return;
       }
 
-      // 3. Deduct from agent's wallet
-      const { error: walletError } = await supabase
+      // 3. Deduct from agent's wallet with optimistic locking
+      const { data: updatedWallet, error: walletError } = await supabase
         .from('wallets')
         .update({ 
           balance: currentBalance - selectedPayout.amount,
           updated_at: new Date().toISOString()
         })
-        .eq('user_id', selectedPayout.agent_id);
+        .eq('user_id', selectedPayout.agent_id)
+        .eq('balance', currentBalance) // Optimistic lock - only update if balance unchanged
+        .select()
+        .maybeSingle();
 
       if (walletError) throw walletError;
+      
+      // If no row was updated, the balance changed between fetch and update
+      if (!updatedWallet) {
+        toast({ 
+          title: 'Balance Changed', 
+          description: 'The agent\'s balance changed. Please try again.',
+          variant: 'destructive' 
+        });
+        setProcessing(false);
+        return;
+      }
 
       // 4. Update payout status
       const { error } = await supabase
