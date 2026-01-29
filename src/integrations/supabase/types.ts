@@ -3666,6 +3666,7 @@ export type Database = {
         }
         Returns: string
       }
+      normalize_phone_last9: { Args: { phone: string }; Returns: string }
       notify_landlord_registration_helper: {
         Args: { p_landlord_id: string }
         Returns: undefined
