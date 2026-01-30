@@ -98,6 +98,7 @@ import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
 import RoleSwitcher from '@/components/RoleSwitcher';
 import { UserMinus } from 'lucide-react';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
+import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
 import { usePresence } from '@/hooks/usePresence';
 import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
@@ -1097,8 +1098,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           />
         </div>
 
-        {/* Withdrawal Requests - Priority Section for Manager */}
-        <WithdrawalRequestsManager />
+        {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
+        <CollapsibleAgentSection
+          icon={Wallet}
+          label="Wallet Withdrawals"
+          iconColor="text-warning"
+        >
+          <WithdrawalRequestsManager />
+        </CollapsibleAgentSection>
 
         {/* Pending Invites Widget - Quick view of unactivated users */}
         <PendingInvitesWidget />
@@ -1106,8 +1113,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
 
-        {/* Pending Agent Commission Payouts */}
-        <AgentCommissionPayoutsManager />
+        {/* Pending Agent Commission Payouts (Collapsible) */}
+        <CollapsibleAgentSection
+          icon={Banknote}
+          label="Commission Payouts"
+          iconColor="text-success"
+        >
+          <AgentCommissionPayoutsManager />
+        </CollapsibleAgentSection>
 
         {/* Force Refresh Manager - Push updates to users */}
         <ForceRefreshManager />
