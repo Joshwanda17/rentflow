@@ -1107,8 +1107,14 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <WithdrawalRequestsManager />
         </CollapsibleAgentSection>
 
-        {/* Pending Invites Widget - Quick view of unactivated users */}
-        <PendingInvitesWidget />
+        {/* Pending Invites Widget - Quick view of unactivated users (Collapsible) */}
+        <CollapsibleAgentSection
+          icon={UserCheck}
+          label="Pending Activations"
+          iconColor="text-warning"
+        >
+          <PendingInvitesWidget />
+        </CollapsibleAgentSection>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
