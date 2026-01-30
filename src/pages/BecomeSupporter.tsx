@@ -154,7 +154,11 @@ export default function BecomeSupporter() {
         // Store that this user should become a supporter
         localStorage.setItem('pending_supporter_signup', 'true');
 
-        const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone);
+        // Get referrer ID from localStorage (set when they arrived via referral link)
+        const storedReferrerId = localStorage.getItem('supporter_referrer_id');
+        
+        const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
+        if (!error) localStorage.removeItem('supporter_referrer_id');
         if (error) {
           let errorMessage = error.message;
           if (error.message.includes('already registered')) {
