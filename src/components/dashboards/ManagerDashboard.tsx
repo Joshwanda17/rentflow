@@ -1113,7 +1113,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           label="Pending Activations"
           iconColor="text-warning"
         >
-          <PendingInvitesWidget />
+          <PendingInvitesWidget minimal />
         </CollapsibleAgentSection>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
