@@ -71,7 +71,7 @@ export function SetGoalDialog({ open, onOpenChange, goal, onSave, onDelete }: Se
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md transform-none will-change-auto">
+      <DialogContent stable className="sm:max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
@@ -88,7 +88,7 @@ export function SetGoalDialog({ open, onOpenChange, goal, onSave, onDelete }: Se
               value={name}
               onChange={(e) => setName(e.target.value)}
               placeholder="e.g., Monthly Savings, Emergency Fund..."
-              className="bg-secondary/50 transform-none will-change-auto"
+              className="bg-secondary/50"
             />
           </div>
 
@@ -99,7 +99,7 @@ export function SetGoalDialog({ open, onOpenChange, goal, onSave, onDelete }: Se
               value={parseInt(targetAmount.replace(/,/g, '') || '0').toLocaleString()}
               onChange={(e) => setTargetAmount(e.target.value.replace(/[^0-9]/g, ''))}
               placeholder="Enter target amount"
-              className="bg-secondary/50 text-lg font-semibold transform-none will-change-auto"
+              className="bg-secondary/50 text-lg font-semibold"
             />
             <div className="flex flex-wrap gap-2 mt-2">
               {PRESETS.map((preset) => (
