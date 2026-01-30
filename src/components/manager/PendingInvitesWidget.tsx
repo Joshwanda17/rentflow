@@ -30,9 +30,11 @@ const roleConfig: Record<string, { label: string; emoji: string }> = {
 
 interface PendingInvitesWidgetProps {
   onViewAll?: () => void;
+  /** When true, renders content without Card wrapper for use in collapsible sections */
+  minimal?: boolean;
 }
 
-export function PendingInvitesWidget({ onViewAll }: PendingInvitesWidgetProps) {
+export function PendingInvitesWidget({ onViewAll, minimal = false }: PendingInvitesWidgetProps) {
   const { toast } = useToast();
   const [invites, setInvites] = useState<PendingInvite[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,7 +180,72 @@ Just click the link and enter your password to get started!`;
     }
   };
 
+  // Content for both minimal and full modes
+  const content = (
+    <div className="space-y-2">
+      {invites.map(invite => (
+        <div 
+          key={invite.id} 
+          className="flex items-center justify-between p-3 rounded-lg bg-background/80 border border-border/50"
+        >
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <span className="text-xl">{(roleConfig[invite.role] || { emoji: '👤' }).emoji}</span>
+            <div className="min-w-0 flex-1">
+              <p className="font-medium text-sm truncate">{invite.full_name}</p>
+              <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                  {(roleConfig[invite.role] || { label: 'User' }).label}
+                </Badge>
+                <span>•</span>
+                <span>{formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}</span>
+                <span>•</span>
+                <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-green-500/30">
+                  ∞ Never expires
+                </Badge>
+              </div>
+            </div>
+          </div>
+          
+          <Button 
+            variant="default" 
+            size="sm" 
+            className="h-8 gap-1 text-xs shrink-0"
+            onClick={() => handleResendInvite(invite)}
+            disabled={resendingId === invite.id}
+          >
+            {resendingId === invite.id ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Send className="h-3 w-3" />
+            )}
+            Resend
+          </Button>
+        </div>
+      ))}
+
+      {onViewAll && (
+        <Button 
+          variant="ghost" 
+          className="w-full h-9 text-sm gap-1 mt-2"
+          onClick={onViewAll}
+        >
+          View All Invites
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+      )}
+    </div>
+  );
+
   if (loading) {
+    if (minimal) {
+      return (
+        <div className="space-y-2">
+          {[1, 2].map(i => (
+            <Skeleton key={i} className="h-14 w-full" />
+          ))}
+        </div>
+      );
+    }
     return (
       <Card className="border-warning/30 bg-warning/5">
         <CardHeader className="pb-2">
@@ -194,9 +261,22 @@ Just click the link and enter your password to get started!`;
   }
 
   if (invites.length === 0) {
+    if (minimal) {
+      return (
+        <div className="text-center py-6 text-muted-foreground text-sm">
+          No pending activations
+        </div>
+      );
+    }
     return null; // Don't show widget if no pending invites
   }
 
+  // Minimal mode - just the content without Card wrapper
+  if (minimal) {
+    return content;
+  }
+
+  // Full mode - with Card wrapper
   return (
     <Card className="border-warning/30 bg-gradient-to-br from-warning/5 to-warning/10">
       <CardHeader className="pb-2">
@@ -260,57 +340,8 @@ Just click the link and enter your password to get started!`;
           Users who haven't activated their accounts yet
         </p>
       </CardHeader>
-      <CardContent className="space-y-2">
-        {invites.map(invite => (
-          <div 
-            key={invite.id} 
-            className="flex items-center justify-between p-3 rounded-lg bg-background/80 border border-border/50"
-          >
-            <div className="flex items-center gap-3 min-w-0 flex-1">
-              <span className="text-xl">{(roleConfig[invite.role] || { emoji: '👤' }).emoji}</span>
-              <div className="min-w-0 flex-1">
-                <p className="font-medium text-sm truncate">{invite.full_name}</p>
-                <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
-                  <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                    {(roleConfig[invite.role] || { label: 'User' }).label}
-                  </Badge>
-                  <span>•</span>
-                  <span>{formatDistanceToNow(new Date(invite.created_at), { addSuffix: true })}</span>
-                  <span>•</span>
-                  <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-green-500/10 text-green-600 border-green-500/30">
-                    ∞ Never expires
-                  </Badge>
-                </div>
-              </div>
-            </div>
-            
-            <Button 
-              variant="default" 
-              size="sm" 
-              className="h-8 gap-1 text-xs shrink-0"
-              onClick={() => handleResendInvite(invite)}
-              disabled={resendingId === invite.id}
-            >
-              {resendingId === invite.id ? (
-                <Loader2 className="h-3 w-3 animate-spin" />
-              ) : (
-                <Send className="h-3 w-3" />
-              )}
-              Resend
-            </Button>
-          </div>
-        ))}
-
-        {onViewAll && (
-          <Button 
-            variant="ghost" 
-            className="w-full h-9 text-sm gap-1 mt-2"
-            onClick={onViewAll}
-          >
-            View All Invites
-            <ChevronRight className="h-4 w-4" />
-          </Button>
-        )}
+      <CardContent>
+        {content}
       </CardContent>
     </Card>
   );
