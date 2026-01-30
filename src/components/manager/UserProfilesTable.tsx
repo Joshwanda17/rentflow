@@ -503,7 +503,7 @@ export default function UserProfilesTable() {
 
   return (
     <>
-      <div className="flex flex-col h-[calc(100vh-180px)] sm:h-[calc(100vh-160px)] min-h-0">
+      <div className="flex flex-col h-full min-h-0 px-1">
         {/* Tips for managers */}
         <ManagerTip />
 
@@ -531,27 +531,29 @@ export default function UserProfilesTable() {
         </div>
 
         {/* Sticky Header Section */}
-        <div className="sticky top-0 z-20 bg-background pb-3 pt-3 space-y-3">
-          {/* Modern Search Bar - Larger for easy touch */}
+        <div className="sticky top-0 z-20 bg-background pb-3 pt-2 space-y-3">
+          {/* Modern Search Bar - Extra large for smartphones */}
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-6 w-6 text-muted-foreground" />
             <Input
-              placeholder="🔍 Search by name or phone..."
+              placeholder="🔍 Search name or phone..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-12 h-14 rounded-2xl bg-muted/50 border-2 border-border/50 text-base focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary"
+              className="pl-14 pr-14 h-16 rounded-2xl bg-muted/50 border-2 border-border/50 text-lg font-medium focus-visible:ring-2 focus-visible:ring-primary focus-visible:border-primary ios-input"
+              style={{ fontSize: '18px' }}
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted active:scale-95"
+                className="absolute right-3 top-1/2 -translate-y-1/2 p-3 rounded-full hover:bg-muted active:scale-95 touch-manipulation"
+                style={{ minWidth: '48px', minHeight: '48px' }}
               >
-                <X className="h-5 w-5 text-muted-foreground" />
+                <X className="h-6 w-6 text-muted-foreground" />
               </button>
             )}
           </div>
 
-          {/* Role Filter Pills - Larger touch targets */}
+          {/* Role Filter Pills - Extra large for smartphones */}
           <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide -mx-1 px-1">
             {roleFilters.map((filter) => (
               <button
@@ -560,14 +562,15 @@ export default function UserProfilesTable() {
                   hapticTap();
                   setRoleFilter(filter.value);
                 }}
-                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                className={`shrink-0 px-5 py-3 rounded-2xl text-base font-bold transition-all active:scale-95 touch-manipulation ${
                   roleFilter === filter.value
                     ? 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted'
                 }`}
+                style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
                   roleFilter === filter.value 
                     ? 'bg-primary-foreground/20' 
                     : 'bg-background/50'
@@ -582,9 +585,9 @@ export default function UserProfilesTable() {
             
             {/* Verification Filter Pills */}
             {[
-              { value: 'all' as VerificationFilter, label: 'All Status', count: users.length },
-              { value: 'verified' as VerificationFilter, label: '✓ Verified', count: users.filter(u => u.verified).length },
-              { value: 'pending' as VerificationFilter, label: '⏳ Pending', count: users.filter(u => !u.verified).length },
+              { value: 'all' as VerificationFilter, label: 'All', count: users.length },
+              { value: 'verified' as VerificationFilter, label: '✓ OK', count: users.filter(u => u.verified).length },
+              { value: 'pending' as VerificationFilter, label: '⏳ Wait', count: users.filter(u => !u.verified).length },
             ].map((filter) => (
               <button
                 key={filter.value}
@@ -592,7 +595,7 @@ export default function UserProfilesTable() {
                   hapticTap();
                   setVerificationFilter(filter.value);
                 }}
-                className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+                className={`shrink-0 px-5 py-3 rounded-2xl text-base font-bold transition-all active:scale-95 touch-manipulation ${
                   verificationFilter === filter.value
                     ? filter.value === 'verified' 
                       ? 'bg-success text-success-foreground shadow-lg shadow-success/25'
@@ -601,9 +604,10 @@ export default function UserProfilesTable() {
                       : 'bg-primary text-primary-foreground shadow-lg shadow-primary/25'
                     : 'bg-muted/70 text-muted-foreground hover:bg-muted'
                 }`}
+                style={{ minHeight: '48px' }}
               >
                 {filter.label}
-                <span className={`ml-2 px-1.5 py-0.5 rounded-full text-xs ${
+                <span className={`ml-2 px-2 py-1 rounded-full text-sm ${
                   verificationFilter === filter.value 
                     ? 'bg-background/20' 
                     : 'bg-background/50'
@@ -614,51 +618,52 @@ export default function UserProfilesTable() {
             ))}
           </div>
 
-          {/* Results & Sort Row */}
-          <div className="flex items-center justify-between bg-muted/30 rounded-xl px-3 py-2">
+          {/* Results & Sort Row - Larger for smartphones */}
+          <div className="flex items-center justify-between bg-muted/30 rounded-2xl px-4 py-3">
             <button
               onClick={() => {
                 hapticTap();
                 toggleSelectAll();
               }}
-              className="flex items-center gap-2 text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-3 text-base font-semibold text-muted-foreground hover:text-foreground transition-colors touch-manipulation"
+              style={{ minHeight: '44px' }}
             >
               {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
-                <CheckSquare className="h-5 w-5 text-primary" />
+                <CheckSquare className="h-6 w-6 text-primary" />
               ) : (
-                <Square className="h-5 w-5" />
+                <Square className="h-6 w-6" />
               )}
               <span>
-                {selectedUserIds.size > 0 ? `${selectedUserIds.size} selected` : 'Select all'}
+                {selectedUserIds.size > 0 ? `${selectedUserIds.size} picked` : 'Pick all'}
               </span>
             </button>
 
-            <div className="flex items-center gap-2">
-              <span className="text-sm text-muted-foreground font-medium">
-                {filteredUsers.length} users
+            <div className="flex items-center gap-3">
+              <span className="text-base text-muted-foreground font-bold">
+                {filteredUsers.length}
               </span>
               
               {/* Sort Dropdown */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="sm" className="gap-1.5 h-9">
-                    <ArrowUpDown className="h-4 w-4" />
+                  <Button variant="outline" size="sm" className="gap-2 h-11 px-4 rounded-xl font-semibold">
+                    <ArrowUpDown className="h-5 w-5" />
                     <span className="hidden sm:inline">{currentSortLabel}</span>
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuContent align="end" className="w-52">
                   {sortOptions.map((option) => {
                     const Icon = option.icon;
                     return (
                       <DropdownMenuItem
                         key={option.value}
                         onClick={() => setSortBy(option.value)}
-                        className={sortBy === option.value ? 'bg-primary/10' : ''}
+                        className={`py-3 text-base ${sortBy === option.value ? 'bg-primary/10' : ''}`}
                       >
-                        <Icon className="h-4 w-4 mr-2" />
+                        <Icon className="h-5 w-5 mr-3" />
                         {option.label}
                         {sortBy === option.value && (
-                          <CheckCircle className="h-4 w-4 ml-auto text-primary" />
+                          <CheckCircle className="h-5 w-5 ml-auto text-primary" />
                         )}
                       </DropdownMenuItem>
                     );
@@ -669,9 +674,9 @@ export default function UserProfilesTable() {
           </div>
         </div>
 
-        {/* Scrollable User List */}
-        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden -mx-1 px-1 pb-32 overscroll-contain touch-pan-y">
-          <div ref={tableRef} className="space-y-2 sm:space-y-3 pb-8">
+        {/* Scrollable User List - Extra padding for mobile */}
+        <PullToRefresh onRefresh={handlePullToRefresh} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden pb-40 overscroll-contain touch-pan-y ios-momentum-scroll">
+          <div ref={tableRef} className="space-y-3 pb-8">
             <AnimatePresence mode="popLayout">
               {filteredUsers.length === 0 ? (
                 <motion.div 
@@ -691,12 +696,12 @@ export default function UserProfilesTable() {
                   return (
                   <motion.div
                     key={user.id}
-                    initial={{ opacity: 0, y: 15 }}
+                    initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95 }}
-                    transition={{ delay: Math.min(index * 0.03, 0.2) }}
+                    transition={{ delay: Math.min(index * 0.02, 0.15) }}
                     onClick={() => handleUserClick(user)}
-                    className={`relative bg-card rounded-2xl border-2 p-4 transition-all active:scale-[0.98] cursor-pointer ${
+                    className={`relative bg-card rounded-3xl border-2 p-5 transition-all active:scale-[0.99] cursor-pointer touch-manipulation ${
                       isDuplicate
                         ? 'border-destructive bg-destructive/5 shadow-lg shadow-destructive/10'
                         : selectedUserIds.has(user.id) 
@@ -706,56 +711,57 @@ export default function UserProfilesTable() {
                   >
                     {/* Duplicate Phone Warning Badge */}
                     {isDuplicate && (
-                      <div className="absolute right-12 top-3 z-10">
-                        <div className="p-1.5 rounded-full bg-destructive/20" title="Duplicate Phone Number">
-                          <AlertTriangle className="h-4 w-4 text-destructive" />
+                      <div className="absolute right-14 top-4 z-10">
+                        <div className="p-2 rounded-full bg-destructive/20" title="Duplicate Phone Number">
+                          <AlertTriangle className="h-5 w-5 text-destructive" />
                         </div>
                       </div>
                     )}
                     
-                    {/* Selection Checkbox - Large touch target */}
+                    {/* Selection Checkbox - Extra large touch target */}
                     <div 
-                      className="absolute left-3 top-3 z-10"
+                      className="absolute left-4 top-4 z-10"
                       onClick={(e) => {
                         e.stopPropagation();
                         hapticTap();
                         toggleUserSelection(user.id, e);
                       }}
+                      style={{ minWidth: '44px', minHeight: '44px' }}
                     >
-                      <div className={`p-1.5 rounded-lg transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary/20' : 'bg-muted/50'}`}>
+                      <div className={`p-2.5 rounded-xl transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary/20' : 'bg-muted/50'}`}>
                         <Checkbox
                           checked={selectedUserIds.has(user.id)}
-                          className="h-5 w-5 rounded-md"
+                          className="h-6 w-6 rounded-lg"
                         />
                       </div>
                     </div>
 
-                    {/* Verified Badge */}
-                    <div className="absolute right-3 top-3">
+                    {/* Verified Badge - Larger */}
+                    <div className="absolute right-4 top-4">
                       {user.verified ? (
-                        <div className="p-1.5 rounded-full bg-success/20" title="Verified">
-                          <CheckCircle className="h-4 w-4 text-success" />
+                        <div className="p-2.5 rounded-full bg-success/20" title="Verified">
+                          <CheckCircle className="h-5 w-5 text-success" />
                         </div>
                       ) : (
-                        <div className="p-1.5 rounded-full bg-warning/20" title="Pending Verification">
-                          <XCircle className="h-4 w-4 text-warning" />
+                        <div className="p-2.5 rounded-full bg-warning/20" title="Pending">
+                          <XCircle className="h-5 w-5 text-warning" />
                         </div>
                       )}
                     </div>
 
-                    {/* User Info */}
-                    <div className="flex items-start gap-3 pl-10">
-                      <Avatar className="h-14 w-14 border-2 border-background shadow-lg shrink-0">
+                    {/* User Info - Larger text */}
+                    <div className="flex items-start gap-4 pl-12">
+                      <Avatar className="h-16 w-16 border-2 border-background shadow-lg shrink-0">
                         <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-lg">
+                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
                           {getInitials(user.full_name)}
                         </AvatarFallback>
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-base truncate pr-8">{user.full_name}</h3>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <p className="text-sm text-muted-foreground truncate">{user.phone}</p>
+                        <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-base text-muted-foreground truncate font-medium">{user.phone}</p>
                           <WhatsAppVerificationBadge
                             verified={user.whatsapp_verified}
                             phone={user.phone}
@@ -765,9 +771,9 @@ export default function UserProfilesTable() {
                         
                         {/* Location */}
                         {(user.country || user.city) && (
-                          <div className="flex items-center gap-1 mt-1">
-                            <MapPin className="h-3 w-3 text-muted-foreground" />
-                            <span className="text-xs text-muted-foreground truncate">
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <MapPin className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground truncate">
                               {user.city && user.country 
                                 ? `${user.city}, ${user.country}` 
                                 : user.country || user.city}
@@ -778,16 +784,16 @@ export default function UserProfilesTable() {
                           </div>
                         )}
                         
-                        {/* Roles */}
-                        <div className="flex flex-wrap gap-1.5 mt-2">
+                        {/* Roles - Larger badges */}
+                        <div className="flex flex-wrap gap-2 mt-3">
                           {user.roles.map((role) => {
                             const isEnabled = user.roleEnabledStatus[role] ?? true;
                             return (
                               <Badge 
                                 key={role} 
                                 variant="outline"
-                                className={`text-xs font-semibold px-2 py-0.5 ${getRoleBadgeColor(role)} ${!isEnabled ? 'opacity-40 line-through' : ''}`}
-                                title={isEnabled ? `${role} dashboard enabled` : `${role} dashboard disabled by manager`}
+                                className={`text-sm font-bold px-3 py-1 ${getRoleBadgeColor(role)} ${!isEnabled ? 'opacity-40 line-through' : ''}`}
+                                title={isEnabled ? `${role} dashboard enabled` : `${role} dashboard disabled`}
                               >
                                 {role}
                                 {!isEnabled && <span className="ml-1">🚫</span>}
@@ -796,19 +802,19 @@ export default function UserProfilesTable() {
                           })}
                         </div>
 
-                        {/* Rating */}
+                        {/* Rating - Larger */}
                         {user.rating_count > 0 && (
-                          <div className="flex items-center gap-1 mt-2">
-                            <Star className="h-3.5 w-3.5 fill-yellow-400 text-yellow-400" />
-                            <span className="text-xs font-medium">{user.average_rating?.toFixed(1)}</span>
-                            <span className="text-xs text-muted-foreground">({user.rating_count})</span>
+                          <div className="flex items-center gap-1.5 mt-2">
+                            <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
+                            <span className="text-sm font-bold">{user.average_rating?.toFixed(1)}</span>
+                            <span className="text-sm text-muted-foreground">({user.rating_count})</span>
                           </div>
                         )}
                       </div>
                     </div>
 
-                    {/* Action Buttons - Large and Clear */}
-                    <div className="flex items-center gap-2 mt-4 pt-3 border-t border-border/50">
+                    {/* Action Buttons - Extra Large for Smartphones */}
+                    <div className="flex items-center gap-3 mt-5 pt-4 border-t-2 border-border/30">
                       {/* Quick Role Editor */}
                       <div onClick={(e) => e.stopPropagation()}>
                         <QuickRoleEditor
@@ -821,71 +827,69 @@ export default function UserProfilesTable() {
                         />
                       </div>
                       
-                      {/* Approve/Reject Buttons */}
+                      {/* Approve/Reject Buttons - Bigger */}
                       {!user.verified ? (
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={(e) => handleApproveUser(user.id, user.full_name, e)}
                           disabled={approvingUserId === user.id}
-                          className="flex-1 h-10 gap-1.5 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success font-semibold text-xs"
+                          className="flex-1 h-12 gap-2 bg-success/10 border-2 border-success/30 text-success hover:bg-success/20 hover:text-success font-bold text-sm rounded-xl touch-manipulation"
                         >
                           {approvingUserId === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
-                            <CheckCircle className="h-4 w-4" />
+                            <CheckCircle className="h-5 w-5" />
                           )}
                           Approve
                         </Button>
                       ) : (
                         <Button
                           variant="outline"
-                          size="sm"
                           onClick={(e) => handleRejectUser(user.id, user.full_name, e)}
                           disabled={approvingUserId === user.id}
-                          className="flex-1 h-10 gap-1.5 bg-destructive/10 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive font-semibold text-xs"
+                          className="flex-1 h-12 gap-2 bg-destructive/10 border-2 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive font-bold text-sm rounded-xl touch-manipulation"
                         >
                           {approvingUserId === user.id ? (
-                            <Loader2 className="h-4 w-4 animate-spin" />
+                            <Loader2 className="h-5 w-5 animate-spin" />
                           ) : (
-                            <XCircle className="h-4 w-4" />
+                            <XCircle className="h-5 w-5" />
                           )}
                           Revoke
                         </Button>
                       )}
                       
+                      {/* WhatsApp Button - Bigger */}
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           hapticTap();
                           window.open(getWhatsAppLink(user.phone), '_blank');
                         }}
-                        className="h-10 w-10 p-0 bg-success/10 border-success/30 text-success hover:bg-success/20 hover:text-success shrink-0"
+                        className="h-12 w-12 p-0 bg-success/10 border-2 border-success/30 text-success hover:bg-success/20 hover:text-success shrink-0 rounded-xl touch-manipulation"
                       >
-                        <MessageCircle className="h-4 w-4" />
+                        <MessageCircle className="h-6 w-6" />
                       </Button>
                       
+                      {/* Call Button - Bigger */}
                       <Button
                         variant="outline"
-                        size="sm"
                         onClick={(e) => {
                           e.stopPropagation();
                           hapticTap();
                           window.location.href = `tel:${user.phone}`;
                         }}
-                        className="h-10 w-10 p-0 bg-primary/10 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary shrink-0"
+                        className="h-12 w-12 p-0 bg-primary/10 border-2 border-primary/30 text-primary hover:bg-primary/20 hover:text-primary shrink-0 rounded-xl touch-manipulation"
                       >
-                        <Phone className="h-4 w-4" />
+                        <Phone className="h-6 w-6" />
                       </Button>
                       
+                      {/* View Details - Bigger */}
                       <Button
                         variant="ghost"
-                        size="icon"
-                        className="h-10 w-10 rounded-xl bg-muted/50 hover:bg-muted shrink-0"
+                        className="h-12 w-12 rounded-xl bg-muted/50 hover:bg-muted shrink-0 touch-manipulation"
                       >
-                        <ChevronRight className="h-5 w-5" />
+                        <ChevronRight className="h-6 w-6" />
                       </Button>
                     </div>
                   </motion.div>
@@ -962,81 +966,74 @@ export default function UserProfilesTable() {
         </div>
       )}
 
-      {/* Floating Bulk Actions Bar */}
+      {/* Floating Bulk Actions Bar - Larger for smartphones */}
       <AnimatePresence>
         {selectedUserIds.size > 0 && (
           <motion.div
             initial={{ opacity: 0, y: 100 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 bg-card border border-border rounded-2xl shadow-xl px-3 py-2.5 flex items-center gap-2 max-w-[95vw]"
+            className="fixed bottom-24 left-2 right-2 z-50 bg-card border-2 border-border rounded-3xl shadow-2xl px-4 py-4 flex items-center gap-3 mx-auto max-w-lg"
           >
-            <div className="flex items-center gap-2 pr-2 border-r border-border">
-              <span className="text-sm font-medium whitespace-nowrap">{selectedUserIds.size} selected</span>
+            <div className="flex items-center gap-3 pr-3 border-r-2 border-border">
+              <span className="text-base font-bold whitespace-nowrap">{selectedUserIds.size}</span>
               <button
                 onClick={clearSelection}
-                className="p-1 rounded-full hover:bg-muted transition-colors"
+                className="p-2 rounded-full hover:bg-muted transition-colors touch-manipulation"
+                style={{ minWidth: '44px', minHeight: '44px' }}
               >
-                <X className="h-4 w-4 text-muted-foreground" />
+                <X className="h-5 w-5 text-muted-foreground" />
               </button>
             </div>
             
-            {/* Primary Actions - visible */}
+            {/* Primary Actions - Larger buttons */}
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => setBulkNotificationOpen(true)}
-              className="gap-1.5 px-2.5"
+              className="h-12 w-12 p-0 rounded-xl touch-manipulation"
             >
-              <Bell className="h-4 w-4" />
-              <span className="hidden sm:inline">Notify</span>
+              <Bell className="h-6 w-6" />
             </Button>
 
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => setBulkWhatsAppOpen(true)}
-              className="gap-1.5 px-2.5 text-success hover:text-success"
+              className="h-12 w-12 p-0 rounded-xl text-success hover:text-success touch-manipulation"
             >
-              <MessageCircle className="h-4 w-4" />
-              <span className="hidden sm:inline">WhatsApp</span>
+              <MessageCircle className="h-6 w-6" />
             </Button>
 
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => setBulkAssignRoleOpen(true)}
-              className="gap-1.5 px-2.5"
+              className="h-12 w-12 p-0 rounded-xl touch-manipulation"
             >
-              <UserCog className="h-4 w-4" />
-              <span className="hidden sm:inline">Add Role</span>
+              <UserCog className="h-6 w-6" />
             </Button>
 
             <Button
-              size="sm"
               variant="ghost"
               onClick={() => setBulkRemoveRoleOpen(true)}
-              className="gap-1.5 px-2.5 text-destructive hover:text-destructive"
+              className="h-12 w-12 p-0 rounded-xl text-destructive hover:text-destructive touch-manipulation"
             >
-              <UserMinus className="h-4 w-4" />
-              <span className="hidden sm:inline">Remove Role</span>
+              <UserMinus className="h-6 w-6" />
             </Button>
 
             {/* More Actions Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button size="sm" variant="ghost" className="px-2">
-                  <MoreHorizontal className="h-4 w-4" />
+                <Button variant="ghost" className="h-12 w-12 p-0 rounded-xl touch-manipulation">
+                  <MoreHorizontal className="h-6 w-6" />
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={handleExportSelectedCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export to CSV
+              <DropdownMenuContent align="end" className="w-52">
+                <DropdownMenuItem onClick={handleExportSelectedCSV} className="py-3 text-base">
+                  <Download className="h-5 w-5 mr-3" />
+                  Export CSV
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportSelectedPDF} disabled={exportingSelected}>
-                  <FileText className="h-4 w-4 mr-2" />
-                  {exportingSelected ? 'Exporting...' : 'Export to PDF'}
+                <DropdownMenuItem onClick={handleExportSelectedPDF} disabled={exportingSelected} className="py-3 text-base">
+                  <FileText className="h-5 w-5 mr-3" />
+                  {exportingSelected ? 'Exporting...' : 'Export PDF'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
