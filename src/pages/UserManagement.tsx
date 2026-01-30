@@ -19,7 +19,7 @@ import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { InlineRoleToggle } from '@/components/manager/InlineRoleToggle';
+import { FloatingUserActions } from '@/components/manager/FloatingUserActions';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
@@ -30,6 +30,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { usePresence } from '@/hooks/usePresence';
 import OnlineIndicator from '@/components/chat/OnlineIndicator';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { cn } from '@/lib/utils';
 
 interface UserWithRating {
   id: string;
@@ -216,8 +218,8 @@ export default function UserManagement() {
     toast.success(`Exported ${dataToExport.length} users`);
   };
 
-  const toggleUserSelection = (userId: string, e: React.MouseEvent) => {
-    e.stopPropagation();
+  const toggleUserSelection = (userId: string, e?: React.MouseEvent) => {
+    e?.stopPropagation();
     hapticTap();
     setSelectedUserIds(prev => {
       const newSet = new Set(prev);
@@ -279,10 +281,8 @@ export default function UserManagement() {
       u.full_name.toLowerCase().includes(searchLower) ||
       u.email.toLowerCase().includes(searchLower) ||
       u.phone.includes(searchTerm) ||
-      // Also search by phone without country code
       u.phone.replace(/^\+\d+/, '').includes(searchTerm);
     
-    // Handle active/inactive filters
     const matchesActiveFilter = roleFilter !== 'active' || isOnline(u.id);
     const matchesInactiveFilter = roleFilter !== 'inactive' || isUserInactive(u.last_active_at);
     const matchesRoleFilter = roleFilter === 'all' || roleFilter === 'active' || roleFilter === 'inactive' || u.roles.includes(roleFilter);
@@ -294,58 +294,6 @@ export default function UserManagement() {
     
     return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesInactiveFilter && matchesVerification;
   }));
-
-  const handleApproveUser = async (userId: string, userName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setApprovingUserId(userId);
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ verified: true })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, verified: true } : u
-      ));
-      
-      hapticSuccess();
-      toast.success(`${userName} approved`);
-    } catch (error) {
-      console.error('Error approving user:', error);
-      toast.error('Failed to approve user');
-    } finally {
-      setApprovingUserId(null);
-    }
-  };
-
-  const handleRejectUser = async (userId: string, userName: string, e: React.MouseEvent) => {
-    e.stopPropagation();
-    setApprovingUserId(userId);
-    
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({ verified: false })
-        .eq('id', userId);
-      
-      if (error) throw error;
-      
-      setUsers(prev => prev.map(u => 
-        u.id === userId ? { ...u, verified: false } : u
-      ));
-      
-      hapticSuccess();
-      toast.success(`${userName} verification revoked`);
-    } catch (error) {
-      console.error('Error rejecting user:', error);
-      toast.error('Failed to reject user');
-    } finally {
-      setApprovingUserId(null);
-    }
-  };
 
   const handleUserClick = (user: UserWithRating) => {
     hapticTap();
@@ -378,17 +326,12 @@ export default function UserManagement() {
     { value: 'manager', label: 'Managers', count: users.filter(u => u.roles.includes('manager')).length },
   ];
 
-  const roleColors: Record<string, { bg: string; text: string; border: string }> = {
-    tenant: { bg: 'bg-blue-500/15', text: 'text-blue-600 dark:text-blue-400', border: 'border-blue-500/30' },
-    agent: { bg: 'bg-amber-500/15', text: 'text-amber-600 dark:text-amber-400', border: 'border-amber-500/30' },
-    supporter: { bg: 'bg-emerald-500/15', text: 'text-emerald-600 dark:text-emerald-400', border: 'border-emerald-500/30' },
-    landlord: { bg: 'bg-purple-500/15', text: 'text-purple-600 dark:text-purple-400', border: 'border-purple-500/30' },
-    manager: { bg: 'bg-rose-500/15', text: 'text-rose-600 dark:text-rose-400', border: 'border-rose-500/30' },
-  };
-
-  const getRoleBadgeColor = (role: string) => {
-    const colors = roleColors[role] || { bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-border' };
-    return `${colors.bg} ${colors.text} ${colors.border}`;
+  const roleColors: Record<string, string> = {
+    tenant: 'text-blue-600 dark:text-blue-400',
+    agent: 'text-amber-600 dark:text-amber-400',
+    supporter: 'text-emerald-600 dark:text-emerald-400',
+    landlord: 'text-purple-600 dark:text-purple-400',
+    manager: 'text-rose-600 dark:text-rose-400',
   };
 
   const getInitials = (name: string) => {
@@ -398,30 +341,23 @@ export default function UserManagement() {
   if (loading) {
     return (
       <div className="min-h-screen bg-background">
-        {/* Header Skeleton */}
         <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
           <div className="flex items-center gap-3 px-4 py-3">
             <Skeleton className="h-10 w-10 rounded-full" />
             <Skeleton className="h-6 w-32" />
           </div>
         </div>
-        
-        {/* Search Skeleton */}
         <div className="px-4 py-3">
-          <Skeleton className="h-14 w-full rounded-2xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
         </div>
-        
-        {/* Filter Pills Skeleton */}
         <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
           {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-10 w-24 rounded-full shrink-0" />
+            <Skeleton key={i} className="h-9 w-20 rounded-full shrink-0" />
           ))}
         </div>
-        
-        {/* User Cards Skeleton */}
-        <div className="px-4 space-y-3">
-          {[1, 2, 3, 4, 5, 6].map(i => (
-            <Skeleton key={i} className="h-32 w-full rounded-2xl" />
+        <div className="px-2">
+          {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
+            <Skeleton key={i} className="h-14 w-full mb-1" />
           ))}
         </div>
       </div>
@@ -430,106 +366,88 @@ export default function UserManagement() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Sticky Header */}
+      {/* Compact Sticky Header */}
       <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border safe-area-top">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 hapticTap();
                 navigate(-1);
               }}
-              className="p-3 -ml-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              className="p-2 -ml-1 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <ArrowLeft className="h-6 w-6" />
+              <ArrowLeft className="h-5 w-5" />
             </button>
             <div>
-              <h1 className="font-bold text-lg">Users</h1>
-              <p className="text-xs text-muted-foreground">{filteredUsers.length} total</p>
+              <h1 className="font-bold text-base">Users</h1>
+              <p className="text-[10px] text-muted-foreground">{filteredUsers.length} of {users.length}</p>
             </div>
           </div>
           
-          <div className="flex items-center gap-2">
-            <Button
-              onClick={() => {
-                hapticTap();
-                setAddUserOpen(true);
-              }}
-              size="sm"
-              className="h-12 min-w-[80px] gap-1.5 bg-primary text-primary-foreground font-semibold touch-manipulation active:scale-95 transition-transform"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <UserPlus className="h-5 w-5" />
-              Add
-            </Button>
-            
+          <div className="flex items-center gap-1">
             <button
-              onClick={() => {
-                hapticTap();
-                handleRefresh();
-              }}
-              disabled={refreshing}
-              className="p-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              onClick={toggleSelectAll}
+              className="p-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <RefreshCw className={`h-5 w-5 ${refreshing ? 'animate-spin' : ''}`} />
+              {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
+                <CheckSquare className="h-5 w-5 text-primary" />
+              ) : (
+                <Square className="h-5 w-5" />
+              )}
             </button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
                   onClick={() => hapticTap()}
-                  className="p-3 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+                  className="p-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation flex items-center gap-1"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <MoreHorizontal className="h-5 w-5" />
+                  <ArrowUpDown className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48">
-                <DropdownMenuItem onClick={() => {
-                  hapticTap();
-                  setAddUserOpen(true);
-                }}>
-                  <UserPlus className="h-4 w-4 mr-2" />
-                  Add User
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCSV}>
-                  <Download className="h-4 w-4 mr-2" />
-                  Export CSV
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowFilters(true)}>
-                  <Filter className="h-4 w-4 mr-2" />
-                  Filters & Sort
-                </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-40">
+                {sortOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option.value}
+                    onClick={() => setSortBy(option.value)}
+                    className={sortBy === option.value ? 'bg-primary/10' : ''}
+                  >
+                    {option.label}
+                    {sortBy === option.value && <CheckCircle className="h-4 w-4 ml-auto text-primary" />}
+                  </DropdownMenuItem>
+                ))}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {/* Search Bar */}
-        <div className="px-4 pb-3">
+        {/* Compact Search Bar */}
+        <div className="px-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <Input
-              placeholder="Search users..."
+              placeholder="Search by name, phone, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-12 pr-12 h-14 rounded-2xl bg-muted/50 border-2 border-border/50 text-base"
+              className="pl-9 pr-9 h-10 rounded-xl bg-muted/50 border border-border/50 text-sm"
             />
             {searchTerm && (
               <button
                 onClick={() => setSearchTerm('')}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 rounded-full hover:bg-muted"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted"
               >
-                <X className="h-5 w-5 text-muted-foreground" />
+                <X className="h-4 w-4 text-muted-foreground" />
               </button>
             )}
           </div>
         </div>
 
-        {/* Horizontal Filter Pills */}
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto scrollbar-hide">
+        {/* Compact Horizontal Filter Pills */}
+        <div className="flex gap-1.5 px-3 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
               key={filter.value}
@@ -537,358 +455,202 @@ export default function UserManagement() {
                 hapticTap();
                 setRoleFilter(filter.value);
               }}
-              className={`shrink-0 px-4 py-2.5 rounded-full text-sm font-semibold transition-all active:scale-95 ${
+              className={cn(
+                "shrink-0 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95",
                 roleFilter === filter.value
-                  ? 'bg-primary text-primary-foreground shadow-lg'
+                  ? 'bg-primary text-primary-foreground shadow-md'
                   : 'bg-muted/70 text-muted-foreground'
-              }`}
+              )}
             >
               {filter.label}
-              <span className={`ml-1.5 px-1.5 py-0.5 rounded-full text-xs ${
-                roleFilter === filter.value ? 'bg-primary-foreground/20' : 'bg-background/50'
-              }`}>
+              <span className={cn(
+                "ml-1 text-[10px]",
+                roleFilter === filter.value ? 'opacity-80' : 'opacity-60'
+              )}>
                 {filter.count}
               </span>
             </button>
           ))}
         </div>
 
-        {/* Selection & Sort Row */}
-        <div className="flex items-center justify-between px-4 pb-3 bg-muted/30">
-          <button
-            onClick={toggleSelectAll}
-            className="flex items-center gap-2 text-sm font-medium text-muted-foreground active:scale-95"
-          >
-            {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
-              <CheckSquare className="h-5 w-5 text-primary" />
-            ) : (
-              <Square className="h-5 w-5" />
-            )}
-            <span>{selectedUserIds.size > 0 ? `${selectedUserIds.size} selected` : 'Select all'}</span>
-          </button>
-
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button className="flex items-center gap-1.5 px-3 py-2 rounded-lg bg-muted/50 text-sm font-medium active:scale-95">
-                <ArrowUpDown className="h-4 w-4" />
-                Sort
+        {/* Selection count indicator */}
+        {selectedUserIds.size > 0 && (
+          <div className="px-3 pb-2">
+            <div className="flex items-center justify-between bg-primary/10 rounded-lg px-3 py-1.5">
+              <span className="text-xs font-semibold text-primary">
+                {selectedUserIds.size} selected
+              </span>
+              <button
+                onClick={clearSelection}
+                className="text-xs text-primary font-medium underline"
+              >
+                Clear
               </button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              {sortOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option.value}
-                  onClick={() => setSortBy(option.value)}
-                  className={sortBy === option.value ? 'bg-primary/10' : ''}
-                >
-                  {option.label}
-                  {sortBy === option.value && <CheckCircle className="h-4 w-4 ml-auto text-primary" />}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
+            </div>
+          </div>
+        )}
       </header>
 
-      {/* User List - Full Height Scrollable */}
+      {/* User Table - Full Width Scrollable */}
       <div 
         ref={listRef}
-        className="flex-1 overflow-y-auto overscroll-contain"
+        className="flex-1 overflow-auto overscroll-contain"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
-        <div className="px-4 py-2 pb-40 space-y-3">
-          <AnimatePresence mode="popLayout">
-            {filteredUsers.length === 0 ? (
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                className="text-center py-16"
-              >
-                <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-                  <Users className="h-10 w-10 text-muted-foreground" />
-                </div>
-                <p className="font-semibold text-lg">No users found</p>
-                <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
-              </motion.div>
-            ) : (
-              filteredUsers.map((user, index) => (
-                <motion.div
+        {filteredUsers.length === 0 ? (
+          <div className="text-center py-16 px-4">
+            <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
+              <Users className="h-10 w-10 text-muted-foreground" />
+            </div>
+            <p className="font-semibold text-lg">No users found</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
+          </div>
+        ) : (
+          <Table>
+            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur-sm z-10">
+              <TableRow className="border-b-2">
+                <TableHead className="w-10 px-2">
+                  <span className="sr-only">Select</span>
+                </TableHead>
+                <TableHead className="px-2">User</TableHead>
+                <TableHead className="px-2 hidden sm:table-cell">Roles</TableHead>
+                <TableHead className="w-10 px-2 text-center">
+                  <span className="sr-only">Status</span>
+                </TableHead>
+                <TableHead className="w-10 px-2">
+                  <span className="sr-only">Actions</span>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filteredUsers.map((user) => (
+                <TableRow
                   key={user.id}
-                  initial={{ opacity: 0, y: 15 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, scale: 0.95 }}
-                  transition={{ delay: Math.min(index * 0.02, 0.15) }}
                   onClick={() => handleUserClick(user)}
-                  className={`relative bg-card rounded-2xl border-2 p-4 transition-all active:scale-[0.98] cursor-pointer ${
-                    selectedUserIds.has(user.id) 
-                      ? 'border-primary shadow-lg shadow-primary/10' 
-                      : 'border-border/50'
-                  }`}
+                  className={cn(
+                    "cursor-pointer transition-colors active:bg-muted/70",
+                    selectedUserIds.has(user.id) && "bg-primary/5"
+                  )}
                 >
-                  {/* Selection Checkbox */}
-                  <div 
-                    className="absolute left-3 top-3 z-10"
-                    onClick={(e) => toggleUserSelection(user.id, e)}
-                  >
-                    <div className={`p-2 rounded-xl transition-colors ${selectedUserIds.has(user.id) ? 'bg-primary/20' : 'bg-muted/50'}`}>
+                  {/* Checkbox */}
+                  <TableCell className="px-2 py-2">
+                    <div 
+                      onClick={(e) => toggleUserSelection(user.id, e)}
+                      className="p-1"
+                    >
                       <Checkbox
                         checked={selectedUserIds.has(user.id)}
-                        className="h-6 w-6 rounded-lg"
+                        className="h-5 w-5 rounded"
                       />
                     </div>
-                  </div>
-
-                  {/* Verified Badge */}
-                  <div className="absolute right-3 top-3">
-                    {user.verified ? (
-                      <div className="p-2 rounded-full bg-success/20">
-                        <CheckCircle className="h-5 w-5 text-success" />
-                      </div>
-                    ) : (
-                      <div className="p-2 rounded-full bg-warning/20">
-                        <XCircle className="h-5 w-5 text-warning" />
-                      </div>
-                    )}
-                  </div>
+                  </TableCell>
 
                   {/* User Info */}
-                  <div className="flex items-start gap-4 pl-12">
-                    <div className="relative shrink-0">
-                      <Avatar className="h-16 w-16 border-2 border-background shadow-lg">
-                        <AvatarImage src={user.avatar_url || undefined} />
-                        <AvatarFallback className="bg-primary/10 text-primary font-bold text-xl">
-                          {getInitials(user.full_name)}
-                        </AvatarFallback>
-                      </Avatar>
-                      {/* Online Status Indicator */}
-                      <OnlineIndicator 
-                        isOnline={isOnline(user.id)} 
-                        size="md" 
-                        className="absolute bottom-0 right-0"
-                      />
-                    </div>
-
-                    <div className="flex-1 min-w-0">
-                      <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
-                      <p className="text-base text-muted-foreground">{user.phone}</p>
-                      
-                      {/* Location */}
-                      {(user.country || user.city) && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
-                          <span className="text-sm text-muted-foreground truncate">
-                            {user.city && user.country ? `${user.city}, ${user.country}` : user.country || user.city}
-                          </span>
-                        </div>
-                      )}
-                      
-                      {/* Last Active Indicator */}
-                      {isUserInactive(user.last_active_at) && (
-                        <div className="flex items-center gap-1.5 mt-1.5">
-                          <Badge 
-                            variant="outline" 
-                            className="text-xs font-semibold px-2 py-0.5 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30"
-                          >
-                            😴 {getDaysSinceActive(user.last_active_at)} days inactive
-                          </Badge>
-                        </div>
-                      )}
-                      
-                      {/* Inline Role Toggle */}
-                      <div className="mt-2">
-                        <InlineRoleToggle
-                          userId={user.id}
-                          userName={user.full_name}
-                          currentRoles={user.roles}
-                          roleEnabledStatus={user.roleEnabledStatus}
-                          onRolesUpdated={handleRefresh}
+                  <TableCell className="px-2 py-2">
+                    <div className="flex items-center gap-2">
+                      <div className="relative shrink-0">
+                        <Avatar className="h-9 w-9 border border-border">
+                          <AvatarImage src={user.avatar_url || undefined} />
+                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
+                            {getInitials(user.full_name)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <OnlineIndicator 
+                          isOnline={isOnline(user.id)} 
+                          size="sm" 
+                          className="absolute -bottom-0.5 -right-0.5"
                         />
-                        
-                        {/* Sub-agents count badge for agents */}
-                        {user.roles.includes('agent') && user.subagent_count > 0 && (
-                          <Badge 
-                            variant="outline"
-                            className="text-xs font-semibold px-2.5 py-1 mt-1.5 bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30"
-                          >
-                            <UsersRound className="h-3 w-3 mr-1" />
-                            {user.subagent_count} sub-agent{user.subagent_count !== 1 ? 's' : ''}
-                          </Badge>
-                        )}
                       </div>
-
-                      {/* Rating */}
-                      {user.rating_count > 0 && (
-                        <div className="flex items-center gap-1.5 mt-2">
-                          <Star className="h-4 w-4 fill-yellow-400 text-yellow-400" />
-                          <span className="text-sm font-medium">{user.average_rating?.toFixed(1)}</span>
-                          <span className="text-sm text-muted-foreground">({user.rating_count})</span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-semibold text-sm truncate max-w-[140px] sm:max-w-[200px]">
+                          {user.full_name}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate max-w-[140px] sm:max-w-[200px]">
+                          {user.phone}
+                        </p>
+                        {/* Mobile: Show roles inline */}
+                        <div className="flex gap-1 mt-0.5 sm:hidden">
+                          {user.roles.slice(0, 2).map((role) => (
+                            <span 
+                              key={role} 
+                              className={cn("text-[10px] font-medium capitalize", roleColors[role])}
+                            >
+                              {role}
+                            </span>
+                          ))}
+                          {user.roles.length > 2 && (
+                            <span className="text-[10px] text-muted-foreground">+{user.roles.length - 2}</span>
+                          )}
                         </div>
-                      )}
+                      </div>
                     </div>
-                  </div>
+                  </TableCell>
 
-                  {/* Action Buttons */}
-                  <div className="flex items-center gap-2 mt-4 pt-4 border-t border-border/50">
-                    {!user.verified ? (
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={(e) => handleApproveUser(user.id, user.full_name, e)}
-                        disabled={approvingUserId === user.id}
-                        className="flex-1 h-12 gap-2 bg-success/10 border-success/30 text-success font-semibold text-base"
-                      >
-                        {approvingUserId === user.id ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <CheckCircle className="h-5 w-5" />
-                        )}
-                        Approve
-                      </Button>
+                  {/* Roles - Hidden on mobile */}
+                  <TableCell className="px-2 py-2 hidden sm:table-cell">
+                    <div className="flex flex-wrap gap-1">
+                      {user.roles.map((role) => (
+                        <Badge 
+                          key={role} 
+                          variant="outline"
+                          className={cn("text-[10px] px-1.5 py-0 capitalize", roleColors[role])}
+                        >
+                          {role}
+                        </Badge>
+                      ))}
+                    </div>
+                  </TableCell>
+
+                  {/* Verified Status */}
+                  <TableCell className="px-2 py-2 text-center">
+                    {user.verified ? (
+                      <CheckCircle className="h-4 w-4 text-success mx-auto" />
                     ) : (
-                      <Button
-                        variant="outline"
-                        size="lg"
-                        onClick={(e) => handleRejectUser(user.id, user.full_name, e)}
-                        disabled={approvingUserId === user.id}
-                        className="flex-1 h-12 gap-2 bg-destructive/10 border-destructive/30 text-destructive font-semibold text-base"
-                      >
-                        {approvingUserId === user.id ? (
-                          <Loader2 className="h-5 w-5 animate-spin" />
-                        ) : (
-                          <XCircle className="h-5 w-5" />
-                        )}
-                        Revoke
-                      </Button>
+                      <XCircle className="h-4 w-4 text-warning mx-auto" />
                     )}
-                    
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap();
-                        window.open(getWhatsAppLink(user.phone), '_blank');
-                      }}
-                      className="h-12 w-12 p-0 bg-success/10 border-success/30 text-success shrink-0"
-                    >
-                      <MessageCircle className="h-6 w-6" />
-                    </Button>
-                    
-                    <Button
-                      variant="outline"
-                      size="lg"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        hapticTap();
-                        window.location.href = `tel:${user.phone}`;
-                      }}
-                      className="h-12 w-12 p-0 bg-primary/10 border-primary/30 text-primary shrink-0"
-                    >
-                      <Phone className="h-6 w-6" />
-                    </Button>
-                    
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-12 w-12 rounded-xl bg-muted/50 shrink-0"
-                    >
-                      <ChevronRight className="h-6 w-6" />
-                    </Button>
-                  </div>
-                </motion.div>
-              ))
-            )}
-          </AnimatePresence>
-        </div>
+                  </TableCell>
+
+                  {/* Quick Actions */}
+                  <TableCell className="px-2 py-2">
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap();
+                          window.open(getWhatsAppLink(user.phone), '_blank');
+                        }}
+                        className="p-1.5 rounded-full bg-success/10 text-success hover:bg-success/20 active:scale-95 transition-all touch-manipulation"
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                      </button>
+                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
+                    </div>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        )}
+        
+        {/* Bottom padding for floating buttons */}
+        <div className="h-32" />
       </div>
 
-      {/* Floating Bulk Actions Bar */}
-      <AnimatePresence>
-        {selectedUserIds.size > 0 && (
-          <motion.div
-            initial={{ opacity: 0, y: 100 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 100 }}
-            className="fixed bottom-6 left-4 right-4 z-50 bg-card border-2 border-border rounded-2xl shadow-2xl px-4 py-3 safe-area-bottom"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="flex items-center gap-2">
-                <span className="text-base font-bold">{selectedUserIds.size}</span>
-                <span className="text-sm text-muted-foreground">selected</span>
-                <button
-                  onClick={clearSelection}
-                  className="p-1.5 rounded-full hover:bg-muted"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-              
-              <div className="flex items-center gap-2">
-                {/* Reach Out to Inactive - Show when inactive users are selected */}
-                {getSelectedUsers().some(u => isUserInactive(u.last_active_at)) && (
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      hapticTap();
-                      setReachOutInactiveOpen(true);
-                    }}
-                    className="h-10 gap-1.5 px-3 text-orange-600 border-orange-500/30 bg-orange-500/10"
-                  >
-                    <Clock className="h-4 w-4" />
-                    <span className="text-xs font-semibold">Reach Out</span>
-                  </Button>
-                )}
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setBulkNotificationOpen(true)}
-                  className="h-10 w-10 p-0"
-                >
-                  <Bell className="h-5 w-5" />
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setBulkWhatsAppOpen(true)}
-                  className="h-10 w-10 p-0 text-success border-success/30"
-                >
-                  <MessageCircle className="h-5 w-5" />
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setBulkAssignRoleOpen(true)}
-                  className="h-10 w-10 p-0"
-                >
-                  <UserCog className="h-5 w-5" />
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setBulkRemoveRoleOpen(true)}
-                  className="h-10 w-10 p-0 text-destructive border-destructive/30"
-                >
-                  <UserMinus className="h-5 w-5" />
-                </Button>
-
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={handleExportCSV}
-                  className="h-10 w-10 p-0"
-                >
-                  <Download className="h-5 w-5" />
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Floating User Actions Button */}
+      <FloatingUserActions
+        selectedCount={selectedUserIds.size}
+        totalCount={filteredUsers.length}
+        onAddUser={() => setAddUserOpen(true)}
+        onNotify={() => setBulkNotificationOpen(true)}
+        onWhatsApp={() => setBulkWhatsAppOpen(true)}
+        onExport={handleExportCSV}
+        onAssignRole={() => setBulkAssignRoleOpen(true)}
+        onRemoveRole={() => setBulkRemoveRoleOpen(true)}
+        onFilter={() => setShowFilters(true)}
+        onRefresh={handleRefresh}
+        onReachOutInactive={() => setReachOutInactiveOpen(true)}
+        refreshing={refreshing}
+      />
 
       {/* Filter Sheet */}
       <Sheet open={showFilters} onOpenChange={setShowFilters}>
@@ -1020,24 +782,6 @@ export default function UserManagement() {
             last_active_at: u.last_active_at
           }))}
       />
-
-      {/* Floating Add User Button - visible when no selection */}
-      <AnimatePresence>
-        {selectedUserIds.size === 0 && (
-          <motion.button
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            onClick={() => {
-              hapticTap();
-              setAddUserOpen(true);
-            }}
-            className="fixed bottom-6 right-6 z-40 h-16 w-16 rounded-full bg-primary text-primary-foreground shadow-2xl flex items-center justify-center active:scale-95 transition-transform safe-area-bottom"
-          >
-            <UserPlus className="h-7 w-7" />
-          </motion.button>
-        )}
-      </AnimatePresence>
     </div>
   );
 }
