@@ -9,7 +9,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { 
   Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
   Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi, Clock
+  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi, Clock, MoreVertical, Camera
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
@@ -30,8 +30,8 @@ import { useAuth } from '@/hooks/useAuth';
 import { Badge } from '@/components/ui/badge';
 import { usePresence } from '@/hooks/usePresence';
 import OnlineIndicator from '@/components/chat/OnlineIndicator';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { cn } from '@/lib/utils';
+import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
 
 interface UserWithRating {
   id: string;
@@ -66,12 +66,23 @@ const isUserInactive = (lastActiveAt: string | null): boolean => {
   return new Date(lastActiveAt) < thirtyDaysAgo;
 };
 
-// Helper to get days since last activity
-const getDaysSinceActive = (lastActiveAt: string | null): number => {
-  if (!lastActiveAt) return 999;
-  const now = new Date();
-  const lastActive = new Date(lastActiveAt);
-  return Math.floor((now.getTime() - lastActive.getTime()) / (1000 * 60 * 60 * 24));
+// Format last active time like WhatsApp
+const formatLastActive = (lastActiveAt: string | null): string => {
+  if (!lastActiveAt) return 'Long ago';
+  const date = new Date(lastActiveAt);
+  if (isToday(date)) {
+    return format(date, 'h:mm a');
+  }
+  if (isYesterday(date)) {
+    return 'Yesterday';
+  }
+  return format(date, 'dd/MM/yyyy');
+};
+
+// Get status text for user
+const getStatusText = (user: UserWithRating): string => {
+  if (user.roles.length === 0) return 'New user';
+  return user.roles.map(r => r.charAt(0).toUpperCase() + r.slice(1)).join(' • ');
 };
 
 export default function UserManagement() {
@@ -81,22 +92,23 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
+  const [showSearch, setShowSearch] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [sortBy, setSortBy] = useState<SortOption>('last_active');
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
   const [bulkAssignRoleOpen, setBulkAssignRoleOpen] = useState(false);
   const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
-  const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
   const [showFilters, setShowFilters] = useState(false);
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [reachOutInactiveOpen, setReachOutInactiveOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
 
   // Check if user is manager
   useEffect(() => {
@@ -108,6 +120,12 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
   }, []);
+
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -141,7 +159,6 @@ export default function UserManagement() {
     const rolesData = rolesRes.data;
     const ratingsData = ratingsRes.data;
     
-    // Count subagents per parent agent
     const subagentCountByAgent = new Map<string, number>();
     (subagentsRes.data || []).forEach(s => {
       const current = subagentCountByAgent.get(s.parent_agent_id) || 0;
@@ -301,24 +318,23 @@ export default function UserManagement() {
     setDialogOpen(true);
   };
 
-  const sortOptions: { value: SortOption; label: string; icon: typeof ArrowUp }[] = [
-    { value: 'newest', label: 'Newest', icon: ArrowDown },
-    { value: 'oldest', label: 'Oldest', icon: ArrowUp },
-    { value: 'name_asc', label: 'A-Z', icon: ArrowUp },
-    { value: 'name_desc', label: 'Z-A', icon: ArrowDown },
-    { value: 'rating_high', label: 'Top Rated', icon: ArrowDown },
-    { value: 'rating_low', label: 'Low Rated', icon: ArrowUp },
-    { value: 'last_active', label: 'Recently Active', icon: ArrowDown },
-    { value: 'least_active', label: 'Least Active', icon: ArrowUp },
+  const sortOptions: { value: SortOption; label: string }[] = [
+    { value: 'last_active', label: 'Recently Active' },
+    { value: 'newest', label: 'Newest First' },
+    { value: 'oldest', label: 'Oldest First' },
+    { value: 'name_asc', label: 'Name A-Z' },
+    { value: 'name_desc', label: 'Name Z-A' },
+    { value: 'rating_high', label: 'Top Rated' },
+    { value: 'least_active', label: 'Least Active' },
   ];
 
   const activeUserCount = users.filter(u => isOnline(u.id)).length;
   const inactiveUserCount = users.filter(u => isUserInactive(u.last_active_at)).length;
 
-  const roleFilters: { value: RoleFilter; label: string; count: number; icon?: typeof Wifi }[] = [
+  const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
     { value: 'all', label: 'All', count: users.length },
-    { value: 'active', label: '🟢 Active', count: activeUserCount, icon: Wifi },
-    { value: 'inactive', label: '😴 Inactive', count: inactiveUserCount },
+    { value: 'active', label: 'Online', count: activeUserCount },
+    { value: 'inactive', label: 'Inactive', count: inactiveUserCount },
     { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
     { value: 'agent', label: 'Agents', count: users.filter(u => u.roles.includes('agent')).length },
     { value: 'supporter', label: 'Supporters', count: users.filter(u => u.roles.includes('supporter')).length },
@@ -326,38 +342,39 @@ export default function UserManagement() {
     { value: 'manager', label: 'Managers', count: users.filter(u => u.roles.includes('manager')).length },
   ];
 
-  const roleColors: Record<string, string> = {
-    tenant: 'text-blue-600 dark:text-blue-400',
-    agent: 'text-amber-600 dark:text-amber-400',
-    supporter: 'text-emerald-600 dark:text-emerald-400',
-    landlord: 'text-purple-600 dark:text-purple-400',
-    manager: 'text-rose-600 dark:text-rose-400',
-  };
-
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  // WhatsApp-style loading skeleton
   if (loading) {
     return (
-      <div className="min-h-screen bg-background">
-        <div className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border">
-          <div className="flex items-center gap-3 px-4 py-3">
-            <Skeleton className="h-10 w-10 rounded-full" />
-            <Skeleton className="h-6 w-32" />
+      <div className="min-h-screen bg-[#111b21]">
+        {/* WhatsApp Header Skeleton */}
+        <div className="sticky top-0 z-50 bg-[#202c33] px-4 py-3">
+          <div className="flex items-center justify-between">
+            <Skeleton className="h-6 w-24 bg-[#2a3942]" />
+            <div className="flex gap-4">
+              <Skeleton className="h-6 w-6 rounded-full bg-[#2a3942]" />
+              <Skeleton className="h-6 w-6 rounded-full bg-[#2a3942]" />
+            </div>
           </div>
         </div>
-        <div className="px-4 py-3">
-          <Skeleton className="h-12 w-full rounded-xl" />
+        {/* Search Skeleton */}
+        <div className="px-3 py-2 bg-[#111b21]">
+          <Skeleton className="h-9 w-full rounded-lg bg-[#202c33]" />
         </div>
-        <div className="flex gap-2 px-4 pb-3 overflow-x-auto">
-          {[1, 2, 3, 4, 5].map(i => (
-            <Skeleton key={i} className="h-9 w-20 rounded-full shrink-0" />
-          ))}
-        </div>
-        <div className="px-2">
+        {/* List Skeleton */}
+        <div className="divide-y divide-[#222d34]">
           {[1, 2, 3, 4, 5, 6, 7, 8].map(i => (
-            <Skeleton key={i} className="h-14 w-full mb-1" />
+            <div key={i} className="flex items-center gap-3 px-4 py-3">
+              <Skeleton className="h-12 w-12 rounded-full bg-[#2a3942]" />
+              <div className="flex-1">
+                <Skeleton className="h-4 w-32 mb-2 bg-[#2a3942]" />
+                <Skeleton className="h-3 w-48 bg-[#2a3942]" />
+              </div>
+              <Skeleton className="h-3 w-12 bg-[#2a3942]" />
+            </div>
           ))}
         </div>
       </div>
@@ -365,89 +382,98 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Compact Sticky Header */}
-      <header className="sticky top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border safe-area-top">
-        <div className="flex items-center justify-between px-3 py-2">
-          <div className="flex items-center gap-2">
+    <div className="min-h-screen bg-[#111b21] flex flex-col">
+      {/* WhatsApp-Style Header */}
+      <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 hapticTap();
                 navigate(-1);
               }}
-              className="p-2 -ml-1 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              className="p-1 -ml-1 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <ArrowLeft className="h-5 w-5" />
+              <ArrowLeft className="h-6 w-6 text-[#aebac1]" />
             </button>
-            <div>
-              <h1 className="font-bold text-base">Users</h1>
-              <p className="text-[10px] text-muted-foreground">{filteredUsers.length} of {users.length}</p>
-            </div>
+            <h1 className="font-semibold text-xl text-white">Users</h1>
           </div>
           
           <div className="flex items-center gap-1">
             <button
-              onClick={toggleSelectAll}
-              className="p-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation"
+              onClick={() => {
+                hapticTap();
+                setShowSearch(!showSearch);
+              }}
+              className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              {selectedUserIds.size === filteredUsers.length && filteredUsers.length > 0 ? (
-                <CheckSquare className="h-5 w-5 text-primary" />
-              ) : (
-                <Square className="h-5 w-5" />
-              )}
+              <Search className="h-5 w-5 text-[#aebac1]" />
             </button>
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
                   onClick={() => hapticTap()}
-                  className="p-2 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation flex items-center gap-1"
+                  className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <ArrowUpDown className="h-4 w-4" />
+                  <MoreVertical className="h-5 w-5 text-[#aebac1]" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-40">
-                {sortOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option.value}
-                    onClick={() => setSortBy(option.value)}
-                    className={sortBy === option.value ? 'bg-primary/10' : ''}
-                  >
-                    {option.label}
-                    {sortBy === option.value && <CheckCircle className="h-4 w-4 ml-auto text-primary" />}
-                  </DropdownMenuItem>
-                ))}
+              <DropdownMenuContent align="end" className="w-48 bg-[#233138] border-[#3b4a54] text-white">
+                <DropdownMenuItem onClick={toggleSelectAll} className="hover:bg-[#182229] focus:bg-[#182229]">
+                  {selectedUserIds.size === filteredUsers.length ? 'Deselect All' : 'Select All'}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowFilters(true)} className="hover:bg-[#182229] focus:bg-[#182229]">
+                  Filters & Sort
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV} className="hover:bg-[#182229] focus:bg-[#182229]">
+                  Export Users
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRefresh} className="hover:bg-[#182229] focus:bg-[#182229]">
+                  {refreshing ? 'Refreshing...' : 'Refresh'}
+                </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
         </div>
 
-        {/* Compact Search Bar */}
-        <div className="px-3 pb-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              placeholder="Search by name, phone, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-9 h-10 rounded-xl bg-muted/50 border border-border/50 text-sm"
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 rounded-full hover:bg-muted"
-              >
-                <X className="h-4 w-4 text-muted-foreground" />
-              </button>
-            )}
-          </div>
-        </div>
+        {/* Search Bar - WhatsApp Style */}
+        <AnimatePresence>
+          {showSearch && (
+            <motion.div 
+              initial={{ height: 0, opacity: 0 }}
+              animate={{ height: 'auto', opacity: 1 }}
+              exit={{ height: 0, opacity: 0 }}
+              className="px-3 pb-2 overflow-hidden"
+            >
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-10 pr-10 py-2 rounded-lg bg-[#111b21] text-white placeholder:text-[#8696a0] border-none outline-none text-sm"
+                />
+                {searchTerm && (
+                  <button
+                    onClick={() => setSearchTerm('')}
+                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                  >
+                    <X className="h-4 w-4 text-[#8696a0]" />
+                  </button>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
-        {/* Compact Horizontal Filter Pills */}
-        <div className="flex gap-1.5 px-3 pb-2 overflow-x-auto scrollbar-hide">
+        {/* Filter Pills - WhatsApp Tab Style */}
+        <div className="flex gap-1 px-2 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
               key={filter.value}
@@ -456,33 +482,30 @@ export default function UserManagement() {
                 setRoleFilter(filter.value);
               }}
               className={cn(
-                "shrink-0 px-2.5 py-1.5 rounded-full text-xs font-semibold transition-all active:scale-95",
+                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95",
                 roleFilter === filter.value
-                  ? 'bg-primary text-primary-foreground shadow-md'
-                  : 'bg-muted/70 text-muted-foreground'
+                  ? 'bg-[#00a884] text-white'
+                  : 'bg-[#202c33] text-[#8696a0]'
               )}
             >
               {filter.label}
-              <span className={cn(
-                "ml-1 text-[10px]",
-                roleFilter === filter.value ? 'opacity-80' : 'opacity-60'
-              )}>
-                {filter.count}
-              </span>
+              {filter.count > 0 && (
+                <span className="ml-1 opacity-80">{filter.count}</span>
+              )}
             </button>
           ))}
         </div>
 
-        {/* Selection count indicator */}
+        {/* Selection indicator */}
         {selectedUserIds.size > 0 && (
           <div className="px-3 pb-2">
-            <div className="flex items-center justify-between bg-primary/10 rounded-lg px-3 py-1.5">
-              <span className="text-xs font-semibold text-primary">
+            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-lg px-3 py-2">
+              <span className="text-xs font-medium text-[#00a884]">
                 {selectedUserIds.size} selected
               </span>
               <button
                 onClick={clearSelection}
-                className="text-xs text-primary font-medium underline"
+                className="text-xs text-[#00a884] font-medium"
               >
                 Clear
               </button>
@@ -491,152 +514,93 @@ export default function UserManagement() {
         )}
       </header>
 
-      {/* User Table - Full Width Scrollable */}
+      {/* User List - WhatsApp Chat Style */}
       <div 
         ref={listRef}
         className="flex-1 overflow-auto overscroll-contain"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {filteredUsers.length === 0 ? (
-          <div className="text-center py-16 px-4">
-            <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto mb-4">
-              <Users className="h-10 w-10 text-muted-foreground" />
+          <div className="text-center py-20 px-4">
+            <div className="p-4 rounded-full bg-[#202c33] w-fit mx-auto mb-4">
+              <Users className="h-12 w-12 text-[#8696a0]" />
             </div>
-            <p className="font-semibold text-lg">No users found</p>
-            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
+            <p className="font-semibold text-lg text-white">No users found</p>
+            <p className="text-sm text-[#8696a0] mt-1">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <Table>
-            <TableHeader className="sticky top-0 bg-background/95 backdrop-blur-sm z-10">
-              <TableRow className="border-b-2">
-                <TableHead className="w-10 px-2">
-                  <span className="sr-only">Select</span>
-                </TableHead>
-                <TableHead className="px-2">User</TableHead>
-                <TableHead className="px-2 hidden sm:table-cell">Roles</TableHead>
-                <TableHead className="w-10 px-2 text-center">
-                  <span className="sr-only">Status</span>
-                </TableHead>
-                <TableHead className="w-10 px-2">
-                  <span className="sr-only">Actions</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {filteredUsers.map((user) => (
-                <TableRow
-                  key={user.id}
-                  onClick={() => handleUserClick(user)}
-                  className={cn(
-                    "cursor-pointer transition-colors active:bg-muted/70",
-                    selectedUserIds.has(user.id) && "bg-primary/5"
-                  )}
+          <div className="divide-y divide-[#222d34]">
+            {filteredUsers.map((user) => (
+              <div
+                key={user.id}
+                onClick={() => handleUserClick(user)}
+                className={cn(
+                  "flex items-center gap-3 px-4 py-3 active:bg-[#182229] transition-colors cursor-pointer",
+                  selectedUserIds.has(user.id) && "bg-[#00a884]/10"
+                )}
+              >
+                {/* Avatar with Online Indicator */}
+                <div 
+                  className="relative shrink-0"
+                  onClick={(e) => toggleUserSelection(user.id, e)}
                 >
-                  {/* Checkbox */}
-                  <TableCell className="px-2 py-2">
-                    <div 
-                      onClick={(e) => toggleUserSelection(user.id, e)}
-                      className="p-1"
-                    >
-                      <Checkbox
-                        checked={selectedUserIds.has(user.id)}
-                        className="h-5 w-5 rounded"
-                      />
+                  {selectedUserIds.has(user.id) ? (
+                    <div className="h-12 w-12 rounded-full bg-[#00a884] flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-white" />
                     </div>
-                  </TableCell>
+                  ) : (
+                    <>
+                      <Avatar className="h-12 w-12">
+                        <AvatarImage src={user.avatar_url || undefined} />
+                        <AvatarFallback className="bg-[#6b7b8a] text-white font-medium text-sm">
+                          {getInitials(user.full_name)}
+                        </AvatarFallback>
+                      </Avatar>
+                      {isOnline(user.id) && (
+                        <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-[#00a884] border-2 border-[#111b21]" />
+                      )}
+                    </>
+                  )}
+                </div>
 
-                  {/* User Info */}
-                  <TableCell className="px-2 py-2">
-                    <div className="flex items-center gap-2">
-                      <div className="relative shrink-0">
-                        <Avatar className="h-9 w-9 border border-border">
-                          <AvatarImage src={user.avatar_url || undefined} />
-                          <AvatarFallback className="bg-primary/10 text-primary font-semibold text-xs">
-                            {getInitials(user.full_name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <OnlineIndicator 
-                          isOnline={isOnline(user.id)} 
-                          size="sm" 
-                          className="absolute -bottom-0.5 -right-0.5"
-                        />
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="font-semibold text-sm truncate max-w-[140px] sm:max-w-[200px]">
-                          {user.full_name}
-                        </p>
-                        <p className="text-xs text-muted-foreground truncate max-w-[140px] sm:max-w-[200px]">
-                          {user.phone}
-                        </p>
-                        {/* Mobile: Show roles inline */}
-                        <div className="flex gap-1 mt-0.5 sm:hidden">
-                          {user.roles.slice(0, 2).map((role) => (
-                            <span 
-                              key={role} 
-                              className={cn("text-[10px] font-medium capitalize", roleColors[role])}
-                            >
-                              {role}
-                            </span>
-                          ))}
-                          {user.roles.length > 2 && (
-                            <span className="text-[10px] text-muted-foreground">+{user.roles.length - 2}</span>
-                          )}
-                        </div>
-                      </div>
+                {/* User Info */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center justify-between gap-2">
+                    <h3 className="font-medium text-white truncate">{user.full_name}</h3>
+                    <span className={cn(
+                      "text-xs shrink-0",
+                      isOnline(user.id) ? "text-[#00a884]" : "text-[#8696a0]"
+                    )}>
+                      {formatLastActive(user.last_active_at)}
+                    </span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2 mt-0.5">
+                    <p className="text-sm text-[#8696a0] truncate">
+                      {getStatusText(user)}
+                    </p>
+                    <div className="flex items-center gap-1 shrink-0">
+                      {user.verified && (
+                        <CheckCircle className="h-4 w-4 text-[#53bdeb]" />
+                      )}
+                      {user.average_rating && (
+                        <span className="text-xs text-[#8696a0] flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-[#ffc107] text-[#ffc107]" />
+                          {user.average_rating.toFixed(1)}
+                        </span>
+                      )}
                     </div>
-                  </TableCell>
-
-                  {/* Roles - Hidden on mobile */}
-                  <TableCell className="px-2 py-2 hidden sm:table-cell">
-                    <div className="flex flex-wrap gap-1">
-                      {user.roles.map((role) => (
-                        <Badge 
-                          key={role} 
-                          variant="outline"
-                          className={cn("text-[10px] px-1.5 py-0 capitalize", roleColors[role])}
-                        >
-                          {role}
-                        </Badge>
-                      ))}
-                    </div>
-                  </TableCell>
-
-                  {/* Verified Status */}
-                  <TableCell className="px-2 py-2 text-center">
-                    {user.verified ? (
-                      <CheckCircle className="h-4 w-4 text-success mx-auto" />
-                    ) : (
-                      <XCircle className="h-4 w-4 text-warning mx-auto" />
-                    )}
-                  </TableCell>
-
-                  {/* Quick Actions */}
-                  <TableCell className="px-2 py-2">
-                    <div className="flex items-center gap-1">
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          hapticTap();
-                          window.open(getWhatsAppLink(user.phone), '_blank');
-                        }}
-                        className="p-1.5 rounded-full bg-success/10 text-success hover:bg-success/20 active:scale-95 transition-all touch-manipulation"
-                      >
-                        <MessageCircle className="h-4 w-4" />
-                      </button>
-                      <ChevronRight className="h-4 w-4 text-muted-foreground" />
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
         )}
         
-        {/* Bottom padding for floating buttons */}
+        {/* Bottom padding for FAB */}
         <div className="h-32" />
       </div>
 
-      {/* Floating User Actions Button */}
+      {/* WhatsApp-Style Floating Action Button */}
       <FloatingUserActions
         selectedCount={selectedUserIds.size}
         totalCount={filteredUsers.length}
@@ -652,17 +616,17 @@ export default function UserManagement() {
         refreshing={refreshing}
       />
 
-      {/* Filter Sheet */}
+      {/* Filter Sheet - WhatsApp Style */}
       <Sheet open={showFilters} onOpenChange={setShowFilters}>
-        <SheetContent side="bottom" className="h-[60vh] rounded-t-3xl">
+        <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl bg-[#111b21] border-[#222d34]">
           <SheetHeader className="pb-4">
-            <SheetTitle>Filters & Sort</SheetTitle>
+            <SheetTitle className="text-white">Filters & Sort</SheetTitle>
           </SheetHeader>
           
           <div className="space-y-6">
             {/* Verification Filter */}
             <div>
-              <h4 className="text-sm font-semibold mb-3">Verification Status</h4>
+              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Verification Status</h4>
               <div className="flex gap-2 flex-wrap">
                 {[
                   { value: 'all' as VerificationFilter, label: 'All' },
@@ -672,11 +636,12 @@ export default function UserManagement() {
                   <button
                     key={filter.value}
                     onClick={() => setVerificationFilter(filter.value)}
-                    className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    className={cn(
+                      "px-4 py-3 rounded-xl text-sm font-medium transition-all",
                       verificationFilter === filter.value
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
+                        ? 'bg-[#00a884] text-white'
+                        : 'bg-[#202c33] text-[#8696a0]'
+                    )}
                   >
                     {filter.label}
                   </button>
@@ -686,17 +651,18 @@ export default function UserManagement() {
             
             {/* Sort Options */}
             <div>
-              <h4 className="text-sm font-semibold mb-3">Sort By</h4>
+              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Sort By</h4>
               <div className="grid grid-cols-2 gap-2">
                 {sortOptions.map((option) => (
                   <button
                     key={option.value}
                     onClick={() => setSortBy(option.value)}
-                    className={`px-4 py-3 rounded-xl text-sm font-semibold transition-all ${
+                    className={cn(
+                      "px-4 py-3 rounded-xl text-sm font-medium transition-all",
                       sortBy === option.value
-                        ? 'bg-primary text-primary-foreground'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
+                        ? 'bg-[#00a884] text-white'
+                        : 'bg-[#202c33] text-[#8696a0]'
+                    )}
                   >
                     {option.label}
                   </button>
@@ -706,7 +672,7 @@ export default function UserManagement() {
             
             <Button 
               onClick={() => setShowFilters(false)} 
-              className="w-full h-14 text-base font-semibold"
+              className="w-full h-14 text-base font-semibold bg-[#00a884] hover:bg-[#00a884]/90 text-white"
             >
               Apply Filters
             </Button>
