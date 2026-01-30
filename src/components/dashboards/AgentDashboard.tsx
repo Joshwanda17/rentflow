@@ -224,6 +224,33 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     fetchData();
   }, [user.id]);
 
+  // Real-time subscription for referrals to auto-update count
+  useEffect(() => {
+    const channel = supabase
+      .channel(`agent-referrals-${user.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'referrals',
+          filter: `referrer_id=eq.${user.id}`,
+        },
+        (payload) => {
+          console.log('[AgentDashboard] New referral detected:', payload);
+          setReferralCount((prev) => prev + 1);
+          // Also refetch earnings since referral bonus should be credited
+          refreshEarnings();
+          refreshWallet();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user.id, refreshEarnings, refreshWallet]);
+
   const fetchData = async () => {
     if (!navigator.onLine && hasLoadedOnce) {
       setLoading(false);
