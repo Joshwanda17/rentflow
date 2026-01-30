@@ -128,7 +128,7 @@ export function SetTeamGoalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md transform-none will-change-auto">
+      <DialogContent stable className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
@@ -146,7 +146,7 @@ export function SetTeamGoalDialog({
             <select
               value={goalMonth}
               onChange={(e) => setGoalMonth(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transform-none will-change-auto touch-manipulation"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-base ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
               disabled={!!existingGoal}
             >
               {monthOptions.map((option) => (
