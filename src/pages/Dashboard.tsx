@@ -4,6 +4,7 @@ import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
 import { PushNotificationEnforcer } from '@/components/PushNotificationEnforcer';
+import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
@@ -207,6 +208,7 @@ function DashboardContent() {
           {cachedDisplayRole === 'landlord' && <LandlordDashboard {...dashboardProps} />}
           {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
         </Suspense>
+        <FloatingWalletButton />
         <FloatingChatButton />
       </>
     );
@@ -255,6 +257,7 @@ function DashboardContent() {
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
+      <FloatingWalletButton />
       <FloatingChatButton />
       <PushNotificationEnforcer />
     </>
