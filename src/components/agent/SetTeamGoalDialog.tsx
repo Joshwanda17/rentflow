@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, forwardRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Target, Users, Coins, Loader2, Calendar } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { format, startOfMonth, addMonths } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -127,7 +128,7 @@ export function SetTeamGoalDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md">
+      <DialogContent className="max-w-md transform-none will-change-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Target className="h-5 w-5 text-primary" />
@@ -145,7 +146,7 @@ export function SetTeamGoalDialog({
             <select
               value={goalMonth}
               onChange={(e) => setGoalMonth(e.target.value)}
-              className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+              className="w-full rounded-md border border-input bg-background px-3 py-2 text-base md:text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transform-none will-change-auto touch-manipulation"
               disabled={!!existingGoal}
             >
               {monthOptions.map((option) => (
