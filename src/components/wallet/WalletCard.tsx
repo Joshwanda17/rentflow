@@ -15,6 +15,7 @@ import { UserDepositRequests } from './UserDepositRequests';
 import { WithdrawRequestDialog } from './WithdrawRequestDialog';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
+import { WalletBreakdown } from './WalletBreakdown';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -114,7 +115,12 @@ export function WalletCard() {
               >
                 <Wallet className="h-5 w-5" />
               </motion.div>
-              <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
+              <div>
+                <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
+                <div className="mt-0.5">
+                  <WalletBreakdown />
+                </div>
+              </div>
             </div>
             <Button 
               variant="ghost" 
