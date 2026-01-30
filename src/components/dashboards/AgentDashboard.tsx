@@ -43,6 +43,7 @@ import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 
 import { UnifiedRegistrationDialog } from '@/components/agent/UnifiedRegistrationDialog';
 import { AgentGoalProgress } from '@/components/agent/AgentGoalProgress';
+import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { CollapsibleRentRequests } from '@/components/agent/CollapsibleRentRequests';
 import { CollapsibleSubAgents } from '@/components/agent/CollapsibleSubAgents';
 import { CollapsibleUserInvites } from '@/components/agent/CollapsibleUserInvites';
@@ -572,7 +573,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </div>
 
           <div className="space-y-2">
-            <MyCommissionPayouts />
+            <CollapsibleAgentSection
+              icon={Banknote}
+              label="My Withdrawals"
+              iconColor="text-success"
+            >
+              <MyCommissionPayouts minimal />
+            </CollapsibleAgentSection>
             <CollapsibleLinkSignups isOpen={sectionsOpen.linkSignups} onToggle={() => toggleSection('linkSignups')} />
             <CollapsibleRentRequests isOpen={sectionsOpen.rentRequests} onToggle={() => toggleSection('rentRequests')} />
             <CollapsibleSubAgents isOpen={sectionsOpen.subAgents} onToggle={() => toggleSection('subAgents')} />
