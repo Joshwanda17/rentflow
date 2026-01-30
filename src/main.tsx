@@ -1,28 +1,53 @@
 import { createRoot } from "react-dom/client";
 
-// Show loading state immediately
+// INSTANT: Start session preload before anything else
+const preloadSession = () => {
+  try {
+    // Try to restore auth token for faster Supabase init
+    const authKey = 'sb-wirntoujqoyjobfhyelc-auth-token';
+    const token = localStorage.getItem(authKey);
+    if (token) {
+      // Token exists - user is likely logged in, skip heavy splash
+      (window as any).__hasSession = true;
+    }
+  } catch {}
+};
+preloadSession();
+
+// Show minimal loading instantly
 const root = document.getElementById('root')!;
-root.innerHTML = `
-  <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fafafa;gap:12px">
-    <div style="width:32px;height:32px;border:3px solid #4ade80;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
-    <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
-  </div>
-`;
+
+// If returning user, show ultra-minimal loader
+if ((window as any).__hasSession || localStorage.getItem('welile_visited')) {
+  root.innerHTML = `
+    <div style="min-height:100vh;display:flex;align-items:center;justify-content:center;background:#f8fafc">
+      <div style="width:24px;height:24px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:s 0.6s linear infinite"></div>
+      <style>@keyframes s{to{transform:rotate(360deg)}}</style>
+    </div>
+  `;
+} else {
+  root.innerHTML = `
+    <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
+      <div style="width:32px;height:32px;border:3px solid #4ade80;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+      <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+    </div>
+  `;
+}
 
 // Hide splash if exists
 (window as any).hideSplash?.();
 
-// Mount app with timeout protection
+// Mount app with faster timeout
 const loadApp = async () => {
   try {
-    // Load CSS and App in parallel with 6s timeout for faster feedback
+    // Load CSS and App in parallel with 4s timeout for faster failure
     const [, { default: App }] = await Promise.race([
       Promise.all([
         import("./index.css"),
         import("./App.tsx")
       ]),
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Load timeout')), 6000)
+        setTimeout(() => reject(new Error('Load timeout')), 4000)
       )
     ]);
     
@@ -76,6 +101,6 @@ addEventListener('unhandledrejection', e => {
 if ('serviceWorker' in navigator && import.meta.env.PROD) {
   'requestIdleCallback' in window 
     ? requestIdleCallback(() => navigator.serviceWorker.register('/sw.js').catch(() => {}))
-    : setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 2000);
+    : setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 1500);
 }
 
