@@ -1,5 +1,5 @@
-import { useNavigate } from 'react-router-dom';
-import { Home, Users, Building2, Wallet, ArrowRight } from 'lucide-react';
+import { useNavigate, Link } from 'react-router-dom';
+import { Home, Users, Building2, Wallet, ArrowRight, Calculator } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 
@@ -148,6 +148,19 @@ export default function Landing() {
             </button>
           </div>
         </div>
+
+        {/* Rent Calculator Link */}
+        <Link
+          to="/rent-calculator"
+          className="mt-4 flex items-center justify-center gap-2 p-3 rounded-xl bg-blue-500/10 border border-blue-500/20 hover:bg-blue-500/20 transition-colors touch-manipulation"
+          onClick={() => hapticTap()}
+        >
+          <Calculator className="h-5 w-5 text-blue-600 dark:text-blue-400" />
+          <span className="font-medium text-blue-600 dark:text-blue-400 text-sm">
+            Try the Rent Calculator
+          </span>
+          <ArrowRight className="h-4 w-4 text-blue-600/50 dark:text-blue-400/50" />
+        </Link>
       </main>
 
       {/* Footer */}
