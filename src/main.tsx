@@ -15,21 +15,20 @@ root.innerHTML = `
 // Mount app with timeout protection
 const loadApp = async () => {
   try {
+    // Load CSS and App in parallel with 6s timeout for faster feedback
     const [, { default: App }] = await Promise.race([
       Promise.all([
         import("./index.css"),
         import("./App.tsx")
       ]),
-      // Timeout after 10 seconds (reduced from 15s for faster feedback)
       new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Load timeout')), 10000)
+        setTimeout(() => reject(new Error('Load timeout')), 6000)
       )
     ]);
     
     createRoot(root).render(<App />);
   } catch (err) {
     console.error('[Main] App load failed:', err);
-    // Show retry UI on load failure
     root.innerHTML = `
       <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#fafafa;gap:16px;padding:24px;text-align:center">
         <div style="width:48px;height:48px;background:#fee2e2;border-radius:50%;display:flex;align-items:center;justify-content:center">
@@ -37,8 +36,8 @@ const loadApp = async () => {
             <path d="M18 6L6 18M6 6l12 12"/>
           </svg>
         </div>
-        <h2 style="font-size:18px;font-weight:600;color:#1f2937;margin:0">Connection Issue</h2>
-        <p style="font-size:14px;color:#6b7280;margin:0;max-width:280px">Please check your internet connection and try again.</p>
+        <h2 style="font-size:18px;font-weight:600;color:#1f2937;margin:0">Slow Connection</h2>
+        <p style="font-size:14px;color:#6b7280;margin:0;max-width:280px">Tap to retry loading the app.</p>
         <button onclick="location.reload()" style="padding:12px 24px;background:#4ade80;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px">
           Retry
         </button>
