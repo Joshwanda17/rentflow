@@ -16,6 +16,7 @@ import { WithdrawRequestDialog } from './WithdrawRequestDialog';
 import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { WalletBreakdown } from './WalletBreakdown';
+import { WalletStatement } from './WalletStatement';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -117,8 +118,9 @@ export function WalletCard() {
               </motion.div>
               <div>
                 <span className="font-semibold text-sm tracking-wide uppercase opacity-90">Wallet Balance</span>
-                <div className="mt-0.5">
+                <div className="mt-0.5 flex items-center gap-2">
                   <WalletBreakdown />
+                  <WalletStatement />
                 </div>
               </div>
             </div>
