@@ -17,6 +17,7 @@ import { UserWithdrawalRequests } from './UserWithdrawalRequests';
 import { AnimatedBalance } from './AnimatedBalance';
 import { WalletBreakdown } from './WalletBreakdown';
 import { WalletStatement } from './WalletStatement';
+import { MyReferralsCount } from './MyReferralsCount';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -228,6 +229,9 @@ export function WalletCard() {
               <span className="text-[10px] font-semibold tracking-wide">Withdraw</span>
             </Button>
           </div>
+
+          {/* My Referrals Count */}
+          <MyReferralsCount />
 
           {/* Recent transactions - Simplified */}
           {transactions.length > 0 && (
