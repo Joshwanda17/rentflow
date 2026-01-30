@@ -1,62 +1,86 @@
 import { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, BellRing, X, Shield, Smartphone } from 'lucide-react';
+import { Bell, BellRing, Shield, Smartphone, AlertCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useAuth } from '@/hooks/useAuth';
 
-const ENFORCEMENT_KEY = 'push_notification_decision';
-const SNOOZE_KEY = 'push_notification_snooze';
-const SNOOZE_DURATION = 2 * 60 * 60 * 1000; // 2 hours snooze max
-
+/**
+ * Mandatory Push Notification Permission Enforcer
+ * 
+ * This component blocks the UI until the user either:
+ * 1. Enables push notifications (grants permission)
+ * 2. Explicitly denies in the browser popup (permission = 'denied')
+ * 
+ * There is NO snooze or dismiss option - users MUST make a choice.
+ * It re-appears on every visit if notifications aren't enabled.
+ */
 export function PushNotificationEnforcer() {
   const { user } = useAuth();
   const { isSupported, isSubscribed, permission, subscribe, loading } = usePushNotifications();
   const [showEnforcer, setShowEnforcer] = useState(false);
   const [isEnabling, setIsEnabling] = useState(false);
+  const [hasAttempted, setHasAttempted] = useState(false);
+  const [currentPermission, setCurrentPermission] = useState<NotificationPermission>('default');
 
   useEffect(() => {
-    if (!user) return;
-    if (!isSupported) return;
-    if (isSubscribed) return;
-    if (permission === 'denied') return;
+    // Update permission state when it changes
+    if ('Notification' in window) {
+      setCurrentPermission(Notification.permission);
+    }
+  }, [permission]);
 
-    // Check if user already made a decision
-    const decision = localStorage.getItem(ENFORCEMENT_KEY);
-    if (decision === 'enabled') return;
-
-    // Check if snoozed
-    const snoozeTime = localStorage.getItem(SNOOZE_KEY);
-    if (snoozeTime) {
-      const snoozeExpiry = parseInt(snoozeTime);
-      if (Date.now() < snoozeExpiry) {
-        // Still in snooze period, but show after snooze expires
-        const remainingTime = snoozeExpiry - Date.now();
-        const timer = setTimeout(() => setShowEnforcer(true), remainingTime);
-        return () => clearTimeout(timer);
-      }
+  useEffect(() => {
+    if (!user) {
+      setShowEnforcer(false);
+      return;
+    }
+    
+    // Not supported - can't show enforcer
+    if (!isSupported) {
+      setShowEnforcer(false);
+      return;
+    }
+    
+    // Already subscribed - don't show
+    if (isSubscribed) {
+      setShowEnforcer(false);
+      return;
+    }
+    
+    // Permission denied in browser - can't ask again, don't show
+    if (currentPermission === 'denied') {
+      setShowEnforcer(false);
+      return;
     }
 
-    // Show enforcer after a brief delay
-    const timer = setTimeout(() => setShowEnforcer(true), 1500);
+    // Show enforcer immediately after brief delay (let dashboard render first)
+    const timer = setTimeout(() => {
+      setShowEnforcer(true);
+    }, 1000);
+    
     return () => clearTimeout(timer);
-  }, [user, isSupported, isSubscribed, permission]);
+  }, [user, isSupported, isSubscribed, currentPermission]);
 
   const handleEnable = async () => {
     setIsEnabling(true);
+    setHasAttempted(true);
+    
     const success = await subscribe();
+    
     setIsEnabling(false);
     
     if (success) {
-      localStorage.setItem(ENFORCEMENT_KEY, 'enabled');
       setShowEnforcer(false);
+    } else {
+      // Check if permission was denied in browser popup
+      if ('Notification' in window) {
+        setCurrentPermission(Notification.permission);
+        if (Notification.permission === 'denied') {
+          setShowEnforcer(false);
+        }
+      }
     }
-  };
-
-  const handleSnooze = () => {
-    // Allow snooze but it comes back in 2 hours
-    localStorage.setItem(SNOOZE_KEY, (Date.now() + SNOOZE_DURATION).toString());
-    setShowEnforcer(false);
   };
 
   if (!showEnforcer) return null;
@@ -67,7 +91,7 @@ export function PushNotificationEnforcer() {
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4"
+        className="fixed inset-0 z-[100] bg-black/90 backdrop-blur-md flex items-center justify-center p-4"
       >
         <motion.div
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
@@ -87,7 +111,7 @@ export function PushNotificationEnforcer() {
                 duration: 2, 
                 repeatDelay: 2 
               }}
-              className="p-4 rounded-full bg-primary/20"
+              className="p-4 rounded-full bg-gradient-to-br from-primary/30 to-primary/10"
             >
               <BellRing className="h-12 w-12 text-primary" />
             </motion.div>
@@ -95,12 +119,13 @@ export function PushNotificationEnforcer() {
 
           {/* Title */}
           <h2 className="text-xl font-bold text-center mb-2">
-            Stay Connected! 🔔
+            Enable Notifications 🔔
           </h2>
 
           {/* Description */}
           <p className="text-center text-muted-foreground text-sm mb-4">
-            Enable notifications to receive instant updates about:
+            Notifications are <span className="font-semibold text-foreground">required</span> to use Welile. 
+            Get instant updates about:
           </p>
 
           {/* Benefits list */}
@@ -129,7 +154,8 @@ export function PushNotificationEnforcer() {
           <Button
             onClick={handleEnable}
             disabled={isEnabling || loading}
-            className="w-full h-12 text-base font-semibold gap-2 mb-3"
+            className="w-full h-14 text-lg font-bold gap-2"
+            size="lg"
           >
             {isEnabling || loading ? (
               <>
@@ -149,17 +175,23 @@ export function PushNotificationEnforcer() {
             )}
           </Button>
 
-          {/* Snooze option */}
-          <Button
-            variant="ghost"
-            onClick={handleSnooze}
-            className="w-full text-muted-foreground text-sm"
-          >
-            Remind me later
-          </Button>
+          {/* Error message after failed attempt */}
+          {hasAttempted && !isEnabling && !isSubscribed && currentPermission !== 'denied' && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="mt-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl flex items-start gap-2"
+            >
+              <AlertCircle className="h-4 w-4 text-amber-500 mt-0.5 shrink-0" />
+              <p className="text-amber-600 dark:text-amber-400 text-xs">
+                Please tap <strong>"Allow"</strong> in the browser popup to continue using Welile.
+              </p>
+            </motion.div>
+          )}
 
-          <p className="text-center text-xs text-muted-foreground mt-3">
-            You can change this in settings anytime
+          {/* Mandatory notice */}
+          <p className="text-center text-xs text-muted-foreground/70 mt-4">
+            This is required to receive important updates about your account
           </p>
         </motion.div>
       </motion.div>
