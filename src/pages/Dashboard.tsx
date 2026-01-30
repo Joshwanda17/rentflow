@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
-import { PushNotificationPrompt } from '@/components/PushNotificationPrompt';
+import { PushNotificationEnforcer } from '@/components/PushNotificationEnforcer';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
@@ -256,7 +256,7 @@ function DashboardContent() {
         {renderDashboard()}
       </Suspense>
       <FloatingChatButton />
-      <PushNotificationPrompt />
+      <PushNotificationEnforcer />
     </>
   );
 }
