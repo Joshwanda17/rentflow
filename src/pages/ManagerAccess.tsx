@@ -698,7 +698,28 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="users" className="mt-4">
-            <UserProfilesTable />
+            {/* Full-screen users view for mobile */}
+            <div className="fixed inset-0 z-[100] bg-background md:relative md:inset-auto md:z-auto">
+              {/* Mobile full-screen header */}
+              <div className="sticky top-0 z-10 wa-header p-4 flex items-center gap-3 md:hidden shadow-sm">
+                <Button 
+                  variant="ghost" 
+                  size="icon" 
+                  onClick={() => handleTabChange('rent-requests')}
+                  className="text-white/90 hover:text-white hover:bg-white/10"
+                >
+                  <ArrowLeft className="h-5 w-5" />
+                </Button>
+                <div className="flex-1">
+                  <h2 className="text-lg font-semibold text-white">All Users</h2>
+                  <p className="text-xs text-white/70">Manage system users</p>
+                </div>
+              </div>
+              {/* User profiles table with full height */}
+              <div className="h-[calc(100vh-60px)] overflow-auto md:h-auto md:overflow-visible pb-20 md:pb-0">
+                <UserProfilesTable />
+              </div>
+            </div>
           </TabsContent>
 
           <TabsContent value="receipts" className="mt-4">
