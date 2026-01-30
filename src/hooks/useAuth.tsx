@@ -55,15 +55,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Get session immediately - don't await, update state as soon as possible
+    // Get session immediately and set loading false ASAP
     supabase.auth.getSession().then(({ data: { session } }) => {
       setSession(session);
       setUser(session?.user ?? null);
+      // Set loading false immediately - don't wait for roles
+      setLoading(false);
       if (session?.user) {
         fetchUserRoles(session.user.id);
       }
-      // Set loading false immediately after session check
-      setLoading(false);
     }).catch(() => {
       setLoading(false);
     });

@@ -94,36 +94,26 @@ const queryClient = new QueryClient({
   },
 });
 
-// Minimal page loader with timeout fallback for slow connections
+// Ultra-minimal page loader - shows retry after 5s
 const PageLoader = memo(() => {
   const [showRetry, setShowRetry] = useState(false);
   
   useEffect(() => {
-    // Show retry button after 8 seconds of loading
-    const timer = setTimeout(() => setShowRetry(true), 8000);
+    const timer = setTimeout(() => setShowRetry(true), 5000);
     return () => clearTimeout(timer);
   }, []);
   
-  const handleRetry = () => {
-    // Clear chunk recovery flag and reload
-    sessionStorage.removeItem('chunk_retry');
-    window.location.reload();
-  };
-  
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4 p-4">
-      <div className="w-8 h-8 border-3 border-primary border-t-transparent rounded-full animate-spin" />
+    <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-3">
+      <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
       {showRetry && (
-        <div className="flex flex-col items-center gap-3 text-center">
-          <p className="text-sm text-muted-foreground">Taking longer than usual...</p>
-          <button
-            onClick={handleRetry}
-            className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm font-medium"
-            style={{ minHeight: '44px' }}
-          >
-            Tap to Retry
-          </button>
-        </div>
+        <button
+          onClick={() => { sessionStorage.removeItem('chunk_retry'); location.reload(); }}
+          className="px-4 py-2 bg-primary text-primary-foreground rounded-lg text-sm"
+          style={{ minHeight: '44px' }}
+        >
+          Tap to Retry
+        </button>
       )}
     </div>
   );
