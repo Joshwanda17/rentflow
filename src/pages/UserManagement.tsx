@@ -440,31 +440,31 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Search Bar - WhatsApp Style */}
+        {/* Search Bar - Compact WhatsApp Style */}
         <AnimatePresence>
           {showSearch && (
             <motion.div 
               initial={{ height: 0, opacity: 0 }}
               animate={{ height: 'auto', opacity: 1 }}
               exit={{ height: 0, opacity: 0 }}
-              className="px-3 pb-2 overflow-hidden"
+              className="px-2 pb-1.5 overflow-hidden"
             >
               <div className="relative">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
+                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8696a0]" />
                 <input
                   ref={searchInputRef}
                   type="text"
-                  placeholder="Search..."
+                  placeholder="Search name, phone, email..."
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-10 py-2 rounded-lg bg-[#111b21] text-white placeholder:text-[#8696a0] border-none outline-none text-sm"
+                  className="w-full pl-8 pr-8 py-1.5 rounded-md bg-[#111b21] text-white placeholder:text-[#8696a0] border-none outline-none text-xs"
                 />
                 {searchTerm && (
                   <button
                     onClick={() => setSearchTerm('')}
-                    className="absolute right-3 top-1/2 -translate-y-1/2"
+                    className="absolute right-2.5 top-1/2 -translate-y-1/2"
                   >
-                    <X className="h-4 w-4 text-[#8696a0]" />
+                    <X className="h-3.5 w-3.5 text-[#8696a0]" />
                   </button>
                 )}
               </div>
@@ -472,8 +472,8 @@ export default function UserManagement() {
           )}
         </AnimatePresence>
 
-        {/* Filter Pills - WhatsApp Tab Style */}
-        <div className="flex gap-1 px-2 pb-2 overflow-x-auto scrollbar-hide">
+        {/* Filter Pills - Compact */}
+        <div className="flex gap-1 px-2 pb-1.5 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
               key={filter.value}
@@ -482,30 +482,28 @@ export default function UserManagement() {
                 setRoleFilter(filter.value);
               }}
               className={cn(
-                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95",
+                "shrink-0 px-2 py-1 rounded-full text-[10px] font-medium transition-all active:scale-95",
                 roleFilter === filter.value
                   ? 'bg-[#00a884] text-white'
                   : 'bg-[#202c33] text-[#8696a0]'
               )}
             >
               {filter.label}
-              {filter.count > 0 && (
-                <span className="ml-1 opacity-80">{filter.count}</span>
-              )}
+              <span className="ml-0.5 opacity-80">{filter.count}</span>
             </button>
           ))}
         </div>
 
-        {/* Selection indicator */}
+        {/* Selection indicator - Compact */}
         {selectedUserIds.size > 0 && (
-          <div className="px-3 pb-2">
-            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-lg px-3 py-2">
-              <span className="text-xs font-medium text-[#00a884]">
+          <div className="px-2 pb-1.5">
+            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-md px-2 py-1">
+              <span className="text-[10px] font-medium text-[#00a884]">
                 {selectedUserIds.size} selected
               </span>
               <button
                 onClick={clearSelection}
-                className="text-xs text-[#00a884] font-medium"
+                className="text-[10px] text-[#00a884] font-medium"
               >
                 Clear
               </button>
