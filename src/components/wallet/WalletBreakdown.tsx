@@ -1,0 +1,437 @@
+import { useState, useEffect } from 'react';
+import { useAuth } from '@/hooks/useAuth';
+import { supabase } from '@/integrations/supabase/client';
+import { 
+  Sheet, 
+  SheetContent, 
+  SheetHeader, 
+  SheetTitle, 
+  SheetTrigger 
+} from '@/components/ui/sheet';
+import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
+import { Skeleton } from '@/components/ui/skeleton';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
+  ChevronRight, 
+  Users, 
+  Banknote, 
+  CheckCircle2,
+  Gift,
+  TrendingUp,
+  ArrowDownToLine,
+  User
+} from 'lucide-react';
+import { formatUGX } from '@/lib/rentCalculations';
+import { format } from 'date-fns';
+
+interface EarningItem {
+  id: string;
+  amount: number;
+  earning_type: string;
+  description: string | null;
+  source_user_id: string | null;
+  created_at: string;
+  source_user_name?: string;
+}
+
+interface ReferralItem {
+  id: string;
+  referrer_id: string;
+  referred_id: string;
+  bonus_amount: number | null;
+  created_at: string;
+  credited: boolean;
+  referred_name?: string;
+}
+
+interface WithdrawalItem {
+  id: string;
+  amount: number;
+  status: string;
+  created_at: string;
+  processed_at: string | null;
+}
+
+interface BreakdownSummary {
+  referralBonuses: number;
+  approvalBonuses: number;
+  commissions: number;
+  welcomeBonus: number;
+  withdrawals: number;
+  total: number;
+}
+
+export function WalletBreakdown() {
+  const { user } = useAuth();
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [earnings, setEarnings] = useState<EarningItem[]>([]);
+  const [referrals, setReferrals] = useState<ReferralItem[]>([]);
+  const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
+  const [summary, setSummary] = useState<BreakdownSummary>({
+    referralBonuses: 0,
+    approvalBonuses: 0,
+    commissions: 0,
+    welcomeBonus: 0,
+    withdrawals: 0,
+    total: 0,
+  });
+
+  useEffect(() => {
+    if (open && user) {
+      fetchBreakdown();
+    }
+  }, [open, user]);
+
+  const fetchBreakdown = async () => {
+    if (!user) return;
+    setLoading(true);
+
+    try {
+      // Fetch agent earnings with source user names
+      const { data: earningsData } = await supabase
+        .from('agent_earnings')
+        .select('*')
+        .eq('agent_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Get unique source user IDs
+      const sourceUserIds = [...new Set(
+        (earningsData || [])
+          .filter(e => e.source_user_id)
+          .map(e => e.source_user_id)
+      )];
+
+      // Fetch source user names
+      let userNamesMap: Record<string, string> = {};
+      if (sourceUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', sourceUserIds);
+        
+        userNamesMap = (profiles || []).reduce((acc, p) => {
+          acc[p.id] = p.full_name || 'Unknown User';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
+      // Map earnings with user names
+      const earningsWithNames = (earningsData || []).map(e => ({
+        ...e,
+        source_user_name: e.source_user_id ? userNamesMap[e.source_user_id] : null,
+      }));
+
+      // Fetch referrals where user is referrer
+      const { data: referralsData } = await supabase
+        .from('referrals')
+        .select('*')
+        .eq('referrer_id', user.id)
+        .eq('credited', true)
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      // Get referred user names
+      const referredIds = [...new Set(
+        (referralsData || []).map(r => r.referred_id)
+      )];
+
+      let referredNamesMap: Record<string, string> = {};
+      if (referredIds.length > 0) {
+        const { data: referredProfiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', referredIds);
+        
+        referredNamesMap = (referredProfiles || []).reduce((acc, p) => {
+          acc[p.id] = p.full_name || 'Unknown User';
+          return acc;
+        }, {} as Record<string, string>);
+      }
+
+      const referralsWithNames = (referralsData || []).map(r => ({
+        ...r,
+        referred_name: referredNamesMap[r.referred_id],
+      }));
+
+      // Check if user received a welcome bonus (was referred)
+      const { data: wasReferred } = await supabase
+        .from('referrals')
+        .select('bonus_amount, credited')
+        .eq('referred_id', user.id)
+        .eq('credited', true)
+        .maybeSingle();
+
+      // Fetch withdrawals (approved)
+      const { data: withdrawalsData } = await supabase
+        .from('agent_commission_payouts')
+        .select('*')
+        .eq('agent_id', user.id)
+        .eq('status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(20);
+
+      // Calculate summary
+      const referralTotal = (referralsWithNames || []).reduce(
+        (sum, r) => sum + (r.bonus_amount || 500), 0
+      );
+      
+      const approvalTotal = earningsWithNames
+        .filter(e => e.earning_type === 'approval_bonus')
+        .reduce((sum, e) => sum + e.amount, 0);
+      
+      const commissionTotal = earningsWithNames
+        .filter(e => e.earning_type === 'commission' || e.earning_type === 'subagent_commission')
+        .reduce((sum, e) => sum + e.amount, 0);
+
+      const welcomeBonus = wasReferred?.credited ? (wasReferred.bonus_amount || 500) : 0;
+
+      const withdrawalTotal = (withdrawalsData || []).reduce(
+        (sum, w) => sum + w.amount, 0
+      );
+
+      const total = referralTotal + approvalTotal + commissionTotal + welcomeBonus - withdrawalTotal;
+
+      setSummary({
+        referralBonuses: referralTotal,
+        approvalBonuses: approvalTotal,
+        commissions: commissionTotal,
+        welcomeBonus,
+        withdrawals: withdrawalTotal,
+        total,
+      });
+
+      setEarnings(earningsWithNames);
+      setReferrals(referralsWithNames);
+      setWithdrawals(withdrawalsData || []);
+    } catch (error) {
+      console.error('[WalletBreakdown] Error:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const getEarningTypeLabel = (type: string) => {
+    switch (type) {
+      case 'referral_bonus':
+        return { label: 'Referral', icon: Users, color: 'text-blue-500 bg-blue-500/10' };
+      case 'approval_bonus':
+        return { label: 'Approval', icon: CheckCircle2, color: 'text-success bg-success/10' };
+      case 'commission':
+        return { label: 'Commission', icon: TrendingUp, color: 'text-purple-500 bg-purple-500/10' };
+      case 'subagent_commission':
+        return { label: 'Sub-agent', icon: Banknote, color: 'text-amber-500 bg-amber-500/10' };
+      case 'referral_first_transaction':
+        return { label: '1st Trans', icon: Gift, color: 'text-pink-500 bg-pink-500/10' };
+      default:
+        return { label: type, icon: Banknote, color: 'text-muted-foreground bg-muted' };
+    }
+  };
+
+  return (
+    <Sheet open={open} onOpenChange={setOpen}>
+      <SheetTrigger asChild>
+        <Button 
+          variant="ghost" 
+          size="sm" 
+          className="gap-1.5 text-xs font-semibold text-primary"
+        >
+          See Breakdown
+          <ChevronRight className="h-3.5 w-3.5" />
+        </Button>
+      </SheetTrigger>
+      <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl">
+        <SheetHeader className="pb-4 border-b">
+          <SheetTitle className="text-xl font-bold">Wallet Breakdown</SheetTitle>
+        </SheetHeader>
+
+        {loading ? (
+          <div className="space-y-4 py-4">
+            <Skeleton className="h-24 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+            <Skeleton className="h-16 w-full rounded-xl" />
+          </div>
+        ) : (
+          <ScrollArea className="h-[calc(85vh-80px)] py-4">
+            {/* Summary Cards */}
+            <div className="grid grid-cols-2 gap-3 mb-6">
+              {summary.referralBonuses > 0 && (
+                <div className="p-4 rounded-2xl bg-blue-500/10 border border-blue-500/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Users className="h-4 w-4 text-blue-500" />
+                    <span className="text-xs font-semibold text-blue-600">Referral Bonuses</span>
+                  </div>
+                  <p className="text-lg font-bold">{formatUGX(summary.referralBonuses)}</p>
+                  <p className="text-xs text-muted-foreground">{referrals.length} referrals</p>
+                </div>
+              )}
+
+              {summary.approvalBonuses > 0 && (
+                <div className="p-4 rounded-2xl bg-success/10 border border-success/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                    <span className="text-xs font-semibold text-success">Approval Bonuses</span>
+                  </div>
+                  <p className="text-lg font-bold">{formatUGX(summary.approvalBonuses)}</p>
+                  <p className="text-xs text-muted-foreground">5,000 UGX each</p>
+                </div>
+              )}
+
+              {summary.commissions > 0 && (
+                <div className="p-4 rounded-2xl bg-purple-500/10 border border-purple-500/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <TrendingUp className="h-4 w-4 text-purple-500" />
+                    <span className="text-xs font-semibold text-purple-600">Commissions</span>
+                  </div>
+                  <p className="text-lg font-bold">{formatUGX(summary.commissions)}</p>
+                  <p className="text-xs text-muted-foreground">5% of repayments</p>
+                </div>
+              )}
+
+              {summary.welcomeBonus > 0 && (
+                <div className="p-4 rounded-2xl bg-pink-500/10 border border-pink-500/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <Gift className="h-4 w-4 text-pink-500" />
+                    <span className="text-xs font-semibold text-pink-600">Welcome Bonus</span>
+                  </div>
+                  <p className="text-lg font-bold">{formatUGX(summary.welcomeBonus)}</p>
+                  <p className="text-xs text-muted-foreground">Signup reward</p>
+                </div>
+              )}
+
+              {summary.withdrawals > 0 && (
+                <div className="p-4 rounded-2xl bg-warning/10 border border-warning/20">
+                  <div className="flex items-center gap-2 mb-1">
+                    <ArrowDownToLine className="h-4 w-4 text-warning" />
+                    <span className="text-xs font-semibold text-warning">Withdrawals</span>
+                  </div>
+                  <p className="text-lg font-bold text-warning">-{formatUGX(summary.withdrawals)}</p>
+                  <p className="text-xs text-muted-foreground">{withdrawals.length} payouts</p>
+                </div>
+              )}
+            </div>
+
+            {/* Referrals Detail */}
+            {referrals.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Users className="h-4 w-4" />
+                  People You Referred
+                </h3>
+                <div className="space-y-2">
+                  {referrals.map((ref) => (
+                    <div 
+                      key={ref.id} 
+                      className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-blue-500/15 flex items-center justify-center">
+                          <User className="h-5 w-5 text-blue-500" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">{ref.referred_name || 'User'}</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(ref.created_at), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <Badge variant="outline" className="bg-success/10 text-success border-success/30">
+                        +{formatUGX(ref.bonus_amount || 500)}
+                      </Badge>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Earnings Detail */}
+            {earnings.length > 0 && (
+              <div className="mb-6">
+                <h3 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+                  <Banknote className="h-4 w-4" />
+                  Earnings History
+                </h3>
+                <div className="space-y-2">
+                  {earnings.map((earning) => {
+                    const typeInfo = getEarningTypeLabel(earning.earning_type);
+                    const Icon = typeInfo.icon;
+                    return (
+                      <div 
+                        key={earning.id} 
+                        className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`h-10 w-10 rounded-full flex items-center justify-center ${typeInfo.color}`}>
+                            <Icon className="h-5 w-5" />
+                          </div>
+                          <div>
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm">{typeInfo.label}</p>
+                              <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                                {earning.earning_type.replace(/_/g, ' ')}
+                              </Badge>
+                            </div>
+                            <p className="text-xs text-muted-foreground">
+                              {earning.source_user_name 
+                                ? `From ${earning.source_user_name}` 
+                                : earning.description || format(new Date(earning.created_at), 'MMM d, yyyy')}
+                            </p>
+                          </div>
+                        </div>
+                        <p className="font-bold text-success">+{formatUGX(earning.amount)}</p>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
+            {/* Withdrawals Detail */}
+            {withdrawals.length > 0 && (
+              <div>
+                <h3 className="text-sm font-bold text-muted-foreground mb-3 flex items-center gap-2">
+                  <ArrowDownToLine className="h-4 w-4" />
+                  Withdrawal History
+                </h3>
+                <div className="space-y-2">
+                  {withdrawals.map((withdrawal) => (
+                    <div 
+                      key={withdrawal.id} 
+                      className="flex items-center justify-between p-3 rounded-xl bg-muted/30 border"
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="h-10 w-10 rounded-full bg-warning/15 flex items-center justify-center">
+                          <ArrowDownToLine className="h-5 w-5 text-warning" />
+                        </div>
+                        <div>
+                          <p className="font-semibold text-sm">Withdrawal</p>
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(withdrawal.processed_at || withdrawal.created_at), 'MMM d, yyyy')}
+                          </p>
+                        </div>
+                      </div>
+                      <p className="font-bold text-warning">-{formatUGX(withdrawal.amount)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Empty State */}
+            {earnings.length === 0 && referrals.length === 0 && summary.welcomeBonus === 0 && (
+              <div className="text-center py-12">
+                <Banknote className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+                <p className="font-semibold text-muted-foreground">No earnings yet</p>
+                <p className="text-sm text-muted-foreground/70">
+                  Refer friends or register tenants to earn bonuses!
+                </p>
+              </div>
+            )}
+          </ScrollArea>
+        )}
+      </SheetContent>
+    </Sheet>
+  );
+}
