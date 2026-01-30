@@ -22,6 +22,34 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
+// Register service worker if not already registered
+async function ensureServiceWorkerRegistered(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) {
+    console.error('[Push] Service workers not supported');
+    return null;
+  }
+
+  try {
+    // Check if already registered
+    let registration = await navigator.serviceWorker.getRegistration('/');
+    
+    if (!registration) {
+      console.log('[Push] Registering service worker...');
+      registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      console.log('[Push] Service worker registered:', registration.scope);
+    }
+
+    // Wait for the service worker to be ready
+    await navigator.serviceWorker.ready;
+    console.log('[Push] Service worker is ready');
+    
+    return registration;
+  } catch (error) {
+    console.error('[Push] Service worker registration failed:', error);
+    return null;
+  }
+}
+
 export function usePushNotifications() {
   const { user } = useAuth();
   const [isSupported, setIsSupported] = useState(false);
@@ -31,14 +59,20 @@ export function usePushNotifications() {
 
   // Check if push notifications are supported
   useEffect(() => {
-    const supported = 'serviceWorker' in navigator && 
-                      'PushManager' in window && 
-                      'Notification' in window;
-    setIsSupported(supported);
+    const checkSupport = async () => {
+      const supported = 'serviceWorker' in navigator && 
+                        'PushManager' in window && 
+                        'Notification' in window;
+      setIsSupported(supported);
+      
+      if (supported) {
+        setPermission(Notification.permission);
+        // Pre-register service worker
+        await ensureServiceWorkerRegistered();
+      }
+    };
     
-    if (supported) {
-      setPermission(Notification.permission);
-    }
+    checkSupport();
   }, []);
 
   // Check existing subscription
@@ -50,53 +84,45 @@ export function usePushNotifications() {
         const registration = await navigator.serviceWorker.ready;
         const subscription = await registration.pushManager.getSubscription();
         setIsSubscribed(!!subscription);
+        
+        // If subscribed locally but not in DB, sync it
+        if (subscription) {
+          const { data } = await supabase
+            .from('push_subscriptions')
+            .select('id')
+            .eq('user_id', user.id)
+            .maybeSingle();
+            
+          if (!data) {
+            // Re-save subscription to DB
+            await saveSubscriptionToDb(subscription, user.id);
+          }
+        }
       } catch (error) {
-        console.error('Error checking push subscription:', error);
+        console.error('[Push] Error checking subscription:', error);
       }
     };
 
     checkSubscription();
   }, [isSupported, user]);
 
-  // Subscribe to push notifications
-  const subscribe = useCallback(async () => {
-    if (!isSupported || !user) {
-      toast.error('Push notifications are not supported on this device');
-      return false;
-    }
-
-    setLoading(true);
+  // Save subscription to database
+  const saveSubscriptionToDb = async (subscription: PushSubscription, userId: string): Promise<boolean> => {
     try {
-      // Request permission
-      const perm = await Notification.requestPermission();
-      setPermission(perm);
-
-      if (perm !== 'granted') {
-        toast.error('Notification permission denied');
-        setLoading(false);
-        return false;
-      }
-
-      // Get service worker registration
-      const registration = await navigator.serviceWorker.ready;
-
-      // Subscribe to push
-      const subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
-      });
-
-      // Extract keys
       const subscriptionJson = subscription.toJSON();
       const endpoint = subscriptionJson.endpoint || '';
       const p256dh = subscriptionJson.keys?.p256dh || '';
       const auth = subscriptionJson.keys?.auth || '';
 
-      // Save to database
+      if (!endpoint || !p256dh || !auth) {
+        console.error('[Push] Invalid subscription keys');
+        return false;
+      }
+
       const { error } = await supabase
         .from('push_subscriptions')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           endpoint,
           p256dh,
           auth,
@@ -105,17 +131,104 @@ export function usePushNotifications() {
           onConflict: 'user_id'
         });
 
-      if (error) throw error;
+      if (error) {
+        console.error('[Push] Database error:', error);
+        return false;
+      }
+
+      console.log('[Push] Subscription saved to database');
+      return true;
+    } catch (error) {
+      console.error('[Push] Error saving subscription:', error);
+      return false;
+    }
+  };
+
+  // Subscribe to push notifications
+  const subscribe = useCallback(async () => {
+    if (!user) {
+      toast.error('Please log in to enable notifications');
+      return false;
+    }
+
+    if (!isSupported) {
+      toast.error('Push notifications are not supported on this browser');
+      return false;
+    }
+
+    setLoading(true);
+    
+    try {
+      // Step 1: Request notification permission
+      console.log('[Push] Requesting permission...');
+      const perm = await Notification.requestPermission();
+      setPermission(perm);
+
+      if (perm !== 'granted') {
+        toast.error('Notification permission denied. Please enable in browser settings.');
+        setLoading(false);
+        return false;
+      }
+
+      console.log('[Push] Permission granted');
+
+      // Step 2: Ensure service worker is ready
+      const registration = await ensureServiceWorkerRegistered();
+      if (!registration) {
+        toast.error('Could not register service worker. Please refresh and try again.');
+        setLoading(false);
+        return false;
+      }
+
+      // Step 3: Check for existing subscription
+      let subscription = await registration.pushManager.getSubscription();
+      
+      if (!subscription) {
+        console.log('[Push] Creating new subscription...');
+        try {
+          subscription = await registration.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
+          });
+          console.log('[Push] Subscription created:', subscription.endpoint);
+        } catch (subscribeError: any) {
+          console.error('[Push] Subscription error:', subscribeError);
+          
+          // Handle specific errors
+          if (subscribeError.message?.includes('permission')) {
+            toast.error('Notifications blocked. Please enable in browser settings.');
+          } else if (subscribeError.message?.includes('key')) {
+            toast.error('Push service configuration error. Please try again later.');
+          } else {
+            toast.error('Failed to subscribe. Please try again.');
+          }
+          setLoading(false);
+          return false;
+        }
+      }
+
+      // Step 4: Save to database
+      const saved = await saveSubscriptionToDb(subscription, user.id);
+      
+      if (!saved) {
+        toast.error('Could not save notification settings. Please try again.');
+        setLoading(false);
+        return false;
+      }
 
       setIsSubscribed(true);
       toast.success('Push notifications enabled!', {
         icon: '🔔',
-        description: 'You will now receive notifications on this device'
+        description: 'You will now receive instant alerts on this device'
       });
+      
+      // Mark as enabled in localStorage for the enforcer
+      localStorage.setItem('push-notifications-enabled', 'true');
+      
       return true;
-    } catch (error) {
-      console.error('Error subscribing to push:', error);
-      toast.error('Failed to enable push notifications');
+    } catch (error: any) {
+      console.error('[Push] Subscribe error:', error);
+      toast.error(error.message || 'Failed to enable push notifications');
       return false;
     } finally {
       setLoading(false);
@@ -142,10 +255,11 @@ export function usePushNotifications() {
         .eq('user_id', user.id);
 
       setIsSubscribed(false);
+      localStorage.removeItem('push-notifications-enabled');
       toast.success('Push notifications disabled');
       return true;
     } catch (error) {
-      console.error('Error unsubscribing from push:', error);
+      console.error('[Push] Error unsubscribing:', error);
       toast.error('Failed to disable push notifications');
       return false;
     } finally {
