@@ -115,32 +115,37 @@
 
   <body>
     <div id="root">
-      <!-- Simplified loading state for faster first paint -->
-      <div class="app-loader" id="app-loader">
-        <div class="loader-content">
-          <div class="loader-logo-icon">
-            <img src="/welile-logo.png" alt="Welile" width="64" height="64" />
-          </div>
-          <div class="loader-brand">Welile</div>
-          <div class="loader-progress">
-            <div class="loader-progress-bar" id="progress-bar"></div>
-          </div>
-          <div class="loader-text" id="loader-text">Loading...</div>
-        </div>
-      </div>
+      <!-- ULTRA-FAST: Skip loader for returning users -->
     </div>
     <script>
-      // Fast loader - skip for returning users
+      // Ultra-fast loader - skip entirely for returning users with session
       (function(){
-        var l = document.getElementById('app-loader');
-        if (localStorage.getItem('welile_visited')) { if(l) l.remove(); return; }
+        var hasSession = false;
+        try { hasSession = !!localStorage.getItem('sb-wirntoujqoyjobfhyelc-auth-token'); } catch(e){}
+        var visited = false;
+        try { visited = !!localStorage.getItem('welile_visited'); } catch(e){}
+        
+        // If returning user with session, show nothing - React will render instantly
+        if (hasSession && visited) {
+          window.hideSplash = function(){};
+          return;
+        }
+        
+        // First time visitor - show minimal branded loader
+        var root = document.getElementById('root');
+        if (root) {
+          root.innerHTML = '<div class="app-loader" id="app-loader"><div class="loader-content"><div class="loader-logo-icon"><img src="/welile-logo.png" alt="Welile" width="64" height="64" /></div><div class="loader-brand">Welile</div><div class="loader-progress"><div class="loader-progress-bar" id="progress-bar"></div></div><div class="loader-text" id="loader-text">Loading...</div></div></div>';
+        }
+        
         try { localStorage.setItem('welile_visited', '1'); } catch(e){}
         var bar = document.getElementById('progress-bar');
         var txt = document.getElementById('loader-text');
+        var l = document.getElementById('app-loader');
+        
         setTimeout(function(){ if(bar) bar.style.width = '60%'; }, 50);
         setTimeout(function(){ if(bar) bar.style.width = '100%'; if(txt) txt.textContent = 'Ready!'; }, 150);
-        window.hideSplash = function(){ if(l){ l.classList.add('fade-out'); setTimeout(function(){ l.remove(); }, 300); } };
-        setTimeout(window.hideSplash, 300);
+        window.hideSplash = function(){ if(l){ l.classList.add('fade-out'); setTimeout(function(){ l.remove(); }, 200); } };
+        setTimeout(window.hideSplash, 250);
       })();
     </script>
     <script type="module" src="/src/main.tsx"></script>

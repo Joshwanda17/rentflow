@@ -2,6 +2,16 @@ import { useState, useEffect, createContext, useContext, ReactNode } from 'react
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
+import { 
+  getCachedSession, 
+  setCachedSession, 
+  clearSessionCache,
+  getCachedRoles,
+  setCachedRoles,
+  getPreloadedSession,
+  getPreloadedRoles
+} from '@/lib/sessionCache';
+
 export type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
 
 interface AuthContextType {
@@ -23,11 +33,16 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
+  // INSTANT: Use cached session/roles for immediate state
+  const cachedSession = getPreloadedSession();
+  const cachedRoles = getPreloadedRoles() as AppRole[] | null;
+  
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(null);
-  const [roles, setRoles] = useState<AppRole[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [role, setRole] = useState<AppRole | null>(cachedRoles?.[0] || null);
+  const [roles, setRoles] = useState<AppRole[]>(cachedRoles || []);
+  // CRITICAL: Start with loading=false if we have cached data
+  const [loading, setLoading] = useState(!cachedSession);
 
   useEffect(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
@@ -36,6 +51,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
         
         if (session?.user) {
+          // Cache session for instant reload
+          setCachedSession(
+            session.user.id, 
+            session.user.email || '', 
+            session.expires_at || 0
+          );
+          
           setTimeout(() => {
             fetchUserRoles(session.user.id);
           }, 0);
@@ -51,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           setRole(null);
           setRoles([]);
+          clearSessionCache();
         }
       }
     );
@@ -62,10 +85,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Set loading false immediately - don't wait for roles
       setLoading(false);
       if (session?.user) {
+        // Cache for next load
+        setCachedSession(
+          session.user.id, 
+          session.user.email || '', 
+          session.expires_at || 0
+        );
         fetchUserRoles(session.user.id);
+      } else {
+        clearSessionCache();
       }
     }).catch(() => {
       setLoading(false);
+      clearSessionCache();
     });
 
     // Handle "Remember me" - sign out when browser closes if unchecked
@@ -74,6 +106,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       if (sessionOnly === 'true') {
         // Sign out synchronously by clearing storage
         localStorage.removeItem('sb-wirntoujqoyjobfhyelc-auth-token');
+        clearSessionCache();
       }
     };
 
@@ -96,6 +129,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!error && data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
       setRoles(userRoles);
+      // Cache roles for instant reload
+      setCachedRoles(userRoles);
       // Prioritize supporter role as default, otherwise use first role
       if (!role || !userRoles.includes(role)) {
         const defaultRole = userRoles.includes('supporter') ? 'supporter' : userRoles[0];
@@ -104,6 +139,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     } else {
       setRoles([]);
       setRole(null);
+      setCachedRoles([]);
     }
   };
 

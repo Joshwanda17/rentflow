@@ -1,4 +1,4 @@
-import { useEffect, useState, Suspense, lazy } from 'react';
+import { useEffect, useState, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
@@ -7,6 +7,7 @@ import { PushNotificationPrompt } from '@/components/PushNotificationPrompt';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
+import { getPreloadedRoles } from '@/lib/sessionCache';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
@@ -20,13 +21,14 @@ const SupporterDashboard = lazy(() => import('@/components/dashboards/SupporterD
 const LandlordDashboard = lazy(() => import('@/components/dashboards/LandlordDashboard'));
 const ManagerDashboard = lazy(() => import('@/components/dashboards/ManagerDashboard'));
 
-// Minimal loading skeleton for faster perceived loading
-const DashboardLoadingFallback = () => (
+// Minimal loading skeleton - memoized for performance
+const DashboardLoadingFallback = memo(() => (
   <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-3 p-4">
-    <Loader2 className="h-8 w-8 animate-spin text-primary" />
-    <p className="text-sm text-muted-foreground">Loading dashboard...</p>
+    <Loader2 className="h-6 w-6 animate-spin text-primary" />
+    <p className="text-xs text-muted-foreground">Loading...</p>
   </div>
-);
+));
+DashboardLoadingFallback.displayName = 'DashboardLoadingFallback';
 
 // Offline fallback when dashboard can't load
 const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null; onRetry: () => void }) => (
@@ -57,8 +59,11 @@ function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [cachedRoles, setCachedRoles] = useState<AppRole[]>([]);
-  const [showCachedUI, setShowCachedUI] = useState(false);
+  
+  // INSTANT: Use preloaded session cache for immediate display
+  const preloadedRoles = getPreloadedRoles() as AppRole[] | null;
+  const [cachedRoles, setCachedRoles] = useState<AppRole[]>(preloadedRoles || []);
+  const [showCachedUI, setShowCachedUI] = useState(!!preloadedRoles?.length);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();

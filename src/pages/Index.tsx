@@ -1,6 +1,6 @@
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { useEffect } from 'react';
+import { getPreloadedSession, getPreloadedRoles } from '@/lib/sessionCache';
 
 export default function Index() {
   const { user, roles, loading } = useAuth();
@@ -10,21 +10,20 @@ export default function Index() {
   const ref = searchParams.get('ref');
   const role = searchParams.get('role');
 
-  // Prefetch critical routes while loading
-  useEffect(() => {
-    if (loading) {
-      // Prefetch auth and dashboard for faster navigation
-      const prefetchRoutes = ['/auth', '/dashboard', '/select-role'];
-      prefetchRoutes.forEach(route => {
-        const link = document.createElement('link');
-        link.rel = 'prefetch';
-        link.href = route;
-        document.head.appendChild(link);
-      });
-    }
-  }, [loading]);
+  // INSTANT: Use cached session for immediate redirect decision
+  const cachedSession = getPreloadedSession();
+  const cachedRoles = getPreloadedRoles();
 
-  // Show minimal loading - just a quick flash
+  // If we have cached data, make instant decision without waiting
+  if (cachedSession && cachedRoles && cachedRoles.length > 0) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  
+  if (cachedSession && (!cachedRoles || cachedRoles.length === 0)) {
+    return <Navigate to="/select-role" replace />;
+  }
+
+  // Fallback: Show minimal loading only if truly needed
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
