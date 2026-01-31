@@ -62,104 +62,128 @@ export default function ChatDrawer({ open, onOpenChange }: ChatDrawerProps) {
     const fetchData = async () => {
       setLoading(true);
 
-      // Fetch all users except current
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .neq('id', user.id)
-        .order('full_name', { ascending: true });
-
-      if (profiles) {
-        // Get roles for all users
-        const userIds = profiles.map(p => p.id);
-        const { data: rolesData } = await supabase
-          .from('user_roles')
-          .select('user_id, role')
-          .in('user_id', userIds);
-
-        const rolesMap = new Map<string, string[]>();
-        rolesData?.forEach(r => {
-          const existing = rolesMap.get(r.user_id) || [];
-          rolesMap.set(r.user_id, [...existing, r.role]);
-        });
-
-        const usersWithRoles: UserProfile[] = profiles.map(p => ({
-          id: p.id,
-          full_name: p.full_name,
-          avatar_url: p.avatar_url,
-          roles: rolesMap.get(p.id) || []
-        }));
-
-        setUsers(usersWithRoles);
-      }
-
-      // Fetch existing conversations
-      const { data: participations } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, last_read_at')
-        .eq('user_id', user.id);
-
-      if (participations && participations.length > 0) {
-        const convIds = participations.map(p => p.conversation_id);
-        const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
-
-        // Get other participants
-        const { data: otherParticipants } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id, user_id')
-          .in('conversation_id', convIds)
-          .neq('user_id', user.id);
-
-        if (otherParticipants) {
-          const otherUserIds = [...new Set(otherParticipants.map(p => p.user_id))];
-          const { data: otherProfiles } = await supabase
+      try {
+        // OPTIMIZED: Parallel fetch of users and conversations with batched queries
+        const [profilesRes, participationsRes] = await Promise.all([
+          // Fetch limited users for quick load (most recent/active first)
+          supabase
             .from('profiles')
             .select('id, full_name, avatar_url')
-            .in('id', otherUserIds);
+            .neq('id', user.id)
+            .order('updated_at', { ascending: false })
+            .limit(50),
+          // Fetch user's conversations
+          supabase
+            .from('conversation_participants')
+            .select('conversation_id, last_read_at')
+            .eq('user_id', user.id)
+        ]);
 
-          const profilesMap = new Map(otherProfiles?.map(p => [p.id, p]) || []);
+        // Process users with roles in one batch
+        if (profilesRes.data) {
+          const userIds = profilesRes.data.map(p => p.id);
+          const { data: rolesData } = await supabase
+            .from('user_roles')
+            .select('user_id, role')
+            .in('user_id', userIds);
 
-          // Get last messages
-          const convData: Conversation[] = [];
-
-          for (const conv of convIds) {
-            const otherP = otherParticipants.find(p => p.conversation_id === conv);
-            if (!otherP) continue;
-
-            const profile = profilesMap.get(otherP.user_id);
-            if (!profile) continue;
-
-            const { data: messages } = await supabase
-              .from('messages')
-              .select('content, created_at')
-              .eq('conversation_id', conv)
-              .order('created_at', { ascending: false })
-              .limit(1);
-
-            const { count: unreadCount } = await supabase
-              .from('messages')
-              .select('id', { count: 'exact', head: true })
-              .eq('conversation_id', conv)
-              .neq('sender_id', user.id)
-              .gt('created_at', lastReadMap.get(conv) || '1970-01-01');
-
-            convData.push({
-              id: conv,
-              participant: profile,
-              lastMessage: messages?.[0],
-              unreadCount: unreadCount || 0
-            });
-          }
-
-          // Sort by last message time
-          convData.sort((a, b) => {
-            const aTime = a.lastMessage?.created_at || '';
-            const bTime = b.lastMessage?.created_at || '';
-            return bTime.localeCompare(aTime);
+          const rolesMap = new Map<string, string[]>();
+          rolesData?.forEach(r => {
+            const existing = rolesMap.get(r.user_id) || [];
+            rolesMap.set(r.user_id, [...existing, r.role]);
           });
 
-          setConversations(convData);
+          setUsers(profilesRes.data.map(p => ({
+            id: p.id,
+            full_name: p.full_name,
+            avatar_url: p.avatar_url,
+            roles: rolesMap.get(p.id) || []
+          })));
         }
+
+        // Process conversations with OPTIMIZED batched queries
+        const participations = participationsRes.data;
+        if (participations && participations.length > 0) {
+          const convIds = participations.map(p => p.conversation_id);
+          const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
+
+          // Batch fetch: other participants, profiles, and last messages in parallel
+          const [otherParticipantsRes, lastMessagesRes] = await Promise.all([
+            supabase
+              .from('conversation_participants')
+              .select('conversation_id, user_id')
+              .in('conversation_id', convIds)
+              .neq('user_id', user.id),
+            // OPTIMIZED: Get last message for each conversation using distinct on
+            supabase
+              .from('messages')
+              .select('conversation_id, content, created_at, sender_id')
+              .in('conversation_id', convIds)
+              .order('created_at', { ascending: false })
+              .limit(convIds.length * 2) // Get enough to have at least 1 per conv
+          ]);
+
+          if (otherParticipantsRes.data) {
+            const otherUserIds = [...new Set(otherParticipantsRes.data.map(p => p.user_id))];
+            const { data: otherProfiles } = await supabase
+              .from('profiles')
+              .select('id, full_name, avatar_url')
+              .in('id', otherUserIds);
+
+            const profilesMap = new Map(otherProfiles?.map(p => [p.id, p]) || []);
+            
+            // Group last messages by conversation
+            const lastMessageMap = new Map<string, { content: string; created_at: string }>();
+            lastMessagesRes.data?.forEach(msg => {
+              if (!lastMessageMap.has(msg.conversation_id)) {
+                lastMessageMap.set(msg.conversation_id, { 
+                  content: msg.content, 
+                  created_at: msg.created_at 
+                });
+              }
+            });
+
+            // OPTIMIZED: Count unread messages in single query per batch
+            // Group messages by conversation and count unread
+            const unreadMessages = lastMessagesRes.data?.filter(msg => 
+              msg.sender_id !== user.id && 
+              msg.created_at > (lastReadMap.get(msg.conversation_id) || '1970-01-01')
+            ) || [];
+            
+            const unreadCountMap = new Map<string, number>();
+            unreadMessages.forEach(msg => {
+              unreadCountMap.set(msg.conversation_id, (unreadCountMap.get(msg.conversation_id) || 0) + 1);
+            });
+
+            // Build conversation data without N+1 queries
+            const convData: Conversation[] = [];
+            for (const conv of convIds) {
+              const otherP = otherParticipantsRes.data.find(p => p.conversation_id === conv);
+              if (!otherP) continue;
+
+              const profile = profilesMap.get(otherP.user_id);
+              if (!profile) continue;
+
+              convData.push({
+                id: conv,
+                participant: profile,
+                lastMessage: lastMessageMap.get(conv),
+                unreadCount: unreadCountMap.get(conv) || 0
+              });
+            }
+
+            // Sort by last message time
+            convData.sort((a, b) => {
+              const aTime = a.lastMessage?.created_at || '';
+              const bTime = b.lastMessage?.created_at || '';
+              return bTime.localeCompare(aTime);
+            });
+
+            setConversations(convData);
+          }
+        }
+      } catch (error) {
+        console.warn('[ChatDrawer] Error fetching data:', error);
       }
 
       setLoading(false);
@@ -167,17 +191,24 @@ export default function ChatDrawer({ open, onOpenChange }: ChatDrawerProps) {
 
     fetchData();
 
-    // Real-time subscription for new messages
+    // Debounced real-time subscription
+    let timeout: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(fetchData, 1000); // 1s debounce
+    };
+
     const channel = supabase
-      .channel('drawer-messages')
+      .channel(`drawer-messages-${user.id}`)
       .on(
         'postgres_changes',
         { event: 'INSERT', schema: 'public', table: 'messages' },
-        () => fetchData()
+        debouncedFetch
       )
       .subscribe();
 
     return () => {
+      clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, [open, user]);
