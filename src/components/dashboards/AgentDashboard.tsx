@@ -68,6 +68,7 @@ import { AgentAgreementBanner, AgentTermsQuickAccess } from '@/components/agent/
 import { useOffline } from '@/contexts/OfflineContext';
 import { OfflineBanner } from '@/components/OfflineBanner';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
+import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 
 interface AgentDashboardProps {
@@ -169,12 +170,19 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const { totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
   const { wallet, refreshWallet } = useWallet();
   const { isOnline } = useOffline();
-  const [referralCount, setReferralCount] = useState(0);
-  const [tenantsCount, setTenantsCount] = useState(0);
-  const [subAgentCount, setSubAgentCount] = useState(0);
-  const [subAgentEarnings, setSubAgentEarnings] = useState(0);
-  const [loading, setLoading] = useState(true);
-  const [hasLoadedOnce, setHasLoadedOnce] = useState(false);
+  
+  // Use offline-first hook for instant dashboard loading
+  const { 
+    stats, 
+    isLoading: loading, 
+    isOfflineData, 
+    refreshData: refreshOfflineData, 
+    hasLoadedOnce 
+  } = useOfflineAgentDashboard();
+  
+  // Destructure stats for easier access
+  const { tenantsCount, referralCount, subAgentCount, subAgentEarnings } = stats;
+  
   const [fetchError, setFetchError] = useState(false);
   const [depositOpen, setDepositOpen] = useState(false);
   const [registerUserOpen, setRegisterUserOpen] = useState(false);
@@ -206,26 +214,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
     setSectionsOpen(prev => ({ ...prev, [section]: !prev[section] }));
   };
 
-  // Load cached data from localStorage on mount
+  // Real-time subscription for referrals to auto-update
   useEffect(() => {
-    const cached = localStorage.getItem(`agent_dashboard_${user.id}`);
-    if (cached) {
-      try {
-        const data = JSON.parse(cached);
-        setTenantsCount(data.tenantsCount || 0);
-        setReferralCount(data.referralCount || 0);
-        setSubAgentCount(data.subAgentCount || 0);
-        setSubAgentEarnings(data.subAgentEarnings || 0);
-        setHasLoadedOnce(true);
-      } catch (e) {
-        console.warn('[AgentDashboard] Failed to parse cached data');
-      }
-    }
-    fetchData();
-  }, [user.id]);
-
-  // Real-time subscription for referrals to auto-update count
-  useEffect(() => {
+    let debounceTimer: NodeJS.Timeout;
+    
     const channel = supabase
       .channel(`agent-referrals-${user.id}`)
       .on(
@@ -236,66 +228,30 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           table: 'referrals',
           filter: `referrer_id=eq.${user.id}`,
         },
-        (payload) => {
-          console.log('[AgentDashboard] New referral detected:', payload);
-          setReferralCount((prev) => prev + 1);
-          // Also refetch earnings since referral bonus should be credited
-          refreshEarnings();
-          refreshWallet();
+        () => {
+          // Debounce to prevent rapid re-fetches
+          clearTimeout(debounceTimer);
+          debounceTimer = setTimeout(() => {
+            refreshOfflineData();
+            refreshEarnings();
+            refreshWallet();
+          }, 500);
         }
       )
       .subscribe();
 
     return () => {
+      clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
-  }, [user.id, refreshEarnings, refreshWallet]);
-
-  const fetchData = async () => {
-    if (!navigator.onLine && hasLoadedOnce) {
-      setLoading(false);
-      return;
-    }
-    
-    if (!hasLoadedOnce) setLoading(true);
-    setFetchError(false);
-    
-    try {
-      const [requestsRes, referralsRes, subAgentsRes, subAgentEarningsRes] = await Promise.all([
-        supabase.from('rent_requests').select('id').eq('agent_id', user.id),
-        supabase.from('referrals').select('id').eq('referrer_id', user.id),
-        supabase.from('agent_subagents').select('id').eq('parent_agent_id', user.id),
-        supabase.from('agent_earnings').select('amount').eq('agent_id', user.id).eq('earning_type', 'subagent_commission')
-      ]);
-      
-      const newData = {
-        tenantsCount: requestsRes.data?.length || 0,
-        referralCount: referralsRes.data?.length || 0,
-        subAgentCount: subAgentsRes.data?.length || 0,
-        subAgentEarnings: subAgentEarningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0
-      };
-      
-      setTenantsCount(newData.tenantsCount);
-      setReferralCount(newData.referralCount);
-      setSubAgentCount(newData.subAgentCount);
-      setSubAgentEarnings(newData.subAgentEarnings);
-      
-      localStorage.setItem(`agent_dashboard_${user.id}`, JSON.stringify(newData));
-      setHasLoadedOnce(true);
-    } catch (error) {
-      console.warn('[AgentDashboard] Fetch error:', error);
-      setFetchError(true);
-    } finally {
-      setLoading(false);
-    }
-  };
+  }, [user.id, refreshEarnings, refreshWallet, refreshOfflineData]);
 
   if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
   }
 
   const handleRefresh = async () => {
-    await Promise.all([fetchData(), refreshEarnings(), refreshWallet()]);
+    await Promise.all([refreshOfflineData(), refreshEarnings(), refreshWallet()]);
   };
 
   const handleRegisterUser = () => { hapticTap(); setRegisterUserOpen(true); };
@@ -631,12 +587,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <UnifiedRegistrationDialog 
         open={registerUserOpen} 
         onOpenChange={setRegisterUserOpen}
-        onSuccess={() => { fetchData(); refreshEarnings(); }}
+        onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
       />
       <RegisterSubAgentDialog
         open={inviteSubAgentOpen}
         onOpenChange={setInviteSubAgentOpen}
-        onSuccess={() => { fetchData(); refreshEarnings(); }}
+        onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
       />
       
       <FloatingShareButton />

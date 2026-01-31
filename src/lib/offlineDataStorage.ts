@@ -2,7 +2,7 @@
 // Extends chat offline storage to cover wallet, profile, dashboard data
 
 const DB_NAME = 'welile-offline-data';
-const DB_VERSION = 2;
+const DB_VERSION = 3; // Incremented for new stores
 
 // Store names
 const STORES = {
@@ -14,6 +14,8 @@ const STORES = {
   DASHBOARD_DATA: 'dashboardData',
   USER_ROLES: 'userRoles',
   SYNC_QUEUE: 'syncQueue',
+  AGENT_STATS: 'agentStats',
+  EARNINGS: 'earnings',
 } as const;
 
 interface SyncQueueItem {
@@ -192,6 +194,25 @@ export async function cacheUserRoles(userId: string, roles: string[]): Promise<v
 export async function getCachedUserRoles(userId: string): Promise<string[]> {
   const result = await getCachedData<any>(STORES.USER_ROLES, userId);
   return result?.roles || [];
+}
+
+// Agent Stats - role-specific cached agent data
+export async function cacheAgentStats(agentId: string, data: any): Promise<void> {
+  return cacheData(STORES.AGENT_STATS, { id: agentId, ...data });
+}
+
+export async function getCachedAgentStats(agentId: string): Promise<any | null> {
+  return getCachedData(STORES.AGENT_STATS, agentId);
+}
+
+// Earnings
+export async function cacheEarnings(userId: string, earnings: any[]): Promise<void> {
+  return cacheData(STORES.EARNINGS, { id: userId, data: earnings });
+}
+
+export async function getCachedEarnings(userId: string): Promise<any[] | null> {
+  const result = await getCachedData<any>(STORES.EARNINGS, userId);
+  return result?.data || null;
 }
 
 // Sync Queue - for offline mutations
