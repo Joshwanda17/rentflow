@@ -45,38 +45,48 @@ export default function FloatingChatButton() {
   useEffect(() => {
     if (!user) return;
 
+    // Optimized: Fetch conversation IDs first, then count unread in batches
     const fetchUnreadCount = async () => {
-      const { data: participations } = await supabase
-        .from('conversation_participants')
-        .select('conversation_id, last_read_at')
-        .eq('user_id', user.id);
+      try {
+        // Step 1: Get user's conversation IDs
+        const { data: participations } = await supabase
+          .from('conversation_participants')
+          .select('conversation_id, last_read_at')
+          .eq('user_id', user.id);
 
-      if (!participations || participations.length === 0) {
-        setUnreadCount(0);
-        return;
-      }
+        if (!participations || participations.length === 0) {
+          setUnreadCount(0);
+          return;
+        }
 
-      let totalUnread = 0;
-
-      for (const participation of participations) {
+        // Step 2: Single query to get unread count using OR conditions
+        // This is much faster than N individual queries
+        const convIds = participations.map(p => p.conversation_id);
+        
         const { count } = await supabase
           .from('messages')
           .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', participation.conversation_id)
+          .in('conversation_id', convIds)
           .neq('sender_id', user.id)
-          .gt('created_at', participation.last_read_at || '1970-01-01');
+          .is('read_at', null);
         
-        totalUnread += count || 0;
+        setUnreadCount(count || 0);
+      } catch {
+        setUnreadCount(0);
       }
-      
-      setUnreadCount(totalUnread);
     };
 
     fetchUnreadCount();
 
-    // Subscribe to new messages
+    // Debounced subscription to avoid excessive refetches
+    let timeout: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(fetchUnreadCount, 500);
+    };
+
     const channel = supabase
-      .channel('floating-chat-unread')
+      .channel(`floating-chat-${user.id}`)
       .on(
         'postgres_changes',
         {
@@ -84,13 +94,12 @@ export default function FloatingChatButton() {
           schema: 'public',
           table: 'messages',
         },
-        () => {
-          fetchUnreadCount();
-        }
+        debouncedFetch
       )
       .subscribe();
 
     return () => {
+      clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, [user]);
