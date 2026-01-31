@@ -110,7 +110,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted' | 'all_tenants' | 'all_landlords';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted' | 'all_tenants' | 'all_landlords' | 'all_agents';
 
 interface PotentialTenant {
   id: string;
@@ -135,6 +135,17 @@ interface PotentialLandlord {
   electricity_meter_number: string;
   caretaker_name: string;
   caretaker_phone: string;
+}
+
+interface PotentialAgent {
+  id: string;
+  full_name: string;
+  phone?: string;
+  avatar_url?: string;
+  created_at: string;
+  city?: string;
+  country?: string;
+  tenant_count: number;
 }
 
 interface RentOpportunitiesProps {
@@ -170,6 +181,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [allTenants, setAllTenants] = useState<PotentialTenant[]>([]);
   const [allLandlords, setAllLandlords] = useState<PotentialLandlord[]>([]);
+  const [allAgents, setAllAgents] = useState<PotentialAgent[]>([]);
   const [loadingPotentials, setLoadingPotentials] = useState(false);
 
   // Count unseen opportunities and calculate potential earnings (exclude funded)
@@ -464,10 +476,70 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         caretaker_phone: l.caretaker_phone || ''
       }));
       
+      // Fetch all agents (users with agent role)
+      const { data: agentRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent')
+        .eq('enabled', true);
+      
+      const agentUserIds = agentRoles?.map(r => r.user_id) || [];
+      
+      // Fetch agent profiles with location
+      let agentProfiles: PotentialAgent[] = [];
+      if (agentUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, avatar_url, created_at, city, country')
+          .in('id', agentUserIds);
+        
+        // Count tenants registered by each agent via referrals
+        const { data: referrals } = await supabase
+          .from('referrals')
+          .select('referrer_id, referred_id');
+        
+        // Get tenant role user ids to count only tenants referred
+        const tenantIdSet = new Set(tenantUserIds);
+        
+        // Count how many tenants each agent has referred
+        const agentTenantCounts = new Map<string, number>();
+        (referrals || []).forEach(r => {
+          if (tenantIdSet.has(r.referred_id)) {
+            agentTenantCounts.set(r.referrer_id, (agentTenantCounts.get(r.referrer_id) || 0) + 1);
+          }
+        });
+        
+        // Also count tenants from rent_requests agent_id
+        const { data: rentRequestAgents } = await supabase
+          .from('rent_requests')
+          .select('agent_id, tenant_id');
+        
+        (rentRequestAgents || []).forEach(r => {
+          if (r.agent_id) {
+            agentTenantCounts.set(r.agent_id, (agentTenantCounts.get(r.agent_id) || 0) + 1);
+          }
+        });
+        
+        agentProfiles = (profiles || []).map(p => ({
+          id: p.id,
+          full_name: p.full_name || 'Anonymous Agent',
+          phone: p.phone || undefined,
+          avatar_url: p.avatar_url || undefined,
+          created_at: p.created_at,
+          city: p.city || undefined,
+          country: p.country || undefined,
+          tenant_count: agentTenantCounts.get(p.id) || 0
+        }));
+        
+        // Sort by tenant count descending
+        agentProfiles.sort((a, b) => b.tenant_count - a.tenant_count);
+      }
+      
       setAllTenants(tenantProfiles);
       setAllLandlords(landlordList);
+      setAllAgents(agentProfiles);
     } catch (error) {
-      console.error('[RentOpportunities] Error fetching tenants/landlords:', error);
+      console.error('[RentOpportunities] Error fetching tenants/landlords/agents:', error);
     }
     
     setLoadingPotentials(false);
@@ -1224,6 +1296,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             { value: 'all', label: 'All', icon: '📋' },
             { value: 'all_tenants', label: `Tenants (${allTenants.length})`, icon: '🏠' },
             { value: 'all_landlords', label: `Landlords (${allLandlords.length})`, icon: '🏢' },
+            { value: 'all_agents', label: `Agents (${allAgents.length})`, icon: '🤝' },
             { value: 'agent_posted', label: 'Agent Posted', icon: '👤' },
             { value: 'funded', label: 'Funded', icon: '💚' },
             { value: 'ready', label: 'Ready', icon: '✅' },
@@ -1471,8 +1544,106 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </Card>
         )}
 
+        {/* All Agents List */}
+        {filterBy === 'all_agents' && (
+          <Card className="border shadow-sm">
+            <CardContent className="p-0">
+              <div className="px-4 py-3 bg-muted/30 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🤝</span>
+                    <h4 className="font-bold text-foreground">All Registered Agents</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    {allAgents.length} total
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Field agents with their location and tenant registrations
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {loadingPotentials ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
+                  </div>
+                ) : allAgents.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No agents registered yet</p>
+                  </div>
+                ) : (
+                  allAgents
+                    .filter(a => !searchQuery || a.full_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((agent) => (
+                      <div
+                        key={agent.id}
+                        className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <UserAvatar fullName={agent.full_name} avatarUrl={agent.avatar_url} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{agent.full_name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
+                              {(agent.city || agent.country) && (
+                                <span className="flex items-center gap-1">
+                                  <MapPin className="h-3 w-3" />
+                                  {[agent.city, agent.country].filter(Boolean).join(', ')}
+                                </span>
+                              )}
+                              {!agent.city && !agent.country && (
+                                <span className="flex items-center gap-1 text-muted-foreground/60">
+                                  <MapPin className="h-3 w-3" />
+                                  Location unknown
+                                </span>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-2 mt-1">
+                              <Badge 
+                                variant="outline" 
+                                className={`text-[9px] px-1.5 py-0 ${
+                                  agent.tenant_count > 0 
+                                    ? 'bg-success/10 text-success border-success/30' 
+                                    : 'bg-muted text-muted-foreground'
+                                }`}
+                              >
+                                <Users className="h-2.5 w-2.5 mr-0.5" />
+                                {agent.tenant_count} {agent.tenant_count === 1 ? 'tenant' : 'tenants'}
+                              </Badge>
+                              <span className="text-[10px] text-muted-foreground">
+                                Joined {formatDistanceToNow(new Date(agent.created_at), { addSuffix: true })}
+                              </span>
+                            </div>
+                          </div>
+                          {agent.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={getWhatsAppLink(agent.phone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </a>
+                              <a
+                                href={`tel:${agent.phone}`}
+                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Opportunities List - Collapsible Names */}
-        {filterBy !== 'all_tenants' && filterBy !== 'all_landlords' && (
+        {filterBy !== 'all_tenants' && filterBy !== 'all_landlords' && filterBy !== 'all_agents' && (
         <Card className="border shadow-sm">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
