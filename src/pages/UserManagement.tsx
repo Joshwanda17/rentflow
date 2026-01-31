@@ -16,7 +16,7 @@ import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { QuickActionsDropdown } from '@/components/manager/QuickActionsDropdown';
-import { CompactUserStats } from '@/components/manager/CompactUserStats';
+import { CompactUserStats, StatFilter } from '@/components/manager/CompactUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
@@ -99,6 +99,7 @@ export default function UserManagement() {
   const [bulkRemoveRoleOpen, setBulkRemoveRoleOpen] = useState(false);
   const [bulkWhatsAppOpen, setBulkWhatsAppOpen] = useState(false);
   const [showFilters, setShowFilters] = useState(false);
+  const [statFilter, setStatFilter] = useState<StatFilter>('all');
   const [addUserOpen, setAddUserOpen] = useState(false);
   const [reachOutInactiveOpen, setReachOutInactiveOpen] = useState(false);
   const listRef = useRef<HTMLDivElement>(null);
@@ -297,7 +298,14 @@ export default function UserManagement() {
       (verificationFilter === 'verified' && u.verified) ||
       (verificationFilter === 'pending' && !u.verified);
     
-    return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesInactiveFilter && matchesVerification;
+    // Apply stat filter from compact stats
+    const matchesStatFilter = 
+      statFilter === 'all' ||
+      (statFilter === 'online' && isOnline(u.id)) ||
+      (statFilter === 'verified' && u.verified) ||
+      (statFilter === 'inactive' && isUserInactive(u.last_active_at));
+    
+    return matchesSearch && matchesRoleFilter && matchesActiveFilter && matchesInactiveFilter && matchesVerification && matchesStatFilter;
   }));
 
   const handleUserClick = (user: UserWithRating) => {
@@ -428,12 +436,14 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Compact Stats Row */}
+        {/* Compact Stats Row - Clickable to filter */}
         <CompactUserStats
           totalUsers={users.length}
           onlineCount={activeUserCount}
           verifiedCount={users.filter(u => u.verified).length}
           inactiveCount={inactiveUserCount}
+          activeFilter={statFilter}
+          onFilterChange={setStatFilter}
         />
 
         {/* Search Bar - Always Visible Above "All Users" */}
