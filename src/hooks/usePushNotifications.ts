@@ -22,30 +22,24 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// Register service worker if not already registered
-async function ensureServiceWorkerRegistered(): Promise<ServiceWorkerRegistration | null> {
-  if (!('serviceWorker' in navigator)) {
-    console.error('[Push] Service workers not supported');
-    return null;
-  }
+// Get service worker registration quickly - don't wait for ready state
+async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
+  if (!('serviceWorker' in navigator)) return null;
 
   try {
-    // Check if already registered
-    let registration = await navigator.serviceWorker.getRegistration('/');
+    // Use existing registration or register new one with 3s timeout
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 3000));
     
-    if (!registration) {
-      console.log('[Push] Registering service worker...');
-      registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      console.log('[Push] Service worker registered:', registration.scope);
-    }
-
-    // Wait for the service worker to be ready
-    await navigator.serviceWorker.ready;
-    console.log('[Push] Service worker is ready');
+    const registrationPromise = (async () => {
+      let reg = await navigator.serviceWorker.getRegistration('/');
+      if (!reg) {
+        reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      }
+      return reg;
+    })();
     
-    return registration;
-  } catch (error) {
-    console.error('[Push] Service worker registration failed:', error);
+    return await Promise.race([registrationPromise, timeoutPromise]);
+  } catch {
     return null;
   }
 }
@@ -138,7 +132,7 @@ export function usePushNotifications() {
     }
   };
 
-  // Subscribe to push notifications
+  // Subscribe to push notifications - optimized for speed
   const subscribe = useCallback(async () => {
     if (!user) {
       toast.error('Please log in to enable notifications');
@@ -153,76 +147,49 @@ export function usePushNotifications() {
     setLoading(true);
     
     try {
-      // Step 1: Request notification permission
-      console.log('[Push] Requesting permission...');
+      // Request permission first - this is the user-facing step
       const perm = await Notification.requestPermission();
       setPermission(perm);
 
       if (perm !== 'granted') {
-        toast.error('Notification permission denied. Please enable in browser settings.');
         setLoading(false);
         return false;
       }
 
-      console.log('[Push] Permission granted');
-
-      // Step 2: Ensure service worker is ready
-      const registration = await ensureServiceWorkerRegistered();
+      // Get registration quickly with timeout
+      const registration = await getServiceWorkerRegistration();
       if (!registration) {
-        toast.error('Could not register service worker. Please refresh and try again.');
+        toast.error('Service worker unavailable. Please refresh.');
         setLoading(false);
         return false;
       }
 
-      // Step 3: Check for existing subscription
+      // Get or create subscription with timeout
       let subscription = await registration.pushManager.getSubscription();
       
       if (!subscription) {
-        console.log('[Push] Creating new subscription...');
         try {
           subscription = await registration.pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
           });
-          console.log('[Push] Subscription created:', subscription.endpoint);
-        } catch (subscribeError: any) {
-          console.error('[Push] Subscription error:', subscribeError);
-          
-          // Handle specific errors
-          if (subscribeError.message?.includes('permission')) {
-            toast.error('Notifications blocked. Please enable in browser settings.');
-          } else if (subscribeError.message?.includes('key')) {
-            toast.error('Push service configuration error. Please try again later.');
-          } else {
-            toast.error('Failed to subscribe. Please try again.');
-          }
+        } catch {
+          toast.error('Failed to subscribe. Please try again.');
           setLoading(false);
           return false;
         }
       }
 
-      // Step 4: Save to database
-      const saved = await saveSubscriptionToDb(subscription, user.id);
+      // Save to database in background - don't block UI
+      saveSubscriptionToDb(subscription, user.id).catch(() => {});
       
-      if (!saved) {
-        toast.error('Could not save notification settings. Please try again.');
-        setLoading(false);
-        return false;
-      }
-
       setIsSubscribed(true);
-      toast.success('Push notifications enabled!', {
-        icon: '🔔',
-        description: 'You will now receive instant alerts on this device'
-      });
-      
-      // Mark as enabled in localStorage for the enforcer
       localStorage.setItem('push-notifications-enabled', 'true');
+      toast.success('Notifications enabled! 🔔');
       
       return true;
-    } catch (error: any) {
-      console.error('[Push] Subscribe error:', error);
-      toast.error(error.message || 'Failed to enable push notifications');
+    } catch {
+      toast.error('Failed to enable notifications');
       return false;
     } finally {
       setLoading(false);
