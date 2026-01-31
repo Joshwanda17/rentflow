@@ -97,10 +97,8 @@ addEventListener('unhandledrejection', e => {
   }
 });
 
-// Service worker (production only, idle time)
-if ('serviceWorker' in navigator && import.meta.env.PROD) {
-  'requestIdleCallback' in window 
-    ? requestIdleCallback(() => navigator.serviceWorker.register('/sw.js').catch(() => {}))
-    : setTimeout(() => navigator.serviceWorker.register('/sw.js').catch(() => {}), 1500);
+// Service worker - register IMMEDIATELY for faster push notifications
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/sw.js').catch(() => {});
 }
 
