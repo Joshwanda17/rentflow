@@ -5,9 +5,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Users, Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight, Gift, Percent, Calendar, CheckCircle, Clock, XCircle } from 'lucide-react';
+import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
+import { Users, Wallet, TrendingUp, ArrowDownLeft, ArrowUpRight, Gift, Percent, Calendar, CheckCircle, Clock, XCircle, MapPin, Car } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
 
 interface AgentDetailsDialogProps {
   open: boolean;
@@ -18,7 +20,9 @@ interface AgentDetailsDialogProps {
     email: string;
     phone: string;
     wallet_balance: number;
+    agent_type?: string | null;
   } | null;
+  onAgentUpdated?: () => void;
 }
 
 interface Earning {
@@ -54,12 +58,40 @@ interface RentRequest {
   tenant_name?: string;
 }
 
-export function AgentDetailsDialog({ open, onOpenChange, agent }: AgentDetailsDialogProps) {
+export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }: AgentDetailsDialogProps) {
   const [earnings, setEarnings] = useState<Earning[]>([]);
   const [deposits, setDeposits] = useState<Deposit[]>([]);
   const [withdrawals, setWithdrawals] = useState<Withdrawal[]>([]);
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [loading, setLoading] = useState(true);
+  const [agentType, setAgentType] = useState<string>(agent?.agent_type || '');
+  const [savingType, setSavingType] = useState(false);
+
+  // Update local state when agent changes
+  useEffect(() => {
+    setAgentType(agent?.agent_type || '');
+  }, [agent?.agent_type]);
+
+  const handleAgentTypeChange = async (value: string) => {
+    if (!agent || !value) return;
+    
+    setSavingType(true);
+    const { error } = await supabase
+      .from('profiles')
+      .update({ agent_type: value })
+      .eq('id', agent.id);
+    
+    setSavingType(false);
+    
+    if (error) {
+      toast.error('Failed to update agent type');
+      return;
+    }
+    
+    setAgentType(value);
+    toast.success(`Agent labeled as ${value === 'signage' ? 'Signage Location' : 'Mobile Agent'}`);
+    onAgentUpdated?.();
+  };
 
   useEffect(() => {
     if (open && agent) {
@@ -170,6 +202,33 @@ export function AgentDetailsDialog({ open, onOpenChange, agent }: AgentDetailsDi
           <div className="py-8 text-center text-muted-foreground">Loading agent data...</div>
         ) : (
           <div className="space-y-4">
+            {/* Agent Type Toggle */}
+            <div className="p-3 rounded-lg bg-secondary/50 border">
+              <p className="text-xs text-muted-foreground mb-2 font-medium">Agent Type</p>
+              <ToggleGroup 
+                type="single" 
+                value={agentType} 
+                onValueChange={handleAgentTypeChange}
+                className="justify-start"
+                disabled={savingType}
+              >
+                <ToggleGroupItem 
+                  value="signage" 
+                  className="flex items-center gap-2 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span>Signage Location</span>
+                </ToggleGroupItem>
+                <ToggleGroupItem 
+                  value="mobile" 
+                  className="flex items-center gap-2 data-[state=on]:bg-warning data-[state=on]:text-warning-foreground"
+                >
+                  <Car className="h-4 w-4" />
+                  <span>Mobile Agent</span>
+                </ToggleGroupItem>
+              </ToggleGroup>
+            </div>
+
             {/* Performance Metrics */}
             <div className="grid grid-cols-3 gap-3">
               <Card>
