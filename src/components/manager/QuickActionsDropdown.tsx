@@ -55,19 +55,19 @@ export function QuickActionsDropdown({
         <button 
           onClick={() => hapticTap()}
           className={cn(
-            "flex items-center gap-1 px-2 py-1 rounded-md text-xs font-medium transition-all touch-manipulation",
-            "bg-[#00a884] text-white hover:bg-[#00a884]/90 active:scale-95"
+            "flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-all touch-manipulation",
+            "bg-[#00a884] text-white hover:bg-[#00a884]/90 active:scale-95 shadow-sm"
           )}
           style={{ WebkitTapHighlightColor: 'transparent' }}
         >
           <Zap className="h-3.5 w-3.5" />
-          <span>Actions</span>
+          <span>Quick Actions</span>
           {selectedCount > 0 && (
-            <span className="ml-0.5 px-1 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">
+            <span className="ml-0.5 px-1.5 py-0.5 rounded-full bg-white/20 text-[10px] font-bold">
               {selectedCount}
             </span>
           )}
-          <ChevronDown className="h-3 w-3 ml-0.5" />
+          <ChevronDown className="h-3 w-3" />
         </button>
       </DropdownMenuTrigger>
       <DropdownMenuContent 
