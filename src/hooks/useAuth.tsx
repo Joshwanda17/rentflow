@@ -131,9 +131,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setRoles(userRoles);
       // Cache roles for instant reload
       setCachedRoles(userRoles);
-      // Prioritize supporter role as default, otherwise use first role
+      // Prioritize AGENT role as default dashboard for all users
       if (!role || !userRoles.includes(role)) {
-        const defaultRole = userRoles.includes('supporter') ? 'supporter' : userRoles[0];
+        const defaultRole = userRoles.includes('agent') ? 'agent' : userRoles[0];
         setRole(defaultRole);
       }
     } else {

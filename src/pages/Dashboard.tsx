@@ -176,8 +176,14 @@ function DashboardContent() {
     }
   }, [user, loading, roles, cachedRoles, navigate]);
 
-  // Use cached role for instant display while loading
-  const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? cachedRoles[0] : null);
+  // Use cached role for instant display while loading - AGENT is always the default
+  const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
+    if (availableRoles.length === 0) return null;
+    // Agent dashboard is the default for all users
+    return availableRoles.includes('agent') ? 'agent' : availableRoles[0];
+  };
+  
+  const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
 
 // Allow dashboards to render with cached data when offline
