@@ -30,6 +30,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
   const [tenantPhone, setTenantPhone] = useState('');
+  const [tenantNationalId, setTenantNationalId] = useState('');
+  const [tenantFullName, setTenantFullName] = useState('');
   
   // Landlord info
   const [landlordName, setLandlordName] = useState('');
@@ -37,15 +39,21 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [propertyAddress, setPropertyAddress] = useState('');
   const [monthlyRent, setMonthlyRent] = useState('');
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
+  const [waterMeterNumber, setWaterMeterNumber] = useState('');
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
 
   const resetForm = () => {
     setTenantEmail('');
     setTenantPhone('');
+    setTenantNationalId('');
+    setTenantFullName('');
     setLandlordName('');
     setLandlordPhone('');
     setPropertyAddress('');
     setMonthlyRent('');
     setMobileMoneyNumber('');
+    setWaterMeterNumber('');
+    setElectricityMeterNumber('');
     setSuccess(false);
   };
 
@@ -55,6 +63,11 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
     if (!tenantEmail.trim() && !tenantPhone.trim()) {
       toast.error('Please provide tenant email or phone');
+      return;
+    }
+
+    if (!tenantNationalId.trim()) {
+      toast.error('Please provide tenant National ID number');
       return;
     }
 
@@ -98,7 +111,18 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
       return;
     }
 
-    // Register landlord for tenant
+    // Update tenant profile with national ID and name
+    if (tenantNationalId.trim() || tenantFullName.trim()) {
+      await supabase
+        .from('profiles')
+        .update({ 
+          national_id: tenantNationalId.trim() || undefined,
+          full_name: tenantFullName.trim() || undefined
+        })
+        .eq('id', tenantId);
+    }
+
+    // Register landlord for tenant with utility meters
     const { error } = await supabase
       .from('landlords')
       .insert({
@@ -108,6 +132,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
         property_address: propertyAddress.trim(),
         monthly_rent: monthlyRent ? parseInt(monthlyRent) : null,
         mobile_money_number: mobileMoneyNumber.trim() || null,
+        water_meter_number: waterMeterNumber.trim() || null,
+        electricity_meter_number: electricityMeterNumber.trim() || null,
         registered_by: user.id
       });
 
@@ -194,6 +220,30 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               {/* Tenant Section */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">Tenant Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="tenantFullName" className="text-xs">Full Name (as on ID) *</Label>
+                    <Input
+                      id="tenantFullName"
+                      value={tenantFullName}
+                      onChange={(e) => setTenantFullName(e.target.value)}
+                      placeholder="Names on National ID"
+                      className="h-9"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="tenantNationalId" className="text-xs">National ID Number *</Label>
+                    <Input
+                      id="tenantNationalId"
+                      value={tenantNationalId}
+                      onChange={(e) => setTenantNationalId(e.target.value.toUpperCase())}
+                      placeholder="CM12345678ABCD"
+                      className="h-9"
+                      required
+                    />
+                  </div>
+                </div>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="tenantEmail" className="text-xs">Email</Label>
@@ -290,6 +340,33 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       placeholder="MoMo number"
                       className="h-9"
                     />
+                  </div>
+                </div>
+
+                {/* Uganda Utility Meters */}
+                <div className="p-3 rounded-lg bg-muted/50 border space-y-2">
+                  <p className="text-xs text-muted-foreground font-medium">Uganda Utility Meters</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <Label htmlFor="waterMeterNumber" className="text-xs">NWSC Water Meter</Label>
+                      <Input
+                        id="waterMeterNumber"
+                        value={waterMeterNumber}
+                        onChange={(e) => setWaterMeterNumber(e.target.value)}
+                        placeholder="Water meter number"
+                        className="h-9"
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label htmlFor="electricityMeterNumber" className="text-xs">UEDCL/UMEME Meter</Label>
+                      <Input
+                        id="electricityMeterNumber"
+                        value={electricityMeterNumber}
+                        onChange={(e) => setElectricityMeterNumber(e.target.value)}
+                        placeholder="Electricity meter"
+                        className="h-9"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
