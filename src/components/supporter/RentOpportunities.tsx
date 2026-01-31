@@ -17,6 +17,8 @@ import { Input } from '@/components/ui/input';
 import { RequestManagerInvestDialog } from './RequestManagerInvestDialog';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
+import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
+import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
 import { 
   Users, 
   HandCoins, 
@@ -1407,24 +1409,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               )}
                             </div>
                           </div>
-                          {tenant.phone && (
-                            <div className="flex items-center gap-1.5">
-                              <a
-                                href={getWhatsAppLink(tenant.phone)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                              >
-                                <MessageCircle className="h-4 w-4" />
-                              </a>
-                              <a
-                                href={`tel:${tenant.phone}`}
-                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                              >
-                                <Phone className="h-4 w-4" />
-                              </a>
-                            </div>
-                          )}
+                          <ContactActionsBar
+                            userId={tenant.id}
+                            userName={tenant.full_name}
+                            userPhone={tenant.phone}
+                            compact
+                          />
                         </div>
                       </div>
                     ))
@@ -1519,15 +1509,16 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               </p>
                             )}
                           </div>
+                          {/* Note: Landlords don't have user IDs in the app, so we use phone-based contact */}
                           <div className="flex items-center gap-1.5">
-                            <a
-                              href={getWhatsAppLink(landlord.phone)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                            >
-                              <MessageCircle className="h-4 w-4" />
-                            </a>
+                            <WhatsAppRequestButton
+                              targetUserId={landlord.id}
+                              targetName={landlord.name}
+                              targetPhone={landlord.phone}
+                              size="icon"
+                              variant="outline"
+                              className="h-9 w-9"
+                            />
                             <a
                               href={`tel:${landlord.phone}`}
                               className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
@@ -1615,24 +1606,12 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               </span>
                             </div>
                           </div>
-                          {agent.phone && (
-                            <div className="flex items-center gap-1.5">
-                              <a
-                                href={getWhatsAppLink(agent.phone)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
-                              >
-                                <MessageCircle className="h-4 w-4" />
-                              </a>
-                              <a
-                                href={`tel:${agent.phone}`}
-                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                              >
-                                <Phone className="h-4 w-4" />
-                              </a>
-                            </div>
-                          )}
+                          <ContactActionsBar
+                            userId={agent.id}
+                            userName={agent.full_name}
+                            userPhone={agent.phone}
+                            compact
+                          />
                         </div>
                       </div>
                     ))

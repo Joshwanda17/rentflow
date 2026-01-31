@@ -9,6 +9,7 @@ import ChatWindow from '@/components/chat/ChatWindow';
 import OfflineBanner from '@/components/chat/OfflineBanner';
 import ShareChatLinkButton from '@/components/chat/ShareChatLinkButton';
 import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
+import { WhatsAppRequestsSheet } from '@/components/chat/WhatsAppRequestsSheet';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, MessageCircle, Megaphone, Home } from 'lucide-react';
 import MobileBottomNav from '@/components/MobileBottomNav';
@@ -73,15 +74,18 @@ export default function ChatPage() {
               {selectedConversation ? '' : 'Messages'}
             </h1>
             {!selectedConversation && (
-              <BroadcastMessageDialog 
-                trigger={
-                  <Button variant="ghost" size="icon" className="text-primary">
-                    <Megaphone className="h-5 w-5" />
-                  </Button>
-                }
-              />
+              <>
+                <WhatsAppRequestsSheet />
+                <BroadcastMessageDialog 
+                  trigger={
+                    <Button variant="ghost" size="icon" className="text-primary">
+                      <Megaphone className="h-5 w-5" />
+                    </Button>
+                  }
+                />
+                <ShareChatLinkButton />
+              </>
             )}
-            {!selectedConversation && <ShareChatLinkButton />}
           </div>
 
           {/* Content */}
@@ -114,6 +118,7 @@ export default function ChatPage() {
                 <Home className="h-5 w-5" />
               </Button>
               <h1 className="font-bold text-lg flex-1">Messages</h1>
+              <WhatsAppRequestsSheet />
               <BroadcastMessageDialog 
                 trigger={
                   <Button variant="ghost" size="icon" className="text-primary">
