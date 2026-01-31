@@ -12,7 +12,8 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Building2, Phone, MapPin, Banknote, Loader2, CheckCircle2, CreditCard } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { Building2, Phone, MapPin, Banknote, Loader2, CheckCircle2, CreditCard, Smartphone, Zap, Home, User } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RegisterLandlordDialogProps {
@@ -33,6 +34,14 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
   const [bankName, setBankName] = useState('');
   const [accountNumber, setAccountNumber] = useState('');
+  
+  // New fields
+  const [hasSmartphone, setHasSmartphone] = useState(true);
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
+  const [numberOfHouses, setNumberOfHouses] = useState('1');
+  const [desiredRentFromWelile, setDesiredRentFromWelile] = useState('');
+  const [caretakerName, setCaretakerName] = useState('');
+  const [caretakerPhone, setCaretakerPhone] = useState('');
 
   const resetForm = () => {
     setLandlordName('');
@@ -41,6 +50,12 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     setMobileMoneyNumber('');
     setBankName('');
     setAccountNumber('');
+    setHasSmartphone(true);
+    setElectricityMeterNumber('');
+    setNumberOfHouses('1');
+    setDesiredRentFromWelile('');
+    setCaretakerName('');
+    setCaretakerPhone('');
     setSuccess(false);
   };
 
@@ -68,6 +83,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
       return;
     }
 
+    const rentAmount = desiredRentFromWelile ? parseInt(desiredRentFromWelile.replace(/,/g, '')) : null;
+
     // Register landlord
     const { error } = await supabase
       .from('landlords')
@@ -78,7 +95,13 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
         mobile_money_number: mobileMoneyNumber.trim() || null,
         bank_name: bankName.trim() || null,
         account_number: accountNumber.trim() || null,
-        registered_by: user.id
+        registered_by: user.id,
+        has_smartphone: hasSmartphone,
+        electricity_meter_number: electricityMeterNumber.trim() || null,
+        number_of_houses: parseInt(numberOfHouses) || 1,
+        desired_rent_from_welile: rentAmount,
+        caretaker_name: caretakerName.trim() || null,
+        caretaker_phone: caretakerPhone.trim() || null,
       });
 
     setLoading(false);
@@ -103,7 +126,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Building2 className="h-5 w-5 text-primary" />
@@ -146,6 +169,21 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               onSubmit={handleSubmit}
               className="space-y-4"
             >
+              {/* Smartphone Toggle */}
+              <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
+                <div className="flex items-center gap-2">
+                  <Smartphone className="h-4 w-4 text-primary" />
+                  <Label htmlFor="hasSmartphone" className="text-sm font-medium cursor-pointer">
+                    Landlord has smartphone
+                  </Label>
+                </div>
+                <Switch
+                  id="hasSmartphone"
+                  checked={hasSmartphone}
+                  onCheckedChange={setHasSmartphone}
+                />
+              </div>
+
               {/* Basic Info */}
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground">Basic Information</h4>
@@ -189,6 +227,87 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
                     className="h-9"
                     required
                   />
+                </div>
+              </div>
+
+              {/* Property Details */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <Home className="h-3 w-3" />
+                  Property Details
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="electricityMeter" className="text-xs flex items-center gap-1">
+                      <Zap className="h-3 w-3" /> Electricity Meter #
+                    </Label>
+                    <Input
+                      id="electricityMeter"
+                      value={electricityMeterNumber}
+                      onChange={(e) => setElectricityMeterNumber(e.target.value)}
+                      placeholder="Meter number"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="numberOfHouses" className="text-xs">Number of Houses</Label>
+                    <Input
+                      id="numberOfHouses"
+                      type="number"
+                      min="1"
+                      value={numberOfHouses}
+                      onChange={(e) => setNumberOfHouses(e.target.value)}
+                      placeholder="1"
+                      className="h-9"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="desiredRent" className="text-xs flex items-center gap-1">
+                    <Banknote className="h-3 w-3" /> Desired Rent from Welile (UGX)
+                  </Label>
+                  <Input
+                    id="desiredRent"
+                    value={desiredRentFromWelile}
+                    onChange={(e) => setDesiredRentFromWelile(e.target.value.replace(/[^0-9]/g, ''))}
+                    placeholder="e.g., 500000"
+                    className="h-9"
+                  />
+                </div>
+              </div>
+
+              {/* Caretaker Info */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <User className="h-3 w-3" />
+                  Caretaker (Optional)
+                </h4>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="caretakerName" className="text-xs">Caretaker Name</Label>
+                    <Input
+                      id="caretakerName"
+                      value={caretakerName}
+                      onChange={(e) => setCaretakerName(e.target.value)}
+                      placeholder="Name"
+                      className="h-9"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="caretakerPhone" className="text-xs flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> Phone
+                    </Label>
+                    <Input
+                      id="caretakerPhone"
+                      value={caretakerPhone}
+                      onChange={(e) => setCaretakerPhone(e.target.value)}
+                      placeholder="0783..."
+                      className="h-9"
+                    />
+                  </div>
                 </div>
               </div>
 

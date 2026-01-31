@@ -1081,11 +1081,17 @@ export type Database = {
         Row: {
           account_number: string | null
           bank_name: string | null
+          caretaker_name: string | null
+          caretaker_phone: string | null
           created_at: string
+          desired_rent_from_welile: number | null
+          electricity_meter_number: string | null
+          has_smartphone: boolean | null
           id: string
           mobile_money_number: string | null
           monthly_rent: number | null
           name: string
+          number_of_houses: number | null
           phone: string
           property_address: string
           ready_to_receive: boolean | null
@@ -1098,11 +1104,17 @@ export type Database = {
         Insert: {
           account_number?: string | null
           bank_name?: string | null
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
           created_at?: string
+          desired_rent_from_welile?: number | null
+          electricity_meter_number?: string | null
+          has_smartphone?: boolean | null
           id?: string
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name: string
+          number_of_houses?: number | null
           phone: string
           property_address: string
           ready_to_receive?: boolean | null
@@ -1115,11 +1127,17 @@ export type Database = {
         Update: {
           account_number?: string | null
           bank_name?: string | null
+          caretaker_name?: string | null
+          caretaker_phone?: string | null
           created_at?: string
+          desired_rent_from_welile?: number | null
+          electricity_meter_number?: string | null
+          has_smartphone?: boolean | null
           id?: string
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name?: string
+          number_of_houses?: number | null
           phone?: string
           property_address?: string
           ready_to_receive?: boolean | null
