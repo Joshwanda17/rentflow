@@ -1100,6 +1100,7 @@ export type Database = {
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
+          water_meter_number: string | null
         }
         Insert: {
           account_number?: string | null
@@ -1123,6 +1124,7 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          water_meter_number?: string | null
         }
         Update: {
           account_number?: string | null
@@ -1146,6 +1148,7 @@ export type Database = {
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          water_meter_number?: string | null
         }
         Relationships: [
           {
@@ -2017,6 +2020,7 @@ export type Database = {
           mobile_money_number: string | null
           mobile_money_provider: string | null
           monthly_rent: number | null
+          national_id: string | null
           phone: string
           referrer_id: string | null
           rent_discount_active: boolean
@@ -2039,6 +2043,7 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
+          national_id?: string | null
           phone: string
           referrer_id?: string | null
           rent_discount_active?: boolean
@@ -2061,6 +2066,7 @@ export type Database = {
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           monthly_rent?: number | null
+          national_id?: string | null
           phone?: string
           referrer_id?: string | null
           rent_discount_active?: boolean

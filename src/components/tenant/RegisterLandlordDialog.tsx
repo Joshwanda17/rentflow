@@ -46,6 +46,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [propertyAddress, setPropertyAddress] = useState('');
   const [monthlyRent, setMonthlyRent] = useState('');
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
+  const [waterMeterNumber, setWaterMeterNumber] = useState('');
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
 
   const resetForm = () => {
     setLandlordName('');
@@ -53,6 +55,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     setPropertyAddress('');
     setMonthlyRent('');
     setMobileMoneyNumber('');
+    setWaterMeterNumber('');
+    setElectricityMeterNumber('');
     setSuccess(false);
   };
 
@@ -72,6 +76,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
         property_address: propertyAddress.trim(),
         monthly_rent: rentAmount,
         mobile_money_number: mobileMoneyNumber.trim() || null,
+        water_meter_number: waterMeterNumber.trim() || null,
+        electricity_meter_number: electricityMeterNumber.trim() || null,
       });
 
       if (error) throw error;
@@ -216,6 +222,29 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
                   value={mobileMoneyNumber}
                   onChange={(e) => setMobileMoneyNumber(e.target.value)}
                 />
+              </motion.div>
+
+              {/* Uganda Utility Meters */}
+              <motion.div variants={itemVariants} className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+                <p className="text-xs text-muted-foreground font-medium">Uganda Utility Meters (Optional)</p>
+                <div className="space-y-2">
+                  <Label htmlFor="waterMeterNumber" className="text-xs">NWSC Water Meter Number</Label>
+                  <Input
+                    id="waterMeterNumber"
+                    placeholder="National Water & Sewerage Corporation"
+                    value={waterMeterNumber}
+                    onChange={(e) => setWaterMeterNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="electricityMeterNumber" className="text-xs">UEDCL/UMEME Electricity Meter</Label>
+                  <Input
+                    id="electricityMeterNumber"
+                    placeholder="Uganda Electricity Distribution Company"
+                    value={electricityMeterNumber}
+                    onChange={(e) => setElectricityMeterNumber(e.target.value)}
+                  />
+                </div>
               </motion.div>
 
               {rentAmount > 0 && (

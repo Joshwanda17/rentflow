@@ -33,9 +33,19 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [rentAmount, setRentAmount] = useState('');
   const [duration, setDuration] = useState(30);
   const [numberOfPayments, setNumberOfPayments] = useState(4);
+  // Tenant details
+  const [tenantNationalId, setTenantNationalId] = useState('');
+  const [tenantFullName, setTenantFullName] = useState('');
+  
+  // Landlord details
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
+  const [landlordNationalId, setLandlordNationalId] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
+  const [waterMeterNumber, setWaterMeterNumber] = useState('');
+  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
+  
+  // LC1 details
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
@@ -66,10 +76,27 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     
     setLoading(true);
 
-    // Create landlord
+    // Update tenant profile with national ID and verified name
+    if (tenantNationalId.trim() || tenantFullName.trim()) {
+      await supabase
+        .from('profiles')
+        .update({ 
+          national_id: tenantNationalId.trim() || undefined,
+          full_name: tenantFullName.trim() || undefined
+        })
+        .eq('id', userId);
+    }
+
+    // Create landlord with utility meter numbers
     const { data: landlord, error: landlordError } = await supabase
       .from('landlords')
-      .insert({ name: landlordName, phone: landlordPhone, property_address: propertyAddress })
+      .insert({ 
+        name: landlordName, 
+        phone: landlordPhone, 
+        property_address: propertyAddress,
+        water_meter_number: waterMeterNumber.trim() || null,
+        electricity_meter_number: electricityMeterNumber.trim() || null
+      })
       .select('id')
       .single();
 
@@ -153,6 +180,31 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="space-y-6">
+          {/* Tenant Identity */}
+          <div className="space-y-4">
+            <h3 className="font-medium text-sm text-muted-foreground">Your Identity (as on National ID)</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Full Name (as on ID)</Label>
+                <Input 
+                  placeholder="Names as on National ID"
+                  value={tenantFullName}
+                  onChange={(e) => setTenantFullName(e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>National ID Number</Label>
+                <Input 
+                  placeholder="e.g., CM12345678ABCD"
+                  value={tenantNationalId}
+                  onChange={(e) => setTenantNationalId(e.target.value.toUpperCase())}
+                  required
+                />
+              </div>
+            </div>
+          </div>
+
           {/* Rent Amount */}
           <div className="space-y-2">
             <Label>Rent Amount (UGX)</Label>
@@ -268,10 +320,33 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
           <div className="space-y-4">
             <h3 className="font-medium">Landlord Details</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input placeholder="Landlord Name" value={landlordName} onChange={(e) => setLandlordName(e.target.value)} required />
+              <Input placeholder="Landlord Name (as on National ID)" value={landlordName} onChange={(e) => setLandlordName(e.target.value)} required />
               <Input placeholder="Landlord Phone" value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} required />
             </div>
             <Input placeholder="Property Address" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required />
+            
+            {/* Uganda Utility Meters */}
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Uganda Utility Meters (Optional)</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">NWSC Water Meter Number</Label>
+                  <Input 
+                    placeholder="National Water & Sewerage Corp" 
+                    value={waterMeterNumber} 
+                    onChange={(e) => setWaterMeterNumber(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">UEDCL/UMEME Electricity Meter</Label>
+                  <Input 
+                    placeholder="Uganda Electricity Distribution" 
+                    value={electricityMeterNumber} 
+                    onChange={(e) => setElectricityMeterNumber(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="space-y-4">
