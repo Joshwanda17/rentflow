@@ -2004,6 +2004,7 @@ export type Database = {
       }
       profiles: {
         Row: {
+          agent_type: string | null
           avatar_url: string | null
           city: string | null
           country: string | null
@@ -2025,6 +2026,7 @@ export type Database = {
           whatsapp_verified_at: string | null
         }
         Insert: {
+          agent_type?: string | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
@@ -2046,6 +2048,7 @@ export type Database = {
           whatsapp_verified_at?: string | null
         }
         Update: {
+          agent_type?: string | null
           avatar_url?: string | null
           city?: string | null
           country?: string | null
