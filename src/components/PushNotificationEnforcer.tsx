@@ -54,12 +54,8 @@ export function PushNotificationEnforcer() {
       return;
     }
 
-    // Show enforcer immediately after brief delay (let dashboard render first)
-    const timer = setTimeout(() => {
-      setShowEnforcer(true);
-    }, 1000);
-    
-    return () => clearTimeout(timer);
+    // Show enforcer immediately - no delay for faster UX
+    setShowEnforcer(true);
   }, [user, isSupported, isSubscribed, currentPermission]);
 
   const handleEnable = async () => {

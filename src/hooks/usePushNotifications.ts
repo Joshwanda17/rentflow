@@ -57,22 +57,16 @@ export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>('default');
   const [loading, setLoading] = useState(false);
 
-  // Check if push notifications are supported
+  // Check if push notifications are supported - sync check for speed
   useEffect(() => {
-    const checkSupport = async () => {
-      const supported = 'serviceWorker' in navigator && 
-                        'PushManager' in window && 
-                        'Notification' in window;
-      setIsSupported(supported);
-      
-      if (supported) {
-        setPermission(Notification.permission);
-        // Pre-register service worker
-        await ensureServiceWorkerRegistered();
-      }
-    };
+    const supported = 'serviceWorker' in navigator && 
+                      'PushManager' in window && 
+                      'Notification' in window;
+    setIsSupported(supported);
     
-    checkSupport();
+    if (supported) {
+      setPermission(Notification.permission);
+    }
   }, []);
 
   // Check existing subscription
