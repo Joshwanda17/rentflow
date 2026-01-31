@@ -2,16 +2,12 @@ import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
 import { 
-  Users, Search, Star, CheckCircle, ChevronRight, X, ArrowUpDown, ArrowUp, ArrowDown, 
-  Download, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, 
-  Phone, MapPin, XCircle, Loader2, ArrowLeft, Filter, RefreshCw, FileText, UsersRound, UserPlus, Wifi, Clock, MoreVertical, Camera
+  Users, Search, Star, CheckCircle, X, 
+  ArrowLeft, Filter, RefreshCw, MoreVertical
 } from 'lucide-react';
-import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkNotificationDialog from '@/components/manager/BulkNotificationDialog';
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
@@ -19,7 +15,8 @@ import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { FloatingUserActions } from '@/components/manager/FloatingUserActions';
+import { QuickActionsDropdown } from '@/components/manager/QuickActionsDropdown';
+import { CompactUserStats } from '@/components/manager/CompactUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
 import { toast } from 'sonner';
@@ -27,11 +24,9 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { useAuth } from '@/hooks/useAuth';
-import { Badge } from '@/components/ui/badge';
 import { usePresence } from '@/hooks/usePresence';
-import OnlineIndicator from '@/components/chat/OnlineIndicator';
 import { cn } from '@/lib/utils';
-import { format, formatDistanceToNow, isToday, isYesterday } from 'date-fns';
+import { format, isToday, isYesterday } from 'date-fns';
 
 interface UserWithRating {
   id: string;
@@ -92,7 +87,6 @@ export default function UserManagement() {
   const [users, setUsers] = useState<UserWithRating[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [showSearch, setShowSearch] = useState(false);
   const [selectedUser, setSelectedUser] = useState<UserWithRating | null>(null);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
@@ -120,12 +114,6 @@ export default function UserManagement() {
   useEffect(() => {
     fetchUsers();
   }, []);
-
-  useEffect(() => {
-    if (showSearch && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [showSearch]);
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -383,10 +371,11 @@ export default function UserManagement() {
 
   return (
     <div className="min-h-screen bg-[#111b21] flex flex-col">
-      {/* WhatsApp-Style Header */}
+      {/* Compact Header with Quick Actions on Right */}
       <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
-        <div className="flex items-center justify-between px-4 py-3">
-          <div className="flex items-center gap-3">
+        {/* Top Row: Back, Title, Quick Actions */}
+        <div className="flex items-center justify-between px-3 py-2">
+          <div className="flex items-center gap-2">
             <button
               onClick={() => {
                 hapticTap();
@@ -395,44 +384,43 @@ export default function UserManagement() {
               className="p-1 -ml-1 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
-              <ArrowLeft className="h-6 w-6 text-[#aebac1]" />
+              <ArrowLeft className="h-5 w-5 text-[#aebac1]" />
             </button>
-            <h1 className="font-semibold text-xl text-white">Users</h1>
+            <h1 className="font-semibold text-lg text-white">All Users</h1>
           </div>
           
-          <div className="flex items-center gap-1">
-            <button
-              onClick={() => {
-                hapticTap();
-                setShowSearch(!showSearch);
-              }}
-              className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
-              style={{ WebkitTapHighlightColor: 'transparent' }}
-            >
-              <Search className="h-5 w-5 text-[#aebac1]" />
-            </button>
+          <div className="flex items-center gap-1.5">
+            {/* Quick Actions Dropdown - Top Right */}
+            <QuickActionsDropdown
+              selectedCount={selectedUserIds.size}
+              onAddUser={() => setAddUserOpen(true)}
+              onNotify={() => setBulkNotificationOpen(true)}
+              onWhatsApp={() => setBulkWhatsAppOpen(true)}
+              onExport={handleExportCSV}
+              onAssignRole={() => setBulkAssignRoleOpen(true)}
+              onRemoveRole={() => setBulkRemoveRoleOpen(true)}
+              onReachOutInactive={() => setReachOutInactiveOpen(true)}
+            />
             
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
                   onClick={() => hapticTap()}
-                  className="p-2 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
+                  className="p-1.5 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation"
                   style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
-                  <MoreVertical className="h-5 w-5 text-[#aebac1]" />
+                  <MoreVertical className="h-4 w-4 text-[#aebac1]" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-[#233138] border-[#3b4a54] text-white">
+              <DropdownMenuContent align="end" className="w-44 bg-[#233138] border-[#3b4a54] text-white">
                 <DropdownMenuItem onClick={toggleSelectAll} className="hover:bg-[#182229] focus:bg-[#182229]">
                   {selectedUserIds.size === filteredUsers.length ? 'Deselect All' : 'Select All'}
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setShowFilters(true)} className="hover:bg-[#182229] focus:bg-[#182229]">
                   Filters & Sort
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCSV} className="hover:bg-[#182229] focus:bg-[#182229]">
-                  Export Users
-                </DropdownMenuItem>
                 <DropdownMenuItem onClick={handleRefresh} className="hover:bg-[#182229] focus:bg-[#182229]">
+                  <RefreshCw className={cn("h-3.5 w-3.5 mr-2", refreshing && "animate-spin")} />
                   {refreshing ? 'Refreshing...' : 'Refresh'}
                 </DropdownMenuItem>
               </DropdownMenuContent>
@@ -440,37 +428,36 @@ export default function UserManagement() {
           </div>
         </div>
 
-        {/* Search Bar - Compact WhatsApp Style */}
-        <AnimatePresence>
-          {showSearch && (
-            <motion.div 
-              initial={{ height: 0, opacity: 0 }}
-              animate={{ height: 'auto', opacity: 1 }}
-              exit={{ height: 0, opacity: 0 }}
-              className="px-2 pb-1.5 overflow-hidden"
-            >
-              <div className="relative">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8696a0]" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  placeholder="Search name, phone, email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-8 pr-8 py-1.5 rounded-md bg-[#111b21] text-white placeholder:text-[#8696a0] border-none outline-none text-xs"
-                />
-                {searchTerm && (
-                  <button
-                    onClick={() => setSearchTerm('')}
-                    className="absolute right-2.5 top-1/2 -translate-y-1/2"
-                  >
-                    <X className="h-3.5 w-3.5 text-[#8696a0]" />
-                  </button>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
+        {/* Compact Stats Row */}
+        <CompactUserStats
+          totalUsers={users.length}
+          onlineCount={activeUserCount}
+          verifiedCount={users.filter(u => u.verified).length}
+          inactiveCount={inactiveUserCount}
+        />
+
+        {/* Search Bar - Always Visible Above "All Users" */}
+        <div className="px-2 py-1.5">
+          <div className="relative">
+            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8696a0]" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search name, phone, email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-xs focus:border-[#00a884]/50"
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2"
+              >
+                <X className="h-3.5 w-3.5 text-[#8696a0]" />
+              </button>
+            )}
+          </div>
+        </div>
 
         {/* Filter Pills - Compact */}
         <div className="flex gap-1 px-2 pb-1.5 overflow-x-auto scrollbar-hide">
@@ -482,10 +469,10 @@ export default function UserManagement() {
                 setRoleFilter(filter.value);
               }}
               className={cn(
-                "shrink-0 px-2 py-1 rounded-full text-[10px] font-medium transition-all active:scale-95",
+                "shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium transition-all active:scale-95",
                 roleFilter === filter.value
                   ? 'bg-[#00a884] text-white'
-                  : 'bg-[#202c33] text-[#8696a0]'
+                  : 'bg-[#2a3942] text-[#8696a0]'
               )}
             >
               {filter.label}
@@ -496,14 +483,14 @@ export default function UserManagement() {
 
         {/* Selection indicator - Compact */}
         {selectedUserIds.size > 0 && (
-          <div className="px-2 pb-1.5">
-            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-md px-2 py-1">
-              <span className="text-[10px] font-medium text-[#00a884]">
+          <div className="px-2 pb-1">
+            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-md px-2 py-0.5">
+              <span className="text-[9px] font-medium text-[#00a884]">
                 {selectedUserIds.size} selected
               </span>
               <button
                 onClick={clearSelection}
-                className="text-[10px] text-[#00a884] font-medium"
+                className="text-[9px] text-[#00a884] font-medium"
               >
                 Clear
               </button>
@@ -594,25 +581,9 @@ export default function UserManagement() {
           </div>
         )}
         
-        {/* Bottom padding for FAB */}
-        <div className="h-32" />
+        {/* Bottom padding */}
+        <div className="h-20" />
       </div>
-
-      {/* WhatsApp-Style Floating Action Button */}
-      <FloatingUserActions
-        selectedCount={selectedUserIds.size}
-        totalCount={filteredUsers.length}
-        onAddUser={() => setAddUserOpen(true)}
-        onNotify={() => setBulkNotificationOpen(true)}
-        onWhatsApp={() => setBulkWhatsAppOpen(true)}
-        onExport={handleExportCSV}
-        onAssignRole={() => setBulkAssignRoleOpen(true)}
-        onRemoveRole={() => setBulkRemoveRoleOpen(true)}
-        onFilter={() => setShowFilters(true)}
-        onRefresh={handleRefresh}
-        onReachOutInactive={() => setReachOutInactiveOpen(true)}
-        refreshing={refreshing}
-      />
 
       {/* Filter Sheet - WhatsApp Style */}
       <Sheet open={showFilters} onOpenChange={setShowFilters}>
