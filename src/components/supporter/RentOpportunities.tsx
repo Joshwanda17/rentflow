@@ -110,7 +110,32 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted';
+type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted' | 'all_tenants' | 'all_landlords';
+
+interface PotentialTenant {
+  id: string;
+  full_name: string;
+  phone?: string;
+  avatar_url?: string;
+  created_at: string;
+  has_rent_request: boolean;
+}
+
+interface PotentialLandlord {
+  id: string;
+  name: string;
+  phone: string;
+  property_address: string;
+  verified: boolean;
+  ready_to_receive: boolean;
+  created_at: string;
+  has_smartphone: boolean;
+  number_of_houses: number;
+  desired_rent_from_welile: number;
+  electricity_meter_number: string;
+  caretaker_name: string;
+  caretaker_phone: string;
+}
 
 interface RentOpportunitiesProps {
   onFund: (id: string, amount: number) => void;
@@ -143,6 +168,9 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [showManagerInvestDialog, setShowManagerInvestDialog] = useState(false);
   const [managerInvestAmount, setManagerInvestAmount] = useState(0);
   const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [allTenants, setAllTenants] = useState<PotentialTenant[]>([]);
+  const [allLandlords, setAllLandlords] = useState<PotentialLandlord[]>([]);
+  const [loadingPotentials, setLoadingPotentials] = useState(false);
 
   // Count unseen opportunities and calculate potential earnings (exclude funded)
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
@@ -185,6 +213,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   useEffect(() => {
     fetchOpportunities();
     fetchWatchedOpportunities();
+    fetchAllTenantsAndLandlords();
     
     // Set up realtime subscription for new rent requests
     const channel = supabase
@@ -372,6 +401,76 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     }
     setLoading(false);
     setLoadingMore(false);
+  };
+
+  // Fetch all tenants and landlords for potential opportunities
+  const fetchAllTenantsAndLandlords = async () => {
+    setLoadingPotentials(true);
+    
+    try {
+      // Fetch all tenant users (users with tenant role)
+      const { data: tenantRoles } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'tenant')
+        .eq('enabled', true);
+      
+      const tenantUserIds = tenantRoles?.map(r => r.user_id) || [];
+      
+      // Fetch tenant profiles
+      let tenantProfiles: PotentialTenant[] = [];
+      if (tenantUserIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, avatar_url, created_at')
+          .in('id', tenantUserIds);
+        
+        // Get rent request tenant ids to mark who has requests
+        const { data: rentRequestTenantIds } = await supabase
+          .from('rent_requests')
+          .select('tenant_id');
+        
+        const tenantIdsWithRequests = new Set(rentRequestTenantIds?.map(r => r.tenant_id) || []);
+        
+        tenantProfiles = (profiles || []).map(p => ({
+          id: p.id,
+          full_name: p.full_name || 'Anonymous Tenant',
+          phone: p.phone || undefined,
+          avatar_url: p.avatar_url || undefined,
+          created_at: p.created_at,
+          has_rent_request: tenantIdsWithRequests.has(p.id)
+        }));
+      }
+      
+      // Fetch all landlords
+      const { data: landlords } = await supabase
+        .from('landlords')
+        .select('id, name, phone, property_address, verified, ready_to_receive, created_at, has_smartphone, number_of_houses, desired_rent_from_welile, electricity_meter_number, caretaker_name, caretaker_phone')
+        .order('created_at', { ascending: false });
+      
+      const landlordList: PotentialLandlord[] = (landlords || []).map(l => ({
+        id: l.id,
+        name: l.name,
+        phone: l.phone,
+        property_address: l.property_address,
+        verified: l.verified || false,
+        ready_to_receive: l.ready_to_receive || false,
+        created_at: l.created_at,
+        has_smartphone: l.has_smartphone || false,
+        number_of_houses: l.number_of_houses || 1,
+        desired_rent_from_welile: l.desired_rent_from_welile || 0,
+        electricity_meter_number: l.electricity_meter_number || '',
+        caretaker_name: l.caretaker_name || '',
+        caretaker_phone: l.caretaker_phone || ''
+      }));
+      
+      setAllTenants(tenantProfiles);
+      setAllLandlords(landlordList);
+    } catch (error) {
+      console.error('[RentOpportunities] Error fetching tenants/landlords:', error);
+    }
+    
+    setLoadingPotentials(false);
   };
 
   const loadMore = () => {
@@ -1123,6 +1222,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { value: 'all', label: 'All', icon: '📋' },
+            { value: 'all_tenants', label: `Tenants (${allTenants.length})`, icon: '🏠' },
+            { value: 'all_landlords', label: `Landlords (${allLandlords.length})`, icon: '🏢' },
             { value: 'agent_posted', label: 'Agent Posted', icon: '👤' },
             { value: 'funded', label: 'Funded', icon: '💚' },
             { value: 'ready', label: 'Ready', icon: '✅' },
@@ -1180,7 +1281,198 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           )}
         </div>
 
+        {/* All Tenants List */}
+        {filterBy === 'all_tenants' && (
+          <Card className="border shadow-sm">
+            <CardContent className="p-0">
+              <div className="px-4 py-3 bg-muted/30 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🏠</span>
+                    <h4 className="font-bold text-foreground">All Registered Tenants</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    {allTenants.length} total
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Potential tenants who may need rent assistance
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {loadingPotentials ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
+                  </div>
+                ) : allTenants.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No tenants registered yet</p>
+                  </div>
+                ) : (
+                  allTenants
+                    .filter(t => !searchQuery || t.full_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((tenant) => (
+                      <div
+                        key={tenant.id}
+                        className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-center gap-3">
+                          <UserAvatar fullName={tenant.full_name} avatarUrl={tenant.avatar_url} size="sm" />
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                              <span>{formatDistanceToNow(new Date(tenant.created_at), { addSuffix: true })}</span>
+                              {tenant.has_rent_request ? (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30">
+                                  Has Request
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30">
+                                  No Request Yet
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                          {tenant.phone && (
+                            <div className="flex items-center gap-1.5">
+                              <a
+                                href={getWhatsAppLink(tenant.phone)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                              >
+                                <MessageCircle className="h-4 w-4" />
+                              </a>
+                              <a
+                                href={`tel:${tenant.phone}`}
+                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* All Landlords List */}
+        {filterBy === 'all_landlords' && (
+          <Card className="border shadow-sm">
+            <CardContent className="p-0">
+              <div className="px-4 py-3 bg-muted/30 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🏢</span>
+                    <h4 className="font-bold text-foreground">All Registered Landlords</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    {allLandlords.length} total
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Property owners ready to receive rent payments
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {loadingPotentials ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
+                  </div>
+                ) : allLandlords.length === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <Building className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No landlords registered yet</p>
+                  </div>
+                ) : (
+                  allLandlords
+                    .filter(l => !searchQuery || l.name?.toLowerCase().includes(searchQuery.toLowerCase()) || l.property_address?.toLowerCase().includes(searchQuery.toLowerCase()))
+                    .map((landlord) => (
+                      <div
+                        key={landlord.id}
+                        className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                      >
+                        <div className="flex items-start gap-3">
+                          <div className={`p-2 rounded-lg ${landlord.ready_to_receive ? 'bg-success/10' : landlord.verified ? 'bg-warning/10' : 'bg-orange-500/10'}`}>
+                            <Building className={`h-5 w-5 ${landlord.ready_to_receive ? 'text-success' : landlord.verified ? 'text-warning' : 'text-orange-500'}`} />
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <div className="flex items-center gap-2">
+                              <p className="font-semibold text-sm truncate">{landlord.name}</p>
+                              {!landlord.has_smartphone && (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-muted">
+                                  No Phone
+                                </Badge>
+                              )}
+                            </div>
+                            <p className="text-xs text-muted-foreground flex items-center gap-1 mt-0.5">
+                              <MapPin className="h-3 w-3" />
+                              {landlord.property_address}
+                            </p>
+                            <div className="flex items-center gap-2 mt-1 flex-wrap">
+                              <span className="text-xs text-muted-foreground">
+                                {landlord.number_of_houses} {landlord.number_of_houses === 1 ? 'house' : 'houses'}
+                              </span>
+                              {landlord.desired_rent_from_welile > 0 && (
+                                <span className="text-xs font-medium text-success">
+                                  Wants: {formatAmount(landlord.desired_rent_from_welile)}
+                                </span>
+                              )}
+                              {landlord.ready_to_receive ? (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-success/10 text-success border-success/30 gap-0.5">
+                                  <CheckCircle2 className="h-2.5 w-2.5" />
+                                  Ready
+                                </Badge>
+                              ) : landlord.verified ? (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-warning/10 text-warning border-warning/30 gap-0.5">
+                                  <Shield className="h-2.5 w-2.5" />
+                                  Verified
+                                </Badge>
+                              ) : (
+                                <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-orange-500/10 text-orange-600 dark:text-orange-400 border-orange-500/30 gap-0.5">
+                                  <Timer className="h-2.5 w-2.5" />
+                                  Pending
+                                </Badge>
+                              )}
+                            </div>
+                            {landlord.caretaker_name && (
+                              <p className="text-[10px] text-muted-foreground mt-1">
+                                Caretaker: {landlord.caretaker_name} {landlord.caretaker_phone && `(${landlord.caretaker_phone})`}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5">
+                            <a
+                              href={getWhatsAppLink(landlord.phone)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="p-2 rounded-lg bg-[#25D366]/10 text-[#25D366] hover:bg-[#25D366]/20 transition-colors"
+                            >
+                              <MessageCircle className="h-4 w-4" />
+                            </a>
+                            <a
+                              href={`tel:${landlord.phone}`}
+                              className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                            >
+                              <Phone className="h-4 w-4" />
+                            </a>
+                          </div>
+                        </div>
+                      </div>
+                    ))
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Opportunities List - Collapsible Names */}
+        {filterBy !== 'all_tenants' && filterBy !== 'all_landlords' && (
         <Card className="border shadow-sm">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
@@ -1501,6 +1793,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
             </div>
           </CardContent>
         </Card>
+        )}
 
         {/* Results info - LARGER */}
         {filterBy !== 'all' && (
