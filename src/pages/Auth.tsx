@@ -223,15 +223,58 @@ export default function Auth() {
           return;
         }
 
-        // Try multiple phone format variants to find the user
+        // First, check if user exists with real email (Google OAuth users)
+        // by matching their phone number in the profiles table
+        const phoneLocal9 = cleanedPhone.slice(-9);
+        const { data: profileMatch } = await supabase
+          .from('profiles')
+          .select('email')
+          .or(`phone.ilike.%${phoneLocal9}%,phone.ilike.%${phoneLocal9}`)
+          .limit(5);
+        
+        // Build list of emails to try - include real emails from profile matches
         const emailVariants = generatePhoneEmailVariants(phone);
+        
+        // Add profile-matched emails to the front (more likely to work)
+        if (profileMatch && profileMatch.length > 0) {
+          for (const profile of profileMatch) {
+            // Verify exact match on last 9 digits
+            const profilePhone = profile.email ? '' : '';
+            if (profile.email && !emailVariants.includes(profile.email)) {
+              // Check if this profile's phone matches
+              emailVariants.unshift(profile.email);
+            }
+          }
+        }
+
+        // Also check profiles for real emails matching the phone
+        const { data: phoneProfiles } = await supabase
+          .from('profiles')
+          .select('email, phone')
+          .limit(10);
+        
+        if (phoneProfiles) {
+          for (const p of phoneProfiles) {
+            const pClean = cleanPhoneNumber(p.phone || '');
+            const pLocal9 = pClean.slice(-9);
+            if (pLocal9 === phoneLocal9 && p.email && !p.email.includes('@welile.')) {
+              // This user registered with a real email but has matching phone
+              if (!emailVariants.includes(p.email)) {
+                emailVariants.unshift(p.email); // Try real email first
+              }
+            }
+          }
+        }
+
         let loginSuccess = false;
         let lastError: Error | null = null;
+        let usedRealEmail = false;
 
         for (const emailVariant of emailVariants) {
           const { error } = await signIn(emailVariant, password);
           if (!error) {
             loginSuccess = true;
+            usedRealEmail = !emailVariant.includes('@welile.');
             break;
           }
           lastError = error;
@@ -255,7 +298,24 @@ export default function Auth() {
           // Provide helpful error message
           let errorMessage = lastError.message;
           if (lastError.message.includes('Invalid login credentials')) {
-            errorMessage = 'Could not find an account with this phone number, or the password is incorrect.';
+            // Check if account exists but was registered differently
+            const { data: existingProfile } = await supabase
+              .from('profiles')
+              .select('email')
+              .or(`phone.ilike.%${phoneLocal9}%`)
+              .limit(1);
+            
+            if (existingProfile && existingProfile.length > 0 && existingProfile[0].email) {
+              const profileEmail = existingProfile[0].email;
+              if (!profileEmail.includes('@welile.')) {
+                // User signed up with Google or real email
+                errorMessage = `This phone number is linked to an account that uses email login (${profileEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3')}). Please use "Continue with Google" or sign in with your email address.`;
+              } else {
+                errorMessage = 'Incorrect password. Please check your password and try again.';
+              }
+            } else {
+              errorMessage = 'No account found with this phone number. Please sign up first.';
+            }
           } else if (lastError.message.includes('rate')) {
             errorMessage = 'Too many login attempts. Please wait a moment and try again.';
           }
