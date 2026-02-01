@@ -22,66 +22,27 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return outputArray;
 }
 
-// Get service worker registration - more reliable with longer timeout
+// Get service worker registration - simple and fast
 async function getServiceWorkerRegistration(): Promise<ServiceWorkerRegistration | null> {
   if (!('serviceWorker' in navigator)) return null;
 
   try {
-    // First check if we already have a registration
-    let reg = await navigator.serviceWorker.getRegistration('/');
-    
-    if (reg) {
-      // Wait for it to be ready if it exists
-      if (reg.active) return reg;
-      
-      // Wait up to 5s for the SW to activate
-      const waitForActive = new Promise<ServiceWorkerRegistration | null>((resolve) => {
-        if (reg!.active) {
-          resolve(reg!);
-          return;
-        }
-        
-        const timeout = setTimeout(() => resolve(reg!), 5000);
-        
-        reg!.addEventListener('updatefound', () => {
-          const installing = reg!.installing;
-          if (installing) {
-            installing.addEventListener('statechange', () => {
-              if (installing.state === 'activated') {
-                clearTimeout(timeout);
-                resolve(reg!);
-              }
-            });
-          }
-        });
-        
-        // Also check if it becomes active
-        if (reg!.waiting) {
-          reg!.waiting.addEventListener('statechange', function() {
-            if (this.state === 'activated') {
-              clearTimeout(timeout);
-              resolve(reg!);
-            }
-          });
-        }
-      });
-      
-      return await waitForActive;
-    }
-    
-    // No registration exists, create one with 8s timeout
-    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 8000));
+    // Simple approach: just get existing or register new, with a short timeout
+    const timeoutPromise = new Promise<null>((resolve) => setTimeout(() => resolve(null), 4000));
     
     const registrationPromise = (async () => {
-      const newReg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
-      // Wait for it to be ready
-      await navigator.serviceWorker.ready;
-      return newReg;
+      // Check for existing registration first
+      let reg = await navigator.serviceWorker.getRegistration('/');
+      if (reg) return reg;
+      
+      // Register if not exists
+      reg = await navigator.serviceWorker.register('/sw.js', { scope: '/' });
+      return reg;
     })();
     
     return await Promise.race([registrationPromise, timeoutPromise]);
   } catch (err) {
-    console.error('[Push] Service worker registration error:', err);
+    console.error('[Push] SW registration error:', err);
     return null;
   }
 }
