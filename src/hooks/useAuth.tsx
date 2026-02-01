@@ -32,15 +32,25 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+// Default role for all users - agent is always available
+const DEFAULT_ROLE: AppRole = 'agent';
+const DEFAULT_ROLES: AppRole[] = ['agent'];
+
 export function AuthProvider({ children }: { children: ReactNode }) {
   // INSTANT: Use cached session/roles for immediate state
   const cachedSession = getPreloadedSession();
   const cachedRoles = getPreloadedRoles() as AppRole[] | null;
   
+  // Ensure agent role is always included in cached roles
+  const initialRoles = cachedRoles && cachedRoles.length > 0 
+    ? (cachedRoles.includes('agent') ? cachedRoles : ['agent', ...cachedRoles] as AppRole[])
+    : DEFAULT_ROLES;
+  
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  const [role, setRole] = useState<AppRole | null>(cachedRoles?.[0] || null);
-  const [roles, setRoles] = useState<AppRole[]>(cachedRoles || []);
+  // Default to agent role for all users
+  const [role, setRole] = useState<AppRole | null>(initialRoles.includes('agent') ? 'agent' : initialRoles[0]);
+  const [roles, setRoles] = useState<AppRole[]>(initialRoles);
   // CRITICAL: Start with loading=false if we have cached data
   const [loading, setLoading] = useState(!cachedSession);
 
@@ -127,19 +137,25 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       .eq('enabled', true);
     
     if (!error && data && data.length > 0) {
-      const userRoles = data.map(r => r.role as AppRole);
+      let userRoles = data.map(r => r.role as AppRole);
+      
+      // IMPORTANT: Ensure agent role is always included (default for all users)
+      if (!userRoles.includes('agent')) {
+        userRoles = ['agent', ...userRoles];
+      }
+      
       setRoles(userRoles);
       // Cache roles for instant reload
       setCachedRoles(userRoles);
       // Prioritize AGENT role as default dashboard for all users
       if (!role || !userRoles.includes(role)) {
-        const defaultRole = userRoles.includes('agent') ? 'agent' : userRoles[0];
-        setRole(defaultRole);
+        setRole('agent'); // Agent is always the default
       }
     } else {
-      setRoles([]);
-      setRole(null);
-      setCachedRoles([]);
+      // Even with no roles from DB, agent is always available
+      setRoles(DEFAULT_ROLES);
+      setRole(DEFAULT_ROLE);
+      setCachedRoles(DEFAULT_ROLES);
     }
   };
 
