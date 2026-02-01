@@ -121,7 +121,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   ];
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-32 md:pb-0">
       <OfflineBanner />
       
       <DashboardHeader
