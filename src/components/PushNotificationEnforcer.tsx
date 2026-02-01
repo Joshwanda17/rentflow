@@ -59,23 +59,31 @@ export function PushNotificationEnforcer() {
   }, [user, isSupported, isSubscribed, currentPermission]);
 
   const handleEnable = async () => {
+    // Prevent double-clicks
+    if (isEnabling || loading) return;
+    
     setIsEnabling(true);
     setHasAttempted(true);
     
-    const success = await subscribe();
-    
-    setIsEnabling(false);
-    
-    if (success) {
-      setShowEnforcer(false);
-    } else {
-      // Check if permission was denied in browser popup
-      if ('Notification' in window) {
-        setCurrentPermission(Notification.permission);
-        if (Notification.permission === 'denied') {
-          setShowEnforcer(false);
+    try {
+      const success = await subscribe();
+      
+      if (success) {
+        setShowEnforcer(false);
+      } else {
+        // Check if permission was denied in browser popup
+        if ('Notification' in window) {
+          const newPermission = Notification.permission;
+          setCurrentPermission(newPermission);
+          if (newPermission === 'denied') {
+            setShowEnforcer(false);
+          }
         }
       }
+    } catch (err) {
+      console.error('[Push Enforcer] Error:', err);
+    } finally {
+      setIsEnabling(false);
     }
   };
 
