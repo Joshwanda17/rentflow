@@ -66,10 +66,16 @@ export function clearSessionCache(): void {
   }
 }
 
+// Default role for all users - agent is always available offline
+const DEFAULT_OFFLINE_ROLES: string[] = ['agent'];
+
 export function getCachedRoles(): string[] | null {
   try {
     const cached = sessionStorage.getItem(ROLES_CACHE_KEY);
-    if (!cached) return null;
+    if (!cached) {
+      // Return default agent role for offline availability
+      return DEFAULT_OFFLINE_ROLES;
+    }
     
     const parsed: CachedRoles = JSON.parse(cached);
     const now = Date.now();
@@ -77,12 +83,19 @@ export function getCachedRoles(): string[] | null {
     // Check if cache is still valid (roles can be cached longer)
     if (now - parsed.cachedAt > CACHE_TTL * 2) {
       sessionStorage.removeItem(ROLES_CACHE_KEY);
-      return null;
+      // Return default agent role instead of null
+      return DEFAULT_OFFLINE_ROLES;
+    }
+    
+    // Ensure agent role is always included
+    if (!parsed.roles.includes('agent')) {
+      return ['agent', ...parsed.roles];
     }
     
     return parsed.roles;
   } catch {
-    return null;
+    // Return default agent role on error
+    return DEFAULT_OFFLINE_ROLES;
   }
 }
 
@@ -106,7 +119,13 @@ try {
   preloadedSession = getCachedSession();
   preloadedRoles = getCachedRoles();
 } catch {
-  // Ignore
+  // Default to agent role on error
+  preloadedRoles = DEFAULT_OFFLINE_ROLES;
+}
+
+// Ensure agent role is always available
+if (!preloadedRoles || preloadedRoles.length === 0) {
+  preloadedRoles = DEFAULT_OFFLINE_ROLES;
 }
 
 export function getPreloadedSession(): CachedSession | null {
@@ -114,5 +133,6 @@ export function getPreloadedSession(): CachedSession | null {
 }
 
 export function getPreloadedRoles(): string[] | null {
-  return preloadedRoles;
+  // Always return at least the agent role for offline availability
+  return preloadedRoles && preloadedRoles.length > 0 ? preloadedRoles : DEFAULT_OFFLINE_ROLES;
 }
