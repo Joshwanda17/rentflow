@@ -162,10 +162,11 @@ export function AgentMenuDrawer({
       items: [
         { 
           icon: Store, 
-          label: 'My Shop', 
-          description: 'Manage products',
-          path: '/marketplace',
-          color: 'text-orange-500'
+          label: 'Welile Shop', 
+          description: 'Buy, sell & earn loan access',
+          path: '/shop',
+          color: 'text-orange-500',
+          badge: 'Loans up to 30M'
         },
         { 
           icon: Receipt, 
@@ -318,7 +319,14 @@ export function AgentMenuDrawer({
                             <item.icon className="h-5 w-5" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="font-medium text-sm truncate">{item.label}</p>
+                            <div className="flex items-center gap-2">
+                              <p className="font-medium text-sm truncate">{item.label}</p>
+                              {item.badge && (
+                                <span className="px-1.5 py-0.5 text-[10px] font-medium bg-success/20 text-success rounded-full">
+                                  {item.badge}
+                                </span>
+                              )}
+                            </div>
                             {item.description && (
                               <p className="text-xs text-muted-foreground truncate">{item.description}</p>
                             )}
