@@ -121,7 +121,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   ];
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-32 md:pb-0">
+    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-24 md:pb-0">
       <OfflineBanner />
       
       <DashboardHeader
@@ -227,16 +227,18 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           {addRoleComponent}
         </div>
 
-        {/* MENU BUTTON - Opens all other features - HIGHLY VISIBLE */}
+      </main>
+
+      {/* FLOATING MENU BUTTON - Always visible above footer on mobile */}
+      <div className="md:hidden fixed bottom-20 left-4 right-4 z-40">
         <button
           onClick={handleOpenMenu}
-          className="w-full flex items-center justify-center gap-3 p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
-          style={{ minHeight: '60px' }}
+          className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
         >
-          <Menu className="h-6 w-6" />
-          <span className="font-bold text-lg">Open Menu</span>
+          <Menu className="h-5 w-5" />
+          <span className="font-bold">Open Menu</span>
         </button>
-      </main>
+      </div>
       
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
