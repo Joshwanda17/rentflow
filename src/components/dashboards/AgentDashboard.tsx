@@ -227,15 +227,15 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           {addRoleComponent}
         </div>
 
-        {/* MENU BUTTON - Opens all other features */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
+        {/* MENU BUTTON - Opens all other features - HIGHLY VISIBLE */}
+        <button
           onClick={handleOpenMenu}
-          className="w-full flex items-center justify-center gap-3 p-4 rounded-xl bg-muted/50 border border-border hover:bg-muted transition-colors touch-manipulation"
+          className="w-full flex items-center justify-center gap-3 p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
+          style={{ minHeight: '60px' }}
         >
-          <Menu className="h-5 w-5 text-muted-foreground" />
-          <span className="font-medium text-muted-foreground">Open Menu</span>
-        </motion.button>
+          <Menu className="h-6 w-6" />
+          <span className="font-bold text-lg">Open Menu</span>
+        </button>
       </main>
       
       {/* Full-screen wallet sheet */}
