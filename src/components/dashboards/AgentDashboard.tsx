@@ -29,7 +29,8 @@ import {
   BarChart3,
   Target,
   FileText,
-  ShoppingBag
+  ShoppingBag,
+  Trophy
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -70,6 +71,7 @@ import { OfflineBanner } from '@/components/OfflineBanner';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
 import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
+import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 
 interface AgentDashboardProps {
   user: User;
@@ -189,6 +191,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [inviteSubAgentOpen, setInviteSubAgentOpen] = useState(false);
   const [rentRequestOpen, setRentRequestOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [earningsRankOpen, setEarningsRankOpen] = useState(false);
   
   // Collapsible sections state
   const [sectionsOpen, setSectionsOpen] = useState({
@@ -437,6 +440,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           </Card>
         </button>
 
+        {/* Earnings & Rank System Button */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={() => { hapticTap(); setEarningsRankOpen(true); }}
+          className="w-full flex items-center gap-3 p-4 rounded-xl bg-gradient-to-r from-primary/10 via-amber-500/10 to-success/10 border-2 border-primary/20 hover:border-primary/40 transition-colors touch-manipulation"
+        >
+          <div className="p-2.5 rounded-xl bg-primary/10">
+            <Trophy className="h-6 w-6 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-semibold text-base">Earnings & Rank System</p>
+            <p className="text-xs text-muted-foreground">See how you earn & level up</p>
+          </div>
+          <ChevronRight className="h-5 w-5 text-muted-foreground" />
+        </motion.button>
+
         {/* Goal Progress */}
         <AgentGoalProgress />
 
@@ -593,6 +612,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={inviteSubAgentOpen}
         onOpenChange={setInviteSubAgentOpen}
         onSuccess={() => { refreshOfflineData(); refreshEarnings(); }}
+      />
+      <EarningsRankSystemSheet
+        open={earningsRankOpen}
+        onOpenChange={setEarningsRankOpen}
       />
       
       <FloatingShareButton />
