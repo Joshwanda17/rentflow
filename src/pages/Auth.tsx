@@ -2,13 +2,14 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePinAuth } from '@/hooks/usePinAuth';
+import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { useToast } from '@/hooks/use-toast';
-import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2, Eye, EyeOff, MessageCircle, HelpCircle } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Mail, Lock, User, Phone, Sparkles, Loader2, Eye, EyeOff, MessageCircle, HelpCircle, AlertCircle } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -65,6 +66,7 @@ export default function Auth() {
   
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles, session } = useAuth();
   const { isPinEnabled } = usePinAuth();
+  const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
@@ -160,6 +162,13 @@ export default function Auth() {
           setIsForgotPassword(false);
         }
       } else if (isSignUp) {
+        // Check for duplicate phone before attempting signup
+        if (isDuplicate) {
+          toast({ title: 'Phone Already Registered', description: duplicateMessage || 'This phone number is already in use.', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
         // Use inline validation for faster response
         const validationError = validateSignUp({ password, confirmPassword, fullName, phone });
         if (validationError) {
@@ -548,11 +557,24 @@ export default function Auth() {
                         setLoginError(null); // Clear error when user types
                       }}
                       placeholder="e.g., 0700123456"
-                      className={`pl-10 h-12 text-base ${loginError ? 'border-destructive' : ''}`}
+                      className={`pl-10 h-12 text-base ${loginError || (isSignUp && isDuplicate) ? 'border-destructive' : ''}`}
                       style={{ fontSize: '16px' }}
                       required
                     />
                   </div>
+                  {/* Duplicate phone warning during signup */}
+                  {isSignUp && isDuplicate && (
+                    <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                      <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                      <p className="text-xs text-destructive">{duplicateMessage}</p>
+                    </div>
+                  )}
+                  {isSignUp && isCheckingDuplicate && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Checking availability...
+                    </p>
+                  )}
                   {!isSignUp && !loginError && (
                     <p className="text-xs text-muted-foreground">
                       Enter your phone number with or without country code
@@ -805,7 +827,7 @@ export default function Auth() {
               <Button 
                 type="submit" 
                 className="w-full gap-2 h-14 text-base touch-manipulation active:scale-[0.98] transition-transform" 
-                disabled={isLoading}
+                disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate))}
                 style={{ 
                   fontSize: '16px',
                   WebkitTapHighlightColor: 'transparent',
