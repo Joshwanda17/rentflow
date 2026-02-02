@@ -229,8 +229,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
 
       </main>
 
-      {/* FLOATING MENU BUTTON - Always visible above footer on mobile */}
-      <div className="md:hidden fixed bottom-24 left-4 z-40">
+      {/* FLOATING MENU BUTTON - Above footer nav */}
+      <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
         <button
           onClick={handleOpenMenu}
           className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
