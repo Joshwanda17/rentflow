@@ -651,8 +651,8 @@ export default function Auth() {
                 </div>
               )}
 
-              {/* Password field */}
-              {(isForgotPhone || (!isForgotPassword && !isForgotPhone)) && (
+              {/* Password field - show for sign in, sign up, forgot phone (email login) but NOT for forgot password */}
+              {!isForgotPassword && (
                 <div className="space-y-2">
                   <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                   <div className="relative">
