@@ -209,11 +209,6 @@ export function AgentCommissionPayoutsManager() {
       return;
     }
 
-    if (!screenshotFile) {
-      toast({ title: 'Please attach a screenshot of the payment', variant: 'destructive' });
-      return;
-    }
-
     hapticTap();
     setProcessing(true);
 
@@ -463,92 +458,12 @@ export function AgentCommissionPayoutsManager() {
                 </p>
               </div>
 
-              {/* Screenshot Upload */}
-              <div className="space-y-2">
-                <Label className="flex items-center gap-2">
-                  <Camera className="h-4 w-4" />
-                  Payment Screenshot
-                  <span className="text-destructive">*</span>
-                </Label>
-                
-                {screenshotPreview ? (
-                  <div className="space-y-2">
-                    <div className="relative">
-                      <img 
-                        src={screenshotPreview} 
-                        alt="Payment screenshot" 
-                        className="w-full h-40 object-cover rounded-lg border border-border"
-                      />
-                      <Button
-                        variant="destructive"
-                        size="icon"
-                        className="absolute top-2 right-2 h-8 w-8"
-                        onClick={clearScreenshot}
-                        disabled={processing}
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                    {/* Save to device button */}
-                    <Button
-                      variant="outline"
-                      onClick={saveScreenshotToDevice}
-                      disabled={processing}
-                      className="w-full h-10 gap-2"
-                    >
-                      <Download className="h-4 w-4" />
-                      Save to Device
-                    </Button>
-                  </div>
-                ) : (
-                  <div className="grid grid-cols-2 gap-2">
-                    {/* Camera capture button */}
-                    <label 
-                      className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-primary/50 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors bg-primary/5"
-                      style={{ WebkitTapHighlightColor: 'transparent' }}
-                    >
-                      <Camera className="h-6 w-6 text-primary mb-1" />
-                      <span className="text-xs font-medium text-primary">Take Photo</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        capture="environment"
-                        onChange={handleScreenshotChange}
-                        className="hidden"
-                        disabled={processing}
-                      />
-                    </label>
-                    
-                    {/* Upload from gallery button */}
-                    <label 
-                      className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
-                      style={{ WebkitTapHighlightColor: 'transparent' }}
-                    >
-                      <Upload className="h-6 w-6 text-muted-foreground mb-1" />
-                      <span className="text-xs text-muted-foreground">Upload</span>
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleScreenshotChange}
-                        className="hidden"
-                        disabled={processing}
-                      />
-                    </label>
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground flex items-center gap-1">
-                  <AlertCircle className="h-3 w-3" />
-                  Screenshot of the mobile money confirmation is required
-                </p>
-              </div>
-
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setApproveDialogOpen(false);
                     setTransactionId('');
-                    clearScreenshot();
                   }}
                   disabled={processing}
                   className="flex-1 h-12"
@@ -557,10 +472,10 @@ export function AgentCommissionPayoutsManager() {
                 </Button>
                 <Button
                   onClick={handleApprove}
-                  disabled={processing || !transactionId.trim() || !screenshotFile}
+                  disabled={processing || !transactionId.trim()}
                   className="flex-1 h-12 bg-success hover:bg-success/90"
                 >
-                  {processing || uploadingScreenshot ? (
+                  {processing ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
                   ) : (
                     'Confirm Payment'
