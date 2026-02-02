@@ -230,13 +230,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       </main>
 
       {/* FLOATING MENU BUTTON - Always visible above footer on mobile */}
-      <div className="md:hidden fixed bottom-24 left-4 right-4 z-40">
+      <div className="md:hidden fixed bottom-24 left-4 z-40">
         <button
           onClick={handleOpenMenu}
-          className="w-full flex items-center justify-center gap-3 p-4 rounded-2xl bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
         >
           <Menu className="h-5 w-5" />
-          <span className="font-bold">Open Menu</span>
+          <span className="font-semibold text-sm">Menu</span>
         </button>
       </div>
       
