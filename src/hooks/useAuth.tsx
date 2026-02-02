@@ -244,99 +244,39 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     });
     
-    // Update last_active_at and log login on successful sign in
+    // PERFORMANCE: Fire-and-forget background tasks - don't block login
     if (!error && data?.user) {
       const userId = data.user.id;
       
-      // First, check if user was inactive for 30+ days before updating last_active_at
-      const { data: profileData } = await supabase
-        .from('profiles')
-        .select('last_active_at, full_name')
-        .eq('id', userId)
-        .single();
-      
-      const wasLongInactive = profileData?.last_active_at 
-        ? (new Date().getTime() - new Date(profileData.last_active_at).getTime()) / (1000 * 60 * 60 * 24) >= 30
-        : false;
-      
-      // Update last_active_at
-      supabase
-        .from('profiles')
-        .update({ last_active_at: new Date().toISOString() })
-        .eq('id', userId)
-        .then(() => {});
-      
-      // Log login to user_login_history
-      supabase
-        .from('user_login_history')
-        .insert({
-          user_id: userId,
-          login_method: 'password',
-          success: true
-        })
-        .then(() => {});
-      
-      // Log to user_activity_log
-      supabase
-        .from('user_activity_log')
-        .insert({
-          user_id: userId,
-          activity_type: 'login',
-          description: wasLongInactive 
-            ? 'Returned after 30+ days of inactivity' 
-            : 'Logged in with password'
-        })
-        .then(() => {});
-      
-      // Notify managers if user was inactive for 30+ days
-      if (wasLongInactive && profileData) {
-        const daysInactive = Math.floor(
-          (new Date().getTime() - new Date(profileData.last_active_at!).getTime()) / (1000 * 60 * 60 * 24)
-        );
-        
-        // Get all managers
+      // All background tasks run after login completes - non-blocking
+      setTimeout(() => {
+        // Update last_active_at (fire-and-forget)
         supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'manager')
-          .eq('enabled', true)
-          .then(async ({ data: managers }) => {
-            if (managers && managers.length > 0) {
-              // Create in-app notifications for all managers
-              const notifications = managers.map(m => ({
-                user_id: m.user_id,
-                title: '🎉 Inactive User Returned!',
-                message: `${profileData.full_name || 'A user'} just logged back in after ${daysInactive} days of inactivity!`,
-                type: 'success',
-                metadata: {
-                  returning_user_id: userId,
-                  user_name: profileData.full_name,
-                  days_inactive: daysInactive,
-                  send_push: true
-                }
-              }));
-              
-              await supabase.from('notifications').insert(notifications);
-              
-              // Trigger push notifications via edge function
-              try {
-                await supabase.functions.invoke('send-push-notification', {
-                  body: {
-                    userIds: managers.map(m => m.user_id),
-                    payload: {
-                      title: '🎉 Inactive User Returned!',
-                      body: `${profileData.full_name || 'A user'} logged back in after ${daysInactive} days!`,
-                      url: '/user-management',
-                      type: 'user_return'
-                    }
-                  }
-                });
-              } catch (e) {
-                console.error('Failed to send push notification:', e);
-              }
-            }
-          });
-      }
+          .from('profiles')
+          .update({ last_active_at: new Date().toISOString() })
+          .eq('id', userId)
+          .then(() => {});
+        
+        // Log login (fire-and-forget)
+        supabase
+          .from('user_login_history')
+          .insert({
+            user_id: userId,
+            login_method: 'password',
+            success: true
+          })
+          .then(() => {});
+        
+        // Log activity (fire-and-forget)
+        supabase
+          .from('user_activity_log')
+          .insert({
+            user_id: userId,
+            activity_type: 'login',
+            description: 'Logged in with password'
+          })
+          .then(() => {});
+      }, 100); // Defer by 100ms to not block UI
     }
     
     return { error: error as Error | null };
