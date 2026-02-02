@@ -27,7 +27,9 @@ import {
   AlertCircle,
   Camera,
   ImageIcon,
-  X
+  X,
+  Download,
+  Upload
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -158,6 +160,19 @@ export function AgentCommissionPayoutsManager() {
   const clearScreenshot = () => {
     setScreenshotFile(null);
     setScreenshotPreview(null);
+  };
+
+  const saveScreenshotToDevice = () => {
+    if (!screenshotPreview || !selectedPayout) return;
+    
+    const link = document.createElement('a');
+    link.href = screenshotPreview;
+    link.download = `payout-${selectedPayout.agent_name || 'agent'}-${transactionId || Date.now()}.jpg`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    
+    toast({ title: 'Screenshot saved to device!' });
   };
 
   const uploadScreenshot = async (payoutId: string): Promise<string | null> => {
@@ -457,35 +472,69 @@ export function AgentCommissionPayoutsManager() {
                 </Label>
                 
                 {screenshotPreview ? (
-                  <div className="relative">
-                    <img 
-                      src={screenshotPreview} 
-                      alt="Payment screenshot" 
-                      className="w-full h-40 object-cover rounded-lg border border-border"
-                    />
+                  <div className="space-y-2">
+                    <div className="relative">
+                      <img 
+                        src={screenshotPreview} 
+                        alt="Payment screenshot" 
+                        className="w-full h-40 object-cover rounded-lg border border-border"
+                      />
+                      <Button
+                        variant="destructive"
+                        size="icon"
+                        className="absolute top-2 right-2 h-8 w-8"
+                        onClick={clearScreenshot}
+                        disabled={processing}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    </div>
+                    {/* Save to device button */}
                     <Button
-                      variant="destructive"
-                      size="icon"
-                      className="absolute top-2 right-2 h-8 w-8"
-                      onClick={clearScreenshot}
+                      variant="outline"
+                      onClick={saveScreenshotToDevice}
                       disabled={processing}
+                      className="w-full h-10 gap-2"
                     >
-                      <X className="h-4 w-4" />
+                      <Download className="h-4 w-4" />
+                      Save to Device
                     </Button>
                   </div>
                 ) : (
-                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
-                    <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
-                    <span className="text-sm text-muted-foreground">Tap to capture or upload screenshot</span>
-                    <input
-                      type="file"
-                      accept="image/*"
-                      capture="environment"
-                      onChange={handleScreenshotChange}
-                      className="hidden"
-                      disabled={processing}
-                    />
-                  </label>
+                  <div className="grid grid-cols-2 gap-2">
+                    {/* Camera capture button */}
+                    <label 
+                      className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-primary/50 rounded-lg cursor-pointer hover:border-primary hover:bg-primary/5 transition-colors bg-primary/5"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Camera className="h-6 w-6 text-primary mb-1" />
+                      <span className="text-xs font-medium text-primary">Take Photo</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        capture="environment"
+                        onChange={handleScreenshotChange}
+                        className="hidden"
+                        disabled={processing}
+                      />
+                    </label>
+                    
+                    {/* Upload from gallery button */}
+                    <label 
+                      className="flex flex-col items-center justify-center h-24 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors"
+                      style={{ WebkitTapHighlightColor: 'transparent' }}
+                    >
+                      <Upload className="h-6 w-6 text-muted-foreground mb-1" />
+                      <span className="text-xs text-muted-foreground">Upload</span>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={handleScreenshotChange}
+                        className="hidden"
+                        disabled={processing}
+                      />
+                    </label>
+                  </div>
                 )}
                 <p className="text-xs text-muted-foreground flex items-center gap-1">
                   <AlertCircle className="h-3 w-3" />
