@@ -1,13 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
+import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, Gift, Loader2, CheckCircle2 } from 'lucide-react';
+import { UserPlus, LogIn, ArrowLeft, Lock, User, Phone, TrendingUp, Wallet, Users, Sparkles, Gift, Loader2, CheckCircle2, AlertCircle } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
@@ -43,6 +44,7 @@ export default function BecomeSupporter() {
   const [referrerName, setReferrerName] = useState<string | null>(null);
   
   const { signUpWithoutRole, signIn, user, roles, addRole } = useAuth();
+  const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -140,6 +142,13 @@ export default function BecomeSupporter() {
 
     try {
       if (isSignUp) {
+        // Check for duplicate phone before attempting signup
+        if (isDuplicate) {
+          toast({ title: 'Phone Already Registered', description: duplicateMessage || 'This phone number is already in use.', variant: 'destructive' });
+          setIsLoading(false);
+          return;
+        }
+
         const validationError = validateSignUp({ password, fullName, phone });
         if (validationError) {
           toast({ title: 'Error', description: validationError, variant: 'destructive' });
@@ -390,11 +399,24 @@ export default function BecomeSupporter() {
                           value={phone}
                           onChange={(e) => setPhone(e.target.value)}
                           placeholder="e.g., 0700123456"
-                          className="pl-10 h-12 text-base"
+                          className={`pl-10 h-12 text-base ${isDuplicate ? 'border-destructive' : ''}`}
                           style={{ fontSize: '16px' }}
                           required
                         />
                       </div>
+                      {/* Duplicate phone warning */}
+                      {isSignUp && isDuplicate && (
+                        <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
+                          <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
+                          <p className="text-xs text-destructive">{duplicateMessage}</p>
+                        </div>
+                      )}
+                      {isSignUp && isCheckingDuplicate && (
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Loader2 className="h-3 w-3 animate-spin" />
+                          Checking availability...
+                        </p>
+                      )}
                     </div>
 
                     <div className="space-y-2">
@@ -418,7 +440,7 @@ export default function BecomeSupporter() {
                     <Button 
                       type="submit" 
                       className="w-full gap-2 h-12 bg-success hover:bg-success/90 text-white font-bold" 
-                      disabled={isLoading}
+                      disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate))}
                     >
                       {isLoading ? (
                         <Loader2 className="h-5 w-5 animate-spin" />
