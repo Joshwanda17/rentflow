@@ -55,8 +55,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!cachedSession);
 
   useEffect(() => {
+    // Track if we're initializing - don't clear cache on initial null events
+    let isInitialized = false;
+    
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
+        // Only process auth changes after initialization OR for explicit sign-in/out events
+        if (!isInitialized && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
+          // During init, just update state without clearing cache
+          if (session?.user) {
+            setSession(session);
+            setUser(session.user);
+          }
+          return;
+        }
+        
         setSession(session);
         setUser(session?.user ?? null);
         
@@ -80,7 +93,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .eq('id', session.user.id)
               .then(() => {});
           }
-        } else {
+        } else if (event === 'SIGNED_OUT') {
+          // ONLY clear on explicit sign out, not on transient null states
           setRole(null);
           setRoles([]);
           clearSessionCache();
@@ -90,6 +104,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     // Get session immediately and set loading false ASAP
     supabase.auth.getSession().then(({ data: { session } }) => {
+      isInitialized = true;
       setSession(session);
       setUser(session?.user ?? null);
       // Set loading false immediately - don't wait for roles
@@ -102,12 +117,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           session.expires_at || 0
         );
         fetchUserRoles(session.user.id);
-      } else {
+      } else if (!cachedSession) {
+        // Only clear if we had no cached session - prevents logout loop on slow connections
         clearSessionCache();
       }
     }).catch(() => {
+      isInitialized = true;
       setLoading(false);
-      clearSessionCache();
+      // Don't clear cache on network errors - user might still be logged in
     });
 
     // Handle "Remember me" - sign out when browser closes if unchecked
