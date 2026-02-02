@@ -465,8 +465,38 @@ export default function Auth() {
           </div>
         )}
 
-        <Card className="border-border/50 shadow-lg">
-          {/* Prominent Login/Signup Toggle - visible on iPads without scrolling */}
+        <Card className="border-border/50 shadow-lg overflow-hidden">
+          {/* Quick Google Sign-In - Most prominent for easy login */}
+          {!isForgotPassword && !isForgotPhone && !isSignUp && (
+            <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30">
+              <Button
+                type="button"
+                variant="outline"
+                className="w-full gap-3 h-14 text-base bg-white hover:bg-gray-50 border-2 shadow-sm touch-manipulation active:scale-[0.98] transition-all"
+                onClick={handleGoogleSignIn}
+                disabled={isGoogleLoading || isLoading}
+                style={{ 
+                  fontSize: '16px',
+                  WebkitTapHighlightColor: 'transparent',
+                }}
+              >
+                {isGoogleLoading ? (
+                  <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+                ) : (
+                  <svg className="h-5 w-5" viewBox="0 0 24 24">
+                    <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                    <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                    <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                    <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                  </svg>
+                )}
+                <span className="font-medium">Continue with Google</span>
+              </Button>
+              <p className="text-center text-xs text-muted-foreground mt-2">Fastest way to sign in</p>
+            </div>
+          )}
+
+          {/* Login/Signup Toggle */}
           {!isForgotPassword && !isForgotPhone && (
             <div className="flex border-b border-border/50">
               <button
@@ -502,37 +532,34 @@ export default function Auth() {
             </div>
           )}
           
-          <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4' : ''}>
-            <CardTitle className="flex items-center gap-2">
-              <div className="p-2 rounded-lg bg-primary/10">
-                {isForgotPassword || isForgotPhone ? <Mail className="h-5 w-5 text-primary" /> : isSignUp ? <UserPlus className="h-5 w-5 text-primary" /> : <LogIn className="h-5 w-5 text-primary" />}
-              </div>
-              {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : 'Welcome Back'}
+          <CardHeader className={!isForgotPassword && !isForgotPhone ? 'pt-4 pb-2' : ''}>
+            <CardTitle className="flex items-center gap-2 text-xl">
+              {isForgotPassword ? 'Reset Password' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : 'Sign in with Phone'}
             </CardTitle>
-            <CardDescription>
+            <CardDescription className="text-sm">
               {isForgotPassword 
                 ? 'Enter your email to receive a reset link'
                 : isForgotPhone
                   ? 'Enter the email you used with Google sign-in'
                   : isSignUp 
-                    ? 'Join Welile Platform to get started' 
-                    : 'Sign in to continue to your dashboard'}
+                    ? 'Join Welile to get started' 
+                    : 'Enter your phone number and password'}
             </CardDescription>
           </CardHeader>
           
-          <CardContent>
+          <CardContent className="pt-2">
             <form onSubmit={handleSubmit} className="space-y-4">
               {isSignUp && !isForgotPassword && (
                 <div className="space-y-2">
-                  <Label htmlFor="fullName">Full Name</Label>
+                  <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
                   <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <User className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="fullName"
                       value={fullName}
                       onChange={(e) => setFullName(e.target.value)}
-                      placeholder="Enter your full name"
-                      className="pl-10 h-12 text-base"
+                      placeholder="Your full name"
+                      className="pl-11 h-14 text-base rounded-xl"
                       style={{ fontSize: '16px' }}
                       required
                     />
@@ -542,9 +569,9 @@ export default function Auth() {
 
               {!isForgotPassword && !isForgotPhone && (
               <div className="space-y-2">
-                  <Label htmlFor="phone">Phone Number</Label>
+                  <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
                   <div className="relative">
-                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                       ref={phoneInputRef}
                       id="phone"
@@ -554,96 +581,60 @@ export default function Auth() {
                       value={phone}
                       onChange={(e) => {
                         setPhone(e.target.value);
-                        setLoginError(null); // Clear error when user types
+                        setLoginError(null);
                       }}
-                      placeholder="e.g., 0700123456"
-                      className={`pl-10 h-12 text-base ${loginError || (isSignUp && isDuplicate) ? 'border-destructive' : ''}`}
+                      placeholder="0700123456"
+                      className={`pl-11 h-14 text-base rounded-xl ${loginError || (isSignUp && isDuplicate) ? 'border-destructive focus:ring-destructive' : ''}`}
                       style={{ fontSize: '16px' }}
                       required
                     />
                   </div>
-                  {/* Duplicate phone warning during signup */}
                   {isSignUp && isDuplicate && (
-                    <div className="flex items-center gap-2 p-2 rounded-lg bg-destructive/10 border border-destructive/20">
-                      <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0" />
-                      <p className="text-xs text-destructive">{duplicateMessage}</p>
-                    </div>
+                    <p className="text-xs text-destructive flex items-center gap-1">
+                      <AlertCircle className="h-3 w-3" />
+                      {duplicateMessage}
+                    </p>
                   )}
                   {isSignUp && isCheckingDuplicate && (
                     <p className="text-xs text-muted-foreground flex items-center gap-1">
                       <Loader2 className="h-3 w-3 animate-spin" />
-                      Checking availability...
-                    </p>
-                  )}
-                  {!isSignUp && !loginError && (
-                    <p className="text-xs text-muted-foreground">
-                      Enter your phone number with or without country code
+                      Checking...
                     </p>
                   )}
                   
-                  {/* Show tried formats on login failure */}
-                  {!isSignUp && loginError && loginError.triedFormats.length > 0 && (
-                    <div className="mt-2 p-3 rounded-lg bg-destructive/10 border border-destructive/20">
-                      <p className="text-xs text-destructive font-medium mb-2">
-                        We tried these phone formats:
-                      </p>
-                      <div className="flex flex-wrap gap-1.5">
-                        {loginError.triedFormats.slice(0, 4).map((format, idx) => (
-                          <span 
-                            key={idx} 
-                            className="px-2 py-0.5 text-xs rounded-full bg-background border border-border text-muted-foreground"
-                          >
-                            {format}
-                          </span>
-                        ))}
-                      </div>
-                      <p className="text-xs text-muted-foreground mt-2">
-                        Make sure you're using the same phone number you registered with.
-                      </p>
+                  {/* Simplified error display */}
+                  {!isSignUp && loginError && (
+                    <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                      <p className="text-sm text-destructive">{loginError.message}</p>
                     </div>
                   )}
 
-                  {/* Show Contact Support after 3+ failed attempts */}
-                  {!isSignUp && failedAttempts >= 3 && (
-                    <div className="mt-3 p-4 rounded-xl bg-primary/5 border border-primary/20">
-                      <div className="flex items-start gap-3">
-                        <div className="p-2 rounded-lg bg-primary/10 flex-shrink-0">
-                          <HelpCircle className="h-5 w-5 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium text-foreground">
-                            Still having trouble?
-                          </p>
-                          <p className="text-xs text-muted-foreground mt-1">
-                            Our support team can help you access your account.
-                          </p>
-                          <Button
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            className="mt-3 gap-2 border-primary/30 text-primary hover:bg-primary/10"
-                            onClick={() => {
-                              const message = encodeURIComponent(
-                                `Hello Welile Support,\n\nI'm having trouble logging into my account.\n\nPhone: ${phone}\nAttempts: ${failedAttempts}\n\nPlease help me access my account.`
-                              );
-                              window.open(`https://wa.me/256783673998?text=${message}`, '_blank');
-                            }}
-                          >
-                            <MessageCircle className="h-4 w-4" />
-                            Contact Support
-                          </Button>
-                        </div>
-                      </div>
-                    </div>
+                  {/* Quick support after failed attempts */}
+                  {!isSignUp && failedAttempts >= 2 && (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="w-full gap-2 text-primary"
+                      onClick={() => {
+                        const message = encodeURIComponent(
+                          `Hello Welile Support,\n\nI'm having trouble logging into my account.\n\nPhone: ${phone}\n\nPlease help me access my account.`
+                        );
+                        window.open(`https://wa.me/256783673998?text=${message}`, '_blank');
+                      }}
+                    >
+                      <MessageCircle className="h-4 w-4" />
+                      Need help? Contact Support
+                    </Button>
                   )}
                 </div>
               )}
 
               {(isForgotPassword || isForgotPhone) && (
                 <div className="space-y-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                   <div className="relative">
-                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="email"
                       type="email"
@@ -652,88 +643,51 @@ export default function Auth() {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       placeholder="you@example.com"
-                      className="pl-10 h-12 text-base"
+                      className="pl-11 h-14 text-base rounded-xl"
                       style={{ fontSize: '16px' }}
                       required
                     />
                   </div>
-                  <p className="text-xs text-muted-foreground">
-                    {isForgotPhone 
-                      ? 'Enter the email you used to sign in with Google, or try the "Continue with Google" button below.'
-                      : 'If you signed up with phone only, please contact support.'}
-                  </p>
                 </div>
               )}
 
-              {/* Password field - show for forgot phone (email login) but not forgot password */}
-              {isForgotPhone && (
+              {/* Password field */}
+              {(isForgotPhone || (!isForgotPassword && !isForgotPhone)) && (
                 <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
+                  <Label htmlFor="password" className="text-sm font-medium">Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
-                      id="password"
-                      type={showPassword ? "text" : "password"}
-                      autoComplete="current-password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="pl-10 pr-10 h-12 text-base"
-                      style={{ fontSize: '16px' }}
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
-                      aria-label={showPassword ? "Hide password" : "Show password"}
-                    >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                    </button>
-                  </div>
-                  <p className="text-xs text-muted-foreground">
-                    If you only used Google sign-in, you may not have a password. Use the Google button instead.
-                  </p>
-                </div>
-              )}
-
-              {!isForgotPassword && !isForgotPhone && (
-                <div className="space-y-2">
-                  <Label htmlFor="password">Password</Label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input
+                      ref={passwordInputRef}
                       id="password"
                       type={showPassword ? "text" : "password"}
                       autoComplete={isSignUp ? "new-password" : "current-password"}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       placeholder="••••••••"
-                      className="pl-10 pr-10 h-12 text-base"
+                      className="pl-11 pr-12 h-14 text-base rounded-xl"
                       style={{ fontSize: '16px' }}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-2"
                       aria-label={showPassword ? "Hide password" : "Show password"}
                     >
-                      {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
-                  
-                  {/* Password strength indicator for signup */}
                   {isSignUp && <PasswordStrengthIndicator password={password} />}
                 </div>
               )}
 
-              {/* Confirm Password field for signup */}
+              {/* Confirm Password for signup */}
               {isSignUp && !isForgotPassword && !isForgotPhone && (
                 <div className="space-y-2">
-                  <Label htmlFor="confirmPassword">Confirm Password</Label>
+                  <Label htmlFor="confirmPassword" className="text-sm font-medium">Confirm Password</Label>
                   <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
                     <Input
                       id="confirmPassword"
                       type={showConfirmPassword ? "text" : "password"}
@@ -741,29 +695,26 @@ export default function Auth() {
                       value={confirmPassword}
                       onChange={(e) => setConfirmPassword(e.target.value)}
                       placeholder="••••••••"
-                      className={`pl-10 pr-10 h-12 text-base ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
+                      className={`pl-11 pr-12 h-14 text-base rounded-xl ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
                       style={{ fontSize: '16px' }}
                       required
                     />
                     <button
                       type="button"
                       onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-1"
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-2"
                       aria-label={showConfirmPassword ? "Hide password" : "Show password"}
                     >
-                      {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                     </button>
                   </div>
                   {confirmPassword && password !== confirmPassword && (
                     <p className="text-xs text-destructive">Passwords don't match</p>
                   )}
-                  {confirmPassword && password === confirmPassword && (
-                    <p className="text-xs text-emerald-600">Passwords match ✓</p>
-                  )}
                 </div>
               )}
               
-              {/* Back button for forgot phone/password flows */}
+              {/* Back button for forgot flows */}
               {(isForgotPassword || isForgotPhone) && (
                 <button
                   type="button"
@@ -775,12 +726,13 @@ export default function Auth() {
                   className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation"
                 >
                   <ArrowLeft className="h-3 w-3" />
-                  Back to phone login
+                  Back to sign in
                 </button>
               )}
 
+              {/* Remember me & Forgot password - simplified */}
               {!isSignUp && !isForgotPassword && !isForgotPhone && (
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between py-1">
                   <div className="flex items-center space-x-2">
                     <Checkbox 
                       id="remember" 
@@ -789,115 +741,89 @@ export default function Auth() {
                         setRememberMe(!!checked);
                         localStorage.setItem('welile_remember_me', String(!!checked));
                       }}
-                      className="h-5 w-5 touch-manipulation"
+                      className="h-5 w-5"
                     />
-                    <Label 
-                      htmlFor="remember" 
-                      className="text-sm font-normal cursor-pointer touch-manipulation"
-                    >
+                    <Label htmlFor="remember" className="text-sm cursor-pointer">
                       Remember me
                     </Label>
                   </div>
                   <button
                     type="button"
                     onClick={() => setIsForgotPassword(true)}
-                    className="text-sm text-primary hover:text-primary/80 transition-colors touch-manipulation py-1"
+                    className="text-sm text-primary hover:underline"
                   >
                     Forgot password?
-                  </button>
-                </div>
-              )}
-              
-              {/* Forgot Phone Number option */}
-              {!isSignUp && !isForgotPassword && !isForgotPhone && (
-                <div className="text-center">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsForgotPhone(true);
-                      setLoginError(null);
-                    }}
-                    className="text-xs text-muted-foreground hover:text-primary transition-colors touch-manipulation py-1"
-                  >
-                    Forgot phone number? Sign in with email instead
                   </button>
                 </div>
               )}
 
               <Button 
                 type="submit" 
-                className="w-full gap-2 h-14 text-base touch-manipulation active:scale-[0.98] transition-transform" 
+                className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium" 
                 disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate))}
                 style={{ 
                   fontSize: '16px',
                   WebkitTapHighlightColor: 'transparent',
-                  WebkitAppearance: 'none',
                 }}
               >
                 {isLoading ? (
-                  <div className="w-5 h-5 border-2 border-primary-foreground/30 border-t-primary-foreground rounded-full animate-spin" />
+                  <Loader2 className="h-5 w-5 animate-spin" />
                 ) : (
                   <>
-                    {isForgotPassword ? <Mail className="h-5 w-5" /> : isForgotPhone ? <LogIn className="h-5 w-5" /> : isSignUp ? <UserPlus className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-                    {isForgotPassword ? 'Send Reset Link' : isForgotPhone ? 'Sign In with Email' : isSignUp ? 'Create Account' : 'Sign In'}
+                    {isForgotPassword ? <Mail className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
+                    {isForgotPassword ? 'Send Reset Link' : isForgotPhone ? 'Sign In' : isSignUp ? 'Create Account' : 'Sign In'}
                   </>
                 )}
               </Button>
             </form>
 
-            <div className="relative my-6">
-              <div className="absolute inset-0 flex items-center">
-                <span className="w-full border-t border-border/50" />
-              </div>
-              <div className="relative flex justify-center text-xs uppercase">
-                <span className="bg-card px-2 text-muted-foreground">Or continue with</span>
-              </div>
-            </div>
+            {/* Google button for signup (already shown for login at top) */}
+            {isSignUp && (
+              <>
+                <div className="relative my-5">
+                  <div className="absolute inset-0 flex items-center">
+                    <span className="w-full border-t border-border/50" />
+                  </div>
+                  <div className="relative flex justify-center text-xs uppercase">
+                    <span className="bg-card px-3 text-muted-foreground">or</span>
+                  </div>
+                </div>
 
-            <Button
-              type="button"
-              variant="outline"
-              className="w-full gap-3 h-14 text-base touch-manipulation active:scale-[0.98] transition-transform"
-              onClick={handleGoogleSignIn}
-              disabled={isGoogleLoading || isLoading}
-              style={{ 
-                fontSize: '16px',
-                WebkitTapHighlightColor: 'transparent',
-                WebkitAppearance: 'none',
-              }}
-            >
-              {isGoogleLoading ? (
-                <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-              ) : (
-                <svg className="h-5 w-5" viewBox="0 0 24 24">
-                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                </svg>
-              )}
-              Continue with Google
-            </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="w-full gap-3 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98]"
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading || isLoading}
+                  style={{ fontSize: '16px' }}
+                >
+                  {isGoogleLoading ? (
+                    <Loader2 className="h-5 w-5 animate-spin" />
+                  ) : (
+                    <svg className="h-5 w-5" viewBox="0 0 24 24">
+                      <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                      <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                      <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                      <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                    </svg>
+                  )}
+                  Continue with Google
+                </Button>
+              </>
+            )}
 
-            <div className="mt-6 text-center text-sm">
-              {isForgotPassword ? (
+            {/* Forgot phone - simplified */}
+            {!isSignUp && !isForgotPassword && !isForgotPhone && (
+              <div className="text-center mt-4">
                 <button
                   type="button"
-                  onClick={() => setIsForgotPassword(false)}
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
+                  onClick={() => setIsForgotPhone(true)}
+                  className="text-xs text-muted-foreground hover:text-primary"
                 >
-                  Back to Sign In
+                  Can't access with phone? Try email
                 </button>
-              ) : isForgotPhone ? (
-                <button
-                  type="button"
-                  onClick={() => setIsForgotPhone(false)}
-                  className="text-primary hover:text-primary/80 font-medium transition-colors"
-                >
-                  Back to Sign In
-                </button>
-              ) : null}
-            </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 
