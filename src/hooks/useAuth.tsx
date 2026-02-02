@@ -327,7 +327,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const signInWithGoogle = async () => {
     const result = await lovable.auth.signInWithOAuth('google', {
-      redirect_uri: window.location.origin
+      // Send users back to our Auth route after Google finishes.
+      // This avoids cases where returning to '/' can land on a route that doesn't handle OAuth handoff.
+      redirect_uri: `${window.location.origin}/auth`
     });
     
     if (result.redirected) {
