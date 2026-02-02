@@ -121,7 +121,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   ];
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-24 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col">
       <OfflineBanner />
       
       <DashboardHeader
@@ -132,7 +132,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
+      {/* Scrollable content area with bottom padding for fixed footer */}
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
         <AnimatePresence>
           {!isOnline && (
@@ -227,7 +229,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           {addRoleComponent}
         </div>
 
-      </main>
+        </main>
+      </PullToRefresh>
 
       {/* FLOATING MENU BUTTON - Above footer nav */}
       <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
@@ -276,7 +279,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setEarningsRankOpen}
       />
       
+      {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
-    </PullToRefresh>
+    </div>
   );
 }
