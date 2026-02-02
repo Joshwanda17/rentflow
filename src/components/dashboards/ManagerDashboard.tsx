@@ -91,6 +91,7 @@ import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList'
 import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
 import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
 import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
+import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1126,6 +1127,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           iconColor="text-success"
         >
           <AgentCommissionPayoutsManager />
+        </CollapsibleAgentSection>
+
+        {/* Paid Agents History */}
+        <CollapsibleAgentSection
+          icon={CheckCircle}
+          label="Paid Agents"
+          iconColor="text-success"
+        >
+          <PaidAgentsHistory />
         </CollapsibleAgentSection>
 
         {/* Force Refresh Manager - Push updates to users */}
