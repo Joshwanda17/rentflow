@@ -378,28 +378,34 @@ export function AgentCommissionPayoutsManager() {
               {/* Action buttons */}
               <div className="flex gap-2">
                 <Button
+                  type="button"
                   variant="outline"
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.stopPropagation();
                     hapticTap();
                     setSelectedPayout(payout);
                     setRejectDialogOpen(true);
                   }}
-                  className="flex-1 h-12 border-destructive/50 text-destructive hover:bg-destructive/10"
+                  className="flex-1 h-12 border-destructive/50 text-destructive hover:bg-destructive/10 touch-manipulation active:scale-[0.98]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <XCircle className="h-4 w-4 mr-2" />
                   Reject
                 </Button>
                 <Button
-                  onClick={() => {
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
                     hapticTap();
                     setSelectedPayout(payout);
                     setApproveDialogOpen(true);
                     fetchSelectedAgentWalletBalance(payout.agent_id);
                   }}
-                  className="flex-1 h-12 bg-success hover:bg-success/90"
+                  className="flex-1 h-12 bg-success hover:bg-success/90 touch-manipulation active:scale-[0.98]"
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
                 >
                   <CheckCircle2 className="h-4 w-4 mr-2" />
-                  Pay & Approve
+                  Approve
                 </Button>
               </div>
             </motion.div>
