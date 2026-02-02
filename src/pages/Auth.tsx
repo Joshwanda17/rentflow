@@ -64,7 +64,7 @@ export default function Auth() {
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   
-  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles, session } = useAuth();
+  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
   const { isPinEnabled } = usePinAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const navigate = useNavigate();
