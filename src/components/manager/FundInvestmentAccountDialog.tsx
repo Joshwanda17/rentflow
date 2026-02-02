@@ -84,7 +84,8 @@ export function FundInvestmentAccountDialog({
         balance_before: freshAccount.balance,
         balance_after: newBalance,
         description: notes || 'Manager top-up',
-        performed_by: user?.id
+        performed_by: user?.id,
+        transaction_date: new Date().toISOString()
       });
 
       // Log to audit
