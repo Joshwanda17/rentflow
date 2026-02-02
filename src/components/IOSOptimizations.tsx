@@ -55,22 +55,11 @@ export default function IOSOptimizations() {
       window.visualViewport.addEventListener('resize', handleVisualViewportResize);
     }
 
-    // Prevent double-tap zoom on interactive elements
-    const preventDoubleTapZoom = (e: TouchEvent) => {
-      const target = e.target as HTMLElement;
-      if (
-        target.tagName === 'BUTTON' ||
-        target.tagName === 'A' ||
-        target.closest('button') ||
-        target.closest('a') ||
-        target.closest('[role="button"]')
-      ) {
-        e.preventDefault();
-      }
-    };
-
-    // Handle iOS-specific touch behaviors
-    document.addEventListener('touchend', preventDoubleTapZoom, { passive: false });
+    // NOTE: Previously had a preventDoubleTapZoom handler that called preventDefault()
+    // on touchend for buttons. This BREAKS button clicks in Safari on iOS because
+    // Safari requires the touchend event to complete naturally to fire the click event.
+    // Double-tap zoom is already handled by touch-action: manipulation CSS property
+    // which is applied globally to buttons in button.tsx
 
     // Fix iOS scroll restoration
     if ('scrollRestoration' in history) {
@@ -93,7 +82,6 @@ export default function IOSOptimizations() {
         if (window.visualViewport) {
           window.visualViewport.removeEventListener('resize', handleVisualViewportResize);
         }
-        document.removeEventListener('touchend', preventDoubleTapZoom);
       };
     }
 
@@ -101,7 +89,6 @@ export default function IOSOptimizations() {
       if (window.visualViewport) {
         window.visualViewport.removeEventListener('resize', handleVisualViewportResize);
       }
-      document.removeEventListener('touchend', preventDoubleTapZoom);
     };
   }, [isIOS, isStandalone, preventTextZoom]);
 
