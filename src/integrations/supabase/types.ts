@@ -929,6 +929,56 @@ export type Database = {
           },
         ]
       }
+      investment_transactions: {
+        Row: {
+          account_id: string
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at: string
+          description: string | null
+          id: string
+          performed_by: string | null
+          transaction_date: string
+          transaction_type: string
+          user_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          balance_after: number
+          balance_before: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          transaction_date?: string
+          transaction_type: string
+          user_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          balance_after?: number
+          balance_before?: number
+          created_at?: string
+          description?: string | null
+          id?: string
+          performed_by?: string | null
+          transaction_date?: string
+          transaction_type?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investment_transactions_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "investment_accounts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlord_agreement_acceptance: {
         Row: {
           accepted_at: string

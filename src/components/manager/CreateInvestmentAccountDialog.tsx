@@ -7,8 +7,12 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
-import { Search, User, Loader2, Sparkles, CheckCircle, MessageCircle, Copy, ExternalLink } from 'lucide-react';
+import { Search, User, Loader2, Sparkles, CheckCircle, MessageCircle, Copy, Calendar } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
+import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 interface CreateInvestmentAccountDialogProps {
   open: boolean;
@@ -50,6 +54,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createdAccount, setCreatedAccount] = useState<CreatedAccountInfo | null>(null);
+  const [backdatedDate, setBackdatedDate] = useState<Date | undefined>(undefined);
+  const [initialBalance, setInitialBalance] = useState('');
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
 
@@ -117,15 +123,22 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
     
     const { data: { user } } = await supabase.auth.getUser();
     
-    // Create account with pending_activation status (needs user to activate via link)
+    const accountCreatedAt = backdatedDate ? backdatedDate.toISOString() : new Date().toISOString();
+    const accountBalance = initialBalance ? parseFloat(initialBalance) : 0;
+    
+    // Create account - if backdated with balance, set as approved immediately
+    const isBackdated = backdatedDate && accountBalance > 0;
     const { data: newAccount, error } = await supabase
       .from('investment_accounts')
       .insert({
         user_id: selectedSupporter.id,
         name: name.trim(),
         color,
-        status: 'pending_activation',
-        balance: 0
+        status: isBackdated ? 'approved' : 'pending_activation',
+        balance: accountBalance,
+        created_at: accountCreatedAt,
+        approved_at: isBackdated ? accountCreatedAt : null,
+        approved_by: isBackdated ? user?.id : null
       })
       .select('id')
       .single();
@@ -133,20 +146,37 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else if (newAccount) {
+      // If backdated with balance, record the initial investment transaction
+      if (isBackdated && accountBalance > 0) {
+        await supabase.from('investment_transactions').insert({
+          account_id: newAccount.id,
+          user_id: selectedSupporter.id,
+          transaction_type: 'investment',
+          amount: accountBalance,
+          balance_before: 0,
+          balance_after: accountBalance,
+          description: 'Initial investment (backdated)',
+          performed_by: user?.id,
+          transaction_date: accountCreatedAt
+        });
+      }
+
       const activationLink = generateActivationLink(newAccount.id);
       
       // Notify the supporter
       await supabase.from('notifications').insert({
         user_id: selectedSupporter.id,
-        title: '🎉 Investment Account Created!',
-        message: `A manager has created an investment account "${name.trim()}" for you. Please activate it using the link shared with you.`,
+        title: isBackdated ? '📊 Investment Account Synced!' : '🎉 Investment Account Created!',
+        message: isBackdated 
+          ? `Your investment account "${name.trim()}" has been synced with a balance of ${accountBalance.toLocaleString()} UGX.`
+          : `A manager has created an investment account "${name.trim()}" for you. Please activate it using the link shared with you.`,
         type: 'info',
-        metadata: { account_id: newAccount.id, account_name: name.trim() }
+        metadata: { account_id: newAccount.id, account_name: name.trim(), is_backdated: isBackdated }
       });
 
       fireSuccess();
       
-      // Show the share step
+      // Show the share step (or success for backdated)
       setCreatedAccount({
         accountId: newAccount.id,
         accountName: name.trim(),
@@ -156,8 +186,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
       });
       
       toast({ 
-        title: '🎉 Account Created!', 
-        description: 'Now share the activation link with the supporter' 
+        title: isBackdated ? '📊 Account Synced!' : '🎉 Account Created!', 
+        description: isBackdated ? 'Backdated account created with history' : 'Now share the activation link with the supporter'
       });
       
       onSuccess();
@@ -200,6 +230,8 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
     setSelectedSupporter(null);
     setSearchQuery('');
     setCreatedAccount(null);
+    setBackdatedDate(undefined);
+    setInitialBalance('');
     onOpenChange(false);
   };
 
@@ -357,6 +389,58 @@ export function CreateInvestmentAccountDialog({ open, onOpenChange, onSuccess }:
                         </div>
                       ))}
                     </RadioGroup>
+                  </div>
+
+                  {/* Backdating Section */}
+                  <div className="p-3 rounded-lg border border-dashed space-y-3">
+                    <Label className="flex items-center gap-2 text-sm font-medium">
+                      <Calendar className="h-4 w-4 text-muted-foreground" />
+                      Backdate Account (Optional)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Set a past date if syncing existing investment data
+                    </p>
+                    
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Start Date</Label>
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                "w-full justify-start text-left font-normal h-9 text-xs",
+                                !backdatedDate && "text-muted-foreground"
+                              )}
+                            >
+                              <Calendar className="mr-2 h-3.5 w-3.5" />
+                              {backdatedDate ? format(backdatedDate, "MMM d, yyyy") : "Select date"}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <CalendarComponent
+                              mode="single"
+                              selected={backdatedDate}
+                              onSelect={setBackdatedDate}
+                              disabled={(date) => date > new Date()}
+                              initialFocus
+                              className={cn("p-3 pointer-events-auto")}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      </div>
+                      
+                      <div className="space-y-1">
+                        <Label className="text-xs">Initial Balance (UGX)</Label>
+                        <Input
+                          type="number"
+                          placeholder="0"
+                          value={initialBalance}
+                          onChange={(e) => setInitialBalance(e.target.value)}
+                          className="h-9 text-xs"
+                        />
+                      </div>
+                    </div>
                   </div>
                 </>
               )}

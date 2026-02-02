@@ -75,6 +75,18 @@ export function FundInvestmentAccountDialog({
         throw new Error('Transaction conflict. Please try again.');
       }
 
+      // Log the transaction
+      await supabase.from('investment_transactions').insert({
+        account_id: account.id,
+        user_id: account.user_id,
+        transaction_type: 'top_up',
+        amount: fundAmount,
+        balance_before: freshAccount.balance,
+        balance_after: newBalance,
+        description: notes || 'Manager top-up',
+        performed_by: user?.id
+      });
+
       // Log to audit
       await supabase.from('audit_logs').insert({
         record_id: account.id,
