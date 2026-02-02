@@ -24,7 +24,10 @@ import {
   User,
   Wallet,
   Loader2,
-  AlertCircle
+  AlertCircle,
+  Camera,
+  ImageIcon,
+  X
 } from 'lucide-react';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -56,6 +59,9 @@ export function AgentCommissionPayoutsManager() {
   const [processing, setProcessing] = useState(false);
   const [agentWalletBalance, setAgentWalletBalance] = useState<number | null>(null);
   const [loadingAgentWallet, setLoadingAgentWallet] = useState(false);
+  const [screenshotFile, setScreenshotFile] = useState<File | null>(null);
+  const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [uploadingScreenshot, setUploadingScreenshot] = useState(false);
 
   useEffect(() => {
     fetchPayouts();
@@ -137,9 +143,59 @@ export function AgentCommissionPayoutsManager() {
     }
   };
 
+  const handleScreenshotChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setScreenshotFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setScreenshotPreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const clearScreenshot = () => {
+    setScreenshotFile(null);
+    setScreenshotPreview(null);
+  };
+
+  const uploadScreenshot = async (payoutId: string): Promise<string | null> => {
+    if (!screenshotFile) return null;
+    
+    setUploadingScreenshot(true);
+    try {
+      const fileExt = screenshotFile.name.split('.').pop();
+      const fileName = `payout-${payoutId}-${Date.now()}.${fileExt}`;
+      const filePath = `commission-payouts/${fileName}`;
+
+      const { error: uploadError } = await supabase.storage
+        .from('payment-proofs')
+        .upload(filePath, screenshotFile);
+
+      if (uploadError) throw uploadError;
+
+      const { data: { publicUrl } } = supabase.storage
+        .from('payment-proofs')
+        .getPublicUrl(filePath);
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Screenshot upload failed:', error);
+      return null;
+    } finally {
+      setUploadingScreenshot(false);
+    }
+  };
+
   const handleApprove = async () => {
     if (!selectedPayout || !transactionId.trim()) {
       toast({ title: 'Please enter the transaction ID', variant: 'destructive' });
+      return;
+    }
+
+    if (!screenshotFile) {
+      toast({ title: 'Please attach a screenshot of the payment', variant: 'destructive' });
       return;
     }
 
@@ -147,6 +203,9 @@ export function AgentCommissionPayoutsManager() {
     setProcessing(true);
 
     try {
+      // Upload screenshot first
+      const screenshotUrl = await uploadScreenshot(selectedPayout.id);
+      
       // Database trigger (trg_process_agent_commission_payout_approval) will
       // automatically deduct from wallet when status changes to 'approved'.
       // If balance is insufficient, the trigger raises an exception.
@@ -175,7 +234,7 @@ export function AgentCommissionPayoutsManager() {
         throw error;
       }
 
-      // 5. Create notification for agent
+      // Create notification for agent
       await supabase.from('notifications').insert({
         user_id: selectedPayout.agent_id,
         title: 'Commission Paid! 💰',
@@ -187,6 +246,7 @@ export function AgentCommissionPayoutsManager() {
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedPayout(null);
+      clearScreenshot();
     } catch (error: any) {
       toast({ title: 'Failed to approve', description: error.message, variant: 'destructive' });
     } finally {
@@ -388,12 +448,58 @@ export function AgentCommissionPayoutsManager() {
                 </p>
               </div>
 
+              {/* Screenshot Upload */}
+              <div className="space-y-2">
+                <Label className="flex items-center gap-2">
+                  <Camera className="h-4 w-4" />
+                  Payment Screenshot
+                  <span className="text-destructive">*</span>
+                </Label>
+                
+                {screenshotPreview ? (
+                  <div className="relative">
+                    <img 
+                      src={screenshotPreview} 
+                      alt="Payment screenshot" 
+                      className="w-full h-40 object-cover rounded-lg border border-border"
+                    />
+                    <Button
+                      variant="destructive"
+                      size="icon"
+                      className="absolute top-2 right-2 h-8 w-8"
+                      onClick={clearScreenshot}
+                      disabled={processing}
+                    >
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <label className="flex flex-col items-center justify-center h-32 border-2 border-dashed border-border rounded-lg cursor-pointer hover:border-primary/50 hover:bg-muted/30 transition-colors">
+                    <ImageIcon className="h-8 w-8 text-muted-foreground mb-2" />
+                    <span className="text-sm text-muted-foreground">Tap to capture or upload screenshot</span>
+                    <input
+                      type="file"
+                      accept="image/*"
+                      capture="environment"
+                      onChange={handleScreenshotChange}
+                      className="hidden"
+                      disabled={processing}
+                    />
+                  </label>
+                )}
+                <p className="text-xs text-muted-foreground flex items-center gap-1">
+                  <AlertCircle className="h-3 w-3" />
+                  Screenshot of the mobile money confirmation is required
+                </p>
+              </div>
+
               <div className="flex gap-2">
                 <Button
                   variant="outline"
                   onClick={() => {
                     setApproveDialogOpen(false);
                     setTransactionId('');
+                    clearScreenshot();
                   }}
                   disabled={processing}
                   className="flex-1 h-12"
@@ -402,10 +508,14 @@ export function AgentCommissionPayoutsManager() {
                 </Button>
                 <Button
                   onClick={handleApprove}
-                  disabled={processing || !transactionId.trim()}
+                  disabled={processing || !transactionId.trim() || !screenshotFile}
                   className="flex-1 h-12 bg-success hover:bg-success/90"
                 >
-                  {processing ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm Payment'}
+                  {processing || uploadingScreenshot ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    'Confirm Payment'
+                  )}
                 </Button>
               </div>
             </div>
