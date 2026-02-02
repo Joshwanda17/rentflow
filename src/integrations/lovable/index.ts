@@ -2,7 +2,11 @@
 
 import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import { supabase } from "../supabase/client";
-const lovableAuth = createLovableAuth({});
+// Use the hosted OAuth broker to avoid relying on a local /~oauth route (which can 404 on some domains).
+const lovableAuth = createLovableAuth({
+  oauthBrokerUrl: "https://oauth.lovable.app/~oauth/initiate",
+  supportedOAuthOrigins: ["https://oauth.lovable.app"],
+});
 
 export const lovable = {
   auth: {
