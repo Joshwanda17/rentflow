@@ -48,6 +48,7 @@ import {
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, differenceInDays } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
+import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
 
 type SortOption = 'balance-desc' | 'balance-asc' | 'roi-desc' | 'roi-asc' | 'date-desc' | 'date-asc';
 type FilterOption = 'all' | 'approved' | 'pending' | 'pending_activation';
@@ -598,17 +599,29 @@ export default function InvestmentPortfolio() {
                   </Card>
                 </div>
 
-                <Tabs defaultValue="fundings" className="w-full">
-                  <TabsList className="w-full grid grid-cols-2">
+                <Tabs defaultValue="history" className="w-full">
+                  <TabsList className="w-full grid grid-cols-3">
+                    <TabsTrigger value="history" className="gap-1.5 text-xs">
+                      <History className="h-3 w-3" />
+                      History
+                    </TabsTrigger>
                     <TabsTrigger value="fundings" className="gap-1.5 text-xs">
                       <Users className="h-3 w-3" />
-                      Linked Fundings
+                      Fundings
                     </TabsTrigger>
                     <TabsTrigger value="roi" className="gap-1.5 text-xs">
-                      <History className="h-3 w-3" />
-                      ROI History
+                      <TrendingUp className="h-3 w-3" />
+                      ROI
                     </TabsTrigger>
                   </TabsList>
+
+                  <TabsContent value="history" className="mt-3">
+                    <InvestmentTransactionHistory 
+                      accountId={selectedAccount.id} 
+                      maxItems={20} 
+                      showHeader={false} 
+                    />
+                  </TabsContent>
 
                   <TabsContent value="fundings" className="mt-3 space-y-2">
                     {selectedAccount.linked_fundings.length === 0 ? (

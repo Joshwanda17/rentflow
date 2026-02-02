@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   PiggyBank, 
   Calendar, 
@@ -15,7 +16,8 @@ import {
   Wallet,
   Plus,
   DollarSign,
-  Pencil
+  Pencil,
+  History
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -23,6 +25,7 @@ import { hapticTap } from '@/lib/haptics';
 import CreateAccountForUserDialog from './CreateAccountForUserDialog';
 import { FundInvestmentAccountDialog } from '../FundInvestmentAccountDialog';
 import { EditInvestmentAccountDialog } from '../EditInvestmentAccountDialog';
+import { InvestmentTransactionHistory } from '@/components/investment/InvestmentTransactionHistory';
 
 interface InvestmentAccount {
   id: string;
@@ -251,13 +254,16 @@ export default function UserInvestmentsSection({ userId, userName, userPhone }: 
         </CardContent>
       </Card>
 
+      {/* Transaction History */}
+      <InvestmentTransactionHistory userId={userId} maxItems={15} />
+
       {/* Interest Payment History */}
       {interestPayments.length > 0 && (
         <Card>
           <CardHeader className="py-3">
             <CardTitle className="text-sm flex items-center gap-2">
               <Percent className="h-4 w-4 text-success" />
-              Interest Payment History
+              ROI Payments
             </CardTitle>
           </CardHeader>
           <CardContent className="pt-0">
