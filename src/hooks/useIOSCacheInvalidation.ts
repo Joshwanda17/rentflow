@@ -37,7 +37,7 @@ export function useIOSCacheInvalidation() {
   }, []);
 
   // Invalidate all queries to force fresh data
-  const invalidateAllData = useCallback(async (silent: boolean = false) => {
+  const invalidateAllData = useCallback(async (silent: boolean = true) => {
     // Prevent multiple simultaneous refreshes
     if (refreshInProgressRef.current) {
       console.log('[iOS Cache] Refresh already in progress, skipping...');
@@ -45,27 +45,22 @@ export function useIOSCacheInvalidation() {
     }
 
     refreshInProgressRef.current = true;
-    const startTime = Date.now();
     
     console.log('[iOS Cache] Invalidating all cached data...');
     
     try {
-      // Clear all React Query caches completely
-      queryClient.clear();
-      
-      // Small delay to ensure clear completes
-      await new Promise(resolve => setTimeout(resolve, 50));
+      // Just invalidate queries - don't clear completely to avoid blank states
+      await queryClient.invalidateQueries();
       
       // Force refetch all active queries
       await queryClient.refetchQueries({ type: 'active' });
       
       lastRefreshRef.current = Date.now();
       
-      const duration = Date.now() - startTime;
-      console.log(`[iOS Cache] Cache invalidation complete in ${duration}ms`);
+      console.log('[iOS Cache] Cache invalidation complete');
       
-      if (!silent && isIOSStandalone.current) {
-        // Very subtle indicator that data was refreshed
+      // Only show toast for manual refresh, never for automatic
+      if (!silent) {
         toast.success('Data refreshed', { 
           duration: 1500,
           position: 'bottom-center',
