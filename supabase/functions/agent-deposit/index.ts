@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -7,9 +6,39 @@ const corsHeaders = {
 };
 
 const AGENT_COMMISSION_RATE = 0.05; // 5% commission
-const AGENT_APPROVAL_BONUS = 5000; // UGX 5,000
 
-serve(async (req) => {
+// Input validation functions
+function validateUUID(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  // UUID format validation
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validatePhone(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  // Uganda phone format
+  if (!/^(0[7][0-9]{8}|256[7][0-9]{8})$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validateAmount(value: unknown): number | null {
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return null;
+    value = parsed;
+  }
+  if (typeof value !== 'number') return null;
+  if (!Number.isFinite(value)) return null;
+  if (value <= 0) return null;
+  if (value > 100000000) return null; // Max 100M UGX per transaction
+  // Round to whole number (no decimals for UGX)
+  return Math.round(value);
+}
+
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -32,7 +61,7 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
-      console.error('Auth error:', userError);
+      console.error('[agent-deposit] Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -40,16 +69,41 @@ serve(async (req) => {
     }
 
     const agentId = user.id;
-    const { user_id, amount, user_phone } = await req.json();
-
-    console.log(`Agent ${agentId} processing deposit for user ${user_id || user_phone}, amount: ${amount}`);
-
-    if ((!user_id && !user_phone) || !amount || amount <= 0) {
+    
+    // Parse and validate request body
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
       return new Response(
-        JSON.stringify({ error: 'Invalid request parameters' }),
+        JSON.stringify({ error: 'Invalid request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const { user_id: rawUserId, amount: rawAmount, user_phone: rawPhone } = body as Record<string, unknown>;
+
+    // Validate inputs
+    const userId = rawUserId ? validateUUID(rawUserId) : null;
+    const userPhone = rawPhone ? validatePhone(rawPhone) : null;
+    const amount = validateAmount(rawAmount);
+
+    // Must have either user_id or user_phone
+    if (!userId && !userPhone) {
+      return new Response(
+        JSON.stringify({ error: 'Either user_id or user_phone is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (amount === null) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid amount. Must be a positive number up to 100,000,000' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[agent-deposit] Agent ${agentId} processing deposit for user ${userId || userPhone}, amount: ${amount}`);
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -69,12 +123,12 @@ serve(async (req) => {
     }
 
     // Find user by phone if not provided user_id
-    let targetUserId = user_id;
-    if (!targetUserId && user_phone) {
+    let targetUserId = userId;
+    if (!targetUserId && userPhone) {
       const { data: profile } = await adminClient
         .from('profiles')
         .select('id')
-        .eq('phone', user_phone)
+        .eq('phone', userPhone)
         .maybeSingle();
       
       if (!profile) {
@@ -101,7 +155,7 @@ serve(async (req) => {
         .single();
 
       if (createError) {
-        console.error('Create wallet error:', createError);
+        console.error('[agent-deposit] Create wallet error:', createError);
         return new Response(
           JSON.stringify({ error: 'Failed to create wallet' }),
           { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -133,11 +187,11 @@ serve(async (req) => {
       if (remainingBalance > 0) {
         // Auto-pay towards rent
         repaymentAmount = Math.min(amount, remainingBalance);
-        commission = repaymentAmount * AGENT_COMMISSION_RATE;
+        commission = Math.round(repaymentAmount * AGENT_COMMISSION_RATE);
         landlordPayment = repaymentAmount - commission;
-        depositAmount = amount - repaymentAmount; // Remaining goes to wallet
+        depositAmount = amount - repaymentAmount;
 
-        console.log(`Auto-repayment: ${repaymentAmount}, Commission: ${commission}, To landlord: ${landlordPayment}`);
+        console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission: ${commission}, To landlord: ${landlordPayment}`);
 
         // Get landlord wallet
         const landlordId = activeRentRequest.landlord_id;
@@ -181,7 +235,7 @@ serve(async (req) => {
             description: `5% commission on UGX ${repaymentAmount} repayment`,
           });
 
-        // Credit landlord (if wallet exists, otherwise create one)
+        // Credit landlord
         if (landlordWallet) {
           await adminClient
             .from('wallets')
@@ -224,7 +278,7 @@ serve(async (req) => {
       }
     }
 
-    // Add remaining amount to user's wallet (if any)
+    // Add remaining amount to user's wallet
     if (depositAmount > 0) {
       await adminClient
         .from('wallets')
@@ -249,7 +303,7 @@ serve(async (req) => {
       .eq('id', targetUserId)
       .single();
 
-    console.log(`Deposit completed: User ${targetUserId}, Amount: ${amount}, Repayment: ${repaymentAmount}, Commission: ${commission}`);
+    console.log(`[agent-deposit] Deposit completed: User ${targetUserId}, Amount: ${amount}, Repayment: ${repaymentAmount}, Commission: ${commission}`);
 
     return new Response(
       JSON.stringify({
@@ -268,7 +322,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('[agent-deposit] Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

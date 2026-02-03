@@ -1,9 +1,72 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
+
+// Rate limiting configuration
+const MAX_ATTEMPTS = 5;
+const LOCKOUT_DURATION_MS = 60 * 60 * 1000; // 1 hour for activation tokens
+
+// In-memory rate limiting
+const activationAttempts = new Map<string, { attempts: number; lastAttempt: number; lockedUntil?: number }>();
+
+function checkRateLimit(token: string): { allowed: boolean; lockedUntil?: number } {
+  const now = Date.now();
+  const record = activationAttempts.get(token);
+  
+  if (!record) return { allowed: true };
+  
+  if (record.lockedUntil && now < record.lockedUntil) {
+    return { allowed: false, lockedUntil: record.lockedUntil };
+  }
+  
+  if (record.lockedUntil && now >= record.lockedUntil) {
+    activationAttempts.delete(token);
+    return { allowed: true };
+  }
+  
+  if (now - record.lastAttempt > LOCKOUT_DURATION_MS) {
+    activationAttempts.delete(token);
+    return { allowed: true };
+  }
+  
+  return { allowed: record.attempts < MAX_ATTEMPTS };
+}
+
+function recordFailedAttempt(token: string): void {
+  const now = Date.now();
+  const record = activationAttempts.get(token) || { attempts: 0, lastAttempt: now };
+  
+  record.attempts++;
+  record.lastAttempt = now;
+  
+  if (record.attempts >= MAX_ATTEMPTS) {
+    record.lockedUntil = now + LOCKOUT_DURATION_MS;
+  }
+  
+  activationAttempts.set(token, record);
+}
+
+// Input validation
+function validateToken(token: unknown): string | null {
+  if (typeof token !== 'string') return null;
+  const cleaned = token.trim();
+  // UUID or similar token format
+  if (cleaned.length < 10 || cleaned.length > 100) return null;
+  // Only allow alphanumeric and hyphens
+  if (!/^[a-zA-Z0-9-]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validatePassword(password: unknown): string | null {
+  if (typeof password !== 'string') return null;
+  const cleaned = password.trim();
+  if (cleaned.length < 4 || cleaned.length > 100) return null;
+  return cleaned;
+}
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -16,14 +79,38 @@ Deno.serve(async (req) => {
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
-    let { token, password } = await req.json();
+    let body: unknown;
+    try {
+      body = await req.json();
+    } catch {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    token = typeof token === 'string' ? token.trim() : token;
-    password = typeof password === 'string' ? password.trim() : password;
+    const { token: rawToken, password: rawPassword } = body as Record<string, unknown>;
+
+    // Validate inputs
+    const token = validateToken(rawToken);
+    const password = validatePassword(rawPassword);
 
     if (!token || !password) {
-      return new Response(JSON.stringify({ error: "Missing token or password" }), {
+      return new Response(JSON.stringify({ error: "Invalid activation link or password" }), {
         status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check rate limiting
+    const rateCheck = checkRateLimit(token);
+    if (!rateCheck.allowed) {
+      const remainingMinutes = Math.ceil((rateCheck.lockedUntil! - Date.now()) / 60000);
+      console.log(`[activate-supporter] Rate limited token: ${token.substring(0, 8)}...`);
+      return new Response(JSON.stringify({ 
+        error: `Too many failed attempts. Try again in ${remainingMinutes} minutes.` 
+      }), {
+        status: 429,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -40,7 +127,7 @@ Deno.serve(async (req) => {
     if (inviteError || !invite) {
       const { data: activatedInvite } = await adminClient
         .from("supporter_invites")
-        .select("*")
+        .select("id, email, role, status")
         .eq("activation_token", token)
         .eq("status", "activated")
         .single();
@@ -62,15 +149,45 @@ Deno.serve(async (req) => {
         );
       }
 
-      return new Response(JSON.stringify({ error: "Invalid activation link" }), {
+      recordFailedAttempt(token);
+      console.log(`[activate-supporter] Invalid token attempt: ${token.substring(0, 8)}...`);
+      return new Response(JSON.stringify({ error: "Invalid or expired activation link" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Verify password matches (trimmed)
-    if (password !== String(invite.temp_password).trim()) {
-      return new Response(JSON.stringify({ error: "Incorrect password" }), {
+    // Check token expiration (48 hours from creation)
+    const createdAt = new Date(invite.created_at).getTime();
+    const expiresAt = createdAt + (48 * 60 * 60 * 1000);
+    if (Date.now() > expiresAt) {
+      console.log(`[activate-supporter] Expired token: ${token.substring(0, 8)}...`);
+      return new Response(JSON.stringify({ error: "Activation link has expired. Please request a new invite." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Verify password - support both hashed and legacy plaintext
+    let passwordValid = false;
+    
+    if (invite.temp_password_hash) {
+      // Use bcrypt for hashed passwords
+      try {
+        passwordValid = await bcrypt.compare(password, invite.temp_password_hash);
+      } catch (e) {
+        console.error('[activate-supporter] bcrypt compare error:', e);
+        passwordValid = false;
+      }
+    } else if (invite.temp_password) {
+      // Legacy plaintext comparison
+      passwordValid = password === String(invite.temp_password).trim();
+    }
+
+    if (!passwordValid) {
+      recordFailedAttempt(token);
+      console.log(`[activate-supporter] Invalid password for invite: ${invite.id}`);
+      return new Response(JSON.stringify({ error: "Invalid activation credentials" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
@@ -110,7 +227,7 @@ Deno.serve(async (req) => {
     });
 
     if (authError) {
-      console.error("Auth error:", authError);
+      console.error("[activate-supporter] Auth error:", authError);
       return new Response(JSON.stringify({ error: "Failed to create account: " + authError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -126,7 +243,7 @@ Deno.serve(async (req) => {
       });
 
     if (roleError) {
-      console.error("Role error:", roleError);
+      console.error("[activate-supporter] Role error:", roleError);
     }
 
     // If this is a sub-agent, create the sub-agent relationship
@@ -136,23 +253,25 @@ Deno.serve(async (req) => {
         .insert({
           parent_agent_id: parentAgentId,
           sub_agent_id: authData.user.id,
-          source: 'invite', // Track that this came from direct registration
+          source: 'invite',
         });
 
       if (subAgentError) {
-        console.error("Sub-agent relationship error:", subAgentError);
+        console.error("[activate-supporter] Sub-agent relationship error:", subAgentError);
       } else {
-        console.log(`Created sub-agent relationship: ${authData.user.id} under ${parentAgentId} (source: invite)`);
+        console.log(`[activate-supporter] Created sub-agent relationship: ${authData.user.id} under ${parentAgentId}`);
       }
     }
 
-    // Update invite status
+    // Update invite status and clear sensitive data
     await adminClient
       .from("supporter_invites")
       .update({
         status: "activated",
         activated_at: new Date().toISOString(),
         activated_user_id: authData.user.id,
+        temp_password: null, // Clear plaintext password
+        temp_password_hash: null, // Clear hash after use
       })
       .eq("id", invite.id);
 
@@ -167,7 +286,7 @@ Deno.serve(async (req) => {
         });
     }
 
-    // Determine referral bonus - UGX 500 for direct registrations (via invite link)
+    // Determine referral bonus
     const referralBonus = 500;
 
     // Create general referral record for all roles
@@ -229,13 +348,13 @@ Deno.serve(async (req) => {
         user_id: invite.created_by,
         title: `🎉 ${isSubAgent ? 'Sub-Agent' : roleLabels[userRole]} Activated!`,
         message: isSubAgent 
-          ? `${invite.full_name} has joined your team as a sub-agent! You'll earn 1% of their tenants' repayments.`
+          ? `${invite.full_name} has joined your team as a sub-agent!`
           : `${invite.full_name} has activated their ${userRole} account! You earned UGX ${referralBonus} referral bonus.`,
         type: "success",
         metadata: { user_id: authData.user.id, invite_id: invite.id, role: userRole, is_sub_agent: isSubAgent },
       });
 
-    console.log(`Activated ${isSubAgent ? 'sub-agent' : userRole} account for ${invite.email}`);
+    console.log(`[activate-supporter] Activated ${isSubAgent ? 'sub-agent' : userRole} account for ${invite.email}`);
 
     return new Response(JSON.stringify({ 
       success: true,
@@ -248,11 +367,11 @@ Deno.serve(async (req) => {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
 
-  } catch (error: any) {
-    console.error("Error activating account:", error);
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    console.error("[activate-supporter] Error:", errorMessage);
     return new Response(JSON.stringify({ 
-      error: error.message || "Internal server error",
-      details: error.toString()
+      error: "Service temporarily unavailable"
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
