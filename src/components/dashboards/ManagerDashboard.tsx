@@ -10,7 +10,7 @@ import {
   Users, 
   FileText, 
   Banknote, 
-  Receipt, 
+  Receipt,
   TrendingUp,
   TrendingDown,
   ArrowRight,
@@ -90,7 +90,6 @@ import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDia
 import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
 import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
 import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
-import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
