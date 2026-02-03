@@ -2,11 +2,12 @@ import { useEffect } from 'react';
 import { useIOSCompatibility } from '@/hooks/useIOSCompatibility';
 
 /**
- * Component that handles iOS-specific setup and optimizations
+ * Component that handles mobile-specific setup and optimizations
+ * Works on both iOS and Android PWAs
  * Should be mounted once at the app root level
  */
 export default function IOSOptimizations() {
-  const { isIOS, isStandalone, isSafari, preventTextZoom } = useIOSCompatibility();
+  const { isIOS, isAndroid, isStandalone, isSafari, isMobile, preventTextZoom } = useIOSCompatibility();
 
   // Apply global mobile optimizations immediately on mount
   useEffect(() => {
@@ -35,13 +36,14 @@ export default function IOSOptimizations() {
     };
   }, []);
 
+  // Mobile-specific optimizations
   useEffect(() => {
-    if (!isIOS) return;
+    if (!isMobile) return;
 
     // Prevent text zoom on input focus
     preventTextZoom();
 
-    // Handle iOS keyboard events
+    // Handle keyboard events (works for both iOS and Android)
     const handleVisualViewportResize = () => {
       if (window.visualViewport) {
         document.documentElement.style.setProperty(
@@ -55,23 +57,18 @@ export default function IOSOptimizations() {
       window.visualViewport.addEventListener('resize', handleVisualViewportResize);
     }
 
-    // NOTE: Previously had a preventDoubleTapZoom handler that called preventDefault()
-    // on touchend for buttons. This BREAKS button clicks in Safari on iOS because
-    // Safari requires the touchend event to complete naturally to fire the click event.
-    // Double-tap zoom is already handled by touch-action: manipulation CSS property
-    // which is applied globally to buttons in button.tsx
-
-    // Fix iOS scroll restoration
+    // Fix scroll restoration
     if ('scrollRestoration' in history) {
       history.scrollRestoration = 'manual';
     }
 
-    // Handle iOS status bar tap to scroll to top
+    // Handle status bar tap to scroll to top (iOS specific, but harmless on Android)
     if (isStandalone) {
       const handleStatusBarTap = (e: TouchEvent) => {
         const touch = e.touches[0];
-        // Status bar area (top ~44px)
-        if (touch && touch.clientY < 44) {
+        // Status bar area (top ~44px for iOS, ~24px for Android)
+        const statusBarHeight = isIOS ? 44 : 24;
+        if (touch && touch.clientY < statusBarHeight) {
           window.scrollTo({ top: 0, behavior: 'smooth' });
         }
       };
@@ -90,11 +87,11 @@ export default function IOSOptimizations() {
         window.visualViewport.removeEventListener('resize', handleVisualViewportResize);
       }
     };
-  }, [isIOS, isStandalone, preventTextZoom]);
+  }, [isIOS, isAndroid, isStandalone, isMobile, preventTextZoom]);
 
-  // Handle iOS Safari address bar hiding/showing
+  // Handle Safari/Chrome address bar hiding/showing
   useEffect(() => {
-    if (!isIOS || !isSafari || isStandalone) return;
+    if (!isMobile || isStandalone) return;
 
     let lastScrollY = window.scrollY;
     let ticking = false;
@@ -107,7 +104,7 @@ export default function IOSOptimizations() {
           
           // Update CSS custom property for components that need to adapt
           document.documentElement.style.setProperty(
-            '--ios-chrome-hidden',
+            '--mobile-chrome-hidden',
             isScrollingDown ? '1' : '0'
           );
           
@@ -120,7 +117,7 @@ export default function IOSOptimizations() {
 
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);
-  }, [isIOS, isSafari, isStandalone]);
+  }, [isMobile, isSafari, isStandalone]);
 
   // No visual output - purely functional component
   return null;

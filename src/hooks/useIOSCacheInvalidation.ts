@@ -5,34 +5,54 @@ import { toast } from 'sonner';
 declare const __BUILD_TIME__: number;
 
 /**
- * iOS PWA Cache Invalidation Hook - AGGRESSIVE VERSION
+ * Mobile PWA Cache Invalidation Hook - Works on iOS AND Android
  * 
- * iOS Safari in standalone (PWA) mode has extremely aggressive caching.
- * This hook implements multiple strategies to ensure fresh data:
+ * Both iOS and Android in standalone (PWA) mode can have caching issues.
+ * iOS is more aggressive, but Android also benefits from these strategies:
  * 
- * 1. Forces revalidation on ANY app resume (not just long pauses)
+ * 1. Forces revalidation on app resume
  * 2. Uses multiple event listeners for maximum coverage
  * 3. Clears React Query cache on version mismatch
  * 4. Periodic background refresh while app is active
- * 5. Touch-based refresh detection
+ * 5. Network restore detection
  */
+
+interface MobileInfo {
+  isIOS: boolean;
+  isAndroid: boolean;
+  isStandalone: boolean;
+  isMobilePWA: boolean;
+}
+
+function detectMobileInfo(): MobileInfo {
+  const ua = navigator.userAgent;
+  const isIOS = /iPad|iPhone|iPod/.test(ua) && !(window as any).MSStream;
+  const isAndroid = /Android/.test(ua);
+  const isStandalone = (window.navigator as any).standalone === true || 
+                       window.matchMedia('(display-mode: standalone)').matches;
+  
+  return {
+    isIOS,
+    isAndroid,
+    isStandalone,
+    isMobilePWA: (isIOS || isAndroid) && isStandalone
+  };
+}
+
 export function useIOSCacheInvalidation() {
   const queryClient = useQueryClient();
   const lastActiveRef = useRef<number>(Date.now());
   const lastRefreshRef = useRef<number>(Date.now());
-  const isIOSStandalone = useRef<boolean>(false);
+  const mobileInfoRef = useRef<MobileInfo>({ isIOS: false, isAndroid: false, isStandalone: false, isMobilePWA: false });
   const refreshInProgressRef = useRef<boolean>(false);
 
-  // Detect iOS standalone mode
+  // Detect mobile platform
   useEffect(() => {
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const isStandalone = (window.navigator as any).standalone === true || 
-                         window.matchMedia('(display-mode: standalone)').matches;
+    const info = detectMobileInfo();
+    mobileInfoRef.current = info;
     
-    isIOSStandalone.current = isIOS && isStandalone;
-    
-    if (isIOSStandalone.current) {
-      console.log('[iOS Cache] Standalone PWA detected - AGGRESSIVE cache invalidation enabled');
+    if (info.isMobilePWA) {
+      console.log(`[Mobile Cache] ${info.isIOS ? 'iOS' : 'Android'} PWA detected - cache invalidation enabled`);
     }
   }, []);
 
@@ -148,7 +168,7 @@ export function useIOSCacheInvalidation() {
     }
   }, []);
 
-  // Handle visibility changes (app resume) - AGGRESSIVE for iOS
+  // Handle visibility changes (app resume) - works for iOS and Android
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState !== 'visible') {
@@ -156,8 +176,10 @@ export function useIOSCacheInvalidation() {
         return;
       }
 
-      // For non-iOS platforms, just do a quick check
-      if (!isIOSStandalone.current) {
+      const { isMobilePWA, isIOS } = mobileInfoRef.current;
+
+      // For non-PWA platforms, just do a quick check
+      if (!isMobilePWA) {
         checkServiceWorkerUpdate();
         return;
       }
@@ -165,15 +187,15 @@ export function useIOSCacheInvalidation() {
       const timeSinceActive = Date.now() - lastActiveRef.current;
       const timeSinceRefresh = Date.now() - lastRefreshRef.current;
       
-      // AGGRESSIVE: Only 5 seconds threshold for iOS PWA
-      const STALE_THRESHOLD = 5 * 1000; // 5 seconds
+      // iOS needs more aggressive threshold (5s), Android can be slightly more relaxed (10s)
+      const STALE_THRESHOLD = isIOS ? 5 * 1000 : 10 * 1000;
       const MIN_REFRESH_INTERVAL = 3 * 1000; // Don't refresh more than every 3 seconds
 
-      console.log(`[iOS Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s (last refresh ${Math.round(timeSinceRefresh / 1000)}s ago)`);
+      console.log(`[Mobile Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s`);
 
       // Prevent rapid-fire refreshes
       if (timeSinceRefresh < MIN_REFRESH_INTERVAL) {
-        console.log('[iOS Cache] Skipping refresh - too soon since last refresh');
+        console.log('[Mobile Cache] Skipping refresh - too soon since last refresh');
         return;
       }
 
@@ -182,20 +204,19 @@ export function useIOSCacheInvalidation() {
       
       // If app was in background for more than threshold, do full refresh
       if (timeSinceActive > STALE_THRESHOLD || versionChanged) {
-        console.log('[iOS Cache] Data is stale - full refresh');
+        console.log('[Mobile Cache] Data is stale - refreshing');
         await checkServiceWorkerUpdate();
-        await invalidateAllData(true); // Silent to avoid toast spam
+        await invalidateAllData(true);
       } else {
         // Even for short pauses, do a quick refetch
         await quickRefresh();
       }
     };
 
-    // Handle iOS-specific page show event (most reliable for bfcache)
+    // Handle page show event (reliable for both iOS bfcache and Android)
     const handlePageShow = (event: PageTransitionEvent) => {
-      if (event.persisted && isIOSStandalone.current) {
-        console.log('[iOS Cache] Page restored from bfcache - FORCING full invalidation');
-        // bfcache restoration is ALWAYS stale - force full refresh
+      if (event.persisted && mobileInfoRef.current.isMobilePWA) {
+        console.log('[Mobile Cache] Page restored from cache - forcing refresh');
         invalidateAllData(true);
         checkServiceWorkerUpdate();
       }
@@ -203,22 +224,22 @@ export function useIOSCacheInvalidation() {
 
     // Handle focus (when switching back to app from another app)
     const handleFocus = () => {
-      if (!isIOSStandalone.current) return;
+      if (!mobileInfoRef.current.isMobilePWA) return;
       
       const timeSinceActive = Date.now() - lastActiveRef.current;
       const timeSinceRefresh = Date.now() - lastRefreshRef.current;
       
       // Only refresh if it's been a while
       if (timeSinceActive > 10 * 1000 && timeSinceRefresh > 5 * 1000) {
-        console.log('[iOS Cache] Focus regained after pause - refreshing');
+        console.log('[Mobile Cache] Focus regained - refreshing');
         quickRefresh();
       }
     };
 
-    // Handle online event (network restored)
+    // Handle online event (network restored) - important for both platforms
     const handleOnline = () => {
-      if (isIOSStandalone.current) {
-        console.log('[iOS Cache] Network restored - refreshing data');
+      if (mobileInfoRef.current.isMobilePWA) {
+        console.log('[Mobile Cache] Network restored - refreshing data');
         invalidateAllData(true);
       }
     };
@@ -239,47 +260,47 @@ export function useIOSCacheInvalidation() {
     };
   }, [queryClient, invalidateAllData, quickRefresh, checkVersionMismatch, checkServiceWorkerUpdate]);
 
-  // Periodic background refresh for iOS PWA (every 60 seconds while active)
+  // Periodic background refresh for mobile PWAs (every 60 seconds while active)
   useEffect(() => {
-    if (!isIOSStandalone.current) return;
+    if (!mobileInfoRef.current.isMobilePWA) return;
 
     const intervalId = setInterval(() => {
       // Only refresh if page is visible and it's been a while
       if (document.visibilityState === 'visible') {
         const timeSinceRefresh = Date.now() - lastRefreshRef.current;
-        if (timeSinceRefresh > 45 * 1000) { // 45 seconds since last refresh
-          console.log('[iOS Cache] Periodic background refresh');
+        if (timeSinceRefresh > 45 * 1000) {
+          console.log('[Mobile Cache] Periodic background refresh');
           quickRefresh();
         }
       }
-    }, 60 * 1000); // Check every 60 seconds
+    }, 60 * 1000);
 
     return () => clearInterval(intervalId);
   }, [quickRefresh]);
 
   // Expose manual refresh function
   const forceRefresh = useCallback(async () => {
-    console.log('[iOS Cache] Manual refresh triggered');
+    console.log('[Mobile Cache] Manual refresh triggered');
     await checkServiceWorkerUpdate();
     await invalidateAllData(false); // Show toast for manual refresh
   }, [checkServiceWorkerUpdate, invalidateAllData]);
 
   return { 
     forceRefresh, 
-    isIOSStandalone: isIOSStandalone.current,
+    isMobilePWA: mobileInfoRef.current.isMobilePWA,
+    isIOSStandalone: mobileInfoRef.current.isIOS && mobileInfoRef.current.isStandalone,
+    isAndroidPWA: mobileInfoRef.current.isAndroid && mobileInfoRef.current.isStandalone,
     lastRefreshTime: lastRefreshRef.current
   };
 }
 
 /**
- * Creates fetch options with iOS cache-busting headers
+ * Creates fetch options with mobile cache-busting headers
  */
 export function createIOSFetchOptions(existingOptions?: RequestInit): RequestInit {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isStandalone = (window.navigator as any).standalone === true || 
-                       window.matchMedia('(display-mode: standalone)').matches;
+  const { isMobilePWA } = detectMobileInfo();
 
-  if (!isIOS || !isStandalone) {
+  if (!isMobilePWA) {
     return existingOptions || {};
   }
 
@@ -296,17 +317,18 @@ export function createIOSFetchOptions(existingOptions?: RequestInit): RequestIni
 }
 
 /**
- * Add cache-busting query param for iOS
+ * Add cache-busting query param for mobile PWAs
  */
 export function addIOSCacheBuster(url: string): string {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
-  const isStandalone = (window.navigator as any).standalone === true || 
-                       window.matchMedia('(display-mode: standalone)').matches;
+  const { isMobilePWA } = detectMobileInfo();
 
-  if (!isIOS || !isStandalone) {
+  if (!isMobilePWA) {
     return url;
   }
 
   const separator = url.includes('?') ? '&' : '?';
   return `${url}${separator}_t=${Date.now()}`;
 }
+
+// Re-export detectMobileInfo for use in other components
+export { detectMobileInfo };
