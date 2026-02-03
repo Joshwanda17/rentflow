@@ -1,28 +1,36 @@
 import { useEffect, useState, useCallback } from 'react';
 
-interface IOSInfo {
+interface MobileInfo {
   isIOS: boolean;
+  isAndroid: boolean;
   isIPad: boolean;
   isIPhone: boolean;
   isSafari: boolean;
+  isChrome: boolean;
   isStandalone: boolean;
   iosVersion: number | null;
+  androidVersion: number | null;
   supportsHaptics: boolean;
   supportsPushNotifications: boolean;
   hasNotch: boolean;
+  isMobile: boolean;
 }
 
 export function useIOSCompatibility() {
-  const [iosInfo, setIosInfo] = useState<IOSInfo>({
+  const [mobileInfo, setMobileInfo] = useState<MobileInfo>({
     isIOS: false,
+    isAndroid: false,
     isIPad: false,
     isIPhone: false,
     isSafari: false,
+    isChrome: false,
     isStandalone: false,
     iosVersion: null,
+    androidVersion: null,
     supportsHaptics: false,
     supportsPushNotifications: false,
     hasNotch: false,
+    isMobile: false,
   });
 
   useEffect(() => {
@@ -33,8 +41,12 @@ export function useIOSCompatibility() {
     const isIPad = /iPad/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
     const isIPhone = /iPhone/.test(ua);
     
-    // Detect Safari
+    // Detect Android
+    const isAndroid = /Android/.test(ua);
+    
+    // Detect browsers
     const isSafari = /^((?!chrome|android).)*safari/i.test(ua);
+    const isChrome = /Chrome/.test(ua) && !/Edge/.test(ua);
     
     // Detect standalone mode (PWA)
     const isStandalone = (window.navigator as any).standalone === true || 
@@ -42,36 +54,51 @@ export function useIOSCompatibility() {
     
     // Extract iOS version
     let iosVersion: number | null = null;
-    const match = ua.match(/OS (\d+)_/);
-    if (match) {
-      iosVersion = parseInt(match[1], 10);
+    const iosMatch = ua.match(/OS (\d+)_/);
+    if (iosMatch) {
+      iosVersion = parseInt(iosMatch[1], 10);
     }
     
-    // Check for haptics support (Taptic Engine)
-    const supportsHaptics = 'vibrate' in navigator || (isIOS && iosVersion !== null && iosVersion >= 10);
+    // Extract Android version
+    let androidVersion: number | null = null;
+    const androidMatch = ua.match(/Android (\d+)/);
+    if (androidMatch) {
+      androidVersion = parseInt(androidMatch[1], 10);
+    }
+    
+    // Check for haptics support
+    const supportsHaptics = 'vibrate' in navigator || 
+                           (isIOS && iosVersion !== null && iosVersion >= 10) ||
+                           isAndroid;
     
     // Check for push notification support
     const supportsPushNotifications = 'PushManager' in window && 'serviceWorker' in navigator;
     
-    // Detect notched devices (iPhone X+)
-    const hasNotch = isIPhone && (
-      window.screen.height >= 812 || 
-      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') !== ''
-    );
+    // Detect notched devices (iPhone X+ or modern Android)
+    const hasNotch = (isIPhone && window.screen.height >= 812) || 
+                     (isAndroid && window.screen.height >= 800 && 
+                      getComputedStyle(document.documentElement).getPropertyValue('--safe-area-inset-top') !== '');
+    
+    // General mobile detection
+    const isMobile = isIOS || isAndroid || /webOS|BlackBerry|Opera Mini|IEMobile/.test(ua);
 
-    setIosInfo({
+    setMobileInfo({
       isIOS,
+      isAndroid,
       isIPad,
       isIPhone,
       isSafari,
+      isChrome,
       isStandalone,
       iosVersion,
+      androidVersion,
       supportsHaptics,
       supportsPushNotifications,
       hasNotch,
+      isMobile,
     });
 
-    // Apply iOS-specific classes to html element
+    // Apply platform-specific classes to html element
     if (isIOS) {
       document.documentElement.classList.add('ios');
       if (isStandalone) {
@@ -80,6 +107,17 @@ export function useIOSCompatibility() {
       if (hasNotch) {
         document.documentElement.classList.add('ios-notch');
       }
+    }
+    
+    if (isAndroid) {
+      document.documentElement.classList.add('android');
+      if (isStandalone) {
+        document.documentElement.classList.add('android-standalone');
+      }
+    }
+    
+    if (isMobile) {
+      document.documentElement.classList.add('mobile');
     }
 
     // Fix iOS viewport height issue (100vh problem)
@@ -106,11 +144,11 @@ export function useIOSCompatibility() {
     };
   }, []);
 
-  // iOS-specific haptic feedback
-  const iosHaptic = useCallback((style: 'light' | 'medium' | 'heavy' | 'selection' = 'light') => {
-    if (!iosInfo.supportsHaptics) return;
+  // Mobile haptic feedback - works on iOS and Android
+  const mobileHaptic = useCallback((style: 'light' | 'medium' | 'heavy' | 'selection' = 'light') => {
+    if (!mobileInfo.supportsHaptics) return;
     
-    // Use vibration API as fallback
+    // Use vibration API (works on both platforms)
     if ('vibrate' in navigator) {
       const patterns = {
         light: 10,
@@ -120,7 +158,10 @@ export function useIOSCompatibility() {
       };
       navigator.vibrate(patterns[style]);
     }
-  }, [iosInfo.supportsHaptics]);
+  }, [mobileInfo.supportsHaptics]);
+
+  // Legacy alias for backwards compatibility
+  const iosHaptic = mobileHaptic;
 
   // Prevent iOS text zoom
   const preventTextZoom = useCallback(() => {
@@ -133,9 +174,9 @@ export function useIOSCompatibility() {
     document.head.appendChild(style);
   }, []);
 
-  // Handle iOS keyboard avoiding
+  // Handle mobile keyboard avoiding (works on iOS and Android)
   const handleKeyboardAvoid = useCallback((element: HTMLElement | null) => {
-    if (!iosInfo.isIOS || !element) return;
+    if (!mobileInfo.isMobile || !element) return;
 
     const handleFocus = () => {
       setTimeout(() => {
@@ -145,11 +186,12 @@ export function useIOSCompatibility() {
 
     element.addEventListener('focus', handleFocus);
     return () => element.removeEventListener('focus', handleFocus);
-  }, [iosInfo.isIOS]);
+  }, [mobileInfo.isMobile]);
 
   return {
-    ...iosInfo,
+    ...mobileInfo,
     iosHaptic,
+    mobileHaptic,
     preventTextZoom,
     handleKeyboardAvoid,
   };
