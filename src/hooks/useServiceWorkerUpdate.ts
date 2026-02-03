@@ -7,7 +7,7 @@ async function precacheAppShell() {
   if (!("caches" in window)) return;
   
   try {
-    const cache = await caches.open("welile-v8");
+    const cache = await caches.open("welile-v9");
     
     // Cache the current page (app shell)
     const currentUrl = window.location.href;

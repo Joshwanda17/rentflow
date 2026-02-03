@@ -54,8 +54,10 @@ export default defineConfig(({ mode }) => ({
         // Precache app shell for instant offline loading
         navigateFallback: '/index.html',
         navigateFallbackDenylist: [/^\/api/, /^\/rest/, /^\/auth\/callback/],
-        // Clean old caches
+        // Clean old caches - CRITICAL for iOS
         cleanupOutdatedCaches: true,
+        // iOS-specific: Force cache versioning to prevent stale data
+        cacheId: 'welile-v9',
         runtimeCaching: [
           // Google Fonts - cache forever
           {
@@ -86,16 +88,18 @@ export default defineConfig(({ mode }) => ({
               }
             }
           },
-          // Supabase API - stale-while-revalidate for fast offline-first
+          // Supabase API - NetworkFirst for iOS compatibility (fresh data priority)
+          // This ensures iOS PWA users always get fresh data when online
           {
-            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/(profiles|wallets|notifications|user_roles|rent_requests).*/i,
-            handler: 'StaleWhileRevalidate',
+            urlPattern: /^https:\/\/.*\.supabase\.co\/rest\/v1\/.*/i,
+            handler: 'NetworkFirst',
             options: {
-              cacheName: 'supabase-api-cache',
+              cacheName: 'supabase-api-cache-v2',
               expiration: {
-                maxEntries: 50,
-                maxAgeSeconds: 60 * 60 * 24 // 24 hours
+                maxEntries: 100,
+                maxAgeSeconds: 60 * 5 // 5 minutes max cache age
               },
+              networkTimeoutSeconds: 10, // Fall back to cache after 10s
               cacheableResponse: {
                 statuses: [0, 200]
               }
