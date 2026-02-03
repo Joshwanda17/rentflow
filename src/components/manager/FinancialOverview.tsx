@@ -146,7 +146,7 @@ export function FinancialOverview() {
         earningsQuery,
         requestsQuery,
         platformTxQuery,
-        supabase.from('user_roles').select('role'),
+        supabase.from('user_roles').select('user_id, role'),
         ordersQuery,
         productsQuery,
       ]);
@@ -208,7 +208,9 @@ export function FinancialOverview() {
       const marketplaceOrderCount = orders.length;
       const marketplaceProductCount = products.length;
 
-      const userCount = roles.length;
+      // Count unique users, not role entries (a user with 2 roles should count as 1 user)
+      const uniqueUserIds = new Set(roles.map((r) => r.user_id));
+      const userCount = uniqueUserIds.size;
       const agentCount = roles.filter((r) => r.role === 'agent').length;
       const tenantCount = roles.filter((r) => r.role === 'tenant').length;
       const supporterCount = roles.filter((r) => r.role === 'supporter').length;
@@ -609,7 +611,7 @@ export function FinancialOverview() {
                 <div className="flex items-center gap-3 p-4 rounded-lg bg-secondary/50">
                   <Users className="h-5 w-5 text-muted-foreground" />
                   <div>
-                    <p className="text-sm text-muted-foreground">Total Roles</p>
+                    <p className="text-sm text-muted-foreground">Total Users</p>
                     <p className="font-mono font-semibold">{metrics.userCount}</p>
                   </div>
                 </div>
