@@ -1,4 +1,7 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+
+declare const __BUILD_TIME__: number;
 
 interface IOSInfo {
   isIOS: boolean;
@@ -13,6 +16,9 @@ interface IOSInfo {
 }
 
 export function useIOSCompatibility() {
+  const queryClient = useQueryClient();
+  const lastActiveRef = useRef<number>(Date.now());
+  
   const [iosInfo, setIosInfo] = useState<IOSInfo>({
     isIOS: false,
     isIPad: false,
@@ -100,11 +106,74 @@ export function useIOSCompatibility() {
       document.body.style.height = '100%';
     }
 
+    // iOS PWA Cache Invalidation - handle visibility changes for data freshness
+    const handleVisibilityChange = async () => {
+      if (document.visibilityState !== 'visible') {
+        lastActiveRef.current = Date.now();
+        return;
+      }
+
+      if (!isStandalone || !isIOS) return;
+
+      const timeSinceActive = Date.now() - lastActiveRef.current;
+      const STALE_THRESHOLD = 30 * 1000; // 30 seconds
+
+      console.log(`[iOS] App resumed after ${Math.round(timeSinceActive / 1000)}s`);
+
+      // Check for version changes
+      const storedBuildTime = localStorage.getItem('ios_pwa_build_time');
+      const currentBuildTime = String(__BUILD_TIME__);
+      const versionChanged = storedBuildTime && storedBuildTime !== currentBuildTime;
+      
+      if (versionChanged) {
+        console.log('[iOS] Version mismatch - clearing caches');
+        localStorage.setItem('ios_pwa_build_time', currentBuildTime);
+      } else {
+        localStorage.setItem('ios_pwa_build_time', currentBuildTime);
+      }
+
+      // If app was backgrounded for more than threshold, force refresh data
+      if (timeSinceActive > STALE_THRESHOLD || versionChanged) {
+        console.log('[iOS] Data may be stale - refreshing queries...');
+        
+        // Force service worker update check
+        if ('serviceWorker' in navigator) {
+          try {
+            const registration = await navigator.serviceWorker.ready;
+            await registration.update();
+            if (registration.waiting) {
+              registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+            }
+          } catch (e) {
+            console.warn('[iOS] SW update check failed:', e);
+          }
+        }
+
+        // Invalidate all React Query caches to force fresh data
+        queryClient.invalidateQueries();
+        queryClient.refetchQueries({ type: 'active' });
+      }
+    };
+
+    // Handle iOS page restoration from bfcache
+    const handlePageShow = (event: PageTransitionEvent) => {
+      if (event.persisted && isStandalone && isIOS) {
+        console.log('[iOS] Page restored from bfcache - invalidating data');
+        queryClient.invalidateQueries();
+        queryClient.refetchQueries({ type: 'active' });
+      }
+    };
+
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    window.addEventListener('pageshow', handlePageShow);
+
     return () => {
       window.removeEventListener('resize', setViewportHeight);
       window.removeEventListener('orientationchange', setViewportHeight);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      window.removeEventListener('pageshow', handlePageShow);
     };
-  }, []);
+  }, [queryClient]);
 
   // iOS-specific haptic feedback
   const iosHaptic = useCallback((style: 'light' | 'medium' | 'heavy' | 'selection' = 'light') => {

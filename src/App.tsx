@@ -1,6 +1,7 @@
 import { lazy, Suspense, memo, useEffect, useState } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
+import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -78,14 +79,26 @@ const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 
-// Optimized QueryClient
+// Detect iOS standalone mode for cache settings
+const isIOSStandalone = (() => {
+  if (typeof window === 'undefined') return false;
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+  const isStandalone = (window.navigator as any).standalone === true || 
+                       window.matchMedia('(display-mode: standalone)').matches;
+  return isIOS && isStandalone;
+})();
+
+// Optimized QueryClient with iOS-specific settings
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: 5 * 60 * 1000,
-      gcTime: 30 * 60 * 1000,
+      // Shorter stale time on iOS PWA to ensure fresh data
+      staleTime: isIOSStandalone ? 30 * 1000 : 5 * 60 * 1000, // 30s on iOS, 5min elsewhere
+      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 30 * 60 * 1000, // 5min on iOS, 30min elsewhere
       retry: 2,
-      refetchOnWindowFocus: false,
+      // Refetch on focus for iOS PWA to get fresh data
+      refetchOnWindowFocus: isIOSStandalone ? 'always' : false,
+      refetchOnReconnect: true,
       networkMode: 'offlineFirst',
     },
     mutations: {
@@ -162,6 +175,9 @@ function AppRoutes() {
 
   // Listen for force refresh signals from managers
   useForceRefresh();
+
+  // iOS PWA cache invalidation for fresh data
+  useIOSCacheInvalidation();
 
   return (
     <div className="min-h-screen">

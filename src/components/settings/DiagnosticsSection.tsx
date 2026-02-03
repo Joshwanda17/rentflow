@@ -3,8 +3,9 @@ import { motion } from 'framer-motion';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Bug, Download, RefreshCw, Wifi, WifiOff, HardDrive, Trash2, Check, X, Loader2, Info } from 'lucide-react';
+import { Bug, Download, RefreshCw, Wifi, WifiOff, HardDrive, Trash2, Check, X, Loader2, Info, Smartphone } from 'lucide-react';
 import { toast } from 'sonner';
+import { useQueryClient } from '@tanstack/react-query';
 
 declare const __APP_VERSION__: string;
 
@@ -18,6 +19,7 @@ interface DiagnosticsInfo {
 }
 
 export default function DiagnosticsSection() {
+  const queryClient = useQueryClient();
   const [info, setInfo] = useState<DiagnosticsInfo>({
     isInstalled: false,
     isOnline: navigator.onLine,
@@ -27,6 +29,16 @@ export default function DiagnosticsSection() {
     cachesCount: 0,
   });
   const [clearing, setClearing] = useState(false);
+  const [refreshingData, setRefreshingData] = useState(false);
+  const [isIOSStandalone, setIsIOSStandalone] = useState(false);
+
+  // Detect iOS standalone mode
+  useEffect(() => {
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = (window.navigator as any).standalone === true || 
+                         window.matchMedia('(display-mode: standalone)').matches;
+    setIsIOSStandalone(isIOS && isStandalone);
+  }, []);
 
   const checkInstallStatus = useCallback(() => {
     // Check if running as PWA
@@ -154,12 +166,59 @@ export default function DiagnosticsSection() {
     }
   };
 
+  // iOS-specific: Force refresh all data without clearing cache
+  const handleForceRefreshData = async () => {
+    setRefreshingData(true);
+    
+    try {
+      console.log('[iOS] Force refreshing all data...');
+      
+      // Force service worker update check
+      if ('serviceWorker' in navigator) {
+        try {
+          const registration = await navigator.serviceWorker.ready;
+          await registration.update();
+          if (registration.waiting) {
+            registration.waiting.postMessage({ type: 'SKIP_WAITING' });
+          }
+        } catch (e) {
+          console.warn('[iOS] SW update check failed:', e);
+        }
+      }
+
+      // Clear React Query caches and refetch all data
+      queryClient.clear();
+      await queryClient.invalidateQueries();
+      await queryClient.refetchQueries({ type: 'all' });
+      
+      // Clear API cache specifically
+      if ('caches' in window) {
+        const keys = await caches.keys();
+        await Promise.all(
+          keys
+            .filter(k => k.includes('api') || k.includes('supabase'))
+            .map(k => caches.delete(k))
+        );
+      }
+      
+      toast.success('Data refreshed!', {
+        description: 'All figures have been updated with the latest data.',
+      });
+    } catch (error) {
+      console.error('[iOS] Force refresh failed:', error);
+      toast.error('Failed to refresh data');
+    } finally {
+      setRefreshingData(false);
+    }
+  };
+
   const StatusBadge = ({ good, label }: { good: boolean; label: string }) => (
     <Badge variant={good ? 'default' : 'secondary'} className="gap-1">
       {good ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
       {label}
     </Badge>
   );
+
 
   return (
     <Card className="glass-card border-border/50 shadow-elevated overflow-hidden">
@@ -243,6 +302,31 @@ export default function DiagnosticsSection() {
 
         {/* Actions */}
         <div className="pt-4 border-t border-border/50 space-y-3">
+          {/* iOS Force Refresh - Prominent for iOS PWA users */}
+          {isIOSStandalone && (
+            <motion.div 
+              whileHover={{ scale: 1.01 }} 
+              whileTap={{ scale: 0.99 }}
+              className="mb-2"
+            >
+              <Button 
+                className="w-full gap-2 bg-primary hover:bg-primary/90" 
+                onClick={handleForceRefreshData}
+                disabled={refreshingData}
+              >
+                {refreshingData ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Smartphone className="h-4 w-4" />
+                )}
+                Force Refresh Data (iOS)
+              </Button>
+              <p className="text-xs text-muted-foreground mt-1 text-center">
+                Tap to get the latest figures if data seems stale
+              </p>
+            </motion.div>
+          )}
+
           <motion.div whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}>
             <Button 
               variant="outline" 
