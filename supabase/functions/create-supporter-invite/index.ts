@@ -120,9 +120,36 @@ Deno.serve(async (req) => {
       });
     }
 
-    // NOTE: Phone duplicate checks are now handled by database unique constraints
-    // idx_profiles_phone_normalized and idx_supporter_invites_phone_normalized
-    // The insert will fail with a constraint violation if a duplicate exists
+    // Check if profile already exists with this phone number (by last 9 digits)
+    // This is critical to prevent creating invites for already-registered users
+    const { data: allProfiles, error: profilesError } = await adminClient
+      .from("profiles")
+      .select("id, full_name, phone");
+
+    if (profilesError) {
+      console.error("Error checking profiles:", profilesError);
+      return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Find any profile with matching last 9 digits
+    const existingProfileByPhone = allProfiles?.find(p => {
+      const profileLocal9 = ugLocal9(p.phone || '');
+      return profileLocal9 && profileLocal9 === local9;
+    });
+
+    if (existingProfileByPhone) {
+      console.log(`Duplicate phone detected: ${phone} matches existing profile ${existingProfileByPhone.full_name}`);
+      return new Response(JSON.stringify({ 
+        error: `This phone number is already registered to ${existingProfileByPhone.full_name}. They can sign in directly.`,
+        existing_user: existingProfileByPhone.full_name
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
     // Check if email already exists (profiles is our source of truth for registered users)
     const { data: existingProfileByEmail, error: profileEmailError } = await adminClient
