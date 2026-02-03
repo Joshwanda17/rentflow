@@ -1,23 +1,27 @@
 import { useEffect, useCallback, useRef } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from 'sonner';
 
 declare const __BUILD_TIME__: number;
 
 /**
- * iOS PWA Cache Invalidation Hook
+ * iOS PWA Cache Invalidation Hook - AGGRESSIVE VERSION
  * 
- * iOS Safari in standalone (PWA) mode has aggressive caching that can cause
- * stale data. This hook implements multiple strategies to ensure fresh data:
+ * iOS Safari in standalone (PWA) mode has extremely aggressive caching.
+ * This hook implements multiple strategies to ensure fresh data:
  * 
- * 1. Forces revalidation on app resume (visibility change)
- * 2. Clears React Query cache on version mismatch
- * 3. Adds cache-busting headers for fetch requests
- * 4. Forces service worker update checks on iOS
+ * 1. Forces revalidation on ANY app resume (not just long pauses)
+ * 2. Uses multiple event listeners for maximum coverage
+ * 3. Clears React Query cache on version mismatch
+ * 4. Periodic background refresh while app is active
+ * 5. Touch-based refresh detection
  */
 export function useIOSCacheInvalidation() {
   const queryClient = useQueryClient();
   const lastActiveRef = useRef<number>(Date.now());
+  const lastRefreshRef = useRef<number>(Date.now());
   const isIOSStandalone = useRef<boolean>(false);
+  const refreshInProgressRef = useRef<boolean>(false);
 
   // Detect iOS standalone mode
   useEffect(() => {
@@ -28,63 +32,108 @@ export function useIOSCacheInvalidation() {
     isIOSStandalone.current = isIOS && isStandalone;
     
     if (isIOSStandalone.current) {
-      console.log('[iOS Cache] Standalone PWA detected - enabling aggressive cache invalidation');
+      console.log('[iOS Cache] Standalone PWA detected - AGGRESSIVE cache invalidation enabled');
     }
   }, []);
 
   // Invalidate all queries to force fresh data
-  const invalidateAllData = useCallback(async () => {
+  const invalidateAllData = useCallback(async (silent: boolean = false) => {
+    // Prevent multiple simultaneous refreshes
+    if (refreshInProgressRef.current) {
+      console.log('[iOS Cache] Refresh already in progress, skipping...');
+      return;
+    }
+
+    refreshInProgressRef.current = true;
+    const startTime = Date.now();
+    
     console.log('[iOS Cache] Invalidating all cached data...');
     
-    // Invalidate all React Query caches
-    await queryClient.invalidateQueries();
+    try {
+      // Clear all React Query caches completely
+      queryClient.clear();
+      
+      // Small delay to ensure clear completes
+      await new Promise(resolve => setTimeout(resolve, 50));
+      
+      // Force refetch all active queries
+      await queryClient.refetchQueries({ type: 'active' });
+      
+      lastRefreshRef.current = Date.now();
+      
+      const duration = Date.now() - startTime;
+      console.log(`[iOS Cache] Cache invalidation complete in ${duration}ms`);
+      
+      if (!silent && isIOSStandalone.current) {
+        // Very subtle indicator that data was refreshed
+        toast.success('Data refreshed', { 
+          duration: 1500,
+          position: 'bottom-center',
+          style: { fontSize: '12px', padding: '8px 12px' }
+        });
+      }
+    } catch (error) {
+      console.error('[iOS Cache] Error during cache invalidation:', error);
+    } finally {
+      refreshInProgressRef.current = false;
+    }
+  }, [queryClient]);
+
+  // Quick refresh - just refetch without clearing
+  const quickRefresh = useCallback(async () => {
+    if (refreshInProgressRef.current) return;
     
-    // Clear any stale entries
-    queryClient.clear();
-    
-    // Force refetch all active queries
-    await queryClient.refetchQueries({ type: 'active' });
-    
-    console.log('[iOS Cache] Cache invalidation complete');
+    console.log('[iOS Cache] Quick refresh triggered');
+    try {
+      await queryClient.refetchQueries({ type: 'active' });
+      lastRefreshRef.current = Date.now();
+    } catch (error) {
+      console.error('[iOS Cache] Quick refresh error:', error);
+    }
   }, [queryClient]);
 
   // Check for app version changes
   const checkVersionMismatch = useCallback(() => {
-    const storedBuildTime = localStorage.getItem('ios_build_time');
-    const currentBuildTime = String(__BUILD_TIME__);
-    
-    if (storedBuildTime && storedBuildTime !== currentBuildTime) {
-      console.log('[iOS Cache] Version mismatch detected - clearing all caches');
+    try {
+      const storedBuildTime = localStorage.getItem('ios_build_time');
+      const currentBuildTime = String(__BUILD_TIME__);
       
-      // Clear React Query cache
-      queryClient.clear();
-      
-      // Clear iOS-specific caches
-      if ('caches' in window) {
-        caches.keys().then(keys => {
-          keys.forEach(key => {
-            if (key.includes('api') || key.includes('supabase')) {
-              caches.delete(key);
-            }
+      if (storedBuildTime && storedBuildTime !== currentBuildTime) {
+        console.log('[iOS Cache] Version mismatch detected - clearing all caches');
+        
+        // Clear React Query cache
+        queryClient.clear();
+        
+        // Clear iOS-specific caches
+        if ('caches' in window) {
+          caches.keys().then(keys => {
+            keys.forEach(key => {
+              if (key.includes('api') || key.includes('supabase')) {
+                caches.delete(key);
+              }
+            });
           });
+        }
+        
+        // Clear any stale sessionStorage data
+        const keysToPreserve = ['supabase.auth.token', 'auth_session', 'user_role'];
+        const allKeys = Object.keys(sessionStorage);
+        allKeys.forEach(key => {
+          if (!keysToPreserve.some(preserve => key.includes(preserve))) {
+            sessionStorage.removeItem(key);
+          }
         });
+        
+        localStorage.setItem('ios_build_time', currentBuildTime);
+        return true;
       }
       
-      // Clear any stale sessionStorage data
-      const keysToPreserve = ['supabase.auth.token', 'auth_session'];
-      const allKeys = Object.keys(sessionStorage);
-      allKeys.forEach(key => {
-        if (!keysToPreserve.some(preserve => key.includes(preserve))) {
-          sessionStorage.removeItem(key);
-        }
-      });
-      
       localStorage.setItem('ios_build_time', currentBuildTime);
-      return true;
+      return false;
+    } catch (e) {
+      console.error('[iOS Cache] Version check error:', e);
+      return false;
     }
-    
-    localStorage.setItem('ios_build_time', currentBuildTime);
-    return false;
   }, [queryClient]);
 
   // Force service worker update check
@@ -104,7 +153,7 @@ export function useIOSCacheInvalidation() {
     }
   }, []);
 
-  // Handle visibility changes (app resume)
+  // Handle visibility changes (app resume) - AGGRESSIVE for iOS
   useEffect(() => {
     const handleVisibilityChange = async () => {
       if (document.visibilityState !== 'visible') {
@@ -112,59 +161,77 @@ export function useIOSCacheInvalidation() {
         return;
       }
 
-      // Only apply aggressive invalidation on iOS standalone mode
+      // For non-iOS platforms, just do a quick check
       if (!isIOSStandalone.current) {
-        // For other platforms, just check for SW updates
         checkServiceWorkerUpdate();
         return;
       }
 
       const timeSinceActive = Date.now() - lastActiveRef.current;
-      const STALE_THRESHOLD = 30 * 1000; // 30 seconds
+      const timeSinceRefresh = Date.now() - lastRefreshRef.current;
+      
+      // AGGRESSIVE: Only 5 seconds threshold for iOS PWA
+      const STALE_THRESHOLD = 5 * 1000; // 5 seconds
+      const MIN_REFRESH_INTERVAL = 3 * 1000; // Don't refresh more than every 3 seconds
 
-      console.log(`[iOS Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s`);
+      console.log(`[iOS Cache] App resumed after ${Math.round(timeSinceActive / 1000)}s (last refresh ${Math.round(timeSinceRefresh / 1000)}s ago)`);
+
+      // Prevent rapid-fire refreshes
+      if (timeSinceRefresh < MIN_REFRESH_INTERVAL) {
+        console.log('[iOS Cache] Skipping refresh - too soon since last refresh');
+        return;
+      }
 
       // Check for version changes first
       const versionChanged = checkVersionMismatch();
       
-      // If app was in background for more than threshold, refresh data
+      // If app was in background for more than threshold, do full refresh
       if (timeSinceActive > STALE_THRESHOLD || versionChanged) {
-        console.log('[iOS Cache] Data may be stale - refreshing...');
-        
-        // Force service worker update check
+        console.log('[iOS Cache] Data is stale - full refresh');
         await checkServiceWorkerUpdate();
-        
-        // Invalidate all cached queries
-        await invalidateAllData();
+        await invalidateAllData(true); // Silent to avoid toast spam
       } else {
-        // Just refetch active queries without clearing cache
-        queryClient.refetchQueries({ type: 'active' });
+        // Even for short pauses, do a quick refetch
+        await quickRefresh();
       }
     };
 
-    // Handle iOS-specific page show event (more reliable than visibility change)
+    // Handle iOS-specific page show event (most reliable for bfcache)
     const handlePageShow = (event: PageTransitionEvent) => {
       if (event.persisted && isIOSStandalone.current) {
-        console.log('[iOS Cache] Page restored from bfcache - invalidating data');
-        invalidateAllData();
+        console.log('[iOS Cache] Page restored from bfcache - FORCING full invalidation');
+        // bfcache restoration is ALWAYS stale - force full refresh
+        invalidateAllData(true);
         checkServiceWorkerUpdate();
       }
     };
 
-    // Handle focus (when switching back to app)
+    // Handle focus (when switching back to app from another app)
     const handleFocus = () => {
+      if (!isIOSStandalone.current) return;
+      
+      const timeSinceActive = Date.now() - lastActiveRef.current;
+      const timeSinceRefresh = Date.now() - lastRefreshRef.current;
+      
+      // Only refresh if it's been a while
+      if (timeSinceActive > 10 * 1000 && timeSinceRefresh > 5 * 1000) {
+        console.log('[iOS Cache] Focus regained after pause - refreshing');
+        quickRefresh();
+      }
+    };
+
+    // Handle online event (network restored)
+    const handleOnline = () => {
       if (isIOSStandalone.current) {
-        const timeSinceActive = Date.now() - lastActiveRef.current;
-        if (timeSinceActive > 60 * 1000) { // 1 minute
-          console.log('[iOS Cache] Focus regained after long pause - refreshing');
-          queryClient.refetchQueries({ type: 'active' });
-        }
+        console.log('[iOS Cache] Network restored - refreshing data');
+        invalidateAllData(true);
       }
     };
 
     document.addEventListener('visibilitychange', handleVisibilityChange);
     window.addEventListener('pageshow', handlePageShow);
     window.addEventListener('focus', handleFocus);
+    window.addEventListener('online', handleOnline);
 
     // Initial version check
     checkVersionMismatch();
@@ -173,17 +240,40 @@ export function useIOSCacheInvalidation() {
       document.removeEventListener('visibilitychange', handleVisibilityChange);
       window.removeEventListener('pageshow', handlePageShow);
       window.removeEventListener('focus', handleFocus);
+      window.removeEventListener('online', handleOnline);
     };
-  }, [queryClient, invalidateAllData, checkVersionMismatch, checkServiceWorkerUpdate]);
+  }, [queryClient, invalidateAllData, quickRefresh, checkVersionMismatch, checkServiceWorkerUpdate]);
+
+  // Periodic background refresh for iOS PWA (every 60 seconds while active)
+  useEffect(() => {
+    if (!isIOSStandalone.current) return;
+
+    const intervalId = setInterval(() => {
+      // Only refresh if page is visible and it's been a while
+      if (document.visibilityState === 'visible') {
+        const timeSinceRefresh = Date.now() - lastRefreshRef.current;
+        if (timeSinceRefresh > 45 * 1000) { // 45 seconds since last refresh
+          console.log('[iOS Cache] Periodic background refresh');
+          quickRefresh();
+        }
+      }
+    }, 60 * 1000); // Check every 60 seconds
+
+    return () => clearInterval(intervalId);
+  }, [quickRefresh]);
 
   // Expose manual refresh function
   const forceRefresh = useCallback(async () => {
     console.log('[iOS Cache] Manual refresh triggered');
     await checkServiceWorkerUpdate();
-    await invalidateAllData();
+    await invalidateAllData(false); // Show toast for manual refresh
   }, [checkServiceWorkerUpdate, invalidateAllData]);
 
-  return { forceRefresh, isIOSStandalone: isIOSStandalone.current };
+  return { 
+    forceRefresh, 
+    isIOSStandalone: isIOSStandalone.current,
+    lastRefreshTime: lastRefreshRef.current
+  };
 }
 
 /**
