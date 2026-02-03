@@ -1120,15 +1120,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
 
-        {/* Pending Agent Commission Payouts (Collapsible) */}
-        <CollapsibleAgentSection
-          icon={Banknote}
-          label="Commission Payouts"
-          iconColor="text-success"
-        >
-          <AgentCommissionPayoutsManager />
-        </CollapsibleAgentSection>
-
         {/* Paid Agents History */}
         <CollapsibleAgentSection
           icon={CheckCircle}
