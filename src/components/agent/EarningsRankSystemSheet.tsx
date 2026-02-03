@@ -22,8 +22,10 @@ import {
   Target,
   Banknote,
   ArrowUpCircle,
-  Zap
+  Zap,
+  Share2
 } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -71,6 +73,7 @@ const rankConfig = {
 
 export function EarningsRankSystemSheet({ open, onOpenChange }: EarningsRankSystemSheetProps) {
   const { user } = useAuth();
+  const { toast } = useToast();
   const [stats, setStats] = useState<AgentStats>({
     tenantsRegistered: 0,
     activeRepayingTenants: 0,
@@ -82,6 +85,44 @@ export function EarningsRankSystemSheet({ open, onOpenChange }: EarningsRankSyst
     advanceEligible: false,
   });
   const [loading, setLoading] = useState(true);
+
+  // Share functionality
+  const handleShare = async () => {
+    const shareLink = user 
+      ? `${window.location.origin}/auth?role=agent&ref=${user.id}`
+      : `${window.location.origin}/auth?role=agent`;
+    
+    const shareMessage = `🚀 Join Welile as an Agent and start earning!
+
+💰 Earn UGX 500 per registration
+✅ UGX 5,000 per approved rent request
+📈 Up to 5% commission on every repayment
+🎁 Recruit 2 agents → Unlock advances (300k-30M)
+🏍️ Get 50 repaying tenants → Win Electric Bike!
+
+Start your journey: ${shareLink}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Become a Welile Agent',
+          text: shareMessage,
+          url: shareLink,
+        });
+        return;
+      } catch {
+        // Fall through to WhatsApp
+      }
+    }
+
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;
+    window.open(whatsappUrl, '_blank');
+    
+    toast({
+      title: '📤 Share Link Ready!',
+      description: 'Invite friends to become Welile Agents',
+    });
+  };
 
   useEffect(() => {
     if (!user || !open) return;
@@ -161,12 +202,23 @@ export function EarningsRankSystemSheet({ open, onOpenChange }: EarningsRankSyst
           <div className="p-6 space-y-6">
             {/* Header */}
             <SheetHeader className="text-left">
-              <SheetTitle className="flex items-center gap-3 text-2xl">
-                <div className="p-2 rounded-xl bg-primary/10">
-                  <Trophy className="h-6 w-6 text-primary" />
-                </div>
-                Earnings & Rank System
-              </SheetTitle>
+              <div className="flex items-center justify-between">
+                <SheetTitle className="flex items-center gap-3 text-2xl">
+                  <div className="p-2 rounded-xl bg-primary/10">
+                    <Trophy className="h-6 w-6 text-primary" />
+                  </div>
+                  Earnings & Rank System
+                </SheetTitle>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleShare}
+                  className="gap-2 bg-success/10 border-success/30 text-success hover:bg-success/20"
+                >
+                  <Share2 className="h-4 w-4" />
+                  Share
+                </Button>
+              </div>
               <p className="text-muted-foreground text-sm">
                 See how you earn and level up as a Welile Agent
               </p>
