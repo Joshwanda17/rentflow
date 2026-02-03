@@ -150,15 +150,13 @@
     font-size: 16px;
   }
 
-  /* Smooth theme transition for all color properties */
-  body,
-  body * {
-    transition-property: background-color, border-color, color, fill, stroke, box-shadow;
-    transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
-    transition-duration: 300ms;
-  }
+  /* 
+   * REMOVED: Global color transitions were causing color flickering on iOS
+   * Theme transitions should only apply to the root element, not all children
+   * This was making colors "pulse" on every re-render
+   */
 
-  /* Disable transitions during theme change to prevent flicker on interactive elements */
+  /* Disable transitions during theme change to prevent flicker */
   html.disable-transitions,
   html.disable-transitions * {
     transition: none !important;
@@ -171,6 +169,8 @@
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Only body gets theme transition, not all children */
+    transition: background-color 200ms ease-out, color 200ms ease-out;
   }
 
   /* Font size scaling */
