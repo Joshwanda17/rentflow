@@ -40,17 +40,36 @@ if ((window as any).__hasSession || localStorage.getItem('welile_visited')) {
 // Mount app with faster timeout
 const loadApp = async () => {
   try {
-    // Load CSS and App in parallel with 4s timeout for faster failure
-    const [, { default: App }] = await Promise.race([
-      Promise.all([
-        import("./index.css"),
-        import("./App.tsx")
-      ]),
-      new Promise<never>((_, reject) => 
-        setTimeout(() => reject(new Error('Load timeout')), 4000)
-      )
+    // Load CSS and App in parallel.
+    // IMPORTANT: Do NOT hard-fail on a short timeout.
+    // On slower phones / poor networks, chunk download can easily exceed 4s,
+    // which was causing the “Slow Connection” screen to appear repeatedly.
+    const importsPromise = Promise.all([
+      import("./index.css"),
+      import("./App.tsx"),
     ]);
-    
+
+    // After a grace period, upgrade the loader UI to a “still loading” screen,
+    // but continue waiting for imports to finish.
+    const showSlowTimer = setTimeout(() => {
+      // Only update the DOM if React hasn't mounted yet.
+      if (!root.hasChildNodes() || root.innerHTML.includes('animation:') || root.innerHTML.includes('spin')) {
+        root.innerHTML = `
+          <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px;padding:24px;text-align:center">
+            <div style="width:32px;height:32px;border:3px solid #4ade80;border-top-color:transparent;border-radius:50%;animation:spin 0.8s linear infinite"></div>
+            <style>@keyframes spin{to{transform:rotate(360deg)}}</style>
+            <h2 style="font-size:18px;font-weight:600;color:#1f2937;margin:0">Still loading…</h2>
+            <p style="font-size:14px;color:#6b7280;margin:0;max-width:280px">Your network is slow. We’ll keep trying.</p>
+            <button onclick="sessionStorage.removeItem('chunk_retry');location.reload()" style="padding:12px 24px;background:#4ade80;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px">
+              Retry
+            </button>
+          </div>
+        `;
+      }
+    }, 8000);
+
+    const [, { default: App }] = await importsPromise;
+    clearTimeout(showSlowTimer);
     createRoot(root).render(<App />);
   } catch (err) {
     console.error('[Main] App load failed:', err);
@@ -63,7 +82,7 @@ const loadApp = async () => {
         </div>
         <h2 style="font-size:18px;font-weight:600;color:#1f2937;margin:0">Slow Connection</h2>
         <p style="font-size:14px;color:#6b7280;margin:0;max-width:280px">Tap to retry loading the app.</p>
-        <button onclick="location.reload()" style="padding:12px 24px;background:#4ade80;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px">
+        <button onclick="sessionStorage.removeItem('chunk_retry');location.reload()" style="padding:12px 24px;background:#4ade80;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px">
           Retry
         </button>
       </div>
