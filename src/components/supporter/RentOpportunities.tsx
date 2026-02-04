@@ -19,6 +19,7 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
 import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
 import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
+import { UserProfileDialog } from './UserProfileDialog';
 import { 
   Users, 
   HandCoins, 
@@ -185,6 +186,27 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [allLandlords, setAllLandlords] = useState<PotentialLandlord[]>([]);
   const [allAgents, setAllAgents] = useState<PotentialAgent[]>([]);
   const [loadingPotentials, setLoadingPotentials] = useState(false);
+  const [profileDialogUser, setProfileDialogUser] = useState<{
+    id: string;
+    name: string;
+    avatarUrl?: string;
+    type: 'tenant' | 'landlord' | 'agent';
+    createdAt?: string;
+    phone?: string;
+    propertyAddress?: string;
+    verified?: boolean;
+    readyToReceive?: boolean;
+    hasSmartphone?: boolean;
+    numberOfHouses?: number;
+    desiredRent?: number;
+    electricityMeter?: string;
+    caretakerName?: string;
+    caretakerPhone?: string;
+    city?: string;
+    country?: string;
+    tenantCount?: number;
+    hasRentRequest?: boolean;
+  } | null>(null);
 
   // Count unseen opportunities and calculate potential earnings (exclude funded)
   const { unseenCount, unseenPotentialEarnings } = useMemo(() => {
@@ -1662,19 +1684,32 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         >
                           <div className="flex items-center gap-3">
                             <UserAvatar fullName={tenant.full_name} avatarUrl={tenant.avatar_url} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                            <button 
+                              className="flex-1 min-w-0 text-left"
+                              onClick={() => {
+                                hapticTap();
+                                setProfileDialogUser({
+                                  id: tenant.id,
+                                  name: tenant.full_name,
+                                  avatarUrl: tenant.avatar_url,
+                                  type: 'tenant',
+                                  createdAt: tenant.created_at,
+                                  phone: tenant.phone,
+                                  hasRentRequest: tenant.has_rent_request
+                                });
+                              }}
+                            >
+                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{tenant.full_name}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-blue-500/10 text-blue-600 border-blue-500/30">
                                   🏠 Tenant
                                 </Badge>
                                 <span>{formatDistanceToNow(new Date(tenant.created_at), { addSuffix: true })}</span>
                               </div>
-                            </div>
+                            </button>
                             <ContactActionsBar
                               userId={tenant.id}
                               userName={tenant.full_name}
-                              userPhone={tenant.phone}
                               compact
                             />
                           </div>
@@ -1692,15 +1727,36 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         >
                           <div className="flex items-center gap-3">
                             <UserAvatar fullName={landlord.name} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-sm truncate">{landlord.name}</p>
+                            <button 
+                              className="flex-1 min-w-0 text-left"
+                              onClick={() => {
+                                hapticTap();
+                                setProfileDialogUser({
+                                  id: landlord.id,
+                                  name: landlord.name,
+                                  type: 'landlord',
+                                  createdAt: landlord.created_at,
+                                  phone: landlord.phone,
+                                  propertyAddress: landlord.property_address,
+                                  verified: landlord.verified,
+                                  readyToReceive: landlord.ready_to_receive,
+                                  hasSmartphone: landlord.has_smartphone,
+                                  numberOfHouses: landlord.number_of_houses,
+                                  desiredRent: landlord.desired_rent_from_welile,
+                                  electricityMeter: landlord.electricity_meter_number,
+                                  caretakerName: landlord.caretaker_name,
+                                  caretakerPhone: landlord.caretaker_phone
+                                });
+                              }}
+                            >
+                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{landlord.name}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-purple-500/10 text-purple-600 border-purple-500/30">
                                   🏢 Landlord
                                 </Badge>
                                 <span className="truncate">{landlord.property_address}</span>
                               </div>
-                            </div>
+                            </button>
                             <div className="flex items-center gap-1.5">
                               <WhatsAppRequestButton
                                 targetUserId={landlord.id}
@@ -1710,12 +1766,6 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                 variant="outline"
                                 className="h-9 w-9"
                               />
-                              <a
-                                href={`tel:${landlord.phone}`}
-                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
-                              >
-                                <Phone className="h-4 w-4" />
-                              </a>
                             </div>
                           </div>
                         </div>
@@ -1732,8 +1782,24 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         >
                           <div className="flex items-center gap-3">
                             <UserAvatar fullName={agent.full_name} avatarUrl={agent.avatar_url} size="sm" />
-                            <div className="flex-1 min-w-0">
-                              <p className="font-semibold text-sm truncate">{agent.full_name}</p>
+                            <button 
+                              className="flex-1 min-w-0 text-left"
+                              onClick={() => {
+                                hapticTap();
+                                setProfileDialogUser({
+                                  id: agent.id,
+                                  name: agent.full_name,
+                                  avatarUrl: agent.avatar_url,
+                                  type: 'agent',
+                                  createdAt: agent.created_at,
+                                  phone: agent.phone,
+                                  city: agent.city,
+                                  country: agent.country,
+                                  tenantCount: agent.tenant_count
+                                });
+                              }}
+                            >
+                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{agent.full_name}</p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-500/10 text-amber-600 border-amber-500/30">
                                   🤝 Agent
@@ -1743,11 +1809,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                   {agent.tenant_count} tenants
                                 </Badge>
                               </div>
-                            </div>
+                            </button>
                             <ContactActionsBar
                               userId={agent.id}
                               userName={agent.full_name}
-                              userPhone={agent.phone}
                               compact
                             />
                           </div>
@@ -2616,6 +2681,13 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         onOpenChange={setShowManagerInvestDialog}
         suggestedAmount={managerInvestAmount}
         tenantsCount={opportunities.filter(o => o.status !== 'funded').length}
+      />
+
+      {/* User Profile Dialog */}
+      <UserProfileDialog
+        open={!!profileDialogUser}
+        onOpenChange={(open) => !open && setProfileDialogUser(null)}
+        user={profileDialogUser}
       />
     </>
   );
