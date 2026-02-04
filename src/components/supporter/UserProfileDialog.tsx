@@ -3,7 +3,7 @@ import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
 import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
-import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2 } from 'lucide-react';
+import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap } from 'lucide-react';
 import { formatDistanceToNow, format } from 'date-fns';
 
 interface UserProfileDialogProps {
@@ -134,6 +134,15 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
                     <Building className="h-4 w-4 text-muted-foreground" />
                     <span className="text-muted-foreground">Houses</span>
                     <span className="ml-auto font-medium">{user.numberOfHouses}</span>
+                  </div>
+                )}
+                {user.electricityMeter && (
+                  <div className="flex items-center gap-2 text-sm">
+                    <Zap className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-muted-foreground">Meter #</span>
+                    <span className="ml-auto font-mono text-xs bg-muted px-2 py-0.5 rounded">
+                      {user.electricityMeter}
+                    </span>
                   </div>
                 )}
                 {user.verified !== undefined && (
