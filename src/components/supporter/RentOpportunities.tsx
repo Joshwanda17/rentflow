@@ -49,7 +49,8 @@ import {
   RefreshCw,
   Search,
   X,
-  UserPlus
+  UserPlus,
+  ChevronRight
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -1432,7 +1433,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               });
                             }}
                           >
-                            <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{tenant.full_name}</p>
+                            <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                              {tenant.full_name}
+                              <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                            </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground">
                               <span>{formatDistanceToNow(new Date(tenant.created_at), { addSuffix: true })}</span>
                               {tenant.has_rent_request ? (
@@ -1523,7 +1527,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                             }}
                           >
                             <div className="flex items-center gap-2">
-                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{landlord.name}</p>
+                              <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                                {landlord.name}
+                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                              </p>
                               {!landlord.has_smartphone && (
                                 <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-muted">
                                   No Phone
@@ -1641,7 +1648,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                               });
                             }}
                           >
-                            <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{agent.full_name}</p>
+                            <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                              {agent.full_name}
+                              <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                            </p>
                             <div className="flex items-center gap-2 text-xs text-muted-foreground flex-wrap">
                               {(agent.city || agent.country) && (
                                 <span className="flex items-center gap-1">
@@ -1742,7 +1752,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                 });
                               }}
                             >
-                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{tenant.full_name}</p>
+                              <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                                {tenant.full_name}
+                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                              </p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-blue-500/10 text-blue-600 border-blue-500/30">
                                   🏠 Tenant
@@ -1792,7 +1805,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                 });
                               }}
                             >
-                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{landlord.name}</p>
+                              <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                                {landlord.name}
+                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                              </p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-purple-500/10 text-purple-600 border-purple-500/30">
                                   🏢 Landlord
@@ -1842,7 +1858,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                                 });
                               }}
                             >
-                              <p className="font-semibold text-sm truncate hover:text-primary transition-colors">{agent.full_name}</p>
+                              <p className="font-semibold text-sm truncate hover:text-primary hover:underline underline-offset-2 transition-colors inline-flex items-center gap-1 group">
+                                {agent.full_name}
+                                <ChevronRight className="h-3 w-3 opacity-0 group-hover:opacity-100 transition-opacity text-primary" />
+                              </p>
                               <div className="flex items-center gap-2 text-xs text-muted-foreground">
                                 <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-500/10 text-amber-600 border-amber-500/30">
                                   🤝 Agent
