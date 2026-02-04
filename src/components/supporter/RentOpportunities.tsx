@@ -112,7 +112,7 @@ interface RentOpportunity {
 }
 
 type SortOption = 'newest' | 'oldest' | 'amount_high' | 'amount_low';
-type FilterOption = 'all' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted' | 'all_tenants' | 'all_landlords' | 'all_agents';
+type FilterOption = 'all' | 'all_users' | 'verified' | 'pending' | 'verifying' | 'watched' | 'unseen' | 'funded' | 'landlord_ready' | 'rejected' | 'ready' | 'agent_posted' | 'all_tenants' | 'all_landlords' | 'all_agents';
 
 interface PotentialTenant {
   id: string;
@@ -1295,7 +1295,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         {/* Quick Filter Chips - ALL STATUSES */}
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
-            { value: 'all', label: 'All', icon: '📋' },
+            { value: 'all', label: 'All Requests', icon: '📋' },
+            { value: 'all_users', label: `All Users (${allTenants.length + allLandlords.length + allAgents.length})`, icon: '👥' },
             { value: 'all_tenants', label: `Tenants (${allTenants.length})`, icon: '🏠' },
             { value: 'all_landlords', label: `Landlords (${allLandlords.length})`, icon: '🏢' },
             { value: 'all_agents', label: `Agents (${allAgents.length})`, icon: '🤝' },
@@ -1621,8 +1622,147 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           </Card>
         )}
 
+        {/* All Users Combined List */}
+        {filterBy === 'all_users' && (
+          <Card className="border shadow-sm">
+            <CardContent className="p-0">
+              <div className="px-4 py-3 bg-muted/30 border-b">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">👥</span>
+                    <h4 className="font-bold text-foreground">All Users</h4>
+                  </div>
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
+                    {allTenants.length + allLandlords.length + allAgents.length} total
+                  </Badge>
+                </div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  All tenants, landlords, and agents in the system
+                </p>
+              </div>
+              <div className="divide-y divide-border">
+                {loadingPotentials ? (
+                  <div className="flex items-center justify-center py-8">
+                    <div className="animate-spin rounded-full h-6 w-6 border-2 border-primary/20 border-t-primary" />
+                  </div>
+                ) : (allTenants.length + allLandlords.length + allAgents.length) === 0 ? (
+                  <div className="text-center py-8 px-4">
+                    <Users className="h-8 w-8 mx-auto text-muted-foreground/40 mb-2" />
+                    <p className="text-sm text-muted-foreground">No users found</p>
+                  </div>
+                ) : (
+                  <>
+                    {/* Tenants Section */}
+                    {allTenants
+                      .filter(t => !searchQuery || t.full_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((tenant) => (
+                        <div
+                          key={`tenant-${tenant.id}`}
+                          className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <UserAvatar fullName={tenant.full_name} avatarUrl={tenant.avatar_url} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-blue-500/10 text-blue-600 border-blue-500/30">
+                                  🏠 Tenant
+                                </Badge>
+                                <span>{formatDistanceToNow(new Date(tenant.created_at), { addSuffix: true })}</span>
+                              </div>
+                            </div>
+                            <ContactActionsBar
+                              userId={tenant.id}
+                              userName={tenant.full_name}
+                              userPhone={tenant.phone}
+                              compact
+                            />
+                          </div>
+                        </div>
+                      ))
+                    }
+
+                    {/* Landlords Section */}
+                    {allLandlords
+                      .filter(l => !searchQuery || l.name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((landlord) => (
+                        <div
+                          key={`landlord-${landlord.id}`}
+                          className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <UserAvatar fullName={landlord.name} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{landlord.name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-purple-500/10 text-purple-600 border-purple-500/30">
+                                  🏢 Landlord
+                                </Badge>
+                                <span className="truncate">{landlord.property_address}</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center gap-1.5">
+                              <WhatsAppRequestButton
+                                targetUserId={landlord.id}
+                                targetName={landlord.name}
+                                targetPhone={landlord.phone}
+                                size="icon"
+                                variant="outline"
+                                className="h-9 w-9"
+                              />
+                              <a
+                                href={`tel:${landlord.phone}`}
+                                className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 transition-colors"
+                              >
+                                <Phone className="h-4 w-4" />
+                              </a>
+                            </div>
+                          </div>
+                        </div>
+                      ))
+                    }
+
+                    {/* Agents Section */}
+                    {allAgents
+                      .filter(a => !searchQuery || a.full_name?.toLowerCase().includes(searchQuery.toLowerCase()))
+                      .map((agent) => (
+                        <div
+                          key={`agent-${agent.id}`}
+                          className="px-4 py-3 hover:bg-muted/50 transition-colors"
+                        >
+                          <div className="flex items-center gap-3">
+                            <UserAvatar fullName={agent.full_name} avatarUrl={agent.avatar_url} size="sm" />
+                            <div className="flex-1 min-w-0">
+                              <p className="font-semibold text-sm truncate">{agent.full_name}</p>
+                              <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                                <Badge variant="outline" className="text-[10px] h-4 px-1.5 bg-amber-500/10 text-amber-600 border-amber-500/30">
+                                  🤝 Agent
+                                </Badge>
+                                <Badge variant="secondary" className="text-[10px] h-4 px-1.5">
+                                  <Users className="h-2.5 w-2.5 mr-0.5" />
+                                  {agent.tenant_count} tenants
+                                </Badge>
+                              </div>
+                            </div>
+                            <ContactActionsBar
+                              userId={agent.id}
+                              userName={agent.full_name}
+                              userPhone={agent.phone}
+                              compact
+                            />
+                          </div>
+                        </div>
+                      ))
+                    }
+                  </>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Opportunities List - Collapsible Names */}
-        {filterBy !== 'all_tenants' && filterBy !== 'all_landlords' && filterBy !== 'all_agents' && (
+        {filterBy !== 'all_tenants' && filterBy !== 'all_landlords' && filterBy !== 'all_agents' && filterBy !== 'all_users' && (
         <Card className="border shadow-sm">
           <CardContent className="p-0">
             <div className="divide-y divide-border">
