@@ -174,7 +174,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [showLandlordDetails, setShowLandlordDetails] = useState(false);
   const [newOpportunityId, setNewOpportunityId] = useState<string | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [filterBy, setFilterBy] = useState<FilterOption>('all');
+  const [filterBy, setFilterBy] = useState<FilterOption>('all_users');
   const [startingChat, setStartingChat] = useState(false);
   const [watchedIds, setWatchedIds] = useState<Set<string>>(new Set());
   const [watchingId, setWatchingId] = useState<string | null>(null);
