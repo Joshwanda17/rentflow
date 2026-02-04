@@ -187,6 +187,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [allLandlords, setAllLandlords] = useState<PotentialLandlord[]>([]);
   const [allAgents, setAllAgents] = useState<PotentialAgent[]>([]);
   const [loadingPotentials, setLoadingPotentials] = useState(false);
+  const [loadingMoreUsers, setLoadingMoreUsers] = useState(false);
+  const [usersPage, setUsersPage] = useState(0);
+  const [hasMoreUsers, setHasMoreUsers] = useState(true);
+  const USERS_PAGE_SIZE = 30;
+  const usersLoadMoreRef = useRef<HTMLDivElement>(null);
   const [profileDialogUser, setProfileDialogUser] = useState<{
     id: string;
     name: string;
@@ -440,50 +445,120 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     setLoadingMore(false);
   };
 
-  // Fetch all tenants and landlords for potential opportunities
-  const fetchAllTenantsAndLandlords = async () => {
-    setLoadingPotentials(true);
+  // Fetch all tenants and landlords for potential opportunities - with pagination
+  const fetchAllTenantsAndLandlords = async (reset: boolean = true) => {
+    if (reset) {
+      setLoadingPotentials(true);
+      setUsersPage(0);
+    } else {
+      setLoadingMoreUsers(true);
+    }
+    
+    const currentPage = reset ? 0 : usersPage;
+    const from = currentPage * USERS_PAGE_SIZE;
+    const to = from + USERS_PAGE_SIZE - 1;
     
     try {
-      // Fetch all tenant users (users with tenant role)
-      const { data: tenantRoles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'tenant')
-        .eq('enabled', true);
+      // On first load, get counts and lookup data once
+      let tenantUserIds: string[] = [];
+      let tenantIdsWithRequests = new Set<string>();
+      let agentUserIds: string[] = [];
+      let agentTenantCounts = new Map<string, number>();
       
-      const tenantUserIds = tenantRoles?.map(r => r.user_id) || [];
-      
-      // Fetch tenant profiles
-      let tenantProfiles: PotentialTenant[] = [];
-      if (tenantUserIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, avatar_url, created_at')
-          .in('id', tenantUserIds);
+      if (reset) {
+        // Fetch all tenant user IDs (users with tenant role)
+        const { data: tenantRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'tenant')
+          .eq('enabled', true);
+        
+        tenantUserIds = tenantRoles?.map(r => r.user_id) || [];
         
         // Get rent request tenant ids to mark who has requests
         const { data: rentRequestTenantIds } = await supabase
           .from('rent_requests')
           .select('tenant_id');
         
-        const tenantIdsWithRequests = new Set(rentRequestTenantIds?.map(r => r.tenant_id) || []);
+        tenantIdsWithRequests = new Set(rentRequestTenantIds?.map(r => r.tenant_id) || []);
         
-        tenantProfiles = (profiles || []).map(p => ({
-          id: p.id,
-          full_name: p.full_name || 'Anonymous Tenant',
-          phone: p.phone || undefined,
-          avatar_url: p.avatar_url || undefined,
-          created_at: p.created_at,
-          has_rent_request: tenantIdsWithRequests.has(p.id)
-        }));
+        // Fetch all agent user IDs
+        const { data: agentRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'agent')
+          .eq('enabled', true);
+        
+        agentUserIds = agentRoles?.map(r => r.user_id) || [];
+        
+        // Count tenants registered by each agent via referrals
+        const { data: referrals } = await supabase
+          .from('referrals')
+          .select('referrer_id, referred_id');
+        
+        const tenantIdSet = new Set(tenantUserIds);
+        
+        (referrals || []).forEach(r => {
+          if (tenantIdSet.has(r.referred_id)) {
+            agentTenantCounts.set(r.referrer_id, (agentTenantCounts.get(r.referrer_id) || 0) + 1);
+          }
+        });
+        
+        // Also count tenants from rent_requests agent_id
+        const { data: rentRequestAgents } = await supabase
+          .from('rent_requests')
+          .select('agent_id, tenant_id');
+        
+        (rentRequestAgents || []).forEach(r => {
+          if (r.agent_id) {
+            agentTenantCounts.set(r.agent_id, (agentTenantCounts.get(r.agent_id) || 0) + 1);
+          }
+        });
       }
       
-      // Fetch all landlords
+      // Fetch tenant profiles with pagination
+      let tenantProfiles: PotentialTenant[] = [];
+      if (reset) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone, avatar_url, created_at')
+          .order('created_at', { ascending: false })
+          .range(from, to);
+        
+        // Filter to only tenants - we need to get all tenant IDs first
+        const { data: tenantRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'tenant')
+          .eq('enabled', true);
+        
+        const tenantIdSet = new Set(tenantRoles?.map(r => r.user_id) || []);
+        
+        // Get rent request tenant ids
+        const { data: rentRequestTenantIds } = await supabase
+          .from('rent_requests')
+          .select('tenant_id');
+        
+        tenantIdsWithRequests = new Set(rentRequestTenantIds?.map(r => r.tenant_id) || []);
+        
+        tenantProfiles = (profiles || [])
+          .filter(p => tenantIdSet.has(p.id))
+          .map(p => ({
+            id: p.id,
+            full_name: p.full_name || 'Anonymous Tenant',
+            phone: p.phone || undefined,
+            avatar_url: p.avatar_url || undefined,
+            created_at: p.created_at,
+            has_rent_request: tenantIdsWithRequests.has(p.id)
+          }));
+      }
+      
+      // Fetch landlords with pagination
       const { data: landlords } = await supabase
         .from('landlords')
         .select('id, name, phone, property_address, verified, ready_to_receive, created_at, has_smartphone, number_of_houses, desired_rent_from_welile, electricity_meter_number, caretaker_name, caretaker_phone')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(from, to);
       
       const landlordList: PotentialLandlord[] = (landlords || []).map(l => ({
         id: l.id,
@@ -501,74 +576,117 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         caretaker_phone: l.caretaker_phone || ''
       }));
       
-      // Fetch all agents (users with agent role)
-      const { data: agentRoles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent')
-        .eq('enabled', true);
-      
-      const agentUserIds = agentRoles?.map(r => r.user_id) || [];
-      
-      // Fetch agent profiles with location
+      // Fetch agent profiles with pagination
       let agentProfiles: PotentialAgent[] = [];
-      if (agentUserIds.length > 0) {
+      if (reset) {
+        const { data: agentRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'agent')
+          .eq('enabled', true);
+        
+        const agentIdSet = new Set(agentRoles?.map(r => r.user_id) || []);
+        
         const { data: profiles } = await supabase
           .from('profiles')
           .select('id, full_name, phone, avatar_url, created_at, city, country')
-          .in('id', agentUserIds);
+          .order('created_at', { ascending: false })
+          .range(from, to);
         
-        // Count tenants registered by each agent via referrals
+        // Count tenants for agents
         const { data: referrals } = await supabase
           .from('referrals')
           .select('referrer_id, referred_id');
         
-        // Get tenant role user ids to count only tenants referred
-        const tenantIdSet = new Set(tenantUserIds);
+        const { data: tenantRoles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'tenant')
+          .eq('enabled', true);
         
-        // Count how many tenants each agent has referred
-        const agentTenantCounts = new Map<string, number>();
+        const tenantIdSet = new Set(tenantRoles?.map(r => r.user_id) || []);
+        
+        const counts = new Map<string, number>();
         (referrals || []).forEach(r => {
           if (tenantIdSet.has(r.referred_id)) {
-            agentTenantCounts.set(r.referrer_id, (agentTenantCounts.get(r.referrer_id) || 0) + 1);
+            counts.set(r.referrer_id, (counts.get(r.referrer_id) || 0) + 1);
           }
         });
         
-        // Also count tenants from rent_requests agent_id
         const { data: rentRequestAgents } = await supabase
           .from('rent_requests')
           .select('agent_id, tenant_id');
         
         (rentRequestAgents || []).forEach(r => {
           if (r.agent_id) {
-            agentTenantCounts.set(r.agent_id, (agentTenantCounts.get(r.agent_id) || 0) + 1);
+            counts.set(r.agent_id, (counts.get(r.agent_id) || 0) + 1);
           }
         });
         
-        agentProfiles = (profiles || []).map(p => ({
-          id: p.id,
-          full_name: p.full_name || 'Anonymous Agent',
-          phone: p.phone || undefined,
-          avatar_url: p.avatar_url || undefined,
-          created_at: p.created_at,
-          city: p.city || undefined,
-          country: p.country || undefined,
-          tenant_count: agentTenantCounts.get(p.id) || 0
-        }));
+        agentProfiles = (profiles || [])
+          .filter(p => agentIdSet.has(p.id))
+          .map(p => ({
+            id: p.id,
+            full_name: p.full_name || 'Anonymous Agent',
+            phone: p.phone || undefined,
+            avatar_url: p.avatar_url || undefined,
+            created_at: p.created_at,
+            city: p.city || undefined,
+            country: p.country || undefined,
+            tenant_count: counts.get(p.id) || 0
+          }));
         
-        // Sort by tenant count descending
         agentProfiles.sort((a, b) => b.tenant_count - a.tenant_count);
       }
       
-      setAllTenants(tenantProfiles);
-      setAllLandlords(landlordList);
-      setAllAgents(agentProfiles);
+      // Determine if there's more data
+      const fetchedCount = tenantProfiles.length + landlordList.length + agentProfiles.length;
+      const hasMore = landlordList.length === USERS_PAGE_SIZE; // Use landlords as the pagination indicator
+      
+      if (reset) {
+        setAllTenants(tenantProfiles);
+        setAllLandlords(landlordList);
+        setAllAgents(agentProfiles);
+      } else {
+        setAllLandlords(prev => [...prev, ...landlordList]);
+      }
+      
+      setHasMoreUsers(hasMore);
+      setUsersPage(currentPage + 1);
     } catch (error) {
       console.error('[RentOpportunities] Error fetching tenants/landlords/agents:', error);
     }
     
     setLoadingPotentials(false);
+    setLoadingMoreUsers(false);
   };
+  
+  // Load more users for pagination
+  const loadMoreUsers = useCallback(() => {
+    if (!loadingMoreUsers && hasMoreUsers && filterBy === 'all_users') {
+      fetchAllTenantsAndLandlords(false);
+    }
+  }, [loadingMoreUsers, hasMoreUsers, filterBy]);
+  
+  // Intersection Observer for infinite scroll of users
+  useEffect(() => {
+    if (filterBy !== 'all_users') return;
+    
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMoreUsers && !loadingMoreUsers && !loadingPotentials) {
+          loadMoreUsers();
+        }
+      },
+      { threshold: 0.1 }
+    );
+
+    if (usersLoadMoreRef.current) {
+      observer.observe(usersLoadMoreRef.current);
+    }
+
+    return () => observer.disconnect();
+  }, [hasMoreUsers, loadingMoreUsers, loadingPotentials, filterBy, loadMoreUsers]);
 
   const loadMore = () => {
     if (!loadingMore && hasMore) {
@@ -1881,6 +1999,21 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                         </div>
                       ))
                     }
+                    
+                    {/* Infinite scroll trigger for users */}
+                    <div ref={usersLoadMoreRef} className="py-3">
+                      {loadingMoreUsers && (
+                        <div className="flex items-center justify-center gap-2 text-muted-foreground">
+                          <div className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+                          <span className="text-xs">Loading more users...</span>
+                        </div>
+                      )}
+                      {!hasMoreUsers && (allTenants.length + allLandlords.length + allAgents.length) > 0 && (
+                        <p className="text-xs text-center text-muted-foreground py-2">
+                          All {allTenants.length + allLandlords.length + allAgents.length} users loaded
+                        </p>
+                      )}
+                    </div>
                   </>
                 )}
               </div>
