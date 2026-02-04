@@ -192,6 +192,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   const [hasMoreUsers, setHasMoreUsers] = useState(true);
   const USERS_PAGE_SIZE = 30;
   const usersLoadMoreRef = useRef<HTMLDivElement>(null);
+  // Total counts from database (for display before all users are loaded)
+  const [totalCounts, setTotalCounts] = useState({ tenants: 0, landlords: 0, agents: 0 });
   const [profileDialogUser, setProfileDialogUser] = useState<{
     id: string;
     name: string;
@@ -459,13 +461,26 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const to = from + USERS_PAGE_SIZE - 1;
     
     try {
-      // On first load, get counts and lookup data once
+      // On first load, get total counts and lookup data once
       let tenantUserIds: string[] = [];
       let tenantIdsWithRequests = new Set<string>();
       let agentUserIds: string[] = [];
       let agentTenantCounts = new Map<string, number>();
       
       if (reset) {
+        // Fetch total counts first (for display purposes)
+        const [tenantCountResult, landlordCountResult, agentCountResult] = await Promise.all([
+          supabase.from('user_roles').select('user_id', { count: 'exact', head: true }).eq('role', 'tenant').eq('enabled', true),
+          supabase.from('landlords').select('id', { count: 'exact', head: true }),
+          supabase.from('user_roles').select('user_id', { count: 'exact', head: true }).eq('role', 'agent').eq('enabled', true)
+        ]);
+        
+        setTotalCounts({
+          tenants: tenantCountResult.count || 0,
+          landlords: landlordCountResult.count || 0,
+          agents: agentCountResult.count || 0
+        });
+        
         // Fetch all tenant user IDs (users with tenant role)
         const { data: tenantRoles } = await supabase
           .from('user_roles')
@@ -1437,10 +1452,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { value: 'all', label: 'All Requests', icon: '📋' },
-            { value: 'all_users', label: `All Users (${allTenants.length + allLandlords.length + allAgents.length})`, icon: '👥' },
-            { value: 'all_tenants', label: `Tenants (${allTenants.length})`, icon: '🏠' },
-            { value: 'all_landlords', label: `Landlords (${allLandlords.length})`, icon: '🏢' },
-            { value: 'all_agents', label: `Agents (${allAgents.length})`, icon: '🤝' },
+            { value: 'all_users', label: `All Users (${totalCounts.tenants + totalCounts.landlords + totalCounts.agents})`, icon: '👥' },
+            { value: 'all_tenants', label: `Tenants (${totalCounts.tenants})`, icon: '🏠' },
+            { value: 'all_landlords', label: `Landlords (${totalCounts.landlords})`, icon: '🏢' },
+            { value: 'all_agents', label: `Agents (${totalCounts.agents})`, icon: '🤝' },
             { value: 'agent_posted', label: 'Agent Posted', icon: '👤' },
             { value: 'funded', label: 'Funded', icon: '💚' },
             { value: 'ready', label: 'Ready', icon: '✅' },
@@ -1508,8 +1523,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🏠</span>
                     <h4 className="font-bold text-foreground">All Registered Tenants</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                    {allTenants.length} total
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                    {allTenants.length} / {totalCounts.tenants}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -1592,8 +1607,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🏢</span>
                     <h4 className="font-bold text-foreground">All Registered Landlords</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                    {allLandlords.length} total
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                    {allLandlords.length} / {totalCounts.landlords}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -1721,8 +1736,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🤝</span>
                     <h4 className="font-bold text-foreground">All Registered Agents</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                    {allAgents.length} total
+                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                    {allAgents.length} / {totalCounts.agents}
                   </Badge>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
@@ -1825,9 +1840,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">👥</span>
                     <h4 className="font-bold text-foreground">All Users</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30">
-                    {allTenants.length + allLandlords.length + allAgents.length} total
-                  </Badge>
+                  <div className="flex items-center gap-2">
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                      {allTenants.length + allLandlords.length + allAgents.length} / {totalCounts.tenants + totalCounts.landlords + totalCounts.agents}
+                    </Badge>
+                  </div>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   All tenants, landlords, and agents in the system
@@ -2010,7 +2027,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                       )}
                       {!hasMoreUsers && (allTenants.length + allLandlords.length + allAgents.length) > 0 && (
                         <p className="text-xs text-center text-muted-foreground py-2">
-                          All {allTenants.length + allLandlords.length + allAgents.length} users loaded
+                          ✓ All {totalCounts.tenants + totalCounts.landlords + totalCounts.agents} users loaded
                         </p>
                       )}
                     </div>
