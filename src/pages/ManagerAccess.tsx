@@ -51,6 +51,7 @@ import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmatio
 import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
 import UserLocationsManager from '@/components/manager/UserLocationsManager';
+ import LandlordLocationsMap from '@/components/map/LandlordLocationsMap';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
@@ -766,7 +767,10 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="locations" className="mt-4">
-            <UserLocationsManager />
+             <div className="space-y-6">
+               <LandlordLocationsMap />
+               <UserLocationsManager />
+             </div>
           </TabsContent>
         </Tabs>
       </main>

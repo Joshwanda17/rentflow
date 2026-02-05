@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+ import { useGeoLocation } from '@/hooks/useGeoLocation';
 import {
   Dialog,
   DialogContent,
@@ -13,7 +14,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
-import { Building2, Phone, MapPin, Banknote, Loader2, CheckCircle2, CreditCard, Smartphone, Zap, Home, User } from 'lucide-react';
+import { Building2, Phone, MapPin, Banknote, Loader2, CheckCircle2, CreditCard, Smartphone, Zap, Home, User, Navigation, AlertTriangle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface RegisterLandlordDialogProps {
@@ -24,6 +25,7 @@ interface RegisterLandlordDialogProps {
 
 export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }: RegisterLandlordDialogProps) {
   const { user } = useAuth();
+   const { location, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   
@@ -42,6 +44,19 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [desiredRentFromWelile, setDesiredRentFromWelile] = useState('');
   const [caretakerName, setCaretakerName] = useState('');
   const [caretakerPhone, setCaretakerPhone] = useState('');
+   const [locationCaptured, setLocationCaptured] = useState(false);
+
+   // Auto-capture location when dialog opens
+   const handleDialogOpen = async (isOpen: boolean) => {
+     if (isOpen && !locationCaptured) {
+       const loc = await captureLocation();
+       if (loc) setLocationCaptured(true);
+     }
+     if (!isOpen) {
+       resetForm();
+     }
+     onOpenChange(isOpen);
+   };
 
   const resetForm = () => {
     setLandlordName('');
@@ -56,6 +71,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     setDesiredRentFromWelile('');
     setCaretakerName('');
     setCaretakerPhone('');
+     setLocationCaptured(false);
     setSuccess(false);
   };
 
@@ -102,6 +118,10 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
         desired_rent_from_welile: rentAmount,
         caretaker_name: caretakerName.trim() || null,
         caretaker_phone: caretakerPhone.trim() || null,
+         latitude: location?.latitude || null,
+         longitude: location?.longitude || null,
+         location_captured_at: location ? new Date().toISOString() : null,
+         location_captured_by: location ? user.id : null,
       });
 
     setLoading(false);
@@ -117,15 +137,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     onSuccess?.();
   };
 
-  const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      resetForm();
-    }
-    onOpenChange(newOpen);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={handleOpenChange}>
+     <Dialog open={open} onOpenChange={handleDialogOpen}>
       <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
@@ -157,7 +170,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               <p className="text-muted-foreground text-sm mb-4">
                 The landlord has been added to the system
               </p>
-              <Button onClick={() => handleOpenChange(false)}>
+               <Button onClick={() => handleDialogOpen(false)}>
                 Done
               </Button>
             </motion.div>
@@ -169,6 +182,58 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               onSubmit={handleSubmit}
               className="space-y-4"
             >
+               {/* Location Status */}
+               <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                 locationCaptured 
+                   ? 'bg-success/10 border-success/30' 
+                   : locationError 
+                     ? 'bg-destructive/10 border-destructive/30'
+                     : 'bg-muted/50 border-muted'
+               }`}>
+                 <div className="flex items-center gap-2">
+                   {locationLoading ? (
+                     <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                   ) : locationCaptured ? (
+                     <CheckCircle2 className="h-4 w-4 text-success" />
+                   ) : locationError ? (
+                     <AlertTriangle className="h-4 w-4 text-destructive" />
+                   ) : (
+                     <Navigation className="h-4 w-4 text-muted-foreground" />
+                   )}
+                   <div>
+                     <p className="text-sm font-medium">
+                       {locationLoading 
+                         ? 'Getting location...' 
+                         : locationCaptured 
+                           ? 'Location captured' 
+                           : locationError 
+                             ? locationError
+                             : 'Location pending'}
+                     </p>
+                     {locationCaptured && location && (
+                       <p className="text-xs text-muted-foreground">
+                         {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                         {location.accuracy && ` (±${Math.round(location.accuracy)}m)`}
+                       </p>
+                     )}
+                   </div>
+                 </div>
+                 {!locationCaptured && !locationLoading && (
+                   <Button 
+                     type="button" 
+                     variant="outline" 
+                     size="sm"
+                     onClick={async () => {
+                       const loc = await captureLocation();
+                       if (loc) setLocationCaptured(true);
+                     }}
+                   >
+                     <Navigation className="h-3 w-3 mr-1" />
+                     Retry
+                   </Button>
+                 )}
+               </div>
+
               {/* Smartphone Toggle */}
               <div className="flex items-center justify-between p-3 rounded-lg bg-muted/50 border">
                 <div className="flex items-center gap-2">
