@@ -23,7 +23,8 @@ import {
   History,
   Settings,
   Store,
-  Heart
+  Heart,
+  MapPin
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -52,7 +53,7 @@ const menuConfigs: Record<AppRole, MenuItem[]> = {
     { icon: CreditCard, label: 'Payments', path: '/manager-access?tab=payments', color: 'bg-pink-500', description: 'Payment confirmations' },
     { icon: Receipt, label: 'Receipts', path: '/manager-access?tab=receipts', color: 'bg-teal-500', description: 'User receipts' },
     { icon: ChartBar, label: 'Finance', path: '/manager-access?tab=financials', color: 'bg-emerald-500', description: 'Financial overview' },
-    { icon: Wallet, label: 'Invest', path: '/manager-access?tab=investments', color: 'bg-amber-500', description: 'Investment accounts' },
+    { icon: MapPin, label: 'Locations', path: '/manager-access?tab=locations', color: 'bg-red-500', description: 'User locations' },
   ],
   tenant: [
     { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
