@@ -715,6 +715,15 @@ export default function ManagerAccess() {
                   <h2 className="text-lg font-semibold text-white">All Users</h2>
                   <p className="text-xs text-white/70">Manage system users</p>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={() => handleTabChange('locations')}
+                  className="text-white/90 hover:text-white hover:bg-white/10 gap-2"
+                >
+                  <MapPin className="h-4 w-4" />
+                  <span className="hidden xs:inline">Locations</span>
+                </Button>
               </div>
               {/* User profiles table with full height */}
               <div className="h-[calc(100vh-60px)] overflow-auto md:h-auto md:overflow-visible pb-20 md:pb-0">
