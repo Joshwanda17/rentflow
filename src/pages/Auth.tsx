@@ -41,6 +41,13 @@ export default function Auth() {
   const becomeRole = searchParams.get('become'); // e.g., 'agent' for sub-agent signup
   const preSelectedRole = searchParams.get('role'); // e.g., 'supporter' from calculator
   
+  // Store referrer ID in state as fallback for iOS (localStorage can be unreliable on iOS Safari)
+  const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
+    // Initialize from URL param or localStorage
+    if (referralId) return referralId;
+    return localStorage.getItem('referral_agent_id');
+  });
+  
   const [isSignUp, setIsSignUp] = useState(!!referralId || !!becomeRole || !!preSelectedRole);
   const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [isForgotPhone, setIsForgotPhone] = useState(false);
@@ -83,6 +90,7 @@ export default function Auth() {
   useEffect(() => {
     if (referralId) {
       localStorage.setItem('referral_agent_id', referralId);
+      setReferrerIdState(referralId);
     }
     if (becomeRole) {
       localStorage.setItem('become_role', becomeRole);
@@ -181,9 +189,15 @@ export default function Auth() {
         const cleanPhone = phone.replace(/\D/g, '');
         const generatedEmail = `${cleanPhone}@welile.user`;
 
-        const storedReferrerId = localStorage.getItem('referral_agent_id');
+        // Use state-based referrer first (more reliable on iOS), fallback to localStorage
+        const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
+        console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
+        
         const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
-        if (!error) localStorage.removeItem('referral_agent_id');
+        if (!error) {
+          localStorage.removeItem('referral_agent_id');
+          setReferrerIdState(null);
+        }
         if (error) {
           // Translate common errors
           let errorMessage = error.message;
