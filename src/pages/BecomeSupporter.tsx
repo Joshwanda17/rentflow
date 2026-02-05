@@ -36,6 +36,17 @@ export default function BecomeSupporter() {
   const [searchParams] = useSearchParams();
   const referrerId = searchParams.get('ref');
   
+  // Store referrer ID in state as fallback for iOS (localStorage can be unreliable on iOS Safari)
+  const [referrerIdState, setReferrerIdState] = useState<string | null>(() => {
+    // Initialize from URL param or localStorage
+    if (referrerId) return referrerId;
+    try {
+      return localStorage.getItem('supporter_referrer_id');
+    } catch {
+      return null;
+    }
+  });
+  
   const [isSignUp, setIsSignUp] = useState(true);
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
@@ -52,6 +63,7 @@ export default function BecomeSupporter() {
   useEffect(() => {
     if (referrerId) {
       localStorage.setItem('supporter_referrer_id', referrerId);
+      setReferrerIdState(referrerId);
       // Fetch referrer name
       supabase
         .from('profiles')
@@ -85,7 +97,10 @@ export default function BecomeSupporter() {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
     } else {
       // Create referral records if there's a referrer
-      const storedReferrerId = localStorage.getItem('supporter_referrer_id');
+      // Use state-based referrer first (more reliable on iOS), fallback to localStorage
+      const storedReferrerId = referrerIdState || localStorage.getItem('supporter_referrer_id');
+      console.log('[BecomeSupporter] Processing referral with referrer:', storedReferrerId);
+      
       if (storedReferrerId && user && storedReferrerId !== user.id) {
         // Create supporter-specific referral
         await supabase.from('supporter_referrals').insert({
@@ -126,6 +141,7 @@ export default function BecomeSupporter() {
         });
 
         localStorage.removeItem('supporter_referrer_id');
+        setReferrerIdState(null);
       }
       
       toast({ 
@@ -164,10 +180,15 @@ export default function BecomeSupporter() {
         localStorage.setItem('pending_supporter_signup', 'true');
 
         // Get referrer ID from localStorage (set when they arrived via referral link)
-        const storedReferrerId = localStorage.getItem('supporter_referrer_id');
+        // Use state-based referrer first (more reliable on iOS), fallback to localStorage
+        const storedReferrerId = referrerIdState || localStorage.getItem('supporter_referrer_id');
+        console.log('[BecomeSupporter] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ')');
         
         const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
-        if (!error) localStorage.removeItem('supporter_referrer_id');
+        if (!error) {
+          localStorage.removeItem('supporter_referrer_id');
+          setReferrerIdState(null);
+        }
         if (error) {
           let errorMessage = error.message;
           if (error.message.includes('already registered')) {
