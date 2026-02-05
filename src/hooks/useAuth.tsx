@@ -146,12 +146,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const fetchUserRoles = async (userId: string) => {
-    // Only fetch roles that are enabled (not restricted by manager)
+    // Fetch roles that are enabled. Legacy rows may have enabled = NULL;
+    // treat NULL as enabled to avoid locking users out of their roles.
     const { data, error } = await supabase
       .from('user_roles')
       .select('role, enabled')
       .eq('user_id', userId)
-      .eq('enabled', true);
+      .or('enabled.is.null,enabled.eq.true');
     
     if (!error && data && data.length > 0) {
       let userRoles = data.map(r => r.role as AppRole);
@@ -188,7 +189,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const { error } = await supabase
       .from('user_roles')
-      .insert({ user_id: user.id, role: newRole });
+      .insert({ user_id: user.id, role: newRole, enabled: true });
 
     if (!error) {
       const newRoles = [...roles, newRole];
