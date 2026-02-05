@@ -246,6 +246,28 @@ Deno.serve(async (req) => {
       console.error("[activate-supporter] Role error:", roleError);
     }
 
+    // If this is a landlord, create a landlord record with the captured location
+    if (userRole === 'landlord') {
+      const { error: landlordError } = await adminClient
+        .from("landlords")
+        .insert({
+          name: invite.full_name,
+          phone: invite.phone,
+          property_address: invite.property_address || 'Address not provided',
+          latitude: invite.latitude || null,
+          longitude: invite.longitude || null,
+          location_captured_at: invite.latitude ? new Date().toISOString() : null,
+          location_captured_by: invite.created_by,
+          registered_by: invite.created_by,
+        });
+
+      if (landlordError) {
+        console.error("[activate-supporter] Landlord record creation error:", landlordError);
+      } else {
+        console.log(`[activate-supporter] Created landlord record for ${invite.full_name} with location: ${invite.latitude ? 'yes' : 'no'}`);
+      }
+    }
+
     // If this is a sub-agent, create the sub-agent relationship
     if (isSubAgent && parentAgentId) {
       const { error: subAgentError } = await adminClient

@@ -1138,6 +1138,10 @@ export type Database = {
           electricity_meter_number: string | null
           has_smartphone: boolean | null
           id: string
+          latitude: number | null
+          location_captured_at: string | null
+          location_captured_by: string | null
+          longitude: number | null
           mobile_money_number: string | null
           monthly_rent: number | null
           name: string
@@ -1162,6 +1166,10 @@ export type Database = {
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
           id?: string
+          latitude?: number | null
+          location_captured_at?: string | null
+          location_captured_by?: string | null
+          longitude?: number | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name: string
@@ -1186,6 +1194,10 @@ export type Database = {
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
           id?: string
+          latitude?: number | null
+          location_captured_at?: string | null
+          location_captured_by?: string | null
+          longitude?: number | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name?: string
@@ -2669,8 +2681,12 @@ export type Database = {
           email: string
           full_name: string
           id: string
+          latitude: number | null
+          location_accuracy: number | null
+          longitude: number | null
           parent_agent_id: string | null
           phone: string
+          property_address: string | null
           role: string
           status: string
           temp_password: string
@@ -2684,8 +2700,12 @@ export type Database = {
           email: string
           full_name: string
           id?: string
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
           parent_agent_id?: string | null
           phone: string
+          property_address?: string | null
           role?: string
           status?: string
           temp_password: string
@@ -2699,8 +2719,12 @@ export type Database = {
           email?: string
           full_name?: string
           id?: string
+          latitude?: number | null
+          location_accuracy?: number | null
+          longitude?: number | null
           parent_agent_id?: string | null
           phone?: string
+          property_address?: string | null
           role?: string
           status?: string
           temp_password?: string

@@ -14,6 +14,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
+import { useGeoLocation } from '@/hooks/useGeoLocation';
+import { Loader2 as LoaderIcon, Navigation } from 'lucide-react';
 // User-friendly error messages mapping
 const getErrorMessage = (error: string): string => {
   const errorLower = error.toLowerCase();
@@ -158,9 +160,33 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
   const [lc1Success, setLc1Success] = useState(false);
 
+  // Location capture for landlord registrations
+  const { location: capturedLocation, loading: locationLoading, error: locationError, captureLocation } = useGeoLocation();
+  const [propertyAddress, setPropertyAddress] = useState('');
+  const [locationCaptured, setLocationCaptured] = useState(false);
+
   // Real-time duplicate phone checking
   const { isDuplicate: isPhoneDuplicate, isChecking: isCheckingPhone, duplicateMessage: phoneDuplicateMessage } = usePhoneDuplicateCheck(formData.phone);
   const { isDuplicate: isLc1PhoneDuplicate, isChecking: isCheckingLc1Phone, duplicateMessage: lc1PhoneDuplicateMessage } = usePhoneDuplicateCheck(lc1Data.phone);
+
+  // Capture location when landlord is selected
+  const handleSelectType = async (type: RegistrationType) => {
+    setSelectedType(type);
+    if (type === 'landlord') {
+      // Automatically capture location when landlord is selected
+      const loc = await captureLocation();
+      if (loc) {
+        setLocationCaptured(true);
+      }
+    }
+  };
+
+  const handleRetryLocation = async () => {
+    const loc = await captureLocation();
+    if (loc) {
+      setLocationCaptured(true);
+    }
+  };
 
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
@@ -196,7 +222,17 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       const isSupporter = selectedType === 'supporter';
 
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: { ...formData, role, isSubAgent, isSupporter },
+        body: { 
+          ...formData, 
+          role, 
+          isSubAgent, 
+          isSupporter,
+          // Include location data for landlord registrations
+          latitude: role === 'landlord' && capturedLocation ? capturedLocation.latitude : null,
+          longitude: role === 'landlord' && capturedLocation ? capturedLocation.longitude : null,
+          locationAccuracy: role === 'landlord' && capturedLocation ? capturedLocation.accuracy : null,
+          propertyAddress: role === 'landlord' && propertyAddress ? propertyAddress : null,
+        },
       });
 
       if (response.error) {
@@ -353,6 +389,8 @@ Password: ${createdInvite?.password}`;
     setCopied(false);
     setSelectedType(null);
     setLastError(null);
+    setPropertyAddress('');
+    setLocationCaptured(false);
     onOpenChange(false);
   };
 
@@ -363,6 +401,8 @@ Password: ${createdInvite?.password}`;
     setLc1Success(false);
     setSelectedType(null);
     setLastError(null);
+    setPropertyAddress('');
+    setLocationCaptured(false);
     generatePassword();
   };
 
@@ -381,7 +421,7 @@ Password: ${createdInvite?.password}`;
             <button
               key={type}
               type="button"
-              onClick={() => setSelectedType(type)}
+              onClick={() => handleSelectType(type)}
               className={`flex flex-col items-center justify-center p-5 rounded-2xl border-2 transition-all active:scale-95 touch-manipulation bg-muted/30 border-transparent hover:${config.bgColor} hover:border-current min-h-[120px]`}
             >
               <span className="text-4xl mb-2">{config.emoji}</span>
@@ -487,6 +527,97 @@ Password: ${createdInvite?.password}`;
             </p>
           )}
         </div>
+
+        {/* Property Address - Only for landlords */}
+        {selectedType === 'landlord' && (
+          <div className="space-y-2">
+            <Label htmlFor="propertyAddress" className="text-sm font-medium flex items-center gap-1">
+              <MapPin className="h-3 w-3" /> Property Address
+            </Label>
+            <Input
+              id="propertyAddress"
+              placeholder="e.g., Kabalagala, Block 5, Plot 12"
+              value={propertyAddress}
+              onChange={(e) => setPropertyAddress(e.target.value)}
+              className="h-14 text-base rounded-xl touch-manipulation"
+              autoComplete="off"
+            />
+          </div>
+        )}
+
+        {/* Location Status - Only for landlords */}
+        {selectedType === 'landlord' && (
+          <div className={`p-3 rounded-xl border ${locationCaptured ? 'bg-green-500/10 border-green-500/30' : locationError ? 'bg-amber-500/10 border-amber-500/30' : 'bg-muted/50 border-muted'}`}>
+            <div className="flex items-center gap-3">
+              {locationLoading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Capturing GPS location...</p>
+                    <p className="text-xs text-muted-foreground">This is the tenant's house location</p>
+                  </div>
+                </>
+              ) : locationCaptured && capturedLocation ? (
+                <>
+                  <Navigation className="h-5 w-5 text-green-500" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-green-600">📍 Location captured!</p>
+                    <p className="text-xs text-muted-foreground">
+                      {capturedLocation.latitude.toFixed(6)}, {capturedLocation.longitude.toFixed(6)}
+                      {capturedLocation.accuracy && ` (±${Math.round(capturedLocation.accuracy)}m)`}
+                    </p>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={handleRetryLocation}
+                    className="text-xs"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Refresh
+                  </Button>
+                </>
+              ) : locationError ? (
+                <>
+                  <AlertCircle className="h-5 w-5 text-amber-500" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium text-amber-600">{locationError}</p>
+                    <p className="text-xs text-muted-foreground">Location helps verify the property</p>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRetryLocation}
+                    className="text-xs"
+                  >
+                    <RefreshCw className="h-3 w-3 mr-1" />
+                    Retry
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Navigation className="h-5 w-5 text-muted-foreground" />
+                  <div className="flex-1">
+                    <p className="text-sm font-medium">Location not captured</p>
+                    <p className="text-xs text-muted-foreground">Tap to capture tenant's house location</p>
+                  </div>
+                  <Button 
+                    type="button" 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleRetryLocation}
+                    className="text-xs"
+                  >
+                    <Navigation className="h-3 w-3 mr-1" />
+                    Capture
+                  </Button>
+                </>
+              )}
+            </div>
+          </div>
+        )}
 
         <div className="space-y-2">
           <div className="flex items-center justify-between">

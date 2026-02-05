@@ -8,6 +8,14 @@ const corsHeaders = {
 
 const validRoles = ['tenant', 'agent', 'supporter', 'landlord', 'manager'];
 
+// Interface for location data (used for landlord registrations)
+interface LocationData {
+  latitude?: number;
+  longitude?: number;
+  accuracy?: number;
+  propertyAddress?: string;
+}
+
 // Normalize phone numbers for duplicate checks.
 // We compare by the last 9 digits (UG local number) to avoid false matches from string "includes".
 const toDigits = (value: string) => value.replace(/\D/g, "");
@@ -77,7 +85,19 @@ Deno.serve(async (req) => {
       isSubAgent: body.isSubAgent 
     }));
     
-    const { email, fullName, phone, password, role = 'tenant', isSubAgent = false } = body;
+    const { 
+      email, 
+      fullName, 
+      phone, 
+      password, 
+      role = 'tenant', 
+      isSubAgent = false,
+      // Location data for landlord registrations
+      latitude,
+      longitude,
+      locationAccuracy,
+      propertyAddress,
+    } = body;
 
     if (!email || !fullName || !phone || !password) {
       console.log("Missing fields:", { email: !!email, fullName: !!fullName, phone: !!phone, password: !!password });
@@ -206,6 +226,11 @@ Deno.serve(async (req) => {
         role,
         created_by: user.id,
         parent_agent_id: parentAgentId,
+        // Include location data for landlord registrations
+        latitude: role === 'landlord' && latitude ? latitude : null,
+        longitude: role === 'landlord' && longitude ? longitude : null,
+        location_accuracy: role === 'landlord' && locationAccuracy ? locationAccuracy : null,
+        property_address: role === 'landlord' && propertyAddress ? propertyAddress : null,
       })
       .select()
       .single();
