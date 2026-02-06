@@ -312,6 +312,8 @@ Deno.serve(async (req) => {
     const referralBonus = 500;
 
     // Create general referral record for all roles
+    // NOTE: Wallet crediting is handled by database triggers (credit_referral_bonus, credit_signup_referral_bonus)
+    // DO NOT manually credit wallet here to avoid double/triple crediting
     await adminClient
       .from("referrals")
       .insert({
@@ -321,20 +323,6 @@ Deno.serve(async (req) => {
         credited: true,
         credited_at: new Date().toISOString(),
       });
-
-    // Credit creator's wallet for the referral
-    const { data: walletData } = await adminClient
-      .from("wallets")
-      .select("balance")
-      .eq("user_id", invite.created_by)
-      .single();
-
-    if (walletData) {
-      await adminClient
-        .from("wallets")
-        .update({ balance: walletData.balance + referralBonus })
-        .eq("user_id", invite.created_by);
-    }
 
     // Also credit agent_earnings for agents
     const { data: creatorIsAgent } = await adminClient
