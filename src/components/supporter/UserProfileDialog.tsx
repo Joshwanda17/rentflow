@@ -3,8 +3,10 @@ import { Badge } from '@/components/ui/badge';
 import { UserAvatar } from '@/components/UserAvatar';
 import { ContactActionsBar } from '@/components/chat/ContactActionsBar';
 import { WhatsAppRequestButton } from '@/components/chat/WhatsAppRequestButton';
+import { Separator } from '@/components/ui/separator';
 import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { formatDistanceToNow } from 'date-fns';
+import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -16,7 +18,6 @@ interface UserProfileDialogProps {
     type: 'tenant' | 'landlord' | 'agent';
     createdAt?: string;
     phone?: string;
-    // Landlord-specific fields
     propertyAddress?: string;
     verified?: boolean;
     readyToReceive?: boolean;
@@ -26,11 +27,9 @@ interface UserProfileDialogProps {
     electricityMeter?: string;
     caretakerName?: string;
     caretakerPhone?: string;
-    // Agent-specific fields
     city?: string;
     country?: string;
     tenantCount?: number;
-    // Tenant-specific fields
     hasRentRequest?: boolean;
   } | null;
 }
@@ -63,7 +62,7 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader className="pb-0">
           <div className="flex flex-col items-center gap-3 pt-2">
             <UserAvatar 
@@ -81,7 +80,7 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
         </DialogHeader>
 
         <div className="space-y-4 py-4">
-          {/* Contact Actions - Always show but phone will use WhatsApp request system */}
+          {/* Contact Actions */}
           <div className="flex justify-center">
             {user.type === 'landlord' ? (
               <div className="flex items-center gap-2">
@@ -98,7 +97,6 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
               <ContactActionsBar
                 userId={user.id}
                 userName={user.name}
-                // Phone intentionally not passed to hide direct calling
                 showLabels
               />
             )}
@@ -106,7 +104,6 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
 
           {/* User Info */}
           <div className="space-y-3 bg-muted/30 rounded-lg p-3">
-            {/* Joined date */}
             {user.createdAt && (
               <div className="flex items-center gap-2 text-sm">
                 <Calendar className="h-4 w-4 text-muted-foreground" />
@@ -237,6 +234,14 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
               </>
             )}
           </div>
+
+          <Separator />
+
+          {/* Reviews & Ratings Section */}
+          <UserReviewsSection
+            userId={user.id}
+            userName={user.name}
+          />
 
           {/* Privacy notice */}
           <p className="text-xs text-muted-foreground text-center">

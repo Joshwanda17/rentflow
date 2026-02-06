@@ -7,10 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, MapPin, Banknote, Plus, UserCheck } from 'lucide-react';
+import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import TenantRating from './TenantRating';
+import StarRatingDisplay from '@/components/reviews/StarRatingDisplay';
 import LandlordAddTenantDialog from './LandlordAddTenantDialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import UserReviewsSection from '@/components/reviews/UserReviewsSection';
 
 interface Tenant {
   id: string;
@@ -29,6 +31,7 @@ interface Tenant {
     phone: string;
   };
   current_rating?: number;
+  total_reviews?: number;
 }
 
 export default function MyTenantsSection() {
@@ -36,6 +39,7 @@ export default function MyTenantsSection() {
   const [tenants, setTenants] = useState<Tenant[]>([]);
   const [loading, setLoading] = useState(true);
   const [showRegisterDialog, setShowRegisterDialog] = useState(false);
+  const [reviewTenant, setReviewTenant] = useState<Tenant | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -79,21 +83,24 @@ export default function MyTenantsSection() {
       return;
     }
 
-    // Fetch tenant profiles, agent profiles, and ratings in parallel
+    // Fetch tenant profiles, agent profiles, and review summaries in parallel
     const allProfileIds = [...new Set([...tenantIds, ...agentIds])];
     
-    const [profilesResult, ratingsResult] = await Promise.all([
+    const [profilesResult, reviewsResult] = await Promise.all([
       supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', allProfileIds),
-      supabase.from('tenant_ratings').select('tenant_id, rating').eq('landlord_id', user.id).in('tenant_id', tenantIds),
+      supabase.from('user_reviews').select('reviewed_user_id, rating').in('reviewed_user_id', tenantIds),
     ]);
 
     const profiles = profilesResult.data;
-    const ratings = ratingsResult.data;
+    const allReviews = reviewsResult.data || [];
 
     const tenantsWithProfiles: Tenant[] = (landlordEntries || []).map(entry => {
       const tenantProfile = profiles?.find(p => p.id === entry.tenant_id);
       const agentProfile = entry.registered_by ? profiles?.find(p => p.id === entry.registered_by) : undefined;
-      const rating = ratings?.find(r => r.tenant_id === entry.tenant_id);
+      const tenantReviews = allReviews.filter(r => r.reviewed_user_id === entry.tenant_id);
+      const avgRating = tenantReviews.length > 0
+        ? tenantReviews.reduce((sum, r) => sum + r.rating, 0) / tenantReviews.length
+        : 0;
       
       return {
         id: entry.id,
@@ -103,7 +110,8 @@ export default function MyTenantsSection() {
         registered_by: entry.registered_by,
         tenant_profile: tenantProfile,
         agent_profile: agentProfile ? { full_name: agentProfile.full_name, phone: agentProfile.phone } : undefined,
-        current_rating: rating?.rating
+        current_rating: avgRating,
+        total_reviews: tenantReviews.length,
       };
     });
 
@@ -217,15 +225,22 @@ export default function MyTenantsSection() {
                         )}
                       </div>
 
-                      {/* Rating */}
-                      <div className="shrink-0">
-                        <p className="text-xs text-muted-foreground mb-1 text-right">Rate tenant</p>
-                        <TenantRating
-                          tenantId={tenant.tenant_id}
-                          tenantName={tenant.tenant_profile?.full_name || 'Tenant'}
-                          currentRating={tenant.current_rating}
-                          onRated={fetchTenants}
+                      {/* Rating & Review */}
+                      <div className="shrink-0 text-right">
+                        <StarRatingDisplay
+                          rating={tenant.current_rating || 0}
+                          totalReviews={tenant.total_reviews || 0}
+                          size="sm"
                         />
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="mt-1 h-7 text-xs gap-1 text-primary"
+                          onClick={() => setReviewTenant(tenant)}
+                        >
+                          <MessageSquare className="h-3 w-3" />
+                          Review
+                        </Button>
                       </div>
                     </div>
                   </motion.div>
@@ -256,6 +271,23 @@ export default function MyTenantsSection() {
         onOpenChange={setShowRegisterDialog}
         onSuccess={fetchTenants}
       />
+
+      {/* Tenant Review Dialog */}
+      <Dialog open={!!reviewTenant} onOpenChange={(open) => !open && setReviewTenant(null)}>
+        <DialogContent className="max-w-sm max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-base">
+              Review: {reviewTenant?.tenant_profile?.full_name || 'Tenant'}
+            </DialogTitle>
+          </DialogHeader>
+          {reviewTenant && (
+            <UserReviewsSection
+              userId={reviewTenant.tenant_id}
+              userName={reviewTenant.tenant_profile?.full_name || 'Tenant'}
+            />
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

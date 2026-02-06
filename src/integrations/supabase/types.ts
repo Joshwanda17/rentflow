@@ -3231,6 +3231,39 @@ export type Database = {
           },
         ]
       }
+      user_reviews: {
+        Row: {
+          created_at: string
+          id: string
+          rating: number
+          review_text: string | null
+          reviewed_user_id: string
+          reviewer_id: string
+          reviewer_role: string | null
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          rating: number
+          review_text?: string | null
+          reviewed_user_id: string
+          reviewer_id: string
+          reviewer_role?: string | null
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          rating?: number
+          review_text?: string | null
+          reviewed_user_id?: string
+          reviewer_id?: string
+          reviewer_role?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       user_risk_scores: {
         Row: {
           consecutive_missed_payments: number | null
