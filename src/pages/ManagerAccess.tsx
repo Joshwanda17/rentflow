@@ -53,6 +53,8 @@ import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
 import UserLocationsManager from '@/components/manager/UserLocationsManager';
  import LandlordLocationsMap from '@/components/map/LandlordLocationsMap';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
+import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
+import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -676,6 +678,10 @@ export default function ManagerAccess() {
               <Home className="h-3.5 w-3.5" />
               Welile Homes
             </TabsTrigger>
+            <TabsTrigger value="withdrawals" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <Banknote className="h-3.5 w-3.5" />
+              Withdrawals
+            </TabsTrigger>
             <TabsTrigger value="locations" className="gap-1.5 text-xs flex-1 min-w-[100px]">
               <MapPin className="h-3.5 w-3.5" />
               Locations
@@ -772,6 +778,13 @@ export default function ManagerAccess() {
             <div className="space-y-6">
               <WelileHomesSubscriptionsManager />
               <WelileHomesWithdrawalsManager />
+            </div>
+          </TabsContent>
+
+          <TabsContent value="withdrawals" className="mt-4">
+            <div className="space-y-6">
+              <AgentCommissionPayoutsManager />
+              <PaidAgentsHistory />
             </div>
           </TabsContent>
 
