@@ -194,10 +194,8 @@ export default function Auth() {
         console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
         
         const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
-        if (!error) {
-          localStorage.removeItem('referral_agent_id');
-          setReferrerIdState(null);
-        }
+        // DON'T clear referrer here - SelectRole needs it after the user session activates
+        // It will be cleared in SelectRole after the referral records are created
         if (error) {
           // Translate common errors
           let errorMessage = error.message;
