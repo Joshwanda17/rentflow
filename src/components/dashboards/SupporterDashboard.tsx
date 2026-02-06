@@ -789,7 +789,6 @@ export default function SupporterDashboard({
         <ModernQuickActions
           actions={[
             { icon: Plus, label: 'Invest', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
-            { icon: Users, label: 'Fund', onClick: () => navigate('/opportunities'), variant: 'success', badge: opportunityCount > 0 ? String(opportunityCount) : undefined },
             { icon: PieChart, label: 'Portfolio', onClick: () => navigate('/investment-portfolio') },
             { icon: Calculator, label: 'Calculator', onClick: () => setShowCalculator(true) },
           ]}
