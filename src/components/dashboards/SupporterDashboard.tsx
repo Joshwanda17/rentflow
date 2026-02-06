@@ -811,72 +811,20 @@ export default function SupporterDashboard({
             navigate('/opportunities');
           }} />
 
-          {/* Tabs for Opportunities / Funded */}
-          <div className="bg-muted/40 p-1.5 rounded-2xl">
-            <div className="grid grid-cols-2 gap-1">
-              <button
-                onClick={() => {
-                  setActiveOpportunityTab('opportunities');
-                  navigate('/opportunities');
-                }}
-                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
-                  activeOpportunityTab === 'opportunities'
-                    ? 'bg-primary text-primary-foreground shadow-lg'
-                    : 'text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                <TrendingUp className="h-4 w-4" />
-                <span>Opportunities</span>
-                {opportunityCount > 0 && (
-                  <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                    activeOpportunityTab === 'opportunities'
-                      ? 'bg-white/25'
-                      : 'bg-primary/15 text-primary'
-                  }`}>
-                    {opportunityCount > 99 ? '99+' : opportunityCount}
-                  </span>
-                )}
-              </button>
-              <button
-                onClick={() => setActiveOpportunityTab('funded')}
-                className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
-                  activeOpportunityTab === 'funded'
-                    ? 'bg-success text-success-foreground shadow-lg'
-                    : 'text-muted-foreground hover:bg-muted/60'
-                }`}
-              >
-                <HandCoins className="h-4 w-4" />
-                <span>Funded</span>
-                {fundedRequests.length > 0 && (
-                  <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
-                    activeOpportunityTab === 'funded'
-                      ? 'bg-white/25'
-                      : 'bg-success/15 text-success'
-                  }`}>
-                    {fundedRequests.length}
-                  </span>
-                )}
-              </button>
-            </div>
-          </div>
-
-          {activeOpportunityTab === 'opportunities' ? (
-            <RentOpportunities
-              onFund={(id) => {
-                if (!effectiveHasAccepted) {
-                  setShowAgreementModal(true);
-                  return;
-                }
-                setSelectedRequestId(id);
-                setShowRequestDetails(true);
-              }}
-              isLocked={!effectiveHasAccepted}
-              onLockedClick={() => setShowAgreementModal(true)}
-              onRefreshRef={opportunitiesRefreshRef}
-            />
-          ) : (
-            <FundedHistory />
-          )}
+          {/* Funded History & Opportunities Content */}
+          <RentOpportunities
+            onFund={(id) => {
+              if (!effectiveHasAccepted) {
+                setShowAgreementModal(true);
+                return;
+              }
+              setSelectedRequestId(id);
+              setShowRequestDetails(true);
+            }}
+            isLocked={!effectiveHasAccepted}
+            onLockedClick={() => setShowAgreementModal(true)}
+            onRefreshRef={opportunitiesRefreshRef}
+          />
         </div>
 
         {/* Wallet - Collapsible */}
