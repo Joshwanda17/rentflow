@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   User,
   Phone,
@@ -23,8 +24,12 @@ import {
   Shield,
   Home,
   Navigation,
+  Sparkles,
+  TrendingUp,
+  AlertTriangle,
 } from 'lucide-react';
 import { toast } from 'sonner';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface LandlordAddTenantDialogProps {
   open: boolean;
@@ -41,6 +46,7 @@ export default function LandlordAddTenantDialog({
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [capturingLocation, setCapturingLocation] = useState(false);
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   // Tenant info
   const [tenantName, setTenantName] = useState('');
@@ -61,6 +67,8 @@ export default function LandlordAddTenantDialog({
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
 
+  const platformFee = monthlyRent ? Math.round(parseInt(monthlyRent) * 0.10) : 0;
+
   const resetForm = () => {
     setTenantName('');
     setTenantPhone('');
@@ -73,6 +81,7 @@ export default function LandlordAddTenantDialog({
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setAcceptedTerms(false);
     setSuccess(false);
   };
 
@@ -118,6 +127,11 @@ export default function LandlordAddTenantDialog({
       return;
     }
 
+    if (!acceptedTerms) {
+      toast.error('Please accept the Welile Guaranteed Rent terms');
+      return;
+    }
+
     setLoading(true);
 
     try {
@@ -141,8 +155,8 @@ export default function LandlordAddTenantDialog({
         return;
       }
 
-      // Insert into landlords table (this is how tenant-landlord relationships work)
-      const { error: landlordError } = await supabase.from('landlords').insert({
+      // Insert into landlords table
+      const { data: landlordRecord, error: landlordError } = await supabase.from('landlords').insert({
         tenant_id: tenantProfile?.id || null,
         name: landlordProfile.full_name || 'Landlord',
         phone: landlordProfile.phone || '',
@@ -154,7 +168,7 @@ export default function LandlordAddTenantDialog({
         location_captured_at: latitude ? new Date().toISOString() : null,
         location_captured_by: user.id,
         registered_by: user.id,
-      });
+      }).select('id').single();
 
       if (landlordError) {
         if (landlordError.code === '23505') {
@@ -169,7 +183,6 @@ export default function LandlordAddTenantDialog({
 
       // Save LC1 chairperson if provided
       if (lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()) {
-        // Check if LC1 already exists for this village
         const { data: existingLc1 } = await supabase
           .from('lc1_chairpersons')
           .select('id')
@@ -185,18 +198,38 @@ export default function LandlordAddTenantDialog({
         }
       }
 
-      // If tenant has an account, update their rent info
+      // If tenant has an account, update their rent info and create Welile Homes subscription
       if (tenantProfile?.id) {
+        // Update tenant profile
         await supabase
           .from('profiles')
           .update({
             monthly_rent: parseInt(monthlyRent),
           })
           .eq('id', tenantProfile.id);
+
+        // Create Welile Homes subscription for this tenant (landlord-registered)
+        const { error: subError } = await supabase
+          .from('welile_homes_subscriptions')
+          .insert({
+            tenant_id: tenantProfile.id,
+            landlord_id: user.id,
+            monthly_rent: parseInt(monthlyRent),
+            subscription_status: 'active',
+            landlord_registered: true,
+            total_savings: 0,
+            months_enrolled: 0,
+            notes: `Guaranteed rent subscription. Landlord: ${landlordProfile.full_name}. Property: ${propertyAddress.trim()}. 10% platform fee auto-saved to Welile Homes.`,
+          });
+
+        if (subError && subError.code !== '23505') {
+          console.error('Welile Homes subscription error:', subError);
+          // Don't block - tenant is already registered
+        }
       }
 
       setSuccess(true);
-      toast.success('Tenant added successfully!');
+      toast.success('Tenant registered under Welile Guaranteed Rent!');
       onSuccess?.();
     } catch (err) {
       toast.error('An unexpected error occurred');
@@ -220,7 +253,7 @@ export default function LandlordAddTenantDialog({
             Add a Tenant
           </DialogTitle>
           <DialogDescription>
-            Register your tenant with their rental details and location
+            Register your tenant under Welile Guaranteed Rent
           </DialogDescription>
         </DialogHeader>
 
@@ -236,14 +269,19 @@ export default function LandlordAddTenantDialog({
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-16 h-16 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center"
+                className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center"
               >
-                <CheckCircle2 className="h-8 w-8 text-success" />
+                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               </motion.div>
-              <h3 className="text-lg font-semibold mb-2">Tenant Added!</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                Your tenant has been registered successfully
+              <h3 className="text-lg font-semibold mb-2">Tenant Registered!</h3>
+              <p className="text-muted-foreground text-sm mb-2">
+                Your tenant is now under <span className="font-semibold text-primary">Welile Guaranteed Rent</span>.
               </p>
+              <div className="text-xs text-muted-foreground space-y-1 mb-4">
+                <p>✅ 10% platform fee will be auto-saved to their Welile Homes</p>
+                <p>✅ Their savings grow at 5% monthly (compounding)</p>
+                <p>✅ Your rent is guaranteed even if the tenant leaves</p>
+              </div>
               <Button onClick={() => handleOpenChange(false)}>Done</Button>
             </motion.div>
           ) : (
@@ -254,6 +292,21 @@ export default function LandlordAddTenantDialog({
               onSubmit={handleSubmit}
               className="space-y-5"
             >
+              {/* Guaranteed Rent Banner */}
+              <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-purple-500/10 to-emerald-500/10 border border-primary/20">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-primary/15 shrink-0 mt-0.5">
+                    <Sparkles className="h-4 w-4 text-primary" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Welile Guaranteed Rent</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Your rent is guaranteed every month. If this tenant leaves, Welile will find a replacement through our agent network at no extra cost.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Tenant Details */}
               <div className="space-y-3">
                 <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
@@ -341,6 +394,38 @@ export default function LandlordAddTenantDialog({
                   </div>
                 </div>
 
+                {/* Platform Fee Breakdown */}
+                {monthlyRent && parseInt(monthlyRent) > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-3 rounded-lg bg-muted/50 border border-border/50 space-y-2"
+                  >
+                    <p className="text-xs font-semibold text-foreground flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+                      Fee & Savings Breakdown
+                    </p>
+                    <div className="grid grid-cols-2 gap-2">
+                      <div className="text-xs">
+                        <p className="text-muted-foreground">Monthly Rent</p>
+                        <p className="font-medium">{formatUGX(parseInt(monthlyRent))}</p>
+                      </div>
+                      <div className="text-xs">
+                        <p className="text-muted-foreground">10% Platform Fee</p>
+                        <p className="font-medium text-primary">{formatUGX(platformFee)}</p>
+                      </div>
+                      <div className="text-xs">
+                        <p className="text-muted-foreground">You Receive</p>
+                        <p className="font-medium text-emerald-600">{formatUGX(parseInt(monthlyRent) - platformFee)}</p>
+                      </div>
+                      <div className="text-xs">
+                        <p className="text-muted-foreground">Tenant's Welile Homes</p>
+                        <p className="font-medium text-purple-600">{formatUGX(platformFee)}/mo + 5% growth</p>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
                 <div className="space-y-1">
                   <Label htmlFor="lt-rentalNotes" className="text-xs">
                     Additional Notes
@@ -365,7 +450,7 @@ export default function LandlordAddTenantDialog({
                   {latitude && longitude ? (
                     <div className="flex items-center justify-between">
                       <div>
-                        <p className="text-xs text-success font-medium">📍 Location captured</p>
+                        <p className="text-xs text-emerald-500 font-medium">📍 Location captured</p>
                         <p className="text-xs text-muted-foreground mt-0.5">
                           {latitude.toFixed(5)}, {longitude.toFixed(5)}
                         </p>
@@ -453,14 +538,36 @@ export default function LandlordAddTenantDialog({
                 </div>
               </div>
 
-              <Button type="submit" className="w-full" disabled={loading}>
+              {/* Terms Agreement */}
+              <div className="p-3 rounded-xl border border-amber-500/30 bg-amber-500/5">
+                <div className="flex items-start gap-3">
+                  <Checkbox
+                    id="lt-terms"
+                    checked={acceptedTerms}
+                    onCheckedChange={(checked) => setAcceptedTerms(checked === true)}
+                    className="mt-0.5"
+                  />
+                  <label htmlFor="lt-terms" className="text-xs leading-relaxed text-muted-foreground cursor-pointer">
+                    I agree to the <span className="font-semibold text-foreground">Welile Guaranteed Rent</span> terms:
+                    A <span className="font-semibold text-primary">10% platform fee</span> is deducted from each rent deposit and saved into the tenant's{' '}
+                    <span className="font-semibold text-purple-600">Welile Homes</span> account, growing at{' '}
+                    <span className="font-semibold text-emerald-600">5% monthly compounding</span>.
+                    Welile guarantees continuous rent and will replace tenants who leave at no extra cost.
+                  </label>
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full" disabled={loading || !acceptedTerms}>
                 {loading ? (
                   <>
                     <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    Adding Tenant...
+                    Registering Tenant...
                   </>
                 ) : (
-                  'Add Tenant'
+                  <>
+                    <Shield className="h-4 w-4 mr-2" />
+                    Register Under Guaranteed Rent
+                  </>
                 )}
               </Button>
             </motion.form>
