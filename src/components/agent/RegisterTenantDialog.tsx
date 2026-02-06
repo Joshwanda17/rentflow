@@ -12,7 +12,18 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { User, Phone, MapPin, Banknote, Building2, Loader2, CheckCircle2 } from 'lucide-react';
+import {
+  User,
+  Phone,
+  MapPin,
+  Banknote,
+  Building2,
+  Loader2,
+  CheckCircle2,
+  Shield,
+  Navigation,
+  TrendingUp,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -26,6 +37,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [capturingLocation, setCapturingLocation] = useState(false);
   
   // Tenant info
   const [tenantEmail, setTenantEmail] = useState('');
@@ -39,8 +51,17 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
   const [propertyAddress, setPropertyAddress] = useState('');
   const [monthlyRent, setMonthlyRent] = useState('');
   const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
-  const [waterMeterNumber, setWaterMeterNumber] = useState('');
-  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
+
+  // Location
+  const [latitude, setLatitude] = useState<number | null>(null);
+  const [longitude, setLongitude] = useState<number | null>(null);
+
+  // LC1 Chairperson
+  const [lc1Name, setLc1Name] = useState('');
+  const [lc1Phone, setLc1Phone] = useState('');
+  const [lc1Village, setLc1Village] = useState('');
+
+  const agentCommission = monthlyRent ? Math.round(parseInt(monthlyRent) * 0.02) : 0;
 
   const resetForm = () => {
     setTenantEmail('');
@@ -52,9 +73,34 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     setPropertyAddress('');
     setMonthlyRent('');
     setMobileMoneyNumber('');
-    setWaterMeterNumber('');
-    setElectricityMeterNumber('');
+    setLatitude(null);
+    setLongitude(null);
+    setLc1Name('');
+    setLc1Phone('');
+    setLc1Village('');
     setSuccess(false);
+  };
+
+  const captureLocation = () => {
+    if (!navigator.geolocation) {
+      toast.error('Geolocation is not supported by your browser');
+      return;
+    }
+    setCapturingLocation(true);
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        setLatitude(position.coords.latitude);
+        setLongitude(position.coords.longitude);
+        setCapturingLocation(false);
+        toast.success('Location captured successfully');
+      },
+      (error) => {
+        setCapturingLocation(false);
+        toast.error('Failed to capture location. Please allow location access.');
+        console.error('Geolocation error:', error);
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -76,112 +122,132 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
       return;
     }
 
-    setLoading(true);
-
-    // Find tenant by email or phone
-    let tenantId: string | null = null;
-    
-    if (tenantEmail.trim()) {
-      const { data: tenantByEmail } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('email', tenantEmail.trim().toLowerCase())
-        .maybeSingle();
-      
-      if (tenantByEmail) {
-        tenantId = tenantByEmail.id;
-      }
-    }
-    
-    if (!tenantId && tenantPhone.trim()) {
-      const { data: tenantByPhone } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', tenantPhone.trim())
-        .maybeSingle();
-      
-      if (tenantByPhone) {
-        tenantId = tenantByPhone.id;
-      }
-    }
-
-    if (!tenantId) {
-      toast.error('Tenant not found. They need to sign up first.');
-      setLoading(false);
+    if (!monthlyRent.trim()) {
+      toast.error('Please provide the monthly rent amount');
       return;
     }
 
-    // Update tenant profile with national ID and name
-    if (tenantNationalId.trim() || tenantFullName.trim()) {
+    setLoading(true);
+
+    try {
+      // Find tenant by email or phone
+      let tenantId: string | null = null;
+      
+      if (tenantEmail.trim()) {
+        const { data: tenantByEmail } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('email', tenantEmail.trim().toLowerCase())
+          .maybeSingle();
+        if (tenantByEmail) tenantId = tenantByEmail.id;
+      }
+      
+      if (!tenantId && tenantPhone.trim()) {
+        const { data: tenantByPhone } = await supabase
+          .from('profiles')
+          .select('id')
+          .eq('phone', tenantPhone.trim())
+          .maybeSingle();
+        if (tenantByPhone) tenantId = tenantByPhone.id;
+      }
+
+      if (!tenantId) {
+        toast.error('Tenant not found. They need to sign up first.');
+        setLoading(false);
+        return;
+      }
+
+      // Update tenant profile with national ID and name
+      if (tenantNationalId.trim() || tenantFullName.trim()) {
+        await supabase
+          .from('profiles')
+          .update({ 
+            national_id: tenantNationalId.trim() || undefined,
+            full_name: tenantFullName.trim() || undefined
+          })
+          .eq('id', tenantId);
+      }
+
+      // Register landlord for tenant — agent is recorded as registered_by
+      const { error } = await supabase
+        .from('landlords')
+        .insert({
+          tenant_id: tenantId,
+          name: landlordName.trim(),
+          phone: landlordPhone.trim(),
+          property_address: propertyAddress.trim(),
+          monthly_rent: parseInt(monthlyRent),
+          mobile_money_number: mobileMoneyNumber.trim() || null,
+          latitude,
+          longitude,
+          location_captured_at: latitude ? new Date().toISOString() : null,
+          location_captured_by: user.id,
+          registered_by: user.id,
+        });
+
+      if (error) {
+        if (error.code === '23505') {
+          toast.error('This tenant already has this landlord registered');
+        } else {
+          toast.error('Failed to register tenant');
+          console.error('Registration error:', error);
+        }
+        setLoading(false);
+        return;
+      }
+
+      // Save LC1 chairperson if provided
+      if (lc1Name.trim() && lc1Phone.trim() && lc1Village.trim()) {
+        const { data: existingLc1 } = await supabase
+          .from('lc1_chairpersons')
+          .select('id')
+          .eq('village', lc1Village.trim())
+          .maybeSingle();
+
+        if (!existingLc1) {
+          await supabase.from('lc1_chairpersons').insert({
+            name: lc1Name.trim(),
+            phone: lc1Phone.trim(),
+            village: lc1Village.trim(),
+          });
+        }
+      }
+
+      // Activate rent discount for tenant
       await supabase
         .from('profiles')
         .update({ 
-          national_id: tenantNationalId.trim() || undefined,
-          full_name: tenantFullName.trim() || undefined
+          rent_discount_active: true,
+          monthly_rent: parseInt(monthlyRent),
         })
         .eq('id', tenantId);
-    }
 
-    // Register landlord for tenant with utility meters
-    const { error } = await supabase
-      .from('landlords')
-      .insert({
-        tenant_id: tenantId,
-        name: landlordName.trim(),
-        phone: landlordPhone.trim(),
-        property_address: propertyAddress.trim(),
-        monthly_rent: monthlyRent ? parseInt(monthlyRent) : null,
-        mobile_money_number: mobileMoneyNumber.trim() || null,
-        water_meter_number: waterMeterNumber.trim() || null,
-        electricity_meter_number: electricityMeterNumber.trim() || null,
-        registered_by: user.id
-      });
+      setSuccess(true);
+      toast.success('Tenant registered under landlord! You earn 2% on every rent payment.');
+      onSuccess?.();
+    } catch (err) {
+      toast.error('An unexpected error occurred');
+      console.error('Error:', err);
+    }
 
     setLoading(false);
-
-    if (error) {
-      if (error.code === '23505') {
-        toast.error('This tenant already has this landlord registered');
-      } else {
-        toast.error('Failed to register tenant');
-        console.error('Registration error:', error);
-      }
-      return;
-    }
-
-    // Activate rent discount for tenant
-    await supabase
-      .from('profiles')
-      .update({ 
-        rent_discount_active: true,
-        monthly_rent: monthlyRent ? parseInt(monthlyRent) : null
-      })
-      .eq('id', tenantId);
-
-    setSuccess(true);
-    toast.success('Tenant registered for rent discounts!');
-    onSuccess?.();
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (!newOpen) {
-      resetForm();
-    }
+    if (!newOpen) resetForm();
     onOpenChange(newOpen);
   };
 
-  const rentAmount = parseInt(monthlyRent) || 0;
-
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-lg max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <User className="h-5 w-5 text-primary" />
-            Register Tenant for Rent Discounts
+            Register Tenant Under Landlord
           </DialogTitle>
           <DialogDescription>
-            Register a tenant and their landlord to activate rent discount benefits
+            Register a tenant under their landlord and earn 2% on every rent payment
           </DialogDescription>
         </DialogHeader>
 
@@ -202,12 +268,15 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 <CheckCircle2 className="h-8 w-8 text-emerald-500" />
               </motion.div>
               <h3 className="text-lg font-semibold mb-2">Tenant Registered!</h3>
-              <p className="text-muted-foreground text-sm mb-4">
-                The tenant is now active for rent discounts
+              <p className="text-muted-foreground text-sm mb-2">
+                The tenant is now linked to the landlord
               </p>
-              <Button onClick={() => handleOpenChange(false)}>
-                Done
-              </Button>
+              <div className="text-xs text-muted-foreground space-y-1 mb-4">
+                <p>✅ You earn <span className="font-semibold text-primary">2% commission</span> on every rent payment</p>
+                <p>✅ Commission is automatically sent to your wallet</p>
+                <p>✅ Tenant appears on the landlord's dashboard with your name</p>
+              </div>
+              <Button onClick={() => handleOpenChange(false)}>Done</Button>
             </motion.div>
           ) : (
             <motion.form
@@ -215,11 +284,29 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               onSubmit={handleSubmit}
-              className="space-y-4"
+              className="space-y-5"
             >
+              {/* Agent Commission Banner */}
+              <div className="p-3 rounded-xl bg-gradient-to-r from-primary/10 via-emerald-500/10 to-primary/5 border border-primary/20">
+                <div className="flex items-start gap-2.5">
+                  <div className="p-1.5 rounded-lg bg-emerald-500/15 shrink-0 mt-0.5">
+                    <TrendingUp className="h-4 w-4 text-emerald-500" />
+                  </div>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">Earn 2% on Every Rent Payment</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 leading-relaxed">
+                      Register tenants under their landlord. Every time this tenant pays rent, you automatically earn 2% commission directly to your wallet.
+                    </p>
+                  </div>
+                </div>
+              </div>
+
               {/* Tenant Section */}
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground">Tenant Details</h4>
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  <User className="h-4 w-4 text-primary" />
+                  Tenant Details
+                </h4>
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="tenantFullName" className="text-xs">Full Name (as on ID) *</Label>
@@ -271,8 +358,8 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
 
               {/* Landlord Section */}
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
-                  <Building2 className="h-3 w-3" />
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  <Building2 className="h-4 w-4 text-primary" />
                   Landlord Details
                 </h4>
                 
@@ -318,7 +405,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="monthlyRent" className="text-xs flex items-center gap-1">
-                      <Banknote className="h-3 w-3" /> Monthly Rent
+                      <Banknote className="h-3 w-3" /> Monthly Rent (UGX) *
                     </Label>
                     <Input
                       id="monthlyRent"
@@ -327,6 +414,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                       onChange={(e) => setMonthlyRent(e.target.value)}
                       placeholder="500000"
                       className="h-9"
+                      required
                     />
                   </div>
                   <div className="space-y-1">
@@ -343,46 +431,118 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                   </div>
                 </div>
 
-                {/* Uganda Utility Meters */}
-                <div className="p-3 rounded-lg bg-muted/50 border space-y-2">
-                  <p className="text-xs text-muted-foreground font-medium">Uganda Utility Meters</p>
+                {/* Commission Preview */}
+                {monthlyRent && parseInt(monthlyRent) > 0 && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+                  >
+                    <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-400 flex items-center gap-1.5">
+                      <TrendingUp className="h-3.5 w-3.5" />
+                      Your 2% Commission Per Rent Payment
+                    </p>
+                    <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400 mt-1">
+                      {formatUGX(agentCommission)}/month
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-0.5">
+                      Automatically sent to your wallet every time this tenant pays
+                    </p>
+                  </motion.div>
+                )}
+              </div>
+
+              {/* Location Capture */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  <Navigation className="h-4 w-4 text-primary" />
+                  Property Location
+                </h4>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/50">
+                  {latitude && longitude ? (
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs text-emerald-500 font-medium">📍 Location captured</p>
+                        <p className="text-xs text-muted-foreground mt-0.5">
+                          {latitude.toFixed(5)}, {longitude.toFixed(5)}
+                        </p>
+                      </div>
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onClick={captureLocation}
+                        disabled={capturingLocation}
+                      >
+                        Re-capture
+                      </Button>
+                    </div>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="w-full gap-2"
+                      onClick={captureLocation}
+                      disabled={capturingLocation}
+                    >
+                      {capturingLocation ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Capturing...
+                        </>
+                      ) : (
+                        <>
+                          <Navigation className="h-4 w-4" />
+                          Capture Current Location
+                        </>
+                      )}
+                    </Button>
+                  )}
+                </div>
+              </div>
+
+              {/* LC1 Chairperson */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-semibold flex items-center gap-1.5 text-foreground">
+                  <Shield className="h-4 w-4 text-primary" />
+                  LC1 Chairperson Details
+                </h4>
+                <div className="p-3 rounded-lg bg-muted/50 border border-border/50 space-y-3">
                   <div className="grid grid-cols-2 gap-3">
                     <div className="space-y-1">
-                      <Label htmlFor="waterMeterNumber" className="text-xs">NWSC Water Meter</Label>
+                      <Label htmlFor="lc1Name" className="text-xs">LC1 Name</Label>
                       <Input
-                        id="waterMeterNumber"
-                        value={waterMeterNumber}
-                        onChange={(e) => setWaterMeterNumber(e.target.value)}
-                        placeholder="Water meter number"
+                        id="lc1Name"
+                        value={lc1Name}
+                        onChange={(e) => setLc1Name(e.target.value)}
+                        placeholder="Chairperson name"
                         className="h-9"
                       />
                     </div>
                     <div className="space-y-1">
-                      <Label htmlFor="electricityMeterNumber" className="text-xs">UEDCL/UMEME Meter</Label>
+                      <Label htmlFor="lc1Phone" className="text-xs">LC1 Phone</Label>
                       <Input
-                        id="electricityMeterNumber"
-                        value={electricityMeterNumber}
-                        onChange={(e) => setElectricityMeterNumber(e.target.value)}
-                        placeholder="Electricity meter"
+                        id="lc1Phone"
+                        value={lc1Phone}
+                        onChange={(e) => setLc1Phone(e.target.value)}
+                        placeholder="0783..."
                         className="h-9"
                       />
                     </div>
                   </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lc1Village" className="text-xs">Village / Zone</Label>
+                    <Input
+                      id="lc1Village"
+                      value={lc1Village}
+                      onChange={(e) => setLc1Village(e.target.value)}
+                      placeholder="e.g. Bukoto Zone A"
+                      className="h-9"
+                    />
+                  </div>
                 </div>
               </div>
-
-              {/* Potential savings */}
-              {rentAmount > 0 && (
-                <motion.div
-                  initial={{ opacity: 0, height: 0 }}
-                  animate={{ opacity: 1, height: 'auto' }}
-                  className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
-                >
-                  <p className="text-sm text-emerald-600 dark:text-emerald-400 font-medium">
-                    Potential monthly discount: up to {formatUGX(rentAmount * 0.7)}
-                  </p>
-                </motion.div>
-              )}
 
               <Button type="submit" className="w-full" disabled={loading}>
                 {loading ? (
@@ -391,7 +551,7 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
                     Registering...
                   </>
                 ) : (
-                  'Register Tenant'
+                  'Register Tenant Under Landlord'
                 )}
               </Button>
             </motion.form>

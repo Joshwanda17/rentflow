@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, MapPin, Banknote, Plus, Star } from 'lucide-react';
+import { Users, MapPin, Banknote, Plus, UserCheck } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import TenantRating from './TenantRating';
 import LandlordAddTenantDialog from './LandlordAddTenantDialog';
@@ -17,11 +17,16 @@ interface Tenant {
   tenant_id: string;
   property_address: string;
   monthly_rent: number | null;
+  registered_by: string | null;
   tenant_profile?: {
     id: string;
     full_name: string;
     phone: string;
     avatar_url: string | null;
+  };
+  agent_profile?: {
+    full_name: string;
+    phone: string;
   };
   current_rating?: number;
 }
@@ -42,8 +47,6 @@ export default function MyTenantsSection() {
     if (!user) return;
     setLoading(true);
 
-    // For landlords: fetch tenants who have registered them as landlord
-    // We need to look in landlords table where the landlord phone matches this user's phone
     const { data: profile } = await supabase
       .from('profiles')
       .select('phone')
@@ -58,7 +61,7 @@ export default function MyTenantsSection() {
     // Find landlord entries that match this user's phone
     const { data: landlordEntries, error } = await supabase
       .from('landlords')
-      .select('id, tenant_id, property_address, monthly_rent, phone')
+      .select('id, tenant_id, property_address, monthly_rent, phone, registered_by')
       .eq('phone', profile.phone);
 
     if (error) {
@@ -67,8 +70,8 @@ export default function MyTenantsSection() {
       return;
     }
 
-    // Get tenant profiles
     const tenantIds = (landlordEntries || []).map(l => l.tenant_id).filter(Boolean);
+    const agentIds = (landlordEntries || []).map(l => l.registered_by).filter(Boolean) as string[];
     
     if (tenantIds.length === 0) {
       setTenants([]);
@@ -76,20 +79,20 @@ export default function MyTenantsSection() {
       return;
     }
 
-    const { data: profiles } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone, avatar_url')
-      .in('id', tenantIds);
+    // Fetch tenant profiles, agent profiles, and ratings in parallel
+    const allProfileIds = [...new Set([...tenantIds, ...agentIds])];
+    
+    const [profilesResult, ratingsResult] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', allProfileIds),
+      supabase.from('tenant_ratings').select('tenant_id, rating').eq('landlord_id', user.id).in('tenant_id', tenantIds),
+    ]);
 
-    // Get ratings for these tenants
-    const { data: ratings } = await supabase
-      .from('tenant_ratings')
-      .select('tenant_id, rating')
-      .eq('landlord_id', user.id)
-      .in('tenant_id', tenantIds);
+    const profiles = profilesResult.data;
+    const ratings = ratingsResult.data;
 
     const tenantsWithProfiles: Tenant[] = (landlordEntries || []).map(entry => {
       const tenantProfile = profiles?.find(p => p.id === entry.tenant_id);
+      const agentProfile = entry.registered_by ? profiles?.find(p => p.id === entry.registered_by) : undefined;
       const rating = ratings?.find(r => r.tenant_id === entry.tenant_id);
       
       return {
@@ -97,7 +100,9 @@ export default function MyTenantsSection() {
         tenant_id: entry.tenant_id!,
         property_address: entry.property_address,
         monthly_rent: entry.monthly_rent,
+        registered_by: entry.registered_by,
         tenant_profile: tenantProfile,
+        agent_profile: agentProfile ? { full_name: agentProfile.full_name, phone: agentProfile.phone } : undefined,
         current_rating: rating?.rating
       };
     });
@@ -188,7 +193,7 @@ export default function MyTenantsSection() {
                         <p className="font-medium">{tenant.tenant_profile?.full_name || 'Unknown Tenant'}</p>
                         <p className="text-xs text-muted-foreground">{tenant.tenant_profile?.phone}</p>
                         
-                        <div className="flex items-center gap-3 mt-2 text-sm text-muted-foreground">
+                        <div className="flex flex-wrap items-center gap-2 mt-2 text-sm text-muted-foreground">
                           <span className="flex items-center gap-1">
                             <MapPin className="h-3 w-3" />
                             {tenant.property_address}
@@ -200,6 +205,16 @@ export default function MyTenantsSection() {
                             </span>
                           )}
                         </div>
+
+                        {/* Agent Attribution */}
+                        {tenant.agent_profile && (
+                          <div className="mt-2">
+                            <Badge variant="outline" className="text-xs gap-1 bg-primary/5 border-primary/20 text-primary">
+                              <UserCheck className="h-3 w-3" />
+                              Registered by: {tenant.agent_profile.full_name} ({tenant.agent_profile.phone})
+                            </Badge>
+                          </div>
+                        )}
                       </div>
 
                       {/* Rating */}
