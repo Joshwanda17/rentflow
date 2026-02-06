@@ -7,6 +7,8 @@ import { Separator } from '@/components/ui/separator';
 import { MapPin, Calendar, Home, Building, Users, Phone, Shield, CheckCircle2, Zap } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import UserReviewsSection from '@/components/reviews/UserReviewsSection';
+import { useUserStats } from '@/hooks/useUserStats';
+import { UserStatsSection } from '@/components/profile/UserStatsSection';
 
 interface UserProfileDialogProps {
   open: boolean;
@@ -35,8 +37,9 @@ interface UserProfileDialogProps {
 }
 
 export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialogProps) {
-  if (!user) return null;
+  const { stats, loading: statsLoading } = useUserStats(user?.id);
 
+  if (!user) return null;
   const getRoleBadge = () => {
     switch (user.type) {
       case 'tenant':
@@ -72,8 +75,15 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
             />
             <div className="text-center">
               <DialogTitle className="text-lg">{user.name}</DialogTitle>
-              <div className="flex justify-center mt-2">
+              <div className="flex flex-wrap justify-center gap-1.5 mt-2">
                 {getRoleBadge()}
+                {stats.roles.length > 0 && stats.roles
+                  .filter(r => r !== user.type)
+                  .map(role => (
+                    <Badge key={role} variant="secondary" className="text-xs capitalize">
+                      {role}
+                    </Badge>
+                  ))}
               </div>
             </div>
           </div>
@@ -236,6 +246,11 @@ export function UserProfileDialog({ open, onOpenChange, user }: UserProfileDialo
           </div>
 
           <Separator />
+
+          {/* Activity Stats */}
+          <UserStatsSection stats={stats} loading={statsLoading} />
+
+          {stats.tenantsRegistered > 0 || stats.landlordsRegistered > 0 || stats.subAgentsRecruited > 0 || stats.supportersRegistered > 0 || stats.tenantsEarningFrom > 0 ? <Separator /> : null}
 
           {/* Reviews & Ratings Section */}
           <UserReviewsSection
