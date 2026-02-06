@@ -324,25 +324,9 @@ Deno.serve(async (req) => {
         credited_at: new Date().toISOString(),
       });
 
-    // Also credit agent_earnings for agents
-    const { data: creatorIsAgent } = await adminClient
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", invite.created_by)
-      .eq("role", "agent")
-      .single();
-
-    if (creatorIsAgent) {
-      await adminClient
-        .from("agent_earnings")
-        .insert({
-          agent_id: invite.created_by,
-          amount: referralBonus,
-          earning_type: 'referral_bonus',
-          description: isSubAgent ? 'Sub-agent registration bonus' : 'New member registration bonus',
-          source_user_id: authData.user.id,
-        });
-    }
+    // NOTE: Agent earnings are handled by database triggers (sync_agent_wallet_on_earning)
+    // triggered by credit_signup_referral_bonus which inserts into agent_earnings
+    // DO NOT insert into agent_earnings here to avoid double crediting
 
     const roleLabels: Record<string, string> = {
       tenant: 'Tenant',
