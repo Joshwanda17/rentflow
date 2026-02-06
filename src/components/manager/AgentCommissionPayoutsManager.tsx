@@ -68,7 +68,7 @@ export function AgentCommissionPayoutsManager() {
   useEffect(() => {
     fetchPayouts();
     
-    // Subscribe to realtime updates
+    // Subscribe to realtime updates for payouts
     const channel = supabase
       .channel('manager-payouts')
       .on(
@@ -82,10 +82,31 @@ export function AgentCommissionPayoutsManager() {
       )
       .subscribe();
 
+    // Subscribe to realtime wallet balance changes so manager sees updated balances
+    const walletChannel = supabase
+      .channel('manager-wallet-watch')
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'wallets'
+        },
+        (payload) => {
+          const updated = payload.new as { user_id: string; balance: number };
+          // Update the displayed balance if it's the currently selected agent
+          if (selectedPayout && updated.user_id === selectedPayout.agent_id) {
+            setAgentWalletBalance(updated.balance);
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
       supabase.removeChannel(channel);
+      supabase.removeChannel(walletChannel);
     };
-  }, []);
+  }, [selectedPayout?.agent_id]);
 
   const fetchPayouts = async () => {
     try {
@@ -253,6 +274,8 @@ export function AgentCommissionPayoutsManager() {
       });
 
       toast({ title: 'Payout approved successfully!' });
+      // Re-fetch the agent's wallet balance so manager sees the deduction
+      await fetchSelectedAgentWalletBalance(selectedPayout.agent_id);
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedPayout(null);
