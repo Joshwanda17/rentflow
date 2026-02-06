@@ -185,10 +185,8 @@ export default function BecomeSupporter() {
         console.log('[BecomeSupporter] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ')');
         
         const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
-        if (!error) {
-          localStorage.removeItem('supporter_referrer_id');
-          setReferrerIdState(null);
-        }
+        // DON'T clear referrer here - handleAddSupporterRole needs it after the user session activates
+        // It will be cleared in handleAddSupporterRole after the referral records are created
         if (error) {
           let errorMessage = error.message;
           if (error.message.includes('already registered')) {
