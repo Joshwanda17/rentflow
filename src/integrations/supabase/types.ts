@@ -1767,6 +1767,42 @@ export type Database = {
         }
         Relationships: []
       }
+      opportunity_summaries: {
+        Row: {
+          created_at: string
+          id: string
+          notes: string | null
+          posted_by: string
+          total_agents: number
+          total_landlords: number
+          total_rent_requested: number
+          total_requests: number
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          posted_by: string
+          total_agents?: number
+          total_landlords?: number
+          total_rent_requested?: number
+          total_requests?: number
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          notes?: string | null
+          posted_by?: string
+          total_agents?: number
+          total_landlords?: number
+          total_rent_requested?: number
+          total_requests?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
       payment_confirmations: {
         Row: {
           admin_note: string | null

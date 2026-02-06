@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
@@ -105,6 +106,7 @@ import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
 import { ChromecastButton } from '@/components/manager/ChromecastButton';
 import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
+import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 
 interface ManagerDashboardProps {
   user: User;
@@ -124,6 +126,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const { onlineUsers, isOnline: isUserOnline } = usePresence();
   const { duplicateUserIds, duplicateCount, duplicateGroups } = useDuplicatePhoneUsers();
   const [duplicatePhoneSheetOpen, setDuplicatePhoneSheetOpen] = useState(false);
+  const [showOpportunitySummary, setShowOpportunitySummary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   const [accessVerified, setAccessVerified] = useState(() => {
@@ -1071,6 +1074,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       />
 
       <main className="px-3 py-3 space-y-3 animate-fade-in">
+        {/* Opportunity Summary Form - Full page when open */}
+        {showOpportunitySummary ? (
+          <OpportunitySummaryForm onBack={() => setShowOpportunitySummary(false)} />
+        ) : (
+        <>
         {/* Role Switcher - Prominent placement for multi-role users */}
         {availableRoles.length > 1 && (
           <RoleSwitcher
@@ -1080,6 +1088,29 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             variant="prominent"
           />
         )}
+
+        {/* 🔥 Prominent Opportunity Summary Button */}
+        <motion.button
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => setShowOpportunitySummary(true)}
+          className="w-full rounded-2xl bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground p-5 shadow-xl shadow-primary/25 touch-manipulation text-left relative overflow-hidden"
+        >
+          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
+          <div className="relative z-10 flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-3 rounded-xl bg-white/20">
+                <TrendingUp className="h-6 w-6" />
+              </div>
+              <div>
+                <p className="font-bold text-lg">Post Opportunity Summary</p>
+                <p className="text-xs opacity-80">Update rent totals for all supporters</p>
+              </div>
+            </div>
+            <ArrowRight className="h-5 w-5 opacity-70" />
+          </div>
+        </motion.button>
 
         {/* Mobile Quick Actions Grid - Shows on all screens but optimized for mobile */}
         <div className="block">
@@ -2469,6 +2500,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Food Shopping Loans */}
         <FoodShoppingLoansSection />
+        </>
+        )}
       </main>
 
       {/* Floating Deposits Widget */}
