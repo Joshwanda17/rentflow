@@ -10,7 +10,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Users, MapPin, Banknote, Plus, Star } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import TenantRating from './TenantRating';
-import RegisterTenantDialog from '@/components/agent/RegisterTenantDialog';
+import LandlordAddTenantDialog from './LandlordAddTenantDialog';
 
 interface Tenant {
   id: string;
@@ -236,7 +236,7 @@ export default function MyTenantsSection() {
         </CardContent>
       </Card>
 
-      <RegisterTenantDialog
+      <LandlordAddTenantDialog
         open={showRegisterDialog}
         onOpenChange={setShowRegisterDialog}
         onSuccess={fetchTenants}

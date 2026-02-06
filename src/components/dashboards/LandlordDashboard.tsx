@@ -35,6 +35,7 @@ import RoleSwitcher from '@/components/RoleSwitcher';
 import { LandlordAgreementButton } from '@/components/landlord/agreement';
 import { LandlordWelileHomesSection } from '@/components/landlord/LandlordWelileHomesSection';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
+import MyTenantsSection from '@/components/landlord/MyTenantsSection';
 
 interface LandlordDashboardProps {
   user: User;
@@ -229,6 +230,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </CardContent>
           </Card>
         </button>
+
+        {/* My Tenants Section */}
+        <MyTenantsSection />
 
         {/* Welile Homes Impact Section */}
         <LandlordWelileHomesSection userId={user.id} />
