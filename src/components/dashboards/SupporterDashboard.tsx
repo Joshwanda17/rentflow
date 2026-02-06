@@ -44,6 +44,7 @@ import { ModernInviteCard } from '@/components/supporter/ModernInviteCard';
 import { ModernQuickLinks } from '@/components/supporter/ModernQuickLinks';
 
 import { RentOpportunities } from '@/components/supporter/RentOpportunities';
+import { OpportunityHeroButton } from '@/components/supporter/OpportunityHeroButton';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
@@ -801,11 +802,17 @@ export default function SupporterDashboard({
         <MyInvestmentRequests />
 
         {/* Opportunities Section - Modern Tabs */}
-        <div id="opportunities" className="relative scroll-mt-4">
+        <div id="opportunities" className="relative scroll-mt-4 space-y-4">
           {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
           
-          {/* Custom Modern Tabs */}
-          <div className="bg-muted/40 p-1.5 rounded-2xl mb-4">
+          {/* 🔥 Large Opportunity Hero Button with Manager-posted totals */}
+          <OpportunityHeroButton onClick={() => {
+            setActiveOpportunityTab('opportunities');
+            navigate('/opportunities');
+          }} />
+
+          {/* Tabs for Opportunities / Funded */}
+          <div className="bg-muted/40 p-1.5 rounded-2xl">
             <div className="grid grid-cols-2 gap-1">
               <button
                 onClick={() => {
@@ -814,7 +821,7 @@ export default function SupporterDashboard({
                 }}
                 className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
                   activeOpportunityTab === 'opportunities'
-                    ? 'bg-primary text-white shadow-lg'
+                    ? 'bg-primary text-primary-foreground shadow-lg'
                     : 'text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -834,7 +841,7 @@ export default function SupporterDashboard({
                 onClick={() => setActiveOpportunityTab('funded')}
                 className={`flex items-center justify-center gap-2 py-3 px-4 rounded-xl font-semibold text-sm transition-all duration-300 touch-manipulation ${
                   activeOpportunityTab === 'funded'
-                    ? 'bg-emerald-500 text-white shadow-lg'
+                    ? 'bg-success text-success-foreground shadow-lg'
                     : 'text-muted-foreground hover:bg-muted/60'
                 }`}
               >
@@ -844,7 +851,7 @@ export default function SupporterDashboard({
                   <span className={`ml-1 px-1.5 py-0.5 text-[10px] font-bold rounded-full ${
                     activeOpportunityTab === 'funded'
                       ? 'bg-white/25'
-                      : 'bg-emerald-500/15 text-emerald-600'
+                      : 'bg-success/15 text-success'
                   }`}>
                     {fundedRequests.length}
                   </span>
