@@ -1101,6 +1101,13 @@ export type Database = {
             foreignKeyName: "landlord_payment_proofs_supporter_id_fkey"
             columns: ["supporter_id"]
             isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -1109,6 +1116,13 @@ export type Database = {
             columns: ["supporter_id"]
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "landlord_payment_proofs_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
             referencedColumns: ["user_id"]
           },
           {
@@ -1213,6 +1227,13 @@ export type Database = {
           water_meter_number?: string | null
         }
         Relationships: [
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
           {
             foreignKeyName: "landlords_verified_by_fkey"
             columns: ["verified_by"]
@@ -2420,6 +2441,13 @@ export type Database = {
             foreignKeyName: "rent_requests_agent_verified_by_fkey"
             columns: ["agent_verified_by"]
             isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
@@ -2443,6 +2471,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "lc1_chairpersons"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "rent_requests_manager_verified_by_fkey"
@@ -2844,6 +2879,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "landlord_payment_proofs"
             referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "supporter_roi_payments_supporter_id_fkey"
+            columns: ["supporter_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
           },
           {
             foreignKeyName: "supporter_roi_payments_supporter_id_fkey"
@@ -3812,6 +3854,16 @@ export type Database = {
       }
     }
     Views: {
+      manager_profiles: {
+        Row: {
+          avatar_url: string | null
+          email: string | null
+          full_name: string | null
+          phone: string | null
+          user_id: string | null
+        }
+        Relationships: []
+      }
       referral_leaderboard: {
         Row: {
           avatar_url: string | null

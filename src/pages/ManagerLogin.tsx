@@ -80,32 +80,16 @@ export default function ManagerLogin() {
   const { switchRole, roles, user } = useAuth();
   const { canInstall, isInstalled, isIOS, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
-  // Pre-fetch manager profiles immediately on mount (before code entry)
+  // Pre-fetch manager profiles in a single query via database view
   useEffect(() => {
     const fetchManagers = async () => {
-      setLoadingProfiles(true);
-      const { data: roleData } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'manager')
-        .or('enabled.is.null,enabled.eq.true');
+      const { data } = await supabase
+        .from('manager_profiles')
+        .select('user_id, full_name, email, phone, avatar_url');
 
-      if (!roleData || roleData.length === 0) {
-        setManagers([]);
-        setLoadingProfiles(false);
-        return;
-      }
-
-      const userIds = roleData.map(r => r.user_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, avatar_url')
-        .in('id', userIds)
-        .order('full_name');
-
-      if (profiles) {
-        setManagers(profiles.map(p => ({
-          user_id: p.id,
+      if (data) {
+        setManagers(data.map(p => ({
+          user_id: p.user_id,
           full_name: p.full_name || 'Unknown',
           email: p.email || '',
           phone: p.phone || '',
