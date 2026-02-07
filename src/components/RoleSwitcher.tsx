@@ -1,4 +1,5 @@
 import { memo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Home, Users, Wallet, Building2, Shield } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
@@ -46,12 +47,18 @@ const roleConfig: Record<AppRole, { label: string; shortLabel: string; icon: Rea
 };
 
 const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, onRoleChange, variant = 'header' }: RoleSwitcherProps) {
+  const navigate = useNavigate();
   
   if (availableRoles.length <= 1) return null;
 
   const handleSwitch = (role: AppRole) => {
     if (role !== currentRole) {
       hapticTap();
+      if (role === 'manager') {
+        // Manager requires extra security — go through PIN flow
+        navigate('/manager-login');
+        return;
+      }
       onRoleChange(role);
     }
   };
@@ -61,7 +68,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     return (
       <div className="w-full">
         <div className="flex items-center gap-1.5 p-1 bg-muted/60 rounded-2xl">
-          {availableRoles.filter(r => r !== 'manager').map((role) => {
+          {availableRoles.map((role) => {
             const config = roleConfig[role];
             const isActive = role === currentRole;
             return (
@@ -88,7 +95,7 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
   // Header variant — compact scrollable pills
   return (
     <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-      {availableRoles.filter(r => r !== 'manager').map((role) => {
+      {availableRoles.map((role) => {
         const config = roleConfig[role];
         const isActive = role === currentRole;
         return (
