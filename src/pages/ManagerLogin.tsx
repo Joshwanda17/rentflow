@@ -8,7 +8,6 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
-import ManagerPinScreen from '@/components/manager/ManagerPinScreen';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 const CACHE_KEY = 'welile_mgr_profiles';
@@ -98,7 +97,6 @@ export default function ManagerLogin() {
   const [verified, setVerified] = useState(false);
   const [managers, setManagers] = useState<ManagerProfile[]>(cached || []);
   const [loadingProfiles, setLoadingProfiles] = useState(!cached);
-  const [selectedManager, setSelectedManager] = useState<ManagerProfile | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { switchRole, roles, user } = useAuth();
@@ -146,16 +144,11 @@ export default function ManagerLogin() {
 
   const handleSelectProfile = (manager: ManagerProfile) => {
     hapticTap();
-    setSelectedManager(manager);
-  };
-
-  const handlePinSuccess = useCallback(() => {
-    if (!selectedManager) return;
     
     // Set session data instantly
     sessionStorage.setItem('manager_access_verified', 'true');
-    sessionStorage.setItem('manager_selected_id', selectedManager.user_id);
-    sessionStorage.setItem('manager_selected_name', selectedManager.full_name);
+    sessionStorage.setItem('manager_selected_id', manager.user_id);
+    sessionStorage.setItem('manager_selected_name', manager.full_name);
 
     // Switch role in background — don't block navigation
     if (roles.includes('manager')) {
@@ -164,7 +157,7 @@ export default function ManagerLogin() {
 
     // Navigate immediately
     navigate('/dashboard');
-  }, [selectedManager, roles, switchRole, navigate]);
+  };
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -178,16 +171,6 @@ export default function ManagerLogin() {
     }
   };
 
-  // Show PIN screen when a manager is selected
-  if (selectedManager) {
-    return (
-      <ManagerPinScreen
-        manager={selectedManager}
-        onSuccess={handlePinSuccess}
-        onBack={() => setSelectedManager(null)}
-      />
-    );
-  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
