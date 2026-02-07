@@ -96,7 +96,7 @@ import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
-import RoleSwitcher from '@/components/RoleSwitcher';
+
 import { UserMinus } from 'lucide-react';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
@@ -901,15 +901,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <OpportunitySummaryForm onBack={() => setShowOpportunitySummary(false)} />
         ) : (
         <>
-        {/* Role Switcher - Prominent placement for multi-role users */}
-        {availableRoles.length > 1 && (
-          <RoleSwitcher
-            currentRole={currentRole}
-            availableRoles={availableRoles}
-            onRoleChange={onRoleChange}
-            variant="prominent"
-          />
-        )}
+        {/* Role switching is now in the header popover */}
 
         {/* 🔥 Prominent Opportunity Summary Button */}
         <motion.button

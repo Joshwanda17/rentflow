@@ -25,7 +25,7 @@ import AgentRentRequestDialog from '@/components/agent/AgentRentRequestDialog';
 import { useAgentEarnings } from '@/hooks/useAgentEarnings';
 import { AgentDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import RoleSwitcher from '@/components/RoleSwitcher';
+
 import { hapticTap } from '@/lib/haptics';
 import { AgentAgreementBanner } from '@/components/agent/agreement';
 import { useOffline } from '@/contexts/OfflineContext';
@@ -215,13 +215,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </motion.button>
 
-          {/* 3. ROLE SWITCHER */}
-          <RoleSwitcher 
-            currentRole={currentRole} 
-            availableRoles={availableRoles} 
-            onRoleChange={onRoleChange} 
-            variant="prominent" 
-          />
+          {/* Role switching is now in the header popover */}
         </div>
 
         {/* ADD ROLE COMPONENT */}

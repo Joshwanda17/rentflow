@@ -58,7 +58,7 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
-import RoleSwitcher from '@/components/RoleSwitcher';
+
 
 interface SupporterDashboardProps {
   user: User;
@@ -650,17 +650,7 @@ export default function SupporterDashboard({
             />
           </div>
 
-          {/* ═══════════════════════════════════════════════════════
-              ROLE SWITCHER - For multi-role users
-          ═══════════════════════════════════════════════════════ */}
-          {availableRoles.length > 1 && (
-            <RoleSwitcher 
-              currentRole={currentRole} 
-              availableRoles={availableRoles} 
-              onRoleChange={onRoleChange} 
-              variant="prominent" 
-            />
-          )}
+          {/* Role switching is now in the header popover */}
 
           {/* ADD ROLE COMPONENT */}
           <div className="flex justify-center">
