@@ -72,7 +72,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, subDays, subMonths, eachDayOfInterval, eachWeekOfInterval, startOfWeek, endOfWeek, startOfMonth, formatDistanceToNow, isToday, isThisWeek } from 'date-fns';
+import { format, startOfMonth, formatDistanceToNow, isToday, isThisWeek } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -428,196 +428,53 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
   }, [productivityFilter, customDateRange]);
 
-  const getFilterDate = (filter: 'week' | 'month' | 'all' | 'custom') => {
-    const now = new Date();
-    if (filter === 'week') {
-      now.setDate(now.getDate() - 7);
-      return now.toISOString();
-    } else if (filter === 'month') {
-      now.setMonth(now.getMonth() - 1);
-      return now.toISOString();
-    } else if (filter === 'custom' && customDateRange.start) {
-      return customDateRange.start.toISOString();
-    }
-    return null;
-  };
-
-  const getFilterEndDate = (filter: 'week' | 'month' | 'all' | 'custom') => {
-    if (filter === 'custom' && customDateRange.end) {
-      // Set to end of day
-      const endOfDay = new Date(customDateRange.end);
-      endOfDay.setHours(23, 59, 59, 999);
-      return endOfDay.toISOString();
-    }
-    return null;
-  };
-
-  const getPreviousPeriodDates = (filter: 'week' | 'month' | 'all' | 'custom') => {
-    const now = new Date();
-    if (filter === 'week') {
-      const prevEnd = new Date(now);
-      prevEnd.setDate(prevEnd.getDate() - 7);
-      const prevStart = new Date(prevEnd);
-      prevStart.setDate(prevStart.getDate() - 7);
-      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
-    } else if (filter === 'month') {
-      const prevEnd = new Date(now);
-      prevEnd.setMonth(prevEnd.getMonth() - 1);
-      const prevStart = new Date(prevEnd);
-      prevStart.setMonth(prevStart.getMonth() - 1);
-      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
-    } else if (filter === 'custom' && customDateRange.start && customDateRange.end) {
-      const duration = customDateRange.end.getTime() - customDateRange.start.getTime();
-      const prevEnd = new Date(customDateRange.start.getTime() - 1);
-      const prevStart = new Date(prevEnd.getTime() - duration);
-      return { start: prevStart.toISOString(), end: prevEnd.toISOString() };
-    }
-    return null;
-  };
-
   const fetchProductivityData = async () => {
-    const filterDate = getFilterDate(productivityFilter);
-    const filterEndDate = getFilterEndDate(productivityFilter);
-    const previousPeriod = getPreviousPeriodDates(productivityFilter);
-    
-    // Build referrals query
-    let query = supabase
-      .from('referrals')
-      .select('referrer_id, created_at');
-    
-    if (filterDate) {
-      query = query.gte('created_at', filterDate);
-    }
-    if (filterEndDate) {
-      query = query.lte('created_at', filterEndDate);
-    }
-    
-    // Run referrals, previous period, and user_roles ALL in parallel
-    const [referralsRes, prevRes, userRolesRes] = await Promise.all([
-      query,
-      previousPeriod
-        ? supabase
-            .from('referrals')
-            .select('referrer_id')
-            .gte('created_at', previousPeriod.start)
-            .lt('created_at', previousPeriod.end)
-        : Promise.resolve({ data: [] as { referrer_id: string }[] }),
-      supabase
-        .from('user_roles')
-        .select('user_id, role')
-    ]);
+    try {
+      const customStart = productivityFilter === 'custom' && customDateRange.start ? customDateRange.start.toISOString() : null;
+      const customEnd = productivityFilter === 'custom' && customDateRange.end ? new Date(customDateRange.end.getTime()).toISOString() : null;
 
-    const referralsData = referralsRes.data || [];
-    const previousReferralsData = prevRes.data || [];
-    
-    // Count referrals per user
-    const referralCounts: Record<string, number> = {};
-    referralsData.forEach(r => {
-      referralCounts[r.referrer_id] = (referralCounts[r.referrer_id] || 0) + 1;
-    });
-    
-    const referrerIds = Object.keys(referralCounts);
-    
-    // Build user roles map (already fetched in parallel above)
-    const userRolesMap: Record<string, string[]> = {};
-    (userRolesRes.data || []).forEach(r => {
-      if (!userRolesMap[r.user_id]) userRolesMap[r.user_id] = [];
-      userRolesMap[r.user_id].push(r.role);
-    });
-    
-    // Fetch profiles for referrers (needs referrerIds first)
-    let profiles: { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; created_at: string; updated_at: string }[] = [];
-    if (referrerIds.length > 0) {
-      const { data } = await supabase
-        .from('profiles')
-        .select('id, full_name, email, phone, avatar_url, created_at, updated_at')
-        .in('id', referrerIds);
-      profiles = data || [];
-    }
-    
-    // Build performance list (all users who have referred, sorted by count)
-    const onboarders = referrerIds.map(id => {
-      const profile = profiles.find(p => p.id === id);
-      return {
-        id,
-        full_name: profile?.full_name || 'Unknown',
-        email: profile?.email || '',
-        phone: profile?.phone || '',
-        avatar_url: profile?.avatar_url || null,
-        referral_count: referralCounts[id] || 0,
-        roles: userRolesMap[id] || [],
-        created_at: profile?.created_at || '',
-        updated_at: profile?.updated_at || ''
-      };
-    }).sort((a, b) => b.referral_count - a.referral_count);
-    
-    setTopOnboarders(onboarders);
-    
-    // Calculate comparison data
-    const currentTotal = onboarders.reduce((sum, o) => sum + o.referral_count, 0);
-    const activeRecruiters = onboarders.filter(o => o.referral_count > 0).length;
-    
-    if (previousPeriod && previousReferralsData.length > 0) {
-      const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
-      const prevTotal = previousReferralsData.length;
-      setPeriodComparison({
-        currentTotal,
-        previousTotal: prevTotal,
-        percentChange: prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : (currentTotal > 0 ? 100 : 0),
-        currentRecruiters: activeRecruiters,
-        previousRecruiters: prevRecruiters,
-        recruitersChange: prevRecruiters > 0 ? Math.round(((activeRecruiters - prevRecruiters) / prevRecruiters) * 100) : (activeRecruiters > 0 ? 100 : 0)
+      const { data, error } = await supabase.rpc('get_manager_productivity', {
+        p_filter: productivityFilter,
+        p_custom_start: customStart,
+        p_custom_end: customEnd
       });
-    } else if (currentTotal > 0) {
-      setPeriodComparison({
-        currentTotal,
-        previousTotal: 0,
-        percentChange: 100,
-        currentRecruiters: activeRecruiters,
-        previousRecruiters: 0,
-        recruitersChange: 100
-      });
-    } else {
-      setPeriodComparison(null);
-    }
 
-    // Build trend data based on filter
-    const now = new Date();
-    let trendPoints: { date: string; count: number }[] = [];
-
-    if (productivityFilter === 'week') {
-      const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
-      trendPoints = days.map(day => {
-        const dayStr = format(day, 'yyyy-MM-dd');
-        const count = referralsData.filter(r => 
-          format(new Date(r.created_at), 'yyyy-MM-dd') === dayStr
-        ).length;
-        return { date: format(day, 'EEE'), count };
-      });
-    } else if (productivityFilter === 'month') {
-      const weeks = eachWeekOfInterval({ start: subMonths(now, 1), end: now }, { weekStartsOn: 1 });
-      trendPoints = weeks.map(weekStart => {
-        const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
-        const count = referralsData.filter(r => {
-          const refDate = new Date(r.created_at);
-          return refDate >= weekStart && refDate <= weekEnd;
-        }).length;
-        return { date: format(weekStart, 'MMM d'), count };
-      });
-    } else {
-      const months: { date: string; count: number }[] = [];
-      for (let i = 5; i >= 0; i--) {
-        const monthDate = subMonths(now, i);
-        const monthStr = format(monthDate, 'yyyy-MM');
-        const count = referralsData.filter(r => 
-          format(new Date(r.created_at), 'yyyy-MM') === monthStr
-        ).length;
-        months.push({ date: format(monthDate, 'MMM'), count });
+      if (error) {
+        console.error('[ManagerDashboard] Productivity RPC error:', error);
+        return;
       }
-      trendPoints = months;
-    }
 
-    setTrendData(trendPoints);
+      const result = data as {
+        onboarders: { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; created_at: string; updated_at: string; referral_count: number; roles: string[] }[];
+        current_total: number;
+        previous_total: number;
+        previous_recruiters: number;
+        trend_data: { date: string; count: number }[];
+      };
+
+      setTopOnboarders(result.onboarders || []);
+      setTrendData(result.trend_data || []);
+
+      const currentTotal = result.current_total || 0;
+      const activeRecruiters = (result.onboarders || []).filter(o => o.referral_count > 0).length;
+      const prevTotal = result.previous_total || 0;
+      const prevRecruiters = result.previous_recruiters || 0;
+
+      if (prevTotal > 0 || currentTotal > 0) {
+        setPeriodComparison({
+          currentTotal,
+          previousTotal: prevTotal,
+          percentChange: prevTotal > 0 ? Math.round(((currentTotal - prevTotal) / prevTotal) * 100) : (currentTotal > 0 ? 100 : 0),
+          currentRecruiters: activeRecruiters,
+          previousRecruiters: prevRecruiters,
+          recruitersChange: prevRecruiters > 0 ? Math.round(((activeRecruiters - prevRecruiters) / prevRecruiters) * 100) : (activeRecruiters > 0 ? 100 : 0)
+        });
+      } else {
+        setPeriodComparison(null);
+      }
+    } catch (err) {
+      console.error('[ManagerDashboard] fetchProductivityData error:', err);
+    }
   };
 
   const fetchMonthlyTarget = async () => {
@@ -729,76 +586,42 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
     
     try {
-      // Calculate date for one week ago
-      const oneWeekAgo = new Date();
-      oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
-      const oneWeekAgoISO = oneWeekAgo.toISOString();
+      // Single RPC call replaces 7 parallel queries — much faster on mobile
+      const { data, error } = await supabase.rpc('get_manager_dashboard_stats');
       
-      // Use count-only queries (head:true) — don't download rows we don't need
-      const [
-        pendingRequestsRes,
-        facilitatedRes,
-        totalUsersRes,
-        activeUsersRes,
-        newUsersRes,
-        pendingOrdersRes,
-        pendingLoansRes
-      ] = await Promise.all([
-        supabase
-          .from('rent_requests')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending'),
-        supabase
-          .from('rent_requests')
-          .select('rent_amount')
-          .in('status', ['funded', 'disbursed', 'completed']),
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true }),
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .eq('rent_discount_active', true),
-        supabase
-          .from('profiles')
-          .select('id', { count: 'exact', head: true })
-          .gte('created_at', oneWeekAgoISO),
-        supabase
-          .from('product_orders')
-          .select('id', { count: 'exact', head: true })
-          .in('status', ['pending', 'processing']),
-        supabase
-          .from('loan_applications')
-          .select('id', { count: 'exact', head: true })
-          .eq('status', 'pending')
-      ]);
+      if (error) {
+        console.error('[ManagerDashboard] Stats RPC error:', error);
+        setLoading(false);
+        return;
+      }
+
+      const stats = data as {
+        pending_requests: number;
+        total_facilitated: number;
+        total_users: number;
+        active_users: number;
+        new_signups_this_week: number;
+        pending_orders: number;
+        pending_loans: number;
+      };
       
-      const newPendingRequests = pendingRequestsRes.count || 0;
-      const newTotalFacilitated = (facilitatedRes.data || [])
-        .reduce((sum, r) => sum + Number(r.rent_amount), 0);
-      const newTotalUsers = totalUsersRes.count || 0;
-      const newActiveUsers = activeUsersRes.count || 0;
-      const newNewSignupsThisWeek = newUsersRes.count || 0;
-      const newPendingOrders = pendingOrdersRes.count || 0;
-      const newPendingLoans = pendingLoansRes.count || 0;
-      
-      setPendingRequests(newPendingRequests);
-      setTotalFacilitated(newTotalFacilitated);
-      setTotalUsers(newTotalUsers);
-      setActiveUsers(newActiveUsers);
-      setNewSignupsThisWeek(newNewSignupsThisWeek);
-      setPendingOrders(newPendingOrders);
-      setPendingLoans(newPendingLoans);
+      setPendingRequests(stats.pending_requests);
+      setTotalFacilitated(stats.total_facilitated);
+      setTotalUsers(stats.total_users);
+      setActiveUsers(stats.active_users);
+      setNewSignupsThisWeek(stats.new_signups_this_week);
+      setPendingOrders(stats.pending_orders);
+      setPendingLoans(stats.pending_loans);
       
       // Cache the data for offline use
       localStorage.setItem(`manager_dashboard_${user.id}`, JSON.stringify({
-        pendingRequests: newPendingRequests,
-        totalFacilitated: newTotalFacilitated,
-        totalUsers: newTotalUsers,
-        activeUsers: newActiveUsers,
-        newSignupsThisWeek: newNewSignupsThisWeek,
-        pendingOrders: newPendingOrders,
-        pendingLoans: newPendingLoans,
+        pendingRequests: stats.pending_requests,
+        totalFacilitated: stats.total_facilitated,
+        totalUsers: stats.total_users,
+        activeUsers: stats.active_users,
+        newSignupsThisWeek: stats.new_signups_this_week,
+        pendingOrders: stats.pending_orders,
+        pendingLoans: stats.pending_loans,
         timestamp: Date.now()
       }));
       setHasCachedData(true);
