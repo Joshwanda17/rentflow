@@ -1251,43 +1251,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
 
         {/* Summary card removed for cleaner supporter dashboard */}
 
-        {/* Header - LARGE & ACCESSIBLE */}
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              <div className="p-3.5 rounded-2xl bg-gradient-to-br from-success to-success/80 text-white shadow-xl shadow-success/30">
-                <TrendingUp className="h-7 w-7" />
-              </div>
-              {opportunities.length > 0 && (
-                <span className="absolute -top-2 -right-2 min-w-[24px] h-6 px-1.5 bg-warning text-warning-foreground text-sm font-bold rounded-full flex items-center justify-center shadow-md">
-                  {opportunities.length}
-                </span>
-              )}
-            </div>
-            <div>
-              <h3 className="font-black text-foreground text-xl tracking-tight">Opportunities</h3>
-              <p className="text-sm font-medium text-success">Earn 15% monthly</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <CurrencySwitcher variant="compact" />
-            {unseenCount > 0 && (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={handleMarkAllSeen}
-                className="h-8 px-2 text-xs text-muted-foreground hover:text-foreground gap-1.5"
-              >
-                <CheckCheck className="h-4 w-4" />
-                <span className="hidden sm:inline">Mark all seen</span>
-              </Button>
-            )}
-            <Badge variant="outline" className="bg-success/10 text-success border-success/30 font-bold text-sm px-3 py-1">
-              <Zap className="h-4 w-4 mr-1" />
-              Live
-            </Badge>
-          </div>
-        </div>
+        {/* Header card hidden for cleaner supporter dashboard */}
 
         {/* Search Bar - Larger for Easy Typing */}
         <div className="relative">
