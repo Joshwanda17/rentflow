@@ -80,15 +80,13 @@ export default function ManagerLogin() {
   const { switchRole, roles, user } = useAuth();
   const { canInstall, isInstalled, isIOS, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
-  // Pre-fetch manager profiles in a single query via database view
+  // Pre-fetch manager profiles via secure RPC (works without auth)
   useEffect(() => {
     const fetchManagers = async () => {
-      const { data } = await supabase
-        .from('manager_profiles')
-        .select('user_id, full_name, email, phone, avatar_url');
+      const { data } = await supabase.rpc('get_manager_profiles');
 
       if (data) {
-        setManagers(data.map(p => ({
+        setManagers(data.map((p: any) => ({
           user_id: p.user_id,
           full_name: p.full_name || 'Unknown',
           email: p.email || '',
@@ -226,8 +224,17 @@ export default function ManagerLogin() {
           /* Manager Profile List */
           <div className="space-y-2">
             {loadingProfiles ? (
-              <div className="flex items-center justify-center py-12">
-                <Loader2 className="h-6 w-6 animate-spin text-primary" />
+              <div className="space-y-1.5">
+                {[1, 2, 3].map((i) => (
+                  <div key={i} className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card animate-pulse">
+                    <div className="w-11 h-11 rounded-full bg-muted flex-shrink-0" />
+                    <div className="flex-1 space-y-2">
+                      <div className="h-4 bg-muted rounded w-3/4" />
+                      <div className="h-3 bg-muted rounded w-1/2" />
+                    </div>
+                    <div className="w-4 h-4 bg-muted rounded flex-shrink-0" />
+                  </div>
+                ))}
               </div>
             ) : managers.length === 0 ? (
               <p className="text-center text-sm text-muted-foreground py-8">
