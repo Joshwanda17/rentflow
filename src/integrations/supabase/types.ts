@@ -3892,6 +3892,15 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      get_manager_dashboard_stats: { Args: never; Returns: Json }
+      get_manager_productivity: {
+        Args: {
+          p_custom_end?: string
+          p_custom_start?: string
+          p_filter?: string
+        }
+        Returns: Json
+      }
       get_manager_profiles: {
         Args: never
         Returns: {
