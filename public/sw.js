@@ -1,7 +1,7 @@
 // Welile Service Worker - Offline-First PWA
 // Optimized for instant offline loading when tapped from home screen
 // Auto-updates across all devices when new version is published
-const CACHE_NAME = 'welile-v8';
+const CACHE_NAME = 'welile-v10';
 const OFFLINE_URL = '/offline.html';
 const API_CACHE_NAME = 'welile-api-v3';
 const STATIC_CACHE_NAME = 'welile-static-v3';
@@ -17,7 +17,9 @@ const PRECACHE_ASSETS = [
 ];
 
 // App routes to precache for offline navigation (SPA)
+// These all resolve to index.html (app shell) which React Router handles client-side
 const APP_SHELL_ROUTES = [
+  '/welcome',       // Landing page — must work offline
   '/dashboard',
   '/auth',
   '/settings',
@@ -26,7 +28,8 @@ const APP_SHELL_ROUTES = [
   '/marketplace',
   '/referrals',
   '/earnings',
-  '/try-calculator', // Public calculator for offline use
+  '/rent-calculator',  // Public calculator for offline use
+  '/try-calculator',   // Public calculator for offline use
 ];
 
 // API endpoints to cache for offline dashboard access
@@ -45,7 +48,7 @@ const CACHEABLE_API_PATTERNS = [
 
 // Install event - cache critical assets and skip waiting immediately
 self.addEventListener('install', (event) => {
-  console.log('[SW] Installing v8 - optimized for offline app launch...');
+  console.log('[SW] Installing v10 - optimized for offline app launch...');
   event.waitUntil(
     Promise.all([
       // Cache core assets including index.html for offline app shell
@@ -65,9 +68,16 @@ self.addEventListener('install', (event) => {
         try {
           const indexResponse = await fetch('/');
           if (indexResponse.ok) {
-            await cache.put('/', indexResponse.clone());
-            await cache.put('/index.html', indexResponse);
-            console.log('[SW] Cached index.html for offline app shell');
+            const cloned = indexResponse.clone();
+            await cache.put('/', cloned);
+            await cache.put('/index.html', indexResponse.clone());
+            
+            // Pre-cache app shell routes so they work offline
+            // All SPA routes resolve to the same index.html
+            for (const route of APP_SHELL_ROUTES) {
+              await cache.put(new Request(route, { mode: 'navigate' }), indexResponse.clone());
+            }
+            console.log('[SW] Cached index.html + app shell routes for offline');
           }
         } catch (err) {
           console.warn('[SW] Could not cache index:', err);
@@ -86,7 +96,7 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean old caches and claim all clients immediately
 self.addEventListener('activate', (event) => {
-  console.log('[SW] Activating - claiming clients for offline dashboard support...');
+  console.log('[SW] Activating - claiming clients for offline support...');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(

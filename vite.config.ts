@@ -57,7 +57,7 @@ export default defineConfig(({ mode }) => ({
         // Clean old caches - CRITICAL for iOS
         cleanupOutdatedCaches: true,
         // iOS-specific: Force cache versioning to prevent stale data
-        cacheId: 'welile-v9',
+        cacheId: 'welile-v10',
         runtimeCaching: [
           // Google Fonts - cache forever
           {
