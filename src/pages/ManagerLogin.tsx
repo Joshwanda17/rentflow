@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ArrowRight, Lock, ChevronRight, Loader2, Download, Share, Plus, X } from 'lucide-react';
+import { Shield, ArrowRight, Lock, ChevronRight, Download, Share, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
@@ -11,6 +11,8 @@ import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
 import ManagerPinScreen from '@/components/manager/ManagerPinScreen';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
+const CACHE_KEY = 'welile_mgr_profiles';
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
 
 interface ManagerProfile {
   user_id: string;
@@ -18,6 +20,28 @@ interface ManagerProfile {
   email: string;
   phone: string;
   avatar_url: string | null;
+}
+
+// Try to get cached profiles from sessionStorage
+function getCachedProfiles(): ManagerProfile[] | null {
+  try {
+    const raw = sessionStorage.getItem(CACHE_KEY);
+    if (!raw) return null;
+    const { data, ts } = JSON.parse(raw);
+    if (Date.now() - ts > CACHE_TTL) {
+      sessionStorage.removeItem(CACHE_KEY);
+      return null;
+    }
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+function setCachedProfiles(profiles: ManagerProfile[]) {
+  try {
+    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: profiles, ts: Date.now() }));
+  } catch {}
 }
 
 // iOS install instructions overlay
@@ -67,34 +91,38 @@ function IOSInstallGuide({ onClose }: { onClose: () => void }) {
 }
 
 export default function ManagerLogin() {
+  const cached = getCachedProfiles();
   const [code, setCode] = useState('');
   const [error, setError] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
   const [verified, setVerified] = useState(false);
-  const [managers, setManagers] = useState<ManagerProfile[]>([]);
-  const [loadingProfiles, setLoadingProfiles] = useState(true);
-  const [signingIn, setSigningIn] = useState<string | null>(null);
+  const [managers, setManagers] = useState<ManagerProfile[]>(cached || []);
+  const [loadingProfiles, setLoadingProfiles] = useState(!cached);
   const [selectedManager, setSelectedManager] = useState<ManagerProfile | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { switchRole, roles, user } = useAuth();
-  const { canInstall, isInstalled, isIOS, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
+  const { canInstall, isInstalled, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
-  // Pre-fetch manager profiles via secure RPC (works without auth)
+  // Fetch profiles — use cache first, then refresh in background
   useEffect(() => {
     const fetchManagers = async () => {
-      const { data } = await supabase.rpc('get_manager_profiles');
-
-      if (data) {
-        setManagers(data.map((p: any) => ({
-          user_id: p.user_id,
-          full_name: p.full_name || 'Unknown',
-          email: p.email || '',
-          phone: p.phone || '',
-          avatar_url: p.avatar_url
-        })));
+      try {
+        const { data } = await supabase.rpc('get_manager_profiles');
+        if (data && data.length > 0) {
+          const profiles = data.map((p: any) => ({
+            user_id: p.user_id,
+            full_name: p.full_name || 'Unknown',
+            email: p.email || '',
+            phone: p.phone || '',
+            avatar_url: p.avatar_url
+          }));
+          setManagers(profiles);
+          setCachedProfiles(profiles);
+        }
+      } catch {} finally {
+        setLoadingProfiles(false);
       }
-      setLoadingProfiles(false);
     };
 
     fetchManagers();
@@ -121,34 +149,22 @@ export default function ManagerLogin() {
     setSelectedManager(manager);
   };
 
-  const handlePinSuccess = () => {
+  const handlePinSuccess = useCallback(() => {
     if (!selectedManager) return;
     
+    // Set session data instantly
     sessionStorage.setItem('manager_access_verified', 'true');
     sessionStorage.setItem('manager_selected_id', selectedManager.user_id);
     sessionStorage.setItem('manager_selected_name', selectedManager.full_name);
 
-    if (user && user.id === selectedManager.user_id) {
-      if (roles.includes('manager')) {
-        switchRole('manager');
-      }
-      navigate('/dashboard');
-      return;
+    // Switch role in background — don't block navigation
+    if (roles.includes('manager')) {
+      switchRole('manager');
     }
 
-    if (user) {
-      if (roles.includes('manager')) {
-        switchRole('manager');
-      }
-      navigate('/dashboard');
-    } else {
-      toast({ 
-        title: 'Please sign in',
-        description: `Sign in as ${selectedManager.email} to access the Manager Dashboard`
-      });
-      navigate('/auth');
-    }
-  };
+    // Navigate immediately
+    navigate('/dashboard');
+  }, [selectedManager, roles, switchRole, navigate]);
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -161,6 +177,7 @@ export default function ManagerLogin() {
       toast({ title: '🎉 Manager App Installed!', description: 'Find "Welile Manager" on your home screen' });
     }
   };
+
   // Show PIN screen when a manager is selected
   if (selectedManager) {
     return (
@@ -246,8 +263,7 @@ export default function ManagerLogin() {
                   <button
                     key={manager.user_id}
                     onClick={() => handleSelectProfile(manager)}
-                    disabled={signingIn !== null}
-                    className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card hover:bg-accent/50 active:scale-[0.98] transition-all text-left group disabled:opacity-60"
+                    className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card hover:bg-accent/50 active:scale-[0.98] transition-all text-left group"
                   >
                     {manager.avatar_url ? (
                       <img 
@@ -268,11 +284,7 @@ export default function ManagerLogin() {
                         {manager.phone || manager.email}
                       </p>
                     </div>
-                    {signingIn === manager.user_id ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
-                    ) : (
-                      <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
-                    )}
+                    <ChevronRight className="h-4 w-4 text-muted-foreground group-hover:text-foreground transition-colors flex-shrink-0" />
                   </button>
                 ))}
               </div>
