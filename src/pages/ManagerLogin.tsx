@@ -206,7 +206,7 @@ export default function ManagerLogin() {
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input
-                  type="password"
+                  type="text"
                   placeholder="Enter access code"
                   value={code}
                   onChange={(e) => { setCode(e.target.value); setError(false); }}
