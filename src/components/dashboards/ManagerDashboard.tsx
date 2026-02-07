@@ -407,13 +407,18 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
   }, [user.id]);
 
-  // Run ALL initial data fetches in parallel for speed
+  // Run ALL initial data fetches in parallel with 8s timeout
   useEffect(() => {
+    const timeout = setTimeout(() => {
+      // Force-stop loading after 8s so dashboard is usable
+      setLoading(false);
+    }, 8000);
+
     Promise.all([
       fetchData(),
       fetchMonthlyTarget(),
       fetchProductivityData()
-    ]).catch(console.error);
+    ]).catch(console.error).finally(() => clearTimeout(timeout));
   }, []);
 
   // Re-fetch productivity when filter changes (after initial load)
@@ -475,7 +480,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     const filterEndDate = getFilterEndDate(productivityFilter);
     const previousPeriod = getPreviousPeriodDates(productivityFilter);
     
-    // Query referrals with optional date filter
+    // Build referrals query
     let query = supabase
       .from('referrals')
       .select('referrer_id, created_at');
@@ -487,29 +492,40 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       query = query.lte('created_at', filterEndDate);
     }
     
-    const { data: referralsData } = await query;
+    // Run referrals, previous period, and user_roles ALL in parallel
+    const [referralsRes, prevRes, userRolesRes] = await Promise.all([
+      query,
+      previousPeriod
+        ? supabase
+            .from('referrals')
+            .select('referrer_id')
+            .gte('created_at', previousPeriod.start)
+            .lt('created_at', previousPeriod.end)
+        : Promise.resolve({ data: [] as { referrer_id: string }[] }),
+      supabase
+        .from('user_roles')
+        .select('user_id, role')
+    ]);
 
-    // Fetch previous period data for comparison
-    let previousReferralsData: { referrer_id: string }[] = [];
-    if (previousPeriod) {
-      const { data } = await supabase
-        .from('referrals')
-        .select('referrer_id')
-        .gte('created_at', previousPeriod.start)
-        .lt('created_at', previousPeriod.end);
-      previousReferralsData = data || [];
-    }
+    const referralsData = referralsRes.data || [];
+    const previousReferralsData = prevRes.data || [];
     
     // Count referrals per user
     const referralCounts: Record<string, number> = {};
-    (referralsData || []).forEach(r => {
+    referralsData.forEach(r => {
       referralCounts[r.referrer_id] = (referralCounts[r.referrer_id] || 0) + 1;
     });
     
-    // Get all unique referrer IDs (users who have referred others)
     const referrerIds = Object.keys(referralCounts);
     
-    // Fetch profiles for all referrers
+    // Build user roles map (already fetched in parallel above)
+    const userRolesMap: Record<string, string[]> = {};
+    (userRolesRes.data || []).forEach(r => {
+      if (!userRolesMap[r.user_id]) userRolesMap[r.user_id] = [];
+      userRolesMap[r.user_id].push(r.role);
+    });
+    
+    // Fetch profiles for referrers (needs referrerIds first)
     let profiles: { id: string; full_name: string; email: string; phone: string; avatar_url: string | null; created_at: string; updated_at: string }[] = [];
     if (referrerIds.length > 0) {
       const { data } = await supabase
@@ -518,17 +534,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         .in('id', referrerIds);
       profiles = data || [];
     }
-    
-    // Also fetch all user roles to show their role badges
-    const { data: userRolesData } = await supabase
-      .from('user_roles')
-      .select('user_id, role');
-    
-    const userRolesMap: Record<string, string[]> = {};
-    (userRolesData || []).forEach(r => {
-      if (!userRolesMap[r.user_id]) userRolesMap[r.user_id] = [];
-      userRolesMap[r.user_id].push(r.role);
-    });
     
     // Build performance list (all users who have referred, sorted by count)
     const onboarders = referrerIds.map(id => {
@@ -581,7 +586,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     let trendPoints: { date: string; count: number }[] = [];
 
     if (productivityFilter === 'week') {
-      // Daily data for the past 7 days
       const days = eachDayOfInterval({ start: subDays(now, 6), end: now });
       trendPoints = days.map(day => {
         const dayStr = format(day, 'yyyy-MM-dd');
@@ -591,7 +595,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         return { date: format(day, 'EEE'), count };
       });
     } else if (productivityFilter === 'month') {
-      // Weekly data for the past month
       const weeks = eachWeekOfInterval({ start: subMonths(now, 1), end: now }, { weekStartsOn: 1 });
       trendPoints = weeks.map(weekStart => {
         const weekEnd = endOfWeek(weekStart, { weekStartsOn: 1 });
@@ -602,7 +605,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         return { date: format(weekStart, 'MMM d'), count };
       });
     } else {
-      // Monthly data for all time (last 6 months)
       const months: { date: string; count: number }[] = [];
       for (let i = 5; i >= 0; i--) {
         const monthDate = subMonths(now, i);
@@ -616,33 +618,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
 
     setTrendData(trendPoints);
-
-    // Calculate period comparison
-    if (productivityFilter !== 'all' && previousPeriod) {
-      const currentTotal = referralsData.length;
-      const previousTotal = previousReferralsData.length;
-      const currentRecruiters = Object.keys(referralCounts).length;
-      const prevRecruiters = new Set(previousReferralsData.map(r => r.referrer_id)).size;
-
-      const percentChange = previousTotal === 0 
-        ? (currentTotal > 0 ? 100 : 0)
-        : Math.round(((currentTotal - previousTotal) / previousTotal) * 100);
-      
-      const recruitersChange = prevRecruiters === 0 
-        ? (currentRecruiters > 0 ? 100 : 0)
-        : Math.round(((currentRecruiters - prevRecruiters) / prevRecruiters) * 100);
-
-      setPeriodComparison({
-        currentTotal,
-        previousTotal,
-        percentChange,
-        currentRecruiters,
-        previousRecruiters: prevRecruiters,
-        recruitersChange
-      });
-    } else {
-      setPeriodComparison(null);
-    }
   };
 
   const fetchMonthlyTarget = async () => {
@@ -748,7 +723,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       return;
     }
     
-    setLoading(true);
+    // Don't reset loading to true if we have cached data — show cache first
+    if (!hasCachedData) {
+      setLoading(true);
+    }
     
     try {
       // Calculate date for one week ago
@@ -756,37 +734,53 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
       const oneWeekAgoISO = oneWeekAgo.toISOString();
       
-      const [requestsRes, usersRes, ordersRes, loansRes, newUsersRes] = await Promise.all([
+      // Use count-only queries (head:true) — don't download rows we don't need
+      const [
+        pendingRequestsRes,
+        facilitatedRes,
+        totalUsersRes,
+        activeUsersRes,
+        newUsersRes,
+        pendingOrdersRes,
+        pendingLoansRes
+      ] = await Promise.all([
         supabase
           .from('rent_requests')
-          .select('id, status, rent_amount'),
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending'),
+        supabase
+          .from('rent_requests')
+          .select('rent_amount')
+          .in('status', ['funded', 'disbursed', 'completed']),
         supabase
           .from('profiles')
-          .select('id, rent_discount_active, created_at'),
+          .select('id', { count: 'exact', head: true }),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('rent_discount_active', true),
+        supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .gte('created_at', oneWeekAgoISO),
         supabase
           .from('product_orders')
-          .select('id, status'),
+          .select('id', { count: 'exact', head: true })
+          .in('status', ['pending', 'processing']),
         supabase
           .from('loan_applications')
-          .select('id, status'),
-        supabase
-          .from('profiles')
-          .select('id')
-          .gte('created_at', oneWeekAgoISO)
+          .select('id', { count: 'exact', head: true })
+          .eq('status', 'pending')
       ]);
       
-      const requests = requestsRes.data || [];
-      const users = usersRes.data || [];
-      
-      const newPendingRequests = requests.filter(r => r.status === 'pending').length;
-      const newTotalFacilitated = requests
-        .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
+      const newPendingRequests = pendingRequestsRes.count || 0;
+      const newTotalFacilitated = (facilitatedRes.data || [])
         .reduce((sum, r) => sum + Number(r.rent_amount), 0);
-      const newTotalUsers = users.length;
-      const newActiveUsers = users.filter(u => u.rent_discount_active).length;
-      const newNewSignupsThisWeek = newUsersRes.data?.length || 0;
-      const newPendingOrders = (ordersRes.data || []).filter(o => ['pending', 'processing'].includes(o.status)).length;
-      const newPendingLoans = (loansRes.data || []).filter(l => l.status === 'pending').length;
+      const newTotalUsers = totalUsersRes.count || 0;
+      const newActiveUsers = activeUsersRes.count || 0;
+      const newNewSignupsThisWeek = newUsersRes.count || 0;
+      const newPendingOrders = pendingOrdersRes.count || 0;
+      const newPendingLoans = pendingLoansRes.count || 0;
       
       setPendingRequests(newPendingRequests);
       setTotalFacilitated(newTotalFacilitated);
