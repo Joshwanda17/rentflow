@@ -294,12 +294,10 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
                 item.active ? "text-primary" : "text-muted-foreground"
               )}>{item.label}</span>
               
-              {/* Active indicator dot */}
+              {/* Active indicator dot — no layoutId to prevent layout thrashing */}
               {item.active && (
-                <motion.div
-                  layoutId="bottomNavIndicator"
+                <div
                   className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-1 rounded-full bg-primary"
-                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                 />
               )}
             </Link>

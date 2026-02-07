@@ -31,7 +31,7 @@ import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSe
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
 import MobileQuickMenu from '@/components/MobileQuickMenu';
-import RoleSwitcher from '@/components/RoleSwitcher';
+
 import { LandlordAgreementButton } from '@/components/landlord/agreement';
 import { LandlordWelileHomesSection } from '@/components/landlord/LandlordWelileHomesSection';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
@@ -141,15 +141,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       />
 
       <main className="px-4 py-4 space-y-4 animate-fade-in">
-        {/* Role Switcher - Prominent placement for multi-role users */}
-        {availableRoles.length > 1 && (
-          <RoleSwitcher
-            currentRole={currentRole}
-            availableRoles={availableRoles}
-            onRoleChange={onRoleChange}
-            variant="prominent"
-          />
-        )}
+        {/* Role switching is now in the header popover */}
 
         {/* User Profile Card - Clickable */}
         <button 
