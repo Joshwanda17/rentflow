@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Shield, ArrowLeft, Loader2, Lock } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { ArrowLeft, Lock } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
 
@@ -17,13 +16,15 @@ interface ManagerPinScreenProps {
 const PIN_LENGTH = 4;
 const MANAGER_PIN_PREFIX = 'welile_mgr_pin_';
 const MANAGER_SALT_PREFIX = 'welile_mgr_salt_';
+// 10k iterations is fast on mobile (~50ms) while still secure for a local 4-digit PIN
+const PBKDF2_ITERATIONS = 10000;
 
 async function hashPin(pin: string, existingSalt?: Uint8Array): Promise<{ hash: string; salt: string }> {
   const encoder = new TextEncoder();
   const salt = existingSalt || crypto.getRandomValues(new Uint8Array(16));
   const keyMaterial = await crypto.subtle.importKey('raw', encoder.encode(pin), 'PBKDF2', false, ['deriveBits']);
   const derived = await crypto.subtle.deriveBits(
-    { name: 'PBKDF2', salt: salt.buffer as ArrayBuffer, iterations: 100000, hash: 'SHA-256' },
+    { name: 'PBKDF2', salt: salt.buffer as ArrayBuffer, iterations: PBKDF2_ITERATIONS, hash: 'SHA-256' },
     keyMaterial,
     256
   );
@@ -60,8 +61,7 @@ export default function ManagerPinScreen({ manager, onSuccess, onBack }: Manager
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    // Focus first input on mount / mode change
-    setTimeout(() => inputRefs.current[0]?.focus(), 100);
+    setTimeout(() => inputRefs.current[0]?.focus(), 50);
     setPin('');
     setError('');
   }, [mode]);
@@ -70,7 +70,6 @@ export default function ManagerPinScreen({ manager, onSuccess, onBack }: Manager
     if (!/^\d?$/.test(value)) return;
     const arr = pin.split('');
     arr[index] = value;
-    // Fill gaps with empty
     while (arr.length < PIN_LENGTH) arr.push('');
     const next = arr.join('').slice(0, PIN_LENGTH);
     setPin(next);
@@ -80,10 +79,9 @@ export default function ManagerPinScreen({ manager, onSuccess, onBack }: Manager
       inputRefs.current[index + 1]?.focus();
     }
 
-    // Auto-submit when all digits entered
+    // Auto-submit immediately when all digits entered
     if (next.length === PIN_LENGTH && !next.includes('')) {
-      // Small delay so user sees the last digit
-      setTimeout(() => handleSubmit(next), 200);
+      setTimeout(() => handleSubmit(next), 100);
     }
   };
 
@@ -113,35 +111,37 @@ export default function ManagerPinScreen({ manager, onSuccess, onBack }: Manager
         const storedSalt = localStorage.getItem(saltKey)!;
         const valid = await verifyPin(p, storedHash, storedSalt);
         if (valid) {
-          toast({ title: `Welcome, ${manager.full_name}` });
+          // Navigate immediately — don't wait for toast
           onSuccess();
         } else {
           setError('Wrong PIN. Try again.');
           setPin('');
           triggerShake();
           setTimeout(() => inputRefs.current[0]?.focus(), 100);
+          setLoading(false);
         }
       } else if (mode === 'create') {
         setNewPin(p);
         setMode('confirm');
+        setLoading(false);
       } else if (mode === 'confirm') {
         if (p === newPin) {
           const { hash, salt } = await hashPin(p);
           localStorage.setItem(hashKey, hash);
           localStorage.setItem(saltKey, salt);
-          toast({ title: '🔒 PIN Created', description: 'Your PIN has been set successfully' });
+          // Navigate immediately
           onSuccess();
         } else {
-          setError('PINs don\'t match. Start over.');
+          setError("PINs don't match. Start over.");
           setPin('');
           setNewPin('');
           setMode('create');
           triggerShake();
+          setLoading(false);
         }
       }
     } catch {
       setError('Something went wrong. Try again.');
-    } finally {
       setLoading(false);
     }
   };
@@ -207,13 +207,6 @@ export default function ManagerPinScreen({ manager, onSuccess, onBack }: Manager
         {/* Error message */}
         {error && (
           <p className="text-center text-sm text-destructive font-medium">{error}</p>
-        )}
-
-        {/* Loading state */}
-        {loading && (
-          <div className="flex justify-center">
-            <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          </div>
         )}
 
         {/* Forgot PIN option (only in verify mode) */}
