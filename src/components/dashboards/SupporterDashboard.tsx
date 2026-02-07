@@ -821,6 +821,7 @@ export default function SupporterDashboard({
             isLocked={!effectiveHasAccepted}
             onLockedClick={() => setShowAgreementModal(true)}
             onRefreshRef={opportunitiesRefreshRef}
+            showCounts={false}
           />
         </div>
 
