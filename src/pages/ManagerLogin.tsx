@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Shield, ArrowRight, Lock, User, ChevronRight, Loader2 } from 'lucide-react';
+import { Shield, ArrowRight, Lock, ChevronRight, Loader2, Download, Share, Plus, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
+import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -16,6 +17,52 @@ interface ManagerProfile {
   email: string;
   phone: string;
   avatar_url: string | null;
+}
+
+// iOS install instructions overlay
+function IOSInstallGuide({ onClose }: { onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-end justify-center animate-in fade-in">
+      <div className="bg-card rounded-t-3xl w-full max-w-sm p-6 space-y-5 animate-in slide-in-from-bottom">
+        <div className="flex items-center justify-between">
+          <h3 className="text-lg font-bold text-foreground">Install Manager App</h3>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted">
+            <X className="h-5 w-5 text-muted-foreground" />
+          </button>
+        </div>
+        <div className="space-y-4">
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Share className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">1. Tap the Share button</p>
+              <p className="text-xs text-muted-foreground">At the bottom of Safari's toolbar</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Plus className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">2. Tap "Add to Home Screen"</p>
+              <p className="text-xs text-muted-foreground">Scroll down in the share menu</p>
+            </div>
+          </div>
+          <div className="flex items-start gap-3">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
+              <Download className="h-4 w-4 text-primary" />
+            </div>
+            <div>
+              <p className="text-sm font-semibold text-foreground">3. Tap "Add"</p>
+              <p className="text-xs text-muted-foreground">The Manager app will appear on your home screen</p>
+            </div>
+          </div>
+        </div>
+        <Button onClick={onClose} className="w-full h-12 rounded-xl">Got it</Button>
+      </div>
+    </div>
+  );
 }
 
 export default function ManagerLogin() {
@@ -29,12 +76,12 @@ export default function ManagerLogin() {
   const navigate = useNavigate();
   const { toast } = useToast();
   const { switchRole, roles, user } = useAuth();
+  const { canInstall, isInstalled, isIOS, showIOSGuide, setShowIOSGuide, installApp } = useManagerPWAInstall();
 
   // Pre-fetch manager profiles immediately on mount (before code entry)
   useEffect(() => {
     const fetchManagers = async () => {
       setLoadingProfiles(true);
-      // Single query: fetch roles + profiles in parallel
       const { data: roleData } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -104,19 +151,16 @@ export default function ManagerLogin() {
     sessionStorage.setItem('manager_selected_id', manager.user_id);
     sessionStorage.setItem('manager_selected_name', manager.full_name);
     
-    // If user is already logged in but as a different account, let them know
     if (user) {
       toast({ 
         title: `Signed in as ${manager.full_name}`,
         description: 'Switching to Manager Dashboard'
       });
-      // Switch role if available
       if (roles.includes('manager')) {
         switchRole('manager');
       }
       navigate('/dashboard');
     } else {
-      // Not logged in - redirect to auth with a note
       toast({ 
         title: 'Please sign in',
         description: `Sign in as ${manager.email} to access the Manager Dashboard`
@@ -127,6 +171,14 @@ export default function ManagerLogin() {
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
+
+  const handleInstall = async () => {
+    hapticTap();
+    const success = await installApp();
+    if (success) {
+      toast({ title: '🎉 Manager App Installed!', description: 'Find "Welile Manager" on your home screen' });
+    }
   };
 
   return (
@@ -197,7 +249,6 @@ export default function ManagerLogin() {
                     disabled={signingIn !== null}
                     className="w-full flex items-center gap-3 p-3.5 rounded-xl border border-border/50 bg-card hover:bg-accent/50 active:scale-[0.98] transition-all text-left group disabled:opacity-60"
                   >
-                    {/* Avatar */}
                     {manager.avatar_url ? (
                       <img 
                         src={manager.avatar_url} 
@@ -209,8 +260,6 @@ export default function ManagerLogin() {
                         <span className="text-sm font-bold text-primary">{getInitials(manager.full_name)}</span>
                       </div>
                     )}
-
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-semibold text-foreground truncate">
                         {manager.full_name}
@@ -219,8 +268,6 @@ export default function ManagerLogin() {
                         {manager.phone || manager.email}
                       </p>
                     </div>
-
-                    {/* Arrow / Loading */}
                     {signingIn === manager.user_id ? (
                       <Loader2 className="h-4 w-4 animate-spin text-primary flex-shrink-0" />
                     ) : (
@@ -233,10 +280,33 @@ export default function ManagerLogin() {
           </div>
         )}
 
+        {/* Install as separate app */}
+        {canInstall && (
+          <Button 
+            variant="outline" 
+            onClick={handleInstall}
+            className="w-full h-12 rounded-xl gap-2 border-dashed border-primary/30 text-primary hover:bg-primary/5"
+          >
+            <Download className="h-4 w-4" />
+            Install Manager App
+          </Button>
+        )}
+
+        {isInstalled && (
+          <div className="text-center">
+            <p className="text-xs text-primary font-medium flex items-center justify-center gap-1">
+              ✅ Manager App installed on this device
+            </p>
+          </div>
+        )}
+
         <p className="text-xs text-center text-muted-foreground/60">
           This page is restricted to authorized managers only.
         </p>
       </div>
+
+      {/* iOS Install Guide Overlay */}
+      {showIOSGuide && <IOSInstallGuide onClose={() => setShowIOSGuide(false)} />}
     </div>
   );
 }
