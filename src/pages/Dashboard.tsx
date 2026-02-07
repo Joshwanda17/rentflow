@@ -13,8 +13,6 @@ import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
-import { LocationPermissionGate } from '@/components/LocationPermissionGate';
-
 // Lazy load dashboards for faster initial load
 const TenantDashboard = lazy(() => import('@/components/dashboards/TenantDashboard'));
 const AgentDashboard = lazy(() => import('@/components/dashboards/AgentDashboard'));
@@ -270,11 +268,7 @@ function DashboardContent() {
   );
 }
 
-// Main Dashboard component with Location Gate
+// Main Dashboard component — LocationPermissionGate removed (was a passthrough)
 export default function Dashboard() {
-  return (
-    <LocationPermissionGate>
-      <DashboardContent />
-    </LocationPermissionGate>
-  );
+  return <DashboardContent />;
 }
