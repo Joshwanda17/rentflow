@@ -72,7 +72,7 @@ export default function ManagerLogin() {
   const [isShaking, setIsShaking] = useState(false);
   const [verified, setVerified] = useState(false);
   const [managers, setManagers] = useState<ManagerProfile[]>([]);
-  const [loadingProfiles, setLoadingProfiles] = useState(false);
+  const [loadingProfiles, setLoadingProfiles] = useState(true);
   const [signingIn, setSigningIn] = useState<string | null>(null);
   const [selectedManager, setSelectedManager] = useState<ManagerProfile | null>(null);
   const navigate = useNavigate();
