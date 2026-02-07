@@ -129,8 +129,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [showOpportunitySummary, setShowOpportunitySummary] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
+  // Auto-verify if manager already authenticated via /manager-login PIN flow
   const [accessVerified, setAccessVerified] = useState(() => {
-    // Check if already verified in this session
     return sessionStorage.getItem('manager_access_verified') === 'true';
   });
   const [accessCodeInput, setAccessCodeInput] = useState('');
@@ -407,11 +407,16 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
   }, [user.id]);
 
+  // Run ALL initial data fetches in parallel for speed
   useEffect(() => {
-    fetchData();
-    fetchMonthlyTarget();
+    Promise.all([
+      fetchData(),
+      fetchMonthlyTarget(),
+      fetchProductivityData()
+    ]).catch(console.error);
   }, []);
 
+  // Re-fetch productivity when filter changes (after initial load)
   useEffect(() => {
     if (productivityFilter !== 'custom' || (customDateRange.start && customDateRange.end)) {
       fetchProductivityData();
@@ -642,27 +647,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
   const fetchMonthlyTarget = async () => {
     const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
+    const monthStart = startOfMonth(new Date()).toISOString();
     
-    // Fetch target for current month
-    const { data: targetData } = await supabase
-      .from('onboarding_targets')
-      .select('target_count')
-      .eq('target_month', currentMonth)
-      .single();
+    // Fetch target and progress in parallel
+    const [targetRes, countRes] = await Promise.all([
+      supabase
+        .from('onboarding_targets')
+        .select('target_count')
+        .eq('target_month', currentMonth)
+        .maybeSingle(),
+      supabase
+        .from('referrals')
+        .select('id', { count: 'exact', head: true })
+        .gte('created_at', monthStart)
+    ]);
     
-    if (targetData) {
-      setMonthlyTarget(targetData.target_count);
-      setTargetInput(String(targetData.target_count));
+    if (targetRes.data) {
+      setMonthlyTarget(targetRes.data.target_count);
+      setTargetInput(String(targetRes.data.target_count));
     }
     
-    // Fetch this month's referrals count for progress
-    const monthStart = startOfMonth(new Date()).toISOString();
-    const { count } = await supabase
-      .from('referrals')
-      .select('id', { count: 'exact', head: true })
-      .gte('created_at', monthStart);
-    
-    setMonthlyProgress(count || 0);
+    setMonthlyProgress(countRes.count || 0);
   };
 
   const handleSaveTarget = async () => {
