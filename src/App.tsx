@@ -2,14 +2,16 @@ import { lazy, Suspense, memo, useEffect, useState, type ReactNode } from "react
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
-import { AuthProvider } from "@/hooks/useAuth";
-import { PinAuthProvider } from "@/hooks/usePinAuth";
-import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
-import { LanguageProvider } from "@/hooks/useLanguage";
-import { CurrencyProvider } from "@/hooks/useCurrency";
-import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
+
+// Defer heavy auth/settings providers — loaded after first paint via idle callback
+const AuthProvider = lazy(() => import("@/hooks/useAuth").then(m => ({ default: m.AuthProvider })));
+const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
+const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
+const LanguageProvider = lazy(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
+const CurrencyProvider = lazy(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
+const CombinedSettingsProvider = lazy(() => import("@/hooks/useCombinedSettings").then(m => ({ default: m.CombinedSettingsProvider })));
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -226,30 +228,32 @@ const App = () => (
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
-        <CombinedSettingsProvider>
-          <LanguageProvider>
-            <CurrencyProvider>
-              <BrowserRouter>
-                <AuthProvider>
-                  <PinAuthProvider>
-                    <BiometricAuthProvider>
-                      <TooltipProvider delayDuration={300}>
-                        <DeferredProviders>
-                          <AppRoutes />
-                        </DeferredProviders>
-                        <Suspense fallback={null}>
-                          <DeferredExtras />
-                          <Toaster />
-                          <Sonner />
-                        </Suspense>
-                      </TooltipProvider>
-                    </BiometricAuthProvider>
-                  </PinAuthProvider>
-                </AuthProvider>
-              </BrowserRouter>
-            </CurrencyProvider>
-          </LanguageProvider>
-        </CombinedSettingsProvider>
+        <BrowserRouter>
+          <Suspense fallback={<PageLoader />}>
+            <CombinedSettingsProvider>
+              <LanguageProvider>
+                <CurrencyProvider>
+                  <AuthProvider>
+                    <PinAuthProvider>
+                      <BiometricAuthProvider>
+                        <TooltipProvider delayDuration={300}>
+                          <DeferredProviders>
+                            <AppRoutes />
+                          </DeferredProviders>
+                          <Suspense fallback={null}>
+                            <DeferredExtras />
+                            <Toaster />
+                            <Sonner />
+                          </Suspense>
+                        </TooltipProvider>
+                      </BiometricAuthProvider>
+                    </PinAuthProvider>
+                  </AuthProvider>
+                </CurrencyProvider>
+              </LanguageProvider>
+            </CombinedSettingsProvider>
+          </Suspense>
+        </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>
   </ChunkErrorBoundary>
