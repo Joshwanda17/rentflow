@@ -28,6 +28,8 @@ interface DepositRequest {
   amount: number;
   status: string;
   created_at: string;
+  transaction_id: string | null;
+  provider: string | null;
   user_name?: string;
 }
 
@@ -215,11 +217,22 @@ export function FloatingDepositsWidget() {
                               {format(new Date(deposit.created_at), 'MMM d, h:mm a')}
                             </span>
                           </div>
-                          <div className="flex items-center justify-between">
+                          <div className="flex items-center justify-between mb-1">
                             <span className="text-lg font-bold text-primary">
                               {formatUGX(deposit.amount)}
                             </span>
-                            <div className="flex gap-1">
+                            {deposit.provider && (
+                              <Badge variant="outline" className={deposit.provider === 'mtn' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20 text-[10px]' : 'bg-red-500/10 text-red-600 border-red-500/20 text-[10px]'}>
+                                {deposit.provider.toUpperCase()}
+                              </Badge>
+                            )}
+                          </div>
+                          {deposit.transaction_id && (
+                            <p className="text-xs text-muted-foreground mb-2">
+                              Txn: <span className="font-mono font-medium text-foreground">{deposit.transaction_id}</span>
+                            </p>
+                          )}
+                          <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
                                 variant="ghost"
@@ -243,7 +256,6 @@ export function FloatingDepositsWidget() {
                                 <X className="h-4 w-4" />
                               </Button>
                             </div>
-                          </div>
                         </motion.div>
                       ))}
                     </div>
