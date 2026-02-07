@@ -184,8 +184,13 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     // Initial check
     checkConnectionQuality();
 
-    // Load pending sync count
-    getSyncQueue().then(queue => setPendingSyncCount(queue.length));
+    // DEFERRED: Load pending sync count after first paint
+    const loadQueue = () => getSyncQueue().then(queue => setPendingSyncCount(queue.length));
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(loadQueue, { timeout: 3000 });
+    } else {
+      setTimeout(loadQueue, 1000);
+    }
 
     return () => {
       window.removeEventListener('online', handleOnline);

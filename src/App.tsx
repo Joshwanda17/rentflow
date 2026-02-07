@@ -1,7 +1,4 @@
-import { lazy, Suspense, memo, useEffect, useState } from "react";
-import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
-import { useForceRefresh } from "@/hooks/useForceRefresh";
-import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
+import { lazy, Suspense, memo, useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -11,21 +8,18 @@ import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
 import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
-import { CartProvider } from "@/hooks/useCart";
-import { ComparisonProvider } from "@/hooks/useProductComparison";
-import { OfflineProvider } from "@/contexts/OfflineContext";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 
-// Only lazy load truly optional UI components
+// Deferred providers - loaded after first paint
+const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
+const ComparisonProvider = lazy(() => import("@/hooks/useProductComparison").then(m => ({ default: m.ComparisonProvider })));
+const OfflineProvider = lazy(() => import("@/contexts/OfflineContext").then(m => ({ default: m.OfflineProvider })));
+
+// Lazy load optional UI components
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
-const PWAInstallPrompt = lazy(() => import("@/components/PWAInstallPrompt"));
-const WhatsNewModal = lazy(() => import("@/components/WhatsNewModal").then(m => ({ default: m.WhatsNewModal })));
-const GlobalSettingsToolbar = lazy(() => import("@/components/GlobalSettingsToolbar").then(m => ({ default: m.GlobalSettingsToolbar })));
-const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
-const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
-const IOSShareReceiver = lazy(() => import("@/components/IOSShareReceiver"));
+const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 
 // Lazy load routes
 const Landing = lazy(() => import("./pages/Landing"));
@@ -171,15 +165,6 @@ function RoutePrefetcher() {
 
 // Stable routes wrapper (no JS-based page transitions to avoid mobile “shaking”)
 function AppRoutes() {
-  // Auto-update service worker for real-time feature deployment
-  useServiceWorkerUpdate();
-
-  // Listen for force refresh signals from managers
-  useForceRefresh();
-
-  // iOS PWA cache invalidation for fresh data
-  useIOSCacheInvalidation();
-
   return (
     <div className="min-h-screen">
       <RoutePrefetcher />
@@ -243,7 +228,31 @@ function AppRoutes() {
   );
 }
 
-// Flattened provider structure (reduced from 13 to 9 levels)
+// Deferred wrapper that loads Cart, Comparison, and Offline providers lazily
+function DeferredProviders({ children }: { children: ReactNode }) {
+  const [ready, setReady] = useState(false);
+  
+  useEffect(() => {
+    // Defer heavy providers to after first paint
+    const id = requestAnimationFrame(() => setReady(true));
+    return () => cancelAnimationFrame(id);
+  }, []);
+  
+  if (!ready) return <>{children}</>;
+  
+  return (
+    <Suspense fallback={<>{children}</>}>
+      <OfflineProvider>
+        <CartProvider>
+          <ComparisonProvider>
+            {children}
+          </ComparisonProvider>
+        </CartProvider>
+      </OfflineProvider>
+    </Suspense>
+  );
+}
+
 const App = () => (
   <ChunkErrorBoundary>
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
@@ -255,25 +264,16 @@ const App = () => (
                 <AuthProvider>
                   <PinAuthProvider>
                     <BiometricAuthProvider>
-                      <OfflineProvider>
-                        <CartProvider>
-                          <ComparisonProvider>
-                            <TooltipProvider delayDuration={300}>
-                              <AppRoutes />
-                              <Suspense fallback={null}>
-                                <IOSOptimizations />
-                                <IOSLinkHandler />
-                                <IOSShareReceiver />
-                                <PWAInstallPrompt />
-                                <WhatsNewModal />
-                                <GlobalSettingsToolbar />
-                                <Toaster />
-                                <Sonner />
-                              </Suspense>
-                            </TooltipProvider>
-                          </ComparisonProvider>
-                        </CartProvider>
-                      </OfflineProvider>
+                      <TooltipProvider delayDuration={300}>
+                        <DeferredProviders>
+                          <AppRoutes />
+                        </DeferredProviders>
+                        <Suspense fallback={null}>
+                          <DeferredExtras />
+                          <Toaster />
+                          <Sonner />
+                        </Suspense>
+                      </TooltipProvider>
                     </BiometricAuthProvider>
                   </PinAuthProvider>
                 </AuthProvider>

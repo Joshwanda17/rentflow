@@ -285,7 +285,7 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
     await fetchLiveRates();
   }, [fetchLiveRates]);
 
-  // Fetch rates on mount and every 30 minutes
+  // Fetch rates on mount - DEFERRED to not block initial render
   useEffect(() => {
     // Check if we have recent cached rates (less than 30 min old)
     const cached = localStorage.getItem('welile-live-rates');
@@ -293,26 +293,36 @@ export const CurrencyProvider: React.FC<{ children: ReactNode }> = ({ children }
       try {
         const { rates, timestamp } = JSON.parse(cached);
         const age = Date.now() - timestamp;
-        if (age < 30 * 60 * 1000) { // Less than 30 minutes
+        if (age < 30 * 60 * 1000) {
           setLiveRates(rates);
           setLastUpdated(new Date(timestamp));
-          // Update currencies with cached rates
           currencies = baseCurrencies.map(c => ({
             ...c,
             rate: rates[c.code] || fallbackRates[c.code] || 0.00027
           }));
-          return; // Don't fetch if cache is fresh
+          // Still set up refresh interval but don't fetch now
+          const interval = setInterval(fetchLiveRates, 30 * 60 * 1000);
+          return () => clearInterval(interval);
         }
       } catch {
         // Continue to fetch
       }
     }
     
-    fetchLiveRates();
+    // DEFER initial fetch to after first paint using requestIdleCallback
+    const scheduleId = 'requestIdleCallback' in window
+      ? (window as any).requestIdleCallback(() => fetchLiveRates(), { timeout: 5000 })
+      : setTimeout(() => fetchLiveRates(), 2000);
     
-    // Refresh every 30 minutes
     const interval = setInterval(fetchLiveRates, 30 * 60 * 1000);
-    return () => clearInterval(interval);
+    return () => {
+      if ('requestIdleCallback' in window) {
+        (window as any).cancelIdleCallback(scheduleId);
+      } else {
+        clearTimeout(scheduleId);
+      }
+      clearInterval(interval);
+    };
   }, [fetchLiveRates]);
 
   const setCurrency = (newCurrency: Currency) => {
