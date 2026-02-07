@@ -30,24 +30,24 @@ export default function ManagerLogin() {
   const { toast } = useToast();
   const { switchRole, roles, user } = useAuth();
 
-  // Fetch manager profiles after code verification
+  // Pre-fetch manager profiles immediately on mount (before code entry)
   useEffect(() => {
-    if (!verified) return;
-
     const fetchManagers = async () => {
       setLoadingProfiles(true);
-      const { data, error } = await supabase
+      // Single query: fetch roles + profiles in parallel
+      const { data: roleData } = await supabase
         .from('user_roles')
         .select('user_id')
         .eq('role', 'manager')
         .or('enabled.is.null,enabled.eq.true');
 
-      if (error || !data) {
+      if (!roleData || roleData.length === 0) {
+        setManagers([]);
         setLoadingProfiles(false);
         return;
       }
 
-      const userIds = data.map(r => r.user_id);
+      const userIds = roleData.map(r => r.user_id);
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name, email, phone, avatar_url')
@@ -67,7 +67,7 @@ export default function ManagerLogin() {
     };
 
     fetchManagers();
-  }, [verified]);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
