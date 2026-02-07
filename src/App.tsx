@@ -21,8 +21,10 @@ const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ defaul
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 
+// Eagerly load Landing (first page users see — must be instant + offline)
+import Landing from "./pages/Landing";
+
 // Lazy load routes
-const Landing = lazy(() => import("./pages/Landing"));
 const Index = lazy(() => import("./pages/Index"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));

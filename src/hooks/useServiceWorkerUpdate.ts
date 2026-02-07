@@ -2,47 +2,28 @@ import { useEffect, useCallback, useRef } from "react";
 
 declare const __BUILD_TIME__: number;
 
-// Pre-cache app shell assets for offline launch
+const CACHE_NAME = 'welile-v10';
+
+// Pre-cache app shell assets for offline launch — runs ONLY on first install
 async function precacheAppShell() {
   if (!("caches" in window)) return;
   
+  // Skip if already precached this version (prevents redundant fetches on every load)
+  const precacheKey = `precached_${CACHE_NAME}`;
+  if (sessionStorage.getItem(precacheKey)) return;
+  
   try {
-    const cache = await caches.open("welile-v9");
+    const cache = await caches.open(CACHE_NAME);
     
-    // Cache the current page (app shell)
-    const currentUrl = window.location.href;
-    const response = await fetch(currentUrl);
+    // Cache the app shell (index.html) for offline SPA routing
+    const response = await fetch('/');
     if (response.ok) {
-      await cache.put(currentUrl, response.clone());
-      await cache.put("/", response.clone());
-      await cache.put("/index.html", response);
+      await cache.put('/', response.clone());
+      await cache.put('/index.html', response);
       console.log("[SW] App shell cached for offline");
     }
     
-    // Also cache critical routes for referral links
-    const criticalRoutes = [
-      "/dashboard", 
-      "/auth", 
-      "/settings", 
-      "/select-role",
-      "/rent-calculator", 
-      "/try-calculator",
-      "/welcome"
-    ];
-    
-    // Cache routes in parallel for speed
-    await Promise.allSettled(
-      criticalRoutes.map(async (route) => {
-        try {
-          const routeResponse = await fetch(route);
-          if (routeResponse.ok) {
-            await cache.put(route, routeResponse);
-          }
-        } catch (e) {
-          // Ignore individual route failures
-        }
-      })
-    );
+    sessionStorage.setItem(precacheKey, '1');
   } catch (error) {
     console.warn("[SW] Failed to precache app shell:", error);
   }
@@ -147,15 +128,12 @@ export function useServiceWorkerUpdate() {
       }
     };
     
-    // Check immediately on mount (only once) and precache app shell
+    // Check immediately on mount (only once)
     if (!hasCheckedOnMount.current) {
       hasCheckedOnMount.current = true;
       navigator.serviceWorker.ready.then((reg) => {
         reg.update().catch(() => {});
       });
-      
-      // Pre-cache app shell for offline on every app load
-      precacheAppShell();
     }
     
     // Check every 30 seconds (reduced from 3s for battery/CPU efficiency)
