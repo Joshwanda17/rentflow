@@ -1,7 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { usePinAuth } from '@/hooks/usePinAuth';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,8 +14,6 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
-import PinEntry from '@/components/auth/PinEntry';
-import PinSetupDialog from '@/components/auth/PinSetupDialog';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 
@@ -65,27 +62,19 @@ export default function Auth() {
     const saved = localStorage.getItem('welile_remember_me');
     return saved !== 'false';
   });
-  const [showPinSetup, setShowPinSetup] = useState(false);
-  const [showPinEntry, setShowPinEntry] = useState(false);
+  
   const [showPassword, setShowPassword] = useState(false);
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
   
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
-  const { isPinEnabled } = usePinAuth();
+  
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
 
-  // Check if we should show PIN entry on page load
-  useEffect(() => {
-    // Check if there's a previous session indicator and PIN is enabled
-    const hadPreviousSession = localStorage.getItem('welile_had_session') === 'true';
-    if (hadPreviousSession && isPinEnabled && !user) {
-      setShowPinEntry(true);
-    }
-  }, [isPinEnabled, user]);
+  // No PIN gate — users go straight to dashboard after auth
 
   useEffect(() => {
     if (referralId) {
@@ -109,15 +98,10 @@ export default function Auth() {
       if (roles.length === 0) {
         navigate('/select-role');
       } else {
-        // Offer PIN setup if not enabled and signed in successfully
-        if (!isPinEnabled) {
-          setShowPinSetup(true);
-        } else {
-          navigate('/dashboard');
-        }
+        navigate('/dashboard');
       }
     }
-  }, [user, roles, navigate, isPinEnabled]);
+  }, [user, roles, navigate]);
 
   // Auto-focus first input for faster entry on mobile
   useEffect(() => {
@@ -396,40 +380,8 @@ export default function Auth() {
     }
   };
 
-  const handlePinSuccess = () => {
-    setShowPinEntry(false);
-    navigate('/dashboard');
-  };
-
-  const handlePinSetupComplete = () => {
-    setShowPinSetup(false);
-    navigate('/dashboard');
-  };
-
-  const handleSkipPinSetup = () => {
-    setShowPinSetup(false);
-    navigate('/dashboard');
-  };
-
-  // Show PIN entry screen
-  if (showPinEntry) {
-    return (
-      <PinEntry 
-        onSuccess={handlePinSuccess}
-        onFallbackToPassword={() => setShowPinEntry(false)}
-      />
-    );
-  }
-
   return (
     <>
-      <PinSetupDialog 
-        open={showPinSetup} 
-        onOpenChange={(open) => {
-          if (!open) handleSkipPinSetup();
-        }}
-        onComplete={handlePinSetupComplete}
-      />
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
       {/* Background decoration */}
       <div className="fixed inset-0 overflow-hidden pointer-events-none">
