@@ -5,23 +5,22 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { 
   Wallet, TrendingUp, Plus, 
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Store, Users,
-  FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins
+  FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins,
+  Menu, ChevronRight
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
 import { useToast } from '@/hooks/use-toast';
-import RoleSwitcher from '@/components/RoleSwitcher';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { CollapsibleWalletCard } from '@/components/wallet/CollapsibleWalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
+import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
@@ -30,27 +29,16 @@ import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog'
 import { FundAccountDialog } from '@/components/supporter/FundAccountDialog';
 import { WithdrawAccountDialog } from '@/components/supporter/WithdrawAccountDialog';
 import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
-import { ShareSupporterLink } from '@/components/supporter/ShareSupporterLink';
 import { useWallet } from '@/hooks/useWallet';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
-import MobileQuickMenu from '@/components/MobileQuickMenu';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 
 // Modern fintech components
 import { HeroBalanceCard } from '@/components/supporter/HeroBalanceCard';
-import { ModernQuickActions } from '@/components/supporter/ModernQuickActions';
-import { ModernSectionHeader } from '@/components/supporter/ModernSectionHeader';
-import { ModernInviteCard } from '@/components/supporter/ModernInviteCard';
-import { ModernQuickLinks } from '@/components/supporter/ModernQuickLinks';
-
-import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { OpportunityHeroButton } from '@/components/supporter/OpportunityHeroButton';
-import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
-import { ROIEarningsCard } from '@/components/supporter/ROIEarningsCard';
-import { MyInvestmentRequests } from '@/components/supporter/MyInvestmentRequests';
 import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
-import { FundedHistory } from '@/components/supporter/FundedHistory';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
 // Tenant request details and payment dialogs
@@ -65,6 +53,12 @@ import {
   AgreementAcceptedBadge
 } from '@/components/supporter/agreement';
 import { SupporterAgreementViewModal } from '@/components/supporter/agreement/SupporterAgreementCard';
+
+// Menu drawer
+import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
+import { hapticTap } from '@/lib/haptics';
+import { motion } from 'framer-motion';
+import RoleSwitcher from '@/components/RoleSwitcher';
 
 interface SupporterDashboardProps {
   user: User;
@@ -124,11 +118,11 @@ export default function SupporterDashboard({
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
-  const [activeOpportunityTab, setActiveOpportunityTab] = useState<'opportunities' | 'funded'>('opportunities');
   
   // Agreement status
   const { 
@@ -143,7 +137,7 @@ export default function SupporterDashboard({
   // Ref for refreshing opportunities from parent
   const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
   
-  // Track local acceptance state - once accepted, never show agreement UI again in this session
+  // Track local acceptance state
   const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
   
   // Show agreement modal on first load if not accepted
@@ -160,13 +154,11 @@ export default function SupporterDashboard({
       setLocalHasAccepted(true);
       setJustAccepted(true);
       setShowAgreementModal(false);
-      // Scroll to top and show welcome message
       window.scrollTo({ top: 0, behavior: 'smooth' });
       toast({
         title: '🎉 Welcome to Welile Supporters!',
         description: 'Terms accepted. You can now start investing and helping tenants.',
       });
-      // Reset celebration after 5 seconds
       setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
@@ -191,7 +183,6 @@ export default function SupporterDashboard({
   // Scroll to opportunities section when hash is present
   useEffect(() => {
     if (location.hash === '#opportunities') {
-      // Small delay to ensure content is rendered
       setTimeout(() => {
         const el = document.getElementById('opportunities');
         if (el) {
@@ -204,42 +195,27 @@ export default function SupporterDashboard({
   useEffect(() => {
     fetchData();
     
-    // Real-time subscription for opportunity count updates
     const opportunityChannel = supabase
       .channel('supporter-opportunity-count')
       .on(
         'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rent_requests',
-        },
-        async (payload) => {
-          // Refresh opportunity count when rent_requests change
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        async () => {
           const { count } = await supabase
             .from('rent_requests')
             .select('id', { count: 'exact', head: true })
             .in('status', ['pending', 'approved']);
-          
           setOpportunityCount(count || 0);
         }
       )
       .subscribe();
 
-    // Real-time subscription for investment account balance changes (for withdrawals)
     const investmentChannel = supabase
       .channel(`supporter-investment-${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'investment_accounts',
-          filter: `user_id=eq.${user.id}`,
-        },
+        { event: 'UPDATE', schema: 'public', table: 'investment_accounts', filter: `user_id=eq.${user.id}` },
         (payload) => {
-          console.log('[SupporterDashboard] Investment account updated:', payload);
-          // Update the account in state immediately
           if (payload.new) {
             const updatedAccount = payload.new as any;
             setAccounts(prev => prev.map(acc => 
@@ -252,21 +228,12 @@ export default function SupporterDashboard({
       )
       .subscribe();
 
-    // Real-time subscription for wallet balance (for fund/withdraw operations)
     const walletChannel = supabase
       .channel(`supporter-wallet-${user.id}`)
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wallets',
-          filter: `user_id=eq.${user.id}`,
-        },
-        () => {
-          console.log('[SupporterDashboard] Wallet updated, triggering refresh');
-          // Wallet hook handles its own update, but we refresh for consistency
-        }
+        { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
+        () => {}
       )
       .subscribe();
 
@@ -278,7 +245,6 @@ export default function SupporterDashboard({
   }, [user]);
 
   const fetchData = async () => {
-    // Skip network fetch if offline and we have cached data
     if (!navigator.onLine && hasCachedData) {
       setLoading(false);
       return;
@@ -303,7 +269,6 @@ export default function SupporterDashboard({
           .select('*')
           .eq('user_id', user.id)
           .order('created_at', { ascending: true }),
-        // Count all unfunded opportunities (pending + approved)
         supabase
           .from('rent_requests')
           .select('id', { count: 'exact', head: true })
@@ -328,12 +293,10 @@ export default function SupporterDashboard({
       setAccounts(newAccounts);
       setOpportunityCount(newOpportunityCount);
       
-      // Track if user has ever funded (for first-time celebration)
       if (hasEverFunded === null) {
         setHasEverFunded(newFundedRequests.length > 0);
       }
       
-      // Cache the data for offline use
       localStorage.setItem(`supporter_dashboard_${user.id}`, JSON.stringify({
         availableRequests: newAvailableRequests,
         fundedRequests: newFundedRequests,
@@ -343,7 +306,6 @@ export default function SupporterDashboard({
       setHasCachedData(true);
     } catch (error) {
       console.error('[SupporterDashboard] Error fetching data:', error);
-      // If we have cached data, don't show error, just use cached
     }
 
     setLoading(false);
@@ -361,11 +323,7 @@ export default function SupporterDashboard({
       .eq('status', 'approved');
 
     if (error) {
-      toast({
-        title: 'Funding Failed',
-        description: error.message,
-        variant: 'destructive'
-      });
+      toast({ title: 'Funding Failed', description: error.message, variant: 'destructive' });
     } else {
       await supabase.from('platform_transactions').insert({
         rent_request_id: requestId,
@@ -376,13 +334,11 @@ export default function SupporterDashboard({
         description: 'Rent facilitation funding'
       });
 
-      // Check if this is their first funding
       const isFirstFunding = hasEverFunded === false;
       
       if (isFirstFunding) {
-        // Extra special celebration for first-time funders!
         fireFirstFunding();
-        playFirstFundingFanfare(); // Special fanfare for first-time funders
+        playFirstFundingFanfare();
         setHasEverFunded(true);
         toast({
           title: '🎊 Congratulations on Your First Investment!',
@@ -390,7 +346,7 @@ export default function SupporterDashboard({
         });
       } else {
         fireSuccess();
-        playSuccessSound(); // Play celebratory sound with confetti
+        playSuccessSound();
         toast({
           title: '🎉 Request Funded!',
           description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
@@ -404,49 +360,28 @@ export default function SupporterDashboard({
   const handleCreateAccount = async (name: string, color: string) => {
     const { data, error } = await supabase
       .from('investment_accounts')
-      .insert({
-        user_id: user.id,
-        name,
-        color,
-        status: 'pending'
-      })
+      .insert({ user_id: user.id, name, color, status: 'pending' })
       .select()
       .single();
 
     if (error) {
-      toast({ 
-        title: 'Error', 
-        description: error.message,
-        variant: 'destructive' 
-      });
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
       return;
     }
 
     if (data) {
       const newAccount: InvestmentAccount = {
-        id: data.id,
-        name: data.name,
-        balance: Number(data.balance),
-        invested: 0,
-        returns: 0,
-        color: data.color,
-        status: 'pending',
+        id: data.id, name: data.name, balance: Number(data.balance),
+        invested: 0, returns: 0, color: data.color, status: 'pending',
       };
       setAccounts(prev => [...prev, newAccount]);
-      toast({ 
-        title: '🎉 Account Created!', 
-        description: `${name} is pending manager approval` 
-      });
+      toast({ title: '🎉 Account Created!', description: `${name} is pending manager approval` });
     }
   };
 
   const handleFundAccountClick = (account: InvestmentAccount) => {
     if (account.status !== 'approved') {
-      toast({ 
-        title: 'Account Not Approved', 
-        description: 'Only approved accounts can receive funds',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Account Not Approved', description: 'Only approved accounts can receive funds', variant: 'destructive' });
       return;
     }
     setSelectedAccountForFunding(account);
@@ -454,137 +389,72 @@ export default function SupporterDashboard({
   };
 
   const handleFundAccount = async (accountId: string, amount: number) => {
-    // Get fresh wallet balance to prevent race conditions
     const { data: freshWallet, error: walletFetchError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .single();
+      .from('wallets').select('balance').eq('user_id', user.id).single();
 
     if (walletFetchError || !freshWallet || freshWallet.balance < amount) {
-      toast({ 
-        title: 'Insufficient Balance', 
-        description: 'You don\'t have enough funds in your wallet',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Insufficient Balance', description: "You don't have enough funds in your wallet", variant: 'destructive' });
       return;
     }
 
-    // Update wallet with optimistic locking
     const { data: updatedWallet, error: walletError } = await supabase
       .from('wallets')
       .update({ balance: freshWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .eq('balance', freshWallet.balance) // Only update if balance unchanged
-      .select()
-      .maybeSingle();
+      .eq('user_id', user.id).eq('balance', freshWallet.balance).select().maybeSingle();
 
     if (walletError || !updatedWallet) {
-      toast({ 
-        title: 'Transaction Conflict', 
-        description: 'Another transaction occurred. Please try again.',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
       return;
     }
 
-    // Get fresh account data
     const { data: currentAccount, error: accountFetchError } = await supabase
-      .from('investment_accounts')
-      .select('balance, name')
-      .eq('id', accountId)
-      .single();
+      .from('investment_accounts').select('balance, name').eq('id', accountId).single();
 
     if (accountFetchError || !currentAccount) {
-      // Rollback wallet
-      await supabase
-        .from('wallets')
-        .update({ balance: freshWallet.balance })
-        .eq('user_id', user.id);
-      
+      await supabase.from('wallets').update({ balance: freshWallet.balance }).eq('user_id', user.id);
       toast({ title: 'Error', description: 'Account not found', variant: 'destructive' });
       return;
     }
 
-    // Update investment account with optimistic lock
     const { data: updatedAccount, error: accountError } = await supabase
       .from('investment_accounts')
       .update({ balance: Number(currentAccount.balance) + amount, updated_at: new Date().toISOString() })
-      .eq('id', accountId)
-      .eq('balance', currentAccount.balance)
-      .select()
-      .maybeSingle();
+      .eq('id', accountId).eq('balance', currentAccount.balance).select().maybeSingle();
 
     if (accountError || !updatedAccount) {
-      // Rollback wallet
-      await supabase
-        .from('wallets')
-        .update({ balance: freshWallet.balance })
-        .eq('user_id', user.id);
-      
-      toast({ 
-        title: 'Transaction Conflict', 
-        description: 'Another transaction occurred. Please try again.',
-        variant: 'destructive' 
-      });
+      await supabase.from('wallets').update({ balance: freshWallet.balance }).eq('user_id', user.id);
+      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
       return;
     }
 
-    // Notify all managers about the funding for approval
-    const { data: managers } = await supabase
-      .from('user_roles')
-      .select('user_id')
-      .eq('role', 'manager')
-      .eq('enabled', true);
-
+    const { data: managers } = await supabase.from('user_roles').select('user_id').eq('role', 'manager').eq('enabled', true);
     if (managers && managers.length > 0) {
       const notifications = managers.map((manager) => ({
         user_id: manager.user_id,
         title: '💰 Investment Account Funded!',
         message: `${profile?.full_name || 'A supporter'} funded ${formatUGX(amount)} to "${currentAccount.name}". Review and approve.`,
         type: 'investment_funding',
-        metadata: { 
-          account_id: accountId, 
-          supporter_id: user.id,
-          supporter_name: profile?.full_name,
-          amount: amount,
-          account_name: currentAccount.name
-        }
+        metadata: { account_id: accountId, supporter_id: user.id, supporter_name: profile?.full_name, amount, account_name: currentAccount.name }
       }));
-
       await supabase.from('notifications').insert(notifications);
     }
 
     setAccounts(prev => prev.map(acc => 
-      acc.id === accountId 
-        ? { ...acc, balance: updatedAccount.balance, invested: acc.invested + amount }
-        : acc
+      acc.id === accountId ? { ...acc, balance: updatedAccount.balance, invested: acc.invested + amount } : acc
     ));
 
     await refreshWallet();
     fireSuccess();
-
-    toast({ 
-      title: '🎉 Account Funded!', 
-      description: `${formatUGX(amount)} has been added to your investment account` 
-    });
+    toast({ title: '🎉 Account Funded!', description: `${formatUGX(amount)} has been added to your investment account` });
   };
 
   const handleWithdrawAccountClick = (account: InvestmentAccount) => {
     if (account.status !== 'approved') {
-      toast({ 
-        title: 'Account Not Approved', 
-        description: 'Only approved accounts can withdraw funds',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Account Not Approved', description: 'Only approved accounts can withdraw funds', variant: 'destructive' });
       return;
     }
     if (account.balance <= 0) {
-      toast({ 
-        title: 'No Balance', 
-        description: 'This account has no funds to withdraw',
-        variant: 'destructive' 
-      });
+      toast({ title: 'No Balance', description: 'This account has no funds to withdraw', variant: 'destructive' });
       return;
     }
     setSelectedAccountForWithdraw(account);
@@ -594,63 +464,33 @@ export default function SupporterDashboard({
   const handleWithdrawAccount = async (accountId: string, amount: number) => {
     const account = accounts.find(a => a.id === accountId);
     if (!account || account.balance < amount) {
-      toast({ 
-        title: 'Insufficient Balance', 
-        description: 'The account doesn\'t have enough funds',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Insufficient Balance', description: "The account doesn't have enough funds", variant: 'destructive' });
       return;
     }
 
-    // Use optimistic locking to prevent race conditions
-    // First, get fresh data and update investment account atomically
     const { data: freshAccount, error: fetchError } = await supabase
-      .from('investment_accounts')
-      .select('balance')
-      .eq('id', accountId)
-      .single();
+      .from('investment_accounts').select('balance').eq('id', accountId).single();
 
     if (fetchError || !freshAccount || freshAccount.balance < amount) {
-      toast({ 
-        title: 'Error', 
-        description: 'Account balance changed. Please try again.',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Error', description: 'Account balance changed. Please try again.', variant: 'destructive' });
       return;
     }
 
-    // Update investment account with optimistic lock
     const { data: updatedAccount, error: accountError } = await supabase
       .from('investment_accounts')
       .update({ balance: freshAccount.balance - amount, updated_at: new Date().toISOString() })
-      .eq('id', accountId)
-      .eq('balance', freshAccount.balance) // Only update if balance unchanged
-      .select()
-      .maybeSingle();
+      .eq('id', accountId).eq('balance', freshAccount.balance).select().maybeSingle();
 
     if (accountError || !updatedAccount) {
-      toast({ 
-        title: 'Transaction Conflict', 
-        description: 'Another transaction occurred. Please try again.',
-        variant: 'destructive' 
-      });
+      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
       return;
     }
 
-    // Now update wallet - get fresh balance first
     const { data: freshWallet, error: walletFetchError } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', user.id)
-      .single();
+      .from('wallets').select('balance').eq('user_id', user.id).single();
 
     if (walletFetchError || !freshWallet) {
-      // Rollback investment account
-      await supabase
-        .from('investment_accounts')
-        .update({ balance: freshAccount.balance })
-        .eq('id', accountId);
-      
+      await supabase.from('investment_accounts').update({ balance: freshAccount.balance }).eq('id', accountId);
       toast({ title: 'Error', description: 'Failed to fetch wallet', variant: 'destructive' });
       return;
     }
@@ -658,34 +498,21 @@ export default function SupporterDashboard({
     const { error: walletError } = await supabase
       .from('wallets')
       .update({ balance: freshWallet.balance + amount, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id)
-      .eq('balance', freshWallet.balance); // Optimistic lock
+      .eq('user_id', user.id).eq('balance', freshWallet.balance);
 
     if (walletError) {
-      // Rollback investment account
-      await supabase
-        .from('investment_accounts')
-        .update({ balance: freshAccount.balance })
-        .eq('id', accountId);
-      
+      await supabase.from('investment_accounts').update({ balance: freshAccount.balance }).eq('id', accountId);
       toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
       return;
     }
 
-    // Update local state
     setAccounts(prev => prev.map(acc => 
-      acc.id === accountId 
-        ? { ...acc, balance: updatedAccount.balance }
-        : acc
+      acc.id === accountId ? { ...acc, balance: updatedAccount.balance } : acc
     ));
 
     await refreshWallet();
     fireSuccess();
-
-    toast({ 
-      title: '💰 Withdrawal Complete!', 
-      description: `${formatUGX(amount)} has been transferred to your wallet` 
-    });
+    toast({ title: '💰 Withdrawal Complete!', description: `${formatUGX(amount)} has been transferred to your wallet` });
   };
 
   // Calculations
@@ -699,7 +526,6 @@ export default function SupporterDashboard({
     .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
   const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
 
-  // Only show skeleton if loading AND online AND no cached data
   if (loading && isOnline && !hasCachedData) {
     return <SupporterDashboardSkeleton />;
   }
@@ -711,19 +537,14 @@ export default function SupporterDashboard({
     ]);
   };
 
+  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
+
   const menuItems = [
     { icon: CreditCard, label: 'Add Investment', onClick: () => setShowPaymentPartners(true) },
-    { icon: Calculator, label: 'Calculator', onClick: () => navigate('/calculator') },
-    { icon: Wallet, label: 'My Wallet', onClick: () => document.getElementById('wallet-section')?.scrollIntoView({ behavior: 'smooth' }) },
-    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
-    { icon: History, label: 'Transactions', onClick: () => navigate('/transactions') },
-    { icon: Share2, label: 'Referrals', onClick: () => navigate('/referrals') },
-    { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
-
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-24 sm:pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -732,143 +553,144 @@ export default function SupporterDashboard({
         menuItems={menuItems}
       />
 
-      <main className="container mx-auto px-4 py-5 space-y-5 max-w-lg">
-        
-        {/* Role Switcher - Prominent placement for multi-role users */}
-        {availableRoles.length > 1 && (
-          <RoleSwitcher
-            currentRole={currentRole}
-            availableRoles={availableRoles}
-            onRoleChange={onRoleChange}
-            variant="prominent"
-          />
-        )}
-
-        {/* Greeting - Minimal & Clean */}
-        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div>
-            <p className="text-sm text-muted-foreground">Good {new Date().getHours() < 12 ? 'morning' : new Date().getHours() < 18 ? 'afternoon' : 'evening'}</p>
-            <h1 className="text-xl font-bold text-foreground">
-              {profile?.full_name?.split(' ')[0] || 'Investor'} 👋
-            </h1>
-          </div>
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+        <main className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
           
-          {/* Agreement Status Badge */}
-          {effectiveHasAccepted ? (
-            <AgreementAcceptedBadge 
-              acceptedAt={acceptance?.accepted_at}
-              showCelebration={justAccepted}
-              variant="compact"
+          {/* ═══════════════════════════════════════════════════════
+              PROFILE SECTION - Clean & Minimal like Agent dashboard
+          ═══════════════════════════════════════════════════════ */}
+          <div className="text-center space-y-3">
+            <button onClick={() => navigate('/settings')} className="mx-auto block">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+            </button>
+            <div>
+              <h1 className="font-bold text-2xl">
+                {profile?.full_name || 'Supporter'}
+              </h1>
+              <p className="text-sm text-muted-foreground">Welile Supporter</p>
+            </div>
+
+            {/* Agreement Status - Inline */}
+            {effectiveHasAccepted ? (
+              <AgreementAcceptedBadge 
+                acceptedAt={acceptance?.accepted_at}
+                showCelebration={justAccepted}
+                variant="compact"
+              />
+            ) : (
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setShowAgreementModal(true)}
+                className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl"
+              >
+                <FileText className="h-3.5 w-3.5" />
+                Accept Terms to Start
+              </Button>
+            )}
+            
+            {/* Quick Stats */}
+            <div className="flex justify-center gap-6 text-center">
+              <div>
+                <p className="font-bold text-lg">{activeFundings}</p>
+                <p className="text-xs text-muted-foreground">Active</p>
+              </div>
+              <div className="w-px bg-border" />
+              <div>
+                <p className="font-bold text-lg">{fundedRequests.length}</p>
+                <p className="text-xs text-muted-foreground">Funded</p>
+              </div>
+              <div className="w-px bg-border" />
+              <div>
+                <p className="font-bold text-lg">{accounts.length}</p>
+                <p className="text-xs text-muted-foreground">Accounts</p>
+              </div>
+            </div>
+          </div>
+
+          {/* ═══════════════════════════════════════════════════════
+              PORTFOLIO CARD - Primary Action
+          ═══════════════════════════════════════════════════════ */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => navigate('/investment-portfolio')}
+            className="w-full text-left"
+          >
+            <HeroBalanceCard
+              totalInvested={totalInvested}
+              monthlyReturns={totalInvested * 0.15}
+              completedRewards={completedRewards}
+              activeFundings={activeFundings}
+              onAddInvestment={() => setShowPaymentPartners(true)}
+              onViewPortfolio={() => navigate('/investment-portfolio')}
             />
-          ) : (
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => setShowAgreementModal(true)}
-              className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl w-full sm:w-auto"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Accept Terms
-            </Button>
-          )}
-        </div>
+          </motion.button>
 
-        {/* Hero Balance Card - Y Combinator Fintech Style */}
-        <HeroBalanceCard
-          totalInvested={totalInvested}
-          monthlyReturns={totalInvested * 0.15}
-          completedRewards={completedRewards}
-          activeFundings={activeFundings}
-          onAddInvestment={() => setShowPaymentPartners(true)}
-          onViewPortfolio={() => navigate('/investment-portfolio')}
-        />
+          {/* ═══════════════════════════════════════════════════════
+              OPPORTUNITIES - Second Primary Card
+          ═══════════════════════════════════════════════════════ */}
+          <div id="opportunities" className="relative scroll-mt-4 space-y-4">
+            {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
+            
+            <OpportunityHeroButton onClick={() => navigate('/opportunities')} />
 
-        {/* Quick Actions - Uber/PayPal style grid */}
-        <ModernQuickActions
-          actions={[
-            { icon: Plus, label: 'Invest', onClick: () => setShowPaymentPartners(true), variant: 'primary' },
-            { icon: PieChart, label: 'Portfolio', onClick: () => navigate('/investment-portfolio') },
-            { icon: Calculator, label: 'Calculator', onClick: () => setShowCalculator(true) },
-          ]}
-        />
-
-        {/* ROI Earnings - Compact */}
-        <ROIEarningsCard />
-
-        {/* My Investment Requests */}
-        <MyInvestmentRequests />
-
-        {/* Opportunities Section - Modern Tabs */}
-        <div id="opportunities" className="relative scroll-mt-4 space-y-4">
-          {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-          
-          {/* 🔥 Large Opportunity Hero Button with Manager-posted totals */}
-          <OpportunityHeroButton onClick={() => {
-            setActiveOpportunityTab('opportunities');
-            navigate('/opportunities');
-          }} />
-
-          {/* Funded History & Opportunities Content */}
-          <RentOpportunities
-            onFund={(id) => {
-              if (!effectiveHasAccepted) {
-                setShowAgreementModal(true);
-                return;
-              }
-              setSelectedRequestId(id);
-              setShowRequestDetails(true);
-            }}
-            isLocked={!effectiveHasAccepted}
-            onLockedClick={() => setShowAgreementModal(true)}
-            onRefreshRef={opportunitiesRefreshRef}
-            showCounts={false}
-          />
-        </div>
-
-        {/* Wallet - Collapsible */}
-        <div id="wallet-section">
-          <CollapsibleWalletCard />
-        </div>
-
-        {/* Invite Friends - Modern gradient card */}
-        <ModernInviteCard onShare={() => {}} />
-
-        {/* Quick Links - Amazon/Uber style */}
-        <ModernQuickLinks
-          links={[
-            { icon: History, label: 'Transaction History', sublabel: 'View all activity', onClick: () => navigate('/transactions') },
-            { icon: BarChart3, label: 'ROI Analytics', sublabel: 'Earnings & projections', onClick: () => navigate('/supporter-earnings'), variant: 'success' },
-            { icon: Receipt, label: 'My Receipts', sublabel: 'Payment records', onClick: () => navigate('/my-receipts') },
-            { icon: Share2, label: 'Referrals', sublabel: 'Invite & earn', onClick: () => navigate('/referrals'), variant: 'primary' },
-            { icon: Store, label: 'Marketplace', sublabel: 'Shop products', onClick: () => navigate('/marketplace') },
-          ]}
-        />
-
-        {/* Terms Footer - Subtle access */}
-        {effectiveHasAccepted && (
-          <div className="flex items-center justify-center gap-4 pt-2 pb-4">
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
-              className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
-            >
-              <ScrollText className="h-3.5 w-3.5" />
-              Terms Summary
-            </Button>
-            <span className="text-muted-foreground/30">|</span>
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => { setViewAgreementTab('full'); setShowViewAgreementModal(true); }}
-              className="text-xs text-muted-foreground hover:text-foreground gap-1.5"
-            >
-              <FileText className="h-3.5 w-3.5" />
-              Full Agreement
-            </Button>
+            <RentOpportunities
+              onFund={(id) => {
+                if (!effectiveHasAccepted) {
+                  setShowAgreementModal(true);
+                  return;
+                }
+                setSelectedRequestId(id);
+                setShowRequestDetails(true);
+              }}
+              isLocked={!effectiveHasAccepted}
+              onLockedClick={() => setShowAgreementModal(true)}
+              onRefreshRef={opportunitiesRefreshRef}
+              showCounts={false}
+            />
           </div>
-        )}
-      </main>
+
+          {/* ═══════════════════════════════════════════════════════
+              ROLE SWITCHER - For multi-role users
+          ═══════════════════════════════════════════════════════ */}
+          {availableRoles.length > 1 && (
+            <RoleSwitcher 
+              currentRole={currentRole} 
+              availableRoles={availableRoles} 
+              onRoleChange={onRoleChange} 
+              variant="prominent" 
+            />
+          )}
+
+          {/* ADD ROLE COMPONENT */}
+          <div className="flex justify-center">
+            {addRoleComponent}
+          </div>
+
+        </main>
+      </PullToRefresh>
+
+      {/* ═══════════════════════════════════════════════════════
+          FLOATING MENU BUTTON - Like Agent dashboard
+      ═══════════════════════════════════════════════════════ */}
+      <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
+        <button
+          onClick={handleOpenMenu}
+          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
+        >
+          <Menu className="h-5 w-5" />
+          <span className="font-semibold text-sm">Menu</span>
+        </button>
+      </div>
+
+      {/* Menu Drawer */}
+      <SupporterMenuDrawer
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        onAddInvestment={() => setShowPaymentPartners(true)}
+        onOpenCalculator={() => setShowCalculator(true)}
+        onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+      />
 
       {/* Dialogs */}
       <CreateAccountDialog
@@ -904,14 +726,10 @@ export default function SupporterDashboard({
         onOpenChange={setShowAccountDetails}
         account={selectedAccountForDetails}
         onFund={() => {
-          if (selectedAccountForDetails) {
-            handleFundAccountClick(selectedAccountForDetails);
-          }
+          if (selectedAccountForDetails) handleFundAccountClick(selectedAccountForDetails);
         }}
         onWithdraw={() => {
-          if (selectedAccountForDetails) {
-            handleWithdrawAccountClick(selectedAccountForDetails);
-          }
+          if (selectedAccountForDetails) handleWithdrawAccountClick(selectedAccountForDetails);
         }}
       />
       
@@ -922,7 +740,6 @@ export default function SupporterDashboard({
         title="Add Investment via Mobile Money"
       />
       
-      {/* Agreement Modal */}
       <SupporterAgreementModal
         open={showAgreementModal}
         onOpenChange={setShowAgreementModal}
@@ -930,14 +747,12 @@ export default function SupporterDashboard({
         loading={agreementLoading}
       />
       
-      {/* Agreement View Modal (for viewing after acceptance) */}
       <SupporterAgreementViewModal
         open={showViewAgreementModal}
         onOpenChange={setShowViewAgreementModal}
         defaultTab={viewAgreementTab}
       />
       
-      {/* Investment Calculator Dialog */}
       <Dialog open={showCalculator} onOpenChange={setShowCalculator}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto p-0">
           <DialogHeader className="p-4 pb-0">
@@ -952,7 +767,6 @@ export default function SupporterDashboard({
         </DialogContent>
       </Dialog>
       
-      {/* Tenant Request Details Dialog */}
       <TenantRequestDetailsDialog
         open={showRequestDetails}
         onOpenChange={setShowRequestDetails}
@@ -964,7 +778,6 @@ export default function SupporterDashboard({
         }}
       />
       
-      {/* Pay Landlord Dialog */}
       <PayLandlordDialog
         open={showPayLandlord}
         onOpenChange={setShowPayLandlord}
@@ -977,8 +790,7 @@ export default function SupporterDashboard({
       
       <FloatingPortfolioButton totalBalance={totalInvested} />
       <FloatingShareButton />
-      <MobileQuickMenu currentRole={currentRole} />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
-    </PullToRefresh>
+    </div>
   );
 }
