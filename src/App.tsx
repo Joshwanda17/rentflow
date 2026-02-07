@@ -1,6 +1,6 @@
 import { lazy, Suspense, memo, useEffect, useState, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, useLocation } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
 import { AuthProvider } from "@/hooks/useAuth";
 import { PinAuthProvider } from "@/hooks/usePinAuth";
@@ -87,11 +87,9 @@ const isIOSStandalone = (() => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      // Shorter stale time on iOS PWA to ensure fresh data
-      staleTime: isIOSStandalone ? 30 * 1000 : 5 * 60 * 1000, // 30s on iOS, 5min elsewhere
-      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 30 * 60 * 1000, // 5min on iOS, 30min elsewhere
+      staleTime: isIOSStandalone ? 30 * 1000 : 5 * 60 * 1000,
+      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 30 * 60 * 1000,
       retry: 2,
-      // Refetch on focus for iOS PWA to get fresh data
       refetchOnWindowFocus: isIOSStandalone ? 'always' : false,
       refetchOnReconnect: true,
       networkMode: 'offlineFirst',
@@ -129,45 +127,10 @@ const PageLoader = memo(() => {
 });
 PageLoader.displayName = 'PageLoader';
 
-// Prefetch common routes on idle
-function RoutePrefetcher() {
-  const location = useLocation();
-  
-  useEffect(() => {
-    // Prefetch likely next routes based on current location
-    const prefetchMap: Record<string, string[]> = {
-      '/': ['/auth', '/dashboard', '/welcome'],
-      '/auth': ['/dashboard', '/select-role'],
-      '/select-role': ['/dashboard'],
-      '/welcome': ['/auth', '/rent-calculator', '/try-calculator'],
-      '/rent-calculator': ['/auth'],
-      '/try-calculator': ['/auth'],
-    };
-    
-    const routesToPrefetch = prefetchMap[location.pathname] || [];
-    
-    // Use requestIdleCallback for non-blocking prefetch
-    if ('requestIdleCallback' in window) {
-      (window as any).requestIdleCallback(() => {
-        routesToPrefetch.forEach(route => {
-          const link = document.createElement('link');
-          link.rel = 'prefetch';
-          link.href = route;
-          link.as = 'document';
-          document.head.appendChild(link);
-        });
-      });
-    }
-  }, [location.pathname]);
-  
-  return null;
-}
-
-// Stable routes wrapper (no JS-based page transitions to avoid mobile “shaking”)
+// Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions
 function AppRoutes() {
   return (
     <div className="min-h-screen">
-      <RoutePrefetcher />
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -228,14 +191,18 @@ function AppRoutes() {
   );
 }
 
-// Deferred wrapper that loads Cart, Comparison, and Offline providers lazily
+// Deferred wrapper — uses idle callback for true post-paint loading
 function DeferredProviders({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   
   useEffect(() => {
-    // Defer heavy providers to after first paint
-    const id = requestAnimationFrame(() => setReady(true));
-    return () => cancelAnimationFrame(id);
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(() => setReady(true));
+      return () => (window as any).cancelIdleCallback(id);
+    }
+    // Fallback: 50ms delay (after paint + microtasks)
+    const id = setTimeout(() => setReady(true), 50);
+    return () => clearTimeout(id);
   }, []);
   
   if (!ready) return <>{children}</>;

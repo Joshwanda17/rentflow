@@ -163,16 +163,8 @@ export function useIOSCompatibility() {
   // Legacy alias for backwards compatibility
   const iosHaptic = mobileHaptic;
 
-  // Prevent iOS text zoom
-  const preventTextZoom = useCallback(() => {
-    const style = document.createElement('style');
-    style.textContent = `
-      input, textarea, select {
-        font-size: 16px !important;
-      }
-    `;
-    document.head.appendChild(style);
-  }, []);
+  // No-op: text zoom prevention is now handled by static CSS in index.css
+  const preventTextZoom = useCallback(() => {}, []);
 
   // Handle mobile keyboard avoiding (works on iOS and Android)
   const handleKeyboardAvoid = useCallback((element: HTMLElement | null) => {

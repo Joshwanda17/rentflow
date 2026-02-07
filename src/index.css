@@ -766,3 +766,17 @@
     hsl(var(--muted)) 100%
   ) !important;
 }
+
+/* Mobile input zoom prevention — static CSS, no JS injection needed */
+input, textarea, select, button {
+  -webkit-text-size-adjust: 100%;
+  touch-action: manipulation;
+}
+@media (max-width: 768px) {
+  input, textarea, select {
+    font-size: 16px !important;
+  }
+  input:focus, textarea:focus, select:focus {
+    font-size: 16px !important;
+  }
+}
