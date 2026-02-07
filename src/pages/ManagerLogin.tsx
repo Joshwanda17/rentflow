@@ -8,6 +8,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { useManagerPWAInstall } from '@/hooks/useManagerPWAInstall';
+import ManagerPinScreen from '@/components/manager/ManagerPinScreen';
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
@@ -73,6 +74,7 @@ export default function ManagerLogin() {
   const [managers, setManagers] = useState<ManagerProfile[]>([]);
   const [loadingProfiles, setLoadingProfiles] = useState(false);
   const [signingIn, setSigningIn] = useState<string | null>(null);
+  const [selectedManager, setSelectedManager] = useState<ManagerProfile | null>(null);
   const navigate = useNavigate();
   const { toast } = useToast();
   const { switchRole, roles, user } = useAuth();
@@ -132,30 +134,27 @@ export default function ManagerLogin() {
     }
   };
 
-  const handleSelectProfile = async (manager: ManagerProfile) => {
+  const handleSelectProfile = (manager: ManagerProfile) => {
     hapticTap();
-    setSigningIn(manager.user_id);
+    setSelectedManager(manager);
+  };
 
-    // If the current user is already the selected manager, just switch role
-    if (user && user.id === manager.user_id) {
+  const handlePinSuccess = () => {
+    if (!selectedManager) return;
+    
+    sessionStorage.setItem('manager_access_verified', 'true');
+    sessionStorage.setItem('manager_selected_id', selectedManager.user_id);
+    sessionStorage.setItem('manager_selected_name', selectedManager.full_name);
+
+    if (user && user.id === selectedManager.user_id) {
       if (roles.includes('manager')) {
         switchRole('manager');
       }
-      toast({ title: `Welcome, ${manager.full_name}`, description: 'Entering Manager Dashboard' });
       navigate('/dashboard');
       return;
     }
 
-    // Otherwise, store selected manager info and navigate to dashboard
-    // The manager will need to be logged into their own account
-    sessionStorage.setItem('manager_selected_id', manager.user_id);
-    sessionStorage.setItem('manager_selected_name', manager.full_name);
-    
     if (user) {
-      toast({ 
-        title: `Signed in as ${manager.full_name}`,
-        description: 'Switching to Manager Dashboard'
-      });
       if (roles.includes('manager')) {
         switchRole('manager');
       }
@@ -163,7 +162,7 @@ export default function ManagerLogin() {
     } else {
       toast({ 
         title: 'Please sign in',
-        description: `Sign in as ${manager.email} to access the Manager Dashboard`
+        description: `Sign in as ${selectedManager.email} to access the Manager Dashboard`
       });
       navigate('/auth');
     }
@@ -180,6 +179,16 @@ export default function ManagerLogin() {
       toast({ title: '🎉 Manager App Installed!', description: 'Find "Welile Manager" on your home screen' });
     }
   };
+  // Show PIN screen when a manager is selected
+  if (selectedManager) {
+    return (
+      <ManagerPinScreen
+        manager={selectedManager}
+        onSuccess={handlePinSuccess}
+        onBack={() => setSelectedManager(null)}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-4">
