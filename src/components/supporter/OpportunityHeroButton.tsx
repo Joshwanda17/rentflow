@@ -47,19 +47,11 @@ export function OpportunityHeroButton({ onClick }: OpportunityHeroButtonProps) {
               {formatUGX(Number(summary.total_rent_requested))}
             </p>
 
-            {/* Stats row */}
+            {/* Stats row - user counts hidden for supporters */}
             <div className="flex items-center gap-4 text-xs opacity-80">
               <span className="flex items-center gap-1">
                 <TrendingUp className="h-3 w-3" />
                 {summary.total_requests} requests
-              </span>
-              <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                {summary.total_landlords} landlords
-              </span>
-              <span className="flex items-center gap-1">
-                <UserCheck className="h-3 w-3" />
-                {summary.total_agents} agents
               </span>
             </div>
           </>
