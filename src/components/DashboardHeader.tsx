@@ -90,8 +90,8 @@ const DashboardHeader = memo(function DashboardHeader({
                   </button>
                 )}
               </div>
-              {/* Role Switcher - ALWAYS visible on all screen sizes */}
-              <div className="h-4 w-px bg-white/25 rounded-full ml-3" />
+              {/* Role Switcher - Inline pills for instant switching */}
+              <div className="h-4 w-px bg-white/20 rounded-full ml-2" />
               <RoleSwitcher
                 currentRole={currentRole}
                 availableRoles={availableRoles}
