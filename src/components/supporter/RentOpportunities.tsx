@@ -1278,10 +1278,10 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         <div className="flex gap-2 overflow-x-auto pb-3 -mx-1 px-1 scrollbar-hide" style={{ WebkitOverflowScrolling: 'touch' }}>
           {[
             { value: 'all', label: 'All Requests', icon: '📋' },
-            { value: 'all_users', label: `All Users (${totalCounts.tenants + totalCounts.landlords + totalCounts.agents})`, icon: '👥' },
-            { value: 'all_tenants', label: `Tenants (${totalCounts.tenants})`, icon: '🏠' },
-            { value: 'all_landlords', label: `Landlords (${totalCounts.landlords})`, icon: '🏢' },
-            { value: 'all_agents', label: `Agents (${totalCounts.agents})`, icon: '🤝' },
+            { value: 'all_users', label: 'All Users', icon: '👥' },
+            { value: 'all_tenants', label: 'Tenants', icon: '🏠' },
+            { value: 'all_landlords', label: 'Landlords', icon: '🏢' },
+            { value: 'all_agents', label: 'Agents', icon: '🤝' },
             { value: 'agent_posted', label: 'Agent Posted', icon: '👤' },
             { value: 'funded', label: 'Funded', icon: '💚' },
             { value: 'ready', label: 'Ready', icon: '✅' },
