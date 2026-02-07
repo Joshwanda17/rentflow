@@ -157,9 +157,10 @@ interface RentOpportunitiesProps {
   isLocked?: boolean;
   onLockedClick?: () => void;
   onRefreshRef?: React.MutableRefObject<(() => Promise<void>) | null>;
+  showCounts?: boolean;
 }
 
-export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRef }: RentOpportunitiesProps) {
+export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRef, showCounts = true }: RentOpportunitiesProps) {
   const navigate = useNavigate();
   const { formatAmount } = useCurrency();
   const [opportunities, setOpportunities] = useState<RentOpportunity[]>([]);
@@ -1349,9 +1350,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🏠</span>
                     <h4 className="font-bold text-foreground">All Registered Tenants</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
-                    {allTenants.length} / {totalCounts.tenants}
-                  </Badge>
+                  {showCounts && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                      {allTenants.length} / {totalCounts.tenants}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Potential tenants who may need rent assistance
@@ -1433,9 +1436,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🏢</span>
                     <h4 className="font-bold text-foreground">All Registered Landlords</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
-                    {allLandlords.length} / {totalCounts.landlords}
-                  </Badge>
+                  {showCounts && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                      {allLandlords.length} / {totalCounts.landlords}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Property owners ready to receive rent payments
@@ -1562,9 +1567,11 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">🤝</span>
                     <h4 className="font-bold text-foreground">All Registered Agents</h4>
                   </div>
-                  <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
-                    {allAgents.length} / {totalCounts.agents}
-                  </Badge>
+                  {showCounts && (
+                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                      {allAgents.length} / {totalCounts.agents}
+                    </Badge>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   Field agents with their location and tenant registrations
@@ -1666,11 +1673,13 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
                     <span className="text-lg">👥</span>
                     <h4 className="font-bold text-foreground">All Users</h4>
                   </div>
-                  <div className="flex items-center gap-2">
-                    <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
-                      {allTenants.length + allLandlords.length + allAgents.length} / {totalCounts.tenants + totalCounts.landlords + totalCounts.agents}
-                    </Badge>
-                  </div>
+                  {showCounts && (
+                    <div className="flex items-center gap-2">
+                      <Badge variant="outline" className="bg-primary/10 text-primary border-primary/30 tabular-nums">
+                        {allTenants.length + allLandlords.length + allAgents.length} / {totalCounts.tenants + totalCounts.landlords + totalCounts.agents}
+                      </Badge>
+                    </div>
+                  )}
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
                   All tenants, landlords, and agents in the system
