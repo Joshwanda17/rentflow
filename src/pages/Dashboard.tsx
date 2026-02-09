@@ -3,7 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 import FloatingChatButton from '@/components/chat/FloatingChatButton';
-import { PushNotificationEnforcer } from '@/components/PushNotificationEnforcer';
+
 import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -263,7 +263,7 @@ function DashboardContent() {
       </Suspense>
       <FloatingWalletButton />
       <FloatingChatButton />
-      <PushNotificationEnforcer />
+      
     </>
   );
 }
