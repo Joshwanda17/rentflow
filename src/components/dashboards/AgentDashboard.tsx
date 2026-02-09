@@ -34,6 +34,9 @@ import { useOfflineAgentDashboard } from '@/hooks/useOfflineAgentDashboard';
 import { useWallet } from '@/hooks/useWallet';
 import { EarningsRankSystemSheet } from '@/components/agent/EarningsRankSystemSheet';
 import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
+import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
+import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
+import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -69,6 +72,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [showWallet, setShowWallet] = useState(false);
   const [earningsRankOpen, setEarningsRankOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [managedPropertyOpen, setManagedPropertyOpen] = useState(false);
+  const [managedPropertiesSheetOpen, setManagedPropertiesSheetOpen] = useState(false);
+  const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
+  const [payoutProperty, setPayoutProperty] = useState<any>(null);
 
   // Real-time subscription for referrals
   useEffect(() => {
@@ -251,6 +258,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onPostRentRequest={() => setRentRequestOpen(true)}
         onInviteSubAgent={handleInviteSubAgent}
         onOpenEarningsRank={() => setEarningsRankOpen(true)}
+        onManageProperty={() => { setMenuOpen(false); setManagedPropertyOpen(true); }}
+        onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -273,6 +282,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <EarningsRankSystemSheet
         open={earningsRankOpen}
         onOpenChange={setEarningsRankOpen}
+      />
+      <AgentManagedPropertyDialog
+        open={managedPropertyOpen}
+        onOpenChange={setManagedPropertyOpen}
+        onSuccess={refreshOfflineData}
+      />
+      <AgentManagedPropertiesSheet
+        open={managedPropertiesSheetOpen}
+        onOpenChange={setManagedPropertiesSheetOpen}
+        onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }}
+      />
+      <AgentLandlordPayoutDialog
+        open={payoutDialogOpen}
+        onOpenChange={setPayoutDialogOpen}
+        property={payoutProperty}
       />
       
       {/* Fixed footer navigation */}

@@ -1141,6 +1141,74 @@ export type Database = {
           },
         ]
       }
+      landlord_payout_requests: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          landlord_id: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          notes: string | null
+          paid_at: string | null
+          property_address: string
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          transaction_id: string | null
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          landlord_id: string
+          mobile_money_number: string
+          mobile_money_provider: string
+          notes?: string | null
+          paid_at?: string | null
+          property_address: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          mobile_money_number?: string
+          mobile_money_provider?: string
+          notes?: string | null
+          paid_at?: string | null
+          property_address?: string
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          transaction_id?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "landlord_payout_requests_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
@@ -1153,10 +1221,13 @@ export type Database = {
           electricity_meter_number: string | null
           has_smartphone: boolean | null
           id: string
+          is_agent_managed: boolean | null
           latitude: number | null
           location_captured_at: string | null
           location_captured_by: string | null
           longitude: number | null
+          managed_by_agent_id: string | null
+          management_fee_rate: number | null
           mobile_money_number: string | null
           monthly_rent: number | null
           name: string
@@ -1183,10 +1254,13 @@ export type Database = {
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
           id?: string
+          is_agent_managed?: boolean | null
           latitude?: number | null
           location_captured_at?: string | null
           location_captured_by?: string | null
           longitude?: number | null
+          managed_by_agent_id?: string | null
+          management_fee_rate?: number | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name: string
@@ -1213,10 +1287,13 @@ export type Database = {
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
           id?: string
+          is_agent_managed?: boolean | null
           latitude?: number | null
           location_captured_at?: string | null
           location_captured_by?: string | null
           longitude?: number | null
+          managed_by_agent_id?: string | null
+          management_fee_rate?: number | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name?: string
