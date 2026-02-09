@@ -6,10 +6,10 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle } from 'lucide-react';
+import { Loader2, CheckCircle2, Eye, EyeOff, ArrowRight, AlertCircle, UserPlus, KeyRound, Copy, MessageCircle, MapPin, Navigation } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 
-type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'success' | 'forgot-password' | 'password-reset';
+type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'success' | 'forgot-password' | 'password-reset';
 
 export default function ActivateSupporter() {
   const [searchParams] = useSearchParams();
@@ -20,27 +20,64 @@ export default function ActivateSupporter() {
 
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageState, setPageState] = useState<PageState>('ready'); // Start ready for instant form display
-  const [isValidating, setIsValidating] = useState(true); // Background validation
+  const [pageState, setPageState] = useState<PageState>('ready');
+  const [isValidating, setIsValidating] = useState(true);
   const [activatedEmail, setActivatedEmail] = useState('');
   const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string; phone?: string } | null>(null);
 
-  // Auto-focus password input when ready
-  useEffect(() => {
-    if (pageState === 'ready' && passwordInputRef.current) {
-      // Small delay to ensure DOM is ready
-      setTimeout(() => passwordInputRef.current?.focus(), 100);
-    }
-  }, [pageState]);
-  
+  // Profile completion fields
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [locationStatus, setLocationStatus] = useState<'idle' | 'requesting' | 'granted' | 'denied'>('idle');
+  const [locationData, setLocationData] = useState<{ latitude: number; longitude: number } | null>(null);
+
   // Forgot password state
   const [emailForReset, setEmailForReset] = useState('');
   const [newTempPassword, setNewTempPassword] = useState('');
   const [resetPhone, setResetPhone] = useState('');
   const [copied, setCopied] = useState(false);
 
-  // Validate invite in background while showing form immediately
+  useEffect(() => {
+    if (pageState === 'ready' && passwordInputRef.current) {
+      setTimeout(() => passwordInputRef.current?.focus(), 100);
+    }
+  }, [pageState]);
+
+  // Request location when entering profile setup
+  useEffect(() => {
+    if (pageState === 'profile-setup' && locationStatus === 'idle') {
+      requestLocation();
+    }
+  }, [pageState, locationStatus]);
+
+  const requestLocation = async () => {
+    if (!navigator.geolocation) {
+      setLocationStatus('denied');
+      return;
+    }
+    setLocationStatus('requesting');
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 15000,
+          maximumAge: 0,
+        });
+      });
+      setLocationData({
+        latitude: position.coords.latitude,
+        longitude: position.coords.longitude,
+      });
+      setLocationStatus('granted');
+    } catch {
+      setLocationStatus('denied');
+    }
+  };
+
+  // Validate invite in background
   useEffect(() => {
     if (!token) {
       setPageState('invalid');
@@ -48,7 +85,6 @@ export default function ActivateSupporter() {
       return;
     }
 
-    // Fetch invite details in background
     const fetchInvite = async () => {
       try {
         const { data, error } = await supabase
@@ -63,7 +99,6 @@ export default function ActivateSupporter() {
           return;
         }
 
-        // Detect duplicate - already activated
         if (data.status === 'activated' || data.activated_user_id) {
           setPageState('activated-already');
           setActivatedEmail(data.email);
@@ -83,52 +118,76 @@ export default function ActivateSupporter() {
     fetchInvite();
   }, [token]);
 
-  const handleActivate = useCallback(async (e: React.FormEvent) => {
+  // Step 1: Verify temp password, then go to profile setup
+  const handleVerifyPassword = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
     if (!token || !password) return;
+    // Just move to profile setup - actual verification happens on final submit
+    setPageState('profile-setup');
+  }, [token, password]);
+
+  // Step 2: Complete profile and activate
+  const handleActivate = useCallback(async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!token || !password || !fullName.trim() || !newPassword.trim()) return;
+
+    if (newPassword.trim().length < 6) {
+      toast({ title: 'Password too short', description: 'Password must be at least 6 characters', variant: 'destructive' });
+      return;
+    }
 
     setIsLoading(true);
 
     try {
       const response = await supabase.functions.invoke('activate-supporter', {
-        body: { token: token.trim(), password: password.trim() },
+        body: { 
+          token: token.trim(), 
+          password: password.trim(),
+          fullName: fullName.trim(),
+          email: email.trim() || undefined,
+          newPassword: newPassword.trim(),
+        },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Activation failed');
-      }
+      if (response.error) throw new Error(response.error.message || 'Activation failed');
+      if (response.data?.error) throw new Error(response.data.error);
 
-      if (response.data?.error) {
-        throw new Error(response.data.error);
-      }
-
-      const email = response.data.email;
-      setActivatedEmail(email);
+      const finalEmail = response.data.email;
+      setActivatedEmail(finalEmail);
 
       toast({
         title: response.data?.alreadyActivated ? '✅ Already Activated' : '🎉 Account Activated!',
         description: 'Signing you in...',
       });
 
-      // Auto sign-in and redirect to dashboard
+      // Auto sign-in with the new password
       const { error: signInError } = await supabase.auth.signInWithPassword({
-        email,
-        password: password.trim(),
+        email: finalEmail,
+        password: newPassword.trim(),
       });
 
       if (signInError) {
-        // If auto-login fails, show success state with manual login button
         setPageState('success');
-        toast({
-          title: 'Account Activated',
-          description: 'Please click the button to go to your dashboard.',
-        });
+        toast({ title: 'Account Activated', description: 'Please sign in manually.' });
       } else {
-        // Successfully signed in - redirect to dashboard
-        toast({
-          title: '🎉 Welcome to Welile!',
-          description: 'Redirecting to your dashboard...',
-        });
+        // Save location after sign-in
+        if (locationData) {
+          try {
+            const { data: { user } } = await supabase.auth.getUser();
+            if (user) {
+              await supabase.from('user_locations').insert({
+                user_id: user.id,
+                latitude: locationData.latitude,
+                longitude: locationData.longitude,
+                accuracy: null,
+              });
+            }
+          } catch (locErr) {
+            console.warn('Location save failed:', locErr);
+          }
+        }
+        
+        toast({ title: '🎉 Welcome to Welile!', description: 'Redirecting to your dashboard...' });
         navigate('/dashboard');
       }
     } catch (error: any) {
@@ -137,28 +196,23 @@ export default function ActivateSupporter() {
         description: error.message || 'Please check your password and try again.',
         variant: 'destructive',
       });
+      // Go back to password step if credentials were wrong
+      if (error.message?.toLowerCase().includes('credential') || error.message?.toLowerCase().includes('password')) {
+        setPageState('ready');
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [token, password, toast, navigate]);
+  }, [token, password, fullName, email, newPassword, toast, navigate, locationData]);
 
   const handleLogin = async () => {
     setIsLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: activatedEmail,
-        password,
-      });
-
+      const { error } = await supabase.auth.signInWithPassword({ email: activatedEmail, password: newPassword || password });
       if (error) throw error;
-
       navigate('/dashboard');
-    } catch (error: any) {
-      toast({
-        title: 'Login Failed',
-        description: error.message || 'Please try logging in manually.',
-        variant: 'destructive',
-      });
+    } catch {
+      toast({ title: 'Login Failed', description: 'Please try logging in manually.', variant: 'destructive' });
       navigate('/auth');
     } finally {
       setIsLoading(false);
@@ -169,76 +223,40 @@ export default function ActivateSupporter() {
   const generatePassword = () => {
     const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
     let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
+    for (let i = 0; i < 8; i++) result += chars.charAt(Math.floor(Math.random() * chars.length));
     return result;
   };
 
   const handleResetPassword = async () => {
     if (!token) return;
-    
     setIsLoading(true);
     try {
-      const newPassword = generatePassword();
-      
-      // Update the invite with new password
-      const { error } = await supabase
-        .from('supporter_invites')
-        .update({ temp_password: newPassword })
-        .eq('activation_token', token)
-        .eq('status', 'pending');
-      
+      const pw = generatePassword();
+      const { error } = await supabase.from('supporter_invites').update({ temp_password: pw }).eq('activation_token', token).eq('status', 'pending');
       if (error) throw error;
-      
-      // Notify managers about the password reset request
-      const { data: managers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'manager')
-        .eq('enabled', true);
-      
-      if (managers && managers.length > 0) {
-        const notifications = managers.map(m => ({
+
+      const { data: managers } = await supabase.from('user_roles').select('user_id').eq('role', 'manager').eq('enabled', true);
+      if (managers?.length) {
+        await supabase.from('notifications').insert(managers.map(m => ({
           user_id: m.user_id,
           title: '🔑 Password Reset Request',
           message: `${inviteDetails?.full_name || 'A user'} (${emailForReset}) requested a new activation password.`,
           type: 'info',
-          metadata: { 
-            email: emailForReset, 
-            phone: resetPhone,
-            full_name: inviteDetails?.full_name,
-            role: inviteDetails?.role
-          }
-        }));
-        
-        await supabase.from('notifications').insert(notifications);
+          metadata: { email: emailForReset, phone: resetPhone, full_name: inviteDetails?.full_name, role: inviteDetails?.role },
+        })));
       }
-      
-      setNewTempPassword(newPassword);
-      setPageState('password-reset');
-      
-      toast({
-        title: '🔑 New Password Generated',
-        description: 'Opening WhatsApp...',
-      });
 
-      // Auto-open WhatsApp with the new password
+      setNewTempPassword(pw);
+      setPageState('password-reset');
+      toast({ title: '🔑 New Password Generated', description: 'Opening WhatsApp...' });
+
       if (resetPhone) {
         const phone = resetPhone.replace(/\D/g, '');
-        const message = encodeURIComponent(
-          `🔑 Your new Welile password: ${newPassword}\n\nUse this to activate your account.`
-        );
-        setTimeout(() => {
-          window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
-        }, 500);
+        const message = encodeURIComponent(`🔑 Your new Welile password: ${pw}\n\nUse this to activate your account.`);
+        setTimeout(() => window.open(`https://wa.me/${phone}?text=${message}`, '_blank'), 500);
       }
     } catch (error: any) {
-      toast({
-        title: 'Reset Failed',
-        description: error.message || 'Could not reset password. Please contact support.',
-        variant: 'destructive',
-      });
+      toast({ title: 'Reset Failed', description: error.message || 'Could not reset password.', variant: 'destructive' });
     } finally {
       setIsLoading(false);
     }
@@ -250,16 +268,12 @@ export default function ActivateSupporter() {
       setCopied(true);
       toast({ title: 'Password copied!' });
       setTimeout(() => setCopied(false), 2000);
-    } catch {
-      toast({ title: 'Failed to copy', variant: 'destructive' });
-    }
+    } catch { toast({ title: 'Failed to copy', variant: 'destructive' }); }
   };
 
   const handleShareWhatsApp = () => {
     const phone = resetPhone.replace(/\D/g, '');
-    const message = encodeURIComponent(
-      `🔑 Your new Welile password: ${newTempPassword}\n\nUse this to activate your account.`
-    );
+    const message = encodeURIComponent(`🔑 Your new Welile password: ${newTempPassword}\n\nUse this to activate your account.`);
     window.open(`https://wa.me/${phone}?text=${message}`, '_blank');
   };
 
@@ -268,35 +282,22 @@ export default function ActivateSupporter() {
     setPageState('ready');
   };
 
-  // Invalid token state
+  // Invalid token
   if (pageState === 'invalid') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-destructive/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <WelileLogo linkToHome={false} />
-            </div>
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
             <div className="mx-auto p-3 rounded-full bg-destructive/10 w-fit mb-4">
               <AlertCircle className="h-8 w-8 text-destructive" />
             </div>
             <CardTitle className="text-2xl">Invalid Invitation</CardTitle>
-            <CardDescription>
-              This activation link is invalid or has expired. Please contact the person who invited you for a new link.
-            </CardDescription>
+            <CardDescription>This activation link is invalid or has expired.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Link to="/auth" className="block">
-              <Button className="w-full gap-2">
-                <ArrowRight className="h-4 w-4" />
-                Go to Sign In
-              </Button>
-            </Link>
-            <Link to="/become-supporter" className="block">
-              <Button variant="outline" className="w-full gap-2">
-                <UserPlus className="h-4 w-4" />
-                Become a Supporter
-              </Button>
+              <Button className="w-full gap-2"><ArrowRight className="h-4 w-4" />Go to Sign In</Button>
             </Link>
           </CardContent>
         </Card>
@@ -304,22 +305,18 @@ export default function ActivateSupporter() {
     );
   }
 
-  // Already activated state
+  // Already activated
   if (pageState === 'activated-already') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <WelileLogo linkToHome={false} />
-            </div>
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
             <div className="mx-auto p-3 rounded-full bg-success/10 w-fit mb-4">
               <CheckCircle2 className="h-8 w-8 text-success" />
             </div>
             <CardTitle className="text-2xl">Already Activated</CardTitle>
-            <CardDescription>
-              This account has already been activated. Please sign in to access your dashboard.
-            </CardDescription>
+            <CardDescription>This account has already been activated. Please sign in.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             {activatedEmail && (
@@ -329,10 +326,7 @@ export default function ActivateSupporter() {
               </div>
             )}
             <Link to="/auth" className="block">
-              <Button className="w-full gap-2">
-                <ArrowRight className="h-4 w-4" />
-                Sign In Now
-              </Button>
+              <Button className="w-full gap-2"><ArrowRight className="h-4 w-4" />Sign In Now</Button>
             </Link>
           </CardContent>
         </Card>
@@ -340,34 +334,23 @@ export default function ActivateSupporter() {
     );
   }
 
-  // Success state
+  // Success
   if (pageState === 'success') {
     const roleLabel = inviteDetails?.role ? inviteDetails.role.charAt(0).toUpperCase() + inviteDetails.role.slice(1) : 'User';
     return (
       <div className="min-h-screen bg-gradient-to-b from-success/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <WelileLogo linkToHome={false} />
-            </div>
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
             <div className="mx-auto p-4 rounded-full bg-success/10 w-fit mb-4">
               <CheckCircle2 className="h-10 w-10 text-success" />
             </div>
             <CardTitle className="text-2xl">Account Activated!</CardTitle>
-            <CardDescription>
-              Welcome to Welile! Your {roleLabel} account is ready.
-            </CardDescription>
+            <CardDescription>Welcome to Welile! Your {roleLabel} account is ready.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <p className="text-sm text-muted-foreground text-center">
-              Click below to access your dashboard and get started.
-            </p>
             <Button onClick={handleLogin} className="w-full gap-2" disabled={isLoading}>
-              {isLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <ArrowRight className="h-4 w-4" />
-              )}
+              {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <ArrowRight className="h-4 w-4" />}
               Go to Dashboard
             </Button>
           </CardContent>
@@ -376,154 +359,230 @@ export default function ActivateSupporter() {
     );
   }
 
-  // Forgot password state
+  // Forgot password
   if (pageState === 'forgot-password') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-warning/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <WelileLogo linkToHome={false} />
-            </div>
-            <div className="mx-auto p-3 rounded-full bg-warning/10 w-fit mb-4">
-              <KeyRound className="h-8 w-8 text-warning" />
-            </div>
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
+            <div className="mx-auto p-3 rounded-full bg-warning/10 w-fit mb-4"><KeyRound className="h-8 w-8 text-warning" /></div>
             <CardTitle className="text-2xl">Lost Your Password?</CardTitle>
-            <CardDescription>
-              No worries! We can generate a new password for you.
-            </CardDescription>
+            <CardDescription>We can generate a new password for you.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="p-3 rounded-lg bg-muted text-center">
               <p className="text-xs text-muted-foreground mb-1">Account for</p>
               <p className="font-medium text-sm">{inviteDetails?.full_name}</p>
-              {emailForReset && (
-                <p className="text-xs text-muted-foreground">{emailForReset}</p>
-              )}
             </div>
-            
-            <Button 
-              onClick={handleResetPassword} 
-              className="w-full h-12 gap-2" 
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Generating...
-                </>
-              ) : (
-                <>
-                  <KeyRound className="h-4 w-4" />
-                  Generate New Password
-                </>
-              )}
+            <Button onClick={handleResetPassword} className="w-full h-12 gap-2" disabled={isLoading}>
+              {isLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Generating...</> : <><KeyRound className="h-4 w-4" />Generate New Password</>}
             </Button>
-            
-            <Button 
-              variant="ghost" 
-              className="w-full" 
-              onClick={() => setPageState('ready')}
-            >
-              Back to Activation
-            </Button>
+            <Button variant="ghost" className="w-full" onClick={() => setPageState('ready')}>Back to Activation</Button>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Password reset success state
+  // Password reset success
   if (pageState === 'password-reset') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-success/5 to-background flex items-center justify-center p-4">
         <Card className="w-full max-w-md">
           <CardHeader className="text-center">
-            <div className="flex justify-center mb-4">
-              <WelileLogo linkToHome={false} />
-            </div>
-            <div className="mx-auto p-3 rounded-full bg-success/10 w-fit mb-4">
-              <CheckCircle2 className="h-8 w-8 text-success" />
-            </div>
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
+            <div className="mx-auto p-3 rounded-full bg-success/10 w-fit mb-4"><CheckCircle2 className="h-8 w-8 text-success" /></div>
             <CardTitle className="text-2xl">New Password Ready!</CardTitle>
-            <CardDescription>
-              Use this password to activate your account.
-            </CardDescription>
+            <CardDescription>Use this password to activate your account.</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {/* New Password Display */}
             <div className="p-4 rounded-xl bg-primary/5 border border-primary/20">
               <p className="text-xs text-muted-foreground mb-2 text-center">Your new password</p>
               <div className="flex items-center justify-center gap-2">
-                <code className="text-2xl font-mono font-bold tracking-wider text-primary">
-                  {newTempPassword}
-                </code>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={handleCopyPassword}
-                  className="h-8 w-8"
-                >
+                <code className="text-2xl font-mono font-bold tracking-wider text-primary">{newTempPassword}</code>
+                <Button variant="ghost" size="icon" onClick={handleCopyPassword} className="h-8 w-8">
                   <Copy className={`h-4 w-4 ${copied ? 'text-success' : ''}`} />
                 </Button>
               </div>
             </div>
-
-            {/* Action Buttons */}
             {resetPhone && (
               <div className="space-y-1">
-                <Button 
-                  className="w-full h-12 gap-2"
-                  onClick={handleShareWhatsApp}
-                >
-                  <MessageCircle className="h-4 w-4" />
-                  Resend to WhatsApp
+                <Button className="w-full h-12 gap-2" onClick={handleShareWhatsApp}>
+                  <MessageCircle className="h-4 w-4" />Resend to WhatsApp
                 </Button>
-                <p className="text-[10px] text-center text-muted-foreground">
-                  Tap here if WhatsApp didn't open automatically
-                </p>
+                <p className="text-[10px] text-center text-muted-foreground">Tap here if WhatsApp didn't open automatically</p>
               </div>
             )}
-
-            <Button 
-              variant="outline"
-              onClick={handleBackToActivation} 
-              className="w-full gap-2"
-            >
-              <ArrowRight className="h-4 w-4" />
-              Continue to Activate
+            <Button variant="outline" onClick={handleBackToActivation} className="w-full gap-2">
+              <ArrowRight className="h-4 w-4" />Continue to Activate
             </Button>
-
-            <p className="text-xs text-center text-muted-foreground">
-              Save this password somewhere safe before continuing.
-            </p>
           </CardContent>
         </Card>
       </div>
     );
   }
 
-  // Ready state - show activation form immediately (no loading spinner)
+  // Profile Setup (Step 2)
+  if (pageState === 'profile-setup') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
+        <Card className="w-full max-w-md">
+          <CardHeader className="text-center">
+            <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
+            <CardTitle className="text-2xl">Complete Your Profile</CardTitle>
+            <CardDescription>Enter your details to finish setting up your account</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleActivate} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="fullName">Full Name (as on your ID) *</Label>
+                <Input
+                  id="fullName"
+                  placeholder="e.g., John Doe"
+                  value={fullName}
+                  onChange={(e) => setFullName(e.target.value)}
+                  required
+                  className="h-12 text-base"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="name"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="userEmail">Email (optional)</Label>
+                <Input
+                  id="userEmail"
+                  type="email"
+                  placeholder="your@email.com"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="h-12 text-base"
+                  style={{ fontSize: '16px' }}
+                  autoComplete="email"
+                  inputMode="email"
+                />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="newPassword">Set Your Password *</Label>
+                <div className="relative">
+                  <Input
+                    id="newPassword"
+                    type={showNewPassword ? 'text' : 'password'}
+                    placeholder="Choose a strong password (6+ chars)"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    required
+                    minLength={6}
+                    className="h-12 text-base pr-12"
+                    style={{ fontSize: '16px' }}
+                    autoComplete="new-password"
+                  />
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-0 top-0 h-full"
+                    onClick={() => setShowNewPassword(!showNewPassword)}
+                  >
+                    {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  This will be your login password
+                </p>
+              </div>
+
+              {/* Location Status */}
+              <div className={`p-3 rounded-xl border ${
+                locationStatus === 'granted' ? 'bg-success/10 border-success/30' : 
+                locationStatus === 'denied' ? 'bg-warning/10 border-warning/30' :
+                'bg-muted/50 border-muted'
+              }`}>
+                <div className="flex items-center gap-3">
+                  {locationStatus === 'requesting' ? (
+                    <>
+                      <Loader2 className="h-5 w-5 animate-spin text-primary" />
+                      <div>
+                        <p className="text-sm font-medium">Requesting location access...</p>
+                        <p className="text-xs text-muted-foreground">Please allow location sharing</p>
+                      </div>
+                    </>
+                  ) : locationStatus === 'granted' ? (
+                    <>
+                      <Navigation className="h-5 w-5 text-success" />
+                      <div>
+                        <p className="text-sm font-medium text-success">📍 Location captured!</p>
+                        <p className="text-xs text-muted-foreground">
+                          {locationData?.latitude.toFixed(4)}, {locationData?.longitude.toFixed(4)}
+                        </p>
+                      </div>
+                    </>
+                  ) : locationStatus === 'denied' ? (
+                    <>
+                      <MapPin className="h-5 w-5 text-warning" />
+                      <div className="flex-1">
+                        <p className="text-sm font-medium text-warning">Location not shared</p>
+                        <p className="text-xs text-muted-foreground">Enable location in browser settings</p>
+                      </div>
+                      <Button type="button" variant="outline" size="sm" onClick={requestLocation} className="text-xs">
+                        Retry
+                      </Button>
+                    </>
+                  ) : (
+                    <>
+                      <MapPin className="h-5 w-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Location sharing</p>
+                        <p className="text-xs text-muted-foreground">We'll ask for your location</p>
+                      </div>
+                    </>
+                  )}
+                </div>
+              </div>
+
+              <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || !fullName.trim() || !newPassword.trim()}>
+                {isLoading ? (
+                  <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Activating...</>
+                ) : (
+                  <><CheckCircle2 className="h-4 w-4 mr-2" />Activate Account</>
+                )}
+              </Button>
+
+              <button
+                type="button"
+                onClick={() => setPageState('ready')}
+                className="w-full text-sm text-muted-foreground hover:text-foreground text-center"
+              >
+                ← Back
+              </button>
+            </form>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Ready state - Step 1: Enter temp password
   return (
     <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
-          <div className="flex justify-center mb-4">
-            <WelileLogo linkToHome={false} />
-          </div>
+          <div className="flex justify-center mb-4"><WelileLogo linkToHome={false} /></div>
           <CardTitle className="text-2xl">Activate Your Account</CardTitle>
           <CardDescription>
             {isValidating ? (
               <span className="inline-block h-4 w-48 bg-muted/50 rounded animate-pulse" />
             ) : (
-              <>Welcome {inviteDetails?.full_name || 'there'}! Enter your password to activate.</>
+              <>Welcome! Enter the temporary password you received to continue.</>
             )}
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <form onSubmit={handleActivate} className="space-y-4">
+          <form onSubmit={handleVerifyPassword} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password">Temporary Password</Label>
               <div className="relative">
                 <Input
                   ref={passwordInputRef}
@@ -549,32 +608,16 @@ export default function ActivateSupporter() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </Button>
               </div>
-              <p className="text-xs text-muted-foreground">
-                Use the password shared with you
-              </p>
+              <p className="text-xs text-muted-foreground">Use the password shared with you by the agent</p>
             </div>
 
-            <Button type="submit" className="w-full h-12 text-base" disabled={isLoading || !password.trim()}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Activating...
-                </>
-              ) : (
-                <>
-                  <ArrowRight className="h-4 w-4 mr-2" />
-                  Activate Account
-                </>
-              )}
+            <Button type="submit" className="w-full h-12 text-base" disabled={!password.trim()}>
+              <ArrowRight className="h-4 w-4 mr-2" />
+              Continue
             </Button>
 
-            {/* Forgot Password Link */}
             <div className="text-center">
-              <button
-                type="button"
-                onClick={() => setPageState('forgot-password')}
-                className="text-sm text-primary hover:underline"
-              >
+              <button type="button" onClick={() => setPageState('forgot-password')} className="text-sm text-primary hover:underline">
                 Lost your password?
               </button>
             </div>

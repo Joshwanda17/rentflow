@@ -136,10 +136,8 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [copied, setCopied] = useState(false);
   const [lastError, setLastError] = useState<string | null>(null);
   
-  // Form data for invite-based registrations
+  // Form data for invite-based registrations (simplified: only phone + password)
   const [formData, setFormData] = useState({
-    email: '',
-    fullName: '',
     phone: '',
     password: '',
   });
@@ -221,13 +219,17 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       const isSubAgent = selectedType === 'sub-agent';
       const isSupporter = selectedType === 'supporter';
 
+      // Auto-generate email from phone number
+      const generatedEmail = `${formData.phone.replace(/\D/g, '')}@welile.user`;
+
       const response = await supabase.functions.invoke('create-supporter-invite', {
         body: { 
-          ...formData, 
+          phone: formData.phone,
+          password: formData.password,
+          email: generatedEmail,
           role, 
           isSubAgent, 
           isSupporter,
-          // Include location data for landlord registrations
           latitude: role === 'landlord' && capturedLocation ? capturedLocation.latitude : null,
           longitude: role === 'landlord' && capturedLocation ? capturedLocation.longitude : null,
           locationAccuracy: role === 'landlord' && capturedLocation ? capturedLocation.accuracy : null,
@@ -249,7 +251,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
       setCreatedInvite({
         token: response.data.invite.activation_token,
-        fullName: response.data.invite.full_name,
+        fullName: formData.phone, // Use phone as identifier since no name yet
         password: formData.password,
         role: selectedType,
       });
@@ -326,45 +328,45 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
     const isSubAgent = createdInvite.role === 'sub-agent';
     
     if (isSubAgent) {
-      return `🤝 Welcome to the Welile Agent Team, ${createdInvite.fullName}!
+      return `🤝 Welcome to the Welile Agent Team!
 
 You've been invited to join as an Agent!
 
 💰 You'll earn 4% commission on all rent repayments from tenants you register!
 
-🔐 Your password: ${createdInvite.password}
+🔐 Your temporary password: ${createdInvite.password}
 
 👉 Activate your account here:
 ${getShareLink()}
 
-Just click the link and enter your password to start earning!`;
+Click the link, enter your password, and set up your profile to start earning!`;
     }
 
     if (createdInvite.role === 'supporter') {
-      return `💝 Welcome to Welile, ${createdInvite.fullName}!
+      return `💝 Welcome to Welile!
 
 You've been invited to join as a Supporter!
 
 💰 Earn 15% monthly ROI by funding rent for tenants!
 
-🔐 Your password: ${createdInvite.password}
+🔐 Your temporary password: ${createdInvite.password}
 
 👉 Activate your account here:
 ${getShareLink()}
 
-Click the link and enter your password to start investing!`;
+Click the link, enter your password, and complete your profile to start investing!`;
     }
     
-    return `${config?.emoji || '🎉'} Welcome to Welile, ${createdInvite.fullName}!
+    return `${config?.emoji || '🎉'} Welcome to Welile!
 
 You've been invited to join as a ${config?.label || 'User'}!
 
-🔐 Your password: ${createdInvite.password}
+🔐 Your temporary password: ${createdInvite.password}
 
 👉 Activate your account here:
 ${getShareLink()}
 
-Just click the link and enter your password to get started!`;
+Click the link, enter your password, and set up your profile to get started!`;
   };
 
   const handleShareWhatsApp = () => {
@@ -382,7 +384,7 @@ Password: ${createdInvite?.password}`;
   };
 
   const handleClose = () => {
-    setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setFormData({ phone: '', password: '' });
     setLc1Data({ name: '', phone: '', village: '' });
     setCreatedInvite(null);
     setLc1Success(false);
@@ -395,7 +397,7 @@ Password: ${createdInvite?.password}`;
   };
 
   const handleBack = () => {
-    setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setFormData({ phone: '', password: '' });
     setLc1Data({ name: '', phone: '', village: '' });
     setCreatedInvite(null);
     setLc1Success(false);
@@ -472,34 +474,6 @@ Password: ${createdInvite?.password}`;
       </div>
 
       <div className="space-y-4">
-        <div className="space-y-2">
-          <Label htmlFor="fullName" className="text-sm font-medium">Full Name</Label>
-          <Input
-            id="fullName"
-            placeholder="Enter full name"
-            value={formData.fullName}
-            onChange={(e) => setFormData(prev => ({ ...prev, fullName: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl touch-manipulation"
-            autoComplete="off"
-          />
-        </div>
-
-        <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium">Email</Label>
-          <Input
-            id="email"
-            type="email"
-            placeholder="user@example.com"
-            value={formData.email}
-            onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            required
-            className="h-14 text-base rounded-xl touch-manipulation"
-            autoComplete="off"
-            inputMode="email"
-          />
-        </div>
-
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
           <div className="relative">

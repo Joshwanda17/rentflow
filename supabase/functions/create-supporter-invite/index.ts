@@ -2,22 +2,12 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  // Include all headers the browser/Supabase client may send
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 const validRoles = ['tenant', 'agent', 'supporter', 'landlord', 'manager'];
 
-// Interface for location data (used for landlord registrations)
-interface LocationData {
-  latitude?: number;
-  longitude?: number;
-  accuracy?: number;
-  propertyAddress?: string;
-}
-
 // Normalize phone numbers for duplicate checks.
-// We compare by the last 9 digits (UG local number) to avoid false matches from string "includes".
 const toDigits = (value: string) => value.replace(/\D/g, "");
 const ugLocal9 = (value: string) => {
   const digits = toDigits(value);
@@ -25,7 +15,6 @@ const ugLocal9 = (value: string) => {
   const last9 = digits.length >= 9 ? digits.slice(-9) : digits;
   return last9.length === 9 ? last9 : null;
 };
-const unique = <T,>(arr: T[]) => Array.from(new Set(arr));
 
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -37,7 +26,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Get the authorization header to verify the user
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(JSON.stringify({ error: "No authorization header" }), {
@@ -46,7 +34,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Create client with user's token to verify identity
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -59,7 +46,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify user is a manager OR agent (both can create invites)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
     const { data: roleData } = await adminClient
       .from("user_roles")
@@ -86,35 +72,34 @@ Deno.serve(async (req) => {
     }));
     
     const { 
-      email, 
-      fullName, 
       phone, 
       password, 
       role = 'tenant', 
       isSubAgent = false,
-      // Location data for landlord registrations
       latitude,
       longitude,
       locationAccuracy,
       propertyAddress,
     } = body;
 
-    if (!email || !fullName || !phone || !password) {
-      console.log("Missing fields:", { email: !!email, fullName: !!fullName, phone: !!phone, password: !!password });
-      return new Response(JSON.stringify({ error: "Missing required fields", details: { email: !!email, fullName: !!fullName, phone: !!phone, password: !!password } }), {
+    // fullName and email are now optional - agent can skip them
+    // They'll be filled in by the user during activation
+    let { email, fullName } = body;
+
+    if (!phone || !password) {
+      return new Response(JSON.stringify({ error: "Phone number and password are required" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     if (!validRoles.includes(role)) {
-      return new Response(JSON.stringify({ error: "Invalid role. Must be tenant, agent, supporter, landlord, or manager" }), {
+      return new Response(JSON.stringify({ error: "Invalid role" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Agents can create tenant, landlord, agent (sub-agent), and supporter accounts
     if (creatorRole === 'agent' && !['tenant', 'landlord', 'agent', 'supporter'].includes(role)) {
       return new Response(JSON.stringify({ error: "Agents can only create tenant, landlord, sub-agent, and supporter accounts" }), {
         status: 403,
@@ -122,7 +107,6 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Only managers can create manager accounts
     if (role === 'manager' && creatorRole !== 'manager') {
       return new Response(JSON.stringify({ error: "Only managers can create manager accounts" }), {
         status: 403,
@@ -130,61 +114,54 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Basic phone format validation (must have at least 9 digits)
     const local9 = ugLocal9(phone);
-    console.log("Phone validation:", { original: phone?.substring(0,4) + '***', local9: local9 ? 'valid' : 'invalid' });
     if (!local9) {
-      return new Response(JSON.stringify({ error: "Invalid phone number", phone_received: phone }), {
+      return new Response(JSON.stringify({ error: "Invalid phone number" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check if profile already exists with this phone number (by last 9 digits)
-    // This is critical to prevent creating invites for already-registered users
+    // Auto-generate email and fullName if not provided
+    if (!email) {
+      email = `${phone.replace(/\D/g, '')}@welile.user`;
+    }
+    if (!fullName) {
+      fullName = `User ${phone.replace(/\D/g, '').slice(-4)}`;
+    }
+
+    // Check if profile already exists with this phone number
     const { data: allProfiles, error: profilesError } = await adminClient
       .from("profiles")
       .select("id, full_name, phone");
 
     if (profilesError) {
-      console.error("Error checking profiles:", profilesError);
       return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Find any profile with matching last 9 digits
     const existingProfileByPhone = allProfiles?.find(p => {
       const profileLocal9 = ugLocal9(p.phone || '');
       return profileLocal9 && profileLocal9 === local9;
     });
 
     if (existingProfileByPhone) {
-      console.log(`Duplicate phone detected: ${phone} matches existing profile ${existingProfileByPhone.full_name}`);
       return new Response(JSON.stringify({ 
         error: `This phone number is already registered to ${existingProfileByPhone.full_name}. They can sign in directly.`,
-        existing_user: existingProfileByPhone.full_name
       }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Check if email already exists (profiles is our source of truth for registered users)
-    const { data: existingProfileByEmail, error: profileEmailError } = await adminClient
+    // Check if email already exists
+    const { data: existingProfileByEmail } = await adminClient
       .from("profiles")
       .select("id")
       .ilike("email", email)
       .maybeSingle();
-
-    if (profileEmailError) {
-      console.error("Error checking profile by email:", profileEmailError);
-      return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     if (existingProfileByEmail) {
       return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
@@ -193,7 +170,7 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if invite already exists (use maybeSingle to avoid error when no row exists)
+    // Check if invite already exists
     const { data: existingInvite } = await adminClient
       .from("supporter_invites")
       .select("id")
@@ -208,14 +185,11 @@ Deno.serve(async (req) => {
       });
     }
 
-    // If this is a sub-agent being created by an agent, store the parent agent ID
     let parentAgentId: string | null = null;
     if (creatorRole === 'agent' && role === 'agent') {
       parentAgentId = user.id;
-      console.log(`Creating sub-agent invite for ${email} with parent agent ${user.id}`);
     }
 
-    // Create the invite record with parent_agent_id if applicable
     const { data: invite, error: inviteError } = await adminClient
       .from("supporter_invites")
       .insert({
@@ -226,7 +200,6 @@ Deno.serve(async (req) => {
         role,
         created_by: user.id,
         parent_agent_id: parentAgentId,
-        // Include location data for landlord registrations
         latitude: role === 'landlord' && latitude ? latitude : null,
         longitude: role === 'landlord' && longitude ? longitude : null,
         location_accuracy: role === 'landlord' && locationAccuracy ? locationAccuracy : null,
@@ -238,7 +211,6 @@ Deno.serve(async (req) => {
     if (inviteError) {
       console.error("Invite error:", inviteError);
       
-      // Check for unique constraint violation (duplicate phone)
       if (inviteError.code === '23505') {
         const isPhoneDuplicate = inviteError.message?.includes('phone') || 
                                   inviteError.message?.includes('idx_supporter_invites_phone_normalized');
@@ -248,7 +220,6 @@ Deno.serve(async (req) => {
             headers: { ...corsHeaders, "Content-Type": "application/json" },
           });
         }
-        // Generic duplicate error
         return new Response(JSON.stringify({ error: "This invite already exists (duplicate detected)" }), {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -262,7 +233,6 @@ Deno.serve(async (req) => {
     }
 
     console.log(`Created ${role} invite for ${email} by ${creatorRole} ${user.id}${parentAgentId ? ' (sub-agent)' : ''}`);
-    // subAgentParentId variable removed - now using parentAgentId from invite creation above
 
     return new Response(JSON.stringify({ 
       success: true, 
@@ -283,7 +253,6 @@ Deno.serve(async (req) => {
     console.error("Error creating invite:", error);
     return new Response(JSON.stringify({ 
       error: error.message || "Internal server error",
-      details: error.toString()
     }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
