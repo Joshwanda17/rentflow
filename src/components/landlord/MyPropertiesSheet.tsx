@@ -3,7 +3,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, User, Home, DoorOpen, Navigation } from 'lucide-react';
+import { MapPin, User, Home, DoorOpen, Navigation, BedDouble, Banknote } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface Property {
@@ -14,6 +14,8 @@ interface Property {
   latitude: number | null;
   longitude: number | null;
   number_of_houses: number | null;
+  number_of_rooms: number | null;
+  description: string | null;
   monthly_rent: number | null;
   desired_rent_from_welile: number | null;
   tenant_id: string | null;
@@ -37,7 +39,7 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
       setLoading(true);
       const { data, error } = await supabase
         .from('landlords')
-        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, monthly_rent, desired_rent_from_welile, tenant_id, verified')
+        .select('id, name, phone, property_address, latitude, longitude, number_of_houses, number_of_rooms, description, monthly_rent, desired_rent_from_welile, tenant_id, verified')
         .eq('registered_by', userId)
         .order('created_at', { ascending: false });
 
@@ -133,15 +135,24 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
                       </Badge>
                     </div>
 
-                    {/* Details */}
-                    <div className="grid grid-cols-2 gap-2 text-xs">
+                    {/* Description */}
+                    {p.description && (
+                      <p className="text-xs text-muted-foreground line-clamp-2">{p.description}</p>
+                    )}
+
+                    {/* Details grid */}
+                    <div className="grid grid-cols-3 gap-2 text-xs">
                       <div className="flex items-center gap-1.5 text-muted-foreground">
                         <Home className="h-3.5 w-3.5 shrink-0" />
                         <span>{p.number_of_houses || 1} unit{(p.number_of_houses || 1) > 1 ? 's' : ''}</span>
                       </div>
-                      <div className="text-right">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <BedDouble className="h-3.5 w-3.5 shrink-0" />
+                        <span>{p.number_of_rooms || '—'} room{(p.number_of_rooms || 0) !== 1 ? 's' : ''}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <Banknote className="h-3.5 w-3.5 text-success shrink-0" />
                         <span className="font-semibold text-success">{formatUGX(rent)}</span>
-                        <span className="text-muted-foreground">/mo</span>
                       </div>
                     </div>
 
