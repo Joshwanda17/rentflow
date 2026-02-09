@@ -21,6 +21,7 @@ import { LandlordMenuDrawer } from '@/components/landlord/LandlordMenuDrawer';
 import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog';
 import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { MyPropertiesSheet } from '@/components/landlord/MyPropertiesSheet';
 import { useWallet } from '@/hooks/useWallet';
 import { useLandlordStats } from '@/hooks/useLandlordStats';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -46,6 +47,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   const [registerPropertyOpen, setRegisterPropertyOpen] = useState(false);
   const [addTenantOpen, setAddTenantOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
+  const [showProperties, setShowProperties] = useState(false);
 
   const handleRefresh = async () => {
     await Promise.all([refreshWallet(), refreshStats()]);
@@ -89,7 +91,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
           {/* Property Stats Row */}
           <div className="grid grid-cols-3 gap-2">
-            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
+            <button
+              onClick={() => { hapticTap(); setShowProperties(true); }}
+              className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm hover:border-primary/40 transition-colors active:scale-95"
+            >
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <Home className="h-4 w-4 text-primary" />
               </div>
@@ -99,7 +104,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
                 <p className="text-xl font-bold">{landlordStats.totalProperties}</p>
               )}
               <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Properties</p>
-            </div>
+            </button>
             <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
               <div className="flex items-center justify-center gap-1.5 mb-1">
                 <DoorOpen className="h-4 w-4 text-warning" />
@@ -181,6 +186,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
 
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+
+      {/* Properties sheet */}
+      <MyPropertiesSheet open={showProperties} onOpenChange={setShowProperties} userId={user.id} />
 
       {/* Menu Drawer */}
       <LandlordMenuDrawer
