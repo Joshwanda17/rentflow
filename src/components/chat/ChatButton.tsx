@@ -72,13 +72,13 @@ export default function ChatButton() {
   return (
     <Button
       variant="ghost"
-      size="icon"
-      className="relative"
+      size="sm"
+      className="relative h-8 w-8 p-0"
       onClick={() => navigate('/chat')}
     >
-      <MessageCircle className="h-5 w-5" />
+      <MessageCircle className="h-4 w-4" />
       {unreadCount > 0 && (
-        <Badge className="absolute -top-1 -right-1 h-5 min-w-5 px-1 flex items-center justify-center text-xs">
+        <Badge className="absolute -top-0.5 -right-0.5 h-4 min-w-4 px-0.5 flex items-center justify-center text-[10px]">
           {unreadCount > 99 ? '99+' : unreadCount}
         </Badge>
       )}
