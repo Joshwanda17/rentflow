@@ -26,29 +26,28 @@ export default function ChatButton() {
         return;
       }
 
-      let totalUnread = 0;
+      const convIds = participations.map(p => p.conversation_id);
 
-      for (const p of participations) {
-        let query = supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .eq('conversation_id', p.conversation_id)
-          .neq('sender_id', user.id);
+      // Single batched query instead of N+1
+      const { count } = await supabase
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .in('conversation_id', convIds)
+        .neq('sender_id', user.id)
+        .is('read_at', null);
 
-        if (p.last_read_at) {
-          query = query.gt('created_at', p.last_read_at);
-        }
-
-        const { count } = await query;
-        totalUnread += count || 0;
-      }
-
-      setUnreadCount(totalUnread);
+      setUnreadCount(count || 0);
     };
 
     fetchUnreadCount();
 
-    // Subscribe to new messages
+    // Debounced subscription to avoid excessive refetches
+    let timeout: ReturnType<typeof setTimeout>;
+    const debouncedFetch = () => {
+      clearTimeout(timeout);
+      timeout = setTimeout(fetchUnreadCount, 500);
+    };
+
     const channel = supabase
       .channel('chat-notifications')
       .on(
@@ -58,13 +57,12 @@ export default function ChatButton() {
           schema: 'public',
           table: 'messages'
         },
-        () => {
-          fetchUnreadCount();
-        }
+        debouncedFetch
       )
       .subscribe();
 
     return () => {
+      clearTimeout(timeout);
       supabase.removeChannel(channel);
     };
   }, [user]);
