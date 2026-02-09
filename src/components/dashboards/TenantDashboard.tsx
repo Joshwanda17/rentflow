@@ -37,7 +37,7 @@ import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
-import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
+
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -211,8 +211,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
           {/* Terms Acceptance Notice */}
           <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
 
-          {/* Receipt Prompt */}
-          <DashboardReceiptPrompt userId={user.id} />
 
           {/* Profile Section - Minimal */}
           <div className="text-center space-y-3">
