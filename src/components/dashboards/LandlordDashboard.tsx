@@ -1,27 +1,25 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
-import { useOffline } from '@/contexts/OfflineContext';
 import { 
   Wallet, 
   Building2, 
   Menu,
-  ArrowRight,
 } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import { WalletCard } from '@/components/wallet/WalletCard';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { PullToRefresh } from '@/components/PullToRefresh';
-import { FloatingShareButton } from '@/components/FloatingShareButton';
-import MobileQuickMenu from '@/components/MobileQuickMenu';
 import { WelileHomesLandlordBadge } from '@/components/landlord/WelileHomesLandlordBadge';
 import { LandlordMenuDrawer } from '@/components/landlord/LandlordMenuDrawer';
 import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog';
 import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { useWallet } from '@/hooks/useWallet';
+import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 
@@ -37,31 +35,26 @@ interface LandlordDashboardProps {
 export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const { wallet, refreshWallet } = useWallet();
   const [menuOpen, setMenuOpen] = useState(false);
   const [registerPropertyOpen, setRegisterPropertyOpen] = useState(false);
   const [addTenantOpen, setAddTenantOpen] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
 
   const handleRefresh = async () => {
-    // Wallet card handles its own refresh via PullToRefresh
+    await refreshWallet();
   };
 
-  const handleOpenMenu = () => {
-    hapticTap();
-    setMenuOpen(true);
-  };
-
-  const handleOpenRegisterProperty = () => {
-    hapticTap();
-    setRegisterPropertyOpen(true);
-  };
+  const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
+  const handleOpenRegisterProperty = () => { hapticTap(); setRegisterPropertyOpen(true); };
+  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
   const menuItems = [
     { icon: Building2, label: 'Register Property', onClick: () => setRegisterPropertyOpen(true) },
-    { icon: Menu, label: 'All Features', onClick: () => setMenuOpen(true) },
   ];
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -70,77 +63,90 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         menuItems={menuItems}
       />
 
-      <main className="px-4 py-4 space-y-3 animate-fade-in">
-        {/* Profile Section - Minimal */}
-        <button 
-          onClick={() => navigate('/settings')}
-          className="w-full wa-list-item rounded-xl border border-border/50 shadow-sm hover:bg-muted/50 active:scale-[0.99] transition-all"
-        >
-          <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-          <div className="flex-1 min-w-0 text-left">
-            <div className="flex items-center gap-2">
-              <h2 className="font-semibold text-base truncate">
-                {profile?.full_name || 'Landlord'}
-              </h2>
-              <WelileHomesLandlordBadge userId={user.id} variant="compact" />
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
+          {/* Profile Section - Centered like Agent Dashboard */}
+          <div className="text-center space-y-3">
+            <button onClick={() => navigate('/settings')} className="mx-auto block">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+            </button>
+            <div>
+              <div className="flex items-center justify-center gap-2">
+                <h1 className="font-bold text-2xl">
+                  {profile?.full_name || 'Landlord'}
+                </h1>
+                <WelileHomesLandlordBadge userId={user.id} variant="compact" />
+              </div>
+              <p className="text-sm text-muted-foreground">Property Owner</p>
             </div>
-            <p className="text-sm text-muted-foreground truncate">
-              Tap to view profile
-            </p>
           </div>
-          {addRoleComponent}
-        </button>
 
-        {/* Priority Card 1: Wallet */}
-        <WalletCard />
+          {/* THREE MAIN ACTION BUTTONS */}
+          <div className="space-y-3">
+            {/* 1. WALLET BUTTON - Primary */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleViewWallet}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation"
+            >
+              <div className="p-3 rounded-xl bg-success/20">
+                <Wallet className="h-7 w-7 text-success" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
+                <p className="text-sm text-muted-foreground">Wallet Balance</p>
+              </div>
+            </motion.button>
 
-        {/* Priority Card 2: Guaranteed Monthly Rent */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={handleOpenRegisterProperty}
-          className="w-full text-left p-5 rounded-2xl bg-gradient-to-br from-success/10 via-background to-primary/10 border-2 border-success/30 hover:shadow-lg transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-success/20 ring-2 ring-success/30 shrink-0">
-              <Building2 className="h-7 w-7 text-success" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-lg text-foreground">Guaranteed Monthly Rent</p>
-              <p className="text-sm text-muted-foreground">Register property to start earning</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+            {/* 2. GUARANTEED MONTHLY RENT - Register Property */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleOpenRegisterProperty}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation"
+            >
+              <div className="p-3 rounded-xl bg-primary/20">
+                <Building2 className="h-7 w-7 text-primary" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-bold text-lg">Guaranteed Monthly Rent</p>
+                <p className="text-sm text-muted-foreground">Register property to start earning</p>
+              </div>
+            </motion.button>
+
+            {/* 3. MENU BUTTON */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleOpenMenu}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
+            >
+              <div className="p-3 rounded-xl bg-muted">
+                <Menu className="h-7 w-7 text-foreground" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-bold text-lg">Menu</p>
+                <p className="text-sm text-muted-foreground">Tenants, receipts, loans & more</p>
+              </div>
+            </motion.button>
           </div>
-        </motion.button>
 
-        {/* Menu Card */}
-        <motion.button
-          whileTap={{ scale: 0.98 }}
-          onClick={handleOpenMenu}
-          className="w-full text-left p-5 rounded-2xl bg-muted/50 border-2 border-border hover:bg-muted/70 transition-all"
-        >
-          <div className="flex items-center gap-4">
-            <div className="p-3 rounded-xl bg-muted shrink-0">
-              <Menu className="h-7 w-7 text-foreground" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="font-bold text-lg text-foreground">Menu</p>
-              <p className="text-sm text-muted-foreground">Tenants, receipts, loans & more</p>
-            </div>
-            <ArrowRight className="h-5 w-5 text-muted-foreground shrink-0" />
+          {/* ADD ROLE COMPONENT */}
+          <div className="flex justify-center">
+            {addRoleComponent}
           </div>
-        </motion.button>
-      </main>
-      
-      <FloatingShareButton />
-      <MobileQuickMenu currentRole={currentRole} />
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+        </main>
+      </PullToRefresh>
 
-      {/* Dialogs */}
+      {/* Full-screen wallet sheet */}
+      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+
+      {/* Menu Drawer */}
       <LandlordMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
         onAddTenant={() => setAddTenantOpen(true)}
       />
+
+      {/* Dialogs */}
       <RegisterPropertyDialog
         open={registerPropertyOpen}
         onOpenChange={setRegisterPropertyOpen}
@@ -149,6 +155,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         open={addTenantOpen}
         onOpenChange={setAddTenantOpen}
       />
-    </PullToRefresh>
+
+      {/* Fixed footer navigation */}
+      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+    </div>
   );
 }
