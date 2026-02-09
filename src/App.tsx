@@ -5,13 +5,15 @@ import { ThemeProvider } from "next-themes";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import ChunkErrorBoundary from "@/components/ChunkErrorBoundary";
 
-// Defer heavy auth/settings providers — loaded after first paint via idle callback
-const AuthProvider = lazy(() => import("@/hooks/useAuth").then(m => ({ default: m.AuthProvider })));
+// Critical providers — loaded eagerly for instant auth/routing
+import { AuthProvider } from "@/hooks/useAuth";
+import { LanguageProvider } from "@/hooks/useLanguage";
+import { CurrencyProvider } from "@/hooks/useCurrency";
+import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
+
+// Deferred auth providers — not needed for initial render
 const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
 const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
-const LanguageProvider = lazy(() => import("@/hooks/useLanguage").then(m => ({ default: m.LanguageProvider })));
-const CurrencyProvider = lazy(() => import("@/hooks/useCurrency").then(m => ({ default: m.CurrencyProvider })));
-const CombinedSettingsProvider = lazy(() => import("@/hooks/useCombinedSettings").then(m => ({ default: m.CombinedSettingsProvider })));
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -23,11 +25,9 @@ const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ defaul
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 
-// Eagerly load Landing (first page users see — must be instant + offline)
+// Eagerly load Landing + Index (first pages users hit — must be instant)
 import Landing from "./pages/Landing";
-
-// Lazy load routes
-const Index = lazy(() => import("./pages/Index"));
+import Index from "./pages/Index";
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
@@ -229,11 +229,11 @@ const App = () => (
     <ThemeProvider attribute="class" defaultTheme="light" enableSystem={false}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
-          <Suspense fallback={<PageLoader />}>
-            <CombinedSettingsProvider>
-              <LanguageProvider>
-                <CurrencyProvider>
-                  <AuthProvider>
+          <CombinedSettingsProvider>
+            <LanguageProvider>
+              <CurrencyProvider>
+                <AuthProvider>
+                  <Suspense fallback={<PageLoader />}>
                     <PinAuthProvider>
                       <BiometricAuthProvider>
                         <TooltipProvider delayDuration={300}>
@@ -248,11 +248,11 @@ const App = () => (
                         </TooltipProvider>
                       </BiometricAuthProvider>
                     </PinAuthProvider>
-                  </AuthProvider>
-                </CurrencyProvider>
-              </LanguageProvider>
-            </CombinedSettingsProvider>
-          </Suspense>
+                  </Suspense>
+                </AuthProvider>
+              </CurrencyProvider>
+            </LanguageProvider>
+          </CombinedSettingsProvider>
         </BrowserRouter>
       </QueryClientProvider>
     </ThemeProvider>
