@@ -26,7 +26,8 @@ import {
   ScrollText,
   BarChart3,
   PiggyBank,
-  ShoppingBag
+  ShoppingBag,
+  Building2,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -40,6 +41,8 @@ interface AgentMenuDrawerProps {
   onPostRentRequest: () => void;
   onInviteSubAgent: () => void;
   onOpenEarningsRank: () => void;
+  onManageProperty?: () => void;
+  onViewManagedProperties?: () => void;
 }
 
 interface MenuSection {
@@ -64,7 +67,9 @@ export function AgentMenuDrawer({
   onDeposit,
   onPostRentRequest,
   onInviteSubAgent,
-  onOpenEarningsRank
+  onOpenEarningsRank,
+  onManageProperty,
+  onViewManagedProperties,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -115,6 +120,21 @@ export function AgentMenuDrawer({
           onClick: onInviteSubAgent,
           color: 'text-amber-500'
         },
+        ...(onManageProperty ? [{ 
+          icon: Building2, 
+          label: 'Manage Property for Landlord', 
+          description: 'For landlords without smartphones',
+          onClick: onManageProperty,
+          color: 'text-orange-500',
+          badge: '2% fee'
+        }] : []),
+        ...(onViewManagedProperties ? [{ 
+          icon: Home, 
+          label: 'My Managed Properties', 
+          description: 'Properties you manage & payouts',
+          onClick: onViewManagedProperties,
+          color: 'text-teal-500'
+        }] : []),
       ]
     },
     {
