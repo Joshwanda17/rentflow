@@ -1,9 +1,9 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
-import * as bcrypt from "https://deno.land/x/bcrypt@v0.4.1/mod.ts";
+// bcrypt removed - using plaintext password comparison
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 // Rate limiting configuration
@@ -168,21 +168,14 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Verify password - support both hashed and legacy plaintext
+    // Verify password - plaintext comparison
     let passwordValid = false;
     
-    if (invite.temp_password_hash) {
-      // Use bcrypt for hashed passwords
-      try {
-        passwordValid = await bcrypt.compare(password, invite.temp_password_hash);
-      } catch (e) {
-        console.error('[activate-supporter] bcrypt compare error:', e);
-        passwordValid = false;
-      }
-    } else if (invite.temp_password) {
-      // Legacy plaintext comparison
+    if (invite.temp_password) {
       passwordValid = password === String(invite.temp_password).trim();
     }
+    
+    console.log(`[activate-supporter] Password check for invite ${invite.id}: provided="${password}", stored="${invite.temp_password}", valid=${passwordValid}`);
 
     if (!passwordValid) {
       recordFailedAttempt(token);
@@ -292,8 +285,7 @@ Deno.serve(async (req) => {
         status: "activated",
         activated_at: new Date().toISOString(),
         activated_user_id: authData.user.id,
-        temp_password: null, // Clear plaintext password
-        temp_password_hash: null, // Clear hash after use
+        temp_password: null, // Clear password after use
       })
       .eq("id", invite.id);
 
