@@ -72,112 +72,102 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
-          {/* Profile Section - Centered like Agent Dashboard */}
-          <div className="text-center space-y-3">
-            <button onClick={() => navigate('/settings')} className="mx-auto block">
+        <main className="px-5 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
+          {/* Profile Section */}
+          <div className="text-center space-y-2">
+            <button onClick={() => navigate('/settings')} className="mx-auto block active:scale-95 transition-transform">
               <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
             </button>
             <div>
               <div className="flex items-center justify-center gap-2">
-                <h1 className="font-bold text-2xl">
+                <h1 className="font-bold text-xl">
                   {profile?.full_name || 'Property Owner'}
                 </h1>
                 <WelileHomesLandlordBadge userId={user.id} variant="compact" />
               </div>
-              <p className="text-sm text-muted-foreground">Property Owner</p>
+              <p className="text-xs text-muted-foreground">Property Owner</p>
             </div>
           </div>
 
-          {/* Property Stats Row */}
-          <div className="grid grid-cols-3 gap-2">
+          {/* Property Stats Row — large touch targets */}
+          <div className="grid grid-cols-3 gap-3">
             <button
               onClick={() => { hapticTap(); setShowProperties(true); }}
-              className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm hover:border-primary/40 transition-colors active:scale-95"
+              className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm hover:border-primary/40 transition-colors active:scale-95 min-h-[88px] flex flex-col items-center justify-center"
             >
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <Home className="h-4 w-4 text-primary" />
-              </div>
+              <Home className="h-5 w-5 text-primary mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-6 w-10 mx-auto mb-1" />
+                <Skeleton className="h-7 w-10 mx-auto mb-1" />
               ) : (
-                <p className="text-xl font-bold">{landlordStats.totalProperties}</p>
+                <p className="text-2xl font-bold leading-tight">{landlordStats.totalProperties}</p>
               )}
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Properties</p>
+              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Properties</p>
             </button>
-            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <DoorOpen className="h-4 w-4 text-warning" />
-              </div>
+            <div className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm min-h-[88px] flex flex-col items-center justify-center">
+              <DoorOpen className="h-5 w-5 text-warning mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-6 w-10 mx-auto mb-1" />
+                <Skeleton className="h-7 w-10 mx-auto mb-1" />
               ) : (
-                <p className="text-xl font-bold">{landlordStats.emptyHouses}</p>
+                <p className="text-2xl font-bold leading-tight">{landlordStats.emptyHouses}</p>
               )}
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Empty</p>
+              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Empty</p>
             </div>
-            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
-              <div className="flex items-center justify-center gap-1.5 mb-1">
-                <Banknote className="h-4 w-4 text-success" />
-              </div>
+            <div className="rounded-2xl bg-card border border-border/60 p-4 text-center shadow-sm min-h-[88px] flex flex-col items-center justify-center">
+              <Banknote className="h-5 w-5 text-success mb-1" />
               {statsLoading ? (
-                <Skeleton className="h-6 w-8 mx-auto mb-1" />
+                <Skeleton className="h-7 w-8 mx-auto mb-1" />
               ) : (
-                <p className="text-lg font-bold">{formatUGX(landlordStats.totalRentReceivable)}</p>
+                <p className="text-base font-bold leading-tight">{formatUGX(landlordStats.totalRentReceivable)}</p>
               )}
-              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Rent/Month</p>
+              <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Rent/Month</p>
             </div>
           </div>
 
-          {/* THREE MAIN ACTION BUTTONS */}
+          {/* THREE MAIN ACTION BUTTONS — tall, finger-friendly */}
           <div className="space-y-3">
-            {/* 1. WALLET BUTTON - Primary */}
             <motion.button
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.97 }}
               onClick={handleViewWallet}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation"
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation min-h-[72px]"
             >
-              <div className="p-3 rounded-xl bg-success/20">
+              <div className="p-3 rounded-xl bg-success/20 shrink-0">
                 <Wallet className="h-7 w-7 text-success" />
               </div>
-              <div className="flex-1 text-left">
-                <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
+              <div className="flex-1 text-left min-w-0">
+                <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
                 <p className="text-sm text-muted-foreground">Wallet Balance</p>
               </div>
             </motion.button>
 
-            {/* 2. GUARANTEED MONTHLY RENT - Register Property */}
             <motion.button
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.97 }}
               onClick={handleOpenRegisterProperty}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation"
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation min-h-[72px]"
             >
-              <div className="p-3 rounded-xl bg-primary/20">
+              <div className="p-3 rounded-xl bg-primary/20 shrink-0">
                 <Building2 className="h-7 w-7 text-primary" />
               </div>
-              <div className="flex-1 text-left">
+              <div className="flex-1 text-left min-w-0">
                 <p className="font-bold text-lg">Guaranteed Monthly Rent</p>
                 <p className="text-sm text-muted-foreground">Register property to start earning</p>
               </div>
             </motion.button>
 
-            {/* 3. MENU BUTTON */}
             <motion.button
-              whileTap={{ scale: 0.98 }}
+              whileTap={{ scale: 0.97 }}
               onClick={handleOpenMenu}
-              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation min-h-[72px]"
             >
-              <div className="p-3 rounded-xl bg-muted">
+              <div className="p-3 rounded-xl bg-muted shrink-0">
                 <Menu className="h-7 w-7 text-foreground" />
               </div>
-              <div className="flex-1 text-left">
+              <div className="flex-1 text-left min-w-0">
                 <p className="font-bold text-lg">Menu</p>
                 <p className="text-sm text-muted-foreground">Tenants, receipts, loans & more</p>
               </div>
             </motion.button>
           </div>
 
-          {/* ADD ROLE COMPONENT */}
           <div className="flex justify-center">
             {addRoleComponent}
           </div>
