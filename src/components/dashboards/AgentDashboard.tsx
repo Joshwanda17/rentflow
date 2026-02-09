@@ -215,7 +215,20 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </motion.button>
 
-          {/* Role switching is now in the header popover */}
+          {/* 3. MENU BUTTON - Just below Register */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={handleOpenMenu}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
+          >
+            <div className="p-3 rounded-xl bg-muted">
+              <Menu className="h-7 w-7 text-foreground" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-lg">Menu</p>
+              <p className="text-sm text-muted-foreground">All agent features & tools</p>
+            </div>
+          </motion.button>
         </div>
 
         {/* ADD ROLE COMPONENT */}
@@ -226,17 +239,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </main>
       </PullToRefresh>
 
-      {/* FLOATING MENU BUTTON - Above footer nav */}
-      <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
-        <button
-          onClick={handleOpenMenu}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
-        >
-          <Menu className="h-5 w-5" />
-          <span className="font-semibold text-sm">Menu</span>
-        </button>
-      </div>
-      
       {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
