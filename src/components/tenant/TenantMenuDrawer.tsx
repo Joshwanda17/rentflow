@@ -103,18 +103,19 @@ export function TenantMenuDrawer({
       title: 'Tools',
       items: [
         { 
+          icon: Receipt, 
+          label: 'Post Shopping Receipt', 
+          description: 'Earn loan limits & rent discounts',
+          path: '/my-receipts',
+          color: 'text-teal-500',
+          badge: 'Earn benefits'
+        },
+        { 
           icon: Calculator, 
           label: 'Rent Calculator', 
           description: 'Calculate daily repayment',
           onClick: onRentCalculator,
           color: 'text-indigo-500'
-        },
-        { 
-          icon: Receipt, 
-          label: 'My Receipts', 
-          description: 'Scan receipts to earn',
-          path: '/my-receipts',
-          color: 'text-teal-500'
         },
         { 
           icon: Banknote, 
