@@ -4,9 +4,11 @@ import { Button } from '@/components/ui/button';
 import { usePushNotifications } from '@/hooks/usePushNotifications';
 import { useAuth } from '@/hooks/useAuth';
 
+const DISMISS_KEY = 'push-notification-dismissed';
+
 /**
  * Push Notification Permission Prompt
- * Shows once per session, with skip option for users who can't enable
+ * Shows ONCE per device – permanently dismissed after enable or skip.
  */
 export function PushNotificationEnforcer() {
   const { user } = useAuth();
@@ -23,58 +25,41 @@ export function PushNotificationEnforcer() {
   }, [permission]);
 
   useEffect(() => {
-    if (!user) {
-      setShowEnforcer(false);
-      return;
-    }
-    
-    // Not supported - can't show enforcer
-    if (!isSupported) {
-      setShowEnforcer(false);
-      return;
-    }
-    
-    // Already subscribed - don't show
-    if (isSubscribed) {
-      setShowEnforcer(false);
-      return;
-    }
-    
-    // Permission denied in browser - can't ask again
-    if (currentPermission === 'denied') {
+    if (!user) { setShowEnforcer(false); return; }
+    if (!isSupported) { setShowEnforcer(false); return; }
+    if (isSubscribed) { setShowEnforcer(false); return; }
+    if (currentPermission === 'denied') { setShowEnforcer(false); return; }
+
+    // Permanently dismissed on this device
+    if (localStorage.getItem(DISMISS_KEY)) {
       setShowEnforcer(false);
       return;
     }
 
-    // Check if user skipped this session
-    const skippedThisSession = sessionStorage.getItem('push-notification-skipped');
-    if (skippedThisSession) {
-      setShowEnforcer(false);
-      return;
-    }
-
-    // Show enforcer after short delay for smoother UX
     const timer = setTimeout(() => setShowEnforcer(true), 500);
     return () => clearTimeout(timer);
   }, [user, isSupported, isSubscribed, currentPermission]);
 
+  const dismiss = () => {
+    localStorage.setItem(DISMISS_KEY, 'true');
+    setShowEnforcer(false);
+  };
+
   const handleEnable = async () => {
     if (isEnabling || loading) return;
-    
     setIsEnabling(true);
     setHasAttempted(true);
-    
+
     try {
       const success = await subscribe();
-      
       if (success) {
-        setShowEnforcer(false);
+        dismiss();
       } else {
         if ('Notification' in window) {
           const newPermission = Notification.permission;
           setCurrentPermission(newPermission);
           if (newPermission === 'denied') {
-            setShowEnforcer(false);
+            dismiss();
           }
         }
       }
@@ -86,8 +71,7 @@ export function PushNotificationEnforcer() {
   };
 
   const handleSkip = () => {
-    sessionStorage.setItem('push-notification-skipped', 'true');
-    setShowEnforcer(false);
+    dismiss();
   };
 
   if (!showEnforcer) return null;
