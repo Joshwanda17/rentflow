@@ -55,7 +55,19 @@ export function CreateSupporterDialog({ open, onOpenChange }: CreateSupporterDia
       });
 
       if (response.error) {
-        throw new Error(response.error.message || 'Failed to create invite');
+        let errorMsg = 'Failed to create invite';
+        try {
+          const ctx = (response.error as any)?.context;
+          if (ctx?.body) {
+            const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            errorMsg = body?.error || errorMsg;
+          } else {
+            errorMsg = response.error.message || errorMsg;
+          }
+        } catch {
+          errorMsg = response.error.message || errorMsg;
+        }
+        throw new Error(errorMsg);
       }
 
       if (response.data.error) {

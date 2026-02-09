@@ -238,10 +238,22 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
       });
 
       if (response.error) {
-        // Handle edge function errors - try to extract message from context
-        const errorMsg = response.error.message || 
-          (response.error as any)?.context?.body || 
-          'Failed to create invite';
+        // Extract the actual error message from the edge function response
+        let errorMsg = 'Failed to create invite';
+        try {
+          // The error context contains the response body as a string
+          const ctx = (response.error as any)?.context;
+          if (ctx?.body) {
+            const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            errorMsg = body?.error || errorMsg;
+          } else if (ctx?.json) {
+            errorMsg = ctx.json?.error || errorMsg;
+          } else {
+            errorMsg = response.error.message || errorMsg;
+          }
+        } catch {
+          errorMsg = response.error.message || errorMsg;
+        }
         throw new Error(errorMsg);
       }
 
