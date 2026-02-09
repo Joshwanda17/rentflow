@@ -4,54 +4,44 @@ import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { 
-  Home, 
-  Receipt, 
-  ShoppingBag, 
-  Share2, 
-  History, 
-  Banknote,
-  Users,
-  Calendar,
-  Download,
   Wallet,
-  CreditCard
+  FileText,
+  Menu,
+  WifiOff,
+  RefreshCw,
 } from 'lucide-react';
-import RentCalculator from '@/components/tenant/RentCalculator';
-import { RentRequestButton } from '@/components/tenant/RentRequestButton';
-import RentRequestForm from '@/components/tenant/RentRequestForm';
+import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
-import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { TenantDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { PayLandlordDialog } from '@/components/wallet/PayLandlordDialog';
-import { FloatingShareButton } from '@/components/FloatingShareButton';
-import MobileQuickMenu from '@/components/MobileQuickMenu';
-import { CollapsibleQuickNav } from '@/components/CollapsibleQuickNav';
+import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { useWallet } from '@/hooks/useWallet';
+import { hapticTap } from '@/lib/haptics';
 
-import { WalletCard } from '@/components/wallet/WalletCard';
-import { RentAccessLimitCard } from '@/components/tenant/RentAccessLimitCard';
-import { PaymentStreakCalendar } from '@/components/tenant/PaymentStreakCalendar';
-import { AchievementBadges } from '@/components/tenant/AchievementBadges';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
-import PaymentPartnersCard from '@/components/payments/PaymentPartnersCard';
+import { RentRequestButton } from '@/components/tenant/RentRequestButton';
+import RentRequestForm from '@/components/tenant/RentRequestForm';
+import RentCalculator from '@/components/tenant/RentCalculator';
 import { 
-  TenantAgreementButton, 
   TenantAgreementNotice, 
   TenantAgreementModal,
   LockedActionTooltip 
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
-import { RepaymentHistoryDrawer } from '@/components/tenant/RepaymentHistoryDrawer';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
-import { WelileHomesButton } from '@/components/tenant/WelileHomesButton';
-import { InviteFriendsCard } from '@/components/tenant/InviteFriendsCard';
+import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
+import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
+import { DashboardReceiptPrompt } from '@/components/receipts/DashboardReceiptPrompt';
+
+import { motion, AnimatePresence } from 'framer-motion';
+import { Card, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 interface TenantDashboardProps {
   user: User;
@@ -85,20 +75,25 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
-  const [showCalculator, setShowCalculator] = useState(false);
-  const [showRequestForm, setShowRequestForm] = useState(false);
+  const { wallet, refreshWallet } = useWallet();
+  const { toast } = useToast();
+  const { isAccepted: hasAcceptedTerms, isLoading: agreementLoading, acceptAgreement } = useTenantAgreement();
+
   const [rentRequests, setRentRequests] = useState<RentRequest[]>([]);
   const [repayments, setRepayments] = useState<Repayment[]>([]);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
-  const [showPayLandlord, setShowPayLandlord] = useState(false);
+
+  // Dialog states
   const [showWallet, setShowWallet] = useState(false);
+  const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [isAcceptingAgreement, setIsAcceptingAgreement] = useState(false);
   const [showRepaymentSchedule, setShowRepaymentSchedule] = useState(false);
-  const { toast } = useToast();
-  const { isAccepted: hasAcceptedTerms, isLoading: agreementLoading, acceptAgreement } = useTenantAgreement();
+  const [showCalculator, setShowCalculator] = useState(false);
+  const [showRequestForm, setShowRequestForm] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -108,6 +103,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       setIsAcceptingAgreement(false);
     }
   };
+
   // Load cached data first for offline support
   useEffect(() => {
     const cached = localStorage.getItem(`tenant_dashboard_${user.id}`);
@@ -128,7 +124,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   }, []);
 
   const fetchData = async () => {
-    // Skip network fetch if offline and we have cached data
     if (!navigator.onLine && hasCachedData) {
       setLoading(false);
       return;
@@ -155,7 +150,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       setRentRequests(newRentRequests);
       setRepayments(newRepayments);
       
-      // Cache the data for offline use
       localStorage.setItem(`tenant_dashboard_${user.id}`, JSON.stringify({
         rentRequests: newRentRequests,
         repayments: newRepayments,
@@ -169,30 +163,23 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
     setLoading(false);
   };
 
-  // Only show skeleton if loading AND online AND no cached data
   if (loading && isOnline && !hasCachedData) {
     return <TenantDashboardSkeleton />;
   }
 
   const handleRefresh = async () => {
-    await fetchData();
+    await Promise.all([fetchData(), refreshWallet()]);
   };
 
+  const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
+  const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
+
   const menuItems = [
-    { icon: Calendar, label: 'Payments', onClick: () => setShowRepaymentSchedule(true) },
-    { icon: Home, label: 'Pay Rent', onClick: () => setShowPayLandlord(true) },
-    { icon: CreditCard, label: 'Pay Welile', onClick: () => setShowPaymentPartners(true) },
-    { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts') },
-    { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
-    { icon: ShoppingBag, label: 'Marketplace', onClick: () => navigate('/marketplace'), separator: true },
-    { icon: History, label: 'Transaction History', onClick: () => navigate('/transactions') },
-    { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals'), separator: true },
-    { icon: Share2, label: 'Share & Earn', onClick: () => navigate('/benefits') },
-    { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
+    { icon: FileText, label: 'Request Rent', onClick: () => {} },
   ];
 
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -201,238 +188,155 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         menuItems={menuItems}
       />
 
-      <main className="px-4 py-4 space-y-4 animate-fade-in">
-        {/* Terms Acceptance Notice - Shows only when not accepted */}
-        <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+      {/* Scrollable content area */}
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
+        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
+          {/* Offline Notice */}
+          <AnimatePresence>
+            {!isOnline && (
+              <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }}>
+                <Card className="border-warning/50 bg-warning/10">
+                  <CardContent className="p-3 flex items-center gap-3">
+                    <WifiOff className="h-4 w-4 text-warning shrink-0" />
+                    <p className="text-sm flex-1">Offline mode</p>
+                    <Button size="sm" variant="ghost" onClick={() => window.location.reload()}>
+                      <RefreshCw className="h-3 w-3" />
+                    </Button>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        {/* Repayment Schedule Button - Prominent placement above profile */}
-        <button
-          onClick={() => setShowRepaymentSchedule(prev => !prev)}
-          className={`w-full overflow-hidden border-2 ${showRepaymentSchedule ? 'border-primary bg-primary/10' : 'border-primary/30 bg-gradient-to-br from-primary/10 via-background to-primary/5'} shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl`}
-        >
-          <div className="w-full p-4 flex items-center gap-4 hover:bg-primary/5 transition-colors group">
-            <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-primary to-primary/80 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-              <Calendar className="h-7 w-7 text-primary-foreground" />
-            </div>
-            <div className="flex-1 text-left">
-              <h3 className="text-lg font-bold text-foreground">Repayment Schedule</h3>
-              <p className="text-sm text-muted-foreground">
-                View payment history, missed & paid days
-              </p>
-            </div>
-            <div className={`h-6 w-6 text-primary transition-transform ${showRepaymentSchedule ? 'rotate-180' : 'group-hover:translate-x-1'}`}>
-              {showRepaymentSchedule ? (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 15.75l7.5-7.5 7.5 7.5" />
-                </svg>
-              ) : (
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              )}
+          {/* Terms Acceptance Notice */}
+          <TenantAgreementNotice onAcceptClick={() => setShowAgreementModal(true)} />
+
+          {/* Receipt Prompt */}
+          <DashboardReceiptPrompt userId={user.id} />
+
+          {/* Profile Section - Minimal */}
+          <div className="text-center space-y-3">
+            <button onClick={() => navigate('/settings')} className="mx-auto block">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+            </button>
+            <div>
+              <h1 className="font-bold text-2xl">
+                {profile?.full_name || 'Welcome'}
+              </h1>
+              <p className="text-sm text-muted-foreground">Welile Tenant</p>
             </div>
           </div>
-        </button>
 
-        {/* Repayment Schedule - Shown when toggled */}
-        {showRepaymentSchedule && (
-          <div className="animate-fade-in">
-            <RepaymentSection 
-              userId={user.id}
-              activeRequest={rentRequests.find(r => r.status === 'disbursed')}
-              repayments={repayments}
-              onRepaymentSuccess={fetchData}
-            />
+          {/* ═══════════════════════════════════════════════════════════════════
+              THREE MAIN ACTION BUTTONS
+          ═══════════════════════════════════════════════════════════════════ */}
+          <div className="space-y-3">
+            {/* 1. WALLET BUTTON - Primary */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleViewWallet}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation"
+            >
+              <div className="p-3 rounded-xl bg-success/20">
+                <Wallet className="h-7 w-7 text-success" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
+                <p className="text-sm text-muted-foreground">Wallet Balance</p>
+              </div>
+            </motion.button>
+
+            {/* 2. REQUEST RENT BUTTON */}
+            <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
+              <RentRequestButton userId={user.id} onSuccess={fetchData} />
+            </LockedActionTooltip>
+
+            {/* 3. MENU BUTTON */}
+            <motion.button
+              whileTap={{ scale: 0.98 }}
+              onClick={handleOpenMenu}
+              className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
+            >
+              <div className="p-3 rounded-xl bg-muted">
+                <Menu className="h-7 w-7 text-foreground" />
+              </div>
+              <div className="flex-1 text-left">
+                <p className="font-bold text-lg">Menu</p>
+                <p className="text-sm text-muted-foreground">Payments, tools & more</p>
+              </div>
+            </motion.button>
           </div>
-        )}
 
-        {/* Role switching is now in the header popover */}
-
-        {/* User Profile Card - Clickable */}
-        <button 
-          onClick={() => navigate('/settings')}
-          className="w-full wa-list-item rounded-xl border border-border/50 shadow-sm hover:bg-muted/50 active:scale-[0.99] transition-all"
-        >
-          <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
-          <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate">
-              {profile?.full_name || 'Welcome'}
-            </h2>
-            <p className="text-sm text-muted-foreground truncate">
-              Profile Information
-            </p>
-          </div>
-          <div className="flex items-center gap-2">
-            <TenantAgreementButton />
+          {/* ADD ROLE COMPONENT */}
+          <div className="flex justify-center">
             {addRoleComponent}
           </div>
-        </button>
 
-        {/* Welile Homes - Turn rent into future home */}
-        <WelileHomesButton />
-
-        {/* Rent Access Limit Card - Featured prominently */}
-        <RentAccessLimitCard userId={user.id} />
-
-        {/* Prominent Rent Request Button - Right below limit card (locked if terms not accepted) */}
-        <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
-          <RentRequestButton userId={user.id} onSuccess={fetchData} />
-        </LockedActionTooltip>
-
-        {/* Pay Welile Button - Prominent placement right below Request Rent */}
-        <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
-          <button
-            onClick={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
-            className="w-full overflow-hidden border-2 border-amber-500/30 bg-gradient-to-br from-amber-500/10 via-background to-amber-500/5 shadow-lg hover:shadow-xl transition-all duration-300 rounded-xl"
-          >
-            <div className="w-full p-4 flex items-center gap-4 hover:bg-amber-500/5 transition-colors group">
-              <div className="h-14 w-14 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-600 flex items-center justify-center shadow-lg group-hover:scale-105 transition-transform">
-                <CreditCard className="h-7 w-7 text-white" />
-              </div>
-              <div className="flex-1 text-left">
-                <h3 className="text-lg font-bold text-foreground">Pay Welile</h3>
-                <p className="text-sm text-muted-foreground">
-                  Make payments via Mobile Money
-                </p>
-              </div>
-              <div className="h-6 w-6 text-amber-500 group-hover:translate-x-1 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </div>
+          {/* Rent Calculator - Only when triggered from menu */}
+          {showCalculator && (
+            <div className="animate-fade-in">
+              <RentCalculator 
+                onProceed={() => {
+                  setShowCalculator(false);
+                  setShowRequestForm(true);
+                }}
+              />
             </div>
-          </button>
-        </LockedActionTooltip>
+          )}
 
-        {/* Collapsible Quick Actions */}
-        <CollapsibleQuickNav 
-          buttonLabel="Quick Actions"
-          items={[
-            { 
-              icon: Home, 
-              label: 'Pay Rent', 
-              onClick: hasAcceptedTerms ? () => setShowPayLandlord(true) : () => setShowAgreementModal(true), 
-              variant: 'primary' 
-            },
-            { 
-              icon: CreditCard, 
-              label: 'Pay Welile', 
-              onClick: hasAcceptedTerms ? () => setShowPaymentPartners(true) : () => setShowAgreementModal(true), 
-              variant: 'warning' 
-            },
-            { icon: Wallet, label: 'Wallet', onClick: () => setShowWallet(true) },
-            { icon: Calendar, label: 'Payments', onClick: () => setShowRepaymentSchedule(prev => !prev) },
-            { icon: ShoppingBag, label: 'Shop', onClick: () => navigate('/marketplace'), variant: 'success' },
-            { icon: Banknote, label: 'Loans', onClick: () => navigate('/my-loans') },
-            { icon: History, label: 'History', onClick: () => navigate('/transactions') },
-            { icon: Users, label: 'Referrals', onClick: () => navigate('/referrals') },
-            { icon: Share2, label: 'Earn', onClick: () => navigate('/benefits'), variant: 'warning' },
-            { icon: Download, label: 'Install App', onClick: () => navigate('/install') },
-          ]}
-        />
-
-        {/* PRIORITY 1: Receipt Submission Prompt */}
-        <DashboardReceiptPrompt userId={user.id} />
-
-        {/* Invite Friends - Easy share widget */}
-        <InviteFriendsCard />
-
-        {/* Uber-style "How much is your rent?" Entry Point */}
-        {!showCalculator && (
-          <button
-            onClick={() => setShowCalculator(true)}
-            className="w-full p-4 rounded-2xl bg-gradient-to-br from-primary/10 to-primary/5 border-2 border-primary/20 hover:border-primary/40 transition-all group active:scale-[0.98]"
-          >
-            <div className="flex items-center gap-3">
-              <div className="h-12 w-12 rounded-xl bg-primary/20 flex items-center justify-center group-hover:bg-primary/30 transition-colors">
-                <Banknote className="h-6 w-6 text-primary" />
-              </div>
-              <div className="flex-1 text-left">
-                <p className="text-lg font-bold text-foreground">How much is your rent?</p>
-                <p className="text-sm text-muted-foreground">Tap to calculate your daily repayment</p>
-              </div>
-              <div className="h-6 w-6 text-primary group-hover:translate-x-1 transition-transform">
-                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
-                </svg>
-              </div>
+          {/* Request Form - Only when triggered */}
+          {showRequestForm && (
+            <div className="animate-fade-in">
+              <RentRequestForm 
+                userId={user.id}
+                onSuccess={() => {
+                  setShowRequestForm(false);
+                  fetchData();
+                  toast({
+                    title: 'Request Submitted',
+                    description: 'Your rent request has been submitted for approval'
+                  });
+                }}
+                onCancel={() => setShowRequestForm(false)}
+              />
             </div>
-          </button>
-        )}
+          )}
 
-        {/* Calculator Section - Only show when triggered */}
-        {showCalculator && (
-          <div className="animate-fade-in">
-            <RentCalculator 
-              onProceed={() => {
-                setShowCalculator(false);
-                setShowRequestForm(true);
-              }}
-            />
-          </div>
-        )}
+          {/* Repayment Schedule - Only when toggled from menu */}
+          {showRepaymentSchedule && (
+            <div className="animate-fade-in">
+              <RepaymentSection 
+                userId={user.id}
+                activeRequest={rentRequests.find(r => r.status === 'disbursed')}
+                repayments={repayments}
+                onRepaymentSuccess={fetchData}
+              />
+            </div>
+          )}
+        </main>
+      </PullToRefresh>
 
-        {/* Request Form */}
-        {showRequestForm && (
-          <div className="animate-fade-in">
-            <RentRequestForm 
-              userId={user.id}
-              onSuccess={() => {
-                setShowRequestForm(false);
-                fetchData();
-                toast({
-                  title: 'Request Submitted',
-                  description: 'Your rent request has been submitted for approval'
-                });
-              }}
-              onCancel={() => {
-                setShowRequestForm(false);
-              }}
-            />
-          </div>
-        )}
-      </main>
-      
-      {/* Floating Action Button - Pay Rent (opens terms if not accepted) */}
-      <button 
-        type="button"
-        onClick={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
-        className="wa-fab"
-        aria-label="Pay Rent"
-      >
-        <Home className="h-6 w-6 pointer-events-none" />
-      </button>
-      
+      {/* Full-screen wallet sheet */}
+      <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+
+      {/* Menu Drawer */}
+      <TenantMenuDrawer
+        open={menuOpen}
+        onOpenChange={setMenuOpen}
+        onPayLandlord={() => hasAcceptedTerms ? setShowPayLandlord(true) : setShowAgreementModal(true)}
+        onPayWelile={() => hasAcceptedTerms ? setShowPaymentPartners(true) : setShowAgreementModal(true)}
+        onRepaymentSchedule={() => setShowRepaymentSchedule(prev => !prev)}
+        onRentCalculator={() => setShowCalculator(true)}
+      />
+
+      {/* Dialogs */}
       <PayLandlordDialog open={showPayLandlord} onOpenChange={setShowPayLandlord} />
-      
-      {/* Wallet Dialog */}
-      <Dialog open={showWallet} onOpenChange={setShowWallet}>
-        <DialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
-          <DialogHeader>
-            <DialogTitle>My Wallet</DialogTitle>
-          </DialogHeader>
-          <WalletCard />
-          {/* Repayment Section - Visible after wallet */}
-          <div className="mt-4">
-            <RepaymentSection 
-              userId={user.id}
-              activeRequest={rentRequests.find(r => r.status === 'disbursed')}
-              repayments={repayments}
-              onRepaymentSuccess={fetchData}
-            />
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Payment Partners Dialog */}
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
         onOpenChange={setShowPaymentPartners}
         dashboardType="tenant"
         title="Pay Rent via Mobile Money"
       />
-
-      {/* Tenant Agreement Modal */}
       <TenantAgreementModal
         isOpen={showAgreementModal}
         onClose={() => setShowAgreementModal(false)}
@@ -440,9 +344,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         isAccepting={isAcceptingAgreement}
       />
       
-      <FloatingShareButton />
-      <MobileQuickMenu currentRole={currentRole} />
+      {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
-    </PullToRefresh>
+    </div>
   );
 }
