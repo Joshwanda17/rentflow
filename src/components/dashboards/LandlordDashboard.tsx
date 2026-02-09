@@ -5,6 +5,9 @@ import {
   Wallet, 
   Building2, 
   Menu,
+  Home,
+  DoorOpen,
+  Banknote,
 } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -19,9 +22,11 @@ import RegisterPropertyDialog from '@/components/landlord/RegisterPropertyDialog
 import LandlordAddTenantDialog from '@/components/landlord/LandlordAddTenantDialog';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { useWallet } from '@/hooks/useWallet';
+import { useLandlordStats } from '@/hooks/useLandlordStats';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
+import { Skeleton } from '@/components/ui/skeleton';
 
 interface LandlordDashboardProps {
   user: User;
@@ -36,13 +41,14 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { wallet, refreshWallet } = useWallet();
+  const { stats: landlordStats, loading: statsLoading, refreshStats } = useLandlordStats(user.id);
   const [menuOpen, setMenuOpen] = useState(false);
   const [registerPropertyOpen, setRegisterPropertyOpen] = useState(false);
   const [addTenantOpen, setAddTenantOpen] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
 
   const handleRefresh = async () => {
-    await refreshWallet();
+    await Promise.all([refreshWallet(), refreshStats()]);
   };
 
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
@@ -73,11 +79,48 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             <div>
               <div className="flex items-center justify-center gap-2">
                 <h1 className="font-bold text-2xl">
-                  {profile?.full_name || 'Landlord'}
+                  {profile?.full_name || 'Property Owner'}
                 </h1>
                 <WelileHomesLandlordBadge userId={user.id} variant="compact" />
               </div>
               <p className="text-sm text-muted-foreground">Property Owner</p>
+            </div>
+          </div>
+
+          {/* Property Stats Row */}
+          <div className="grid grid-cols-3 gap-2">
+            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Home className="h-4 w-4 text-primary" />
+              </div>
+              {statsLoading ? (
+                <Skeleton className="h-6 w-10 mx-auto mb-1" />
+              ) : (
+                <p className="text-xl font-bold">{landlordStats.totalProperties}</p>
+              )}
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Properties</p>
+            </div>
+            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <DoorOpen className="h-4 w-4 text-warning" />
+              </div>
+              {statsLoading ? (
+                <Skeleton className="h-6 w-10 mx-auto mb-1" />
+              ) : (
+                <p className="text-xl font-bold">{landlordStats.emptyHouses}</p>
+              )}
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Empty</p>
+            </div>
+            <div className="rounded-xl bg-card border border-border/60 p-3 text-center shadow-sm">
+              <div className="flex items-center justify-center gap-1.5 mb-1">
+                <Banknote className="h-4 w-4 text-success" />
+              </div>
+              {statsLoading ? (
+                <Skeleton className="h-6 w-8 mx-auto mb-1" />
+              ) : (
+                <p className="text-lg font-bold">{formatUGX(landlordStats.totalRentReceivable)}</p>
+              )}
+              <p className="text-[10px] font-medium text-muted-foreground uppercase tracking-wider">Rent/Month</p>
             </div>
           </div>
 
