@@ -1148,6 +1148,7 @@ export type Database = {
           caretaker_name: string | null
           caretaker_phone: string | null
           created_at: string
+          description: string | null
           desired_rent_from_welile: number | null
           electricity_meter_number: string | null
           has_smartphone: boolean | null
@@ -1160,6 +1161,7 @@ export type Database = {
           monthly_rent: number | null
           name: string
           number_of_houses: number | null
+          number_of_rooms: number | null
           phone: string
           property_address: string
           ready_to_receive: boolean | null
@@ -1176,6 +1178,7 @@ export type Database = {
           caretaker_name?: string | null
           caretaker_phone?: string | null
           created_at?: string
+          description?: string | null
           desired_rent_from_welile?: number | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
@@ -1188,6 +1191,7 @@ export type Database = {
           monthly_rent?: number | null
           name: string
           number_of_houses?: number | null
+          number_of_rooms?: number | null
           phone: string
           property_address: string
           ready_to_receive?: boolean | null
@@ -1204,6 +1208,7 @@ export type Database = {
           caretaker_name?: string | null
           caretaker_phone?: string | null
           created_at?: string
+          description?: string | null
           desired_rent_from_welile?: number | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
@@ -1216,6 +1221,7 @@ export type Database = {
           monthly_rent?: number | null
           name?: string
           number_of_houses?: number | null
+          number_of_rooms?: number | null
           phone?: string
           property_address?: string
           ready_to_receive?: boolean | null
