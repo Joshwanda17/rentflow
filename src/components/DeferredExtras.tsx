@@ -18,9 +18,14 @@ export default function DeferredExtras() {
   useForceRefresh();
   useIOSCacheInvalidation();
 
-  // Delay rendering extras until after LCP window
+  // Delay rendering extras until after LCP — use idle callback for fastest possible
   useEffect(() => {
-    const timer = setTimeout(() => setReady(true), 2000);
+    const activate = () => setReady(true);
+    if ('requestIdleCallback' in window) {
+      const id = (window as any).requestIdleCallback(activate, { timeout: 1500 });
+      return () => (window as any).cancelIdleCallback(id);
+    }
+    const timer = setTimeout(activate, 1000);
     return () => clearTimeout(timer);
   }, []);
 

@@ -196,23 +196,17 @@ function AppRoutes() {
   );
 }
 
-// Deferred wrapper — uses idle callback for true post-paint loading
+// Deferred wrapper — loads providers after first paint via idle callback
 function DeferredProviders({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   
   useEffect(() => {
-    // Wait for LCP to complete before loading deferred providers
-    // Use 2-stage deferral: idle callback + 100ms buffer
-    const activate = () => {
-      const id = setTimeout(() => setReady(true), 100);
-      return () => clearTimeout(id);
-    };
-    
+    const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(activate, { timeout: 2000 });
+      const id = (window as any).requestIdleCallback(activate, { timeout: 1500 });
       return () => (window as any).cancelIdleCallback(id);
     }
-    const id = setTimeout(activate, 200);
+    const id = setTimeout(activate, 150);
     return () => clearTimeout(id);
   }, []);
   
