@@ -136,6 +136,7 @@ export default function WithdrawFlow({
 
       setWithdrawalRef(ref);
       setPaymentStatus('success');
+      toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
       onSuccess?.();
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
