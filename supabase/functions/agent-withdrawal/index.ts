@@ -83,7 +83,7 @@ serve(async (req) => {
       targetUserId = profile.id;
     }
 
-    // Get user's wallet
+    // Get user's wallet with fresh balance
     const { data: userWallet } = await adminClient
       .from('wallets')
       .select('*')
@@ -104,28 +104,15 @@ serve(async (req) => {
       );
     }
 
-    // Deduct from user's wallet using atomic SQL operation to prevent race conditions
-    const { data: updatedWallet, error: updateError } = await adminClient.rpc('atomic_balance_update', {
-      p_user_id: targetUserId,
-      p_amount: -amount
-    });
+    // Deduct from user's wallet using optimistic locking
+    const { data: updatedRows, error: updateError } = await adminClient
+      .from('wallets')
+      .update({ balance: userWallet.balance - amount, updated_at: new Date().toISOString() })
+      .eq('user_id', targetUserId)
+      .eq('balance', userWallet.balance) // Optimistic lock - only update if balance unchanged
+      .select();
 
-    // Fallback if RPC doesn't exist - use raw SQL
-    if (updateError?.message?.includes('function') || updateError?.code === '42883') {
-      const { error: directUpdateError } = await adminClient
-        .from('wallets')
-        .update({ balance: userWallet.balance - amount, updated_at: new Date().toISOString() })
-        .eq('user_id', targetUserId)
-        .eq('balance', userWallet.balance); // Optimistic lock - only update if balance unchanged
-
-      if (directUpdateError) {
-        console.error('Wallet update error:', directUpdateError);
-        return new Response(
-          JSON.stringify({ error: 'Failed to update wallet. Please try again.' }),
-          { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-        );
-      }
-    } else if (updateError) {
+    if (updateError) {
       console.error('Wallet update error:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to update wallet' }),
@@ -133,14 +120,28 @@ serve(async (req) => {
       );
     }
 
-    // Record withdrawal
-    await adminClient
+    // Check if optimistic lock succeeded (0 rows = balance changed)
+    if (!updatedRows || updatedRows.length === 0) {
+      console.error('Optimistic lock failed - balance changed between read and write');
+      return new Response(
+        JSON.stringify({ error: 'Balance changed during withdrawal. Please try again.' }),
+        { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Record withdrawal with error handling
+    const { error: withdrawalRecordError } = await adminClient
       .from('wallet_withdrawals')
       .insert({
         user_id: targetUserId,
         agent_id: agentId,
         amount: amount,
       });
+
+    if (withdrawalRecordError) {
+      console.error('Failed to record withdrawal:', withdrawalRecordError);
+      // Don't fail the whole operation - balance was already deducted
+    }
 
     // Get user profile for response
     const { data: userProfile } = await adminClient
@@ -149,7 +150,8 @@ serve(async (req) => {
       .eq('id', targetUserId)
       .single();
 
-    console.log(`Withdrawal completed: User ${targetUserId}, Amount: ${amount}`);
+    const newBalance = updatedRows[0].balance;
+    console.log(`Withdrawal completed: User ${targetUserId}, Amount: ${amount}, New balance: ${newBalance}`);
 
     return new Response(
       JSON.stringify({
@@ -158,7 +160,7 @@ serve(async (req) => {
         details: {
           amount: amount,
           user_name: userProfile?.full_name,
-          new_balance: userWallet.balance - amount,
+          new_balance: newBalance,
         }
       }),
       { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }

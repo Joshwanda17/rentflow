@@ -50,7 +50,8 @@ import {
   Save,
   BookmarkPlus,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  BadgeCheck
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -221,7 +222,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage, setUsersPerPage] = useState(25);
+  const [usersPerPage, setUsersPerPage] = useState(10);
 
   // Compute online users from topOnboarders list
   const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
@@ -1868,7 +1869,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 )}
 
-                <div className="space-y-2">
+                <div className="space-y-2 max-h-[400px] overflow-y-auto">
                   {paginatedOnboarders.length > 0 ? paginatedOnboarders.map((onboarder, index) => {
                     const globalIndex = (currentPage - 1) * usersPerPage + index;
                     return (
@@ -2115,8 +2116,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         >
           <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
           <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate">
+            <h2 className="font-semibold text-base truncate flex items-center gap-1.5">
               {profile?.full_name || 'Manager'}
+              <BadgeCheck className="h-4 w-4 text-violet-500 fill-violet-500/20 shrink-0" />
             </h2>
             <p className="text-sm text-muted-foreground truncate">
               Platform Administrator

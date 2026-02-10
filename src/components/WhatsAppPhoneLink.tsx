@@ -110,40 +110,41 @@ export function WhatsAppVerificationBadge({
   verified, 
   phone,
   onVerify,
-  onMarkVerified,
-  onMarkNotOnWhatsApp,
-  size = 'sm'
+  onMarkVerified
 }: { 
   verified: boolean; 
   phone: string;
   onVerify?: () => void;
   onMarkVerified?: () => void;
-  onMarkNotOnWhatsApp?: () => void;
-  size?: 'sm' | 'lg';
 }) {
   const [showConfirm, setShowConfirm] = useState(false);
   const phoneInfo = parsePhoneNumber(phone);
-
-  const isLg = size === 'lg';
   
   if (verified) {
     return (
-      <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#25D366]/15 text-[#25D366] font-semibold ${isLg ? 'text-sm' : 'text-xs'}`}>
-        <MessageCircle className={isLg ? 'h-4 w-4' : 'h-3.5 w-3.5'} />
-        On WhatsApp ✓
-      </span>
+      <TooltipProvider>
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-[#25D366]/10 text-[#25D366] text-xs font-medium">
+              <CheckCircle className="h-3 w-3" />
+              WhatsApp
+            </span>
+          </TooltipTrigger>
+          <TooltipContent>Number verified on WhatsApp</TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
     );
   }
   
   // Show confirmation buttons after checking
   if (showConfirm) {
     return (
-      <div className={`inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-muted/50 border border-border/50 ${isLg ? 'text-sm' : 'text-xs'}`} onClick={(e) => e.stopPropagation()}>
-        <span className="text-muted-foreground font-medium">On WA?</span>
+      <div className="inline-flex items-center gap-1" onClick={(e) => e.stopPropagation()}>
+        <span className="text-xs text-muted-foreground mr-1">On WA?</span>
         <Button
           variant="ghost"
           size="sm"
-          className={`${isLg ? 'h-8 w-8' : 'h-7 w-7'} p-0 rounded-full text-[#25D366] hover:bg-[#25D366]/15 active:scale-95`}
+          className="h-6 w-6 p-0 text-[#25D366] hover:bg-[#25D366]/10"
           onClick={(e) => {
             e.stopPropagation();
             onMarkVerified?.();
@@ -151,39 +152,49 @@ export function WhatsAppVerificationBadge({
           }}
           title="Yes, verified on WhatsApp"
         >
-          <Check className={isLg ? 'h-5 w-5' : 'h-4 w-4'} />
+          <Check className="h-4 w-4" />
         </Button>
         <Button
           variant="ghost"
           size="sm"
-          className={`${isLg ? 'h-8 w-8' : 'h-7 w-7'} p-0 rounded-full text-destructive hover:bg-destructive/15 active:scale-95`}
+          className="h-6 w-6 p-0 text-destructive hover:bg-destructive/10"
           onClick={(e) => {
             e.stopPropagation();
-            onMarkNotOnWhatsApp?.();
             setShowConfirm(false);
           }}
           title="No, not on WhatsApp"
         >
-          <X className={isLg ? 'h-5 w-5' : 'h-4 w-4'} />
+          <X className="h-4 w-4" />
         </Button>
       </div>
     );
   }
   
   return (
-    <Button
-      variant="ghost"
-      size="sm"
-      className={`${isLg ? 'h-9 px-4 text-sm' : 'h-7 px-3 text-xs'} gap-1.5 rounded-full font-semibold text-amber-600 bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/20 dark:text-amber-400 active:scale-95 touch-manipulation`}
-      onClick={(e) => {
-        e.stopPropagation();
-        window.open(phoneInfo.whatsappLink, '_blank');
-        onVerify?.();
-        setTimeout(() => setShowConfirm(true), 1000);
-      }}
-    >
-      <ExternalLink className={isLg ? 'h-4 w-4' : 'h-3 w-3'} />
-      Check WA
-    </Button>
+    <TooltipProvider>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="h-6 px-2 text-xs gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50 dark:text-amber-400 dark:hover:bg-amber-900/20"
+            onClick={(e) => {
+              e.stopPropagation();
+              // Open WhatsApp chat to verify
+              window.open(phoneInfo.whatsappLink, '_blank');
+              onVerify?.();
+              // Show confirmation after 1 second (give time for WA to open)
+              setTimeout(() => setShowConfirm(true), 1000);
+            }}
+          >
+            <ExternalLink className="h-3 w-3" />
+            Check WA
+          </Button>
+        </TooltipTrigger>
+        <TooltipContent className="max-w-[200px] text-center">
+          <p className="text-xs">Click to open WhatsApp. If chat opens, mark as verified.</p>
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 }

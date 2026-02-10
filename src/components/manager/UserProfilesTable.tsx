@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle, BadgeCheck } from 'lucide-react';
 import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
@@ -759,14 +759,19 @@ export default function UserProfilesTable() {
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
-                        <p className="text-base text-muted-foreground truncate font-medium mt-0.5">{user.phone}</p>
-                        {/* WhatsApp Status - Prominent */}
-                        <div className="mt-2">
+                        <h3 className="font-bold text-lg truncate pr-10 flex items-center gap-1.5">
+                          {user.full_name}
+                          {user.verified ? (
+                            <BadgeCheck className="h-5 w-5 text-violet-500 fill-violet-500/20 shrink-0" />
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium shrink-0">Unverified</span>
+                          )}
+                        </h3>
+                        <div className="flex items-center gap-2 mt-1">
+                          <p className="text-base text-muted-foreground truncate font-medium">{user.phone}</p>
                           <WhatsAppVerificationBadge
                             verified={user.whatsapp_verified}
                             phone={user.phone}
-                            size="lg"
                             onMarkVerified={() => handleMarkWhatsAppVerified(user.id, user.full_name, { stopPropagation: () => {} } as React.MouseEvent)}
                           />
                         </div>
