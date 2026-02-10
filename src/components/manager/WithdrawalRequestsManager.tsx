@@ -57,6 +57,7 @@ interface WithdrawalRequest {
   status: string;
   mobile_money_number: string | null;
   mobile_money_provider: string | null;
+  mobile_money_name: string | null;
   created_at: string;
   rejection_reason: string | null;
   transaction_id: string | null;
