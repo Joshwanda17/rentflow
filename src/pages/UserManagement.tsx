@@ -447,16 +447,17 @@ export default function UserManagement() {
         />
 
         {/* Search Bar - Always Visible Above "All Users" */}
-        <div className="px-2 py-1.5">
+        <div className="px-2 py-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8696a0]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search name, phone, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-xs focus:border-[#00a884]/50"
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
+              style={{ fontSize: '16px' }}
             />
             {searchTerm && (
               <button
