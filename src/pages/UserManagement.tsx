@@ -15,7 +15,7 @@ import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { QuickActionsDropdown } from '@/components/manager/QuickActionsDropdown';
+// QuickActionsDropdown removed - actions moved to menu
 import { CompactUserStats, StatFilter } from '@/components/manager/CompactUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
