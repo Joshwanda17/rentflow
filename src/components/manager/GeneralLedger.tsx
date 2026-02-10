@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Printer, Download, CalendarIcon, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
@@ -11,6 +11,8 @@ import { Calendar } from '@/components/ui/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { exportToCSV } from '@/lib/exportUtils';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { toast } from 'sonner';
 
 interface LedgerEntry {
@@ -26,6 +28,17 @@ interface LedgerEntry {
 }
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
+type CategoryFilter = 'all' | 'Deposit' | 'Withdrawal' | 'Platform' | 'Agent Earning' | 'Transfer';
+type DirectionFilter = 'all' | 'debit' | 'credit';
+
+const categoryOptions: { value: CategoryFilter; label: string }[] = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'Deposit', label: 'Deposits' },
+  { value: 'Withdrawal', label: 'Withdrawals' },
+  { value: 'Platform', label: 'Platform' },
+  { value: 'Agent Earning', label: 'Agent Earnings' },
+  { value: 'Transfer', label: 'Transfers' },
+];
 
 export function GeneralLedger() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -33,6 +46,9 @@ export function GeneralLedger() {
   const [datePreset, setDatePreset] = useState<DatePreset>('30days');
   const [startDate, setStartDate] = useState<Date | undefined>(startOfDay(subDays(new Date(), 30)));
   const [endDate, setEndDate] = useState<Date | undefined>(endOfDay(new Date()));
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -195,8 +211,24 @@ export function GeneralLedger() {
     }
   };
 
-  const totalDebits = entries.reduce((sum, e) => sum + e.debit, 0);
-  const totalCredits = entries.reduce((sum, e) => sum + e.credit, 0);
+  // Apply client-side filters
+  const filteredEntries = entries.filter(e => {
+    if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
+    if (directionFilter === 'debit' && e.debit === 0) return false;
+    if (directionFilter === 'credit' && e.credit === 0) return false;
+    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase()) && !e.party.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  // Recalculate running balance for filtered view
+  let filteredBalance = 0;
+  filteredEntries.forEach(entry => {
+    filteredBalance += entry.credit - entry.debit;
+    entry.balance = filteredBalance;
+  });
+
+  const totalDebits = filteredEntries.reduce((sum, e) => sum + e.debit, 0);
+  const totalCredits = filteredEntries.reduce((sum, e) => sum + e.credit, 0);
 
   const handlePrint = () => {
     const printContent = printRef.current;
@@ -234,6 +266,7 @@ export function GeneralLedger() {
         <h1>WELILE - General Ledger</h1>
         <p class="subtitle">
           Period: ${startDate ? format(startDate, 'dd MMM yyyy') : 'All time'} - ${endDate ? format(endDate, 'dd MMM yyyy') : 'Present'}
+          ${categoryFilter !== 'all' ? '<br/>Filter: ' + categoryFilter : ''}${directionFilter !== 'all' ? ' | ' + directionFilter + ' only' : ''}
           <br/>Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}
         </p>
         <div class="summary">
@@ -251,7 +284,7 @@ export function GeneralLedger() {
           </div>
           <div class="summary-item">
             <div class="summary-label">Entries</div>
-            <div class="summary-value">${entries.length}</div>
+            <div class="summary-value">${filteredEntries.length}</div>
           </div>
         </div>
         <br/>
@@ -269,7 +302,7 @@ export function GeneralLedger() {
             </tr>
           </thead>
           <tbody>
-            ${entries.map((e, i) => `
+            ${filteredEntries.map((e, i) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${format(new Date(e.date), 'dd/MM/yyyy')}</td>
@@ -302,7 +335,7 @@ export function GeneralLedger() {
   const handleExportCSV = () => {
     exportToCSV({
       headers: ['#', 'Date', 'Description', 'Category', 'Reference', 'Party', 'Debit', 'Credit', 'Balance'],
-      rows: entries.map((e, i) => [
+      rows: filteredEntries.map((e, i) => [
         i + 1,
         format(new Date(e.date), 'dd/MM/yyyy'),
         e.description,
@@ -343,6 +376,48 @@ export function GeneralLedger() {
         ))}
       </div>
 
+      {/* Category, Direction & Search Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as CategoryFilter)}>
+          <SelectTrigger className="w-[160px] h-9 text-xs">
+            <Filter className="h-3 w-3 mr-1" />
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryOptions.map(c => (
+              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={directionFilter} onValueChange={(v) => setDirectionFilter(v as DirectionFilter)}>
+          <SelectTrigger className="w-[140px] h-9 text-xs">
+            <SelectValue placeholder="Direction" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All Directions</SelectItem>
+            <SelectItem value="debit" className="text-xs">Debits Only</SelectItem>
+            <SelectItem value="credit" className="text-xs">Credits Only</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+          <Input
+            placeholder="Search description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-7 h-9 w-[180px] text-xs"
+          />
+        </div>
+
+        {(categoryFilter !== 'all' || directionFilter !== 'all' || searchTerm) && (
+          <Button size="sm" variant="ghost" className="text-xs h-9" onClick={() => { setCategoryFilter('all'); setDirectionFilter('all'); setSearchTerm(''); }}>
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
@@ -370,7 +445,7 @@ export function GeneralLedger() {
         <Card>
           <CardContent className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Entries</p>
-            <p className="text-sm font-bold">{entries.length}</p>
+            <p className="text-sm font-bold">{filteredEntries.length}</p>
           </CardContent>
         </Card>
       </div>
@@ -396,8 +471,8 @@ export function GeneralLedger() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">Loading ledger...</div>
-            ) : entries.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No transactions found for this period</div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No transactions match the current filters</div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
@@ -414,7 +489,7 @@ export function GeneralLedger() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((entry, i) => (
+                    {filteredEntries.map((entry, i) => (
                       <TableRow key={entry.id + i}>
                         <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{format(new Date(entry.date), 'dd/MM/yy')}</TableCell>
