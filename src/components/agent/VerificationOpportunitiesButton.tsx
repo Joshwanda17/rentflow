@@ -38,11 +38,14 @@ export function VerificationOpportunitiesButton() {
 
     const channel = supabase
       .channel('unverified-count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => fetchCount())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => {
+        fetchCount();
+        if (open) fetchRequests();
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [open]);
 
   const fetchCount = async () => {
     const { count } = await supabase
