@@ -444,7 +444,7 @@ export function GeneralLedger() {
         <Card>
           <CardContent className="p-3 text-center">
             <p className="text-xs text-muted-foreground">Entries</p>
-            <p className="text-sm font-bold">{entries.length}</p>
+            <p className="text-sm font-bold">{filteredEntries.length}</p>
           </CardContent>
         </Card>
       </div>
