@@ -35,7 +35,11 @@ import {
   Activity,
   CreditCard,
   BadgeCheck,
-  MapPin
+  MapPin,
+  UserCheck,
+  Wifi,
+  Clock,
+  ChevronRight
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -80,7 +84,7 @@ export default function ManagerAccess() {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'rent-requests');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
@@ -94,6 +98,47 @@ export default function ManagerAccess() {
   const [datePreset, setDatePreset] = useState<DatePreset>('all');
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
+
+  // User metrics state
+  const [userMetrics, setUserMetrics] = useState({ total: 0, verified: 0, online: 0, inactive: 0, tenants: 0, agents: 0, supporters: 0, landlords: 0 });
+
+  // Fetch user metrics
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [profilesRes, rolesRes] = await Promise.all([
+          supabase.from('profiles').select('id, verified, updated_at', { count: 'exact' }),
+          supabase.from('user_roles').select('user_id, role').eq('enabled', true),
+        ]);
+        
+        const profiles = profilesRes.data || [];
+        const total = profilesRes.count || profiles.length;
+        const verified = profiles.filter(p => p.verified).length;
+        const now = new Date();
+        const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const online = profiles.filter(p => p.updated_at && new Date(p.updated_at) > fiveMinAgo).length;
+        const inactive = profiles.filter(p => !p.updated_at || new Date(p.updated_at) < thirtyDaysAgo).length;
+        
+        const roles = rolesRes.data || [];
+        const countRole = (role: string) => new Set(roles.filter(r => r.role === role).map(r => r.user_id)).size;
+        
+        setUserMetrics({
+          total,
+          verified,
+          online,
+          inactive,
+          tenants: countRole('tenant'),
+          agents: countRole('agent'),
+          supporters: countRole('supporter'),
+          landlords: countRole('landlord'),
+        });
+      } catch (e) {
+        console.error('Error fetching user metrics:', e);
+      }
+    };
+    fetchMetrics();
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -627,9 +672,76 @@ export default function ManagerAccess() {
           )}
         </div>
 
+        {/* User Metrics Summary */}
+        <Card className="border-2 border-primary/30 bg-gradient-to-br from-primary/5 to-background">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="flex items-center gap-2">
+                <div className="p-2 rounded-xl bg-primary/20">
+                  <Users className="h-5 w-5 text-primary" />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base">All Users</h3>
+                  <p className="text-xs text-muted-foreground">{userMetrics.total} registered users</p>
+                </div>
+              </div>
+              <Button
+                variant={activeTab === 'users' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => handleTabChange('users')}
+                className="gap-1.5 font-semibold"
+              >
+                <Users className="h-4 w-4" />
+                View All
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+            </div>
+            <div className="grid grid-cols-4 gap-2">
+              <button onClick={() => handleTabChange('users')} className="p-3 rounded-xl bg-muted/50 text-center active:scale-95 transition-transform touch-manipulation">
+                <p className="text-lg font-bold">{userMetrics.total}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">Total</p>
+              </button>
+              <button onClick={() => handleTabChange('users')} className="p-3 rounded-xl bg-success/10 text-center active:scale-95 transition-transform touch-manipulation">
+                <p className="text-lg font-bold text-success">{userMetrics.online}</p>
+                <p className="text-[10px] text-success font-medium flex items-center justify-center gap-1"><Wifi className="h-3 w-3" />Online</p>
+              </button>
+              <button onClick={() => handleTabChange('users')} className="p-3 rounded-xl bg-blue-500/10 text-center active:scale-95 transition-transform touch-manipulation">
+                <p className="text-lg font-bold text-blue-600 dark:text-blue-400">{userMetrics.verified}</p>
+                <p className="text-[10px] text-blue-600 dark:text-blue-400 font-medium flex items-center justify-center gap-1"><UserCheck className="h-3 w-3" />Verified</p>
+              </button>
+              <button onClick={() => handleTabChange('users')} className="p-3 rounded-xl bg-warning/10 text-center active:scale-95 transition-transform touch-manipulation">
+                <p className="text-lg font-bold text-warning">{userMetrics.inactive}</p>
+                <p className="text-[10px] text-warning font-medium flex items-center justify-center gap-1"><Clock className="h-3 w-3" />Inactive</p>
+              </button>
+            </div>
+            <div className="grid grid-cols-4 gap-2 mt-2">
+              <div className="p-2 rounded-lg bg-blue-500/10 text-center">
+                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">{userMetrics.tenants}</p>
+                <p className="text-[9px] text-muted-foreground">Tenants</p>
+              </div>
+              <div className="p-2 rounded-lg bg-amber-500/10 text-center">
+                <p className="text-sm font-bold text-amber-600 dark:text-amber-400">{userMetrics.agents}</p>
+                <p className="text-[9px] text-muted-foreground">Agents</p>
+              </div>
+              <div className="p-2 rounded-lg bg-emerald-500/10 text-center">
+                <p className="text-sm font-bold text-emerald-600 dark:text-emerald-400">{userMetrics.supporters}</p>
+                <p className="text-[9px] text-muted-foreground">Supporters</p>
+              </div>
+              <div className="p-2 rounded-lg bg-purple-500/10 text-center">
+                <p className="text-sm font-bold text-purple-600 dark:text-purple-400">{userMetrics.landlords}</p>
+                <p className="text-[9px] text-muted-foreground">Landlords</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
           <TabsList className="w-full h-auto flex-wrap gap-1 bg-muted/50 p-1">
+            <TabsTrigger value="users" className="gap-1.5 text-xs flex-1 min-w-[80px]">
+              <Users className="h-3.5 w-3.5" />
+              Users
+            </TabsTrigger>
             <TabsTrigger value="activities" className="gap-1.5 text-xs flex-1 min-w-[100px]">
               <Activity className="h-3.5 w-3.5" />
               Activities
@@ -645,10 +757,6 @@ export default function ManagerAccess() {
             <TabsTrigger value="orders" className="gap-1.5 text-xs flex-1 min-w-[80px]">
               <ShoppingCart className="h-3.5 w-3.5" />
               Orders
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <Users className="h-3.5 w-3.5" />
-              Users
             </TabsTrigger>
             <TabsTrigger value="receipts" className="gap-1.5 text-xs flex-1 min-w-[80px]">
               <Receipt className="h-3.5 w-3.5" />
@@ -712,7 +820,7 @@ export default function ManagerAccess() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => handleTabChange('rent-requests')}
+                  onClick={() => handleTabChange('activities')}
                   className="text-white/90 hover:text-white hover:bg-white/10"
                 >
                   <ArrowLeft className="h-5 w-5" />
