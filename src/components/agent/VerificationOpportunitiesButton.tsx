@@ -45,7 +45,7 @@ export function VerificationOpportunitiesButton() {
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, []);
+  }, [open]);
 
   const fetchCount = async () => {
     const { count } = await supabase
