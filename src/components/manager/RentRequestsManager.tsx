@@ -64,6 +64,9 @@ interface RentRequest {
   approved_by: string | null;
   agent_verified?: boolean;
   manager_verified?: boolean;
+  fund_recipient_type?: string | null;
+  fund_recipient_name?: string | null;
+  fund_routed_at?: string | null;
   tenant?: {
     full_name: string;
     phone: string;
