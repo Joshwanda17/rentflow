@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { usePresence } from '@/hooks/usePresence';
 import { cn } from '@/lib/utils';
 import { format, isToday, isYesterday } from 'date-fns';
+import { ScrollToTopButton } from '@/components/ScrollToTopButton';
 
 interface UserWithRating {
   id: string;
@@ -649,6 +650,7 @@ export default function UserManagement() {
       <BulkWhatsAppDialog open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} selectedUsers={getSelectedUsers().map(u => ({ id: u.id, full_name: u.full_name, phone: u.phone, avatar_url: u.avatar_url }))} />
       <CreateUserInviteDialog open={addUserOpen} onOpenChange={setAddUserOpen} />
       <InactiveUsersReachOutDialog open={reachOutInactiveOpen} onOpenChange={setReachOutInactiveOpen} inactiveUsers={getSelectedUsers().filter(u => isUserInactive(u.last_active_at)).map(u => ({ id: u.id, full_name: u.full_name, phone: u.phone, avatar_url: u.avatar_url, last_active_at: u.last_active_at }))} />
+      <ScrollToTopButton scrollThreshold={3200} />
     </div>
   );
 }
