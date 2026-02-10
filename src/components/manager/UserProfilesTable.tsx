@@ -760,11 +760,13 @@ export default function UserProfilesTable() {
 
                       <div className="flex-1 min-w-0">
                         <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
-                        <div className="flex items-center gap-2 mt-1">
-                          <p className="text-base text-muted-foreground truncate font-medium">{user.phone}</p>
+                        <p className="text-base text-muted-foreground truncate font-medium mt-0.5">{user.phone}</p>
+                        {/* WhatsApp Status - Prominent */}
+                        <div className="mt-2">
                           <WhatsAppVerificationBadge
                             verified={user.whatsapp_verified}
                             phone={user.phone}
+                            size="lg"
                             onMarkVerified={() => handleMarkWhatsAppVerified(user.id, user.full_name, { stopPropagation: () => {} } as React.MouseEvent)}
                           />
                         </div>
