@@ -687,6 +687,10 @@ export default function ManagerAccess() {
               <MapPin className="h-3.5 w-3.5" />
               Locations
             </TabsTrigger>
+            <TabsTrigger value="ledger" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <FileText className="h-3.5 w-3.5" />
+              Ledger
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities" className="mt-4">
