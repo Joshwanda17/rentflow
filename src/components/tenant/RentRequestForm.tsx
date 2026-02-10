@@ -211,6 +211,28 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                 />
               </div>
             </div>
+            {/* Tenant Utility Meters */}
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Your Utility Meter Numbers</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Your NWSC Water Meter</Label>
+                  <Input 
+                    placeholder="Your water meter number" 
+                    value={tenantWaterMeter} 
+                    onChange={(e) => setTenantWaterMeter(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Your UEDCL/UMEME Electricity Meter</Label>
+                  <Input 
+                    placeholder="Your electricity meter number" 
+                    value={tenantElectricityMeter} 
+                    onChange={(e) => setTenantElectricityMeter(e.target.value)}
+                  />
+                </div>
+              </div>
+            </div>
           </div>
 
           {/* Rent Amount */}
