@@ -55,6 +55,8 @@ import UserLocationsManager from '@/components/manager/UserLocationsManager';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
+import { RejectedPayoutsHistory } from '@/components/manager/RejectedPayoutsHistory';
+import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
 import { formatUGX } from '@/lib/rentCalculations';
