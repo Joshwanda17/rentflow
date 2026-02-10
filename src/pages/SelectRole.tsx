@@ -237,7 +237,7 @@ export default function SelectRole() {
         await supabase.from('notifications').insert({
           user_id: parentAgentId,
           title: '🎉 New Sub-Agent Joined!',
-          message: `A new sub-agent has joined your team via your share link! You earned UGX ${referralBonus} bonus.`,
+          message: `A new sub-agent has joined your team via your share link! You earned UGX 500 bonus.`,
           type: 'success',
           metadata: { sub_agent_id: user.id, source: 'link' },
         });
