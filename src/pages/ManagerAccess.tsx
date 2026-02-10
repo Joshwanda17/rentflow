@@ -784,9 +784,31 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="withdrawals" className="mt-4">
-            <div className="space-y-6">
-              <AgentCommissionPayoutsManager />
-              <PaidAgentsHistory />
+            <div className="space-y-4">
+              <CollapsibleAgentSection
+                icon={Banknote}
+                label="Pending Payouts"
+                iconColor="text-warning"
+                defaultOpen
+              >
+                <AgentCommissionPayoutsManager />
+              </CollapsibleAgentSection>
+
+              <CollapsibleAgentSection
+                icon={BadgeCheck}
+                label="Paid Agents"
+                iconColor="text-success"
+              >
+                <PaidAgentsHistory />
+              </CollapsibleAgentSection>
+
+              <CollapsibleAgentSection
+                icon={X}
+                label="Rejected Payouts"
+                iconColor="text-destructive"
+              >
+                <RejectedPayoutsHistory />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
