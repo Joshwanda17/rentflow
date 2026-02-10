@@ -375,6 +375,48 @@ export function GeneralLedger() {
         ))}
       </div>
 
+      {/* Category, Direction & Search Filters */}
+      <div className="flex flex-wrap gap-2 items-center">
+        <Select value={categoryFilter} onValueChange={(v) => setCategoryFilter(v as CategoryFilter)}>
+          <SelectTrigger className="w-[160px] h-9 text-xs">
+            <Filter className="h-3 w-3 mr-1" />
+            <SelectValue placeholder="Category" />
+          </SelectTrigger>
+          <SelectContent>
+            {categoryOptions.map(c => (
+              <SelectItem key={c.value} value={c.value} className="text-xs">{c.label}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+
+        <Select value={directionFilter} onValueChange={(v) => setDirectionFilter(v as DirectionFilter)}>
+          <SelectTrigger className="w-[140px] h-9 text-xs">
+            <SelectValue placeholder="Direction" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all" className="text-xs">All Directions</SelectItem>
+            <SelectItem value="debit" className="text-xs">Debits Only</SelectItem>
+            <SelectItem value="credit" className="text-xs">Credits Only</SelectItem>
+          </SelectContent>
+        </Select>
+
+        <div className="relative">
+          <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+          <Input
+            placeholder="Search description..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="pl-7 h-9 w-[180px] text-xs"
+          />
+        </div>
+
+        {(categoryFilter !== 'all' || directionFilter !== 'all' || searchTerm) && (
+          <Button size="sm" variant="ghost" className="text-xs h-9" onClick={() => { setCategoryFilter('all'); setDirectionFilter('all'); setSearchTerm(''); }}>
+            Clear Filters
+          </Button>
+        )}
+      </div>
+
       {/* Summary Cards */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
         <Card>
