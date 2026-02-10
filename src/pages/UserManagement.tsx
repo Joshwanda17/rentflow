@@ -205,7 +205,7 @@ export default function UserManagement() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     hapticTap();
-    await fetchUsers();
+    await Promise.all([fetchUsers(), fetchTotalCount()]);
     setRefreshing(false);
     hapticSuccess();
   }, []);
