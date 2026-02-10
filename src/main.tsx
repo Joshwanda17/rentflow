@@ -2,9 +2,8 @@ import { createRoot } from "react-dom/client";
 
 const root = document.getElementById('root')!;
 
-// Show branded loader immediately (lightweight, no network requests)
+// Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
-  <img src="/welile-logo.png" alt="Welile" width="56" height="56" style="border-radius:12px" />
   <div style="width:20px;height:20px;border:2px solid #7c3aed;border-top-color:transparent;border-radius:50%;animation:s .6s linear infinite"></div>
   <style>@keyframes s{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){div[style*=f8fafc]{background:#0f172a!important}}</style>
 </div>`;
