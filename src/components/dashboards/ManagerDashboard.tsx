@@ -33,7 +33,7 @@ import {
   FileSpreadsheet,
   Minus,
   Target,
-  Edit3,
+  Pencil,
   Check,
   X,
   History,
@@ -1183,7 +1183,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     className="h-6 px-2 text-xs"
                     onClick={() => setIsEditingTarget(true)}
                   >
-                    <Edit3 className="h-3 w-3 mr-1" />
+                    <Pencil className="h-3 w-3 mr-1" />
                     {monthlyTarget ? 'Edit' : 'Set'}
                   </Button>
                 ) : (
