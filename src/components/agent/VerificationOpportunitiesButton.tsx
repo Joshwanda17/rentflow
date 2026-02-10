@@ -81,11 +81,11 @@ export function VerificationOpportunitiesButton() {
       <motion.button
         whileTap={{ scale: 0.95 }}
         onClick={handleOpen}
-        className="fixed bottom-20 right-4 z-40 flex items-center gap-2 px-4 py-2.5 rounded-full bg-destructive text-destructive-foreground shadow-lg touch-manipulation"
+        className="fixed bottom-20 right-4 z-40 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-primary text-primary-foreground shadow-lg touch-manipulation text-xs"
       >
-        <Shield className="h-4 w-4" />
-        <span className="text-sm font-bold">Verify & Earn</span>
-        <Badge variant="outline" className="bg-white/20 border-white/30 text-destructive-foreground text-xs px-1.5">
+        <Shield className="h-3.5 w-3.5" />
+        <span className="font-bold">Verify & Earn</span>
+        <Badge variant="outline" className="bg-white/20 border-white/30 text-primary-foreground text-[10px] px-1 py-0">
           {count}
         </Badge>
       </motion.button>
