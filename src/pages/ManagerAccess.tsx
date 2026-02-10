@@ -751,6 +751,10 @@ export default function ManagerAccess() {
             <FinancialOverview />
           </TabsContent>
 
+          <TabsContent value="ledger" className="mt-4">
+            <GeneralLedger />
+          </TabsContent>
+
           <TabsContent value="deposits" className="mt-4">
             <DepositRequestsManager />
           </TabsContent>
