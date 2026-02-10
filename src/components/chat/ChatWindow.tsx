@@ -68,7 +68,23 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [selectedChatUser, setSelectedChatUser] = useState<any>(null);
 
+  const handleOpenUserDetails = async (userId: string) => {
+    if (!isManager) return;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, roles, average_rating, rating_count, verified')
+        .eq('id', userId)
+        .single();
+      if (data) {
+        setSelectedChatUser(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user details:', err);
+    }
+  };
   // Load cached messages on mount
   useEffect(() => {
     getCachedMessages(conversationId).then(cached => {
