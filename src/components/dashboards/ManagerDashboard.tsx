@@ -2115,8 +2115,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         >
           <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
           <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate">
+            <h2 className="font-semibold text-base truncate flex items-center gap-1.5">
               {profile?.full_name || 'Manager'}
+              <BadgeCheck className="h-4 w-4 text-violet-500 fill-violet-500/20 shrink-0" />
             </h2>
             <p className="text-sm text-muted-foreground truncate">
               Platform Administrator
