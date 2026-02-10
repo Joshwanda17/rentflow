@@ -488,7 +488,7 @@ export function GeneralLedger() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {entries.map((entry, i) => (
+                    {filteredEntries.map((entry, i) => (
                       <TableRow key={entry.id + i}>
                         <TableCell className="text-xs text-muted-foreground">{i + 1}</TableCell>
                         <TableCell className="text-xs whitespace-nowrap">{format(new Date(entry.date), 'dd/MM/yy')}</TableCell>
