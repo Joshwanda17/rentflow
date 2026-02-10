@@ -505,6 +505,17 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
           </p>
         )}
       </div>
+
+      {/* User Details Dialog for Managers */}
+      {isManager && (
+        <Suspense fallback={null}>
+          <UserDetailsDialog
+            open={!!selectedChatUser}
+            onOpenChange={(open) => { if (!open) setSelectedChatUser(null); }}
+            user={selectedChatUser}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
