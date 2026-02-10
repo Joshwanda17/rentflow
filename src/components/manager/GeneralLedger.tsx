@@ -116,7 +116,7 @@ export function GeneralLedger() {
       });
 
       // Fetch platform transactions
-      let platformQuery = supabase.from('platform_transactions').select('id, amount, direction, transaction_type, description, created_at, reference_number');
+      let platformQuery = supabase.from('platform_transactions').select('id, amount, direction, transaction_type, description, created_at');
       if (startDate) platformQuery = platformQuery.gte('created_at', startDate.toISOString());
       if (endDate) platformQuery = platformQuery.lte('created_at', endDate.toISOString());
       const { data: platformTx } = await platformQuery.order('created_at', { ascending: true });
@@ -131,7 +131,7 @@ export function GeneralLedger() {
           debit: isCredit ? 0 : tx.amount,
           credit: isCredit ? tx.amount : 0,
           balance: 0,
-          reference: tx.reference_number || '-',
+          reference: '-',
           party: 'Platform',
         });
       });
