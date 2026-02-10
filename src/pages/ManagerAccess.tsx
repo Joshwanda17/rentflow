@@ -789,7 +789,6 @@ export default function ManagerAccess() {
                 icon={Banknote}
                 label="Pending Payouts"
                 iconColor="text-warning"
-                defaultOpen
               >
                 <AgentCommissionPayoutsManager />
               </CollapsibleAgentSection>
