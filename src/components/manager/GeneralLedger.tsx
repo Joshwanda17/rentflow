@@ -7,8 +7,6 @@ import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filt
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { cn } from '@/lib/utils';
 import { exportToCSV } from '@/lib/exportUtils';
 import { Input } from '@/components/ui/input';
