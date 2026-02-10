@@ -86,8 +86,9 @@ export default function WithdrawFlow({
     switch (currentStep) {
       case 0: return true;
       case 1: return amount > 0 && amount <= maxAmount;
-      case 2: return selectedMethod !== null;
-      case 3: return pin.length === 4;
+      case 2: return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
+      case 3: return selectedMethod !== null;
+      case 4: return pin.length === 4;
       default: return false;
     }
   };
