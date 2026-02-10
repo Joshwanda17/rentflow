@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { useConversation, Message } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresenceContext } from '@/hooks/usePresence';
@@ -25,6 +25,9 @@ import {
   removePendingMessage 
 } from '@/lib/offlineStorage';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+const UserDetailsDialog = lazy(() => import('@/components/manager/UserDetailsDialog'));
 
 interface PendingMessage {
   id: string;
@@ -41,7 +44,8 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ conversationId, onBack, isOffline = false }: ChatWindowProps) {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isManager = roles?.includes('manager');
   const { isOnline } = usePresenceContext();
   const { 
     messages, 
@@ -64,7 +68,23 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const editInputRef = useRef<HTMLInputElement>(null);
+  const [selectedChatUser, setSelectedChatUser] = useState<any>(null);
 
+  const handleOpenUserDetails = async (userId: string) => {
+    if (!isManager) return;
+    try {
+      const { data } = await supabase
+        .from('profiles')
+        .select('id, full_name, email, phone, avatar_url, rent_discount_active, monthly_rent, roles, average_rating, rating_count, verified')
+        .eq('id', userId)
+        .single();
+      if (data) {
+        setSelectedChatUser(data);
+      }
+    } catch (err) {
+      console.error('Failed to fetch user details:', err);
+    }
+  };
   // Load cached messages on mount
   useEffect(() => {
     getCachedMessages(conversationId).then(cached => {
@@ -267,7 +287,10 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold">{otherParticipant.full_name}</span>
+                <span 
+                  className={cn("font-semibold", isManager && "underline decoration-dotted cursor-pointer active:opacity-70")}
+                  onClick={() => isManager && handleOpenUserDetails(otherParticipant.user_id)}
+                >{otherParticipant.full_name}</span>
                 {!isOffline && isOnline(otherParticipant.user_id) && (
                   <span className="text-xs text-success font-medium">Online</span>
                 )}
@@ -323,7 +346,10 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
                         <div className="relative">
                           {!isOwn && msg.sender && (
                             <div className="flex items-center gap-1 mb-1">
-                              <span className="text-xs font-medium">{msg.sender.full_name}</span>
+                              <span 
+                                className={cn("text-xs font-medium", isManager && "underline decoration-dotted cursor-pointer active:opacity-70")}
+                                onClick={() => isManager && handleOpenUserDetails(msg.sender_id)}
+                              >{msg.sender.full_name}</span>
                               {msg.sender.roles.length > 0 && (
                                 <Badge className={`text-[8px] h-3 px-1 ${getRoleBadgeColor(msg.sender.roles[0])}`}>
                                   {msg.sender.roles[0]}
@@ -479,6 +505,17 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
           </p>
         )}
       </div>
+
+      {/* User Details Dialog for Managers */}
+      {isManager && (
+        <Suspense fallback={null}>
+          <UserDetailsDialog
+            open={!!selectedChatUser}
+            onOpenChange={(open) => { if (!open) setSelectedChatUser(null); }}
+            user={selectedChatUser}
+          />
+        </Suspense>
+      )}
     </div>
   );
 }
