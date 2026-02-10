@@ -44,7 +44,8 @@ interface ChatWindowProps {
 }
 
 export default function ChatWindow({ conversationId, onBack, isOffline = false }: ChatWindowProps) {
-  const { user } = useAuth();
+  const { user, roles } = useAuth();
+  const isManager = roles?.includes('manager');
   const { isOnline } = usePresenceContext();
   const { 
     messages, 
