@@ -80,7 +80,7 @@ export default function ManagerAccess() {
   const { user, role, loading } = useAuth();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'rent-requests');
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'users');
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<SearchResult[]>([]);
   const [filteredResults, setFilteredResults] = useState<SearchResult[]>([]);
