@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Send,
   History,
+  Share2,
   CheckCircle2,
   Phone,
   Shield,
@@ -722,6 +723,48 @@ Thank you for being part of Welile! 🏠`;
                         {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
                       </div>
                       <div className="flex gap-2">
+                        {/* Share with Agent via WhatsApp */}
+                        {!request.agent_verified && (
+                          <Button
+                            size="default"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const tenant = request.tenant;
+                              const landlord = request.landlord;
+                              const appUrl = 'https://welilereceipts-com.lovable.app';
+                              const msg = `🏠 *VERIFICATION REQUEST*
+
+Hi Agent! A tenant needs verification. Please verify them on the Welile app.
+
+👤 *Tenant:* ${tenant?.full_name || 'Unknown'}
+📍 *Location:* ${[tenant?.city, tenant?.country].filter(Boolean).join(', ') || 'N/A'}
+💰 *Rent:* ${formatUGX(request.rent_amount)}
+
+🏢 *Landlord:* ${landlord?.name || 'Unknown'}
+📫 *Property:* ${landlord?.property_address || 'N/A'}
+
+📋 *What to do:*
+1. Visit the tenant & landlord in person
+2. Collect the landlord's 2 verification PINs
+3. Verify meter numbers (NWSC & UEDCL) and TIN
+4. Submit verification on the app
+
+💵 You earn *UGX 10,000* when the tenant's landlord receives rent!
+
+👉 Open app: ${appUrl}`;
+                              const encoded = encodeURIComponent(msg);
+                              window.open(`https://wa.me/?text=${encoded}`, '_blank');
+                              toast({ title: 'WhatsApp Opened', description: 'Share the message with an agent to verify this tenant' });
+                            }}
+                            className="text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/10 min-h-[44px] touch-manipulation"
+                            type="button"
+                          >
+                            <Share2 className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
+                        )}
                         <Button
                           size="default"
                           variant="outline"
