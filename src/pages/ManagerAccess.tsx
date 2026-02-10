@@ -35,7 +35,11 @@ import {
   Activity,
   CreditCard,
   BadgeCheck,
-  MapPin
+  MapPin,
+  UserCheck,
+  Wifi,
+  Clock,
+  ChevronRight
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
