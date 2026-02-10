@@ -62,6 +62,8 @@ export function SendMoneyDialog({ open, onOpenChange }: SendMoneyDialogProps) {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    toast.error('P2P transfers are currently disabled by the platform');
+    return;
     
     const amountNum = parseFloat(amount);
     if (!phone || isNaN(amountNum) || amountNum <= 0) {
