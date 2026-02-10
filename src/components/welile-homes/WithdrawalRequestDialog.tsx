@@ -87,7 +87,7 @@ export function WithdrawalRequestDialog({
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['welile-homes-withdrawals'] });
-      toast.success('Withdrawal request submitted successfully!');
+      toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
       onOpenChange(false);
       setAmount('');
       setPurpose('');

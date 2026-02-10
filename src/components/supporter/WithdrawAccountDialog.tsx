@@ -36,6 +36,7 @@ export function WithdrawAccountDialog({
       await onWithdraw(accountId, amount);
       setAmount(10000);
       onOpenChange(false);
+      // Note: The parent component should show the approval pending message
     } finally {
       setLoading(false);
     }

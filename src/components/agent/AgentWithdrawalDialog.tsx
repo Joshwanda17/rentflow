@@ -152,7 +152,7 @@ export function AgentWithdrawalDialog({ open, onOpenChange, onSuccess }: AgentWi
       if (error) throw error;
 
       setResult({ success: true, details: data.details });
-      toast({ title: 'Withdrawal successful!' });
+      toast({ title: 'Withdrawal submitted!', description: 'Please wait for manager approval before funds are released.' });
       onSuccess?.();
     } catch (error: any) {
       toast({ 
