@@ -25,9 +25,10 @@ const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ defaul
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
 
-// Eagerly load Landing + Index (first pages users hit — must be instant)
-import Landing from "./pages/Landing";
+// Index is the entry router — must be eager for instant redirect
 import Index from "./pages/Index";
+// Landing is only needed on /welcome — lazy load it
+const Landing = lazy(() => import("./pages/Landing"));
 const Auth = lazy(() => import("./pages/Auth"));
 const Dashboard = lazy(() => import("./pages/Dashboard"));
 const SelectRole = lazy(() => import("./pages/SelectRole"));
