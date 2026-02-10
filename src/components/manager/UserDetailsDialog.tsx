@@ -1435,7 +1435,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   <UserActivityTimeline userId={user.id} userName={user.full_name} />
                 </div>
               </TabsContent>
-            </div>
+              </div>
+            </ScrollArea>
           </Tabs>
 
           <AddBalanceDialog
