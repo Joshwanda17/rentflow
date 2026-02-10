@@ -26,6 +26,17 @@ interface LedgerEntry {
 }
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
+type CategoryFilter = 'all' | 'Deposit' | 'Withdrawal' | 'Platform' | 'Agent Earning' | 'Transfer';
+type DirectionFilter = 'all' | 'debit' | 'credit';
+
+const categoryOptions: { value: CategoryFilter; label: string }[] = [
+  { value: 'all', label: 'All Categories' },
+  { value: 'Deposit', label: 'Deposits' },
+  { value: 'Withdrawal', label: 'Withdrawals' },
+  { value: 'Platform', label: 'Platform' },
+  { value: 'Agent Earning', label: 'Agent Earnings' },
+  { value: 'Transfer', label: 'Transfers' },
+];
 
 export function GeneralLedger() {
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
@@ -33,6 +44,9 @@ export function GeneralLedger() {
   const [datePreset, setDatePreset] = useState<DatePreset>('30days');
   const [startDate, setStartDate] = useState<Date | undefined>(startOfDay(subDays(new Date(), 30)));
   const [endDate, setEndDate] = useState<Date | undefined>(endOfDay(new Date()));
+  const [categoryFilter, setCategoryFilter] = useState<CategoryFilter>('all');
+  const [directionFilter, setDirectionFilter] = useState<DirectionFilter>('all');
+  const [searchTerm, setSearchTerm] = useState('');
   const printRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
