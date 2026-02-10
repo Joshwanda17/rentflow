@@ -471,7 +471,7 @@ export default function UserManagement() {
         </div>
 
         {/* Filter Pills - Compact */}
-        <div className="flex gap-1 px-2 pb-1.5 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1.5 px-2 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
               key={filter.value}
@@ -480,14 +480,15 @@ export default function UserManagement() {
                 setRoleFilter(filter.value);
               }}
               className={cn(
-                "shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium transition-all active:scale-95",
+                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[36px]",
                 roleFilter === filter.value
                   ? 'bg-[#00a884] text-white'
                   : 'bg-[#2a3942] text-[#8696a0]'
               )}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {filter.label}
-              <span className="ml-0.5 opacity-80">{filter.count}</span>
+              <span className="ml-1 opacity-80">{filter.count}</span>
             </button>
           ))}
         </div>
