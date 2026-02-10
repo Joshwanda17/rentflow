@@ -42,6 +42,7 @@ import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsMa
 import UserProfilesTable from '@/components/manager/UserProfilesTable';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
+import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { ManagerInvestmentRequestsSection } from '@/components/manager/ManagerInvestmentRequestsSection';
