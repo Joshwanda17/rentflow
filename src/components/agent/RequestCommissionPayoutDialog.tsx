@@ -103,7 +103,10 @@ export function RequestCommissionPayoutDialog({
           .eq('id', user?.id);
       }
 
-      toast({ title: 'Payout request submitted!' });
+      toast({ 
+        title: 'Payout request submitted!', 
+        description: 'Please wait for manager approval before funds are released.',
+      });
       onSuccess?.();
       onOpenChange(false);
       setAmount('');
