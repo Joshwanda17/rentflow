@@ -99,6 +99,47 @@ export default function ManagerAccess() {
   const [startDate, setStartDate] = useState<Date | undefined>(undefined);
   const [endDate, setEndDate] = useState<Date | undefined>(undefined);
 
+  // User metrics state
+  const [userMetrics, setUserMetrics] = useState({ total: 0, verified: 0, online: 0, inactive: 0, tenants: 0, agents: 0, supporters: 0, landlords: 0 });
+
+  // Fetch user metrics
+  useEffect(() => {
+    const fetchMetrics = async () => {
+      try {
+        const [profilesRes, rolesRes] = await Promise.all([
+          supabase.from('profiles').select('id, verified, updated_at', { count: 'exact' }),
+          supabase.from('user_roles').select('user_id, role').eq('enabled', true),
+        ]);
+        
+        const profiles = profilesRes.data || [];
+        const total = profilesRes.count || profiles.length;
+        const verified = profiles.filter(p => p.verified).length;
+        const now = new Date();
+        const fiveMinAgo = new Date(now.getTime() - 5 * 60 * 1000);
+        const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+        const online = profiles.filter(p => p.updated_at && new Date(p.updated_at) > fiveMinAgo).length;
+        const inactive = profiles.filter(p => !p.updated_at || new Date(p.updated_at) < thirtyDaysAgo).length;
+        
+        const roles = rolesRes.data || [];
+        const countRole = (role: string) => new Set(roles.filter(r => r.role === role).map(r => r.user_id)).size;
+        
+        setUserMetrics({
+          total,
+          verified,
+          online,
+          inactive,
+          tenants: countRole('tenant'),
+          agents: countRole('agent'),
+          supporters: countRole('supporter'),
+          landlords: countRole('landlord'),
+        });
+      } catch (e) {
+        console.error('Error fetching user metrics:', e);
+      }
+    };
+    fetchMetrics();
+  }, []);
+
   // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
