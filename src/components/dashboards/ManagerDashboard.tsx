@@ -990,6 +990,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Stats Summary - Larger cards for mobile */}
+        <CollapsibleAgentSection
+          icon={TrendingUp}
+          label="Live Stats"
+          iconColor="text-success"
+        >
         <div className="grid grid-cols-2 gap-3">
           <Card 
             className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
@@ -1027,6 +1032,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         </div>
+        </CollapsibleAgentSection>
 
         {/* Duplicate Phone Numbers Alert */}
         {duplicateCount > 0 && (
