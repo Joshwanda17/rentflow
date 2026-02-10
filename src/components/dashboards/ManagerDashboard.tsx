@@ -981,7 +981,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Force Refresh Manager - Push updates to users */}
-        <ForceRefreshManager />
+        <CollapsibleAgentSection
+          icon={Users}
+          label="Force Refresh"
+          iconColor="text-muted-foreground"
+        >
+          <ForceRefreshManager />
+        </CollapsibleAgentSection>
 
         {/* Stats Summary - Larger cards for mobile */}
         <div className="grid grid-cols-2 gap-3">
