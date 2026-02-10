@@ -536,9 +536,10 @@ export default function UserManagement() {
                 key={user.id}
                 onClick={() => handleUserClick(user)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 active:bg-[#182229] transition-colors cursor-pointer",
+                  "flex items-center gap-3 px-4 py-3.5 active:bg-[#182229] transition-colors cursor-pointer touch-manipulation min-h-[72px]",
                   selectedUserIds.has(user.id) && "bg-[#00a884]/10"
                 )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {/* Avatar with Online Indicator */}
                 <div 
