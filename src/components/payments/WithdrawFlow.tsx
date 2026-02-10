@@ -391,7 +391,7 @@ export default function WithdrawFlow({
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6 text-center">
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -422,7 +422,8 @@ export default function WithdrawFlow({
                 { label: 'From', value: source === 'available' ? 'Available Balance' : 'ROI Earnings' },
                 { label: 'Amount', value: formatCurrency(amount, currency) },
                 { label: 'Fee', value: formatCurrency(fee, currency), secondary: true },
-                { label: 'To', value: selectedMethod?.name || '' },
+                { label: 'To', value: `${momoProvider} - ${momoNumber}` },
+                { label: 'Name', value: momoName },
               ]}
               total={{ label: "You'll Receive", value: formatCurrency(netAmount, currency) }}
               showSecurityNote={false}
@@ -430,7 +431,7 @@ export default function WithdrawFlow({
           </div>
         );
 
-      case 4:
+      case 5:
         if (isProcessing) {
           return <ProcessingScreen onComplete={handleProcessingComplete} />;
         }
