@@ -2333,13 +2333,31 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </div>
 
         {/* Supporter Invites List */}
-        <SupporterInvitesList />
+        <CollapsibleAgentSection
+          icon={Users}
+          label="Supporter Invites"
+          iconColor="text-primary"
+        >
+          <SupporterInvitesList />
+        </CollapsibleAgentSection>
 
         {/* Food Receipt Promo */}
-        <FoodReceiptPromoCard userId={user.id} />
+        <CollapsibleAgentSection
+          icon={Receipt}
+          label="Food Receipt Promo"
+          iconColor="text-success"
+        >
+          <FoodReceiptPromoCard userId={user.id} />
+        </CollapsibleAgentSection>
 
         {/* Food Shopping Loans */}
-        <FoodShoppingLoansSection />
+        <CollapsibleAgentSection
+          icon={Banknote}
+          label="Food Shopping Loans"
+          iconColor="text-warning"
+        >
+          <FoodShoppingLoansSection />
+        </CollapsibleAgentSection>
         </>
         )}
       </main>
