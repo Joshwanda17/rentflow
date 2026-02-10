@@ -963,7 +963,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
-        <PendingInvestmentRequestsWidget />
+        <CollapsibleAgentSection
+          icon={Wallet}
+          label="Pending Investments"
+          iconColor="text-primary"
+        >
+          <PendingInvestmentRequestsWidget />
+        </CollapsibleAgentSection>
 
         {/* Paid Agents History */}
         <CollapsibleAgentSection
