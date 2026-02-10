@@ -70,7 +70,7 @@ export default function PartnerWalletWidget({
 
       <FundTenantsFlow open={showFundTenants} onOpenChange={setShowFundTenants} walletBalance={availableBalance} />
       <DepositFlow open={showDeposit} onOpenChange={setShowDeposit} walletBalance={availableBalance} />
-      <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={availableBalance} roiBalance={roiEarned} />
+      <WithdrawFlow open={showWithdraw} onOpenChange={setShowWithdraw} availableBalance={availableBalance} roiBalance={roiEarned} onSuccess={() => setShowWithdraw(false)} />
     </>
   );
 }
