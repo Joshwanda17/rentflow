@@ -754,8 +754,20 @@ export default function ManagerAccess() {
 
           <TabsContent value="investments" className="mt-4">
             <div className="space-y-4">
-              <ManagerInvestmentRequestsSection />
-              <InvestmentAccountsManager />
+              <CollapsibleAgentSection
+                icon={Wallet}
+                label="Investment Requests"
+                iconColor="text-warning"
+              >
+                <ManagerInvestmentRequestsSection />
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={Wallet}
+                label="Investment Accounts"
+                iconColor="text-primary"
+              >
+                <InvestmentAccountsManager />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
