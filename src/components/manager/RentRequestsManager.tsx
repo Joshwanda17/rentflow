@@ -23,8 +23,13 @@ import {
   CheckCircle2,
   Phone,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Wallet,
+  MapPin,
+  CreditCard,
+  IdCard
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
 import {
