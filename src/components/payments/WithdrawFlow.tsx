@@ -14,12 +14,16 @@ import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp
 import { LOCAL_PAYMENT_METHODS, INTERNATIONAL_PAYMENT_METHODS, formatCurrency, calculateFee, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { PaymentMethod } from './PaymentMethodCard';
 import { Wallet, TrendingUp, Lock } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { toast } from 'sonner';
 
 interface WithdrawFlowProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   availableBalance?: number;
   roiBalance?: number;
+  onSuccess?: () => void;
 }
 
 const STEPS: Step[] = [
@@ -33,9 +37,11 @@ const STEPS: Step[] = [
 export default function WithdrawFlow({
   open,
   onOpenChange,
-  availableBalance = 1500000,
-  roiBalance = 250000,
+  availableBalance = 0,
+  roiBalance = 0,
+  onSuccess,
 }: WithdrawFlowProps) {
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [source, setSource] = useState<'available' | 'roi'>('available');
   const [amount, setAmount] = useState(100000);
@@ -45,6 +51,7 @@ export default function WithdrawFlow({
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
+  const [withdrawalRef, setWithdrawalRef] = useState('');
 
   const maxAmount = source === 'available' ? availableBalance : roiBalance;
   const fee = selectedMethod ? calculateFee(amount, selectedMethod) : 0;
@@ -59,6 +66,7 @@ export default function WithdrawFlow({
     setPin('');
     setIsProcessing(false);
     setIsComplete(false);
+    setWithdrawalRef('');
   };
 
   const handleClose = () => {
@@ -76,6 +84,66 @@ export default function WithdrawFlow({
     }
   };
 
+  const processWithdrawal = async () => {
+    if (!user) return;
+
+    try {
+      // Fetch fresh wallet balance
+      const { data: freshWallet, error: fetchError } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .single();
+
+      if (fetchError || !freshWallet) {
+        throw new Error('Failed to fetch wallet balance');
+      }
+
+      if (freshWallet.balance < amount) {
+        throw new Error('Insufficient balance. Your balance may have changed.');
+      }
+
+      // Deduct from wallet using optimistic locking
+      const { data: updatedWallet, error: updateError } = await supabase
+        .from('wallets')
+        .update({ 
+          balance: freshWallet.balance - amount, 
+          updated_at: new Date().toISOString() 
+        })
+        .eq('user_id', user.id)
+        .eq('balance', freshWallet.balance) // Optimistic lock
+        .select()
+        .maybeSingle();
+
+      if (updateError || !updatedWallet) {
+        throw new Error('Balance changed during withdrawal. Please try again.');
+      }
+
+      // Record the withdrawal
+      const ref = `WTH-${Date.now()}`;
+      const { error: recordError } = await supabase
+        .from('wallet_withdrawals')
+        .insert({
+          user_id: user.id,
+          agent_id: user.id,
+          amount: amount,
+        });
+
+      if (recordError) {
+        console.error('Failed to record withdrawal:', recordError);
+        // Don't throw - the balance was already deducted successfully
+      }
+
+      setWithdrawalRef(ref);
+      setPaymentStatus('success');
+      onSuccess?.();
+    } catch (error: any) {
+      console.error('Withdrawal failed:', error);
+      setPaymentStatus('failed');
+      toast.error(error.message || 'Withdrawal failed');
+    }
+  };
+
   const handleNext = () => {
     if (currentStep === 3) {
       setCurrentStep(4);
@@ -83,10 +151,10 @@ export default function WithdrawFlow({
     }
   };
 
-  const handleProcessingComplete = () => {
+  const handleProcessingComplete = async () => {
+    await processWithdrawal();
     setIsProcessing(false);
     setIsComplete(true);
-    setPaymentStatus(Math.random() > 0.2 ? 'success' : 'failed');
   };
 
   const renderStep = () => {
@@ -156,7 +224,7 @@ export default function WithdrawFlow({
                 id="amount"
                 type="number"
                 value={amount}
-                onChange={(e) => setAmount(Number(e.target.value))}
+                onChange={(e) => setAmount(Math.min(Number(e.target.value), maxAmount))}
                 max={maxAmount}
                 min={1000}
                 className="text-2xl h-14 font-bold text-center"
@@ -285,7 +353,7 @@ export default function WithdrawFlow({
             currency={currency}
             fees={fee}
             recipient={selectedMethod?.name || 'Bank Account'}
-            reference={`WTH-${Date.now()}`}
+            reference={withdrawalRef || `WTH-${Date.now()}`}
             method={selectedMethod?.name || ''}
             date={new Date()}
             onDownload={() => {}}
