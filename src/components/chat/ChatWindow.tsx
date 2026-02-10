@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { useConversation, Message } from '@/hooks/useChat';
 import { useAuth } from '@/hooks/useAuth';
 import { usePresenceContext } from '@/hooks/usePresence';
@@ -25,6 +25,9 @@ import {
   removePendingMessage 
 } from '@/lib/offlineStorage';
 import { toast } from 'sonner';
+import { supabase } from '@/integrations/supabase/client';
+
+const UserDetailsDialog = lazy(() => import('@/components/manager/UserDetailsDialog'));
 
 interface PendingMessage {
   id: string;
