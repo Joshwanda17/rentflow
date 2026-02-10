@@ -76,7 +76,7 @@ export function GeneralLedger() {
       const allEntries: LedgerEntry[] = [];
 
       // Fetch deposits (Credits - money coming in)
-      let depositsQuery = supabase.from('wallet_deposits').select('id, amount, created_at, transaction_id, user_id').eq('status', 'approved');
+      let depositsQuery = supabase.from('wallet_deposits').select('id, amount, created_at, user_id');
       if (startDate) depositsQuery = depositsQuery.gte('created_at', startDate.toISOString());
       if (endDate) depositsQuery = depositsQuery.lte('created_at', endDate.toISOString());
       const { data: deposits } = await depositsQuery.order('created_at', { ascending: true });
@@ -90,13 +90,13 @@ export function GeneralLedger() {
           debit: 0,
           credit: d.amount,
           balance: 0,
-          reference: d.transaction_id || '-',
+          reference: '-',
           party: 'User',
         });
       });
 
       // Fetch withdrawals (Debits - money going out)
-      let withdrawalsQuery = supabase.from('wallet_withdrawals').select('id, amount, created_at, user_id').eq('status', 'approved');
+      let withdrawalsQuery = supabase.from('wallet_withdrawals').select('id, amount, created_at, user_id');
       if (startDate) withdrawalsQuery = withdrawalsQuery.gte('created_at', startDate.toISOString());
       if (endDate) withdrawalsQuery = withdrawalsQuery.lte('created_at', endDate.toISOString());
       const { data: withdrawals } = await withdrawalsQuery.order('created_at', { ascending: true });
