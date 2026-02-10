@@ -945,13 +945,58 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
+          {/* Sticky Verification Banner */}
+          <div className={`mx-4 mt-2 rounded-2xl border-2 p-3 flex items-center justify-between gap-3 shrink-0 ${
+            verificationStatus 
+              ? 'border-success/40 bg-success/10' 
+              : 'border-warning/40 bg-warning/10'
+          }`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              {verificationStatus ? (
+                <CheckCircle className="h-6 w-6 text-success shrink-0" />
+              ) : (
+                <AlertTriangle className="h-6 w-6 text-warning shrink-0" />
+              )}
+              <span className={`font-bold text-sm ${verificationStatus ? 'text-success' : 'text-warning'}`}>
+                {verificationStatus ? 'Verified' : 'Unverified'}
+              </span>
+            </div>
+            <Button
+              size="lg"
+              variant={verificationStatus ? 'destructive' : 'default'}
+              onClick={verificationStatus ? handleRejectUser : handleApproveUser}
+              disabled={approvingUser || rejectingUser}
+              className={`gap-2 h-12 px-6 rounded-xl font-bold text-sm shrink-0 ${
+                !verificationStatus ? 'bg-success hover:bg-success/90 text-white shadow-lg shadow-success/30' : ''
+              }`}
+            >
+              {(approvingUser || rejectingUser) ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : verificationStatus ? (
+                <XCircle className="h-5 w-5" />
+              ) : (
+                <CheckCircle className="h-5 w-5" />
+              )}
+              {verificationStatus ? 'Revoke' : 'Verify Now'}
+            </Button>
+          </div>
+
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-4 pt-2 shrink-0">
               <TabsNavigation />
             </div>
 
-            {/* Scrollable Content */}
-            <ScrollArea className="flex-1 min-h-0">
+            {/* Scrollable Content - keyboard accessible */}
+            <ScrollArea className="flex-1 min-h-0" tabIndex={0} onKeyDown={(e) => {
+              const el = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+              if (!el) return;
+              if (e.key === 'ArrowDown') { el.scrollTop += 60; e.preventDefault(); }
+              if (e.key === 'ArrowUp') { el.scrollTop -= 60; e.preventDefault(); }
+              if (e.key === 'PageDown') { el.scrollTop += 300; e.preventDefault(); }
+              if (e.key === 'PageUp') { el.scrollTop -= 300; e.preventDefault(); }
+              if (e.key === 'Home') { el.scrollTop = 0; e.preventDefault(); }
+              if (e.key === 'End') { el.scrollTop = el.scrollHeight; e.preventDefault(); }
+            }}>
               <div className="pb-10">
               <TabsContent value="overview" className="mt-0">
                 <div className="p-4 space-y-5">
