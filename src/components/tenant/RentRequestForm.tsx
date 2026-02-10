@@ -128,7 +128,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     // Get referral agent ID from localStorage
     const agentId = localStorage.getItem('referral_agent_id');
 
-    // Create rent request with number_of_payments
+    // Create rent request with number_of_payments and tenant meters
     const { data: rentRequest, error: requestError } = await supabase
       .from('rent_requests')
       .insert({
@@ -144,7 +144,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         daily_repayment: calc.dailyRepayment,
         number_of_payments: numberOfPayments,
         schedule_status: 'pending_acceptance',
-      })
+        tenant_water_meter: tenantWaterMeter.trim() || null,
+        tenant_electricity_meter: tenantElectricityMeter.trim() || null,
+      } as any)
       .select('id')
       .single();
 
