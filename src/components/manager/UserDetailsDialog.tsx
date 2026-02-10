@@ -1557,37 +1557,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   </Card>
                 </div>
 
-                {/* Verification Status */}
-                <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        {verificationStatus ? (
-                          <>
-                            <div className="p-2 rounded-full bg-success/20"><CheckCircle className="h-5 w-5 text-success" /></div>
-                            <div><p className="font-semibold text-success">Verified User</p><p className="text-xs text-muted-foreground">Approved and can access all features</p></div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-2 rounded-full bg-warning/20"><XCircle className="h-5 w-5 text-warning" /></div>
-                            <div><p className="font-semibold text-warning">Pending Verification</p><p className="text-xs text-muted-foreground">This user needs to be verified</p></div>
-                          </>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        {!verificationStatus ? (
-                          <Button size="sm" variant="default" onClick={handleApproveUser} disabled={approvingUser} className="gap-2">
-                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}Approve
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="destructive" onClick={handleRejectUser} disabled={rejectingUser} className="gap-2">
-                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+
+
 
                 {user.rent_discount_active && (
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
