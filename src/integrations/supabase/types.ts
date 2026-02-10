@@ -3895,6 +3895,7 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           processed_at: string | null
@@ -3909,6 +3910,7 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           processed_at?: string | null
@@ -3923,6 +3925,7 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           processed_at?: string | null

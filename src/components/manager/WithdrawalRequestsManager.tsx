@@ -57,6 +57,7 @@ interface WithdrawalRequest {
   status: string;
   mobile_money_number: string | null;
   mobile_money_provider: string | null;
+  mobile_money_name: string | null;
   created_at: string;
   rejection_reason: string | null;
   transaction_id: string | null;
@@ -813,6 +814,11 @@ export function WithdrawalRequestsManager() {
                                       <p className="font-bold text-base tracking-wide">
                                         {request.mobile_money_number}
                                       </p>
+                                      {request.mobile_money_name && (
+                                        <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                                          Registered: <span className="font-semibold text-foreground">{request.mobile_money_name}</span>
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                   <Button
