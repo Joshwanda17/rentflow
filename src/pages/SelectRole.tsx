@@ -230,37 +230,14 @@ export default function SelectRole() {
           }
         }
 
-        // Credit referral bonus (500 UGX) to parent agent
-        const referralBonus = 500;
-        
-        // Create referral record
-        await supabase.from('referrals').insert({
-          referrer_id: parentAgentId,
-          referred_id: user.id,
-          bonus_amount: referralBonus,
-          credited: true,
-          credited_at: new Date().toISOString(),
-        });
-
-        // Credit parent agent's wallet
-        const { data: walletData } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', parentAgentId)
-          .maybeSingle();
-
-        if (walletData) {
-          await supabase
-            .from('wallets')
-            .update({ balance: walletData.balance + referralBonus })
-            .eq('user_id', parentAgentId);
-        }
+        // Referral bonus is handled by the DB trigger (credit_referral_bonus)
+        // which fires on profile insert. No need to credit here.
 
         // Notify parent agent
         await supabase.from('notifications').insert({
           user_id: parentAgentId,
           title: '🎉 New Sub-Agent Joined!',
-          message: `A new sub-agent has joined your team via your share link! You earned UGX ${referralBonus} bonus.`,
+          message: `A new sub-agent has joined your team via your share link! You earned UGX 500 bonus.`,
           type: 'success',
           metadata: { sub_agent_id: user.id, source: 'link' },
         });

@@ -37,6 +37,7 @@ import { AgentMenuDrawer } from '@/components/agent/AgentMenuDrawer';
 import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPropertyDialog';
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
+import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -298,6 +299,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setPayoutDialogOpen}
         property={payoutProperty}
       />
+      
+      {/* Verification opportunities FAB */}
+      <VerificationOpportunitiesButton />
       
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />

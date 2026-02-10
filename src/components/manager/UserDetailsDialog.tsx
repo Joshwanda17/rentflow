@@ -863,6 +863,49 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
   if (!user) return null;
 
+  // Shared verification banner - always visible at top
+  const VerificationBanner = () => (
+    <div className={`flex items-center justify-between gap-3 px-4 py-3 rounded-xl ${
+      verificationStatus 
+        ? 'bg-success/10 border border-success/30' 
+        : 'bg-destructive/10 border border-destructive/30'
+    }`}>
+      <div className="flex items-center gap-2 min-w-0">
+        {verificationStatus ? (
+          <CheckCircle className="h-5 w-5 text-success shrink-0" />
+        ) : (
+          <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+        )}
+        <span className={`text-sm font-semibold truncate ${verificationStatus ? 'text-success' : 'text-destructive'}`}>
+          {verificationStatus ? 'Verified' : 'Unverified'}
+        </span>
+      </div>
+      {verificationStatus ? (
+        <Button
+          variant="destructive"
+          size="sm"
+          onClick={handleRejectUser}
+          disabled={rejectingUser}
+          className="shrink-0 min-h-[40px] min-w-[100px] font-bold"
+        >
+          {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4 mr-1" />}
+          Revoke
+        </Button>
+      ) : (
+        <Button
+          variant="success"
+          size="sm"
+          onClick={handleApproveUser}
+          disabled={approvingUser}
+          className="shrink-0 min-h-[40px] min-w-[120px] font-bold text-base"
+        >
+          {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4 mr-1" />}
+          Verify Now
+        </Button>
+      )}
+    </div>
+  );
+
   // Shared header component
   const UserHeader = () => (
     <div className="flex items-center gap-3">
@@ -944,6 +987,11 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
               </SheetTitle>
             </div>
           </SheetHeader>
+
+          {/* Sticky Verification Banner */}
+          <div className="px-4 pt-2 shrink-0">
+            <VerificationBanner />
+          </div>
 
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
             <div className="px-4 pt-2 shrink-0">
@@ -1458,6 +1506,11 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             <UserHeader />
           </DialogTitle>
         </DialogHeader>
+
+        {/* Sticky Verification Banner */}
+        <div className="px-6 pt-2 shrink-0">
+          <VerificationBanner />
+        </div>
 
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
           <div className="px-6 pt-4 shrink-0">

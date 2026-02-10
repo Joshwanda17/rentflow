@@ -57,6 +57,7 @@ interface WithdrawalRequest {
   status: string;
   mobile_money_number: string | null;
   mobile_money_provider: string | null;
+  mobile_money_name: string | null;
   created_at: string;
   rejection_reason: string | null;
   transaction_id: string | null;
@@ -452,37 +453,10 @@ export function WithdrawalRequestsManager() {
 
     setProcessing(selectedRequest.id);
     try {
-      // 1. Re-fetch CURRENT wallet balance to ensure accuracy
-      const { data: currentWallet, error: fetchError } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', selectedRequest.user_id)
-        .maybeSingle();
-      
-      if (fetchError) throw fetchError;
-      
-      const currentBalance = currentWallet?.balance || 0;
-      
-      // Double-check sufficient balance with real-time data
-      if (selectedRequest.amount > currentBalance) {
-        toast.error(`Insufficient balance! User now has ${formatCurrency(currentBalance)}`);
-        setProcessing(null);
-        setApproveDialogOpen(false);
-        fetchRequests(); // Refresh the list
-        return;
-      }
+      // Balance deduction is handled automatically by the database trigger
+      // when the status changes to 'approved' (with optimistic locking)
 
-      // 2. Deduct from user's wallet using CURRENT balance
-      const { error: walletError } = await supabase
-        .from('wallets')
-        .update({ 
-          balance: currentBalance - selectedRequest.amount 
-        })
-        .eq('user_id', selectedRequest.user_id);
-
-      if (walletError) throw walletError;
-
-      // 3. Update request status with transaction ID
+      // Update request status — this triggers the balance deduction automatically
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
@@ -813,6 +787,11 @@ export function WithdrawalRequestsManager() {
                                       <p className="font-bold text-base tracking-wide">
                                         {request.mobile_money_number}
                                       </p>
+                                      {request.mobile_money_name && (
+                                        <p className="text-xs font-medium text-muted-foreground mt-0.5">
+                                          Registered: <span className="font-semibold text-foreground">{request.mobile_money_name}</span>
+                                        </p>
+                                      )}
                                     </div>
                                   </div>
                                   <Button

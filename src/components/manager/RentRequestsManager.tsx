@@ -20,11 +20,17 @@ import {
   MessageCircle,
   Send,
   History,
+  Share2,
   CheckCircle2,
   Phone,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Wallet,
+  MapPin,
+  CreditCard,
+  IdCard
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
 import {
@@ -39,6 +45,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
+import RentProcessTracker from '@/components/rent/RentProcessTracker';
 
 interface RentRequest {
   id: string;
@@ -59,7 +66,24 @@ interface RentRequest {
   approved_by: string | null;
   agent_verified?: boolean;
   manager_verified?: boolean;
-  tenant?: { full_name: string; phone: string };
+  fund_recipient_type?: string | null;
+  fund_recipient_name?: string | null;
+  fund_routed_at?: string | null;
+  tenant?: {
+    full_name: string;
+    phone: string;
+    email?: string;
+    avatar_url?: string | null;
+    verified?: boolean;
+    national_id?: string | null;
+    city?: string | null;
+    country?: string | null;
+    created_at?: string;
+    monthly_rent?: number | null;
+    mobile_money_number?: string | null;
+    mobile_money_provider?: string | null;
+  };
+  tenantWalletBalance?: number;
   landlord?: { id: string; name: string; property_address: string; verified?: boolean; ready_to_receive?: boolean };
   missedDays?: number;
   paidAmount?: number;
@@ -112,23 +136,36 @@ export function RentRequestsManager() {
       return;
     }
 
-    // Fetch tenant profiles
+    // Fetch tenant profiles with full details
     const tenantIds = [...new Set((requestsData || []).map(r => r.tenant_id))];
-    const { data: profiles } = tenantIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
-      : { data: [] };
+    const [profilesRes, landlordsRes, repaymentsRes, walletsRes] = await Promise.all([
+      tenantIds.length > 0
+        ? supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, national_id, city, country, created_at, monthly_rent, mobile_money_number, mobile_money_provider').in('id', tenantIds)
+        : Promise.resolve({ data: [] }),
+      // Fetch landlords with verification status
+      (() => {
+        const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
+        return landlordIds.length > 0
+          ? supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch all repayments
+      (() => {
+        const requestIds = (requestsData || []).map(r => r.id);
+        return requestIds.length > 0
+          ? supabase.from('repayments').select('*').in('rent_request_id', requestIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch wallet balances for tenants
+      tenantIds.length > 0
+        ? supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds)
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    // Fetch landlords with verification status
-    const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
-    const { data: landlords } = landlordIds.length > 0
-      ? await supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
-      : { data: [] };
-
-    // Fetch all repayments to calculate missed days
-    const requestIds = (requestsData || []).map(r => r.id);
-    const { data: repayments } = requestIds.length > 0
-      ? await supabase.from('repayments').select('*').in('rent_request_id', requestIds)
-      : { data: [] };
+    const profiles = profilesRes.data;
+    const landlords = landlordsRes.data;
+    const repayments = repaymentsRes.data;
+    const walletsByUser = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance]));
 
     // Calculate missed days for each request
     const today = startOfDay(new Date());
@@ -166,6 +203,7 @@ export function RentRequestsManager() {
       return {
         ...r,
         tenant: profiles?.find(p => p.id === r.tenant_id),
+        tenantWalletBalance: walletsByUser.get(r.tenant_id) ?? 0,
         landlord: landlords?.find(l => l.id === r.landlord_id),
         missedDays,
         paidAmount
@@ -528,19 +566,89 @@ Thank you for being part of Welile! 🏠`;
             {pendingRequests.map((request) => (
               <Card key={request.id} className="border-warning/30">
                 <CardContent className="p-4">
-                  <div className="flex flex-col gap-3">
+                   <div className="flex flex-col gap-3">
+                    {/* Tenant Details Section */}
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold">{request.tenant?.full_name || 'Unknown Tenant'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Building className="h-3 w-3" />
-                          <span>{request.landlord?.name || 'Unknown'} - {request.landlord?.property_address || 'N/A'}</span>
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-11 w-11 border-2 border-border">
+                          <AvatarImage src={request.tenant?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                            {(request.tenant?.full_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{request.tenant?.full_name || 'Unknown Tenant'}</span>
+                            {request.tenant?.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{request.tenant?.phone || 'N/A'}</span>
+                          </div>
+                          {request.tenant?.email && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{request.tenant.email}</p>
+                          )}
                         </div>
                       </div>
                       {getStatusBadge(request.status)}
+                    </div>
+
+                    {/* Process Step Tracker */}
+                    <RentProcessTracker
+                      requestStatus={request.status || 'pending'}
+                      agentVerified={request.agent_verified}
+                      managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      supporterFunded={['funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      fundRecipientType={request.fund_recipient_type}
+                      fundRecipientName={request.fund_recipient_name}
+                      fundRoutedAt={request.fund_routed_at}
+                      compact
+                    />
+
+                    {/* Tenant Quick Info Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                        <Wallet className="h-3.5 w-3.5 text-success" />
+                        <div>
+                          <p className="text-muted-foreground text-[10px]">Wallet</p>
+                          <p className="font-bold text-success">{formatUGX(request.tenantWalletBalance || 0)}</p>
+                        </div>
+                      </div>
+                      {request.tenant?.national_id && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <IdCard className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">NIN</p>
+                            <p className="font-bold truncate">{request.tenant.national_id}</p>
+                          </div>
+                        </div>
+                      )}
+                      {(request.tenant?.city || request.tenant?.country) && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">Location</p>
+                            <p className="font-bold truncate">{[request.tenant.city, request.tenant.country].filter(Boolean).join(', ')}</p>
+                          </div>
+                        </div>
+                      )}
+                      {request.tenant?.mobile_money_number && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">{request.tenant.mobile_money_provider || 'MoMo'}</p>
+                            <p className="font-bold truncate">{request.tenant.mobile_money_number}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Landlord Info */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building className="h-3.5 w-3.5" />
+                      <span>{request.landlord?.name || 'Unknown'} — {request.landlord?.property_address || 'N/A'}</span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
@@ -581,6 +689,7 @@ Thank you for being part of Welile! 🏠`;
                           <span className="text-xs text-muted-foreground">Tenant:</span>
                           <VerifyTenantButton
                             requestId={request.id}
+                            landlordId={request.landlord_id}
                             agentVerified={request.agent_verified}
                             managerVerified={request.manager_verified}
                             onVerified={fetchRequests}
@@ -614,6 +723,48 @@ Thank you for being part of Welile! 🏠`;
                         {format(new Date(request.created_at), 'MMM d, yyyy h:mm a')}
                       </div>
                       <div className="flex gap-2">
+                        {/* Share with Agent via WhatsApp */}
+                        {!request.agent_verified && (
+                          <Button
+                            size="default"
+                            variant="outline"
+                            onClick={(e) => {
+                              e.preventDefault();
+                              e.stopPropagation();
+                              const tenant = request.tenant;
+                              const landlord = request.landlord;
+                              const appUrl = 'https://welilereceipts-com.lovable.app';
+                              const msg = `🏠 *VERIFICATION REQUEST*
+
+Hi Agent! A tenant needs verification. Please verify them on the Welile app.
+
+👤 *Tenant:* ${tenant?.full_name || 'Unknown'}
+📍 *Location:* ${[tenant?.city, tenant?.country].filter(Boolean).join(', ') || 'N/A'}
+💰 *Rent:* ${formatUGX(request.rent_amount)}
+
+🏢 *Landlord:* ${landlord?.name || 'Unknown'}
+📫 *Property:* ${landlord?.property_address || 'N/A'}
+
+📋 *What to do:*
+1. Visit the tenant & landlord in person
+2. Collect the landlord's 2 verification PINs
+3. Verify meter numbers (NWSC & UEDCL) and TIN
+4. Submit verification on the app
+
+💵 You earn *UGX 10,000* when the tenant's landlord receives rent!
+
+👉 Open app: ${appUrl}`;
+                              const encoded = encodeURIComponent(msg);
+                              window.open(`https://wa.me/?text=${encoded}`, '_blank');
+                              toast({ title: 'WhatsApp Opened', description: 'Share the message with an agent to verify this tenant' });
+                            }}
+                            className="text-[#25D366] border-[#25D366]/30 hover:bg-[#25D366]/10 min-h-[44px] touch-manipulation"
+                            type="button"
+                          >
+                            <Share2 className="h-4 w-4 mr-1" />
+                            Share
+                          </Button>
+                        )}
                         <Button
                           size="default"
                           variant="outline"

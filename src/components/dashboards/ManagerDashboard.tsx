@@ -879,6 +879,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     { icon: Users, label: 'User Management', onClick: () => navigate('/manager-access?tab=users'), separator: true },
     { icon: Receipt, label: 'Receipt Management', onClick: () => navigate('/manager-access?tab=receipts') },
     { icon: ChartBar, label: 'Financial Overview', onClick: () => navigate('/manager-access?tab=financials') },
+    { icon: FileText, label: 'General Ledger', onClick: () => navigate('/manager-access?tab=ledger') },
     { icon: Wallet, label: 'Investment Accounts', onClick: () => navigate('/manager-access?tab=investments') },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },

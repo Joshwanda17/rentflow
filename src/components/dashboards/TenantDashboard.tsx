@@ -35,6 +35,7 @@ import {
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
+import RentProcessTracker from '@/components/rent/RentProcessTracker';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 
@@ -264,6 +265,19 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </div>
             </motion.button>
           </div>
+
+          {/* Rent Process Tracker - Show for active requests */}
+          {rentRequests.length > 0 && (
+            <RentProcessTracker
+              requestStatus={rentRequests[0].status}
+              agentVerified={true}
+              managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
+              supporterFunded={['funded', 'disbursed', 'completed'].includes(rentRequests[0].status)}
+              fundRecipientType={(rentRequests[0] as any).fund_recipient_type}
+              fundRecipientName={(rentRequests[0] as any).fund_recipient_name}
+              fundRoutedAt={(rentRequests[0] as any).fund_routed_at}
+            />
+          )}
 
           {/* ADD ROLE COMPONENT */}
           <div className="flex justify-center">

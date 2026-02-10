@@ -230,6 +230,93 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_verifications: {
+        Row: {
+          agent_id: string
+          created_at: string | null
+          id: string
+          landlord_electricity_match: boolean | null
+          landlord_id: string
+          landlord_water_match: boolean | null
+          overall_match: boolean | null
+          pin_1_match: boolean | null
+          pin_2_match: boolean | null
+          rent_request_id: string
+          submitted_landlord_electricity_meter: string | null
+          submitted_landlord_water_meter: string | null
+          submitted_pin_1: string
+          submitted_pin_2: string
+          submitted_tenant_electricity_meter: string | null
+          submitted_tenant_water_meter: string | null
+          submitted_tin: string | null
+          tenant_electricity_match: boolean | null
+          tenant_water_match: boolean | null
+          tin_match: boolean | null
+          verified_at: string | null
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string | null
+          id?: string
+          landlord_electricity_match?: boolean | null
+          landlord_id: string
+          landlord_water_match?: boolean | null
+          overall_match?: boolean | null
+          pin_1_match?: boolean | null
+          pin_2_match?: boolean | null
+          rent_request_id: string
+          submitted_landlord_electricity_meter?: string | null
+          submitted_landlord_water_meter?: string | null
+          submitted_pin_1: string
+          submitted_pin_2: string
+          submitted_tenant_electricity_meter?: string | null
+          submitted_tenant_water_meter?: string | null
+          submitted_tin?: string | null
+          tenant_electricity_match?: boolean | null
+          tenant_water_match?: boolean | null
+          tin_match?: boolean | null
+          verified_at?: string | null
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string | null
+          id?: string
+          landlord_electricity_match?: boolean | null
+          landlord_id?: string
+          landlord_water_match?: boolean | null
+          overall_match?: boolean | null
+          pin_1_match?: boolean | null
+          pin_2_match?: boolean | null
+          rent_request_id?: string
+          submitted_landlord_electricity_meter?: string | null
+          submitted_landlord_water_meter?: string | null
+          submitted_pin_1?: string
+          submitted_pin_2?: string
+          submitted_tenant_electricity_meter?: string | null
+          submitted_tenant_water_meter?: string | null
+          submitted_tin?: string | null
+          tenant_electricity_match?: boolean | null
+          tenant_water_match?: boolean | null
+          tin_match?: boolean | null
+          verified_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_verifications_landlord_id_fkey"
+            columns: ["landlord_id"]
+            isOneToOne: false
+            referencedRelation: "landlords"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_verifications_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       ai_analysis_sessions: {
         Row: {
           analysis_summary: Json | null
@@ -1238,6 +1325,9 @@ export type Database = {
           ready_to_receive: boolean | null
           registered_by: string | null
           tenant_id: string | null
+          tin: string | null
+          verification_pin_1: string | null
+          verification_pin_2: string | null
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
@@ -1271,6 +1361,9 @@ export type Database = {
           ready_to_receive?: boolean | null
           registered_by?: string | null
           tenant_id?: string | null
+          tin?: string | null
+          verification_pin_1?: string | null
+          verification_pin_2?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -1304,6 +1397,9 @@ export type Database = {
           ready_to_receive?: boolean | null
           registered_by?: string | null
           tenant_id?: string | null
+          tin?: string | null
+          verification_pin_1?: string | null
+          verification_pin_2?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
@@ -2439,6 +2535,10 @@ export type Database = {
           daily_repayment: number
           disbursed_at: string | null
           duration_days: number
+          fund_recipient_id: string | null
+          fund_recipient_name: string | null
+          fund_recipient_type: string | null
+          fund_routed_at: string | null
           funded_at: string | null
           id: string
           landlord_id: string
@@ -2453,7 +2553,9 @@ export type Database = {
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
+          tenant_electricity_meter: string | null
           tenant_id: string
+          tenant_water_meter: string | null
           total_repayment: number
           updated_at: string
         }
@@ -2470,6 +2572,10 @@ export type Database = {
           daily_repayment: number
           disbursed_at?: string | null
           duration_days: number
+          fund_recipient_id?: string | null
+          fund_recipient_name?: string | null
+          fund_recipient_type?: string | null
+          fund_routed_at?: string | null
           funded_at?: string | null
           id?: string
           landlord_id: string
@@ -2484,7 +2590,9 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenant_electricity_meter?: string | null
           tenant_id: string
+          tenant_water_meter?: string | null
           total_repayment: number
           updated_at?: string
         }
@@ -2501,6 +2609,10 @@ export type Database = {
           daily_repayment?: number
           disbursed_at?: string | null
           duration_days?: number
+          fund_recipient_id?: string | null
+          fund_recipient_name?: string | null
+          fund_recipient_type?: string | null
+          fund_routed_at?: string | null
           funded_at?: string | null
           id?: string
           landlord_id?: string
@@ -2515,7 +2627,9 @@ export type Database = {
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
+          tenant_electricity_meter?: string | null
           tenant_id?: string
+          tenant_water_meter?: string | null
           total_repayment?: number
           updated_at?: string
         }
@@ -3895,6 +4009,7 @@ export type Database = {
           amount: number
           created_at: string
           id: string
+          mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
           processed_at: string | null
@@ -3909,6 +4024,7 @@ export type Database = {
           amount: number
           created_at?: string
           id?: string
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           processed_at?: string | null
@@ -3923,6 +4039,7 @@ export type Database = {
           amount?: number
           created_at?: string
           id?: string
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
           processed_at?: string | null

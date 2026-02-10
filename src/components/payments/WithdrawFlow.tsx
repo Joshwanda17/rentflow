@@ -13,7 +13,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { InputOTP, InputOTPGroup, InputOTPSlot } from '@/components/ui/input-otp';
 import { LOCAL_PAYMENT_METHODS, INTERNATIONAL_PAYMENT_METHODS, formatCurrency, calculateFee, SUPPORTED_CURRENCIES } from '@/lib/paymentMethods';
 import { PaymentMethod } from './PaymentMethodCard';
-import { Wallet, TrendingUp, Lock } from 'lucide-react';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
+import { Wallet, TrendingUp, Lock, Phone } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -29,6 +30,7 @@ interface WithdrawFlowProps {
 const STEPS: Step[] = [
   { id: 'source', title: 'Select Source' },
   { id: 'amount', title: 'Amount' },
+  { id: 'momo', title: 'Mobile Money' },
   { id: 'destination', title: 'Destination' },
   { id: 'security', title: 'Verify' },
   { id: 'process', title: 'Processing' },
@@ -48,6 +50,9 @@ export default function WithdrawFlow({
   const [currency, setCurrency] = useState('UGX');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [pin, setPin] = useState('');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoName, setMomoName] = useState('');
+  const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
@@ -64,6 +69,9 @@ export default function WithdrawFlow({
     setCurrency('UGX');
     setSelectedMethod(null);
     setPin('');
+    setMomoNumber('');
+    setMomoName('');
+    setMomoProvider('MTN');
     setIsProcessing(false);
     setIsComplete(false);
     setWithdrawalRef('');
@@ -78,8 +86,9 @@ export default function WithdrawFlow({
     switch (currentStep) {
       case 0: return true;
       case 1: return amount > 0 && amount <= maxAmount;
-      case 2: return selectedMethod !== null;
-      case 3: return pin.length === 4;
+      case 2: return momoNumber.trim().length >= 9 && momoName.trim().length >= 2;
+      case 3: return selectedMethod !== null;
+      case 4: return pin.length === 4;
       default: return false;
     }
   };
@@ -119,7 +128,7 @@ export default function WithdrawFlow({
         throw new Error('Balance changed during withdrawal. Please try again.');
       }
 
-      // Record the withdrawal
+      // Record the withdrawal in wallet_withdrawals
       const ref = `WTH-${Date.now()}`;
       const { error: recordError } = await supabase
         .from('wallet_withdrawals')
@@ -131,11 +140,27 @@ export default function WithdrawFlow({
 
       if (recordError) {
         console.error('Failed to record withdrawal:', recordError);
-        // Don't throw - the balance was already deducted successfully
+      }
+
+      // Also record in withdrawal_requests for manager approval tracking
+      const { error: requestError } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: user.id,
+          amount: amount,
+          mobile_money_number: momoNumber.trim(),
+          mobile_money_name: momoName.trim(),
+          mobile_money_provider: momoProvider.toLowerCase(),
+          status: 'pending',
+        });
+
+      if (requestError) {
+        console.error('Failed to record withdrawal request:', requestError);
       }
 
       setWithdrawalRef(ref);
       setPaymentStatus('success');
+      toast.success('Withdrawal request submitted! Please wait for manager approval before funds are released.');
       onSuccess?.();
     } catch (error: any) {
       console.error('Withdrawal failed:', error);
@@ -145,8 +170,8 @@ export default function WithdrawFlow({
   };
 
   const handleNext = () => {
-    if (currentStep === 3) {
-      setCurrentStep(4);
+    if (currentStep === 4) {
+      setCurrentStep(5);
       setIsProcessing(true);
     }
   };
@@ -252,6 +277,69 @@ export default function WithdrawFlow({
 
       case 2:
         return (
+          <div className="space-y-5">
+            <div className="text-center mb-2">
+              <h3 className="font-semibold text-lg">Mobile Money Details</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the mobile money number to receive funds
+              </p>
+            </div>
+
+            {/* Provider Selection */}
+            <div className="space-y-2">
+              <Label>Mobile Money Provider</Label>
+              <RadioGroup
+                value={momoProvider}
+                onValueChange={(v) => setMomoProvider(v as 'MTN' | 'Airtel')}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="MTN" id="withdraw-mtn" />
+                  <Label htmlFor="withdraw-mtn" className="font-medium text-yellow-600 cursor-pointer">MTN</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Airtel" id="withdraw-airtel" />
+                  <Label htmlFor="withdraw-airtel" className="font-medium text-red-600 cursor-pointer">Airtel</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Phone Number */}
+            <div className="space-y-2">
+              <Label htmlFor="momo-number">Mobile Money Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="momo-number"
+                  type="tel"
+                  placeholder="e.g. 0770123456"
+                  value={momoNumber}
+                  onChange={(e) => setMomoNumber(e.target.value)}
+                  className="h-12 text-base pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Registered Name */}
+            <div className="space-y-2">
+              <Label htmlFor="momo-name">Registered Name (as shown on Mobile Money)</Label>
+              <Input
+                id="momo-name"
+                type="text"
+                placeholder="e.g. JOHN DOE"
+                value={momoName}
+                onChange={(e) => setMomoName(e.target.value)}
+                className="h-12 text-base"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the name exactly as it appears on the mobile money account
+              </p>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
           <div className="space-y-4">
             <Tabs defaultValue="local" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
@@ -303,7 +391,7 @@ export default function WithdrawFlow({
           </div>
         );
 
-      case 3:
+      case 4:
         return (
           <div className="space-y-6 text-center">
             <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center">
@@ -334,7 +422,8 @@ export default function WithdrawFlow({
                 { label: 'From', value: source === 'available' ? 'Available Balance' : 'ROI Earnings' },
                 { label: 'Amount', value: formatCurrency(amount, currency) },
                 { label: 'Fee', value: formatCurrency(fee, currency), secondary: true },
-                { label: 'To', value: selectedMethod?.name || '' },
+                { label: 'To', value: `${momoProvider} - ${momoNumber}` },
+                { label: 'Name', value: momoName },
               ]}
               total={{ label: "You'll Receive", value: formatCurrency(netAmount, currency) }}
               showSecurityNote={false}
@@ -342,7 +431,7 @@ export default function WithdrawFlow({
           </div>
         );
 
-      case 4:
+      case 5:
         if (isProcessing) {
           return <ProcessingScreen onComplete={handleProcessingComplete} />;
         }
@@ -380,8 +469,8 @@ export default function WithdrawFlow({
       onStepChange={setCurrentStep}
       canGoNext={canProceed()}
       onNext={handleNext}
-      showNavigation={currentStep < 4 && !isProcessing && !isComplete}
-      nextLabel={currentStep === 3 ? 'Confirm Withdrawal' : 'Continue'}
+      showNavigation={currentStep < 5 && !isProcessing && !isComplete}
+      nextLabel={currentStep === 4 ? 'Confirm Withdrawal' : 'Continue'}
       isProcessing={isProcessing}
       isComplete={isComplete}
     >

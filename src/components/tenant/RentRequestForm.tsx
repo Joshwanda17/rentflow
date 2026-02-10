@@ -37,10 +37,15 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [tenantFullName, setTenantFullName] = useState('');
   
+  // Tenant utility meters
+  const [tenantWaterMeter, setTenantWaterMeter] = useState('');
+  const [tenantElectricityMeter, setTenantElectricityMeter] = useState('');
+  
   // Landlord details
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [landlordNationalId, setLandlordNationalId] = useState('');
+  const [landlordTin, setLandlordTin] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [waterMeterNumber, setWaterMeterNumber] = useState('');
   const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
@@ -87,7 +92,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         .eq('id', userId);
     }
 
-    // Create landlord with utility meter numbers
+    // Create landlord with utility meter numbers and TIN
     const { data: landlord, error: landlordError } = await supabase
       .from('landlords')
       .insert({ 
@@ -95,8 +100,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         phone: landlordPhone, 
         property_address: propertyAddress,
         water_meter_number: waterMeterNumber.trim() || null,
-        electricity_meter_number: electricityMeterNumber.trim() || null
-      })
+        electricity_meter_number: electricityMeterNumber.trim() || null,
+        tin: landlordTin.trim() || null,
+      } as any)
       .select('id')
       .single();
 
@@ -122,7 +128,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     // Get referral agent ID from localStorage
     const agentId = localStorage.getItem('referral_agent_id');
 
-    // Create rent request with number_of_payments
+    // Create rent request with number_of_payments and tenant meters
     const { data: rentRequest, error: requestError } = await supabase
       .from('rent_requests')
       .insert({
@@ -138,7 +144,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         daily_repayment: calc.dailyRepayment,
         number_of_payments: numberOfPayments,
         schedule_status: 'pending_acceptance',
-      })
+        tenant_water_meter: tenantWaterMeter.trim() || null,
+        tenant_electricity_meter: tenantElectricityMeter.trim() || null,
+      } as any)
       .select('id')
       .single();
 
@@ -201,6 +209,28 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                   onChange={(e) => setTenantNationalId(e.target.value.toUpperCase())}
                   required
                 />
+              </div>
+            </div>
+            {/* Tenant Utility Meters */}
+            <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
+              <p className="text-xs text-muted-foreground font-medium">Your Utility Meter Numbers</p>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="space-y-1">
+                  <Label className="text-xs">Your NWSC Water Meter</Label>
+                  <Input 
+                    placeholder="Your water meter number" 
+                    value={tenantWaterMeter} 
+                    onChange={(e) => setTenantWaterMeter(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Your UEDCL/UMEME Electricity Meter</Label>
+                  <Input 
+                    placeholder="Your electricity meter number" 
+                    value={tenantElectricityMeter} 
+                    onChange={(e) => setTenantElectricityMeter(e.target.value)}
+                  />
+                </div>
               </div>
             </div>
           </div>
@@ -324,6 +354,10 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
               <Input placeholder="Landlord Phone" value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} required />
             </div>
             <Input placeholder="Property Address" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required />
+            <div className="space-y-1">
+              <Label className="text-xs">Landlord TIN (Tax Identification Number)</Label>
+              <Input placeholder="Landlord's TIN" value={landlordTin} onChange={(e) => setLandlordTin(e.target.value)} />
+            </div>
             
             {/* Uganda Utility Meters */}
             <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">

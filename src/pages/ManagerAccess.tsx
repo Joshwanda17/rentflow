@@ -42,6 +42,7 @@ import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsMa
 import UserProfilesTable from '@/components/manager/UserProfilesTable';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
+import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { ManagerInvestmentRequestsSection } from '@/components/manager/ManagerInvestmentRequestsSection';
@@ -50,6 +51,7 @@ import { ActivityManager } from '@/components/manager/ActivityManager';
 import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
 import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
+import FundFlowTracker from '@/components/manager/FundFlowTracker';
 import UserLocationsManager from '@/components/manager/UserLocationsManager';
  import LandlordLocationsMap from '@/components/map/LandlordLocationsMap';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
@@ -686,6 +688,10 @@ export default function ManagerAccess() {
               <MapPin className="h-3.5 w-3.5" />
               Locations
             </TabsTrigger>
+            <TabsTrigger value="ledger" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <FileText className="h-3.5 w-3.5" />
+              Ledger
+            </TabsTrigger>
           </TabsList>
 
           <TabsContent value="activities" className="mt-4">
@@ -693,7 +699,10 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="rent-requests" className="mt-4">
-            <RentRequestsManager />
+            <div className="space-y-4">
+              <FundFlowTracker />
+              <RentRequestsManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="loans" className="mt-4">
@@ -744,6 +753,10 @@ export default function ManagerAccess() {
 
           <TabsContent value="financials" className="mt-4">
             <FinancialOverview />
+          </TabsContent>
+
+          <TabsContent value="ledger" className="mt-4">
+            <GeneralLedger />
           </TabsContent>
 
           <TabsContent value="deposits" className="mt-4">
