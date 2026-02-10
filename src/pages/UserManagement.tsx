@@ -92,6 +92,8 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('last_active');
+  const [totalUserCount, setTotalUserCount] = useState<number>(0);
+  const [showHeaderSearch, setShowHeaderSearch] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
