@@ -170,8 +170,8 @@ export default function WithdrawFlow({
   };
 
   const handleNext = () => {
-    if (currentStep === 3) {
-      setCurrentStep(4);
+    if (currentStep === 4) {
+      setCurrentStep(5);
       setIsProcessing(true);
     }
   };
