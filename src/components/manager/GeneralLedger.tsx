@@ -335,7 +335,7 @@ export function GeneralLedger() {
   const handleExportCSV = () => {
     exportToCSV({
       headers: ['#', 'Date', 'Description', 'Category', 'Reference', 'Party', 'Debit', 'Credit', 'Balance'],
-      rows: entries.map((e, i) => [
+      rows: filteredEntries.map((e, i) => [
         i + 1,
         format(new Date(e.date), 'dd/MM/yyyy'),
         e.description,
