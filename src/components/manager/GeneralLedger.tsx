@@ -266,6 +266,7 @@ export function GeneralLedger() {
         <h1>WELILE - General Ledger</h1>
         <p class="subtitle">
           Period: ${startDate ? format(startDate, 'dd MMM yyyy') : 'All time'} - ${endDate ? format(endDate, 'dd MMM yyyy') : 'Present'}
+          ${categoryFilter !== 'all' ? '<br/>Filter: ' + categoryFilter : ''}${directionFilter !== 'all' ? ' | ' + directionFilter + ' only' : ''}
           <br/>Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}
         </p>
         <div class="summary">
