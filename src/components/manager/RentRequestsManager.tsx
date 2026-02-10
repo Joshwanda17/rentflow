@@ -20,6 +20,7 @@ import {
   MessageCircle,
   Send,
   History,
+  Share2,
   CheckCircle2,
   Phone,
   Shield,
