@@ -354,6 +354,10 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
               <Input placeholder="Landlord Phone" value={landlordPhone} onChange={(e) => setLandlordPhone(e.target.value)} required />
             </div>
             <Input placeholder="Property Address" value={propertyAddress} onChange={(e) => setPropertyAddress(e.target.value)} required />
+            <div className="space-y-1">
+              <Label className="text-xs">Landlord TIN (Tax Identification Number)</Label>
+              <Input placeholder="Landlord's TIN" value={landlordTin} onChange={(e) => setLandlordTin(e.target.value)} />
+            </div>
             
             {/* Uganda Utility Meters */}
             <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
