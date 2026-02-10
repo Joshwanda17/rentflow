@@ -9,7 +9,6 @@ interface Profile {
   email: string;
   phone: string;
   avatar_url: string | null;
-  verified: boolean;
 }
 
 export function useProfile() {
@@ -31,7 +30,7 @@ export function useProfile() {
     try {
       const cached = await getCachedProfile(user.id);
       if (cached) {
-        setProfile(cached as Profile);
+        setProfile(cached);
         setIsOfflineData(true);
       }
     } catch (e) {
@@ -43,7 +42,7 @@ export function useProfile() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, verified')
+          .select('id, full_name, email, phone, avatar_url')
           .eq('id', user.id)
           .single();
 
@@ -74,7 +73,7 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, verified')
+      .select('id, full_name, email, phone, avatar_url')
       .eq('id', user.id)
       .single();
 

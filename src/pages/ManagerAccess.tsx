@@ -55,8 +55,6 @@ import UserLocationsManager from '@/components/manager/UserLocationsManager';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
-import { RejectedPayoutsHistory } from '@/components/manager/RejectedPayoutsHistory';
-import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -754,45 +752,21 @@ export default function ManagerAccess() {
 
           <TabsContent value="investments" className="mt-4">
             <div className="space-y-4">
-              <CollapsibleAgentSection
-                icon={Wallet}
-                label="Investment Requests"
-                iconColor="text-warning"
-              >
-                <ManagerInvestmentRequestsSection />
-              </CollapsibleAgentSection>
-              <CollapsibleAgentSection
-                icon={Wallet}
-                label="Investment Accounts"
-                iconColor="text-primary"
-              >
-                <InvestmentAccountsManager />
-              </CollapsibleAgentSection>
+              <ManagerInvestmentRequestsSection />
+              <InvestmentAccountsManager />
             </div>
           </TabsContent>
 
           <TabsContent value="payments" className="mt-4">
             <div className="space-y-4">
-              <CollapsibleAgentSection
-                icon={CreditCard}
-                label="Record & Confirm Payments"
-                iconColor="text-primary"
-              >
-                <div className="grid gap-4 lg:grid-cols-2">
-                  <RecordMerchantPayment />
-                  <PaymentConfirmationsManager />
-                </div>
-              </CollapsibleAgentSection>
-              <CollapsibleAgentSection
-                icon={Banknote}
-                label="ROI & Rewards"
-                iconColor="text-success"
-              >
-                <div className="grid gap-4 md:grid-cols-2">
-                  <SupporterROITrigger />
-                  <MonthlyRewardsTrigger />
-                </div>
-              </CollapsibleAgentSection>
+              <div className="grid gap-4 lg:grid-cols-2">
+                <RecordMerchantPayment />
+                <PaymentConfirmationsManager />
+              </div>
+              <div className="grid gap-4 md:grid-cols-2">
+                <SupporterROITrigger />
+                <MonthlyRewardsTrigger />
+              </div>
             </div>
           </TabsContent>
 
@@ -801,70 +775,25 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="welile-homes" className="mt-4">
-            <div className="space-y-4">
-              <CollapsibleAgentSection
-                icon={Home}
-                label="Subscriptions"
-                iconColor="text-primary"
-              >
-                <WelileHomesSubscriptionsManager />
-              </CollapsibleAgentSection>
-              <CollapsibleAgentSection
-                icon={BanknoteIcon}
-                label="Welile Homes Withdrawals"
-                iconColor="text-warning"
-              >
-                <WelileHomesWithdrawalsManager />
-              </CollapsibleAgentSection>
+            <div className="space-y-6">
+              <WelileHomesSubscriptionsManager />
+              <WelileHomesWithdrawalsManager />
             </div>
           </TabsContent>
 
           <TabsContent value="withdrawals" className="mt-4">
-            <div className="space-y-4">
-              <CollapsibleAgentSection
-                icon={Banknote}
-                label="Pending Payouts"
-                iconColor="text-warning"
-              >
-                <AgentCommissionPayoutsManager />
-              </CollapsibleAgentSection>
-
-              <CollapsibleAgentSection
-                icon={BadgeCheck}
-                label="Paid Agents"
-                iconColor="text-success"
-              >
-                <PaidAgentsHistory />
-              </CollapsibleAgentSection>
-
-              <CollapsibleAgentSection
-                icon={X}
-                label="Rejected Payouts"
-                iconColor="text-destructive"
-              >
-                <RejectedPayoutsHistory />
-              </CollapsibleAgentSection>
+            <div className="space-y-6">
+              <AgentCommissionPayoutsManager />
+              <PaidAgentsHistory />
             </div>
           </TabsContent>
 
           <TabsContent value="locations" className="mt-4">
-             <div className="space-y-4">
-               <CollapsibleAgentSection
-                 icon={MapPin}
-                 label="Landlord Locations Map"
-                 iconColor="text-primary"
-               >
-                 <LandlordLocationsMap />
-               </CollapsibleAgentSection>
-               <CollapsibleAgentSection
-                 icon={MapPin}
-                 label="User Locations"
-                 iconColor="text-muted-foreground"
-               >
-                 <UserLocationsManager />
-               </CollapsibleAgentSection>
+             <div className="space-y-6">
+               <LandlordLocationsMap />
+               <UserLocationsManager />
              </div>
-           </TabsContent>
+          </TabsContent>
         </Tabs>
       </main>
     </div>

@@ -10,7 +10,7 @@ import {
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Store, Users,
   FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins,
-  Menu, ChevronRight, BadgeCheck
+  Menu, ChevronRight
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
@@ -564,13 +564,8 @@ export default function SupporterDashboard({
               <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
             </button>
             <div>
-              <h1 className="font-bold text-2xl flex items-center justify-center gap-1.5">
+              <h1 className="font-bold text-2xl">
                 {profile?.full_name || 'Supporter'}
-                {profile?.verified ? (
-                  <BadgeCheck className="h-5 w-5 text-violet-500 fill-violet-500/20 shrink-0" />
-                ) : (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium">Unverified</span>
-                )}
               </h1>
               <p className="text-sm text-muted-foreground">Welile Supporter</p>
             </div>

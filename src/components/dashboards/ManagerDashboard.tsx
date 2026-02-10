@@ -33,7 +33,7 @@ import {
   FileSpreadsheet,
   Minus,
   Target,
-  Edit3,
+  Pencil,
   Check,
   X,
   History,
@@ -50,8 +50,7 @@ import {
   Save,
   BookmarkPlus,
   Shield,
-  AlertTriangle,
-  BadgeCheck
+  AlertTriangle
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -963,13 +962,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
-        <CollapsibleAgentSection
-          icon={Wallet}
-          label="Pending Investments"
-          iconColor="text-primary"
-        >
-          <PendingInvestmentRequestsWidget />
-        </CollapsibleAgentSection>
+        <PendingInvestmentRequestsWidget />
 
         {/* Paid Agents History */}
         <CollapsibleAgentSection
@@ -981,20 +974,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Force Refresh Manager - Push updates to users */}
-        <CollapsibleAgentSection
-          icon={Users}
-          label="Force Refresh"
-          iconColor="text-muted-foreground"
-        >
-          <ForceRefreshManager />
-        </CollapsibleAgentSection>
+        <ForceRefreshManager />
 
         {/* Stats Summary - Larger cards for mobile */}
-        <CollapsibleAgentSection
-          icon={TrendingUp}
-          label="Live Stats"
-          iconColor="text-success"
-        >
         <div className="grid grid-cols-2 gap-3">
           <Card 
             className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
@@ -1032,7 +1014,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         </div>
-        </CollapsibleAgentSection>
 
         {/* Duplicate Phone Numbers Alert */}
         {duplicateCount > 0 && (
@@ -1081,11 +1062,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
-        <CollapsibleAgentSection
-          icon={UserCheck}
-          label="Active Users"
-          iconColor="text-success"
-        >
         <ActiveUsersCard 
           activeUsers={activeOnlineUsers}
           totalUsers={totalUsers}
@@ -1107,7 +1083,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
-        </CollapsibleAgentSection>
 
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">
@@ -1208,7 +1183,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                     className="h-6 px-2 text-xs"
                     onClick={() => setIsEditingTarget(true)}
                   >
-                    <Edit3 className="h-3 w-3 mr-1" />
+                    <Pencil className="h-3 w-3 mr-1" />
                     {monthlyTarget ? 'Edit' : 'Set'}
                   </Button>
                 ) : (
@@ -2140,9 +2115,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         >
           <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
           <div className="flex-1 min-w-0 text-left">
-            <h2 className="font-semibold text-base truncate flex items-center gap-1.5">
+            <h2 className="font-semibold text-base truncate">
               {profile?.full_name || 'Manager'}
-              <BadgeCheck className="h-4 w-4 text-violet-500 fill-violet-500/20 shrink-0" />
             </h2>
             <p className="text-sm text-muted-foreground truncate">
               Platform Administrator
@@ -2333,31 +2307,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </div>
 
         {/* Supporter Invites List */}
-        <CollapsibleAgentSection
-          icon={Users}
-          label="Supporter Invites"
-          iconColor="text-primary"
-        >
-          <SupporterInvitesList />
-        </CollapsibleAgentSection>
+        <SupporterInvitesList />
 
         {/* Food Receipt Promo */}
-        <CollapsibleAgentSection
-          icon={Receipt}
-          label="Food Receipt Promo"
-          iconColor="text-success"
-        >
-          <FoodReceiptPromoCard userId={user.id} />
-        </CollapsibleAgentSection>
+        <FoodReceiptPromoCard userId={user.id} />
 
         {/* Food Shopping Loans */}
-        <CollapsibleAgentSection
-          icon={Banknote}
-          label="Food Shopping Loans"
-          iconColor="text-warning"
-        >
-          <FoodShoppingLoansSection />
-        </CollapsibleAgentSection>
+        <FoodShoppingLoansSection />
         </>
         )}
       </main>
