@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import welileLogo from '@/assets/welile-logo.png';
+import welileLogo from '@/assets/welile-logo-small.png';
 
 interface WelileLogoProps {
   showText?: boolean;
