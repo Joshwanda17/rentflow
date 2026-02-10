@@ -128,7 +128,7 @@ export default function WithdrawFlow({
         throw new Error('Balance changed during withdrawal. Please try again.');
       }
 
-      // Record the withdrawal
+      // Record the withdrawal in wallet_withdrawals
       const ref = `WTH-${Date.now()}`;
       const { error: recordError } = await supabase
         .from('wallet_withdrawals')
@@ -140,7 +140,22 @@ export default function WithdrawFlow({
 
       if (recordError) {
         console.error('Failed to record withdrawal:', recordError);
-        // Don't throw - the balance was already deducted successfully
+      }
+
+      // Also record in withdrawal_requests for manager approval tracking
+      const { error: requestError } = await supabase
+        .from('withdrawal_requests')
+        .insert({
+          user_id: user.id,
+          amount: amount,
+          mobile_money_number: momoNumber.trim(),
+          mobile_money_name: momoName.trim(),
+          mobile_money_provider: momoProvider.toLowerCase(),
+          status: 'pending',
+        });
+
+      if (requestError) {
+        console.error('Failed to record withdrawal request:', requestError);
       }
 
       setWithdrawalRef(ref);
