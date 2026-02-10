@@ -302,7 +302,7 @@ export function GeneralLedger() {
             </tr>
           </thead>
           <tbody>
-            ${entries.map((e, i) => `
+            ${filteredEntries.map((e, i) => `
               <tr>
                 <td>${i + 1}</td>
                 <td>${format(new Date(e.date), 'dd/MM/yyyy')}</td>
