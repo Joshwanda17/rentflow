@@ -759,7 +759,14 @@ export default function UserProfilesTable() {
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
+                        <h3 className="font-bold text-lg truncate pr-10 flex items-center gap-1.5">
+                          {user.full_name}
+                          {user.verified ? (
+                            <BadgeCheck className="h-5 w-5 text-violet-500 fill-violet-500/20 shrink-0" />
+                          ) : (
+                            <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-muted text-muted-foreground font-medium shrink-0">Unverified</span>
+                          )}
+                        </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-base text-muted-foreground truncate font-medium">{user.phone}</p>
                           <WhatsAppVerificationBadge
