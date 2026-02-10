@@ -116,7 +116,15 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
+    fetchTotalCount();
   }, []);
+
+  const fetchTotalCount = async () => {
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true });
+    if (count !== null) setTotalUserCount(count);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
