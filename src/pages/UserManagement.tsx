@@ -447,16 +447,17 @@ export default function UserManagement() {
         />
 
         {/* Search Bar - Always Visible Above "All Users" */}
-        <div className="px-2 py-1.5">
+        <div className="px-2 py-2">
           <div className="relative">
-            <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-[#8696a0]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search name, phone, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-8 pr-8 py-1.5 rounded-lg bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-xs focus:border-[#00a884]/50"
+              className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
+              style={{ fontSize: '16px' }}
             />
             {searchTerm && (
               <button
@@ -470,7 +471,7 @@ export default function UserManagement() {
         </div>
 
         {/* Filter Pills - Compact */}
-        <div className="flex gap-1 px-2 pb-1.5 overflow-x-auto scrollbar-hide">
+        <div className="flex gap-1.5 px-2 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
               key={filter.value}
@@ -479,14 +480,15 @@ export default function UserManagement() {
                 setRoleFilter(filter.value);
               }}
               className={cn(
-                "shrink-0 px-2 py-0.5 rounded-full text-[9px] font-medium transition-all active:scale-95",
+                "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[36px]",
                 roleFilter === filter.value
                   ? 'bg-[#00a884] text-white'
                   : 'bg-[#2a3942] text-[#8696a0]'
               )}
+              style={{ WebkitTapHighlightColor: 'transparent' }}
             >
               {filter.label}
-              <span className="ml-0.5 opacity-80">{filter.count}</span>
+              <span className="ml-1 opacity-80">{filter.count}</span>
             </button>
           ))}
         </div>
@@ -512,8 +514,12 @@ export default function UserManagement() {
       {/* User List - WhatsApp Chat Style */}
       <div 
         ref={listRef}
-        className="flex-1 overflow-auto overscroll-contain"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto overscroll-contain will-change-scroll"
+        style={{ 
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#3b4a54 transparent'
+        }}
       >
         {filteredUsers.length === 0 ? (
           <div className="text-center py-20 px-4">
@@ -530,9 +536,10 @@ export default function UserManagement() {
                 key={user.id}
                 onClick={() => handleUserClick(user)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 active:bg-[#182229] transition-colors cursor-pointer",
+                  "flex items-center gap-3 px-4 py-3.5 active:bg-[#182229] transition-colors cursor-pointer touch-manipulation min-h-[72px]",
                   selectedUserIds.has(user.id) && "bg-[#00a884]/10"
                 )}
+                style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 {/* Avatar with Online Indicator */}
                 <div 
