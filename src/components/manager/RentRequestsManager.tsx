@@ -23,8 +23,13 @@ import {
   CheckCircle2,
   Phone,
   Shield,
-  ShieldCheck
+  ShieldCheck,
+  Wallet,
+  MapPin,
+  CreditCard,
+  IdCard
 } from 'lucide-react';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
 import { parsePhoneNumber } from '@/lib/phoneUtils';
 import {
@@ -59,7 +64,21 @@ interface RentRequest {
   approved_by: string | null;
   agent_verified?: boolean;
   manager_verified?: boolean;
-  tenant?: { full_name: string; phone: string };
+  tenant?: {
+    full_name: string;
+    phone: string;
+    email?: string;
+    avatar_url?: string | null;
+    verified?: boolean;
+    national_id?: string | null;
+    city?: string | null;
+    country?: string | null;
+    created_at?: string;
+    monthly_rent?: number | null;
+    mobile_money_number?: string | null;
+    mobile_money_provider?: string | null;
+  };
+  tenantWalletBalance?: number;
   landlord?: { id: string; name: string; property_address: string; verified?: boolean; ready_to_receive?: boolean };
   missedDays?: number;
   paidAmount?: number;
@@ -112,23 +131,36 @@ export function RentRequestsManager() {
       return;
     }
 
-    // Fetch tenant profiles
+    // Fetch tenant profiles with full details
     const tenantIds = [...new Set((requestsData || []).map(r => r.tenant_id))];
-    const { data: profiles } = tenantIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
-      : { data: [] };
+    const [profilesRes, landlordsRes, repaymentsRes, walletsRes] = await Promise.all([
+      tenantIds.length > 0
+        ? supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, national_id, city, country, created_at, monthly_rent, mobile_money_number, mobile_money_provider').in('id', tenantIds)
+        : Promise.resolve({ data: [] }),
+      // Fetch landlords with verification status
+      (() => {
+        const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
+        return landlordIds.length > 0
+          ? supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch all repayments
+      (() => {
+        const requestIds = (requestsData || []).map(r => r.id);
+        return requestIds.length > 0
+          ? supabase.from('repayments').select('*').in('rent_request_id', requestIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch wallet balances for tenants
+      tenantIds.length > 0
+        ? supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds)
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    // Fetch landlords with verification status
-    const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
-    const { data: landlords } = landlordIds.length > 0
-      ? await supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
-      : { data: [] };
-
-    // Fetch all repayments to calculate missed days
-    const requestIds = (requestsData || []).map(r => r.id);
-    const { data: repayments } = requestIds.length > 0
-      ? await supabase.from('repayments').select('*').in('rent_request_id', requestIds)
-      : { data: [] };
+    const profiles = profilesRes.data;
+    const landlords = landlordsRes.data;
+    const repayments = repaymentsRes.data;
+    const walletsByUser = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance]));
 
     // Calculate missed days for each request
     const today = startOfDay(new Date());
@@ -166,6 +198,7 @@ export function RentRequestsManager() {
       return {
         ...r,
         tenant: profiles?.find(p => p.id === r.tenant_id),
+        tenantWalletBalance: walletsByUser.get(r.tenant_id) ?? 0,
         landlord: landlords?.find(l => l.id === r.landlord_id),
         missedDays,
         paidAmount
@@ -528,19 +561,77 @@ Thank you for being part of Welile! 🏠`;
             {pendingRequests.map((request) => (
               <Card key={request.id} className="border-warning/30">
                 <CardContent className="p-4">
-                  <div className="flex flex-col gap-3">
+                   <div className="flex flex-col gap-3">
+                    {/* Tenant Details Section */}
                     <div className="flex items-start justify-between">
-                      <div className="space-y-1">
-                        <div className="flex items-center gap-2">
-                          <User className="h-4 w-4 text-muted-foreground" />
-                          <span className="font-semibold">{request.tenant?.full_name || 'Unknown Tenant'}</span>
-                        </div>
-                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                          <Building className="h-3 w-3" />
-                          <span>{request.landlord?.name || 'Unknown'} - {request.landlord?.property_address || 'N/A'}</span>
+                      <div className="flex items-start gap-3">
+                        <Avatar className="h-11 w-11 border-2 border-border">
+                          <AvatarImage src={request.tenant?.avatar_url || undefined} />
+                          <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">
+                            {(request.tenant?.full_name || 'U').split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <span className="font-semibold">{request.tenant?.full_name || 'Unknown Tenant'}</span>
+                            {request.tenant?.verified && (
+                              <CheckCircle2 className="h-4 w-4 text-primary" />
+                            )}
+                          </div>
+                          <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                            <Phone className="h-3 w-3" />
+                            <span>{request.tenant?.phone || 'N/A'}</span>
+                          </div>
+                          {request.tenant?.email && (
+                            <p className="text-xs text-muted-foreground truncate max-w-[200px]">{request.tenant.email}</p>
+                          )}
                         </div>
                       </div>
                       {getStatusBadge(request.status)}
+                    </div>
+
+                    {/* Tenant Quick Info Grid */}
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
+                      <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                        <Wallet className="h-3.5 w-3.5 text-success" />
+                        <div>
+                          <p className="text-muted-foreground text-[10px]">Wallet</p>
+                          <p className="font-bold text-success">{formatUGX(request.tenantWalletBalance || 0)}</p>
+                        </div>
+                      </div>
+                      {request.tenant?.national_id && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <IdCard className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">NIN</p>
+                            <p className="font-bold truncate">{request.tenant.national_id}</p>
+                          </div>
+                        </div>
+                      )}
+                      {(request.tenant?.city || request.tenant?.country) && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <MapPin className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">Location</p>
+                            <p className="font-bold truncate">{[request.tenant.city, request.tenant.country].filter(Boolean).join(', ')}</p>
+                          </div>
+                        </div>
+                      )}
+                      {request.tenant?.mobile_money_number && (
+                        <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
+                          <CreditCard className="h-3.5 w-3.5 text-muted-foreground" />
+                          <div>
+                            <p className="text-muted-foreground text-[10px]">{request.tenant.mobile_money_provider || 'MoMo'}</p>
+                            <p className="font-bold truncate">{request.tenant.mobile_money_number}</p>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Landlord Info */}
+                    <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                      <Building className="h-3.5 w-3.5" />
+                      <span>{request.landlord?.name || 'Unknown'} — {request.landlord?.property_address || 'N/A'}</span>
                     </div>
 
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-sm">
