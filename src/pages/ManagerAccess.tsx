@@ -820,7 +820,7 @@ export default function ManagerAccess() {
                 <Button 
                   variant="ghost" 
                   size="icon" 
-                  onClick={() => handleTabChange('rent-requests')}
+                  onClick={() => handleTabChange('activities')}
                   className="text-white/90 hover:text-white hover:bg-white/10"
                 >
                   <ArrowLeft className="h-5 w-5" />
