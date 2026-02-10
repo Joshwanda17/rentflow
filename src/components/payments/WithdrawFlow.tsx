@@ -277,6 +277,69 @@ export default function WithdrawFlow({
 
       case 2:
         return (
+          <div className="space-y-5">
+            <div className="text-center mb-2">
+              <h3 className="font-semibold text-lg">Mobile Money Details</h3>
+              <p className="text-sm text-muted-foreground mt-1">
+                Enter the mobile money number to receive funds
+              </p>
+            </div>
+
+            {/* Provider Selection */}
+            <div className="space-y-2">
+              <Label>Mobile Money Provider</Label>
+              <RadioGroup
+                value={momoProvider}
+                onValueChange={(v) => setMomoProvider(v as 'MTN' | 'Airtel')}
+                className="flex gap-4"
+              >
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="MTN" id="withdraw-mtn" />
+                  <Label htmlFor="withdraw-mtn" className="font-medium text-yellow-600 cursor-pointer">MTN</Label>
+                </div>
+                <div className="flex items-center space-x-2">
+                  <RadioGroupItem value="Airtel" id="withdraw-airtel" />
+                  <Label htmlFor="withdraw-airtel" className="font-medium text-red-600 cursor-pointer">Airtel</Label>
+                </div>
+              </RadioGroup>
+            </div>
+
+            {/* Phone Number */}
+            <div className="space-y-2">
+              <Label htmlFor="momo-number">Mobile Money Number</Label>
+              <div className="relative">
+                <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                <Input
+                  id="momo-number"
+                  type="tel"
+                  placeholder="e.g. 0770123456"
+                  value={momoNumber}
+                  onChange={(e) => setMomoNumber(e.target.value)}
+                  className="h-12 text-base pl-10"
+                />
+              </div>
+            </div>
+
+            {/* Registered Name */}
+            <div className="space-y-2">
+              <Label htmlFor="momo-name">Registered Name (as shown on Mobile Money)</Label>
+              <Input
+                id="momo-name"
+                type="text"
+                placeholder="e.g. JOHN DOE"
+                value={momoName}
+                onChange={(e) => setMomoName(e.target.value)}
+                className="h-12 text-base"
+              />
+              <p className="text-xs text-muted-foreground">
+                Enter the name exactly as it appears on the mobile money account
+              </p>
+            </div>
+          </div>
+        );
+
+      case 3:
+        return (
           <div className="space-y-4">
             <Tabs defaultValue="local" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
