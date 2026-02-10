@@ -300,6 +300,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         property={payoutProperty}
       />
       
+      {/* Verification opportunities FAB */}
+      <VerificationOpportunitiesButton />
+      
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
