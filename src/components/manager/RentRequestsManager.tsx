@@ -688,6 +688,7 @@ Thank you for being part of Welile! 🏠`;
                           <span className="text-xs text-muted-foreground">Tenant:</span>
                           <VerifyTenantButton
                             requestId={request.id}
+                            landlordId={request.landlord_id}
                             agentVerified={request.agent_verified}
                             managerVerified={request.manager_verified}
                             onVerified={fetchRequests}

@@ -423,6 +423,7 @@ export function AgentRentRequestsManager() {
                         <div className="flex items-center gap-2">
                           <VerifyTenantButton
                             requestId={request.id}
+                            landlordId={request.landlord_id}
                             agentVerified={request.agent_verified}
                             managerVerified={request.manager_verified}
                             onVerified={fetchRequests}
