@@ -193,6 +193,7 @@ export function RentRequestsManager() {
       return {
         ...r,
         tenant: profiles?.find(p => p.id === r.tenant_id),
+        tenantWalletBalance: walletsByUser.get(r.tenant_id) ?? 0,
         landlord: landlords?.find(l => l.id === r.landlord_id),
         missedDays,
         paidAmount
