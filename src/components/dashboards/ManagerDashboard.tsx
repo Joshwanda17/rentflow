@@ -221,7 +221,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [userSortBy, setUserSortBy] = useState<'name' | 'referrals' | 'newest' | 'oldest' | 'last_active'>('referrals');
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
-  const [usersPerPage, setUsersPerPage] = useState(10);
+  const [usersPerPage, setUsersPerPage] = useState(25);
 
   // Compute online users from topOnboarders list
   const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
