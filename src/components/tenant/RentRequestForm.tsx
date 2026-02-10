@@ -37,10 +37,15 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [tenantFullName, setTenantFullName] = useState('');
   
+  // Tenant utility meters
+  const [tenantWaterMeter, setTenantWaterMeter] = useState('');
+  const [tenantElectricityMeter, setTenantElectricityMeter] = useState('');
+  
   // Landlord details
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [landlordNationalId, setLandlordNationalId] = useState('');
+  const [landlordTin, setLandlordTin] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
   const [waterMeterNumber, setWaterMeterNumber] = useState('');
   const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
