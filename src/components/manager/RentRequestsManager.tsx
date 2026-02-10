@@ -126,23 +126,36 @@ export function RentRequestsManager() {
       return;
     }
 
-    // Fetch tenant profiles
+    // Fetch tenant profiles with full details
     const tenantIds = [...new Set((requestsData || []).map(r => r.tenant_id))];
-    const { data: profiles } = tenantIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, phone').in('id', tenantIds)
-      : { data: [] };
+    const [profilesRes, landlordsRes, repaymentsRes, walletsRes] = await Promise.all([
+      tenantIds.length > 0
+        ? supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, national_id, city, country, created_at, monthly_rent, mobile_money_number, mobile_money_provider').in('id', tenantIds)
+        : Promise.resolve({ data: [] }),
+      // Fetch landlords with verification status
+      (() => {
+        const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
+        return landlordIds.length > 0
+          ? supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch all repayments
+      (() => {
+        const requestIds = (requestsData || []).map(r => r.id);
+        return requestIds.length > 0
+          ? supabase.from('repayments').select('*').in('rent_request_id', requestIds)
+          : Promise.resolve({ data: [] });
+      })(),
+      // Fetch wallet balances for tenants
+      tenantIds.length > 0
+        ? supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds)
+        : Promise.resolve({ data: [] }),
+    ]);
 
-    // Fetch landlords with verification status
-    const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
-    const { data: landlords } = landlordIds.length > 0
-      ? await supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
-      : { data: [] };
-
-    // Fetch all repayments to calculate missed days
-    const requestIds = (requestsData || []).map(r => r.id);
-    const { data: repayments } = requestIds.length > 0
-      ? await supabase.from('repayments').select('*').in('rent_request_id', requestIds)
-      : { data: [] };
+    const profiles = profilesRes.data;
+    const landlords = landlordsRes.data;
+    const repayments = repaymentsRes.data;
+    const walletsByUser = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance]));
 
     // Calculate missed days for each request
     const today = startOfDay(new Date());
