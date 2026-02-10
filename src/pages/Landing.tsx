@@ -63,11 +63,11 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary/5 via-background to-primary/10 flex flex-col">
-      {/* Header */}
+      {/* Header — h1 is LCP candidate, keep it simple and fast */}
       <header className="pt-safe-top px-4 py-6 text-center">
         <h1 
           className="text-4xl font-bold text-primary tracking-tight"
-          style={{ fontFamily: "'Chewy', cursive" }}
+          style={{ fontFamily: "'Chewy', cursive", contentVisibility: 'auto' }}
         >
           Welile
         </h1>

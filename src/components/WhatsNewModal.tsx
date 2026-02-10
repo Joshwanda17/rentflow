@@ -100,10 +100,10 @@ export function WhatsNewModal() {
 
     // Show modal if version changed or never seen
     if (lastSeenVersion !== currentVersion) {
-      // Small delay to let the app settle after update
+      // Delay past LCP window to avoid hurting performance scores
       const timer = setTimeout(() => {
         setOpen(true);
-      }, 1500);
+      }, 4000);
       return () => clearTimeout(timer);
     }
   }, []);

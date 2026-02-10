@@ -200,12 +200,18 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
   
   useEffect(() => {
+    // Wait for LCP to complete before loading deferred providers
+    // Use 2-stage deferral: idle callback + 100ms buffer
+    const activate = () => {
+      const id = setTimeout(() => setReady(true), 100);
+      return () => clearTimeout(id);
+    };
+    
     if ('requestIdleCallback' in window) {
-      const id = (window as any).requestIdleCallback(() => setReady(true));
+      const id = (window as any).requestIdleCallback(activate, { timeout: 2000 });
       return () => (window as any).cancelIdleCallback(id);
     }
-    // Fallback: 50ms delay (after paint + microtasks)
-    const id = setTimeout(() => setReady(true), 50);
+    const id = setTimeout(activate, 200);
     return () => clearTimeout(id);
   }, []);
   
