@@ -1081,6 +1081,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+        <CollapsibleAgentSection
+          icon={UserCheck}
+          label="Active Users"
+          iconColor="text-success"
+        >
         <ActiveUsersCard 
           activeUsers={activeOnlineUsers}
           totalUsers={totalUsers}
@@ -1102,6 +1107,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+        </CollapsibleAgentSection>
 
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">
