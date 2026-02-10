@@ -69,6 +69,9 @@ export default function WithdrawFlow({
     setCurrency('UGX');
     setSelectedMethod(null);
     setPin('');
+    setMomoNumber('');
+    setMomoName('');
+    setMomoProvider('MTN');
     setIsProcessing(false);
     setIsComplete(false);
     setWithdrawalRef('');
