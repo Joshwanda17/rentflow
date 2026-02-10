@@ -30,6 +30,7 @@ interface WithdrawFlowProps {
 const STEPS: Step[] = [
   { id: 'source', title: 'Select Source' },
   { id: 'amount', title: 'Amount' },
+  { id: 'momo', title: 'Mobile Money' },
   { id: 'destination', title: 'Destination' },
   { id: 'security', title: 'Verify' },
   { id: 'process', title: 'Processing' },
