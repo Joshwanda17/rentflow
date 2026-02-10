@@ -514,8 +514,12 @@ export default function UserManagement() {
       {/* User List - WhatsApp Chat Style */}
       <div 
         ref={listRef}
-        className="flex-1 overflow-auto overscroll-contain"
-        style={{ WebkitOverflowScrolling: 'touch' }}
+        className="flex-1 overflow-y-auto overscroll-contain will-change-scroll"
+        style={{ 
+          WebkitOverflowScrolling: 'touch',
+          scrollbarWidth: 'thin',
+          scrollbarColor: '#3b4a54 transparent'
+        }}
       >
         {filteredUsers.length === 0 ? (
           <div className="text-center py-20 px-4">
