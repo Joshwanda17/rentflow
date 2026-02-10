@@ -699,7 +699,10 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="rent-requests" className="mt-4">
-            <RentRequestsManager />
+            <div className="space-y-4">
+              <FundFlowTracker />
+              <RentRequestsManager />
+            </div>
           </TabsContent>
 
           <TabsContent value="loans" className="mt-4">
