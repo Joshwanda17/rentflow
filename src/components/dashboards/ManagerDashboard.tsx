@@ -1868,7 +1868,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                   </div>
                 )}
 
-                <div className="space-y-2 max-h-[400px] overflow-y-auto">
+                <div className="space-y-2">
                   {paginatedOnboarders.length > 0 ? paginatedOnboarders.map((onboarder, index) => {
                     const globalIndex = (currentPage - 1) * usersPerPage + index;
                     return (
