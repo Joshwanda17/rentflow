@@ -15,7 +15,7 @@ import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
 import InactiveUsersReachOutDialog from '@/components/manager/InactiveUsersReachOutDialog';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { QuickActionsDropdown } from '@/components/manager/QuickActionsDropdown';
+// QuickActionsDropdown removed - actions moved to menu
 import { CompactUserStats, StatFilter } from '@/components/manager/CompactUserStats';
 import { motion, AnimatePresence } from 'framer-motion';
 import { exportToCSV, formatDateForExport } from '@/lib/exportUtils';
@@ -92,6 +92,8 @@ export default function UserManagement() {
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
   const [sortBy, setSortBy] = useState<SortOption>('last_active');
+  const [totalUserCount, setTotalUserCount] = useState<number>(0);
+  const [showHeaderSearch, setShowHeaderSearch] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
@@ -114,7 +116,15 @@ export default function UserManagement() {
 
   useEffect(() => {
     fetchUsers();
+    fetchTotalCount();
   }, []);
+
+  const fetchTotalCount = async () => {
+    const { count } = await supabase
+      .from('profiles')
+      .select('id', { count: 'exact', head: true });
+    if (count !== null) setTotalUserCount(count);
+  };
 
   const fetchUsers = async () => {
     setLoading(true);
@@ -195,7 +205,7 @@ export default function UserManagement() {
   const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     hapticTap();
-    await fetchUsers();
+    await Promise.all([fetchUsers(), fetchTotalCount()]);
     setRefreshing(false);
     hapticSuccess();
   }, []);
@@ -381,8 +391,32 @@ export default function UserManagement() {
     <div className="min-h-screen bg-[#111b21] flex flex-col">
       {/* Compact Header with Quick Actions on Right */}
       <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
-        {/* Top Row: Back, Title, Quick Actions */}
-        <div className="flex items-center justify-between px-3 py-2">
+        {/* Search Row - Above Title */}
+        <div className="px-3 pt-2 pb-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search name, phone, email..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full pl-9 pr-9 py-2 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
+              style={{ fontSize: '16px' }}
+            />
+            {searchTerm && (
+              <button
+                onClick={() => setSearchTerm('')}
+                className="absolute right-2.5 top-1/2 -translate-y-1/2"
+              >
+                <X className="h-3.5 w-3.5 text-[#8696a0]" />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Title Row: Back, Title with count, Menu */}
+        <div className="flex items-center justify-between px-3 py-1.5">
           <div className="flex items-center gap-2">
             <button
               onClick={() => {
@@ -394,22 +428,13 @@ export default function UserManagement() {
             >
               <ArrowLeft className="h-5 w-5 text-[#aebac1]" />
             </button>
-            <h1 className="font-semibold text-lg text-white">All Users</h1>
+            <h1 className="font-semibold text-lg text-white">
+              All Users
+              <span className="ml-2 text-sm font-normal text-[#8696a0]">({totalUserCount})</span>
+            </h1>
           </div>
           
           <div className="flex items-center gap-1.5">
-            {/* Quick Actions Dropdown - Top Right */}
-            <QuickActionsDropdown
-              selectedCount={selectedUserIds.size}
-              onAddUser={() => setAddUserOpen(true)}
-              onNotify={() => setBulkNotificationOpen(true)}
-              onWhatsApp={() => setBulkWhatsAppOpen(true)}
-              onExport={handleExportCSV}
-              onAssignRole={() => setBulkAssignRoleOpen(true)}
-              onRemoveRole={() => setBulkRemoveRoleOpen(true)}
-              onReachOutInactive={() => setReachOutInactiveOpen(true)}
-            />
-            
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button 
@@ -420,7 +445,29 @@ export default function UserManagement() {
                   <MoreVertical className="h-4 w-4 text-[#aebac1]" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-44 bg-[#233138] border-[#3b4a54] text-white">
+              <DropdownMenuContent align="end" className="w-48 bg-[#233138] border-[#3b4a54] text-white">
+                <DropdownMenuItem onClick={() => setAddUserOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                  <Users className="h-3.5 w-3.5 text-[#00a884]" />
+                  Add User
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkNotificationOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                  Notify {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkWhatsAppOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                  WhatsApp {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={handleExportCSV} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                  Export CSV
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">
+                  Assign Role
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">
+                  Remove Role
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                  Reach Inactive
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={toggleSelectAll} className="hover:bg-[#182229] focus:bg-[#182229]">
                   {selectedUserIds.size === filteredUsers.length ? 'Deselect All' : 'Select All'}
                 </DropdownMenuItem>
@@ -438,7 +485,7 @@ export default function UserManagement() {
 
         {/* Compact Stats Row - Clickable to filter */}
         <CompactUserStats
-          totalUsers={users.length}
+          totalUsers={totalUserCount}
           onlineCount={activeUserCount}
           verifiedCount={users.filter(u => u.verified).length}
           inactiveCount={inactiveUserCount}
@@ -446,31 +493,6 @@ export default function UserManagement() {
           onFilterChange={setStatFilter}
         />
 
-        {/* Search Bar - Always Visible Above "All Users" */}
-        <div className="px-2 py-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
-            <input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search name, phone, email..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-9 py-2.5 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
-              style={{ fontSize: '16px' }}
-            />
-            {searchTerm && (
-              <button
-                onClick={() => setSearchTerm('')}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2"
-              >
-                <X className="h-3.5 w-3.5 text-[#8696a0]" />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Filter Pills - Compact */}
         <div className="flex gap-1.5 px-2 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
