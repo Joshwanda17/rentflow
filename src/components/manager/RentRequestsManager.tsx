@@ -44,6 +44,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
+import RentProcessTracker from '@/components/rent/RentProcessTracker';
 
 interface RentRequest {
   id: string;
