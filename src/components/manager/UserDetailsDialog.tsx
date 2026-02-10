@@ -1070,60 +1070,6 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </Card>
                   </div>
 
-                  {/* Verification Status */}
-                  <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {verificationStatus ? (
-                            <>
-                              <div className="p-2 rounded-full bg-success/20 shrink-0">
-                                <CheckCircle className="h-5 w-5 text-success" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-success">Verified</p>
-                                <p className="text-xs text-muted-foreground truncate">User is approved</p>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="p-2 rounded-full bg-warning/20 shrink-0">
-                                <XCircle className="h-5 w-5 text-warning" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-warning">Pending</p>
-                                <p className="text-xs text-muted-foreground truncate">Needs verification</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {!verificationStatus ? (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={handleApproveUser}
-                            disabled={approvingUser}
-                            className="gap-1 h-10 shrink-0"
-                          >
-                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                            Approve
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={handleRejectUser}
-                            disabled={rejectingUser}
-                            className="gap-1 h-10 shrink-0"
-                          >
-                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                            Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
-
                   {/* Status Badges */}
                   {user.rent_discount_active && (
                     <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
