@@ -51,6 +51,7 @@ import { ActivityManager } from '@/components/manager/ActivityManager';
 import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
 import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
 import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
+import FundFlowTracker from '@/components/manager/FundFlowTracker';
 import UserLocationsManager from '@/components/manager/UserLocationsManager';
  import LandlordLocationsMap from '@/components/map/LandlordLocationsMap';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
