@@ -27,7 +27,11 @@ import {
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 
-const UserDetailsDialog = lazy(() => import('@/components/manager/UserDetailsDialog'));
+const UserDetailsDialog = lazy(() => 
+  import('@/components/manager/UserDetailsDialog').then(mod => ({
+    default: (props: any) => <mod.default {...props} />
+  }))
+);
 
 interface PendingMessage {
   id: string;
