@@ -47,7 +47,7 @@ export default function FundFlowTracker() {
     const userIds = [
       ...new Set(
         requests
-          .flatMap((r) => [r.tenant_id, r.supporter_id, r.fund_recipient_id])
+          .flatMap((r) => [r.tenant_id, r.supporter_id])
           .filter(Boolean)
       ),
     ];
