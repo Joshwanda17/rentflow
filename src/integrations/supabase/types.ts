@@ -2439,6 +2439,10 @@ export type Database = {
           daily_repayment: number
           disbursed_at: string | null
           duration_days: number
+          fund_recipient_id: string | null
+          fund_recipient_name: string | null
+          fund_recipient_type: string | null
+          fund_routed_at: string | null
           funded_at: string | null
           id: string
           landlord_id: string
@@ -2470,6 +2474,10 @@ export type Database = {
           daily_repayment: number
           disbursed_at?: string | null
           duration_days: number
+          fund_recipient_id?: string | null
+          fund_recipient_name?: string | null
+          fund_recipient_type?: string | null
+          fund_routed_at?: string | null
           funded_at?: string | null
           id?: string
           landlord_id: string
@@ -2501,6 +2509,10 @@ export type Database = {
           daily_repayment?: number
           disbursed_at?: string | null
           duration_days?: number
+          fund_recipient_id?: string | null
+          fund_recipient_name?: string | null
+          fund_recipient_type?: string | null
+          fund_routed_at?: string | null
           funded_at?: string | null
           id?: string
           landlord_id?: string

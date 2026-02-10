@@ -44,6 +44,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
+import RentProcessTracker from '@/components/rent/RentProcessTracker';
 
 interface RentRequest {
   id: string;
@@ -64,6 +65,9 @@ interface RentRequest {
   approved_by: string | null;
   agent_verified?: boolean;
   manager_verified?: boolean;
+  fund_recipient_type?: string | null;
+  fund_recipient_name?: string | null;
+  fund_routed_at?: string | null;
   tenant?: {
     full_name: string;
     phone: string;
@@ -589,6 +593,18 @@ Thank you for being part of Welile! 🏠`;
                       </div>
                       {getStatusBadge(request.status)}
                     </div>
+
+                    {/* Process Step Tracker */}
+                    <RentProcessTracker
+                      requestStatus={request.status || 'pending'}
+                      agentVerified={request.agent_verified}
+                      managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      supporterFunded={['funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      fundRecipientType={request.fund_recipient_type}
+                      fundRecipientName={request.fund_recipient_name}
+                      fundRoutedAt={request.fund_routed_at}
+                      compact
+                    />
 
                     {/* Tenant Quick Info Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
