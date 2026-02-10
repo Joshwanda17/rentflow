@@ -456,7 +456,7 @@ export function WithdrawalRequestsManager() {
       // Balance deduction is handled automatically by the database trigger
       // when the status changes to 'approved' (with optimistic locking)
 
-      // 3. Update request status with transaction ID
+      // Update request status — this triggers the balance deduction automatically
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
