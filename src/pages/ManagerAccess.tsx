@@ -848,11 +848,23 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="locations" className="mt-4">
-             <div className="space-y-6">
-               <LandlordLocationsMap />
-               <UserLocationsManager />
+             <div className="space-y-4">
+               <CollapsibleAgentSection
+                 icon={MapPin}
+                 label="Landlord Locations Map"
+                 iconColor="text-primary"
+               >
+                 <LandlordLocationsMap />
+               </CollapsibleAgentSection>
+               <CollapsibleAgentSection
+                 icon={MapPin}
+                 label="User Locations"
+                 iconColor="text-muted-foreground"
+               >
+                 <UserLocationsManager />
+               </CollapsibleAgentSection>
              </div>
-          </TabsContent>
+           </TabsContent>
         </Tabs>
       </main>
     </div>
