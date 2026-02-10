@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Printer, Download, CalendarIcon, RefreshCw, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filter } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
