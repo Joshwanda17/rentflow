@@ -945,13 +945,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0 overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-4 pt-2 shrink-0">
               <TabsNavigation />
             </div>
 
             {/* Scrollable Content */}
-            <div className="flex-1 overflow-y-auto overscroll-contain touch-pan-y pb-safe" style={{ WebkitOverflowScrolling: 'touch' }}>
+            <ScrollArea className="flex-1 min-h-0">
+              <div className="pb-10">
               <TabsContent value="overview" className="mt-0">
                 <div className="p-4 space-y-5">
                   {/* Contact Info */}
