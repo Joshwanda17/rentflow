@@ -92,7 +92,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         .eq('id', userId);
     }
 
-    // Create landlord with utility meter numbers
+    // Create landlord with utility meter numbers and TIN
     const { data: landlord, error: landlordError } = await supabase
       .from('landlords')
       .insert({ 
@@ -100,8 +100,9 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         phone: landlordPhone, 
         property_address: propertyAddress,
         water_meter_number: waterMeterNumber.trim() || null,
-        electricity_meter_number: electricityMeterNumber.trim() || null
-      })
+        electricity_meter_number: electricityMeterNumber.trim() || null,
+        tin: landlordTin.trim() || null,
+      } as any)
       .select('id')
       .single();
 
