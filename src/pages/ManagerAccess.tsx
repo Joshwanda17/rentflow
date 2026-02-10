@@ -55,6 +55,8 @@ import UserLocationsManager from '@/components/manager/UserLocationsManager';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import { AgentCommissionPayoutsManager } from '@/components/manager/AgentCommissionPayoutsManager';
 import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
+import { RejectedPayoutsHistory } from '@/components/manager/RejectedPayoutsHistory';
+import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { MonthlyRewardsTrigger } from '@/components/manager/MonthlyRewardsTrigger';
 import { WelileHomesSubscriptionsManager } from '@/components/manager/WelileHomesSubscriptionsManager';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -782,9 +784,30 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="withdrawals" className="mt-4">
-            <div className="space-y-6">
-              <AgentCommissionPayoutsManager />
-              <PaidAgentsHistory />
+            <div className="space-y-4">
+              <CollapsibleAgentSection
+                icon={Banknote}
+                label="Pending Payouts"
+                iconColor="text-warning"
+              >
+                <AgentCommissionPayoutsManager />
+              </CollapsibleAgentSection>
+
+              <CollapsibleAgentSection
+                icon={BadgeCheck}
+                label="Paid Agents"
+                iconColor="text-success"
+              >
+                <PaidAgentsHistory />
+              </CollapsibleAgentSection>
+
+              <CollapsibleAgentSection
+                icon={X}
+                label="Rejected Payouts"
+                iconColor="text-destructive"
+              >
+                <RejectedPayoutsHistory />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
