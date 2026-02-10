@@ -1020,6 +1020,12 @@ export default function Settings() {
         <motion.div variants={itemVariants} className="mt-6">
           <DiagnosticsSection />
         </motion.div>
+
+        {/* Version Info */}
+        <motion.div variants={itemVariants} className="mt-6 mb-8 text-center text-xs text-muted-foreground/60 space-y-1">
+          <p>Welile v1.11 • SW v11</p>
+          <p>Build {new Date((globalThis as any).__BUILD_TIME__ || Date.now()).toLocaleDateString('en-ZA', { year: 'numeric', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+        </motion.div>
       </motion.div>
     </div>
   );
