@@ -963,7 +963,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
-        <PendingInvestmentRequestsWidget />
+        <CollapsibleAgentSection
+          icon={Wallet}
+          label="Pending Investments"
+          iconColor="text-primary"
+        >
+          <PendingInvestmentRequestsWidget />
+        </CollapsibleAgentSection>
 
         {/* Paid Agents History */}
         <CollapsibleAgentSection
@@ -975,9 +981,20 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Force Refresh Manager - Push updates to users */}
-        <ForceRefreshManager />
+        <CollapsibleAgentSection
+          icon={Users}
+          label="Force Refresh"
+          iconColor="text-muted-foreground"
+        >
+          <ForceRefreshManager />
+        </CollapsibleAgentSection>
 
         {/* Stats Summary - Larger cards for mobile */}
+        <CollapsibleAgentSection
+          icon={TrendingUp}
+          label="Live Stats"
+          iconColor="text-success"
+        >
         <div className="grid grid-cols-2 gap-3">
           <Card 
             className="border-2 border-success/30 bg-gradient-to-br from-success/10 to-background touch-manipulation cursor-pointer active:scale-[0.98] transition-transform"
@@ -1015,6 +1032,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CardContent>
           </Card>
         </div>
+        </CollapsibleAgentSection>
 
         {/* Duplicate Phone Numbers Alert */}
         {duplicateCount > 0 && (
@@ -1063,6 +1081,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+        <CollapsibleAgentSection
+          icon={UserCheck}
+          label="Active Users"
+          iconColor="text-success"
+        >
         <ActiveUsersCard 
           activeUsers={activeOnlineUsers}
           totalUsers={totalUsers}
@@ -1084,6 +1107,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             }
           }}
         />
+        </CollapsibleAgentSection>
 
         {/* Manager Productivity - Top Onboarders Menu */}
         <Card id="productivity-section" className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/15 via-amber-500/5 to-background overflow-hidden shadow-lg scroll-mt-20">
@@ -2309,13 +2333,31 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </div>
 
         {/* Supporter Invites List */}
-        <SupporterInvitesList />
+        <CollapsibleAgentSection
+          icon={Users}
+          label="Supporter Invites"
+          iconColor="text-primary"
+        >
+          <SupporterInvitesList />
+        </CollapsibleAgentSection>
 
         {/* Food Receipt Promo */}
-        <FoodReceiptPromoCard userId={user.id} />
+        <CollapsibleAgentSection
+          icon={Receipt}
+          label="Food Receipt Promo"
+          iconColor="text-success"
+        >
+          <FoodReceiptPromoCard userId={user.id} />
+        </CollapsibleAgentSection>
 
         {/* Food Shopping Loans */}
-        <FoodShoppingLoansSection />
+        <CollapsibleAgentSection
+          icon={Banknote}
+          label="Food Shopping Loans"
+          iconColor="text-warning"
+        >
+          <FoodShoppingLoansSection />
+        </CollapsibleAgentSection>
         </>
         )}
       </main>

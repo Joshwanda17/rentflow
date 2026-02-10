@@ -754,21 +754,45 @@ export default function ManagerAccess() {
 
           <TabsContent value="investments" className="mt-4">
             <div className="space-y-4">
-              <ManagerInvestmentRequestsSection />
-              <InvestmentAccountsManager />
+              <CollapsibleAgentSection
+                icon={Wallet}
+                label="Investment Requests"
+                iconColor="text-warning"
+              >
+                <ManagerInvestmentRequestsSection />
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={Wallet}
+                label="Investment Accounts"
+                iconColor="text-primary"
+              >
+                <InvestmentAccountsManager />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
           <TabsContent value="payments" className="mt-4">
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <RecordMerchantPayment />
-                <PaymentConfirmationsManager />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <SupporterROITrigger />
-                <MonthlyRewardsTrigger />
-              </div>
+              <CollapsibleAgentSection
+                icon={CreditCard}
+                label="Record & Confirm Payments"
+                iconColor="text-primary"
+              >
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <RecordMerchantPayment />
+                  <PaymentConfirmationsManager />
+                </div>
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={Banknote}
+                label="ROI & Rewards"
+                iconColor="text-success"
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <SupporterROITrigger />
+                  <MonthlyRewardsTrigger />
+                </div>
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
@@ -777,9 +801,21 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="welile-homes" className="mt-4">
-            <div className="space-y-6">
-              <WelileHomesSubscriptionsManager />
-              <WelileHomesWithdrawalsManager />
+            <div className="space-y-4">
+              <CollapsibleAgentSection
+                icon={Home}
+                label="Subscriptions"
+                iconColor="text-primary"
+              >
+                <WelileHomesSubscriptionsManager />
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={BanknoteIcon}
+                label="Welile Homes Withdrawals"
+                iconColor="text-warning"
+              >
+                <WelileHomesWithdrawalsManager />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
@@ -812,11 +848,23 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="locations" className="mt-4">
-             <div className="space-y-6">
-               <LandlordLocationsMap />
-               <UserLocationsManager />
+             <div className="space-y-4">
+               <CollapsibleAgentSection
+                 icon={MapPin}
+                 label="Landlord Locations Map"
+                 iconColor="text-primary"
+               >
+                 <LandlordLocationsMap />
+               </CollapsibleAgentSection>
+               <CollapsibleAgentSection
+                 icon={MapPin}
+                 label="User Locations"
+                 iconColor="text-muted-foreground"
+               >
+                 <UserLocationsManager />
+               </CollapsibleAgentSection>
              </div>
-          </TabsContent>
+           </TabsContent>
         </Tabs>
       </main>
     </div>
