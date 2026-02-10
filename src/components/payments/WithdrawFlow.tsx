@@ -469,8 +469,8 @@ export default function WithdrawFlow({
       onStepChange={setCurrentStep}
       canGoNext={canProceed()}
       onNext={handleNext}
-      showNavigation={currentStep < 4 && !isProcessing && !isComplete}
-      nextLabel={currentStep === 3 ? 'Confirm Withdrawal' : 'Continue'}
+      showNavigation={currentStep < 5 && !isProcessing && !isComplete}
+      nextLabel={currentStep === 4 ? 'Confirm Withdrawal' : 'Continue'}
       isProcessing={isProcessing}
       isComplete={isComplete}
     >
