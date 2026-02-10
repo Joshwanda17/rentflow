@@ -9,6 +9,7 @@ import {
   Menu,
   WifiOff,
   RefreshCw,
+  BadgeCheck,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';

@@ -8,6 +8,7 @@ import {
   Home,
   DoorOpen,
   Banknote,
+  BadgeCheck,
 } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';

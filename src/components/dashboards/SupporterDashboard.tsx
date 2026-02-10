@@ -10,7 +10,7 @@ import {
   Receipt, History, Share2, Download, CreditCard,
   Calculator, Store, Users,
   FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins,
-  Menu, ChevronRight
+  Menu, ChevronRight, BadgeCheck
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';

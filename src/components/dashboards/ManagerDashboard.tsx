@@ -50,7 +50,8 @@ import {
   Save,
   BookmarkPlus,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  BadgeCheck
 } from 'lucide-react';
 import {
   AlertDialog,
