@@ -945,13 +945,58 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             </div>
           </SheetHeader>
 
+          {/* Sticky Verification Banner */}
+          <div className={`mx-4 mt-2 rounded-2xl border-2 p-3 flex items-center justify-between gap-3 shrink-0 ${
+            verificationStatus 
+              ? 'border-success/40 bg-success/10' 
+              : 'border-warning/40 bg-warning/10'
+          }`}>
+            <div className="flex items-center gap-2.5 min-w-0">
+              {verificationStatus ? (
+                <CheckCircle className="h-6 w-6 text-success shrink-0" />
+              ) : (
+                <AlertTriangle className="h-6 w-6 text-warning shrink-0" />
+              )}
+              <span className={`font-bold text-sm ${verificationStatus ? 'text-success' : 'text-warning'}`}>
+                {verificationStatus ? 'Verified' : 'Unverified'}
+              </span>
+            </div>
+            <Button
+              size="lg"
+              variant={verificationStatus ? 'destructive' : 'default'}
+              onClick={verificationStatus ? handleRejectUser : handleApproveUser}
+              disabled={approvingUser || rejectingUser}
+              className={`gap-2 h-12 px-6 rounded-xl font-bold text-sm shrink-0 ${
+                !verificationStatus ? 'bg-success hover:bg-success/90 text-white shadow-lg shadow-success/30' : ''
+              }`}
+            >
+              {(approvingUser || rejectingUser) ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : verificationStatus ? (
+                <XCircle className="h-5 w-5" />
+              ) : (
+                <CheckCircle className="h-5 w-5" />
+              )}
+              {verificationStatus ? 'Revoke' : 'Verify Now'}
+            </Button>
+          </div>
+
           <Tabs value={activeTab} onValueChange={setActiveTab} className="flex-1 flex flex-col min-h-0">
             <div className="px-4 pt-2 shrink-0">
               <TabsNavigation />
             </div>
 
-            {/* Scrollable Content */}
-            <ScrollArea className="flex-1 min-h-0">
+            {/* Scrollable Content - keyboard accessible */}
+            <ScrollArea className="flex-1 min-h-0" tabIndex={0} onKeyDown={(e) => {
+              const el = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+              if (!el) return;
+              if (e.key === 'ArrowDown') { el.scrollTop += 60; e.preventDefault(); }
+              if (e.key === 'ArrowUp') { el.scrollTop -= 60; e.preventDefault(); }
+              if (e.key === 'PageDown') { el.scrollTop += 300; e.preventDefault(); }
+              if (e.key === 'PageUp') { el.scrollTop -= 300; e.preventDefault(); }
+              if (e.key === 'Home') { el.scrollTop = 0; e.preventDefault(); }
+              if (e.key === 'End') { el.scrollTop = el.scrollHeight; e.preventDefault(); }
+            }}>
               <div className="pb-10">
               <TabsContent value="overview" className="mt-0">
                 <div className="p-4 space-y-5">
@@ -1024,60 +1069,6 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       )}
                     </Card>
                   </div>
-
-                  {/* Verification Status */}
-                  <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
-                    <CardContent className="p-4">
-                      <div className="flex items-center justify-between gap-3">
-                        <div className="flex items-center gap-3 flex-1 min-w-0">
-                          {verificationStatus ? (
-                            <>
-                              <div className="p-2 rounded-full bg-success/20 shrink-0">
-                                <CheckCircle className="h-5 w-5 text-success" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-success">Verified</p>
-                                <p className="text-xs text-muted-foreground truncate">User is approved</p>
-                              </div>
-                            </>
-                          ) : (
-                            <>
-                              <div className="p-2 rounded-full bg-warning/20 shrink-0">
-                                <XCircle className="h-5 w-5 text-warning" />
-                              </div>
-                              <div className="min-w-0">
-                                <p className="font-semibold text-warning">Pending</p>
-                                <p className="text-xs text-muted-foreground truncate">Needs verification</p>
-                              </div>
-                            </>
-                          )}
-                        </div>
-                        {!verificationStatus ? (
-                          <Button
-                            size="sm"
-                            variant="default"
-                            onClick={handleApproveUser}
-                            disabled={approvingUser}
-                            className="gap-1 h-10 shrink-0"
-                          >
-                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
-                            Approve
-                          </Button>
-                        ) : (
-                          <Button
-                            size="sm"
-                            variant="destructive"
-                            onClick={handleRejectUser}
-                            disabled={rejectingUser}
-                            className="gap-1 h-10 shrink-0"
-                          >
-                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}
-                            Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </CardContent>
-                  </Card>
 
                   {/* Status Badges */}
                   {user.rent_discount_active && (
@@ -1461,12 +1452,57 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           </DialogTitle>
         </DialogHeader>
 
+        {/* Sticky Verification Banner - Desktop */}
+        <div className={`mx-6 mt-3 rounded-xl border-2 p-3 flex items-center justify-between gap-4 shrink-0 ${
+          verificationStatus 
+            ? 'border-success/40 bg-success/10' 
+            : 'border-warning/40 bg-warning/10'
+        }`}>
+          <div className="flex items-center gap-2.5">
+            {verificationStatus ? (
+              <CheckCircle className="h-5 w-5 text-success" />
+            ) : (
+              <AlertTriangle className="h-5 w-5 text-warning" />
+            )}
+            <span className={`font-bold text-sm ${verificationStatus ? 'text-success' : 'text-warning'}`}>
+              {verificationStatus ? 'Verified User' : 'Unverified — Needs Approval'}
+            </span>
+          </div>
+          <Button
+            size="sm"
+            variant={verificationStatus ? 'destructive' : 'default'}
+            onClick={verificationStatus ? handleRejectUser : handleApproveUser}
+            disabled={approvingUser || rejectingUser}
+            className={`gap-2 h-10 px-5 rounded-lg font-bold ${
+              !verificationStatus ? 'bg-success hover:bg-success/90 text-white shadow-lg shadow-success/30' : ''
+            }`}
+          >
+            {(approvingUser || rejectingUser) ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : verificationStatus ? (
+              <XCircle className="h-4 w-4" />
+            ) : (
+              <CheckCircle className="h-4 w-4" />
+            )}
+            {verificationStatus ? 'Revoke Verification' : 'Verify Now'}
+          </Button>
+        </div>
+
         <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full flex-1 flex flex-col min-h-0 overflow-hidden">
-          <div className="px-6 pt-4 shrink-0">
+          <div className="px-6 pt-3 shrink-0">
             <TabsNavigation />
           </div>
 
-          <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+          <ScrollArea className="flex-1 min-h-0" tabIndex={0} onKeyDown={(e) => {
+            const el = e.currentTarget.querySelector('[data-radix-scroll-area-viewport]') as HTMLElement;
+            if (!el) return;
+            if (e.key === 'ArrowDown') { el.scrollTop += 60; e.preventDefault(); }
+            if (e.key === 'ArrowUp') { el.scrollTop -= 60; e.preventDefault(); }
+            if (e.key === 'PageDown') { el.scrollTop += 300; e.preventDefault(); }
+            if (e.key === 'PageUp') { el.scrollTop -= 300; e.preventDefault(); }
+            if (e.key === 'Home') { el.scrollTop = 0; e.preventDefault(); }
+            if (e.key === 'End') { el.scrollTop = el.scrollHeight; e.preventDefault(); }
+          }} style={{ maxHeight: 'calc(90vh - 260px)' }}>
             <TabsContent value="overview" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
                 {/* Contact Info */}
@@ -1521,37 +1557,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   </Card>
                 </div>
 
-                {/* Verification Status */}
-                <Card className={`border-2 ${verificationStatus ? 'border-success/30 bg-success/5' : 'border-warning/30 bg-warning/5'}`}>
-                  <CardContent className="p-4">
-                    <div className="flex items-center justify-between gap-4 flex-wrap">
-                      <div className="flex items-center gap-3">
-                        {verificationStatus ? (
-                          <>
-                            <div className="p-2 rounded-full bg-success/20"><CheckCircle className="h-5 w-5 text-success" /></div>
-                            <div><p className="font-semibold text-success">Verified User</p><p className="text-xs text-muted-foreground">Approved and can access all features</p></div>
-                          </>
-                        ) : (
-                          <>
-                            <div className="p-2 rounded-full bg-warning/20"><XCircle className="h-5 w-5 text-warning" /></div>
-                            <div><p className="font-semibold text-warning">Pending Verification</p><p className="text-xs text-muted-foreground">This user needs to be verified</p></div>
-                          </>
-                        )}
-                      </div>
-                      <div className="flex gap-2">
-                        {!verificationStatus ? (
-                          <Button size="sm" variant="default" onClick={handleApproveUser} disabled={approvingUser} className="gap-2">
-                            {approvingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}Approve
-                          </Button>
-                        ) : (
-                          <Button size="sm" variant="destructive" onClick={handleRejectUser} disabled={rejectingUser} className="gap-2">
-                            {rejectingUser ? <Loader2 className="h-4 w-4 animate-spin" /> : <XCircle className="h-4 w-4" />}Revoke
-                          </Button>
-                        )}
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
+
+
 
                 {user.rent_discount_active && (
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
