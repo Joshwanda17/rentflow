@@ -211,8 +211,24 @@ export function GeneralLedger() {
     }
   };
 
-  const totalDebits = entries.reduce((sum, e) => sum + e.debit, 0);
-  const totalCredits = entries.reduce((sum, e) => sum + e.credit, 0);
+  // Apply client-side filters
+  const filteredEntries = entries.filter(e => {
+    if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
+    if (directionFilter === 'debit' && e.debit === 0) return false;
+    if (directionFilter === 'credit' && e.credit === 0) return false;
+    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase()) && !e.party.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    return true;
+  });
+
+  // Recalculate running balance for filtered view
+  let filteredBalance = 0;
+  filteredEntries.forEach(entry => {
+    filteredBalance += entry.credit - entry.debit;
+    entry.balance = filteredBalance;
+  });
+
+  const totalDebits = filteredEntries.reduce((sum, e) => sum + e.debit, 0);
+  const totalCredits = filteredEntries.reduce((sum, e) => sum + e.credit, 0);
 
   const handlePrint = () => {
     const printContent = printRef.current;
