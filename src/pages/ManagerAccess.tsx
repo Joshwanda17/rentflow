@@ -773,14 +773,26 @@ export default function ManagerAccess() {
 
           <TabsContent value="payments" className="mt-4">
             <div className="space-y-4">
-              <div className="grid gap-4 lg:grid-cols-2">
-                <RecordMerchantPayment />
-                <PaymentConfirmationsManager />
-              </div>
-              <div className="grid gap-4 md:grid-cols-2">
-                <SupporterROITrigger />
-                <MonthlyRewardsTrigger />
-              </div>
+              <CollapsibleAgentSection
+                icon={CreditCard}
+                label="Record & Confirm Payments"
+                iconColor="text-primary"
+              >
+                <div className="grid gap-4 lg:grid-cols-2">
+                  <RecordMerchantPayment />
+                  <PaymentConfirmationsManager />
+                </div>
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={Banknote}
+                label="ROI & Rewards"
+                iconColor="text-success"
+              >
+                <div className="grid gap-4 md:grid-cols-2">
+                  <SupporterROITrigger />
+                  <MonthlyRewardsTrigger />
+                </div>
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
