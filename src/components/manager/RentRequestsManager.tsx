@@ -594,6 +594,18 @@ Thank you for being part of Welile! 🏠`;
                       {getStatusBadge(request.status)}
                     </div>
 
+                    {/* Process Step Tracker */}
+                    <RentProcessTracker
+                      requestStatus={request.status || 'pending'}
+                      agentVerified={request.agent_verified}
+                      managerApproved={['approved', 'funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      supporterFunded={['funded', 'disbursed', 'completed'].includes(request.status || '')}
+                      fundRecipientType={request.fund_recipient_type}
+                      fundRecipientName={request.fund_recipient_name}
+                      fundRoutedAt={request.fund_routed_at}
+                      compact
+                    />
+
                     {/* Tenant Quick Info Grid */}
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 text-xs">
                       <div className="flex items-center gap-1.5 p-2 rounded-lg bg-muted/50">
