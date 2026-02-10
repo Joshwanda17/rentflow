@@ -50,6 +50,9 @@ export default function WithdrawFlow({
   const [currency, setCurrency] = useState('UGX');
   const [selectedMethod, setSelectedMethod] = useState<PaymentMethod | null>(null);
   const [pin, setPin] = useState('');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [momoName, setMomoName] = useState('');
+  const [momoProvider, setMomoProvider] = useState<'MTN' | 'Airtel'>('MTN');
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [paymentStatus, setPaymentStatus] = useState<'success' | 'failed'>('success');
