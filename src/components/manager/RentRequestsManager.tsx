@@ -59,7 +59,21 @@ interface RentRequest {
   approved_by: string | null;
   agent_verified?: boolean;
   manager_verified?: boolean;
-  tenant?: { full_name: string; phone: string };
+  tenant?: {
+    full_name: string;
+    phone: string;
+    email?: string;
+    avatar_url?: string | null;
+    verified?: boolean;
+    national_id?: string | null;
+    city?: string | null;
+    country?: string | null;
+    created_at?: string;
+    monthly_rent?: number | null;
+    mobile_money_number?: string | null;
+    mobile_money_provider?: string | null;
+  };
+  tenantWalletBalance?: number;
   landlord?: { id: string; name: string; property_address: string; verified?: boolean; ready_to_receive?: boolean };
   missedDays?: number;
   paidAmount?: number;
