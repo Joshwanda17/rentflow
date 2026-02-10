@@ -35,6 +35,7 @@ import {
 } from '@/components/tenant/agreement';
 import { useTenantAgreement } from '@/hooks/useTenantAgreement';
 import RepaymentSection from '@/components/tenant/RepaymentSection';
+import RentProcessTracker from '@/components/rent/RentProcessTracker';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
 
