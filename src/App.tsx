@@ -11,9 +11,9 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 
-// Deferred auth providers — not needed for initial render
-const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
-const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
+// Auth providers — must be eager since they wrap all routes
+import { PinAuthProvider } from "@/hooks/usePinAuth";
+import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -234,22 +234,20 @@ const App = () => (
             <LanguageProvider>
               <CurrencyProvider>
                 <AuthProvider>
-                  <Suspense fallback={<PageLoader />}>
-                    <PinAuthProvider>
-                      <BiometricAuthProvider>
-                        <TooltipProvider delayDuration={300}>
-                          <DeferredProviders>
-                            <AppRoutes />
-                          </DeferredProviders>
-                          <Suspense fallback={null}>
-                            <DeferredExtras />
-                            <Toaster />
-                            <Sonner />
-                          </Suspense>
-                        </TooltipProvider>
-                      </BiometricAuthProvider>
-                    </PinAuthProvider>
-                  </Suspense>
+                  <PinAuthProvider>
+                    <BiometricAuthProvider>
+                      <TooltipProvider delayDuration={300}>
+                        <DeferredProviders>
+                          <AppRoutes />
+                        </DeferredProviders>
+                        <Suspense fallback={null}>
+                          <DeferredExtras />
+                          <Toaster />
+                          <Sonner />
+                        </Suspense>
+                      </TooltipProvider>
+                    </BiometricAuthProvider>
+                  </PinAuthProvider>
                 </AuthProvider>
               </CurrencyProvider>
             </LanguageProvider>
