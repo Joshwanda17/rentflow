@@ -801,9 +801,21 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="welile-homes" className="mt-4">
-            <div className="space-y-6">
-              <WelileHomesSubscriptionsManager />
-              <WelileHomesWithdrawalsManager />
+            <div className="space-y-4">
+              <CollapsibleAgentSection
+                icon={Home}
+                label="Subscriptions"
+                iconColor="text-primary"
+              >
+                <WelileHomesSubscriptionsManager />
+              </CollapsibleAgentSection>
+              <CollapsibleAgentSection
+                icon={BanknoteIcon}
+                label="Welile Homes Withdrawals"
+                iconColor="text-warning"
+              >
+                <WelileHomesWithdrawalsManager />
+              </CollapsibleAgentSection>
             </div>
           </TabsContent>
 
