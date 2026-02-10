@@ -348,7 +348,7 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
                             <div className="flex items-center gap-1 mb-1">
                               <span 
                                 className={cn("text-xs font-medium", isManager && "underline decoration-dotted cursor-pointer active:opacity-70")}
-                                onClick={() => isManager && msg.sender && handleOpenUserDetails(msg.sender.id)}
+                                onClick={() => isManager && handleOpenUserDetails(msg.sender_id)}
                               >{msg.sender.full_name}</span>
                               {msg.sender.roles.length > 0 && (
                                 <Badge className={`text-[8px] h-3 px-1 ${getRoleBadgeColor(msg.sender.roles[0])}`}>
