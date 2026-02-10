@@ -483,8 +483,16 @@ export default function UserManagement() {
           </div>
         </div>
 
+        {/* Compact Stats Row - Clickable to filter */}
+        <CompactUserStats
+          totalUsers={totalUserCount}
+          onlineCount={activeUserCount}
+          verifiedCount={users.filter(u => u.verified).length}
+          inactiveCount={inactiveUserCount}
+          activeFilter={statFilter}
+          onFilterChange={setStatFilter}
+        />
 
-        {/* Filter Pills - Compact */}
         <div className="flex gap-1.5 px-2 pb-2 overflow-x-auto scrollbar-hide">
           {roleFilters.map((filter) => (
             <button
