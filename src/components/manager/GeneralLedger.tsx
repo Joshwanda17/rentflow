@@ -284,7 +284,7 @@ export function GeneralLedger() {
           </div>
           <div class="summary-item">
             <div class="summary-label">Entries</div>
-            <div class="summary-value">${entries.length}</div>
+            <div class="summary-value">${filteredEntries.length}</div>
           </div>
         </div>
         <br/>
