@@ -287,7 +287,10 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
             </div>
             <div className="flex-1">
               <div className="flex items-center gap-2">
-                <span className="font-semibold">{otherParticipant.full_name}</span>
+                <span 
+                  className={cn("font-semibold", isManager && "underline decoration-dotted cursor-pointer active:opacity-70")}
+                  onClick={() => isManager && handleOpenUserDetails(otherParticipant.user_id)}
+                >{otherParticipant.full_name}</span>
                 {!isOffline && isOnline(otherParticipant.user_id) && (
                   <span className="text-xs text-success font-medium">Online</span>
                 )}
