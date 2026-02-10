@@ -512,7 +512,7 @@ export default function SupporterDashboard({
 
     await refreshWallet();
     fireSuccess();
-    toast({ title: '💰 Withdrawal Complete!', description: `${formatUGX(amount)} has been transferred to your wallet` });
+    toast({ title: '💰 Withdrawal Submitted!', description: `${formatUGX(amount)} transferred to wallet. Please wait for manager approval before cashing out.` });
   };
 
   // Calculations
