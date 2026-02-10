@@ -470,8 +470,8 @@ export function GeneralLedger() {
           <CardContent className="p-0">
             {loading ? (
               <div className="p-8 text-center text-muted-foreground">Loading ledger...</div>
-            ) : entries.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No transactions found for this period</div>
+            ) : filteredEntries.length === 0 ? (
+              <div className="p-8 text-center text-muted-foreground">No transactions match the current filters</div>
             ) : (
               <div className="overflow-x-auto">
                 <Table>
