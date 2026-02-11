@@ -18,6 +18,7 @@ import {
   ChevronRight,
   ScrollText,
   PiggyBank,
+  FileText,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -164,6 +165,13 @@ export function TenantMenuDrawer({
           description: 'All past transactions',
           path: '/transactions',
           color: 'text-blue-500'
+        },
+        { 
+          icon: FileText, 
+          label: 'Financial Statement', 
+          description: 'Download your statement',
+          path: '/financial-statement',
+          color: 'text-indigo-500'
         },
       ]
     },

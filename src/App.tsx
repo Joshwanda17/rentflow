@@ -78,6 +78,7 @@ const PublicRentCalculator = lazy(() => import('./pages/PublicRentCalculator'));
 const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
+const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -144,6 +145,7 @@ function AppRoutes() {
           <Route path="/dashboard" element={<Dashboard />} />
           <Route path="/select-role" element={<SelectRole />} />
           <Route path="/transactions" element={<TransactionHistory />} />
+          <Route path="/financial-statement" element={<FinancialStatement />} />
           <Route path="/settings" element={<Settings />} />
           <Route path="/earnings" element={<AgentEarnings />} />
           <Route path="/update-password" element={<UpdatePassword />} />
