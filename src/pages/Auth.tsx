@@ -262,7 +262,6 @@ export default function Auth() {
 
         let loginSuccess = false;
         let lastError: Error | null = null;
-        let usedRealEmail = false;
 
         // STEP 2: If we found the exact email, try JUST that one (fastest path)
         if (targetEmail) {
@@ -273,7 +272,6 @@ export default function Auth() {
             );
             if (!error) {
               loginSuccess = true;
-              usedRealEmail = !targetEmail.includes('@welile.');
             } else {
               lastError = error;
             }
@@ -295,7 +293,6 @@ export default function Auth() {
               const { error } = await withTimeout(signIn(emailVariant, password), 15000);
               if (!error) {
                 loginSuccess = true;
-                usedRealEmail = !emailVariant.includes('@welile.');
                 break;
               }
               lastError = error;
