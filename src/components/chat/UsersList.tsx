@@ -64,8 +64,8 @@ export default function UsersList({ onStartConversation }: UsersListProps) {
     queryKey: ['all-users-list', user?.id],
     queryFn: () => fetchAllUsers(user!.id),
     enabled: !!user,
-    staleTime: 10 * 60 * 1000, // 10 minutes
-    gcTime: 30 * 60 * 1000, // 30 minutes cache
+    staleTime: 10 * 60 * 1000,
+    gcTime: 30 * 60 * 1000,
   });
 
   const getInitials = (name: string) => {
