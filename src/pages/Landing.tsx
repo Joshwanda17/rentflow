@@ -3,7 +3,7 @@ import { Home, Users, Building2, Wallet, ArrowRight, Calculator, Zap, Shield } f
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
-import SignupPauseBanner from '@/components/SignupPauseBanner';
+
 
 interface IntentOption {
   role: 'tenant' | 'agent' | 'landlord' | 'supporter';
@@ -67,7 +67,6 @@ export default function Landing() {
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      <SignupPauseBanner />
       {/* Hero — minimal, intent-first */}
       <header className="pt-safe-top px-5 pt-10 pb-6 text-center">
         <motion.h1
