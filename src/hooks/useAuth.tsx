@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import {
   setCachedSession,
   clearSessionCache,
+  clearAllAuthStorage,
   getPreloadedSession,
   getPreloadedRoles,
 } from '@/lib/sessionCache';
@@ -64,8 +65,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     const initializeAuth = async () => {
       try {
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data: { session }, error } = await supabase.auth.getSession();
         if (!isMounted) return;
+
+        // Detect stale/expired refresh token errors and clear everything
+        if (error) {
+          console.warn('[Auth] getSession error, clearing stale tokens:', error.message);
+          clearAllAuthStorage();
+          setSession(null);
+          setUser(null);
+          setRole(null);
+          setRoles([]);
+          return;
+        }
 
         setSession(session);
         setUser(session?.user ?? null);
@@ -76,8 +88,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         } else {
           clearSessionCache();
         }
-      } catch {
-        // Don't clear cache on network errors
+      } catch (err: any) {
+        console.warn('[Auth] Init failed, clearing stale tokens:', err?.message);
+        // On network/timeout errors, clear stale tokens to prevent loops
+        clearAllAuthStorage();
+        if (isMounted) {
+          setSession(null);
+          setUser(null);
+        }
       } finally {
         if (isMounted) setLoading(false);
       }
