@@ -8,23 +8,28 @@ root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;fl
   <style>@keyframes s{to{transform:rotate(360deg)}}@media(prefers-color-scheme:dark){div[style*=f8fafc]{background:#0f172a!important}}</style>
 </div>`;
 
-// Clear all app caches on startup for fresh data
-const clearAppCaches = async () => {
+// Clear app caches in background — never blocks startup, never touches auth
+const clearAppCaches = () => {
   try {
     if ('caches' in window) {
-      const keys = await caches.keys();
-      await Promise.all(keys.filter(k => k.startsWith('welile-')).map(k => caches.delete(k)));
+      caches.keys().then(keys =>
+        Promise.all(keys.filter(k => k.startsWith('welile-')).map(k => caches.delete(k)))
+      ).catch(() => {});
     }
-    // Tell SW to clear API cache too
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
       navigator.serviceWorker.controller.postMessage({ type: 'CLEAR_API_CACHE' });
     }
   } catch {}
 };
 
-// Mount app
+// Mount app immediately — cache clearing runs in background
 const loadApp = async () => {
-  await clearAppCaches();
+  // Fire and forget — don't await cache clearing
+  if ('requestIdleCallback' in window) {
+    (window as any).requestIdleCallback(clearAppCaches);
+  } else {
+    setTimeout(clearAppCaches, 2000);
+  }
   try {
     const [, { default: App }] = await Promise.all([
       import("./index.css"),

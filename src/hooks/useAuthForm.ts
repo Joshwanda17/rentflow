@@ -230,11 +230,7 @@ export function useAuthForm() {
     if (loginSuccess) {
       setLoginError(null);
       setFailedAttempts(0);
-      if (!rememberMe) {
-        sessionStorage.setItem('welile_session_only', 'true');
-      } else {
-        sessionStorage.removeItem('welile_session_only');
-      }
+      // Session is always persistent — no session_only flag needed
       saveLocationInBackground();
       return;
     }
