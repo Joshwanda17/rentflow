@@ -131,7 +131,7 @@ export default function ManagerLogin() {
     hapticTap();
 
     if (code === MANAGER_ACCESS_CODE) {
-      sessionStorage.setItem('manager_access_verified', 'true');
+      localStorage.setItem('manager_access_verified', 'true');
       setVerified(true);
       toast({ title: '✅ Access Granted', description: 'Select your profile to continue' });
     } else {
@@ -146,7 +146,7 @@ export default function ManagerLogin() {
     hapticTap();
     
     // Set session data instantly
-    sessionStorage.setItem('manager_access_verified', 'true');
+    localStorage.setItem('manager_access_verified', 'true');
     sessionStorage.setItem('manager_selected_id', manager.user_id);
     sessionStorage.setItem('manager_selected_name', manager.full_name);
 

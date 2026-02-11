@@ -131,7 +131,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [hasCachedData, setHasCachedData] = useState(false);
   // Auto-verify if manager already authenticated via /manager-login PIN flow
   const [accessVerified, setAccessVerified] = useState(() => {
-    return sessionStorage.getItem('manager_access_verified') === 'true';
+    return localStorage.getItem('manager_access_verified') === 'true';
   });
   const [accessCodeInput, setAccessCodeInput] = useState('');
   const [accessError, setAccessError] = useState(false);
@@ -139,7 +139,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const handleAccessCodeSubmit = () => {
     if (accessCodeInput === MANAGER_ACCESS_CODE) {
       setAccessVerified(true);
-      sessionStorage.setItem('manager_access_verified', 'true');
+      localStorage.setItem('manager_access_verified', 'true');
       setAccessError(false);
     } else {
       setAccessError(true);
