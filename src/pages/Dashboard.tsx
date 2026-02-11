@@ -166,11 +166,25 @@ function DashboardContent() {
     }
   }, [user, roles]);
 
+  // Safety timeout: if stuck loading with no user for 8s, redirect to auth
   useEffect(() => {
     if (!loading && !user) {
       navigate('/auth');
-    } else if (!loading && user && roles.length === 0 && cachedRoles.length === 0) {
+      return;
+    }
+    if (!loading && user && roles.length === 0 && cachedRoles.length === 0) {
       navigate('/select-role');
+      return;
+    }
+    // Fallback: if user is still null after 8 seconds (e.g. stale cached session), force redirect
+    if (!user) {
+      const timeout = setTimeout(() => {
+        if (!user) {
+          console.warn('[Dashboard] Safety timeout: no user after 8s, redirecting to auth');
+          navigate('/auth', { replace: true });
+        }
+      }, 8000);
+      return () => clearTimeout(timeout);
     }
   }, [user, loading, roles, cachedRoles, navigate]);
 
@@ -222,6 +236,8 @@ function DashboardContent() {
     return <DashboardLoadingFallback />;
   }
 
+  // If no user and not loading, the redirect effect above will handle it.
+  // Show loading fallback briefly while redirect kicks in.
   if (!user || !displayRole) {
     return <DashboardLoadingFallback />;
   }
