@@ -178,47 +178,51 @@ export function useAuthForm() {
     const phoneLocal9 = cleanedPhone.slice(-9);
     const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
 
-    // STEP 1: Build a list of candidate emails — profile lookup + generated variants
-    const candidateEmails: string[] = [];
+    // STEP 1: Try profile lookup and primary generated email in parallel
+    const primaryEmail = `${cleanedPhone}@welile.user`;
+    let profileEmail: string | null = null;
+
     try {
       const { data } = await supabase
         .from('profiles')
         .select('email, phone')
         .in('phone', phoneFormats)
         .limit(1);
-
-      if (data?.[0]?.email) {
-        candidateEmails.push(data[0].email);
-      }
+      if (data?.[0]?.email) profileEmail = data[0].email;
     } catch {
-      // Profile lookup failed — continue with generated variants
+      // Continue with generated email
     }
 
-    // Add generated variants (deduped)
-    const variants = generatePhoneEmailVariants(phone).slice(0, 2);
-    for (const v of variants) {
-      if (!candidateEmails.includes(v)) candidateEmails.push(v);
-    }
+    // Use profile email if found, otherwise use the primary generated one
+    const emailToTry = profileEmail || primaryEmail;
 
-    // STEP 2: Try each candidate (stop on first success or non-credential error)
+    // STEP 2: Single sign-in attempt with best candidate
     let loginSuccess = false;
     let lastError: Error | null = null;
-    let matchedEmail: string | null = null;
 
-    for (const email of candidateEmails) {
+    try {
+      const { error } = await signIn(emailToTry, password);
+      if (!error) {
+        loginSuccess = true;
+      } else {
+        lastError = error;
+      }
+    } catch (e: any) {
+      lastError = e;
+    }
+
+    // If first attempt failed with wrong credentials and we have an alternative, try it
+    if (!loginSuccess && lastError?.message.includes('Invalid login credentials') && profileEmail && profileEmail !== primaryEmail) {
       try {
-        const { error } = await signIn(email, password);
+        const { error } = await signIn(primaryEmail, password);
         if (!error) {
           loginSuccess = true;
-          break;
+          lastError = null;
+        } else {
+          lastError = error;
         }
-        lastError = error;
-        matchedEmail = email;
-        // Only continue looping for "Invalid login credentials" (wrong email format)
-        if (!error.message.includes('Invalid login credentials')) break;
       } catch (e: any) {
         lastError = e;
-        break;
       }
     }
 
@@ -235,16 +239,15 @@ export function useAuthForm() {
       return;
     }
 
-    // Login failed — build user-friendly error
+    // Login failed
     setFailedAttempts(prev => prev + 1);
     const triedFormats = getTriedPhoneFormats(phone);
     let errorMessage = lastError?.message || 'Sign in failed';
 
     if (lastError?.message.includes('Invalid login credentials')) {
-      // Check if user exists but used a different auth method
-      if (matchedEmail && !matchedEmail.includes('@welile.')) {
-        errorMessage = `This phone number is linked to an account that uses email login (${matchedEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3')}). Please use "Continue with Google" or sign in with your email address.`;
-      } else if (candidateEmails.length > 0) {
+      if (profileEmail && !profileEmail.includes('@welile.')) {
+        errorMessage = `This phone number is linked to an account that uses email login. Please use "Continue with Google" instead.`;
+      } else if (emailToTry) {
         errorMessage = 'Incorrect password. Please check your password and try again.';
       } else {
         errorMessage = 'No account found with this phone number. Please sign up first.';
