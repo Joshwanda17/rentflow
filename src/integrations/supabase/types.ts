@@ -933,6 +933,54 @@ export type Database = {
         }
         Relationships: []
       }
+      general_ledger: {
+        Row: {
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          linked_party: string | null
+          reference_id: string | null
+          running_balance: number | null
+          source_id: string | null
+          source_table: string
+          transaction_date: string
+          user_id: string | null
+        }
+        Insert: {
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          direction: string
+          id?: string
+          linked_party?: string | null
+          reference_id?: string | null
+          running_balance?: number | null
+          source_id?: string | null
+          source_table: string
+          transaction_date?: string
+          user_id?: string | null
+        }
+        Update: {
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          linked_party?: string | null
+          reference_id?: string | null
+          running_balance?: number | null
+          source_id?: string | null
+          source_table?: string
+          transaction_date?: string
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       investment_accounts: {
         Row: {
           approved_at: string | null

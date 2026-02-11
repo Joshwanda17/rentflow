@@ -21,14 +21,14 @@ interface ManagerProfile {
   avatar_url: string | null;
 }
 
-// Try to get cached profiles from sessionStorage
+// Try to get cached profiles from localStorage for persistence
 function getCachedProfiles(): ManagerProfile[] | null {
   try {
-    const raw = sessionStorage.getItem(CACHE_KEY);
+    const raw = localStorage.getItem(CACHE_KEY);
     if (!raw) return null;
     const { data, ts } = JSON.parse(raw);
     if (Date.now() - ts > CACHE_TTL) {
-      sessionStorage.removeItem(CACHE_KEY);
+      localStorage.removeItem(CACHE_KEY);
       return null;
     }
     return data;
@@ -39,7 +39,7 @@ function getCachedProfiles(): ManagerProfile[] | null {
 
 function setCachedProfiles(profiles: ManagerProfile[]) {
   try {
-    sessionStorage.setItem(CACHE_KEY, JSON.stringify({ data: profiles, ts: Date.now() }));
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: profiles, ts: Date.now() }));
   } catch {}
 }
 
@@ -94,7 +94,9 @@ export default function ManagerLogin() {
   const [code, setCode] = useState('');
   const [error, setError] = useState(false);
   const [isShaking, setIsShaking] = useState(false);
-  const [verified, setVerified] = useState(false);
+  const [verified, setVerified] = useState(() => {
+    return localStorage.getItem('manager_access_verified') === 'true';
+  });
   const [managers, setManagers] = useState<ManagerProfile[]>(cached || []);
   const [loadingProfiles, setLoadingProfiles] = useState(!cached);
   const navigate = useNavigate();
