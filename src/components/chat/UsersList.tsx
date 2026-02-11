@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { useQuery } from '@tanstack/react-query';
 import { useAuth } from '@/hooks/useAuth';
 import { useChat } from '@/hooks/useChat';
 import { usePresenceContext } from '@/hooks/usePresence';
@@ -23,66 +24,49 @@ interface UsersListProps {
   onStartConversation: (conversationId: string) => void;
 }
 
+const fetchAllUsers = async (userId: string): Promise<UserProfile[]> => {
+  const { data: profiles, error } = await supabase
+    .from('profiles')
+    .select('id, full_name, avatar_url')
+    .neq('id', userId)
+    .order('full_name', { ascending: true });
+
+  if (error || !profiles || profiles.length === 0) return [];
+
+  const userIds = profiles.map(p => p.id);
+  const { data: rolesData } = await supabase
+    .from('user_roles')
+    .select('user_id, role')
+    .in('user_id', userIds);
+
+  const rolesMap = new Map<string, string[]>();
+  rolesData?.forEach(r => {
+    const existing = rolesMap.get(r.user_id) || [];
+    rolesMap.set(r.user_id, [...existing, r.role]);
+  });
+
+  return profiles.map(p => ({
+    id: p.id,
+    full_name: p.full_name,
+    avatar_url: p.avatar_url,
+    roles: rolesMap.get(p.id) || []
+  }));
+};
+
 export default function UsersList({ onStartConversation }: UsersListProps) {
   const { user } = useAuth();
   const { startConversation } = useChat();
   const { isOnline } = usePresenceContext();
-  const [users, setUsers] = useState<UserProfile[]>([]);
-  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [startingChat, setStartingChat] = useState<string | null>(null);
 
-  useEffect(() => {
-    const fetchUsers = async () => {
-      if (!user) return;
-
-      setLoading(true);
-
-      // Get all profiles except current user
-      const { data: profiles, error } = await supabase
-        .from('profiles')
-        .select('id, full_name, avatar_url')
-        .neq('id', user.id)
-        .order('full_name', { ascending: true });
-
-      if (error) {
-        console.error('Failed to fetch users:', error);
-        setLoading(false);
-        return;
-      }
-
-      if (!profiles || profiles.length === 0) {
-        setUsers([]);
-        setLoading(false);
-        return;
-      }
-
-      // Get roles for all users
-      const userIds = profiles.map(p => p.id);
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds);
-
-      const rolesMap = new Map<string, string[]>();
-      rolesData?.forEach(r => {
-        const existing = rolesMap.get(r.user_id) || [];
-        rolesMap.set(r.user_id, [...existing, r.role]);
-      });
-
-      const usersWithRoles: UserProfile[] = profiles.map(p => ({
-        id: p.id,
-        full_name: p.full_name,
-        avatar_url: p.avatar_url,
-        roles: rolesMap.get(p.id) || []
-      }));
-
-      setUsers(usersWithRoles);
-      setLoading(false);
-    };
-
-    fetchUsers();
-  }, [user]);
+  const { data: users = [], isLoading: loading } = useQuery({
+    queryKey: ['all-users-list', user?.id],
+    queryFn: () => fetchAllUsers(user!.id),
+    enabled: !!user,
+    staleTime: 10 * 60 * 1000, // 10 minutes
+    gcTime: 30 * 60 * 1000, // 30 minutes cache
+  });
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
