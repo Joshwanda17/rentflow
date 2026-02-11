@@ -96,10 +96,10 @@ const isIOSStandalone = (() => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: isIOSStandalone ? 30 * 1000 : 5 * 60 * 1000,
-      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 30 * 60 * 1000,
+      staleTime: isIOSStandalone ? 30 * 1000 : 10 * 60 * 1000,
+      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 60 * 60 * 1000,
       retry: 2,
-      refetchOnWindowFocus: isIOSStandalone ? 'always' : false,
+      refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       networkMode: 'offlineFirst',
     },
