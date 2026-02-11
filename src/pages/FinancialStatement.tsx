@@ -213,7 +213,8 @@ export default function FinancialStatement() {
       const { exportToPDF } = await import('@/lib/exportUtils');
       await exportToPDF(statementRef.current, `welile-statement-${userName.replace(/\s+/g, '_')}`, `Financial Statement — ${userName}`);
       toast.success('Statement downloaded as PDF');
-    } catch {
+    } catch (err) {
+      console.error('PDF generation failed:', err);
       toast.error('Failed to generate PDF');
     } finally {
       setDownloading(false);
