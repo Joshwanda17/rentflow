@@ -50,6 +50,13 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // SIGNUP PAUSE: Block all new account activations
+    return new Response(JSON.stringify({ 
+      error: "New sign-ups are currently paused. Please try again later." 
+    }), {
+      status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
