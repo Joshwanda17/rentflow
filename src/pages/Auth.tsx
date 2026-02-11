@@ -228,33 +228,32 @@ export default function Auth() {
           return;
         }
 
-        // Helper: race a promise against a timeout
+        // Helper: race a promise against a timeout — generous for slow mobile networks
         const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
           Promise.race([
             promise,
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)),
           ]);
 
-        // Optimized for 7M+ users: limit auth attempts, use exact match
         const phoneLocal9 = cleanedPhone.slice(-9);
         
         // Build email variants (no network, fast) — cap to 3 most likely
         const emailVariants = generatePhoneEmailVariants(phone).slice(0, 3);
         
-        // Fast profile lookup using exact phone match (uses btree index)
+        // Fast profile lookup — 15s timeout for slow networks
         try {
           const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
-          const profilePromise = new Promise<any>((resolve) => {
-            supabase
-              .from('profiles')
-              .select('email, phone')
-              .in('phone', phoneFormats)
-              .limit(3)
-              .then(resolve);
-          });
-          const { data: profileMatch } = await withTimeout(profilePromise,
-            4000
+          const profileResult = await withTimeout(
+            Promise.resolve(
+              supabase
+                .from('profiles')
+                .select('email, phone')
+                .in('phone', phoneFormats)
+                .limit(3)
+            ),
+            15000
           );
+          const profileMatch = profileResult.data;
           
           if (profileMatch) {
             for (const p of profileMatch) {
@@ -271,25 +270,32 @@ export default function Auth() {
         let lastError: Error | null = null;
         let usedRealEmail = false;
 
-        for (const emailVariant of emailVariants) {
-          try {
-            const { error } = await withTimeout(signIn(emailVariant, password), 8000);
-            if (!error) {
+        // Try all email variants in PARALLEL instead of sequentially — 30s timeout
+        try {
+          const results = await withTimeout(
+            Promise.all(
+              emailVariants.map(async (emailVariant) => {
+                try {
+                  const { error } = await signIn(emailVariant, password);
+                  return { emailVariant, error };
+                } catch (e: any) {
+                  return { emailVariant, error: e as Error };
+                }
+              })
+            ),
+            30000
+          );
+
+          for (const result of results) {
+            if (!result.error) {
               loginSuccess = true;
-              usedRealEmail = !emailVariant.includes('@welile.');
+              usedRealEmail = !result.emailVariant.includes('@welile.');
               break;
             }
-            lastError = error;
-            
-            if (error.message.includes('Invalid login credentials')) {
-              continue;
-            } else {
-              break;
-            }
-          } catch (timeoutErr: any) {
-            lastError = timeoutErr;
-            break;
+            lastError = result.error;
           }
+        } catch (timeoutErr: any) {
+          lastError = timeoutErr;
         }
 
         if (!loginSuccess && lastError) {
@@ -305,10 +311,10 @@ export default function Auth() {
             // Reuse exact-match lookup instead of ILIKE full-table scan
             try {
               const phoneFormats2 = [`0${phoneLocal9}`, `256${phoneLocal9}`];
-              const errProfilePromise = new Promise<any>((resolve) => {
-                supabase.from('profiles').select('email').in('phone', phoneFormats2).limit(1).then(resolve);
-              });
-              const { data: existingProfile } = await withTimeout(errProfilePromise, 4000);
+              const { data: existingProfile } = await withTimeout(
+                Promise.resolve(supabase.from('profiles').select('email').in('phone', phoneFormats2).limit(1)),
+                15000
+              );
               
               if (existingProfile && existingProfile.length > 0 && existingProfile[0].email) {
                 const profileEmail = existingProfile[0].email;
