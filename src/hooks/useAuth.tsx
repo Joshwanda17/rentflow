@@ -240,19 +240,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     });
     
-    // PERFORMANCE: Single batched background update - don't block login
-    if (!error && data?.user) {
-      const userId = data.user.id;
-      setTimeout(() => {
-        // Batch all background writes in parallel
-        Promise.allSettled([
-          supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', userId),
-          supabase.from('user_login_history').insert({ user_id: userId, login_method: 'password', success: true }),
-          supabase.from('user_activity_log').insert({ user_id: userId, activity_type: 'login', description: 'Logged in with password' })
-        ]);
-      }, 100);
-    }
-    
     return { error: error as Error | null };
   };
 
