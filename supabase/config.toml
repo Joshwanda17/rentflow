@@ -68,3 +68,6 @@ verify_jwt = false
 
 [functions.ai-user-experience-report]
 verify_jwt = false
+
+[functions.batch-sync]
+verify_jwt = false

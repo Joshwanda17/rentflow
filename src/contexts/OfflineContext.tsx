@@ -1,12 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
-import { 
-  getSyncQueue, 
-  removeFromSyncQueue, 
-  updateSyncQueueItem,
-  clearAllOfflineData
-} from '@/lib/offlineDataStorage';
-import { supabase } from '@/integrations/supabase/client';
+import { getSyncQueue, clearAllOfflineData } from '@/lib/offlineDataStorage';
+import { runBatchSync } from '@/lib/syncEngine';
 
 interface OfflineContextType {
   isOnline: boolean;
@@ -26,116 +21,46 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   const [lastSyncTime, setLastSyncTime] = useState<Date | null>(null);
   const syncInProgress = useRef(false);
   const reconnectToastShown = useRef(false);
+  const syncIntervalRef = useRef<number | null>(null);
+  const currentBackoffMs = useRef(30000); // Start at 30s
 
-  // Check connection quality
   const checkConnectionQuality = useCallback(() => {
     const connection = (navigator as any).connection;
     if (connection) {
-      const isSlow = 
-        connection.effectiveType === '2g' || 
+      const isSlow =
+        connection.effectiveType === '2g' ||
         connection.effectiveType === 'slow-2g' ||
         connection.saveData === true;
       setIsSlowConnection(isSlow);
     }
   }, []);
 
-  // Sync pending changes when online
+  // Batched sync with exponential backoff on repeated failures
   const syncNow = useCallback(async () => {
     if (!isOnline || syncInProgress.current) return;
-    
+
     syncInProgress.current = true;
-    
+
     try {
-      const queue = await getSyncQueue();
-      setPendingSyncCount(queue.length);
-      
-      if (queue.length === 0) {
-        syncInProgress.current = false;
-        return;
-      }
+      const result = await runBatchSync();
 
-      let successCount = 0;
-      let failCount = 0;
-
-      for (const item of queue) {
-        try {
-          // Process based on type and table using raw fetch for dynamic tables
-          const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-          const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-          
-          const { data: { session } } = await supabase.auth.getSession();
-          const authHeader = session?.access_token 
-            ? { 'Authorization': `Bearer ${session.access_token}` }
-            : {};
-
-          let response: Response;
-          
-          if (item.type === 'create') {
-            response = await fetch(`${supabaseUrl}/rest/v1/${item.table}`, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseKey,
-                ...authHeader,
-              },
-              body: JSON.stringify(item.data),
-            });
-          } else if (item.type === 'update') {
-            response = await fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
-              method: 'PATCH',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseKey,
-                ...authHeader,
-              },
-              body: JSON.stringify(item.data),
-            });
-          } else if (item.type === 'delete') {
-            response = await fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
-              method: 'DELETE',
-              headers: {
-                'Content-Type': 'application/json',
-                'apikey': supabaseKey,
-                ...authHeader,
-              },
-            });
-          } else {
-            throw new Error(`Unknown sync type: ${item.type}`);
-          }
-
-          if (!response.ok) {
-            throw new Error(`HTTP ${response.status}: ${await response.text()}`);
-          }
-
-          await removeFromSyncQueue(item.id);
-          successCount++;
-        } catch (error) {
-          console.error('[OfflineSync] Failed to sync item:', item.id, error);
-          
-          // Increment retry count
-          if (item.retryCount < 3) {
-            await updateSyncQueueItem(item.id, { retryCount: item.retryCount + 1 });
-          } else {
-            // Remove after 3 failed attempts
-            await removeFromSyncQueue(item.id);
-          }
-          failCount++;
-        }
-      }
-
-      // Update pending count
       const remainingQueue = await getSyncQueue();
       setPendingSyncCount(remainingQueue.length);
       setLastSyncTime(new Date());
 
-      if (successCount > 0) {
-        toast.success(`Synced ${successCount} change${successCount > 1 ? 's' : ''}`);
+      if (result.successCount > 0) {
+        toast.success(`Synced ${result.successCount} change${result.successCount > 1 ? 's' : ''}`);
+        // Reset backoff on success
+        currentBackoffMs.current = 30000;
       }
-      if (failCount > 0) {
-        toast.error(`Failed to sync ${failCount} change${failCount > 1 ? 's' : ''}`);
+      if (result.failCount > 0) {
+        toast.error(`Failed to sync ${result.failCount} change${result.failCount > 1 ? 's' : ''}`);
+        // Increase backoff on failures (max 5 min)
+        currentBackoffMs.current = Math.min(currentBackoffMs.current * 2, 300000);
       }
     } catch (error) {
       console.error('[OfflineSync] Sync failed:', error);
+      currentBackoffMs.current = Math.min(currentBackoffMs.current * 2, 300000);
     } finally {
       syncInProgress.current = false;
     }
@@ -160,7 +85,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
         setTimeout(() => { reconnectToastShown.current = false; }, 5000);
       }
       checkConnectionQuality();
-      // Auto-sync when back online
+      currentBackoffMs.current = 30000; // Reset backoff
       syncNow();
     };
 
@@ -175,13 +100,11 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Listen for connection changes
     const connection = (navigator as any).connection;
     if (connection) {
       connection.addEventListener('change', checkConnectionQuality);
     }
 
-    // Initial check
     checkConnectionQuality();
 
     // DEFERRED: Load pending sync count after first paint
@@ -201,12 +124,24 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
     };
   }, [checkConnectionQuality, syncNow]);
 
-  // Auto-sync periodically when online
+  // Adaptive sync interval with backoff
   useEffect(() => {
     if (!isOnline) return;
 
-    const interval = setInterval(syncNow, 30000); // Sync every 30 seconds
-    return () => clearInterval(interval);
+    const scheduleNext = () => {
+      syncIntervalRef.current = window.setTimeout(async () => {
+        await syncNow();
+        scheduleNext();
+      }, currentBackoffMs.current);
+    };
+
+    scheduleNext();
+
+    return () => {
+      if (syncIntervalRef.current) {
+        clearTimeout(syncIntervalRef.current);
+      }
+    };
   }, [isOnline, syncNow]);
 
   return (
@@ -225,7 +160,7 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
-// Safe fallback defaults when provider hasn't loaded yet (deferred/lazy load)
+// Safe fallback defaults when provider hasn't loaded yet
 const offlineFallback: OfflineContextType = {
   isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
   isSlowConnection: false,
@@ -237,6 +172,5 @@ const offlineFallback: OfflineContextType = {
 
 export function useOffline() {
   const context = useContext(OfflineContext);
-  // Return safe defaults if provider hasn't loaded yet (deferred loading)
   return context ?? offlineFallback;
 }
