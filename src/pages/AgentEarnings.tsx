@@ -12,6 +12,7 @@ import { format } from 'date-fns';
 import { MobileMoneySettings } from '@/components/agent/MobileMoneySettings';
 import { RequestCommissionPayoutDialog } from '@/components/agent/RequestCommissionPayoutDialog';
 import { MyCommissionPayouts } from '@/components/agent/MyCommissionPayouts';
+import { UserWithdrawalRequests } from '@/components/wallet/UserWithdrawalRequests';
 import { hapticTap } from '@/lib/haptics';
 
 export default function AgentEarnings() {
@@ -215,10 +216,13 @@ export default function AgentEarnings() {
           <MobileMoneySettings />
         </div>
 
-        {/* My Payout Requests */}
+        {/* My Commission Payout Requests */}
         <div className="mb-6">
           <MyCommissionPayouts />
         </div>
+
+        {/* Wallet Withdrawal History */}
+        <UserWithdrawalRequests />
 
         {/* Earnings Breakdown */}
         <Card>
