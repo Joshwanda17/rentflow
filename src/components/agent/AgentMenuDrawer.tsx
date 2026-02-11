@@ -210,6 +210,13 @@ export function AgentMenuDrawer({
           color: 'text-blue-500'
         },
         { 
+          icon: FileText, 
+          label: 'Financial Statement', 
+          description: 'Download your statement',
+          path: '/financial-statement',
+          color: 'text-indigo-500'
+        },
+        { 
           icon: Calculator, 
           label: 'Calculator', 
           description: 'Rent & interest calculator',

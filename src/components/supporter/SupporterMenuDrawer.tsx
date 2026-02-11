@@ -122,6 +122,13 @@ export function SupporterMenuDrawer({
           color: 'text-blue-500'
         },
         { 
+          icon: FileText, 
+          label: 'Financial Statement', 
+          description: 'Download your statement',
+          path: '/financial-statement',
+          color: 'text-indigo-500'
+        },
+        { 
           icon: Receipt, 
           label: 'My Receipts', 
           description: 'Payment records',
