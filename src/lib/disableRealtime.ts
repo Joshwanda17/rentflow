@@ -9,7 +9,7 @@
  */
 import { supabase } from '@/integrations/supabase/client';
 
-const REALTIME_DISABLED = true;
+const REALTIME_DISABLED = false;
 
 if (REALTIME_DISABLED) {
   const noopChannel: any = {
