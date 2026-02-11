@@ -245,8 +245,8 @@ export function AgentMenuDrawer({
         { 
           icon: PiggyBank, 
           label: 'My Withdrawals', 
-          description: 'Commission payouts',
-          path: '/agent-earnings',
+          description: 'Commission payouts & wallet withdrawals',
+          path: '/earnings',
           color: 'text-success'
         },
       ]
