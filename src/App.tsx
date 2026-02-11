@@ -137,9 +137,16 @@ const PageLoader = memo(() => {
 PageLoader.displayName = 'PageLoader';
 
 // Stable routes wrapper — no RoutePrefetcher (DOM overhead), no JS page transitions
+// Global banner - lazy loaded
+const SignupPauseBanner = lazy(() => import("@/components/SignupPauseBanner"));
+
 function AppRoutes() {
   return (
     <div className="min-h-screen">
+      <Suspense fallback={null}>
+        <SignupPauseBanner />
+      </Suspense>
+      <div className="pt-[44px]">
       <Suspense fallback={<PageLoader />}>
         <Routes>
           <Route path="/" element={<Index />} />
@@ -197,6 +204,7 @@ function AppRoutes() {
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
+      </div>
     </div>
   );
 }
