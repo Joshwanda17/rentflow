@@ -92,14 +92,15 @@ export default function Auth() {
 
   useEffect(() => {
     if (user) {
-      // Mark that user has had a session (for PIN entry on next visit)
+      // Mark that user has had a session
       localStorage.setItem('welile_had_session', 'true');
       
-      if (roles.length === 0) {
-        navigate('/select-role');
-      } else {
+      // CRITICAL: Don't navigate until roles have loaded
+      // roles defaults to ['agent'] in useAuth, so length > 0 means ready
+      if (roles.length > 0) {
         navigate('/dashboard');
       }
+      // If roles are still empty, wait — useAuth will populate them
     }
   }, [user, roles, navigate]);
 
@@ -237,10 +238,8 @@ export default function Auth() {
 
         const phoneLocal9 = cleanedPhone.slice(-9);
         
-        // Build email variants (no network, fast) — cap to 3 most likely
-        const emailVariants = generatePhoneEmailVariants(phone).slice(0, 3);
-        
-        // Fast profile lookup — 15s timeout for slow networks
+        // STEP 1: Quick profile lookup to find the EXACT email (single DB call)
+        let targetEmail: string | null = null;
         try {
           const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
           const profileResult = await withTimeout(
@@ -249,53 +248,63 @@ export default function Auth() {
                 .from('profiles')
                 .select('email, phone')
                 .in('phone', phoneFormats)
-                .limit(3)
+                .limit(1)
             ),
             15000
           );
-          const profileMatch = profileResult.data;
-          
-          if (profileMatch) {
-            for (const p of profileMatch) {
-              if (p.email && !p.email.includes('@welile.') && !emailVariants.includes(p.email)) {
-                emailVariants.unshift(p.email);
-              }
-            }
+          const match = profileResult.data?.[0];
+          if (match?.email) {
+            targetEmail = match.email;
           }
         } catch {
-          // Lookup failed/timed out — continue with generated variants
+          // Lookup failed — fall through to variant approach
         }
 
         let loginSuccess = false;
         let lastError: Error | null = null;
         let usedRealEmail = false;
 
-        // Try all email variants in PARALLEL instead of sequentially — 30s timeout
-        try {
-          const results = await withTimeout(
-            Promise.all(
-              emailVariants.map(async (emailVariant) => {
-                try {
-                  const { error } = await signIn(emailVariant, password);
-                  return { emailVariant, error };
-                } catch (e: any) {
-                  return { emailVariant, error: e as Error };
-                }
-              })
-            ),
-            30000
-          );
-
-          for (const result of results) {
-            if (!result.error) {
+        // STEP 2: If we found the exact email, try JUST that one (fastest path)
+        if (targetEmail) {
+          try {
+            const { error } = await withTimeout(
+              signIn(targetEmail, password),
+              20000
+            );
+            if (!error) {
               loginSuccess = true;
-              usedRealEmail = !result.emailVariant.includes('@welile.');
+              usedRealEmail = !targetEmail.includes('@welile.');
+            } else {
+              lastError = error;
+            }
+          } catch (e: any) {
+            lastError = e;
+          }
+        }
+
+        // STEP 3: Only if exact email failed, try generated variants (max 2)
+        if (!loginSuccess) {
+          const emailVariants = generatePhoneEmailVariants(phone).slice(0, 2);
+          // Remove the email we already tried
+          const remainingVariants = targetEmail 
+            ? emailVariants.filter(e => e !== targetEmail) 
+            : emailVariants;
+
+          for (const emailVariant of remainingVariants) {
+            try {
+              const { error } = await withTimeout(signIn(emailVariant, password), 15000);
+              if (!error) {
+                loginSuccess = true;
+                usedRealEmail = !emailVariant.includes('@welile.');
+                break;
+              }
+              lastError = error;
+              if (!error.message.includes('Invalid login credentials')) break;
+            } catch (e: any) {
+              lastError = e;
               break;
             }
-            lastError = result.error;
           }
-        } catch (timeoutErr: any) {
-          lastError = timeoutErr;
         }
 
         if (!loginSuccess && lastError) {
