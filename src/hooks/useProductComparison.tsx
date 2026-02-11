@@ -66,10 +66,17 @@ export function ComparisonProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Safe fallback when provider hasn't loaded yet
+const comparisonFallback: ComparisonContextType = {
+  comparisonProducts: [],
+  addToComparison: () => false,
+  removeFromComparison: () => {},
+  clearComparison: () => {},
+  isInComparison: () => false,
+  maxProducts: MAX_COMPARISON_PRODUCTS,
+};
+
 export function useProductComparison() {
   const context = useContext(ComparisonContext);
-  if (!context) {
-    throw new Error('useProductComparison must be used within a ComparisonProvider');
-  }
-  return context;
+  return context ?? comparisonFallback;
 }
