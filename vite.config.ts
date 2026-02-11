@@ -141,12 +141,15 @@ export default defineConfig(({ mode }) => ({
   build: {
     rollupOptions: {
       output: {
-        manualChunks: {
-          'vendor-react': ['react', 'react-dom', 'react-router-dom'],
-          'vendor-query': ['@tanstack/react-query'],
-          'vendor-ui': ['@radix-ui/react-dialog', '@radix-ui/react-popover', '@radix-ui/react-tooltip', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-select'],
-          'vendor-motion': ['framer-motion'],
-          'vendor-charts': ['recharts'],
+        manualChunks(id) {
+          if (id.includes('node_modules/react-dom')) return 'vendor-react';
+          if (id.includes('node_modules/react-router')) return 'vendor-react';
+          if (id.includes('node_modules/@tanstack')) return 'vendor-query';
+          if (id.includes('node_modules/@radix-ui')) return 'vendor-ui';
+          if (id.includes('node_modules/framer-motion')) return 'vendor-motion';
+          if (id.includes('node_modules/recharts')) return 'vendor-charts';
+          if (id.includes('node_modules/leaflet') || id.includes('node_modules/react-leaflet')) return 'vendor-map';
+          if (id.includes('node_modules/date-fns')) return 'vendor-date';
         },
       },
     },
