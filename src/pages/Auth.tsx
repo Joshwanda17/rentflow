@@ -235,37 +235,36 @@ export default function Auth() {
             new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)),
           ]);
 
-        // First, check if user exists with real email (Google OAuth users)
+        // Optimized for 7M+ users: limit auth attempts, use exact match
         const phoneLocal9 = cleanedPhone.slice(-9);
         
-        // Build email variants first (no network needed)
-        const emailVariants = generatePhoneEmailVariants(phone);
+        // Build email variants (no network, fast) — cap to 3 most likely
+        const emailVariants = generatePhoneEmailVariants(phone).slice(0, 3);
         
-        // Try profile lookup with timeout — don't block sign-in if it fails
+        // Fast profile lookup using exact phone match (uses btree index)
         try {
-          const profileResult = await withTimeout(
-            Promise.resolve(
-              supabase
-                .from('profiles')
-                .select('email, phone')
-                .or(`phone.ilike.%${phoneLocal9}%`)
-                .limit(5)
-            ),
-            5000
+          const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
+          const profilePromise = new Promise<any>((resolve) => {
+            supabase
+              .from('profiles')
+              .select('email, phone')
+              .in('phone', phoneFormats)
+              .limit(3)
+              .then(resolve);
+          });
+          const { data: profileMatch } = await withTimeout(profilePromise,
+            4000
           );
-          const profileMatch = profileResult.data;
           
           if (profileMatch) {
             for (const p of profileMatch) {
-              const pClean = cleanPhoneNumber(p.phone || '');
-              const pLocal9 = pClean.slice(-9);
-              if (pLocal9 === phoneLocal9 && p.email && !p.email.includes('@welile.') && !emailVariants.includes(p.email)) {
+              if (p.email && !p.email.includes('@welile.') && !emailVariants.includes(p.email)) {
                 emailVariants.unshift(p.email);
               }
             }
           }
         } catch {
-          // Profile lookup failed/timed out — continue with generated variants
+          // Lookup failed/timed out — continue with generated variants
         }
 
         let loginSuccess = false;
@@ -282,7 +281,6 @@ export default function Auth() {
             }
             lastError = error;
             
-            // If it's a wrong password error, don't try other variants
             if (error.message.includes('Invalid login credentials')) {
               continue;
             } else {
@@ -290,7 +288,7 @@ export default function Auth() {
             }
           } catch (timeoutErr: any) {
             lastError = timeoutErr;
-            break; // Don't retry on timeout
+            break;
           }
         }
 
@@ -304,16 +302,13 @@ export default function Auth() {
           // Provide helpful error message
           let errorMessage = lastError.message;
           if (lastError.message.includes('Invalid login credentials')) {
-            // Check if account exists but was registered differently (with timeout)
+            // Reuse exact-match lookup instead of ILIKE full-table scan
             try {
-              const { data: existingProfile } = await withTimeout(
-                Promise.resolve(supabase
-                  .from('profiles')
-                  .select('email')
-                  .or(`phone.ilike.%${phoneLocal9}%`)
-                  .limit(1)),
-                5000
-              );
+              const phoneFormats2 = [`0${phoneLocal9}`, `256${phoneLocal9}`];
+              const errProfilePromise = new Promise<any>((resolve) => {
+                supabase.from('profiles').select('email').in('phone', phoneFormats2).limit(1).then(resolve);
+              });
+              const { data: existingProfile } = await withTimeout(errProfilePromise, 4000);
               
               if (existingProfile && existingProfile.length > 0 && existingProfile[0].email) {
                 const profileEmail = existingProfile[0].email;
