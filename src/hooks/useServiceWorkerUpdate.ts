@@ -2,7 +2,7 @@ import { useEffect, useCallback, useRef } from "react";
 
 declare const __BUILD_TIME__: number;
 
-const CACHE_NAME = 'welile-v10';
+const CACHE_NAME = 'welile-v11';
 
 // Pre-cache app shell assets for offline launch — runs ONLY on first install
 async function precacheAppShell() {
