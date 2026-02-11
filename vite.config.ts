@@ -45,9 +45,9 @@ export default defineConfig(({ mode }) => ({
         ]
       },
       workbox: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        // Maximum file size for precaching (5MB)
-        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Maximum file size for precaching (8MB to prevent build failures)
+        maximumFileSizeToCacheInBytes: 8 * 1024 * 1024,
         // Skip waiting to activate new SW immediately
         skipWaiting: true,
         clientsClaim: true,
