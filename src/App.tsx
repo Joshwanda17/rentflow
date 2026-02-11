@@ -1,4 +1,4 @@
-import { lazy, Suspense, memo, useEffect, useState, type ReactNode } from "react";
+import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "next-themes";
@@ -196,6 +196,14 @@ function AppRoutes() {
   );
 }
 
+// Lightweight error boundary for deferred providers — falls back to rendering children without providers
+class DeferredErrorBoundary extends Component<{ children: ReactNode }, { failed: boolean }> {
+  state = { failed: false };
+  static getDerivedStateFromError() { return { failed: true }; }
+  componentDidCatch(err: Error) { console.warn('[DeferredProviders] Failed to load, continuing without:', err.message); }
+  render() { return this.state.failed ? <>{this.props.children}</> : this.props.children; }
+}
+
 // Deferred wrapper — loads providers after first paint via idle callback
 function DeferredProviders({ children }: { children: ReactNode }) {
   const [ready, setReady] = useState(false);
@@ -213,15 +221,17 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   if (!ready) return <>{children}</>;
   
   return (
-    <Suspense fallback={<>{children}</>}>
-      <OfflineProvider>
-        <CartProvider>
-          <ComparisonProvider>
-            {children}
-          </ComparisonProvider>
-        </CartProvider>
-      </OfflineProvider>
-    </Suspense>
+    <DeferredErrorBoundary>
+      <Suspense fallback={<>{children}</>}>
+        <OfflineProvider>
+          <CartProvider>
+            <ComparisonProvider>
+              {children}
+            </ComparisonProvider>
+          </CartProvider>
+        </OfflineProvider>
+      </Suspense>
+    </DeferredErrorBoundary>
   );
 }
 
