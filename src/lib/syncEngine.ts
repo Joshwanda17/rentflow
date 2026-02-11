@@ -107,34 +107,35 @@ async function individualSync(
 
   for (const item of items) {
     try {
-      let response: Response;
-
-      if (item.type === 'create') {
-        response = await fetch(`${supabaseUrl}/rest/v1/${item.table}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
-          body: JSON.stringify(item.data),
-        });
-      } else if (item.type === 'update') {
-        response = await fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
-          method: 'PATCH',
-          headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
-          body: JSON.stringify(item.data),
-        });
-      } else if (item.type === 'delete') {
-        response = await fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
-          method: 'DELETE',
-          headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
-        });
-      } else {
+      const makeRequest = (): Promise<Response> => {
+        if (item.type === 'create') {
+          return fetch(`${supabaseUrl}/rest/v1/${item.table}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
+            body: JSON.stringify(item.data),
+          });
+        } else if (item.type === 'update') {
+          return fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
+            body: JSON.stringify(item.data),
+          });
+        } else if (item.type === 'delete') {
+          return fetch(`${supabaseUrl}/rest/v1/${item.table}?id=eq.${item.data.id}`, {
+            method: 'DELETE',
+            headers: { 'Content-Type': 'application/json', 'apikey': supabaseKey, ...authHeader },
+          });
+        }
         throw new Error(`Unknown sync type: ${item.type}`);
-      }
+      };
 
-      if (response!.ok) {
+      const response = await makeRequest();
+
+      if (response.ok) {
         await removeFromSyncQueue(item.id);
         successCount++;
       } else {
-        throw new Error(`HTTP ${response!.status}`);
+        throw new Error(`HTTP ${response.status}`);
       }
     } catch {
       if (item.retryCount >= MAX_RETRIES - 1) {
