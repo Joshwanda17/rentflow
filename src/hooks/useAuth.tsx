@@ -68,14 +68,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (!isMounted) return;
 
-        // Detect stale/expired refresh token errors and clear everything
+        // Only clear tokens for definitive auth errors (invalid/expired refresh token)
+        // Do NOT clear on transient network errors — let Supabase retry
         if (error) {
-          console.warn('[Auth] getSession error, clearing stale tokens:', error.message);
-          clearAllAuthStorage();
-          setSession(null);
-          setUser(null);
-          setRole(null);
-          setRoles([]);
+          const msg = error.message?.toLowerCase() || '';
+          const isAuthError = msg.includes('refresh_token') || msg.includes('invalid') || msg.includes('expired') || msg.includes('not authenticated');
+          if (isAuthError) {
+            console.warn('[Auth] Auth token invalid, clearing:', error.message);
+            clearAllAuthStorage();
+            setSession(null);
+            setUser(null);
+            setRole(null);
+            setRoles([]);
+          } else {
+            console.warn('[Auth] Transient getSession error (keeping session):', error.message);
+          }
           return;
         }
 
@@ -89,13 +96,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           clearSessionCache();
         }
       } catch (err: any) {
-        console.warn('[Auth] Init failed, clearing stale tokens:', err?.message);
-        // On network/timeout errors, clear stale tokens to prevent loops
-        clearAllAuthStorage();
-        if (isMounted) {
-          setSession(null);
-          setUser(null);
-        }
+        console.warn('[Auth] Init failed (keeping session for retry):', err?.message);
+        // Do NOT clear tokens on network/timeout errors — user stays logged in
+        // Supabase will auto-retry token refresh on next request
       } finally {
         if (isMounted) setLoading(false);
       }
