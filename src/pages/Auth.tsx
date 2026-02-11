@@ -12,6 +12,7 @@ import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { AuthTabToggle } from '@/components/auth/AuthTabToggle';
 import { useAuthForm } from '@/hooks/useAuthForm';
+import SignupPauseBanner, { SIGNUP_PAUSED } from '@/components/SignupPauseBanner';
 
 export default function Auth() {
   const {
@@ -38,6 +39,7 @@ export default function Auth() {
 
   return (
     <>
+      <SignupPauseBanner />
       <div className="min-h-screen bg-background flex items-center justify-center p-4">
         {/* Background decoration */}
         <div className="fixed inset-0 overflow-hidden pointer-events-none">
@@ -80,8 +82,8 @@ export default function Auth() {
               />
             )}
 
-            {/* Tab toggle */}
-            {!isForgotPassword && !isForgotPhone && (
+            {/* Tab toggle - hidden during signup pause */}
+            {!isForgotPassword && !isForgotPhone && !SIGNUP_PAUSED && (
               <AuthTabToggle isSignUp={isSignUp} onToggle={setIsSignUp} />
             )}
 

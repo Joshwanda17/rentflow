@@ -5,6 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
+import SignupPauseBanner, { SIGNUP_PAUSED, SIGNUP_RESUME_DATE } from '@/components/SignupPauseBanner';
 
 /**
  * Universal Join Page - Handles all invite and referral links
@@ -64,7 +65,8 @@ export default function Join() {
 
   // Show welcome page when no params
   return (
-    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex items-center justify-center p-4">
+    <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col items-center justify-center p-4">
+      <SignupPauseBanner />
       <Card className="w-full max-w-md">
         <CardHeader className="text-center">
           <div className="flex justify-center mb-4">
