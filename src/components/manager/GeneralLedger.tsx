@@ -26,15 +26,21 @@ interface LedgerEntry {
 }
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
-type CategoryFilter = 'all' | 'deposit' | 'agent_commission' | 'cash_in' | 'cash_out';
+type CategoryFilter = 'all' | string;
 type DirectionFilter = 'all' | 'debit' | 'credit';
 
 const categoryOptions: { value: CategoryFilter; label: string }[] = [
   { value: 'all', label: 'All Categories' },
   { value: 'deposit', label: 'Deposits' },
+  { value: 'wallet_deposit', label: 'Wallet Deposits' },
+  { value: 'wallet_withdrawal', label: 'Withdrawals' },
+  { value: 'wallet_transfer', label: 'Transfers' },
+  { value: 'rent_repayment', label: 'Rent Repayments' },
+  { value: 'loan_repayment', label: 'Loan Repayments' },
   { value: 'agent_commission', label: 'Agent Commissions' },
-  { value: 'cash_in', label: 'Cash In' },
-  { value: 'cash_out', label: 'Cash Out' },
+  { value: 'agent_payout', label: 'Agent Payouts' },
+  { value: 'landlord_payout', label: 'Landlord Payouts' },
+  { value: 'landlord_payout_request', label: 'Landlord Payout Requests' },
 ];
 
 export function GeneralLedger() {
