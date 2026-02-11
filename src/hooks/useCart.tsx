@@ -204,10 +204,20 @@ export function CartProvider({ children }: { children: ReactNode }) {
   );
 }
 
+// Safe fallback when provider hasn't loaded yet
+const cartFallback: CartContextType = {
+  items: [],
+  loading: false,
+  itemCount: 0,
+  totalAmount: 0,
+  addToCart: async () => {},
+  updateQuantity: async () => {},
+  removeFromCart: async () => {},
+  clearCart: async () => {},
+  refreshCart: async () => {},
+};
+
 export function useCart() {
   const context = useContext(CartContext);
-  if (context === undefined) {
-    throw new Error('useCart must be used within a CartProvider');
-  }
-  return context;
+  return context ?? cartFallback;
 }

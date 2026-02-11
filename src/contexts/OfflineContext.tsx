@@ -225,10 +225,18 @@ export function OfflineProvider({ children }: { children: React.ReactNode }) {
   );
 }
 
+// Safe fallback defaults when provider hasn't loaded yet (deferred/lazy load)
+const offlineFallback: OfflineContextType = {
+  isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
+  isSlowConnection: false,
+  pendingSyncCount: 0,
+  lastSyncTime: null,
+  syncNow: async () => {},
+  clearOfflineData: async () => {},
+};
+
 export function useOffline() {
   const context = useContext(OfflineContext);
-  if (context === undefined) {
-    throw new Error('useOffline must be used within an OfflineProvider');
-  }
-  return context;
+  // Return safe defaults if provider hasn't loaded yet (deferred loading)
+  return context ?? offlineFallback;
 }
