@@ -327,16 +327,16 @@ export function WithdrawalRequestsManager() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      // Calculate 12 hours ago cutoff
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      // Calculate 24 hours ago cutoff
+      const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
 
-      // Fetch pending withdrawal requests: exclude ≤500 UGX and older than 12 hours
+      // Fetch pending withdrawal requests: exclude ≤500 UGX and older than 24 hours
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('status', 'pending')
         .gt('amount', 500)
-        .gte('created_at', twelveHoursAgo)
+        .gte('created_at', twentyFourHoursAgo)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
