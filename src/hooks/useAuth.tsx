@@ -91,25 +91,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setRole(null);
             setRoles([]);
           } else if (isNetworkError) {
-            // Network is down — don't clear tokens, but don't block UI
             console.warn('[Auth] Network error during session restore — proceeding offline:', error.message);
           } else {
-            console.warn('[Auth] Transient getSession error (keeping session):', error.message);
+            console.warn('[Auth] Transient getSession error:', error.message);
           }
-          // Always fall through to finally so loading is set to false
-        }
-
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
-          // Don't let role fetch block loading — use a race with 5s timeout
-          const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
-          const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
-          await Promise.race([rolePromise, timeoutPromise]);
+          // Skip session state update on error — preserve existing state / cache
         } else {
-          clearSessionCache();
+          setSession(session);
+          setUser(session?.user ?? null);
+
+          if (session?.user) {
+            setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
+            const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
+            const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+            await Promise.race([rolePromise, timeoutPromise]);
+          } else {
+            clearSessionCache();
+          }
         }
       } catch (err: any) {
         console.warn('[Auth] Init failed (keeping session for retry):', err?.message);
