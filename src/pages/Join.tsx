@@ -5,7 +5,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Button } from '@/components/ui/button';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
-import { SIGNUP_PAUSED, SIGNUP_RESUME_DATE } from '@/components/SignupPauseBanner';
+
 
 /**
  * Universal Join Page - Handles all invite and referral links
