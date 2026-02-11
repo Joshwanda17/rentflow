@@ -1,82 +1,52 @@
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 import { User, Session } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
-import { lovable } from '@/integrations/lovable';
-import { 
-  getCachedSession, 
-  setCachedSession, 
+import {
+  setCachedSession,
   clearSessionCache,
-  getCachedRoles,
-  setCachedRoles,
   getPreloadedSession,
-  getPreloadedRoles
+  getPreloadedRoles,
 } from '@/lib/sessionCache';
 
-export type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+// Re-export types so existing imports keep working
+export type { AppRole } from './auth/types';
+export type { AuthContextType } from './auth/types';
 
-interface AuthContextType {
-  user: User | null;
-  session: Session | null;
-  role: AppRole | null;
-  roles: AppRole[];
-  loading: boolean;
-  signUp: (email: string, password: string, fullName: string, phone: string, role: AppRole) => Promise<{ error: Error | null }>;
-  signUpWithoutRole: (email: string, password: string, fullName: string, phone: string, referrerId?: string) => Promise<{ error: Error | null }>;
-  signIn: (email: string, password: string) => Promise<{ error: Error | null }>;
-  signInWithGoogle: () => Promise<{ error: Error | null }>;
-  signOut: () => Promise<void>;
-  switchRole: (role: AppRole) => void;
-  addRole: (role: AppRole) => Promise<{ error: Error | null }>;
-  resetPassword: (email: string) => Promise<{ error: Error | null }>;
-}
+import type { AppRole, AuthContextType } from './auth/types';
+import { DEFAULT_ROLES, fetchUserRoles, addRoleForUser } from './auth/roleManager';
+import * as ops from './auth/authOperations';
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
-// Default role for all users - agent is always available
-const DEFAULT_ROLE: AppRole = 'agent';
-const DEFAULT_ROLES: AppRole[] = ['agent'];
-
 export function AuthProvider({ children }: { children: ReactNode }) {
-  // INSTANT: Use cached session/roles for immediate state
   const cachedSession = getPreloadedSession();
   const cachedRoles = getPreloadedRoles() as AppRole[] | null;
-  
-  // Ensure agent role is always included in cached roles
-  const initialRoles = cachedRoles && cachedRoles.length > 0 
-    ? (cachedRoles.includes('agent') ? cachedRoles : ['agent', ...cachedRoles] as AppRole[])
-    : DEFAULT_ROLES;
-  
+
+  const initialRoles: AppRole[] =
+    cachedRoles && cachedRoles.length > 0
+      ? cachedRoles.includes('agent') ? cachedRoles : ['agent', ...cachedRoles] as AppRole[]
+      : DEFAULT_ROLES;
+
   const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
-  // Default to agent role for all users
   const [role, setRole] = useState<AppRole | null>(initialRoles.includes('agent') ? 'agent' : initialRoles[0]);
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
-  // CRITICAL: Start with loading=false if we have cached data
   const [loading, setLoading] = useState(!cachedSession);
 
   useEffect(() => {
     let isMounted = true;
 
-    // Listener for ONGOING auth changes (does NOT control loading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
         if (!isMounted) return;
-        
+
         setSession(session);
         setUser(session?.user ?? null);
-        
+
         if (session?.user) {
-          // Cache session for instant reload
-          setCachedSession(
-            session.user.id, 
-            session.user.email || '', 
-            session.expires_at || 0
-          );
-          
-          // Fire and forget — don't set loading, don't await
-          fetchUserRoles(session.user.id);
-          
-          // Update last_active_at on auth state change
+          setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
+          fetchUserRoles(session.user.id, role, setRoles, setRole);
+
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             supabase
               .from('profiles')
@@ -89,10 +59,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRoles([]);
           clearSessionCache();
         }
-      }
+      },
     );
 
-    // INITIAL load — fetch session & roles BEFORE setting loading=false
     const initializeAuth = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -102,15 +71,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          setCachedSession(
-            session.user.id, 
-            session.user.email || '', 
-            session.expires_at || 0
-          );
-          // Await roles BEFORE setting loading=false
-          await fetchUserRoles(session.user.id);
+          setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
+          await fetchUserRoles(session.user.id, role, setRoles, setRole);
         } else {
-          // Session is null — clear stale cached session to prevent infinite loading
           clearSessionCache();
         }
       } catch {
@@ -122,11 +85,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initializeAuth();
 
-    // Handle "Remember me" - sign out when browser closes if unchecked
     const handleBeforeUnload = () => {
       const sessionOnly = sessionStorage.getItem('welile_session_only');
       if (sessionOnly === 'true') {
-        // Sign out synchronously by clearing storage
         localStorage.removeItem('sb-wirntoujqoyjobfhyelc-auth-token');
         clearSessionCache();
       }
@@ -141,153 +102,36 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const fetchUserRoles = async (userId: string) => {
-    // Fetch roles that are enabled. Legacy rows may have enabled = NULL;
-    // treat NULL as enabled to avoid locking users out of their roles.
-    const { data, error } = await supabase
-      .from('user_roles')
-      .select('role, enabled')
-      .eq('user_id', userId)
-      .or('enabled.is.null,enabled.eq.true');
-    
-    if (!error && data && data.length > 0) {
-      let userRoles = data.map(r => r.role as AppRole);
-      
-      // IMPORTANT: Ensure agent role is always included (default for all users)
-      if (!userRoles.includes('agent')) {
-        userRoles = ['agent', ...userRoles];
-      }
-      
-      setRoles(userRoles);
-      // Cache roles for instant reload
-      setCachedRoles(userRoles);
-      // Prioritize AGENT role as default dashboard for all users
-      if (!role || !userRoles.includes(role)) {
-        setRole('agent'); // Agent is always the default
-      }
-    } else {
-      // Even with no roles from DB, agent is always available
-      setRoles(DEFAULT_ROLES);
-      setRole(DEFAULT_ROLE);
-      setCachedRoles(DEFAULT_ROLES);
-    }
-  };
-
   const switchRole = (newRole: AppRole) => {
-    if (roles.includes(newRole)) {
-      setRole(newRole);
-    }
+    if (roles.includes(newRole)) setRole(newRole);
   };
 
   const addRole = async (newRole: AppRole) => {
     if (!user) return { error: new Error('No user logged in') };
-    if (roles.includes(newRole)) return { error: null };
-
-    const { error } = await supabase
-      .from('user_roles')
-      .insert({ user_id: user.id, role: newRole, enabled: true });
-
-    if (!error) {
-      const newRoles = [...roles, newRole];
-      setRoles(newRoles);
-      if (!role) {
-        setRole(newRole);
-      }
-    }
-    return { error: error as Error | null };
-  };
-
-  const signUp = async (email: string, password: string, fullName: string, phone: string, role: AppRole) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          phone: phone,
-          role: role
-        }
-      }
-    });
-    
-    return { error: error as Error | null };
-  };
-
-  const signUpWithoutRole = async (email: string, password: string, fullName: string, phone: string, referrerId?: string) => {
-    const redirectUrl = `${window.location.origin}/`;
-    
-    const { error } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        emailRedirectTo: redirectUrl,
-        data: {
-          full_name: fullName,
-          phone: phone,
-          referrer_id: referrerId || null
-        }
-      }
-    });
-    
-    return { error: error as Error | null };
-  };
-
-  const signIn = async (email: string, password: string) => {
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
-    
-    return { error: error as Error | null };
-  };
-
-  const signInWithGoogle = async () => {
-    const result = await lovable.auth.signInWithOAuth('google', {
-      // Send users back to our Auth route after Google finishes.
-      // This avoids cases where returning to '/' can land on a route that doesn't handle OAuth handoff.
-      redirect_uri: `${window.location.origin}/auth`
-    });
-    
-    if (result.redirected) {
-      return { error: null };
-    }
-    
-    return { error: result.error ?? null };
+    return addRoleForUser(user.id, newRole, roles, role, setRoles, setRole);
   };
 
   const signOut = async () => {
-    // Log logout before signing out
-    if (user) {
-      await supabase
-        .from('user_activity_log')
-        .insert({
-          user_id: user.id,
-          activity_type: 'logout',
-          description: 'Logged out'
-        });
-    }
-    
-    await supabase.auth.signOut();
+    await ops.signOutUser(user?.id);
     setUser(null);
     setSession(null);
     setRole(null);
   };
 
-  const resetPassword = async (email: string) => {
-    const redirectUrl = `${window.location.origin}/update-password`;
-    
-    const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: redirectUrl,
-    });
-    
-    return { error: error as Error | null };
-  };
-
   return (
-    <AuthContext.Provider value={{ user, session, role, roles, loading, signUp, signUpWithoutRole, signIn, signInWithGoogle, signOut, switchRole, addRole, resetPassword }}>
+    <AuthContext.Provider
+      value={{
+        user, session, role, roles, loading,
+        signUp: ops.signUp,
+        signUpWithoutRole: ops.signUpWithoutRole,
+        signIn: ops.signIn,
+        signInWithGoogle: ops.signInWithGoogle,
+        signOut,
+        switchRole,
+        addRole,
+        resetPassword: ops.resetPassword,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
