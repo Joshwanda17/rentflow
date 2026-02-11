@@ -25,7 +25,8 @@ import {
   ChevronDown,
   Square,
   CheckSquare,
-  Minus
+  Minus,
+  Printer
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -84,6 +85,7 @@ export function WithdrawalRequestsManager() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [allRequests, setAllRequests] = useState<WithdrawalRequest[]>([]);
   const [exporting, setExporting] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [lastBalanceUpdate, setLastBalanceUpdate] = useState<Date>(new Date());
   
   // History state
@@ -228,6 +230,90 @@ export function WithdrawalRequestsManager() {
       toast.error('Failed to export data');
     } finally {
       setExporting(false);
+    }
+  };
+
+  const handlePrintPDF = async () => {
+    const dataToPrint = activeTab === 'pending' ? requests : historyRequests;
+    if (dataToPrint.length === 0) {
+      toast.error('No requests to print');
+      return;
+    }
+    setPrinting(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+      let y = 15;
+
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Withdrawal Requests — ${activeTab === 'pending' ? 'Pending' : 'History'}`, margin, y);
+      y += 8;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}  •  ${dataToPrint.length} requests`, margin, y);
+      y += 10;
+
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      const cols = [margin, margin + 35, margin + 75, margin + 110, margin + 145];
+      pdf.text('Name / Phone', cols[0], y);
+      pdf.text('MoMo Details', cols[1], y);
+      pdf.text('Amount (UGX)', cols[2], y);
+      pdf.text('Status', cols[3], y);
+      pdf.text('Date', cols[4], y);
+      y += 2;
+      pdf.setDrawColor(200, 200, 200);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 5;
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(8);
+      for (const req of dataToPrint) {
+        if (y > 275) {
+          pdf.addPage();
+          y = 15;
+        }
+        const name = req.user?.full_name || 'Unknown';
+        const phone = req.user?.phone || '';
+        const momoProvider = (req.mobile_money_provider || '').toUpperCase();
+        const momoNumber = req.mobile_money_number || '';
+        const amount = formatCurrency(req.amount);
+        const status = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+        const date = format(new Date(req.created_at), 'MMM dd, HH:mm');
+
+        pdf.setFont('helvetica', 'bold');
+        pdf.text(name, cols[0], y);
+        pdf.setFont('helvetica', 'normal');
+        pdf.text(phone, cols[0], y + 4);
+        pdf.text(momoProvider, cols[1], y);
+        pdf.text(momoNumber, cols[1], y + 4);
+        pdf.text(amount, cols[2], y);
+        pdf.text(status, cols[3], y);
+        pdf.text(date, cols[4], y);
+
+        y += 12;
+        pdf.setDrawColor(230, 230, 230);
+        pdf.line(margin, y - 3, pageWidth - margin, y - 3);
+      }
+
+      y += 2;
+      const total = dataToPrint.reduce((sum, r) => sum + r.amount, 0);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(10);
+      pdf.text(`Total: ${formatCurrency(total)}`, margin, y);
+
+      pdf.save(`withdrawals-${activeTab}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
+      toast.success('PDF downloaded');
+    } catch (err) {
+      console.error('PDF generation failed:', err);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setPrinting(false);
     }
   };
 
@@ -630,6 +716,19 @@ export function WithdrawalRequestsManager() {
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (
                   <Download className="h-4 w-4" />
+                )}
+              </Button>
+              <Button 
+                variant="ghost" 
+                size="icon"
+                onClick={handlePrintPDF}
+                disabled={printing}
+                title="Print as PDF"
+              >
+                {printing ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Printer className="h-4 w-4" />
                 )}
               </Button>
               <Button 
