@@ -48,12 +48,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
           fetchUserRoles(session.user.id, role, setRoles, setRole);
 
-          if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-            supabase
-              .from('profiles')
-              .update({ last_active_at: new Date().toISOString() })
-              .eq('id', session.user.id)
-              .then(() => {});
+        if (event === 'SIGNED_IN') {
+            // Defer non-critical profile update — don't block login
+            setTimeout(() => {
+              supabase
+                .from('profiles')
+                .update({ last_active_at: new Date().toISOString() })
+                .eq('id', session.user.id)
+                .then(() => {});
+            }, 5000);
           }
         } else if (event === 'SIGNED_OUT') {
           setRole(null);
