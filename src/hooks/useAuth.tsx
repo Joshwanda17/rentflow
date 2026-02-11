@@ -245,39 +245,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       password
     });
     
-    // PERFORMANCE: Fire-and-forget background tasks - don't block login
+    // PERFORMANCE: Single batched background update - don't block login
     if (!error && data?.user) {
       const userId = data.user.id;
-      
-      // All background tasks run after login completes - non-blocking
       setTimeout(() => {
-        // Update last_active_at (fire-and-forget)
-        supabase
-          .from('profiles')
-          .update({ last_active_at: new Date().toISOString() })
-          .eq('id', userId)
-          .then(() => {});
-        
-        // Log login (fire-and-forget)
-        supabase
-          .from('user_login_history')
-          .insert({
-            user_id: userId,
-            login_method: 'password',
-            success: true
-          })
-          .then(() => {});
-        
-        // Log activity (fire-and-forget)
-        supabase
-          .from('user_activity_log')
-          .insert({
-            user_id: userId,
-            activity_type: 'login',
-            description: 'Logged in with password'
-          })
-          .then(() => {});
-      }, 100); // Defer by 100ms to not block UI
+        // Batch all background writes in parallel
+        Promise.allSettled([
+          supabase.from('profiles').update({ last_active_at: new Date().toISOString() }).eq('id', userId),
+          supabase.from('user_login_history').insert({ user_id: userId, login_method: 'password', success: true }),
+          supabase.from('user_activity_log').insert({ user_id: userId, activity_type: 'login', description: 'Logged in with password' })
+        ]);
+      }, 100);
     }
     
     return { error: error as Error | null };
