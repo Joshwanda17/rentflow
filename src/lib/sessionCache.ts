@@ -5,7 +5,7 @@ const AUTH_TOKEN_KEY = 'sb-wirntoujqoyjobfhyelc-auth-token';
 
 const SESSION_CACHE_KEY = 'welile_session_cache';
 const ROLES_CACHE_KEY = 'welile_roles_cache';
-const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 interface CachedSession {
   userId: string;

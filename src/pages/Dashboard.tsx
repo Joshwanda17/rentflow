@@ -176,14 +176,15 @@ function DashboardContent() {
       navigate('/select-role');
       return;
     }
-    // Fallback: if user is still null after 8 seconds (e.g. stale cached session), force redirect
+    // Fallback: if user is still null after 30 seconds (e.g. very stale cached session), force redirect
+    // Extended from 8s to 30s to prevent premature logouts on slow networks
     if (!user) {
       const timeout = setTimeout(() => {
         if (!user) {
-          console.warn('[Dashboard] Safety timeout: no user after 8s, redirecting to auth');
+          console.warn('[Dashboard] Safety timeout: no user after 30s, redirecting to auth');
           navigate('/auth', { replace: true });
         }
-      }, 8000);
+      }, 30000);
       return () => clearTimeout(timeout);
     }
   }, [user, loading, roles, cachedRoles, navigate]);
