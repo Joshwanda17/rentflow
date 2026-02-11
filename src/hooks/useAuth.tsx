@@ -64,12 +64,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     );
 
     const initializeAuth = async () => {
+      // Hard cap: loading MUST resolve within 8s no matter what
+      const forceLoadingOff = setTimeout(() => {
+        if (isMounted) {
+          console.warn('[Auth] Init timeout after 8s — forcing loading off');
+          setLoading(false);
+        }
+      }, 8000);
+
       try {
         const { data: { session }, error } = await supabase.auth.getSession();
         if (!isMounted) return;
 
-        // Only clear tokens for definitive auth errors (invalid/expired refresh token)
-        // Do NOT clear on transient network errors — let Supabase retry
         if (error) {
           const msg = error.message?.toLowerCase() || '';
           const isAuthError = msg.includes('refresh_token') || msg.includes('invalid') || msg.includes('expired') || msg.includes('not authenticated');
@@ -91,15 +97,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
-          await fetchUserRoles(session.user.id, role, setRoles, setRole);
+          // Don't let role fetch block loading — use a race with 5s timeout
+          const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
+          const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
+          await Promise.race([rolePromise, timeoutPromise]);
         } else {
           clearSessionCache();
         }
       } catch (err: any) {
         console.warn('[Auth] Init failed (keeping session for retry):', err?.message);
-        // Do NOT clear tokens on network/timeout errors — user stays logged in
-        // Supabase will auto-retry token refresh on next request
       } finally {
+        clearTimeout(forceLoadingOff);
         if (isMounted) setLoading(false);
       }
     };
