@@ -82,6 +82,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         if (error) {
           const msg = error.message?.toLowerCase() || '';
           const isAuthError = msg.includes('refresh_token') || msg.includes('invalid') || msg.includes('expired') || msg.includes('not authenticated');
+          const isNetworkError = msg.includes('networkerror') || msg.includes('fetch') || msg.includes('network');
           if (isAuthError) {
             console.warn('[Auth] Auth token invalid, clearing:', error.message);
             clearAllAuthStorage();
@@ -89,10 +90,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             setUser(null);
             setRole(null);
             setRoles([]);
+          } else if (isNetworkError) {
+            // Network is down — don't clear tokens, but don't block UI
+            console.warn('[Auth] Network error during session restore — proceeding offline:', error.message);
           } else {
             console.warn('[Auth] Transient getSession error (keeping session):', error.message);
           }
-          return;
+          // Always fall through to finally so loading is set to false
         }
 
         setSession(session);
