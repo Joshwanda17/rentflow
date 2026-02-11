@@ -183,14 +183,25 @@ export function useAuthForm() {
     let profileEmail: string | null = null;
 
     try {
-      const { data } = await supabase
+      const profilePromise = supabase
         .from('profiles')
         .select('email, phone')
         .in('phone', phoneFormats)
         .limit(1);
+      
+      // Race against a 10-second timeout to prevent indefinite spinning
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network timeout: Unable to reach the server. Please check your connection and try again.')), 10000)
+      );
+
+      const { data } = await Promise.race([profilePromise, timeoutPromise]);
       if (data?.[0]?.email) profileEmail = data[0].email;
-    } catch {
-      // Continue with generated email
+    } catch (e: any) {
+      if (e?.message?.includes('Network timeout')) {
+        toast({ title: 'Connection Error', description: e.message, variant: 'destructive' });
+        return;
+      }
+      // Continue with generated email for other errors
     }
 
     // Use profile email if found, otherwise use the primary generated one
@@ -201,7 +212,11 @@ export function useAuthForm() {
     let lastError: Error | null = null;
 
     try {
-      const { error } = await signIn(emailToTry, password);
+      const signInPromise = signIn(emailToTry, password);
+      const timeoutPromise = new Promise<never>((_, reject) =>
+        setTimeout(() => reject(new Error('Network timeout')), 12000)
+      );
+      const { error } = await Promise.race([signInPromise, timeoutPromise]);
       if (!error) {
         loginSuccess = true;
       } else {
