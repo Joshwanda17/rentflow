@@ -109,7 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           );
           // Await roles BEFORE setting loading=false
           await fetchUserRoles(session.user.id);
-        } else if (!cachedSession) {
+        } else {
+          // Session is null — clear stale cached session to prevent infinite loading
           clearSessionCache();
         }
       } catch {
