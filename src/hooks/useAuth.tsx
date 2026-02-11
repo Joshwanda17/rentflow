@@ -55,20 +55,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(!cachedSession);
 
   useEffect(() => {
-    // Track if we're initializing - don't clear cache on initial null events
-    let isInitialized = false;
-    
+    let isMounted = true;
+
+    // Listener for ONGOING auth changes (does NOT control loading)
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
-        // Only process auth changes after initialization OR for explicit sign-in/out events
-        if (!isInitialized && event !== 'SIGNED_IN' && event !== 'SIGNED_OUT') {
-          // During init, just update state without clearing cache
-          if (session?.user) {
-            setSession(session);
-            setUser(session.user);
-          }
-          return;
-        }
+        if (!isMounted) return;
         
         setSession(session);
         setUser(session?.user ?? null);
@@ -81,11 +73,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             session.expires_at || 0
           );
           
-          setTimeout(() => {
-            fetchUserRoles(session.user.id);
-          }, 0);
+          // Fire and forget — don't set loading, don't await
+          fetchUserRoles(session.user.id);
           
-          // Update last_active_at on auth state change (login, token refresh, etc.)
+          // Update last_active_at on auth state change
           if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
             supabase
               .from('profiles')
@@ -94,7 +85,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               .then(() => {});
           }
         } else if (event === 'SIGNED_OUT') {
-          // ONLY clear on explicit sign out, not on transient null states
           setRole(null);
           setRoles([]);
           clearSessionCache();
@@ -102,30 +92,34 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     );
 
-    // Get session immediately and set loading false ASAP
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      isInitialized = true;
-      setSession(session);
-      setUser(session?.user ?? null);
-      // Set loading false immediately - don't wait for roles
-      setLoading(false);
-      if (session?.user) {
-        // Cache for next load
-        setCachedSession(
-          session.user.id, 
-          session.user.email || '', 
-          session.expires_at || 0
-        );
-        fetchUserRoles(session.user.id);
-      } else if (!cachedSession) {
-        // Only clear if we had no cached session - prevents logout loop on slow connections
-        clearSessionCache();
+    // INITIAL load — fetch session & roles BEFORE setting loading=false
+    const initializeAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (!isMounted) return;
+
+        setSession(session);
+        setUser(session?.user ?? null);
+
+        if (session?.user) {
+          setCachedSession(
+            session.user.id, 
+            session.user.email || '', 
+            session.expires_at || 0
+          );
+          // Await roles BEFORE setting loading=false
+          await fetchUserRoles(session.user.id);
+        } else if (!cachedSession) {
+          clearSessionCache();
+        }
+      } catch {
+        // Don't clear cache on network errors
+      } finally {
+        if (isMounted) setLoading(false);
       }
-    }).catch(() => {
-      isInitialized = true;
-      setLoading(false);
-      // Don't clear cache on network errors - user might still be logged in
-    });
+    };
+
+    initializeAuth();
 
     // Handle "Remember me" - sign out when browser closes if unchecked
     const handleBeforeUnload = () => {
@@ -140,6 +134,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     window.addEventListener('beforeunload', handleBeforeUnload);
 
     return () => {
+      isMounted = false;
       subscription.unsubscribe();
       window.removeEventListener('beforeunload', handleBeforeUnload);
     };
