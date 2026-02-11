@@ -32,7 +32,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [session, setSession] = useState<Session | null>(null);
   const [role, setRole] = useState<AppRole | null>(initialRoles.includes('agent') ? 'agent' : initialRoles[0]);
   const [roles, setRoles] = useState<AppRole[]>(initialRoles);
-  const [loading, setLoading] = useState(!cachedSession);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     let isMounted = true;
