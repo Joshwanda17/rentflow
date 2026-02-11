@@ -103,20 +103,23 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     initializeAuth();
 
-    const handleBeforeUnload = () => {
+    // Only clear auth on true tab/browser close, NOT on refresh.
+    // We use 'pagehide' with persisted check — on refresh, persisted is true
+    // and the page goes into bfcache; on close, persisted is false.
+    const handlePageHide = (e: PageTransitionEvent) => {
       const sessionOnly = sessionStorage.getItem('welile_session_only');
-      if (sessionOnly === 'true') {
+      if (sessionOnly === 'true' && !e.persisted) {
         localStorage.removeItem('sb-wirntoujqoyjobfhyelc-auth-token');
         clearSessionCache();
       }
     };
 
-    window.addEventListener('beforeunload', handleBeforeUnload);
+    window.addEventListener('pagehide', handlePageHide);
 
     return () => {
       isMounted = false;
       subscription.unsubscribe();
-      window.removeEventListener('beforeunload', handleBeforeUnload);
+      window.removeEventListener('pagehide', handlePageHide);
     };
   }, []);
 
