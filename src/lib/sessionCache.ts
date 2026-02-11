@@ -1,6 +1,8 @@
 // Ultra-fast session cache for instant auth state on app load
 // Caches session in sessionStorage for immediate availability
 
+const AUTH_TOKEN_KEY = 'sb-wirntoujqoyjobfhyelc-auth-token';
+
 const SESSION_CACHE_KEY = 'welile_session_cache';
 const ROLES_CACHE_KEY = 'welile_roles_cache';
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutes
@@ -63,6 +65,24 @@ export function clearSessionCache(): void {
     sessionStorage.removeItem(ROLES_CACHE_KEY);
   } catch {
     // Ignore
+  }
+}
+
+/**
+ * Clear ALL auth-related storage (tokens, caches) to eliminate stale refresh tokens.
+ * Use when backend returns token refresh errors (504/timeout).
+ */
+export function clearAllAuthStorage(): void {
+  try {
+    // Clear Supabase auth token from localStorage
+    localStorage.removeItem(AUTH_TOKEN_KEY);
+    // Clear session cache
+    sessionStorage.removeItem(SESSION_CACHE_KEY);
+    sessionStorage.removeItem(ROLES_CACHE_KEY);
+    // Clear any session-only flags
+    sessionStorage.removeItem('welile_session_only');
+  } catch {
+    // Ignore storage errors
   }
 }
 
