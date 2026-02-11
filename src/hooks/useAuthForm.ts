@@ -263,11 +263,8 @@ export function useAuthForm() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Safety timeout: force-reset spinner after 15s so UI never gets stuck
-    const safetyTimer = setTimeout(() => {
-      setIsLoading(false);
-      toast({ title: 'Slow Connection', description: 'Request is taking too long. Please try again.', variant: 'destructive' });
-    }, 15000);
+    // Safety timeout: silently reset spinner after 15s so UI never gets stuck
+    const safetyTimer = setTimeout(() => setIsLoading(false), 15000);
 
     try {
       if (isForgotPhone) {
