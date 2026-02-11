@@ -29,47 +29,39 @@ export function usePhoneDuplicateCheck(phone: string, debounceMs: number = 500):
 
     setIsChecking(true);
     try {
-      // Check profiles table
-      const { data: profileMatches } = await supabase
-        .from('profiles')
-        .select('id, phone, full_name')
-        .ilike('phone', `%${local9}%`)
-        .limit(10);
+      // OPTIMIZED: Use exact-match IN query instead of ILIKE full-table scan
+      // This uses btree indexes and scales to 7M+ users
+      const phoneFormats = [`0${local9}`, `256${local9}`, `+256${local9}`];
+      
+      // Run both checks in parallel for speed
+      const [profileResult, inviteResult] = await Promise.all([
+        supabase
+          .from('profiles')
+          .select('id, phone, full_name')
+          .in('phone', phoneFormats)
+          .limit(1),
+        supabase
+          .from('supporter_invites')
+          .select('id, phone, full_name')
+          .eq('status', 'pending')
+          .in('phone', phoneFormats)
+          .limit(1)
+      ]);
 
-      // Check for exact last-9 match in profiles
-      const profileMatch = profileMatches?.find(p => {
-        const pLocal9 = getLocal9(p.phone || '');
-        return pLocal9 === local9;
-      });
-
-      if (profileMatch) {
+      if (profileResult.data && profileResult.data.length > 0) {
         setIsDuplicate(true);
-        setDuplicateMessage(`This number is already registered to ${profileMatch.full_name || 'another user'}`);
+        setDuplicateMessage(`This number is already registered to ${profileResult.data[0].full_name || 'another user'}`);
         setIsChecking(false);
         return;
       }
 
-      // Check pending invites
-      const { data: inviteMatches } = await supabase
-        .from('supporter_invites')
-        .select('id, phone, full_name')
-        .eq('status', 'pending')
-        .ilike('phone', `%${local9}%`)
-        .limit(10);
-
-      const inviteMatch = inviteMatches?.find(i => {
-        const iLocal9 = getLocal9(i.phone || '');
-        return iLocal9 === local9;
-      });
-
-      if (inviteMatch) {
+      if (inviteResult.data && inviteResult.data.length > 0) {
         setIsDuplicate(true);
-        setDuplicateMessage(`A pending invite already exists for ${inviteMatch.full_name || 'this number'}`);
+        setDuplicateMessage(`A pending invite already exists for ${inviteResult.data[0].full_name || 'this number'}`);
         setIsChecking(false);
         return;
       }
 
-      // No duplicates found
       setIsDuplicate(false);
       setDuplicateMessage(null);
     } catch (error) {
@@ -84,7 +76,6 @@ export function usePhoneDuplicateCheck(phone: string, debounceMs: number = 500):
   useEffect(() => {
     const cleanedPhone = phone.replace(/\D/g, '');
     
-    // Only check if we have at least 9 digits
     if (cleanedPhone.length < 9) {
       setIsDuplicate(false);
       setDuplicateMessage(null);
