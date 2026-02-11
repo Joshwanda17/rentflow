@@ -183,6 +183,31 @@ export default function UserProfilesTable() {
     toast.success('Users exported to CSV');
   };
 
+  const handleExportByRole = (role: 'tenant' | 'agent' | 'landlord') => {
+    const roleUsers = users.filter(u => u.roles.includes(role));
+    if (roleUsers.length === 0) {
+      toast.error(`No ${role}s to export`);
+      return;
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Country', 'City', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
+    const rows = roleUsers.map(user => [
+      user.full_name,
+      user.email,
+      user.phone,
+      user.country || 'Unknown',
+      user.city || 'Unknown',
+      user.roles.join(', '),
+      user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
+      user.monthly_rent ? user.monthly_rent : 'N/A',
+      user.rent_discount_active ? 'Yes' : 'No',
+      formatDateForExport(user.created_at)
+    ]);
+
+    exportToCSV({ headers, rows }, `${role}s_export`);
+    toast.success(`Exported ${roleUsers.length} ${role}s to CSV`);
+  };
+
   const handleExportPDF = async () => {
     if (filteredUsers.length === 0) {
       toast.error('No users to export');
@@ -526,6 +551,7 @@ export default function UserProfilesTable() {
               setBulkWhatsAppOpen(true);
             }}
             onExport={handleExportCSV}
+            onExportByRole={handleExportByRole}
             onAddUser={() => setCreateUserInviteOpen(true)}
           />
         </div>
