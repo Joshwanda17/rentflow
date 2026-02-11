@@ -103,7 +103,7 @@ const DashboardHeader = memo(function DashboardHeader({
               </span>
 
               {/* Tappable role badge — opens role picker */}
-              {availableRoles.length > 1 && (
+              {availableRoles.length >= 1 && (
                 <>
                   <div className="h-3.5 w-px bg-white/20" />
                   <Popover open={rolePickerOpen} onOpenChange={setRolePickerOpen}>
