@@ -23,6 +23,7 @@ class ChunkErrorBoundary extends Component<Props, State> {
     
     if (
       msg.includes("failed to fetch dynamically imported module") ||
+      msg.includes("error loading dynamically imported module") ||
       msg.includes("loading chunk") ||
       msg.includes("loading css chunk") ||
       msg.includes("dynamically imported") ||
