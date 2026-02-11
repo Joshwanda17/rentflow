@@ -262,8 +262,8 @@ export function useAuthForm() {
     e.preventDefault();
     setIsLoading(true);
 
-    // Safety timeout: silently reset spinner after 15s so UI never gets stuck
-    const safetyTimer = setTimeout(() => setIsLoading(false), 15000);
+    // Safety timeout: reset spinner after 6s so UI never gets stuck
+    const safetyTimer = setTimeout(() => setIsLoading(false), 6000);
 
     try {
       if (isForgotPhone) {
