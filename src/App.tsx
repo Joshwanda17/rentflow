@@ -1,3 +1,6 @@
+// TEMPORARY: Disable all realtime subscriptions to free DB connections
+import '@/lib/disableRealtime';
+
 import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
