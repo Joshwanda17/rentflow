@@ -73,7 +73,7 @@ export function usePushNotifications() {
     const checkSubscription = async () => {
       try {
         const registration = await navigator.serviceWorker.ready;
-        const subscription = await registration.pushManager.getSubscription();
+        const subscription = await (registration as any).pushManager.getSubscription();
         setIsSubscribed(!!subscription);
         
         // If subscribed locally but not in DB, sync it
@@ -176,13 +176,13 @@ export function usePushNotifications() {
       console.log('[Push] Service worker ready, checking subscription...');
 
       // Get or create subscription
-      let subscription = await registration.pushManager.getSubscription();
+      let subscription = await (registration as any).pushManager.getSubscription();
       console.log('[Push] Existing subscription:', !!subscription);
       
       if (!subscription) {
         try {
           console.log('[Push] Creating new subscription...');
-          subscription = await registration.pushManager.subscribe({
+          subscription = await (registration as any).pushManager.subscribe({
             userVisibleOnly: true,
             applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY) as BufferSource
           });
@@ -239,7 +239,7 @@ export function usePushNotifications() {
     setLoading(true);
     try {
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
+      const subscription = await (registration as any).pushManager.getSubscription();
 
       if (subscription) {
         await subscription.unsubscribe();
