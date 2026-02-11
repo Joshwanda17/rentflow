@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState, useEffect } from "react";
+import { lazy, Suspense, useState, useEffect, Component, ReactNode, ErrorInfo } from "react";
 import { useServiceWorkerUpdate } from "@/hooks/useServiceWorkerUpdate";
 import { useForceRefresh } from "@/hooks/useForceRefresh";
 import { useIOSCacheInvalidation } from "@/hooks/useIOSCacheInvalidation";
@@ -10,15 +10,23 @@ const IOSOptimizations = lazy(() => import("@/components/IOSOptimizations"));
 const IOSLinkHandler = lazy(() => import("@/components/IOSLinkHandler"));
 const IOSShareReceiver = lazy(() => import("@/components/IOSShareReceiver"));
 
+// Error boundary to prevent deferred extras from crashing the entire app
+class ExtrasBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
+  state = { hasError: false };
+  static getDerivedStateFromError() { return { hasError: true }; }
+  componentDidCatch(error: Error, info: ErrorInfo) {
+    console.warn('[DeferredExtras] Non-critical component failed:', error.message);
+  }
+  render() { return this.state.hasError ? null : this.props.children; }
+}
+
 export default function DeferredExtras() {
   const [ready, setReady] = useState(false);
 
-  // These hooks were previously in AppRoutes - moved here to defer loading
   useServiceWorkerUpdate();
   useForceRefresh();
   useIOSCacheInvalidation();
 
-  // Delay rendering extras until after LCP — use idle callback for fastest possible
   useEffect(() => {
     const activate = () => setReady(true);
     if ('requestIdleCallback' in window) {
@@ -32,13 +40,15 @@ export default function DeferredExtras() {
   if (!ready) return null;
 
   return (
-    <Suspense fallback={null}>
-      <IOSOptimizations />
-      <IOSLinkHandler />
-      <IOSShareReceiver />
-      <PWAInstallPrompt />
-      <WhatsNewModal />
-      <GlobalSettingsToolbar />
-    </Suspense>
+    <ExtrasBoundary>
+      <Suspense fallback={null}>
+        <IOSOptimizations />
+        <IOSLinkHandler />
+        <IOSShareReceiver />
+        <PWAInstallPrompt />
+        <WhatsNewModal />
+        <GlobalSettingsToolbar />
+      </Suspense>
+    </ExtrasBoundary>
   );
 }

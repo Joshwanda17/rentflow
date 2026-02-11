@@ -223,7 +223,7 @@ function DashboardContent() {
   }
 
   if (!user || !displayRole) {
-    return null;
+    return <DashboardLoadingFallback />;
   }
 
   const dashboardProps = { 
