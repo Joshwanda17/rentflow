@@ -262,6 +262,13 @@ export function useAuthForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
+
+    // Safety timeout: force-reset spinner after 15s so UI never gets stuck
+    const safetyTimer = setTimeout(() => {
+      setIsLoading(false);
+      toast({ title: 'Slow Connection', description: 'Request is taking too long. Please try again.', variant: 'destructive' });
+    }, 15000);
+
     try {
       if (isForgotPhone) {
         await handleForgotPhoneSubmit();
@@ -275,6 +282,7 @@ export function useAuthForm() {
     } catch {
       toast({ title: 'Error', description: 'An unexpected error occurred', variant: 'destructive' });
     } finally {
+      clearTimeout(safetyTimer);
       setIsLoading(false);
     }
   };
