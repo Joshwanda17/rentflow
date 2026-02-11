@@ -9,9 +9,12 @@ import {
   UserCog, 
   Download,
   Users,
-  Sparkles
+  Sparkles,
+  Home,
+  Briefcase,
+  ChevronDown
 } from 'lucide-react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 
 interface QuickUserActionsProps {
@@ -20,6 +23,7 @@ interface QuickUserActionsProps {
   onNotifyAll: () => void;
   onWhatsAppAll: () => void;
   onExport: () => void;
+  onExportByRole?: (role: 'tenant' | 'agent' | 'landlord') => void;
   onAddUser: () => void;
 }
 
@@ -29,8 +33,11 @@ export function QuickUserActions({
   onNotifyAll,
   onWhatsAppAll,
   onExport,
+  onExportByRole,
   onAddUser
 }: QuickUserActionsProps) {
+  const [showExportOptions, setShowExportOptions] = useState(false);
+
   const actions = [
     {
       icon: UserPlus,
@@ -56,16 +63,27 @@ export function QuickUserActions({
     {
       icon: Download,
       label: 'Export',
-      onClick: onExport,
+      onClick: () => {
+        hapticTap();
+        setShowExportOptions(!showExportOptions);
+      },
       variant: 'default' as const,
-      description: 'Download list'
+      description: 'Download list',
+      noHaptic: true
     },
   ];
 
-  const handleClick = (onClick: () => void) => {
-    hapticTap();
-    onClick();
+  const handleClick = (action: typeof actions[0]) => {
+    if (!action.noHaptic) hapticTap();
+    action.onClick();
   };
+
+  const exportOptions = [
+    { label: 'All Users', icon: Users, onClick: onExport },
+    { label: 'Tenants Only', icon: Users, onClick: () => onExportByRole?.('tenant') },
+    { label: 'Agents Only', icon: Briefcase, onClick: () => onExportByRole?.('agent') },
+    { label: 'Landlords Only', icon: Home, onClick: () => onExportByRole?.('landlord') },
+  ];
 
   return (
     <Card className="border-2 border-primary/20 bg-gradient-to-br from-primary/5 via-background to-success/5">
@@ -109,7 +127,7 @@ export function QuickUserActions({
                 initial={{ opacity: 0, scale: 0.9 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: index * 0.05 }}
-                onClick={() => handleClick(action.onClick)}
+                onClick={() => handleClick(action)}
                 className={`flex flex-col items-center justify-center gap-1 p-3 rounded-xl border transition-all active:scale-95 ${bgColor}`}
               >
                 <Icon className={`h-6 w-6 ${textColor}`} />
@@ -118,6 +136,40 @@ export function QuickUserActions({
             );
           })}
         </div>
+
+        {/* Export Options Dropdown */}
+        <AnimatePresence>
+          {showExportOptions && (
+            <motion.div
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              className="overflow-hidden"
+            >
+              <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-border/50">
+                {exportOptions.map((option) => {
+                  const OptIcon = option.icon;
+                  return (
+                    <motion.button
+                      key={option.label}
+                      initial={{ opacity: 0, y: -8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      onClick={() => {
+                        hapticTap();
+                        option.onClick();
+                        setShowExportOptions(false);
+                      }}
+                      className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 hover:bg-muted border border-border/50 transition-all active:scale-95"
+                    >
+                      <Download className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-medium">{option.label}</span>
+                    </motion.button>
+                  );
+                })}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </CardContent>
     </Card>
   );
