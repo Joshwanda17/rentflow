@@ -1,29 +1,15 @@
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { getPreloadedSession, getPreloadedRoles } from '@/lib/sessionCache';
+import { getCachedSession, getCachedRoles } from '@/lib/sessionCache';
 
 export default function Index() {
   const { user, roles, loading } = useAuth();
   const [searchParams] = useSearchParams();
   
-  // Preserve referral params for faster flow
   const ref = searchParams.get('ref');
   const role = searchParams.get('role');
 
-  // INSTANT: Use cached session for immediate redirect decision
-  const cachedSession = getPreloadedSession();
-  const cachedRoles = getPreloadedRoles();
-
-  // If we have cached data, make instant decision without waiting
-  if (cachedSession && cachedRoles && cachedRoles.length > 0) {
-    return <Navigate to="/dashboard" replace />;
-  }
-  
-  if (cachedSession && (!cachedRoles || cachedRoles.length === 0)) {
-    return <Navigate to="/select-role" replace />;
-  }
-
-  // Fallback: Show minimal loading only if truly needed
+  // Wait for auth to finish loading before making any redirect decision
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -32,31 +18,23 @@ export default function Index() {
     );
   }
 
-  // Build auth redirect with preserved params for referral links
-  const buildAuthUrl = () => {
+  // Auth finished loading — use LIVE auth state, not stale cache
+  if (user) {
+    if (roles.length > 0) {
+      return <Navigate to="/dashboard" replace />;
+    }
+    return <Navigate to="/select-role" replace />;
+  }
+
+  // Not logged in — check referral links
+  if (ref || role) {
     const params = new URLSearchParams();
     if (ref) params.set('ref', ref);
     if (role) params.set('role', role);
     const queryString = params.toString();
-    return queryString ? `/auth?${queryString}` : '/auth';
-  };
-
-  // If user is logged in
-  if (user) {
-    // If they have roles, go to dashboard immediately
-    if (roles.length > 0) {
-      return <Navigate to="/dashboard" replace />;
-    }
-    // If they don't have roles yet, let them select (or auto-assign if role param exists)
-    return <Navigate to="/select-role" replace />;
+    return <Navigate to={queryString ? `/auth?${queryString}` : '/auth'} replace />;
   }
 
-  // Not logged in - check if this is a referral link
-  if (ref || role) {
-    // Go directly to auth with params preserved
-    return <Navigate to={buildAuthUrl()} replace />;
-  }
-
-  // Regular visit - go to landing page
+  // Regular visit
   return <Navigate to="/welcome" replace />;
 }
