@@ -26,16 +26,15 @@ interface LedgerEntry {
 }
 
 type DatePreset = 'all' | 'today' | '7days' | '30days' | 'month' | 'year';
-type CategoryFilter = 'all' | 'Deposit' | 'Withdrawal' | 'Platform' | 'Agent Earning' | 'Transfer';
+type CategoryFilter = 'all' | 'deposit' | 'agent_commission' | 'cash_in' | 'cash_out';
 type DirectionFilter = 'all' | 'debit' | 'credit';
 
 const categoryOptions: { value: CategoryFilter; label: string }[] = [
   { value: 'all', label: 'All Categories' },
-  { value: 'Deposit', label: 'Deposits' },
-  { value: 'Withdrawal', label: 'Withdrawals' },
-  { value: 'Platform', label: 'Platform' },
-  { value: 'Agent Earning', label: 'Agent Earnings' },
-  { value: 'Transfer', label: 'Transfers' },
+  { value: 'deposit', label: 'Deposits' },
+  { value: 'agent_commission', label: 'Agent Commissions' },
+  { value: 'cash_in', label: 'Cash In' },
+  { value: 'cash_out', label: 'Cash Out' },
 ];
 
 export function GeneralLedger() {
@@ -87,118 +86,30 @@ export function GeneralLedger() {
   const fetchLedgerData = async () => {
     setLoading(true);
     try {
-      const allEntries: LedgerEntry[] = [];
+      // Single query to the dedicated general_ledger table
+      let query = supabase
+        .from('general_ledger')
+        .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party, running_balance')
+        .order('created_at', { ascending: true });
 
-      // Fetch deposits (Credits - money coming in)
-      let depositsQuery = supabase.from('wallet_deposits').select('id, amount, created_at, user_id');
-      if (startDate) depositsQuery = depositsQuery.gte('created_at', startDate.toISOString());
-      if (endDate) depositsQuery = depositsQuery.lte('created_at', endDate.toISOString());
-      const { data: deposits } = await depositsQuery.order('created_at', { ascending: true });
+      if (startDate) query = query.gte('transaction_date', startDate.toISOString());
+      if (endDate) query = query.lte('transaction_date', endDate.toISOString());
 
-      deposits?.forEach(d => {
-        allEntries.push({
-          id: d.id,
-          date: d.created_at,
-          description: 'Wallet Deposit',
-          category: 'Deposit',
-          debit: 0,
-          credit: d.amount,
-          balance: 0,
-          reference: '-',
-          party: 'User',
-        });
-      });
+      const { data, error } = await query;
 
-      // Fetch withdrawals (Debits - money going out)
-      let withdrawalsQuery = supabase.from('wallet_withdrawals').select('id, amount, created_at, user_id');
-      if (startDate) withdrawalsQuery = withdrawalsQuery.gte('created_at', startDate.toISOString());
-      if (endDate) withdrawalsQuery = withdrawalsQuery.lte('created_at', endDate.toISOString());
-      const { data: withdrawals } = await withdrawalsQuery.order('created_at', { ascending: true });
+      if (error) throw error;
 
-      withdrawals?.forEach(w => {
-        allEntries.push({
-          id: w.id,
-          date: w.created_at,
-          description: 'Wallet Withdrawal',
-          category: 'Withdrawal',
-          debit: w.amount,
-          credit: 0,
-          balance: 0,
-          reference: '-',
-          party: 'User',
-        });
-      });
-
-      // Fetch platform transactions
-      let platformQuery = supabase.from('platform_transactions').select('id, amount, direction, transaction_type, description, created_at');
-      if (startDate) platformQuery = platformQuery.gte('created_at', startDate.toISOString());
-      if (endDate) platformQuery = platformQuery.lte('created_at', endDate.toISOString());
-      const { data: platformTx } = await platformQuery.order('created_at', { ascending: true });
-
-      platformTx?.forEach(tx => {
-        const isCredit = tx.direction === 'credit' || tx.direction === 'in';
-        allEntries.push({
-          id: tx.id,
-          date: tx.created_at,
-          description: tx.description || tx.transaction_type || 'Platform Transaction',
-          category: tx.transaction_type || 'Platform',
-          debit: isCredit ? 0 : tx.amount,
-          credit: isCredit ? tx.amount : 0,
-          balance: 0,
-          reference: '-',
-          party: 'Platform',
-        });
-      });
-
-      // Fetch agent earnings (Debits - payouts)
-      let earningsQuery = supabase.from('agent_earnings').select('id, amount, earning_type, description, created_at, agent_id');
-      if (startDate) earningsQuery = earningsQuery.gte('created_at', startDate.toISOString());
-      if (endDate) earningsQuery = earningsQuery.lte('created_at', endDate.toISOString());
-      const { data: earnings } = await earningsQuery.order('created_at', { ascending: true });
-
-      earnings?.forEach(e => {
-        allEntries.push({
-          id: e.id,
-          date: e.created_at,
-          description: e.description || `Agent ${e.earning_type}`,
-          category: 'Agent Earning',
-          debit: e.amount,
-          credit: 0,
-          balance: 0,
-          reference: '-',
-          party: 'Agent',
-        });
-      });
-
-      // Fetch wallet transfers
-      let transfersQuery = supabase.from('wallet_transactions').select('id, amount, description, created_at, sender_id, recipient_id');
-      if (startDate) transfersQuery = transfersQuery.gte('created_at', startDate.toISOString());
-      if (endDate) transfersQuery = transfersQuery.lte('created_at', endDate.toISOString());
-      const { data: transfers } = await transfersQuery.order('created_at', { ascending: true });
-
-      transfers?.forEach(t => {
-        allEntries.push({
-          id: t.id,
-          date: t.created_at,
-          description: t.description || 'Wallet Transfer',
-          category: 'Transfer',
-          debit: t.amount,
-          credit: t.amount,
-          balance: 0,
-          reference: '-',
-          party: 'Internal',
-        });
-      });
-
-      // Sort by date
-      allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-
-      // Calculate running balance
-      let runningBalance = 0;
-      allEntries.forEach(entry => {
-        runningBalance += entry.credit - entry.debit;
-        entry.balance = runningBalance;
-      });
+      const allEntries: LedgerEntry[] = (data || []).map(row => ({
+        id: row.id,
+        date: row.transaction_date,
+        description: row.description || row.category || 'Transaction',
+        category: row.category || 'Other',
+        debit: row.direction === 'cash_out' ? Number(row.amount) : 0,
+        credit: row.direction === 'cash_in' ? Number(row.amount) : 0,
+        balance: Number(row.running_balance) || 0,
+        reference: row.reference_id || '-',
+        party: row.linked_party || '-',
+      }));
 
       setEntries(allEntries);
     } catch (err) {
@@ -214,7 +125,7 @@ export function GeneralLedger() {
     if (categoryFilter !== 'all' && e.category !== categoryFilter) return false;
     if (directionFilter === 'debit' && e.debit === 0) return false;
     if (directionFilter === 'credit' && e.credit === 0) return false;
-    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase()) && !e.party.toLowerCase().includes(searchTerm.toLowerCase())) return false;
+    if (searchTerm && !e.description.toLowerCase().includes(searchTerm.toLowerCase()) && !e.party.toLowerCase().includes(searchTerm.toLowerCase()) && !e.category.toLowerCase().includes(searchTerm.toLowerCase())) return false;
     return true;
   });
 
