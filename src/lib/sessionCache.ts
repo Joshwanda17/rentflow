@@ -1,11 +1,19 @@
-// Ultra-fast session cache for instant auth state on app load
-// Caches session in sessionStorage for immediate availability
+// Persistent session cache for instant auth state on app load
+// Uses localStorage for persistence across browser restarts
+// Cache is refreshed in background without affecting user activity
 
 const AUTH_TOKEN_KEY = 'sb-wirntoujqoyjobfhyelc-auth-token';
 
 const SESSION_CACHE_KEY = 'welile_session_cache';
 const ROLES_CACHE_KEY = 'welile_roles_cache';
-const CACHE_TTL = 30 * 60 * 1000; // 30 minutes
+
+// Session cache TTL: 7 days — Supabase refresh tokens handle actual auth validity
+const CACHE_TTL = 7 * 24 * 60 * 60 * 1000;
+// Roles can be cached even longer since they rarely change
+const ROLES_CACHE_TTL = 14 * 24 * 60 * 60 * 1000;
+
+// Background refresh threshold: refresh cache silently after 30 min
+const BACKGROUND_REFRESH_THRESHOLD = 30 * 60 * 1000;
 
 interface CachedSession {
   userId: string;
@@ -21,27 +29,42 @@ interface CachedRoles {
 
 export function getCachedSession(): CachedSession | null {
   try {
-    const cached = sessionStorage.getItem(SESSION_CACHE_KEY);
+    // Try localStorage first (persistent), fall back to sessionStorage (migration)
+    let cached = localStorage.getItem(SESSION_CACHE_KEY);
+    if (!cached) {
+      cached = sessionStorage.getItem(SESSION_CACHE_KEY);
+      if (cached) {
+        // Migrate from sessionStorage to localStorage
+        localStorage.setItem(SESSION_CACHE_KEY, cached);
+        sessionStorage.removeItem(SESSION_CACHE_KEY);
+      }
+    }
     if (!cached) return null;
-    
+
     const parsed: CachedSession = JSON.parse(cached);
     const now = Date.now();
-    
-    // Check if cache is still valid
+
+    // Only expire if cache is very old (7 days)
     if (now - parsed.cachedAt > CACHE_TTL) {
-      sessionStorage.removeItem(SESSION_CACHE_KEY);
+      localStorage.removeItem(SESSION_CACHE_KEY);
       return null;
     }
-    
-    // Check if session hasn't expired
-    if (parsed.expiresAt && parsed.expiresAt * 1000 < now) {
-      sessionStorage.removeItem(SESSION_CACHE_KEY);
-      return null;
-    }
-    
+
     return parsed;
   } catch {
     return null;
+  }
+}
+
+/** Check if session cache should be refreshed in background (stale but still valid) */
+export function isSessionCacheStale(): boolean {
+  try {
+    const cached = localStorage.getItem(SESSION_CACHE_KEY);
+    if (!cached) return true;
+    const parsed: CachedSession = JSON.parse(cached);
+    return (Date.now() - parsed.cachedAt) > BACKGROUND_REFRESH_THRESHOLD;
+  } catch {
+    return true;
   }
 }
 
@@ -53,7 +76,9 @@ export function setCachedSession(userId: string, email: string, expiresAt: numbe
       expiresAt,
       cachedAt: Date.now(),
     };
-    sessionStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(SESSION_CACHE_KEY, JSON.stringify(cache));
+    // Clean up legacy sessionStorage entry
+    sessionStorage.removeItem(SESSION_CACHE_KEY);
   } catch {
     // Ignore storage errors
   }
@@ -61,6 +86,9 @@ export function setCachedSession(userId: string, email: string, expiresAt: numbe
 
 export function clearSessionCache(): void {
   try {
+    localStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem(ROLES_CACHE_KEY);
+    // Also clear legacy sessionStorage entries
     sessionStorage.removeItem(SESSION_CACHE_KEY);
     sessionStorage.removeItem(ROLES_CACHE_KEY);
   } catch {
@@ -70,16 +98,15 @@ export function clearSessionCache(): void {
 
 /**
  * Clear ALL auth-related storage (tokens, caches) to eliminate stale refresh tokens.
- * Use when backend returns token refresh errors (504/timeout).
+ * Use ONLY on explicit sign-out or definitive auth errors — never on tab close.
  */
 export function clearAllAuthStorage(): void {
   try {
-    // Clear Supabase auth token from localStorage
     localStorage.removeItem(AUTH_TOKEN_KEY);
-    // Clear session cache
+    localStorage.removeItem(SESSION_CACHE_KEY);
+    localStorage.removeItem(ROLES_CACHE_KEY);
     sessionStorage.removeItem(SESSION_CACHE_KEY);
     sessionStorage.removeItem(ROLES_CACHE_KEY);
-    // Clear any session-only flags
     sessionStorage.removeItem('welile_session_only');
   } catch {
     // Ignore storage errors
@@ -91,30 +118,31 @@ const DEFAULT_OFFLINE_ROLES: string[] = ['agent'];
 
 export function getCachedRoles(): string[] | null {
   try {
-    const cached = sessionStorage.getItem(ROLES_CACHE_KEY);
+    // Try localStorage first, fall back to sessionStorage (migration)
+    let cached = localStorage.getItem(ROLES_CACHE_KEY);
     if (!cached) {
-      // Return default agent role for offline availability
-      return DEFAULT_OFFLINE_ROLES;
+      cached = sessionStorage.getItem(ROLES_CACHE_KEY);
+      if (cached) {
+        localStorage.setItem(ROLES_CACHE_KEY, cached);
+        sessionStorage.removeItem(ROLES_CACHE_KEY);
+      }
     }
-    
+    if (!cached) return DEFAULT_OFFLINE_ROLES;
+
     const parsed: CachedRoles = JSON.parse(cached);
     const now = Date.now();
-    
-    // Check if cache is still valid (roles can be cached longer)
-    if (now - parsed.cachedAt > CACHE_TTL * 2) {
-      sessionStorage.removeItem(ROLES_CACHE_KEY);
-      // Return default agent role instead of null
+
+    if (now - parsed.cachedAt > ROLES_CACHE_TTL) {
+      localStorage.removeItem(ROLES_CACHE_KEY);
       return DEFAULT_OFFLINE_ROLES;
     }
-    
-    // Ensure agent role is always included
+
     if (!parsed.roles.includes('agent')) {
       return ['agent', ...parsed.roles];
     }
-    
+
     return parsed.roles;
   } catch {
-    // Return default agent role on error
     return DEFAULT_OFFLINE_ROLES;
   }
 }
@@ -125,7 +153,8 @@ export function setCachedRoles(roles: string[]): void {
       roles,
       cachedAt: Date.now(),
     };
-    sessionStorage.setItem(ROLES_CACHE_KEY, JSON.stringify(cache));
+    localStorage.setItem(ROLES_CACHE_KEY, JSON.stringify(cache));
+    sessionStorage.removeItem(ROLES_CACHE_KEY);
   } catch {
     // Ignore storage errors
   }
@@ -139,11 +168,9 @@ try {
   preloadedSession = getCachedSession();
   preloadedRoles = getCachedRoles();
 } catch {
-  // Default to agent role on error
   preloadedRoles = DEFAULT_OFFLINE_ROLES;
 }
 
-// Ensure agent role is always available
 if (!preloadedRoles || preloadedRoles.length === 0) {
   preloadedRoles = DEFAULT_OFFLINE_ROLES;
 }
@@ -153,6 +180,5 @@ export function getPreloadedSession(): CachedSession | null {
 }
 
 export function getPreloadedRoles(): string[] | null {
-  // Always return at least the agent role for offline availability
   return preloadedRoles && preloadedRoles.length > 0 ? preloadedRoles : DEFAULT_OFFLINE_ROLES;
 }
