@@ -228,47 +228,44 @@ export default function Auth() {
           return;
         }
 
+        // Helper: race a promise against a timeout
+        const withTimeout = <T,>(promise: Promise<T>, ms: number): Promise<T> =>
+          Promise.race([
+            promise,
+            new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Request timed out. Please check your connection and try again.')), ms)),
+          ]);
+
         // First, check if user exists with real email (Google OAuth users)
-        // by matching their phone number in the profiles table
         const phoneLocal9 = cleanedPhone.slice(-9);
-        const { data: profileMatch } = await supabase
-          .from('profiles')
-          .select('email')
-          .or(`phone.ilike.%${phoneLocal9}%,phone.ilike.%${phoneLocal9}`)
-          .limit(5);
         
-        // Build list of emails to try - include real emails from profile matches
+        // Build email variants first (no network needed)
         const emailVariants = generatePhoneEmailVariants(phone);
         
-        // Add profile-matched emails to the front (more likely to work)
-        if (profileMatch && profileMatch.length > 0) {
-          for (const profile of profileMatch) {
-            // Verify exact match on last 9 digits
-            const profilePhone = profile.email ? '' : '';
-            if (profile.email && !emailVariants.includes(profile.email)) {
-              // Check if this profile's phone matches
-              emailVariants.unshift(profile.email);
-            }
-          }
-        }
-
-        // Also check profiles for real emails matching the phone
-        const { data: phoneProfiles } = await supabase
-          .from('profiles')
-          .select('email, phone')
-          .limit(10);
-        
-        if (phoneProfiles) {
-          for (const p of phoneProfiles) {
-            const pClean = cleanPhoneNumber(p.phone || '');
-            const pLocal9 = pClean.slice(-9);
-            if (pLocal9 === phoneLocal9 && p.email && !p.email.includes('@welile.')) {
-              // This user registered with a real email but has matching phone
-              if (!emailVariants.includes(p.email)) {
-                emailVariants.unshift(p.email); // Try real email first
+        // Try profile lookup with timeout — don't block sign-in if it fails
+        try {
+          const profileResult = await withTimeout(
+            Promise.resolve(
+              supabase
+                .from('profiles')
+                .select('email, phone')
+                .or(`phone.ilike.%${phoneLocal9}%`)
+                .limit(5)
+            ),
+            5000
+          );
+          const profileMatch = profileResult.data;
+          
+          if (profileMatch) {
+            for (const p of profileMatch) {
+              const pClean = cleanPhoneNumber(p.phone || '');
+              const pLocal9 = pClean.slice(-9);
+              if (pLocal9 === phoneLocal9 && p.email && !p.email.includes('@welile.') && !emailVariants.includes(p.email)) {
+                emailVariants.unshift(p.email);
               }
             }
           }
+        } catch {
+          // Profile lookup failed/timed out — continue with generated variants
         }
 
         let loginSuccess = false;
@@ -276,20 +273,24 @@ export default function Auth() {
         let usedRealEmail = false;
 
         for (const emailVariant of emailVariants) {
-          const { error } = await signIn(emailVariant, password);
-          if (!error) {
-            loginSuccess = true;
-            usedRealEmail = !emailVariant.includes('@welile.');
-            break;
-          }
-          lastError = error;
-          
-          // If it's a wrong password error, don't try other variants
-          if (error.message.includes('Invalid login credentials')) {
-            continue; // Try next variant
-          } else {
-            // For other errors (rate limit, etc.), stop trying
-            break;
+          try {
+            const { error } = await withTimeout(signIn(emailVariant, password), 8000);
+            if (!error) {
+              loginSuccess = true;
+              usedRealEmail = !emailVariant.includes('@welile.');
+              break;
+            }
+            lastError = error;
+            
+            // If it's a wrong password error, don't try other variants
+            if (error.message.includes('Invalid login credentials')) {
+              continue;
+            } else {
+              break;
+            }
+          } catch (timeoutErr: any) {
+            lastError = timeoutErr;
+            break; // Don't retry on timeout
           }
         }
 
@@ -303,23 +304,29 @@ export default function Auth() {
           // Provide helpful error message
           let errorMessage = lastError.message;
           if (lastError.message.includes('Invalid login credentials')) {
-            // Check if account exists but was registered differently
-            const { data: existingProfile } = await supabase
-              .from('profiles')
-              .select('email')
-              .or(`phone.ilike.%${phoneLocal9}%`)
-              .limit(1);
-            
-            if (existingProfile && existingProfile.length > 0 && existingProfile[0].email) {
-              const profileEmail = existingProfile[0].email;
-              if (!profileEmail.includes('@welile.')) {
-                // User signed up with Google or real email
-                errorMessage = `This phone number is linked to an account that uses email login (${profileEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3')}). Please use "Continue with Google" or sign in with your email address.`;
+            // Check if account exists but was registered differently (with timeout)
+            try {
+              const { data: existingProfile } = await withTimeout(
+                Promise.resolve(supabase
+                  .from('profiles')
+                  .select('email')
+                  .or(`phone.ilike.%${phoneLocal9}%`)
+                  .limit(1)),
+                5000
+              );
+              
+              if (existingProfile && existingProfile.length > 0 && existingProfile[0].email) {
+                const profileEmail = existingProfile[0].email;
+                if (!profileEmail.includes('@welile.')) {
+                  errorMessage = `This phone number is linked to an account that uses email login (${profileEmail.replace(/(.{2})(.*)(@.*)/, '$1***$3')}). Please use "Continue with Google" or sign in with your email address.`;
+                } else {
+                  errorMessage = 'Incorrect password. Please check your password and try again.';
+                }
               } else {
-                errorMessage = 'Incorrect password. Please check your password and try again.';
+                errorMessage = 'No account found with this phone number. Please sign up first.';
               }
-            } else {
-              errorMessage = 'No account found with this phone number. Please sign up first.';
+            } catch {
+              errorMessage = 'Sign in failed. Please check your connection and try again.';
             }
           } else if (lastError.message.includes('rate')) {
             errorMessage = 'Too many login attempts. Please wait a moment and try again.';
