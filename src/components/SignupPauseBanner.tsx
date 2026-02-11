@@ -9,6 +9,7 @@ const formatDate = (d: Date) =>
 export const SIGNUP_PAUSED = true;
 export const SIGNUP_RESUME_DATE = formatDate(RESUME_DATE);
 
+// v2 - build refresh
 export default function SignupPauseBanner() {
   if (!SIGNUP_PAUSED) return null;
 
