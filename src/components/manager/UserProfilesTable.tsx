@@ -183,29 +183,111 @@ export default function UserProfilesTable() {
     toast.success('Users exported to CSV');
   };
 
-  const handleExportByRole = (role: 'tenant' | 'agent' | 'landlord') => {
+  const handleExportByRole = async (role: 'tenant' | 'agent' | 'landlord') => {
     const roleUsers = users.filter(u => u.roles.includes(role));
     if (roleUsers.length === 0) {
       toast.error(`No ${role}s to export`);
       return;
     }
 
-    const headers = ['Name', 'Email', 'Phone', 'Country', 'City', 'Roles', 'Rating', 'Monthly Rent', 'Discount Active', 'Joined'];
-    const rows = roleUsers.map(user => [
-      user.full_name,
-      user.email,
-      user.phone,
-      user.country || 'Unknown',
-      user.city || 'Unknown',
-      user.roles.join(', '),
-      user.average_rating ? user.average_rating.toFixed(1) : 'N/A',
-      user.monthly_rent ? user.monthly_rent : 'N/A',
-      user.rent_discount_active ? 'Yes' : 'No',
-      formatDateForExport(user.created_at)
-    ]);
+    toast.loading(`Generating ${role}s PDF...`, { id: 'role-pdf' });
 
-    exportToCSV({ headers, rows }, `${role}s_export`);
-    toast.success(`Exported ${roleUsers.length} ${role}s to CSV`);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const margin = 10;
+      const roleName = role.charAt(0).toUpperCase() + role.slice(1);
+
+      // Title
+      pdf.setFontSize(18);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`${roleName}s Report`, margin, 18);
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated: ${new Date().toLocaleDateString()} | Total: ${roleUsers.length}`, margin, 24);
+      pdf.setTextColor(0, 0, 0);
+
+      // Table headers
+      const cols = ['#', 'Name', 'Phone', 'Country', 'City', 'Rating', 'Rent', 'Joined'];
+      const colWidths = [8, 55, 40, 30, 30, 18, 25, 25];
+      let y = 32;
+
+      const drawHeader = () => {
+        pdf.setFillColor(30, 30, 30);
+        pdf.rect(margin, y - 4, pageWidth - margin * 2, 7, 'F');
+        pdf.setFontSize(7);
+        pdf.setFont('helvetica', 'bold');
+        pdf.setTextColor(255, 255, 255);
+        let x = margin + 2;
+        cols.forEach((col, i) => {
+          pdf.text(col, x, y);
+          x += colWidths[i];
+        });
+        pdf.setTextColor(0, 0, 0);
+        y += 6;
+      };
+
+      drawHeader();
+
+      pdf.setFont('helvetica', 'normal');
+      pdf.setFontSize(7);
+
+      roleUsers.forEach((user, idx) => {
+        if (y > pageHeight - 15) {
+          pdf.addPage();
+          y = 15;
+          drawHeader();
+          pdf.setFont('helvetica', 'normal');
+          pdf.setFontSize(7);
+        }
+
+        if (idx % 2 === 0) {
+          pdf.setFillColor(245, 245, 245);
+          pdf.rect(margin, y - 3.5, pageWidth - margin * 2, 5.5, 'F');
+        }
+
+        let x = margin + 2;
+        const row = [
+          String(idx + 1),
+          user.full_name?.substring(0, 28) || 'N/A',
+          user.phone || 'N/A',
+          user.country?.substring(0, 15) || 'N/A',
+          user.city?.substring(0, 15) || 'N/A',
+          user.average_rating ? user.average_rating.toFixed(1) : '-',
+          user.monthly_rent ? String(user.monthly_rent) : '-',
+          formatDateForExport(user.created_at)
+        ];
+
+        row.forEach((val, i) => {
+          pdf.text(val, x, y);
+          x += colWidths[i];
+        });
+        y += 5.5;
+      });
+
+      const pdfBlob = pdf.output('blob');
+      const blobUrl = URL.createObjectURL(pdfBlob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = `${role}s_report_${new Date().toISOString().split('T')[0]}.pdf`;
+
+      if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+        window.open(blobUrl, '_blank');
+      } else {
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+      }
+      setTimeout(() => URL.revokeObjectURL(blobUrl), 1000);
+
+      toast.success(`Exported ${roleUsers.length} ${role}s to PDF`, { id: 'role-pdf' });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast.error('Failed to generate PDF', { id: 'role-pdf' });
+    }
   };
 
   const handleExportPDF = async () => {
