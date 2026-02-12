@@ -112,34 +112,7 @@ export const ActivityManager = () => {
         });
       }
 
-      // Loan Applications
-      if (typeFilter === "all" || typeFilter === "loan_application") {
-        const { data: loans } = await supabase
-          .from("loan_applications")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(100);
-
-        loans?.forEach(l => {
-          const profile = getProfile(l.applicant_id);
-          if (statusFilter === "all" || l.status === statusFilter) {
-            allActivities.push({
-              id: l.id,
-              type: "loan_application",
-              user_id: l.applicant_id,
-              user_name: profile?.full_name || "Unknown User",
-              user_phone: profile?.phone,
-              title: "Loan Application",
-              description: l.purpose || `Loan request for ${formatUGX(l.amount)}`,
-              amount: l.amount,
-              status: l.status,
-              created_at: l.created_at,
-              metadata: { duration: l.duration_days, interest: l.interest_rate },
-              original_data: l as unknown as Record<string, unknown>
-            });
-          }
-        });
-      }
+      // Loan Applications - table removed, skip
 
       // Deposit Requests
       if (typeFilter === "all" || typeFilter === "deposit_request") {
@@ -229,32 +202,7 @@ export const ActivityManager = () => {
         });
       }
 
-      // Repayments
-      if (typeFilter === "all" || typeFilter === "repayment") {
-        const { data: repayments } = await supabase
-          .from("repayments")
-          .select("*")
-          .order("created_at", { ascending: false })
-          .limit(100);
-
-        repayments?.forEach(r => {
-          const profile = getProfile(r.tenant_id);
-          allActivities.push({
-            id: r.id,
-            type: "repayment",
-            user_id: r.tenant_id,
-            user_name: profile?.full_name || "Unknown User",
-            user_phone: profile?.phone,
-            title: "Rent Repayment",
-            description: `Repaid ${formatUGX(r.amount)}`,
-            amount: r.amount,
-            status: "completed",
-            created_at: r.created_at,
-            metadata: { rent_request_id: r.rent_request_id },
-            original_data: r as unknown as Record<string, unknown>
-          });
-        });
-      }
+      // Repayments - table removed, skip
 
       // Sort by date and paginate
       allActivities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
@@ -282,11 +230,8 @@ export const ActivityManager = () => {
           .eq("id", activity.id);
         if (error) throw error;
       } else if (activity.type === "loan_application") {
-        const { error } = await supabase
-          .from("loan_applications")
-          .update({ status: newStatus })
-          .eq("id", activity.id);
-        if (error) throw error;
+        // loan_applications table removed
+        throw new Error('Feature unavailable');
       } else if (activity.type === "deposit_request") {
         const { error } = await supabase
           .from("deposit_requests")
@@ -323,8 +268,8 @@ export const ActivityManager = () => {
         const { error } = await supabase.from("rent_requests").delete().eq("id", activity.id);
         if (error) throw error;
       } else if (activity.type === "loan_application") {
-        const { error } = await supabase.from("loan_applications").delete().eq("id", activity.id);
-        if (error) throw error;
+        // loan_applications table removed
+        throw new Error('Feature unavailable');
       } else if (activity.type === "deposit_request") {
         const { error } = await supabase.from("deposit_requests").delete().eq("id", activity.id);
         if (error) throw error;
@@ -335,8 +280,8 @@ export const ActivityManager = () => {
         const { error } = await supabase.from("user_receipts").delete().eq("id", activity.id);
         if (error) throw error;
       } else if (activity.type === "repayment") {
-        const { error } = await supabase.from("repayments").delete().eq("id", activity.id);
-        if (error) throw error;
+        // repayments table removed
+        throw new Error('Feature unavailable');
       }
     },
     onSuccess: () => {

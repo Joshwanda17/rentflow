@@ -31,14 +31,8 @@ export function AgentLoanProducts() {
   const fetchProducts = async () => {
     if (!user) return;
     try {
-      const { data, error } = await supabase
-        .from('loan_products')
-        .select('*')
-        .eq('agent_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setProducts(data || []);
+      // loan_products table removed
+      setProducts([]);
     } catch (error) {
       console.error('Error fetching products:', error);
     } finally {
@@ -52,14 +46,9 @@ export function AgentLoanProducts() {
 
   const toggleActive = async (id: string, active: boolean) => {
     try {
-      const { error } = await supabase
-        .from('loan_products')
-        .update({ active })
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success(active ? 'Loan product activated' : 'Loan product deactivated');
-      fetchProducts();
+      // loan_products table removed
+      toast.success('Feature currently unavailable');
+      return;
     } catch (error: any) {
       toast.error(error.message || 'Failed to update');
     }
@@ -69,14 +58,9 @@ export function AgentLoanProducts() {
     if (!confirm('Are you sure you want to delete this loan product?')) return;
 
     try {
-      const { error } = await supabase
-        .from('loan_products')
-        .delete()
-        .eq('id', id);
-
-      if (error) throw error;
-      toast.success('Loan product deleted');
-      fetchProducts();
+      // loan_products table removed
+      toast.success('Feature currently unavailable');
+      return;
     } catch (error: any) {
       toast.error(error.message || 'Failed to delete');
     }

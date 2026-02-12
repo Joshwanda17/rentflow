@@ -81,24 +81,8 @@ export default function AddBalanceDialog({
 
       if (updateError) throw updateError;
 
-      // Log the action in audit_logs
-      const { data: { user: currentUser } } = await supabase.auth.getUser();
-      if (currentUser) {
-        await supabase.from('audit_logs').insert({
-          action_type: 'balance_adjustment',
-          table_name: 'wallets',
-          record_id: wallet.id,
-          performed_by: currentUser.id,
-          reason: reason || 'Manager balance adjustment',
-          old_values: { balance: wallet.balance },
-          new_values: { balance: newBalance },
-          metadata: { 
-            target_user_id: userId,
-            target_user_name: userName,
-            amount_added: amountNum
-          }
-        });
-      }
+      // Audit logging - table removed, skip
+      console.log('Balance adjusted:', { userId, userName, amount: amountNum });
 
       toast.success(`Added ${formatUGX(amountNum)} to ${userName}'s wallet`);
       setAmount('');

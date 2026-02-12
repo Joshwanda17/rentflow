@@ -91,16 +91,8 @@ export default function BulkWhatsAppDialog({
 
   const fetchTemplates = async () => {
     setLoadingTemplates(true);
-    const { data, error } = await supabase
-      .from('message_templates')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching templates:', error);
-    } else {
-      setTemplates(data || []);
-    }
+    // message_templates table removed
+    setTemplates([]);
     setLoadingTemplates(false);
   };
 
@@ -123,25 +115,8 @@ export default function BulkWhatsAppDialog({
       return;
     }
 
-    const { error } = await supabase
-      .from('message_templates')
-      .insert({
-        name: newTemplateName.trim(),
-        content: message.trim(),
-        created_by: user.id,
-        category: newTemplateCategory
-      });
-
-    if (error) {
-      console.error('Error saving template:', error);
-      toast.error('Failed to save template');
-    } else {
-      toast.success('Template saved successfully');
-      setNewTemplateName('');
-      setNewTemplateCategory('general');
-      setShowSaveForm(false);
-      fetchTemplates();
-    }
+    // message_templates table removed
+    toast.error('Template saving is currently unavailable');
     setSavingTemplate(false);
   };
 

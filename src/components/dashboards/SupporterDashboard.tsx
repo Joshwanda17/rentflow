@@ -210,23 +210,7 @@ export default function SupporterDashboard({
       )
       .subscribe();
 
-    const investmentChannel = supabase
-      .channel(`supporter-investment-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'investment_accounts', filter: `user_id=eq.${user.id}` },
-        (payload) => {
-          if (payload.new) {
-            const updatedAccount = payload.new as any;
-            setAccounts(prev => prev.map(acc => 
-              acc.id === updatedAccount.id 
-                ? { ...acc, balance: Number(updatedAccount.balance), status: updatedAccount.status }
-                : acc
-            ));
-          }
-        }
-      )
-      .subscribe();
+    // investment_accounts table removed - no realtime subscription needed
 
     const walletChannel = supabase
       .channel(`supporter-wallet-${user.id}`)
@@ -239,7 +223,6 @@ export default function SupporterDashboard({
 
     return () => {
       supabase.removeChannel(opportunityChannel);
-      supabase.removeChannel(investmentChannel);
       supabase.removeChannel(walletChannel);
     };
   }, [user]);
@@ -372,47 +355,9 @@ export default function SupporterDashboard({
       return;
     }
 
-    const { data: freshAccount, error: fetchError } = await supabase
-      .from('investment_accounts').select('balance').eq('id', accountId).single();
-
-    if (fetchError || !freshAccount || freshAccount.balance < amount) {
-      toast({ title: 'Error', description: 'Account balance changed. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const { data: updatedAccount, error: accountError } = await supabase
-      .from('investment_accounts')
-      .update({ balance: freshAccount.balance - amount, updated_at: new Date().toISOString() })
-      .eq('id', accountId).eq('balance', freshAccount.balance).select().maybeSingle();
-
-    if (accountError || !updatedAccount) {
-      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const { data: freshWallet, error: walletFetchError } = await supabase
-      .from('wallets').select('balance').eq('user_id', user.id).single();
-
-    if (walletFetchError || !freshWallet) {
-      await supabase.from('investment_accounts').update({ balance: freshAccount.balance }).eq('id', accountId);
-      toast({ title: 'Error', description: 'Failed to fetch wallet', variant: 'destructive' });
-      return;
-    }
-
-    const { error: walletError } = await supabase
-      .from('wallets')
-      .update({ balance: freshWallet.balance + amount, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id).eq('balance', freshWallet.balance);
-
-    if (walletError) {
-      await supabase.from('investment_accounts').update({ balance: freshAccount.balance }).eq('id', accountId);
-      toast({ title: 'Error', description: walletError.message, variant: 'destructive' });
-      return;
-    }
-
-    setAccounts(prev => prev.map(acc => 
-      acc.id === accountId ? { ...acc, balance: updatedAccount.balance } : acc
-    ));
+    // investment_accounts table removed - withdrawals not available
+    toast({ title: 'Not Available', description: 'Investment accounts feature is currently disabled.', variant: 'destructive' });
+    return;
 
     await refreshWallet();
     fireSuccess();

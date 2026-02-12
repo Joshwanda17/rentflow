@@ -102,22 +102,8 @@ export function InvestmentTransactionHistory({
   const fetchTransactions = async () => {
     setLoading(true);
     try {
-      let query = supabase
-        .from('investment_transactions')
-        .select('*')
-        .order('transaction_date', { ascending: false })
-        .limit(maxItems);
-
-      if (accountId) {
-        query = query.eq('account_id', accountId);
-      } else if (userId) {
-        query = query.eq('user_id', userId);
-      }
-
-      const { data, error } = await query;
-
-      if (error) throw error;
-      setTransactions(data || []);
+      // investment_transactions table removed
+      setTransactions([]);
     } catch (error) {
       console.error('Error fetching transactions:', error);
     } finally {
