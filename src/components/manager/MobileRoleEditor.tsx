@@ -52,20 +52,8 @@ export function MobileRoleEditor({
   const [confirmManagerRemoval, setConfirmManagerRemoval] = useState(false);
 
   const logRoleChange = async (actionType: string, role: string) => {
-    if (!user?.id) return;
-    try {
-      await supabase.from('audit_logs').insert({
-        action_type: actionType,
-        table_name: 'user_roles',
-        record_id: userId,
-        performed_by: user.id,
-        old_values: actionType === 'role_removed' ? { role } : null,
-        new_values: actionType === 'role_added' ? { role } : null,
-        metadata: { user_name: userName }
-      });
-    } catch (error) {
-      console.error('Failed to log role change:', error);
-    }
+    // audit_logs table removed - skip logging
+    console.log('Role change:', actionType, role);
   };
 
   const sendNotification = async (role: string, action: 'added' | 'removed') => {

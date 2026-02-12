@@ -1047,30 +1047,8 @@ export function ReceiptManagement({ userId }: ReceiptManagementProps) {
                                   if (error) {
                                     toast({ title: 'Error', description: error.message, variant: 'destructive' });
                                   } else {
-                                    // Also update user's loan limit
-                                    const { data: existingLimit } = await supabase
-                                      .from('loan_limits')
-                                      .select('*')
-                                      .eq('user_id', receipt.user_id)
-                                      .single();
-                                    
-                                    if (existingLimit) {
-                                      await supabase
-                                        .from('loan_limits')
-                                        .update({
-                                          available_limit: existingLimit.available_limit + contribution,
-                                          total_verified_amount: existingLimit.total_verified_amount + receipt.claimed_amount
-                                        })
-                                        .eq('user_id', receipt.user_id);
-                                    } else {
-                                      await supabase
-                                        .from('loan_limits')
-                                        .insert({
-                                          user_id: receipt.user_id,
-                                          available_limit: contribution,
-                                          total_verified_amount: receipt.claimed_amount
-                                        });
-                                    }
+                                    // loan_limits table removed - skip update
+                                    console.log('Loan limits update skipped - table removed');
                                     
                                     toast({ 
                                       title: 'Receipt Verified!', 

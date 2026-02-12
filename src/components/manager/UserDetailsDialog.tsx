@@ -469,12 +469,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     if (!user) return;
     setLoading(true);
 
-    // Fetch investment accounts
-    const { data: accounts } = await supabase
-      .from('investment_accounts')
-      .select('*')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false });
+    // investment_accounts table removed
+    const accounts: any[] = [];
 
     // Fetch wallet balance
     const { data: wallet } = await supabase
@@ -551,23 +547,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       });
     });
 
-    // Fetch withdrawals
-    const { data: withdrawals } = await supabase
-      .from('wallet_withdrawals')
-      .select('id, amount, created_at')
-      .eq('user_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    withdrawals?.forEach(w => {
-      activities.push({
-        id: `withdrawal-${w.id}`,
-        type: 'withdrawal',
-        amount: w.amount,
-        description: 'Wallet withdrawal',
-        created_at: w.created_at
-      });
-    });
+    // wallet_withdrawals table removed - skip
 
     // Fetch product orders
     const { data: orders } = await supabase
