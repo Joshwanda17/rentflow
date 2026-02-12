@@ -264,11 +264,8 @@ export default function SupporterDashboard({
           .select('id, rent_amount, duration_days, status, funded_at')
           .eq('supporter_id', user.id)
           .order('funded_at', { ascending: false }),
-        supabase
-          .from('investment_accounts')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: true }),
+        // investment_accounts table removed - return empty
+        { data: [], count: null, error: null, status: 200, statusText: 'OK' } as any,
         supabase
           .from('rent_requests')
           .select('id', { count: 'exact', head: true })
@@ -277,15 +274,7 @@ export default function SupporterDashboard({
       
       const newAvailableRequests = availableRes.data || [];
       const newFundedRequests = fundedRes.data || [];
-      const newAccounts = (accountsRes.data || []).map(acc => ({
-        id: acc.id,
-        name: acc.name,
-        balance: Number(acc.balance),
-        invested: 0,
-        returns: 0,
-        color: acc.color,
-        status: acc.status as 'pending' | 'approved' | 'rejected',
-      }));
+      const newAccounts: InvestmentAccount[] = [];
       const newOpportunityCount = opportunityCountRes.count || 0;
       
       setAvailableRequests(newAvailableRequests);
@@ -325,14 +314,7 @@ export default function SupporterDashboard({
     if (error) {
       toast({ title: 'Funding Failed', description: error.message, variant: 'destructive' });
     } else {
-      await supabase.from('platform_transactions').insert({
-        rent_request_id: requestId,
-        user_id: user.id,
-        transaction_type: 'supporter_funding',
-        amount: rentAmount,
-        direction: 'out',
-        description: 'Rent facilitation funding'
-      });
+      // platform_transactions table removed - skip logging
 
       const isFirstFunding = hasEverFunded === false;
       
@@ -358,94 +340,16 @@ export default function SupporterDashboard({
   };
 
   const handleCreateAccount = async (name: string, color: string) => {
-    const { data, error } = await supabase
-      .from('investment_accounts')
-      .insert({ user_id: user.id, name, color, status: 'pending' })
-      .select()
-      .single();
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      return;
-    }
-
-    if (data) {
-      const newAccount: InvestmentAccount = {
-        id: data.id, name: data.name, balance: Number(data.balance),
-        invested: 0, returns: 0, color: data.color, status: 'pending',
-      };
-      setAccounts(prev => [...prev, newAccount]);
-      toast({ title: '🎉 Account Created!', description: `${name} is pending manager approval` });
-    }
+    // investment_accounts table removed - feature not active
+    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
   };
 
   const handleFundAccountClick = (account: InvestmentAccount) => {
-    if (account.status !== 'approved') {
-      toast({ title: 'Account Not Approved', description: 'Only approved accounts can receive funds', variant: 'destructive' });
-      return;
-    }
-    setSelectedAccountForFunding(account);
-    setShowFundAccount(true);
+    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
   };
 
   const handleFundAccount = async (accountId: string, amount: number) => {
-    const { data: freshWallet, error: walletFetchError } = await supabase
-      .from('wallets').select('balance').eq('user_id', user.id).single();
-
-    if (walletFetchError || !freshWallet || freshWallet.balance < amount) {
-      toast({ title: 'Insufficient Balance', description: "You don't have enough funds in your wallet", variant: 'destructive' });
-      return;
-    }
-
-    const { data: updatedWallet, error: walletError } = await supabase
-      .from('wallets')
-      .update({ balance: freshWallet.balance - amount, updated_at: new Date().toISOString() })
-      .eq('user_id', user.id).eq('balance', freshWallet.balance).select().maybeSingle();
-
-    if (walletError || !updatedWallet) {
-      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const { data: currentAccount, error: accountFetchError } = await supabase
-      .from('investment_accounts').select('balance, name').eq('id', accountId).single();
-
-    if (accountFetchError || !currentAccount) {
-      await supabase.from('wallets').update({ balance: freshWallet.balance }).eq('user_id', user.id);
-      toast({ title: 'Error', description: 'Account not found', variant: 'destructive' });
-      return;
-    }
-
-    const { data: updatedAccount, error: accountError } = await supabase
-      .from('investment_accounts')
-      .update({ balance: Number(currentAccount.balance) + amount, updated_at: new Date().toISOString() })
-      .eq('id', accountId).eq('balance', currentAccount.balance).select().maybeSingle();
-
-    if (accountError || !updatedAccount) {
-      await supabase.from('wallets').update({ balance: freshWallet.balance }).eq('user_id', user.id);
-      toast({ title: 'Transaction Conflict', description: 'Another transaction occurred. Please try again.', variant: 'destructive' });
-      return;
-    }
-
-    const { data: managers } = await supabase.from('user_roles').select('user_id').eq('role', 'manager').eq('enabled', true);
-    if (managers && managers.length > 0) {
-      const notifications = managers.map((manager) => ({
-        user_id: manager.user_id,
-        title: '💰 Investment Account Funded!',
-        message: `${profile?.full_name || 'A supporter'} funded ${formatUGX(amount)} to "${currentAccount.name}". Review and approve.`,
-        type: 'investment_funding',
-        metadata: { account_id: accountId, supporter_id: user.id, supporter_name: profile?.full_name, amount, account_name: currentAccount.name }
-      }));
-      await supabase.from('notifications').insert(notifications);
-    }
-
-    setAccounts(prev => prev.map(acc => 
-      acc.id === accountId ? { ...acc, balance: updatedAccount.balance, invested: acc.invested + amount } : acc
-    ));
-
-    await refreshWallet();
-    fireSuccess();
-    toast({ title: '🎉 Account Funded!', description: `${formatUGX(amount)} has been added to your investment account` });
+    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
   };
 
   const handleWithdrawAccountClick = (account: InvestmentAccount) => {

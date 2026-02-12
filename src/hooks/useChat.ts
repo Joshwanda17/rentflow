@@ -224,45 +224,8 @@ export function useConversation(conversationId: string | null) {
   } | null>(null);
 
   const fetchReactionsForMessages = useCallback(async (messageIds: string[]): Promise<Map<string, MessageReaction[]>> => {
-    if (!user || messageIds.length === 0) return new Map();
-
-    const { data: reactionsData } = await supabase
-      .from('message_reactions')
-      .select('message_id, user_id, emoji')
-      .in('message_id', messageIds);
-
-    const reactionsMap = new Map<string, MessageReaction[]>();
-
-    if (reactionsData) {
-      // Group by message_id and emoji
-      const grouped = new Map<string, Map<string, string[]>>();
-      
-      reactionsData.forEach(r => {
-        if (!grouped.has(r.message_id)) {
-          grouped.set(r.message_id, new Map());
-        }
-        const emojiMap = grouped.get(r.message_id)!;
-        if (!emojiMap.has(r.emoji)) {
-          emojiMap.set(r.emoji, []);
-        }
-        emojiMap.get(r.emoji)!.push(r.user_id);
-      });
-
-      grouped.forEach((emojiMap, messageId) => {
-        const reactions: MessageReaction[] = [];
-        emojiMap.forEach((users, emoji) => {
-          reactions.push({
-            emoji,
-            count: users.length,
-            users,
-            hasReacted: users.includes(user.id)
-          });
-        });
-        reactionsMap.set(messageId, reactions);
-      });
-    }
-
-    return reactionsMap;
+    // message_reactions table removed - return empty map
+    return new Map();
   }, [user]);
 
   const fetchMessages = useCallback(async () => {

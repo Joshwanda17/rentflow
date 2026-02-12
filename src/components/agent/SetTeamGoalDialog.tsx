@@ -87,20 +87,10 @@ export function SetTeamGoalDialog({
       };
 
       if (existingGoal) {
-        const { error } = await supabase
-          .from('subagent_team_goals')
-          .update(goalData)
-          .eq('id', existingGoal.id);
-
-        if (error) throw error;
-        toast({ title: '✅ Goal updated successfully!' });
+        // subagent_team_goals table removed - feature not active
+        toast({ title: 'Team goals feature is not currently active', variant: 'destructive' as const });
       } else {
-        const { error } = await supabase
-          .from('subagent_team_goals')
-          .upsert(goalData, { onConflict: 'agent_id,goal_month' });
-
-        if (error) throw error;
-        toast({ title: '🎯 Team goal set successfully!' });
+        toast({ title: 'Team goals feature is not currently active', variant: 'destructive' as const });
       }
 
       onSuccess();

@@ -1,6 +1,5 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
@@ -11,32 +10,12 @@ interface LoanLimitPromoCardProps {
   userId: string;
 }
 
-const MAX_LOAN_LIMIT = 30000000; // UGX 30M
-const MIN_LOAN_LIMIT = 30000; // UGX 30K
+const MAX_LOAN_LIMIT = 30000000;
+const MIN_LOAN_LIMIT = 30000;
 
 export function LoanLimitPromoCard({ userId }: LoanLimitPromoCardProps) {
   const navigate = useNavigate();
-  const [loanLimit, setLoanLimit] = useState<number>(MIN_LOAN_LIMIT);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    const fetchLoanLimit = async () => {
-      if (!userId) return;
-      
-      const { data } = await supabase
-        .from('loan_limits')
-        .select('available_limit, total_verified_amount')
-        .eq('user_id', userId)
-        .maybeSingle();
-      
-      if (data) {
-        setLoanLimit(Math.max(data.available_limit || MIN_LOAN_LIMIT, MIN_LOAN_LIMIT));
-      }
-      setLoading(false);
-    };
-
-    fetchLoanLimit();
-  }, [userId]);
+  const [loanLimit] = useState<number>(MIN_LOAN_LIMIT);
 
   const progressPercentage = Math.min((loanLimit / MAX_LOAN_LIMIT) * 100, 100);
   const remainingToMax = MAX_LOAN_LIMIT - loanLimit;
@@ -45,7 +24,6 @@ export function LoanLimitPromoCard({ userId }: LoanLimitPromoCardProps) {
     <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.02] to-transparent">
       <CardContent className="p-4">
         <div className="space-y-4">
-          {/* Header */}
           <div className="flex items-start gap-3">
             <div className="p-2 rounded-lg bg-primary/10">
               <TrendingUp className="h-4 w-4 text-primary" />
@@ -60,12 +38,11 @@ export function LoanLimitPromoCard({ userId }: LoanLimitPromoCardProps) {
             </div>
           </div>
 
-          {/* Progress section */}
           <div className="space-y-2">
             <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground">Current Limit</span>
               <span className="font-medium text-foreground">
-                {loading ? '...' : formatUGX(loanLimit)}
+                {formatUGX(loanLimit)}
               </span>
             </div>
             <Progress value={progressPercentage} className="h-1.5" />
@@ -75,8 +52,7 @@ export function LoanLimitPromoCard({ userId }: LoanLimitPromoCardProps) {
             </div>
           </div>
 
-          {/* Encouragement message */}
-          {!loading && remainingToMax > 0 && (
+          {remainingToMax > 0 && (
             <div className="flex items-center gap-2 p-2.5 rounded-lg bg-success/5 border border-success/10">
               <Receipt className="h-3.5 w-3.5 text-success shrink-0" />
               <p className="text-xs text-success">
@@ -85,7 +61,6 @@ export function LoanLimitPromoCard({ userId }: LoanLimitPromoCardProps) {
             </div>
           )}
 
-          {/* CTA Button */}
           <Button 
             onClick={() => navigate('/my-receipts')} 
             className="w-full gap-2"

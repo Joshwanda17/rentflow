@@ -44,7 +44,7 @@ export function FoodReceiptPromoCard({ userId }: FoodReceiptPromoCardProps) {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
-    const [receiptsRes, loanLimitRes, landlordRes] = await Promise.all([
+    const [receiptsRes, landlordRes] = await Promise.all([
       supabase
         .from('user_receipts')
         .select('claimed_amount')
@@ -53,11 +53,6 @@ export function FoodReceiptPromoCard({ userId }: FoodReceiptPromoCardProps) {
         .gte('verified_at', startOfMonth)
         .lte('verified_at', endOfMonth),
       supabase
-        .from('loan_limits')
-        .select('available_limit')
-        .eq('user_id', userId)
-        .maybeSingle(),
-      supabase
         .from('landlords')
         .select('monthly_rent')
         .eq('tenant_id', userId)
@@ -65,7 +60,7 @@ export function FoodReceiptPromoCard({ userId }: FoodReceiptPromoCardProps) {
 
     const totalSpent = receiptsRes.data?.reduce((sum, r) => sum + Number(r.claimed_amount), 0) || 0;
     const discount = Math.round(totalSpent * 0.01);
-    const limit = loanLimitRes.data?.available_limit || 0;
+    const limit = 0;
     const totalRent = landlordRes.data?.reduce((sum, l) => sum + Number(l.monthly_rent || 0), 0) || 0;
     
     setMonthlySpent(totalSpent);

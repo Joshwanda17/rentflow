@@ -67,24 +67,8 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('landlord_payout_requests').insert({
-        agent_id: user.id,
-        landlord_id: property.id,
-        amount: parseInt(amount),
-        mobile_money_number: property.mobile_money_number || property.phone,
-        mobile_money_provider: provider.toUpperCase(),
-        property_address: property.property_address,
-        notes: notes.trim() || null,
-      });
-
-      if (error) {
-        toast.error('Failed to submit payout request');
-        console.error(error);
-      } else {
-        setSuccess(true);
-        toast.success('Payout request submitted for manager approval');
-        onSuccess?.();
-      }
+      // landlord_payout_requests table removed - feature not active
+      toast.error('Landlord payouts feature is not currently active');
     } catch (err) {
       toast.error('An unexpected error occurred');
     }

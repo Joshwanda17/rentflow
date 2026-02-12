@@ -478,26 +478,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   };
 
   const fetchMonthlyTarget = async () => {
-    const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
     const monthStart = startOfMonth(new Date()).toISOString();
     
-    // Fetch target and progress in parallel
-    const [targetRes, countRes] = await Promise.all([
-      supabase
-        .from('onboarding_targets')
-        .select('target_count')
-        .eq('target_month', currentMonth)
-        .maybeSingle(),
-      supabase
-        .from('referrals')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', monthStart)
-    ]);
-    
-    if (targetRes.data) {
-      setMonthlyTarget(targetRes.data.target_count);
-      setTargetInput(String(targetRes.data.target_count));
-    }
+    // onboarding_targets table removed - use local state only
+    const countRes = await supabase
+      .from('referrals')
+      .select('id', { count: 'exact', head: true })
+      .gte('created_at', monthStart);
     
     setMonthlyProgress(countRes.count || 0);
   };
@@ -508,62 +495,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       toast.error('Please enter a valid target number');
       return;
     }
-    
-    const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
-    
-    const { error } = await supabase
-      .from('onboarding_targets')
-      .upsert({
-        target_month: currentMonth,
-        target_count: targetValue,
-        set_by: user.id
-      }, { onConflict: 'target_month' });
-    
-    if (error) {
-      toast.error('Failed to save target');
-      return;
-    }
-    
+    // onboarding_targets table removed - use local state only
     setMonthlyTarget(targetValue);
     setIsEditingTarget(false);
     toast.success('Monthly target updated!');
   };
 
   const fetchTargetHistory = async () => {
-    // Get all past targets
-    const { data: targets } = await supabase
-      .from('onboarding_targets')
-      .select('target_month, target_count')
-      .order('target_month', { ascending: false })
-      .limit(6);
-    
-    if (!targets || targets.length === 0) {
-      setTargetHistory([]);
-      return;
-    }
-    
-    // Fetch referrals for each month
-    const historyPromises = targets.map(async (target) => {
-      const monthStart = new Date(target.target_month);
-      const monthEnd = new Date(monthStart);
-      monthEnd.setMonth(monthEnd.getMonth() + 1);
-      
-      const { count } = await supabase
-        .from('referrals')
-        .select('id', { count: 'exact', head: true })
-        .gte('created_at', monthStart.toISOString())
-        .lt('created_at', monthEnd.toISOString());
-      
-      return {
-        month: format(monthStart, 'MMM yyyy'),
-        target: target.target_count,
-        actual: count || 0,
-        achieved: (count || 0) >= target.target_count
-      };
-    });
-    
-    const history = await Promise.all(historyPromises);
-    setTargetHistory(history);
+    // onboarding_targets table removed
+    setTargetHistory([]);
   };
 
   const toggleTargetHistory = () => {
