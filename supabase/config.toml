@@ -71,3 +71,6 @@ verify_jwt = false
 
 [functions.batch-sync]
 verify_jwt = false
+
+[functions.sms-otp]
+verify_jwt = false
