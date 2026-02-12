@@ -1,14 +1,21 @@
 // Inline validation for faster processing (no zod overhead)
+import { isValidUgandanPhoneNumber } from '@/lib/phoneUtils';
+
 export const validateSignUp = (data: { password: string; confirmPassword: string; fullName: string; phone: string }) => {
   if (data.password.length < 6) return 'Password must be at least 6 characters';
   if (data.password !== data.confirmPassword) return "Passwords don't match";
   if (data.fullName.length < 2) return 'Full name is required';
-  if (data.phone.replace(/\D/g, '').length < 9) return 'Please enter a valid phone number';
+  
+  // Validate Uganda phone format strictly
+  const phoneValidation = isValidUgandanPhoneNumber(data.phone);
+  if (!phoneValidation.valid) return phoneValidation.reason || 'Invalid phone number';
+  
   return null;
 };
 
 export const validateSignIn = (data: { phone: string; password: string }) => {
-  if (data.phone.replace(/\D/g, '').length < 9) return 'Please enter a valid phone number';
+  const phoneValidation = isValidUgandanPhoneNumber(data.phone);
+  if (!phoneValidation.valid) return phoneValidation.reason || 'Invalid phone number';
   if (!data.password) return 'Password is required';
   return null;
 };

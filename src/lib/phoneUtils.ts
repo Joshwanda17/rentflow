@@ -196,3 +196,57 @@ export function isValidPhoneNumber(phone: string): boolean {
   // Accept 9-12 digits (local or with country code)
   return cleaned.length >= 9 && cleaned.length <= 12;
 }
+
+/**
+ * Validate Ugandan phone number with strict format rules
+ * Detects fake numbers like sequential digits, repeated patterns, etc.
+ */
+export function isValidUgandanPhoneNumber(phone: string): {
+  valid: boolean;
+  reason?: string;
+} {
+  const cleaned = cleanPhoneNumber(phone);
+
+  // Must be 9+ digits
+  if (cleaned.length < 9) {
+    return { valid: false, reason: 'Phone number must have at least 9 digits' };
+  }
+
+  // Extract the local 9 digits (last 9 if country code present)
+  const local9 = cleaned.length >= 10 ? cleaned.slice(-9) : cleaned.slice(-9).padStart(9, '0');
+
+  // Valid Uganda prefixes: 07x, 03x (MTN, Airtel, etc.)
+  if (!local9.match(/^(07|03)/)) {
+    return { valid: false, reason: 'Phone number must start with 07 or 03 (Uganda format)' };
+  }
+
+  // Reject sequential digits (0777777777, 0700123456 where all chars follow a pattern)
+  if (/^(\d)\1{7,}$/.test(local9)) {
+    return { valid: false, reason: 'Phone number looks invalid (repeated digits)' };
+  }
+
+  // Reject obvious patterns (0700000000, 0711111111)
+  if (/^0[0-9]0{7}$/.test(local9) || /^0[0-9]1{7}$/.test(local9)) {
+    return { valid: false, reason: 'Phone number looks invalid (obvious pattern)' };
+  }
+
+  // Reject alternating patterns (0707070707, 0103010301)
+  if (/^(0[0-9])(\d\2)*/.test(local9.slice(0, 6))) {
+    const chunk = local9.slice(2, 6);
+    if (/(.)(\1){3}/.test(chunk)) {
+      return { valid: false, reason: 'Phone number looks invalid (suspicious pattern)' };
+    }
+  }
+
+  // Known disposable/VoIP prefixes to block (can be expanded)
+  const blockedPrefixes = [
+    '0701', // Known VoIP/test
+    '0702', // Test numbers
+  ];
+  
+  if (blockedPrefixes.some(prefix => local9.startsWith(prefix))) {
+    return { valid: false, reason: 'This phone number prefix is not supported' };
+  }
+
+  return { valid: true };
+}
