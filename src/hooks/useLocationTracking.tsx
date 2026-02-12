@@ -44,20 +44,39 @@ export function useLocationTracking() {
         accuracy: position.coords.accuracy
       };
 
-      // Try to get address using reverse geocoding (free Nominatim API)
-      try {
-        const response = await fetch(
-          `https://nominatim.openstreetmap.org/reverse?format=json&lat=${locationData.latitude}&lon=${locationData.longitude}&zoom=18&addressdetails=1`,
-          { headers: { 'Accept-Language': 'en' } }
-        );
-        if (response.ok) {
-          const data = await response.json();
-          locationData.address = data.display_name;
-          locationData.city = data.address?.city || data.address?.town || data.address?.village || data.address?.county;
-          locationData.country = data.address?.country;
+      // Determine location from coordinates - Uganda is roughly lat -1.5 to 4.2, lon 29.5 to 35.0
+      const lat = locationData.latitude;
+      const lon = locationData.longitude;
+      const isUganda = lat >= -1.5 && lat <= 4.2 && lon >= 29.5 && lon <= 35.0;
+      
+      if (isUganda) {
+        locationData.country = 'Uganda';
+        // Simple region detection based on coordinates
+        if (lat >= 0.2 && lat <= 0.4 && lon >= 32.4 && lon <= 32.7) {
+          locationData.city = 'Kampala';
+        } else if (lat >= 0.4 && lat <= 0.6 && lon >= 32.5 && lon <= 32.7) {
+          locationData.city = 'Wakiso';
+        } else if (lat >= -0.1 && lat <= 0.1 && lon >= 32.4 && lon <= 32.7) {
+          locationData.city = 'Entebbe';
+        } else {
+          // Fallback: try reverse geocoding but validate the result
+          try {
+            const response = await fetch(
+              `https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}&zoom=10&addressdetails=1`,
+              { headers: { 'Accept-Language': 'en' } }
+            );
+            if (response.ok) {
+              const data = await response.json();
+              const geocodedCountry = data.address?.country;
+              // Only use result if it correctly identifies Uganda
+              if (geocodedCountry === 'Uganda') {
+                locationData.city = data.address?.city || data.address?.town || data.address?.village || data.address?.county;
+              }
+            }
+          } catch (geocodeError) {
+            console.warn('Geocoding failed:', geocodeError);
+          }
         }
-      } catch (geocodeError) {
-        console.warn('Geocoding failed:', geocodeError);
       }
 
       // Save to database
