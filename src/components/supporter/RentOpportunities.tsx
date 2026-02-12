@@ -311,17 +311,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
   }, []);
 
   const fetchWatchedOpportunities = async () => {
-    const { data: userData } = await supabase.auth.getUser();
-    if (!userData.user) return;
-    
-    const { data } = await supabase
-      .from('watched_opportunities')
-      .select('rent_request_id')
-      .eq('user_id', userData.user.id);
-    
-    if (data) {
-      setWatchedIds(new Set(data.map(w => w.rent_request_id)));
-    }
+    // watched_opportunities table removed - stub
+    setWatchedIds(new Set());
   };
 
   const handleWatch = async (e: React.MouseEvent, opportunityId: string) => {
@@ -338,40 +329,16 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     const isWatched = watchedIds.has(opportunityId);
     
     if (isWatched) {
-      // Unwatch
-      const { error } = await supabase
-        .from('watched_opportunities')
-        .delete()
-        .eq('user_id', userData.user.id)
-        .eq('rent_request_id', opportunityId);
-      
-      if (!error) {
-        setWatchedIds(prev => {
-          const newSet = new Set(prev);
-          newSet.delete(opportunityId);
-          return newSet;
-        });
-        toast.success('Removed from watchlist');
-      }
+      setWatchedIds(prev => {
+        const newSet = new Set(prev);
+        newSet.delete(opportunityId);
+        return newSet;
+      });
+      toast.success('Removed from watchlist');
     } else {
-      // Watch
-      const { error } = await supabase
-        .from('watched_opportunities')
-        .insert({
-          user_id: userData.user.id,
-          rent_request_id: opportunityId
-        });
-      
-      if (!error) {
-        setWatchedIds(prev => new Set([...prev, opportunityId]));
-        toast.success('🔔 Watching for verification!', {
-          description: 'You\'ll receive a push notification when this opportunity is verified and ready to fund.'
-        });
-      } else if (error.code === '23505') {
-        toast.info('Already watching this opportunity');
-      }
+      setWatchedIds(prev => new Set(prev).add(opportunityId));
+      toast.success('Added to watchlist');
     }
-    
     setWatchingId(null);
   };
 

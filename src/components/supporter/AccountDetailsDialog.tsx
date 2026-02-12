@@ -40,14 +40,8 @@ export function AccountDetailsDialog({ open, onOpenChange, account, onFund, onWi
     if (!account) return;
     setLoading(true);
     
-    const { data } = await supabase
-      .from('investment_interest_payments')
-      .select('*')
-      .eq('account_id', account.id)
-      .order('credited_at', { ascending: false })
-      .limit(10);
-    
-    setInterestHistory(data || []);
+    // investment_interest_payments table removed - stub
+    setInterestHistory([]);
     setLoading(false);
   };
 

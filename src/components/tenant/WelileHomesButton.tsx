@@ -182,15 +182,8 @@ export function WelileHomesButton() {
     queryKey: ['welile-homes-contributions-sparkline', subscription?.id],
     queryFn: async () => {
       if (!subscription?.id) return [];
-      const { data, error } = await supabase
-        .from('welile_homes_contributions')
-        .select('balance_after, amount, created_at')
-        .eq('subscription_id', subscription.id)
-        .order('created_at', { ascending: true })
-        .limit(10);
-      
-      if (error || !data) return [];
-      return data;
+      // welile_homes_contributions table removed - return empty
+      return [] as { balance_after: number; amount: number; created_at: string }[];
     },
     enabled: !!subscription?.id,
     staleTime: 1000 * 60 * 5,

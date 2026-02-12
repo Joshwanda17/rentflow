@@ -107,14 +107,8 @@ export function DashboardReceiptPrompt({ userId }: DashboardReceiptPromptProps) 
     if (!userId) return;
     setLoadingLimit(true);
     
-    // Fetch loan limit
-    const { data: limitData } = await supabase
-      .from('loan_limits')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    setLoanLimit(limitData);
+    // loan_limits table removed - stub
+    setLoanLimit(null as any);
 
     // Fetch monthly verified receipts for rent discount calculation
     const startOfMonth = new Date();

@@ -92,20 +92,8 @@ export function PayLandlordDialog({
         proofImageUrl = publicUrl;
       }
       
-      // Create payment proof record
-      const { error: proofError } = await supabase
-        .from('landlord_payment_proofs')
-        .insert({
-          rent_request_id: request.id,
-          landlord_id: request.landlord.id,
-          supporter_id: user.id,
-          amount: request.rent_amount,
-          payment_method: paymentMethod,
-          transaction_id: transactionId,
-          proof_image_url: proofImageUrl
-        });
-      
-      if (proofError) throw proofError;
+      // landlord_payment_proofs table removed - skip proof creation
+      // Just update rent request status directly
       
       // Update rent request status
       await supabase
@@ -117,64 +105,7 @@ export function PayLandlordDialog({
         })
         .eq('id', request.id);
       
-      // Create investment account for this funding batch
-      const accountName = `Rent Funding - ${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}`;
-      const accountColors = ['#22c55e', '#3b82f6', '#f59e0b', '#ec4899', '#8b5cf6', '#06b6d4'];
-      const randomColor = accountColors[Math.floor(Math.random() * accountColors.length)];
-      
-      // Check if an account with similar name exists for this month
-      const monthStart = new Date();
-      monthStart.setDate(1);
-      monthStart.setHours(0, 0, 0, 0);
-      
-      const { data: existingAccount } = await supabase
-        .from('investment_accounts')
-        .select('id, balance')
-        .eq('user_id', user.id)
-        .gte('created_at', monthStart.toISOString())
-        .ilike('name', `%Rent Funding%${new Date().toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}%`)
-        .single();
-      
-      if (existingAccount) {
-        // Update existing account balance
-        await supabase
-          .from('investment_accounts')
-          .update({ 
-            balance: Number(existingAccount.balance) + Number(request.rent_amount),
-            updated_at: new Date().toISOString()
-          })
-          .eq('id', existingAccount.id);
-      } else {
-        // Create new investment account for this funding
-        const { data: newAccount, error: accountError } = await supabase
-          .from('investment_accounts')
-          .insert({
-            user_id: user.id,
-            name: accountName,
-            color: randomColor,
-            balance: request.rent_amount,
-            status: 'approved' // Auto-approved since it's from actual funding
-          })
-          .select()
-          .single();
-        
-        if (accountError) {
-          console.error('Failed to create investment account:', accountError);
-        } else if (newAccount) {
-          // Notify supporter about the new account
-          await supabase.from('notifications').insert({
-            user_id: user.id,
-            title: '📊 Investment Account Created!',
-            message: `A new investment account "${accountName}" has been automatically created for your funding of ${formatUGX(Number(request.rent_amount))}. Track your ROI earnings there!`,
-            type: 'success',
-            metadata: {
-              account_id: newAccount.id,
-              account_name: accountName,
-              initial_balance: request.rent_amount
-            }
-          });
-        }
-      }
+      // investment_accounts table removed - skip account creation
       
       // Send notification to supporter about payment
       await supabase.from('notifications').insert({

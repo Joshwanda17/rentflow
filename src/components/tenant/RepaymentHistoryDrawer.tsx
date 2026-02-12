@@ -112,21 +112,14 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
         .eq('tenant_id', userId)
         .in('status', ['disbursed', 'completed'])
         .order('created_at', { ascending: false }),
-      supabase
-        .from('repayments')
-        .select('*')
-        .eq('tenant_id', userId)
-        .order('payment_date', { ascending: false }),
-      supabase
-        .from('late_fees')
-        .select('*')
-        .eq('borrower_id', userId)
-        .order('applied_at', { ascending: false })
+      // repayments and late_fees tables removed - stub
+      Promise.resolve({ data: [] }),
+      Promise.resolve({ data: [] })
     ]);
     
     setRentRequests(requestsResult.data || []);
-    setRepayments(paymentsResult.data || []);
-    setLateFees(lateFeesResult.data || []);
+    setRepayments([]);
+    setLateFees([]);
     setLoading(false);
   };
 
@@ -283,28 +276,10 @@ export function RepaymentHistoryDrawer({ userId }: RepaymentHistoryDrawerProps) 
     setSubmittingPayment(true);
 
     try {
-      // Insert repayment
-      const { error: repaymentError } = await supabase
-        .from('repayments')
-        .insert({
-          rent_request_id: selectedRequest.id,
-          tenant_id: userId,
-          amount: amount
-        });
-
-      if (repaymentError) throw repaymentError;
-
-      // Record platform transaction
-      await supabase
-        .from('platform_transactions')
-        .insert({
-          rent_request_id: selectedRequest.id,
-          user_id: userId,
-          amount: amount,
-          direction: 'inflow',
-          transaction_type: 'tenant_repayment',
-          description: `Tenant repayment of ${formatUGX(amount)}`
-        });
+      // repayments and platform_transactions tables removed
+      toast({ title: 'Not Available', description: 'Repayment submission is currently disabled.', variant: 'destructive' });
+      setSubmittingPayment(false);
+      return;
 
       // Check if fully repaid
       if (amount >= remainingBalance) {

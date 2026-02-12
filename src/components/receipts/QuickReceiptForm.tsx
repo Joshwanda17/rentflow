@@ -76,13 +76,8 @@ export function QuickReceiptForm({ userId, onSuccess }: QuickReceiptFormProps) {
     if (!userId) return;
     setLoadingLimit(true);
     
-    const { data } = await supabase
-      .from('loan_limits')
-      .select('*')
-      .eq('user_id', userId)
-      .maybeSingle();
-    
-    setLoanLimit(data);
+    // loan_limits table removed - stub
+    setLoanLimit(null as any);
     setLoadingLimit(false);
   };
 

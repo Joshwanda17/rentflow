@@ -70,15 +70,12 @@ export default function RepaymentSection({
           .eq('tenant_id', userId)
           .in('status', ['disbursed', 'completed', 'approved', 'funded'])
           .order('created_at', { ascending: false }),
-        supabase
-          .from('repayments')
-          .select('*')
-          .eq('tenant_id', userId)
-          .order('payment_date', { ascending: false })
+        // repayments table removed - stub
+        Promise.resolve({ data: [] })
       ]);
 
       if (requestsRes.data) setRentRequests(requestsRes.data);
-      if (repaymentsRes.data) setRepayments(repaymentsRes.data);
+      setRepayments([]);
       
       setLoading(false);
     };

@@ -204,14 +204,7 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
         return;
       }
 
-      // Record the transaction
-      await supabase.from('platform_transactions').insert({
-        user_id: user?.id,
-        amount: finalAmount,
-        direction: 'outflow',
-        transaction_type: 'rent_payment',
-        description: `Rent payment to ${landlord.name} (Discount: ${formatCurrency(getApplicableDiscount())})`
-      });
+      // platform_transactions table removed - skip recording
     } else {
       // Use wallet transfer
       const { error } = await supabase.functions.invoke('wallet-transfer', {

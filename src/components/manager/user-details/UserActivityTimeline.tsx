@@ -74,27 +74,7 @@ export default function UserActivityTimeline({ userId, userName }: UserActivityT
       });
     });
 
-    // Fetch login history
-    const { data: loginHistory } = await supabase
-      .from('user_login_history')
-      .select('*')
-      .eq('user_id', userId)
-      .order('login_at', { ascending: false })
-      .limit(20);
-
-    loginHistory?.forEach(login => {
-      allActivities.push({
-        id: `login-${login.id}`,
-        type: 'login',
-        description: `Logged in via ${login.login_method || 'password'}`,
-        created_at: login.login_at,
-        metadata: { 
-          ip_address: login.ip_address,
-          user_agent: login.user_agent,
-          success: login.success
-        }
-      });
-    });
+    // user_login_history table removed - skip
 
     // Fetch sent transactions
     const { data: sentTransactions } = await supabase
@@ -150,23 +130,7 @@ export default function UserActivityTimeline({ userId, userName }: UserActivityT
       });
     });
 
-    // Fetch withdrawals
-    const { data: withdrawals } = await supabase
-      .from('wallet_withdrawals')
-      .select('id, amount, created_at')
-      .eq('user_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(15);
-
-    withdrawals?.forEach(w => {
-      allActivities.push({
-        id: `withdrawal-${w.id}`,
-        type: 'withdrawal',
-        description: 'Wallet withdrawal',
-        amount: w.amount,
-        created_at: w.created_at
-      });
-    });
+    // wallet_withdrawals table removed - skip
 
     // Fetch rent requests
     const { data: rentRequests } = await supabase
@@ -186,23 +150,7 @@ export default function UserActivityTimeline({ userId, userName }: UserActivityT
       });
     });
 
-    // Fetch repayments
-    const { data: repayments } = await supabase
-      .from('repayments')
-      .select('id, amount, created_at')
-      .eq('tenant_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(15);
-
-    repayments?.forEach(r => {
-      allActivities.push({
-        id: `repayment-${r.id}`,
-        type: 'repayment',
-        description: 'Rent repayment',
-        amount: r.amount,
-        created_at: r.created_at
-      });
-    });
+    // repayments table removed - skip
 
     // Fetch product orders
     const { data: orders } = await supabase
@@ -222,47 +170,7 @@ export default function UserActivityTimeline({ userId, userName }: UserActivityT
       });
     });
 
-    // Fetch audit logs (role changes, verifications, etc.)
-    const { data: auditLogs } = await supabase
-      .from('audit_logs')
-      .select('*')
-      .eq('record_id', userId)
-      .order('created_at', { ascending: false })
-      .limit(20);
-
-    auditLogs?.forEach(log => {
-      let description = log.action_type;
-      let type = 'admin_action';
-      
-      const newValues = log.new_values as Record<string, unknown> | null;
-      const oldValues = log.old_values as Record<string, unknown> | null;
-      
-      if (log.table_name === 'user_roles') {
-        type = 'role_change';
-        const newRole = newValues?.role as string | undefined;
-        const oldRole = oldValues?.role as string | undefined;
-        if (log.action_type === 'INSERT') {
-          description = `Role "${newRole}" added`;
-        } else if (log.action_type === 'DELETE') {
-          description = `Role "${oldRole}" removed`;
-        } else if (log.action_type === 'UPDATE') {
-          const enabled = newValues?.enabled as boolean | undefined;
-          description = enabled ? `Role "${newRole}" enabled` : `Role "${newRole}" disabled`;
-        }
-      } else if (log.table_name === 'profiles' && newValues?.verified !== undefined) {
-        type = 'verification';
-        description = newValues.verified ? 'Account verified' : 'Verification revoked';
-      }
-      
-      allActivities.push({
-        id: `audit-${log.id}`,
-        type,
-        description,
-        created_at: log.created_at,
-        performed_by: log.performed_by || undefined,
-        metadata: { reason: log.reason, ...log.metadata as Record<string, unknown> }
-      });
-    });
+    // audit_logs table removed - skip
 
     // Sort all activities by date
     allActivities.sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());

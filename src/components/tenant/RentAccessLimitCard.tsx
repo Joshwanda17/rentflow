@@ -35,46 +35,9 @@ export function RentAccessLimitCard({ userId }: RentAccessLimitCardProps) {
 
   const fetchLimitData = async () => {
     try {
-      const { data: limitData } = await supabase
-        .from('loan_limits')
-        .select('available_limit, used_limit')
-        .eq('user_id', userId)
-        .single();
-
-      if (limitData) {
-        setLimit({
-          availableLimit: limitData.available_limit,
-          usedLimit: limitData.used_limit,
-        });
-      }
-
-      const { data: repayments } = await supabase
-        .from('repayments')
-        .select('payment_date')
-        .eq('tenant_id', userId)
-        .order('payment_date', { ascending: false })
-        .limit(30);
-
-      if (repayments && repayments.length > 0) {
-        let consecutiveDays = 0;
-        const today = new Date();
-        today.setHours(0, 0, 0, 0);
-        
-        for (let i = 0; i < repayments.length; i++) {
-          const paymentDate = new Date(repayments[i].payment_date);
-          paymentDate.setHours(0, 0, 0, 0);
-          
-          const expectedDate = new Date(today);
-          expectedDate.setDate(expectedDate.getDate() - i);
-          
-          if (paymentDate.getTime() === expectedDate.getTime()) {
-            consecutiveDays++;
-          } else {
-            break;
-          }
-        }
-        setStreak(consecutiveDays);
-      }
+      // loan_limits and repayments tables removed - stub
+      setLimit({ availableLimit: 0, usedLimit: 0 });
+      setStreak(0);
     } catch (error) {
       console.error('Error fetching limit data:', error);
     } finally {

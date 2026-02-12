@@ -113,14 +113,8 @@ export function AchievementBadges({ userId }: AchievementBadgesProps) {
 
   useEffect(() => {
     const fetchAchievements = async () => {
-      const { data, error } = await supabase
-        .from("user_achievements")
-        .select("achievement_key, unlocked_at, metadata")
-        .eq("user_id", userId);
-
-      if (!error && data) {
-        setUserAchievements(data as UserAchievement[]);
-      }
+      // user_achievements table removed - stub
+      setUserAchievements([]);
       setLoading(false);
     };
 

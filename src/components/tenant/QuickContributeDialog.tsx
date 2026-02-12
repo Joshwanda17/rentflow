@@ -54,18 +54,10 @@ export function QuickContributeDialog({
       const newBalance = currentBalance + amountNum;
 
       // Insert contribution record
-      const { error: contribError } = await supabase
-        .from('welile_homes_contributions')
-        .insert({
-          subscription_id: subscriptionId,
-          tenant_id: tenantId,
-          contribution_type: 'manual',
-          amount: amountNum,
-          balance_after: newBalance,
-          notes: 'Manual contribution from dashboard',
-        });
-
-      if (contribError) throw contribError;
+      // welile_homes_contributions table removed
+      toast({ title: 'Not Available', description: 'Contributions feature is currently disabled.', variant: 'destructive' });
+      setLoading(false);
+      return;
 
       // Update subscription total
       const { error: updateError } = await supabase

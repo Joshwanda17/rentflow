@@ -149,10 +149,8 @@ export function RentRequestsManager() {
           ? supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
           : Promise.resolve({ data: [] });
       })(),
-      // Fetch all repayments
-      // repayments table removed
+      // repayments table removed - stub
       (() => Promise.resolve({ data: [] }))(),
-      })(),
       // Fetch wallet balances for tenants
       tenantIds.length > 0
         ? supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds)
