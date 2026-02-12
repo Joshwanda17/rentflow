@@ -73,42 +73,9 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
 
   const fetchData = async () => {
     setLoading(true);
-
-    const [loanLimitsRes, loansRes] = await Promise.all([
-      supabase
-        .from('loan_limits')
-        .select('*')
-        .gt('available_limit', 0)
-        .order('available_limit', { ascending: false })
-        .limit(50),
-      supabase
-        .from('user_loans')
-        .select('*')
-        .eq('lender_id', agentId)
-        .order('created_at', { ascending: false })
-    ]);
-
-    // Fetch profiles for loan limits
-    const limitUserIds = (loanLimitsRes.data || []).map(l => l.user_id);
-    const loanBorrowerIds = (loansRes.data || []).map(l => l.borrower_id);
-    const allUserIds = [...new Set([...limitUserIds, ...loanBorrowerIds])];
-
-    const { data: profiles } = allUserIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name, phone, email').in('id', allUserIds)
-      : { data: [] };
-
-    const limitsWithProfiles = (loanLimitsRes.data || []).map(l => ({
-      ...l,
-      profiles: profiles?.find(p => p.id === l.user_id)
-    }));
-
-    const loansWithBorrowers = (loansRes.data || []).map(l => ({
-      ...l,
-      borrower: profiles?.find(p => p.id === l.borrower_id)
-    }));
-
-    setLoanLimits(limitsWithProfiles);
-    setLoans(loansWithBorrowers);
+    // loan_limits and user_loans tables removed - feature not active
+    setLoanLimits([]);
+    setLoans([]);
     setLoading(false);
   };
 
@@ -116,130 +83,20 @@ export function LoanManagement({ agentId }: LoanManagementProps) {
     if (!searchPhone.trim()) return;
     setSearching(true);
     setSearchedUser(null);
-
-    // Search for user by phone
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('id, full_name, phone, email')
-      .eq('phone', searchPhone.trim())
-      .single();
-
-    if (!profile) {
-      toast({ 
-        title: 'User Not Found', 
-        description: 'No user found with this phone number', 
-        variant: 'destructive' 
-      });
-      setSearching(false);
-      return;
-    }
-
-    // Get their loan limit
-    const { data: loanLimit } = await supabase
-      .from('loan_limits')
-      .select('*')
-      .eq('user_id', profile.id)
-      .single();
-
-    if (!loanLimit) {
-      toast({ 
-        title: 'No Loan Limit', 
-        description: 'This user has no verified receipts yet', 
-        variant: 'destructive' 
-      });
-      setSearching(false);
-      return;
-    }
-
-    setSearchedUser({
-      ...loanLimit,
-      profiles: profile
-    });
+    // Feature not active
+    toast({ title: 'Loans feature not active', variant: 'destructive' });
     setSearching(false);
   };
 
   const handleCreateLoan = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchedUser) return;
-    setSubmitting(true);
-
-    const amount = parseFloat(loanAmount);
-    const rate = parseFloat(interestRate);
-    const days = parseInt(durationDays);
-    
-    if (amount > searchedUser.available_limit) {
-      toast({ 
-        title: 'Amount Exceeds Limit', 
-        description: `Maximum available: ${formatUGX(searchedUser.available_limit)}`, 
-        variant: 'destructive' 
-      });
-      setSubmitting(false);
-      return;
-    }
-
-    const totalRepayment = amount * (1 + rate / 100);
-    const dueDate = format(addDays(new Date(), days), 'yyyy-MM-dd');
-
-    // Create the loan
-    const { error: loanError } = await supabase
-      .from('user_loans')
-      .insert({
-        borrower_id: searchedUser.user_id,
-        lender_id: agentId,
-        amount,
-        interest_rate: rate,
-        total_repayment: totalRepayment,
-        due_date: dueDate
-      });
-
-    if (loanError) {
-      toast({ title: 'Error', description: loanError.message, variant: 'destructive' });
-      setSubmitting(false);
-      return;
-    }
-
-    // Update loan limit
-    const { error: limitError } = await supabase
-      .from('loan_limits')
-      .update({
-        available_limit: searchedUser.available_limit - amount,
-        used_limit: searchedUser.used_limit + amount,
-        updated_at: new Date().toISOString()
-      })
-      .eq('user_id', searchedUser.user_id);
-
-    if (limitError) {
-      toast({ title: 'Warning', description: 'Loan created but limit not updated', variant: 'destructive' });
-    } else {
-      toast({ 
-        title: 'Loan Created', 
-        description: `${formatUGX(amount)} loan created for ${searchedUser.profiles?.full_name}` 
-      });
-    }
-
-    setLoanAmount('');
-    setSearchedUser(null);
-    setSearchPhone('');
-    setCreateDialogOpen(false);
-    fetchData();
-    setSubmitting(false);
+    // Feature not active
+    toast({ title: 'Loans feature not active', variant: 'destructive' });
   };
 
   const handleMarkRepaid = async (loanId: string) => {
-    const { error } = await supabase
-      .from('user_loans')
-      .update({
-        status: 'repaid',
-        repaid_at: new Date().toISOString()
-      })
-      .eq('id', loanId);
-
-    if (error) {
-      toast({ title: 'Error', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Loan Marked Repaid' });
-      fetchData();
-    }
+    // Feature not active
+    toast({ title: 'Loans feature not active', variant: 'destructive' });
   };
 
   const activeLoans = loans.filter(l => l.status === 'active');

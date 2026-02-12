@@ -35,32 +35,7 @@ export default function MessageReactions({
 
   const toggleReaction = async (emoji: string) => {
     if (!user || loading) return;
-    
-    setLoading(true);
-    
-    const existingReaction = reactions.find(r => r.emoji === emoji && r.hasReacted);
-    
-    if (existingReaction) {
-      // Remove reaction
-      await supabase
-        .from('message_reactions')
-        .delete()
-        .eq('message_id', messageId)
-        .eq('user_id', user.id)
-        .eq('emoji', emoji);
-    } else {
-      // Add reaction
-      await supabase
-        .from('message_reactions')
-        .insert({
-          message_id: messageId,
-          user_id: user.id,
-          emoji
-        });
-    }
-    
-    setLoading(false);
-    setOpen(false);
+    // message_reactions table removed - feature not active
     onReactionChange();
   };
 
