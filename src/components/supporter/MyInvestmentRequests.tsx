@@ -41,14 +41,8 @@ export function MyInvestmentRequests() {
     if (!user) return;
     
     try {
-      const { data, error } = await supabase
-        .from('manager_investment_requests')
-        .select('*')
-        .eq('supporter_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setRequests(data || []);
+      // manager_investment_requests table removed - stub
+      setRequests([]);
     } catch (error) {
       console.error('Error fetching requests:', error);
     } finally {

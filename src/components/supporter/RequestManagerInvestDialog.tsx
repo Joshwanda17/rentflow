@@ -52,45 +52,8 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
         .eq('id', user.id)
         .single();
 
-      const { error } = await supabase
-        .from('manager_investment_requests')
-        .insert({
-          supporter_id: user.id,
-          supporter_name: profile?.full_name || 'Unknown',
-          supporter_phone: profile?.phone || '',
-          amount: parseFloat(amount),
-          status: 'pending'
-        });
-
-      if (error) throw error;
-
-      // Notify managers
-      const { data: managers } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'manager')
-        .eq('enabled', true);
-
-      if (managers) {
-        const notifications = managers.map(m => ({
-          user_id: m.user_id,
-          title: '💼 Investment Request',
-          message: `${profile?.full_name || 'A supporter'} wants you to invest ${formatUGX(parseFloat(amount))} for them`,
-          type: 'investment_request'
-        }));
-
-        await supabase.from('notifications').insert(notifications);
-      }
-
-      hapticSuccess();
-      setStep('success');
-    } catch (error) {
-      console.error('Error submitting request:', error);
-      toast({
-        title: 'Error',
-        description: 'Failed to submit request. Please try again.',
-        variant: 'destructive'
-      });
+      // manager_investment_requests table removed
+      toast({ title: 'Not Available', description: 'Investment requests feature is currently disabled.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }

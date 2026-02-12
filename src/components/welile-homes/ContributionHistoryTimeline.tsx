@@ -42,14 +42,8 @@ export function ContributionHistoryTimeline({
   const { data: contributions = [], isLoading } = useQuery({
     queryKey: ['welile-homes-contributions-timeline', userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from('welile_homes_contributions')
-        .select('*')
-        .eq('tenant_id', userId)
-        .order('created_at', { ascending: false });
-      
-      if (error) throw error;
-      return data as Contribution[];
+      // welile_homes_contributions table removed - return empty
+      return [] as Contribution[];
     },
     enabled: !!userId,
   });

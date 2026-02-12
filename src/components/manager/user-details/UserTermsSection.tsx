@@ -80,24 +80,10 @@ export default function UserTermsSection({ userId, userRoles }: UserTermsSection
               .limit(1)
               .maybeSingle()
           : Promise.resolve({ data: null }),
-        userRoles.includes('agent')
-          ? supabase
-              .from('agent_agreement_acceptance')
-              .select('*')
-              .eq('agent_id', userId)
-              .order('accepted_at', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
-        userRoles.includes('landlord')
-          ? supabase
-              .from('landlord_agreement_acceptance')
-              .select('*')
-              .eq('landlord_id', userId)
-              .order('accepted_at', { ascending: false })
-              .limit(1)
-              .maybeSingle()
-          : Promise.resolve({ data: null }),
+        // agent_agreement_acceptance table removed
+        Promise.resolve({ data: null }),
+        // landlord_agreement_acceptance table removed
+        Promise.resolve({ data: null }),
       ]);
 
       setTenantAgreement(tenantResult.data);

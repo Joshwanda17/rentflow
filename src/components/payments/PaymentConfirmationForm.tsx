@@ -91,108 +91,33 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         }
       }
 
-      // Check if this transaction ID was already recorded by a manager (auto-verify)
-      // Normalize transaction ID for matching (trim and case-insensitive)
-      const normalizedTxId = transactionId.trim().toUpperCase();
-      const { data: matchingRecord } = await supabase
-        .from('manager_recorded_transactions')
-        .select('id, amount')
-        .eq('matched', false)
-        .eq('payment_partner', partner)
-        .maybeSingle();
-      
-      // Check for match with normalized comparison
-      let foundMatch = null;
-      if (!matchingRecord) {
-        // Try to find any unmatched record with matching transaction ID
-        const { data: allUnmatched } = await supabase
-          .from('manager_recorded_transactions')
-          .select('id, amount, transaction_id')
-          .eq('payment_partner', partner)
-          .eq('matched', false);
-        
-        foundMatch = allUnmatched?.find(
-          record => record.transaction_id.trim().toUpperCase() === normalizedTxId
-        ) || null;
-      } else if (matchingRecord) {
-        // Check if single result matches
-        const { data: checkRecord } = await supabase
-          .from('manager_recorded_transactions')
-          .select('id, amount, transaction_id')
-          .eq('id', matchingRecord.id)
-          .maybeSingle();
-        
-        if (checkRecord && checkRecord.transaction_id.trim().toUpperCase() === normalizedTxId) {
-          foundMatch = checkRecord;
-        }
-      }
-
-      const isAutoVerified = !!foundMatch;
-      const confirmationStatus = isAutoVerified ? 'approved' : 'pending';
+      // manager_recorded_transactions table removed - skip auto-verify
+      const isAutoVerified = false;
+      const foundMatch: any = null;
+      const confirmationStatus = 'pending';
 
       // Combine date and time into a full timestamp
       const transactionDateTime = new Date(`${transactionDate}T${transactionTime}:00`);
 
       // Insert payment confirmation
       const { data: newConfirmation, error } = await supabase
-        .from('payment_confirmations')
+        .from('deposit_requests')
         .insert({
           user_id: user.id,
-          dashboard_type: dashboardType,
-          payment_partner: partner,
           amount: parseFloat(amount),
           transaction_id: transactionId.trim(),
           transaction_date: transactionDateTime.toISOString(),
-          screenshot_url: screenshotUrl,
           status: confirmationStatus,
-          admin_note: isAutoVerified ? 'Auto-verified: Transaction ID matched manager records' : null,
-          processed_at: isAutoVerified ? new Date().toISOString() : null
-        })
+          notes: `Payment confirmation - ${partner}`,
+        } as any)
         .select()
         .single();
 
+
       if (error) throw error;
 
-      // If auto-verified, update the manager record and credit wallet
-      if (isAutoVerified && foundMatch && newConfirmation) {
-        // Mark the manager record as matched
-        await supabase
-          .from('manager_recorded_transactions')
-          .update({
-            matched: true,
-            matched_confirmation_id: newConfirmation.id,
-            matched_at: new Date().toISOString()
-          })
-          .eq('id', foundMatch.id);
-
-        // Credit user's wallet
-        const { data: walletData } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .maybeSingle();
-
-        if (walletData) {
-          await supabase
-            .from('wallets')
-            .update({ balance: walletData.balance + parseFloat(amount) })
-            .eq('user_id', user.id);
-        }
-
-        // Create success notification
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: '✅ Payment Auto-Verified!',
-          message: `Your payment of UGX ${parseFloat(amount).toLocaleString()} has been automatically verified and added to your wallet.`,
-          type: 'success'
-        });
-
-        setSubmitted(true);
-        toast.success('🎉 Payment verified automatically! Funds added to wallet.');
-      } else {
-        setSubmitted(true);
-        toast.success('Payment confirmation submitted! We\'ll verify shortly.');
-      }
+      setSubmitted(true);
+      toast.success('Payment confirmation submitted! We\'ll verify shortly.');
       
       // Reset form after delay
       setTimeout(() => {

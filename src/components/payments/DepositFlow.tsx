@@ -110,18 +110,9 @@ export default function DepositFlow({
         return;
       }
 
-      // Check if this matches a manager-recorded transaction
-      const { data: managerRecord } = await supabase
-        .from('manager_recorded_transactions')
-        .select('*')
-        .eq('transaction_id', normalizedTxId)
-        .eq('matched', false)
-        .maybeSingle();
-
+      // manager_recorded_transactions table removed - skip auto-verify
       let autoVerified = false;
-      if (managerRecord) {
-        autoVerified = true;
-      }
+      const managerRecord: any = null;
 
       // Create deposit request - cast to any to handle new columns not yet in types
       const { error: depositError } = await supabase
@@ -158,11 +149,7 @@ export default function DepositFlow({
             .insert({ user_id: user.id, balance: parseFloat(amount) });
         }
 
-        // Mark manager record as matched
-        await supabase
-          .from('manager_recorded_transactions')
-          .update({ matched: true })
-          .eq('id', managerRecord.id);
+        // manager_recorded_transactions table removed - skip
 
         // Send notification
         await supabase.from('notifications').insert({

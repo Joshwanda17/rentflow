@@ -585,23 +585,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       });
     });
 
-    // Fetch repayments
-    const { data: repayments } = await supabase
-      .from('repayments')
-      .select('id, amount, created_at')
-      .eq('tenant_id', user.id)
-      .order('created_at', { ascending: false })
-      .limit(10);
-
-    repayments?.forEach(r => {
-      activities.push({
-        id: `repayment-${r.id}`,
-        type: 'repayment',
-        amount: r.amount,
-        description: 'Rent repayment',
-        created_at: r.created_at
-      });
-    });
+    // repayments table removed - skip
 
     // Fetch loan repayments
     const { data: loanRepayments } = await supabase

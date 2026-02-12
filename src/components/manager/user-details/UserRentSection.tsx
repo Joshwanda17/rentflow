@@ -109,12 +109,8 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
         .eq('tenant_id', userId)
         .order('created_at', { ascending: false });
 
-      // Fetch repayments
-      const { data: payments } = await supabase
-        .from('repayments')
-        .select('*')
-        .eq('tenant_id', userId)
-        .order('payment_date', { ascending: false });
+      // repayments table removed - stub
+      const payments: any[] = [];
 
       // Fetch agent profiles for requests that have agent_id
       const agentIds = [...new Set((requests || []).map(r => r.agent_id).filter(Boolean))];

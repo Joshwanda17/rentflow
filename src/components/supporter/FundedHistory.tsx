@@ -172,36 +172,12 @@ export function FundedHistory() {
       }
     }
 
-    // Fetch repayments and ROI for each request
+    // Fetch details for each request (repayments and ROI tables removed - stub)
     const requestsWithDetails = await Promise.all(
       (requests as unknown as FundedRequest[]).map(async (request) => {
-        // Get repayments
-        const { data: repayments } = await supabase
-          .from('repayments')
-          .select('id, amount, payment_date, created_at')
-          .eq('rent_request_id', request.id)
-          .order('payment_date', { ascending: false });
-
-        // Get ROI payments via landlord_payment_proofs
-        const { data: paymentProofs } = await supabase
-          .from('landlord_payment_proofs')
-          .select('id')
-          .eq('rent_request_id', request.id)
-          .eq('status', 'verified')
-          .limit(1);
-
-        let roiPayments: ROIPayment[] = [];
-        if (paymentProofs && paymentProofs.length > 0) {
-          const { data: roi } = await supabase
-            .from('supporter_roi_payments')
-            .select('id, roi_amount, payment_number, due_date, paid_at, status')
-            .eq('payment_proof_id', paymentProofs[0].id)
-            .order('payment_number', { ascending: true });
-          
-          if (roi) {
-            roiPayments = roi;
-          }
-        }
+        // repayments, landlord_payment_proofs, supporter_roi_payments tables removed
+        const repayments: any[] = [];
+        const roiPayments: ROIPayment[] = [];
 
         const totalRepaid = (repayments || []).reduce((sum, r) => sum + Number(r.amount), 0);
         const totalROIEarned = roiPayments

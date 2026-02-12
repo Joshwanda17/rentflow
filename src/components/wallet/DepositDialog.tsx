@@ -160,80 +160,17 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
         return;
       }
 
-      // Check if this matches a manager-recorded transaction
-      const { data: managerRecord } = await supabase
-        .from('manager_recorded_transactions')
-        .select('*')
-        .eq('transaction_id', normalizedTxId)
-        .eq('matched', false)
-        .maybeSingle();
+      // manager_recorded_transactions table removed - no auto-verify
 
-      let autoVerified = false;
-      if (managerRecord) {
-        autoVerified = true;
-      }
+      // Send notification for pending
+      await supabase.from('notifications').insert({
+        user_id: user.id,
+        title: 'Deposit Request Submitted',
+        message: `Your deposit request of ${formatCurrency(parseFloat(amount))} is being verified. You'll be notified once approved.`,
+        type: 'info',
+      });
 
-      // Create deposit request
-      const { error: depositError } = await supabase
-        .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          status: autoVerified ? 'approved' : 'pending',
-          provider: provider,
-          transaction_id: normalizedTxId,
-          transaction_date: txDateTime.toISOString(),
-          notes: `${provider.toUpperCase()} deposit - TX: ${normalizedTxId}`,
-        } as any);
-
-      if (depositError) throw depositError;
-
-      // If auto-verified, credit wallet immediately
-      if (autoVerified && managerRecord) {
-        // Update wallet balance
-        const { data: wallet } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', user.id)
-          .single();
-
-        if (wallet) {
-          await supabase
-            .from('wallets')
-            .update({ balance: wallet.balance + parseFloat(amount) })
-            .eq('user_id', user.id);
-        } else {
-          await supabase
-            .from('wallets')
-            .insert({ user_id: user.id, balance: parseFloat(amount) });
-        }
-
-        // Mark manager record as matched
-        await supabase
-          .from('manager_recorded_transactions')
-          .update({ matched: true })
-          .eq('id', managerRecord.id);
-
-        // Send notification
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Deposit Verified!',
-          message: `Your deposit of ${formatCurrency(parseFloat(amount))} has been automatically verified and added to your wallet.`,
-          type: 'success',
-        });
-
-        toast.success('Deposit verified and added to your wallet!');
-      } else {
-        // Send notification for pending
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Deposit Request Submitted',
-          message: `Your deposit request of ${formatCurrency(parseFloat(amount))} is being verified. You'll be notified once approved.`,
-          type: 'info',
-        });
-
-        toast.success('Deposit request submitted for verification');
-      }
+      toast.success('Deposit request submitted for verification');
 
       setSuccess(true);
     } catch (error: any) {

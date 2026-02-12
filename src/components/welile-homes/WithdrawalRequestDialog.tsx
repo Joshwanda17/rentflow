@@ -73,17 +73,8 @@ export function WithdrawalRequestDialog({
       const { data: { user } } = await supabase.auth.getUser();
       if (!user) throw new Error('Not authenticated');
 
-      const { error } = await supabase
-        .from('welile_homes_withdrawals')
-        .insert({
-          subscription_id: subscriptionId,
-          tenant_id: user.id,
-          amount: withdrawalAmount,
-          purpose,
-          purpose_details: purposeDetails || null,
-        });
-
-      if (error) throw error;
+      // welile_homes_withdrawals table removed
+      throw new Error('Withdrawal requests feature is currently disabled');
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['welile-homes-withdrawals'] });

@@ -72,33 +72,9 @@ export function ROIEarningsCard() {
     setLoading(true);
 
     try {
-      // Fetch ROI payments history
-      const { data: roiData } = await supabase
-        .from('supporter_roi_payments')
-        .select('*')
-        .eq('supporter_id', user.id)
-        .order('created_at', { ascending: false });
-
-      setRoiPayments(roiData || []);
-
-      // Fetch verified payment proofs
-      const { data: proofsData } = await supabase
-        .from('landlord_payment_proofs')
-        .select(`
-          id,
-          amount,
-          status,
-          verified_at,
-          next_roi_due_date,
-          total_roi_paid,
-          roi_payments_count,
-          landlord:landlords!landlord_payment_proofs_landlord_id_fkey(name)
-        `)
-        .eq('supporter_id', user.id)
-        .eq('status', 'verified')
-        .order('verified_at', { ascending: false });
-
-      setPaymentProofs((proofsData as unknown as PaymentProofSummary[]) || []);
+      // supporter_roi_payments and landlord_payment_proofs tables removed - stub
+      setRoiPayments([]);
+      setPaymentProofs([]);
     } catch (error) {
       console.error('Error fetching ROI data:', error);
     } finally {

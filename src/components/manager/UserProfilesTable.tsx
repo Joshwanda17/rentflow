@@ -975,10 +975,7 @@ export default function UserProfilesTable() {
                         <QuickRoleEditor
                           userId={user.id}
                           userName={user.full_name}
-                          currentRoles={user.roles}
-                          roleEnabledStatus={user.roleEnabledStatus}
-                          onRolesUpdated={handleRefresh}
-                          compact
+                          onRoleChange={handleRefresh}
                         />
                       </div>
                       

@@ -39,81 +39,8 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
     setLoading(true);
     
     try {
-      // Fetch aggregated ROI data from supporter_roi_payments
-      const { data: roiData, error: roiError } = await supabase
-        .from('supporter_roi_payments')
-        .select(`
-          supporter_id,
-          roi_amount,
-          status,
-          supporter:profiles!supporter_roi_payments_supporter_id_fkey(full_name, avatar_url)
-        `)
-        .eq('status', 'paid');
-
-      if (roiError) throw roiError;
-
-      // Fetch payment proofs for investment totals
-      const { data: proofsData } = await supabase
-        .from('landlord_payment_proofs')
-        .select('supporter_id, amount')
-        .eq('status', 'verified');
-
-      // Aggregate data by supporter
-      const supporterMap = new Map<string, ROILeaderEntry>();
-
-      roiData?.forEach((payment: any) => {
-        const id = payment.supporter_id;
-        if (!supporterMap.has(id)) {
-          supporterMap.set(id, {
-            supporter_id: id,
-            full_name: payment.supporter?.full_name || 'Anonymous',
-            avatar_url: payment.supporter?.avatar_url || null,
-            total_roi_earned: 0,
-            total_invested: 0,
-            payment_count: 0,
-            active_fundings: 0
-          });
-        }
-        const entry = supporterMap.get(id)!;
-        entry.total_roi_earned += Number(payment.roi_amount);
-        entry.payment_count += 1;
-      });
-
-      // Add investment data
-      const investmentMap = new Map<string, { total: number, count: number }>();
-      proofsData?.forEach((proof: any) => {
-        const current = investmentMap.get(proof.supporter_id) || { total: 0, count: 0 };
-        current.total += Number(proof.amount);
-        current.count += 1;
-        investmentMap.set(proof.supporter_id, current);
-      });
-
-      // Merge investment data into supporter entries
-      investmentMap.forEach((investment, supporterId) => {
-        if (supporterMap.has(supporterId)) {
-          const entry = supporterMap.get(supporterId)!;
-          entry.total_invested = investment.total;
-          entry.active_fundings = investment.count;
-        }
-      });
-
-      // Convert to array and sort by ROI earned
-      const leadersList = Array.from(supporterMap.values())
-        .sort((a, b) => b.total_roi_earned - a.total_roi_earned)
-        .slice(0, limit);
-
-      setLeaders(leadersList);
-
-      // Find current user's rank
-      if (user) {
-        const allLeaders = Array.from(supporterMap.values())
-          .sort((a, b) => b.total_roi_earned - a.total_roi_earned);
-        const userIndex = allLeaders.findIndex(entry => entry.supporter_id === user.id);
-        if (userIndex !== -1) {
-          setUserRank(userIndex + 1);
-          setUserStats(allLeaders[userIndex]);
-        }
-      }
+      // supporter_roi_payments and landlord_payment_proofs tables removed - stub
+      setLeaders([]);
     } catch (error) {
       console.error('Error fetching ROI leaderboard:', error);
     } finally {

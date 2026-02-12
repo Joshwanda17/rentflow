@@ -40,15 +40,8 @@ export function RoleHistoryViewer({ userId, userName }: RoleHistoryViewerProps) 
   const { data: history, isLoading } = useQuery({
     queryKey: ["role-history", userId],
     queryFn: async () => {
-      const { data, error } = await supabase
-        .from("audit_logs")
-        .select("*")
-        .eq("table_name", "user_roles")
-        .eq("record_id", userId)
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
-      return data as RoleHistoryEntry[];
+      // audit_logs table removed - return empty array
+      return [] as RoleHistoryEntry[];
     },
   });
 

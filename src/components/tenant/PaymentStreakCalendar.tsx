@@ -31,13 +31,8 @@ export function PaymentStreakCalendar({ userId }: PaymentStreakCalendarProps) {
   const fetchPaymentData = async () => {
     setLoading(true);
     try {
-      // Fetch repayments for the user
-      const { data: repayments } = await supabase
-        .from('repayments')
-        .select('payment_date, amount')
-        .eq('tenant_id', userId)
-        .gte('payment_date', format(startOfMonth(currentMonth), 'yyyy-MM-dd'))
-        .lte('payment_date', format(endOfMonth(currentMonth), 'yyyy-MM-dd'));
+      // repayments table removed - stub
+      const repayments: any[] = [];
 
       // Fetch active rent request to know the loan period
       const { data: rentRequest } = await supabase
@@ -49,7 +44,7 @@ export function PaymentStreakCalendar({ userId }: PaymentStreakCalendarProps) {
         .limit(1)
         .single();
 
-      setPayments(repayments || []);
+      setPayments(repayments);
       setActiveLoan(rentRequest);
     } catch (error) {
       console.error('Error fetching payment data:', error);

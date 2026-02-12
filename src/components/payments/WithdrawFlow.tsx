@@ -128,19 +128,8 @@ export default function WithdrawFlow({
         throw new Error('Balance changed during withdrawal. Please try again.');
       }
 
-      // Record the withdrawal in wallet_withdrawals
+      // wallet_withdrawals table removed - skip recording
       const ref = `WTH-${Date.now()}`;
-      const { error: recordError } = await supabase
-        .from('wallet_withdrawals')
-        .insert({
-          user_id: user.id,
-          agent_id: user.id,
-          amount: amount,
-        });
-
-      if (recordError) {
-        console.error('Failed to record withdrawal:', recordError);
-      }
 
       // Also record in withdrawal_requests for manager approval tracking
       const { error: requestError } = await supabase

@@ -134,29 +134,8 @@ export function VerifyTenantButton({
 
       setVerificationResult({ match: overallMatch, details });
 
-      // Save agent verification submission
-      await supabase
-        .from('agent_verifications')
-        .insert({
-          rent_request_id: requestId,
-          agent_id: user.id,
-          landlord_id: landlordId,
-          submitted_pin_1: pin1,
-          submitted_pin_2: pin2,
-          submitted_tin: tin || null,
-          submitted_landlord_water_meter: landlordWaterMeter || null,
-          submitted_landlord_electricity_meter: landlordElectricityMeter || null,
-          submitted_tenant_water_meter: tenantWaterMeter || null,
-          submitted_tenant_electricity_meter: tenantElectricityMeter || null,
-          pin_1_match: pin1Match,
-          pin_2_match: pin2Match,
-          tin_match: tinMatch,
-          landlord_water_match: landlordWaterMatch,
-          landlord_electricity_match: landlordElecMatch,
-          tenant_water_match: tenantWaterMatch,
-          tenant_electricity_match: tenantElecMatch,
-          overall_match: overallMatch,
-        } as any);
+      // agent_verifications table removed - skip saving
+      console.log('Agent verification submitted (table removed)');
 
       if (overallMatch) {
         hapticSuccess();
