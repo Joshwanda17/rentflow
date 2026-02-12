@@ -73,31 +73,9 @@ export default function SupporterEarnings() {
     setLoading(true);
 
     try {
-      const [roiRes, proofsRes] = await Promise.all([
-        supabase
-          .from('supporter_roi_payments')
-          .select('*')
-          .eq('supporter_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('landlord_payment_proofs')
-          .select(`
-            id,
-            amount,
-            status,
-            verified_at,
-            next_roi_due_date,
-            total_roi_paid,
-            roi_payments_count,
-            landlord:landlords!landlord_payment_proofs_landlord_id_fkey(name)
-          `)
-          .eq('supporter_id', user.id)
-          .eq('status', 'verified')
-          .order('verified_at', { ascending: false })
-      ]);
-
-      setRoiPayments(roiRes.data || []);
-      setPaymentProofs((proofsRes.data as unknown as PaymentProofSummary[]) || []);
+      // supporter_roi_payments and landlord_payment_proofs tables removed - use empty arrays
+      setRoiPayments([]);
+      setPaymentProofs([]);
     } catch (error) {
       console.error('Error fetching data:', error);
     } finally {

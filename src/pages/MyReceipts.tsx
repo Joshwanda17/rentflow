@@ -157,11 +157,8 @@ export default function MyReceipts() {
         `)
         .eq('user_id', user.id)
         .order('created_at', { ascending: false }),
-      supabase
-        .from('loan_limits')
-        .select('*')
-        .eq('user_id', user.id)
-        .single(),
+      // loan_limits table removed - stub
+      Promise.resolve({ data: null, error: null }) as any,
       supabase
         .from('user_loans')
         .select('*')

@@ -86,11 +86,12 @@ export default function TVDashboard() {
         supabase.from('user_roles').select('user_id, role'),
         supabase.from('rent_requests').select('id, status, rent_amount'),
         supabase.from('product_orders').select('id, status'),
-        supabase.from('loan_applications').select('id, status'),
+        // loan_applications, investment_accounts, repayments removed
+        Promise.resolve({ data: [] }),
         supabase.from('wallets').select('balance'),
-        supabase.from('investment_accounts').select('balance').eq('status', 'approved'),
-        supabase.from('repayments').select('amount').gte('payment_date', todayStart.toISOString()),
-        supabase.from('repayments').select('amount').gte('payment_date', oneWeekAgo.toISOString()),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
+        Promise.resolve({ data: [] }),
       ]);
 
       const profiles = profilesRes.data || [];

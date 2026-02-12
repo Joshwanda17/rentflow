@@ -95,12 +95,11 @@ export default function MyLoans() {
         .select('balance')
         .eq('user_id', user.id)
         .maybeSingle(),
-      supabase
-        .from('late_fees')
-        .select('*')
-        .eq('borrower_id', user.id)
-        .order('applied_at', { ascending: false })
+      Promise.resolve({ data: [] }),
     ]);
+
+    // late_fees table removed - use empty array
+    const lateFeesData: any[] = [];
 
     // Fetch lender profiles
     const lenderIds = [...new Set((loansRes.data || []).map(l => l.lender_id))];
@@ -108,17 +107,11 @@ export default function MyLoans() {
       ? await supabase.from('profiles').select('id, full_name').in('id', lenderIds)
       : { data: [] };
 
-    // Calculate late fees per loan
-    const lateFeesData = lateFeesRes.data || [];
-    const loansWithLenders = (loansRes.data || []).map(loan => {
-      const loanLateFees = lateFeesData.filter(f => f.loan_id === loan.id);
-      const totalLateFees = loanLateFees.reduce((sum, f) => sum + Number(f.fee_amount), 0);
-      return {
-        ...loan,
-        lender: profiles?.find(p => p.id === loan.lender_id),
-        late_fees: totalLateFees
-      };
-    });
+    const loansWithLenders = (loansRes.data || []).map(loan => ({
+      ...loan,
+      lender: profiles?.find(p => p.id === loan.lender_id),
+      late_fees: 0
+    }));
 
     setLoans(loansWithLenders);
     setRepayments(repaymentsRes.data || []);

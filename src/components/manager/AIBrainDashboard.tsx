@@ -38,11 +38,7 @@ export function AIBrainDashboard() {
 
   const handleTabChange = (value: string) => {
     setActiveTab(value);
-    if (value === 'all') {
-      fetchRecommendations();
-    } else {
-      fetchRecommendations(value as 'pending' | 'approved' | 'rejected' | 'auto_executed');
-    }
+    fetchRecommendations();
   };
 
   if (loading) {

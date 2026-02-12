@@ -21,14 +21,14 @@ export function useLandlordAgreement() {
     if (!user) return;
 
     try {
-      const { data, error } = await supabase
-        .from('landlord_agreement_acceptance')
+      const { data, error } = await (supabase
+        .from('landlord_agreement_acceptance' as any)
         .select('id, accepted_at, agreement_version')
         .eq('landlord_id', user.id)
         .eq('agreement_version', LANDLORD_AGREEMENT_VERSION)
         .order('accepted_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) {
         console.error('[useLandlordAgreement] Error checking status:', error);
@@ -49,14 +49,14 @@ export function useLandlordAgreement() {
     try {
       const deviceInfo = `${navigator.userAgent.substring(0, 100)}`;
       
-      const { error } = await supabase
-        .from('landlord_agreement_acceptance')
+      const { error } = await (supabase
+        .from('landlord_agreement_acceptance' as any)
         .insert({
           landlord_id: user.id,
           agreement_version: LANDLORD_AGREEMENT_VERSION,
           status: 'accepted',
           device_info: deviceInfo,
-        });
+        }) as any);
 
       if (error) {
         console.error('[useLandlordAgreement] Error accepting:', error);

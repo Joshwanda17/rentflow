@@ -48,9 +48,9 @@ import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccoun
 import { ManagerInvestmentRequestsSection } from '@/components/manager/ManagerInvestmentRequestsSection';
 import { DepositRequestsManager } from '@/components/manager/DepositRequestsManager';
 import { ActivityManager } from '@/components/manager/ActivityManager';
-import PaymentConfirmationsManager from '@/components/manager/PaymentConfirmationsManager';
-import RecordMerchantPayment from '@/components/manager/RecordMerchantPayment';
-import PaymentProofsManager from '@/components/manager/PaymentProofsManager';
+import { PaymentConfirmationsManager } from '@/components/manager/PaymentConfirmationsManager';
+import { RecordMerchantPayment } from '@/components/manager/RecordMerchantPayment';
+import { PaymentProofsManager } from '@/components/manager/PaymentProofsManager';
 import FundFlowTracker from '@/components/manager/FundFlowTracker';
 import UserLocationsManager from '@/components/manager/UserLocationsManager';
  import LandlordLocationsMap from '@/components/map/LandlordLocationsMap';
@@ -287,35 +287,7 @@ export default function ManagerAccess() {
           });
         }
 
-        // Search loan applications
-        const { data: loans } = await supabase
-          .from('loan_applications')
-          .select('id, amount, status, applicant_id, created_at')
-          .order('created_at', { ascending: false })
-          .limit(50);
-
-        if (loans?.length) {
-          const applicantIds = [...new Set(loans.map(l => l.applicant_id))];
-          const { data: applicants } = await supabase
-            .from('profiles')
-            .select('id, full_name')
-            .in('id', applicantIds);
-
-          loans.forEach(l => {
-            const applicant = applicants?.find(a => a.id === l.applicant_id);
-            if (applicant?.full_name.toLowerCase().includes(query)) {
-              results.push({
-                type: 'loan',
-                id: l.id,
-                title: `Loan - ${applicant.full_name}`,
-                subtitle: format(new Date(l.created_at), 'MMM d, yyyy'),
-                status: l.status,
-                amount: l.amount,
-                createdAt: l.created_at,
-              });
-            }
-          });
-        }
+        // loan_applications table removed - skip loan search
 
         setSearchResults(results);
         setShowResults(true);

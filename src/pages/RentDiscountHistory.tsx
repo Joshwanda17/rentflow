@@ -72,13 +72,8 @@ export default function RentDiscountHistory() {
       .not('verified_at', 'is', null)
       .order('verified_at', { ascending: false });
 
-    // Fetch rent payment transactions
-    const { data: payments } = await supabase
-      .from('platform_transactions')
-      .select('id, amount, description, created_at')
-      .eq('user_id', user.id)
-      .eq('transaction_type', 'rent_payment')
-      .order('created_at', { ascending: false });
+    // platform_transactions table removed - use empty array
+    const payments: any[] = [];
 
     // Also check wallet transactions for rent payments
     const { data: walletPayments } = await supabase

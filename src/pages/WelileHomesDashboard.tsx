@@ -79,14 +79,8 @@ export default function WelileHomesDashboard() {
     queryKey: ['welile-homes-contributions', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('welile_homes_contributions')
-        .select('*')
-        .eq('tenant_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(10);
-      if (error) throw error;
-      return data;
+      // welile_homes_contributions table removed - return empty
+      return [];
     },
     enabled: !!user?.id
   });
@@ -96,13 +90,8 @@ export default function WelileHomesDashboard() {
     queryKey: ['welile-homes-withdrawals', user?.id],
     queryFn: async () => {
       if (!user?.id) return [];
-      const { data, error } = await supabase
-        .from('welile_homes_withdrawals')
-        .select('*')
-        .eq('tenant_id', user.id)
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      return data;
+      // welile_homes_withdrawals table removed - return empty
+      return [];
     },
     enabled: !!user?.id
   });

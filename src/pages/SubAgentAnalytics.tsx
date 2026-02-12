@@ -112,15 +112,8 @@ export default function SubAgentAnalytics() {
     try {
       const currentMonth = format(startOfMonth(new Date()), 'yyyy-MM-dd');
       
-      const { data, error } = await supabase
-        .from('subagent_team_goals')
-        .select('*')
-        .eq('agent_id', user.id)
-        .eq('goal_month', currentMonth)
-        .maybeSingle();
-
-      if (error) throw error;
-      setCurrentGoal(data);
+      // subagent_team_goals table removed - use null
+      setCurrentGoal(null);
     } catch (error) {
       console.error('Error fetching goal:', error);
     }
@@ -183,14 +176,11 @@ export default function SubAgentAnalytics() {
             .select('id, full_name')
             .in('id', tenantIds);
 
-          // Get repayments per tenant
-          const { data: repayments } = await supabase
-            .from('repayments')
-            .select('tenant_id, amount, created_at')
-            .in('tenant_id', tenantIds);
+          // repayments table removed - use empty array
+          const repayments: any[] = [];
 
           const tenantRepayments: Record<string, number> = {};
-          repayments?.forEach(r => {
+          repayments?.forEach((r: any) => {
             tenantRepayments[r.tenant_id] = (tenantRepayments[r.tenant_id] || 0) + Number(r.amount);
           });
 

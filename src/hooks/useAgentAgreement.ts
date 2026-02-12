@@ -26,15 +26,15 @@ export function useAgentAgreement() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('agent_agreement_acceptance')
+      const { data, error } = await (supabase
+        .from('agent_agreement_acceptance' as any)
         .select('*')
         .eq('agent_id', user.id)
         .eq('agreement_version', AGENT_AGREEMENT_VERSION)
         .eq('status', 'accepted')
         .order('accepted_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) {
         console.error('[useAgentAgreement] Error checking acceptance:', error);
@@ -60,7 +60,6 @@ export function useAgentAgreement() {
     if (!user) return false;
 
     try {
-      // Get IP address
       let ipAddress = null;
       try {
         const ipResponse = await fetch('https://api.ipify.org?format=json');
@@ -70,11 +69,10 @@ export function useAgentAgreement() {
         console.warn('[useAgentAgreement] Could not fetch IP');
       }
 
-      // Get device info
       const deviceInfo = `${navigator.userAgent} | ${navigator.platform} | ${window.screen.width}x${window.screen.height}`;
 
-      const { data, error } = await supabase
-        .from('agent_agreement_acceptance')
+      const { data, error } = await (supabase
+        .from('agent_agreement_acceptance' as any)
         .insert({
           agent_id: user.id,
           agreement_version: AGENT_AGREEMENT_VERSION,
@@ -83,7 +81,7 @@ export function useAgentAgreement() {
           status: 'accepted'
         })
         .select()
-        .single();
+        .single() as any);
 
       if (error) {
         console.error('[useAgentAgreement] Error accepting:', error);

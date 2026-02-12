@@ -87,36 +87,10 @@ export default function MyWatchlist() {
   const fetchWatchlist = async () => {
     if (!user) return;
     
-    try {
-      const { data, error } = await supabase
-        .from('watched_opportunities')
-        .select(`
-          id,
-          created_at,
-          rent_request:rent_requests (
-            id,
-            rent_amount,
-            duration_days,
-            status,
-            agent_verified,
-            manager_verified,
-            created_at,
-            tenant:profiles!rent_requests_tenant_id_fkey (
-              full_name
-            )
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-      setOpportunities(data || []);
-    } catch (e) {
-      console.error('Failed to fetch watchlist:', e);
-    } finally {
-      setLoading(false);
-      setRefreshing(false);
-    }
+    // watched_opportunities table removed - use empty array
+    setOpportunities([]);
+    setLoading(false);
+    setRefreshing(false);
   };
 
   useEffect(() => {
@@ -130,22 +104,8 @@ export default function MyWatchlist() {
   }, [user, authLoading, navigate]);
 
   const handleRemove = async (watchId: string) => {
-    setRemovingId(watchId);
-    try {
-      const { error } = await supabase
-        .from('watched_opportunities')
-        .delete()
-        .eq('id', watchId);
-
-      if (error) throw error;
-      
-      setOpportunities(prev => prev.filter(o => o.id !== watchId));
-      toast({ title: 'Removed from watchlist' });
-    } catch (e) {
-      toast({ title: 'Failed to remove', variant: 'destructive' });
-    } finally {
-      setRemovingId(null);
-    }
+    // watched_opportunities table removed
+    toast({ title: 'Feature unavailable' });
   };
 
   const handleRefresh = () => {
@@ -179,21 +139,7 @@ export default function MyWatchlist() {
         return;
       }
 
-      // Record the transaction
-      await supabase.from('platform_transactions').insert({
-        rent_request_id: requestId,
-        user_id: user.id,
-        transaction_type: 'supporter_funding',
-        amount: rentAmount,
-        direction: 'out',
-        description: 'Rent facilitation funding'
-      });
-
-      // Remove from watchlist after funding
-      await supabase
-        .from('watched_opportunities')
-        .delete()
-        .eq('id', watchId);
+      // platform_transactions and watched_opportunities tables removed - skip
 
       fireSuccess();
       hapticSuccess();
@@ -269,21 +215,7 @@ export default function MyWatchlist() {
           continue;
         }
 
-        // Record the transaction
-        await supabase.from('platform_transactions').insert({
-          rent_request_id: item.rent_request.id,
-          user_id: user.id,
-          transaction_type: 'supporter_funding',
-          amount: item.rent_request.rent_amount,
-          direction: 'out',
-          description: 'Rent facilitation funding (bulk)'
-        });
-
-        // Remove from watchlist
-        await supabase
-          .from('watched_opportunities')
-          .delete()
-          .eq('id', item.id);
+        // platform_transactions and watched_opportunities tables removed - skip
 
         fundedWatchIds.push(item.id);
         successCount++;

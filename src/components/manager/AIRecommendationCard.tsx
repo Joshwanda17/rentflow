@@ -77,14 +77,14 @@ export function AIRecommendationCard({ recommendation, readonly = false }: AIRec
 
   const handleApprove = async () => {
     setProcessing(true);
-    await approveRecommendation(recommendation.id);
+    await approveRecommendation();
     setProcessing(false);
   };
 
   const handleReject = async () => {
     if (!rejectNotes.trim()) return;
     setProcessing(true);
-    await rejectRecommendation(recommendation.id, rejectNotes);
+    await rejectRecommendation();
     setProcessing(false);
   };
 

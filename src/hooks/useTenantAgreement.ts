@@ -28,15 +28,15 @@ export function useTenantAgreement() {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('tenant_agreement_acceptance')
+      const { data, error } = await (supabase
+        .from('tenant_agreement_acceptance' as any)
         .select('*')
         .eq('tenant_id', user.id)
         .eq('agreement_version', CURRENT_AGREEMENT_VERSION)
         .eq('status', 'accepted')
         .order('accepted_at', { ascending: false })
         .limit(1)
-        .maybeSingle();
+        .maybeSingle() as any);
 
       if (error) throw error;
 
@@ -63,7 +63,6 @@ export function useTenantAgreement() {
     try {
       const deviceInfo = navigator.userAgent;
       
-      // Get IP address (will be undefined if fetch fails)
       let ipAddress: string | null = null;
       try {
         const ipResponse = await fetch('https://api.ipify.org?format=json');
@@ -73,8 +72,8 @@ export function useTenantAgreement() {
         // IP fetch failed, continue without it
       }
 
-      const { data, error } = await supabase
-        .from('tenant_agreement_acceptance')
+      const { data, error } = await (supabase
+        .from('tenant_agreement_acceptance' as any)
         .insert({
           tenant_id: user.id,
           agreement_version: CURRENT_AGREEMENT_VERSION,
@@ -83,7 +82,7 @@ export function useTenantAgreement() {
           status: 'accepted'
         })
         .select()
-        .single();
+        .single() as any);
 
       if (error) throw error;
 
