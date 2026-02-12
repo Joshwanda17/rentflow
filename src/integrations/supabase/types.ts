@@ -2597,7 +2597,11 @@ export type Database = {
           number_of_payments: number | null
           rejected_reason: string | null
           rent_amount: number
+          request_city: string | null
+          request_country: string | null
           request_fee: number
+          request_latitude: number | null
+          request_longitude: number | null
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
@@ -2634,7 +2638,11 @@ export type Database = {
           number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount: number
+          request_city?: string | null
+          request_country?: string | null
           request_fee: number
+          request_latitude?: number | null
+          request_longitude?: number | null
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
@@ -2671,7 +2679,11 @@ export type Database = {
           number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount?: number
+          request_city?: string | null
+          request_country?: string | null
           request_fee?: number
+          request_latitude?: number | null
+          request_longitude?: number | null
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null

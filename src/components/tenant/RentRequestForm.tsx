@@ -128,6 +128,29 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
     // Get referral agent ID from localStorage
     const agentId = localStorage.getItem('referral_agent_id');
 
+    // Capture GPS location for the request
+    let requestLat: number | null = null;
+    let requestLon: number | null = null;
+    let requestCity: string | null = null;
+    let requestCountry: string | null = null;
+    
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: true,
+          timeout: 5000,
+          maximumAge: 60000,
+        });
+      });
+      requestLat = position.coords.latitude;
+      requestLon = position.coords.longitude;
+      if (requestLat >= -1.5 && requestLat <= 4.2 && requestLon >= 29.5 && requestLon <= 35.0) {
+        requestCountry = 'Uganda';
+      }
+    } catch (locErr) {
+      console.warn('Could not capture location for rent request:', locErr);
+    }
+
     // Create rent request with number_of_payments and tenant meters
     const { data: rentRequest, error: requestError } = await supabase
       .from('rent_requests')
@@ -146,6 +169,10 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
         schedule_status: 'pending_acceptance',
         tenant_water_meter: tenantWaterMeter.trim() || null,
         tenant_electricity_meter: tenantElectricityMeter.trim() || null,
+        request_latitude: requestLat,
+        request_longitude: requestLon,
+        request_city: requestCity,
+        request_country: requestCountry,
       } as any)
       .select('id')
       .single();
