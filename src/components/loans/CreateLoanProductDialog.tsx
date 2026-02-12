@@ -43,12 +43,10 @@ export function CreateLoanProductDialog({ onCreated }: CreateLoanProductDialogPr
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('loan_products').insert({
-        agent_id: user.id,
-        ...form,
-      });
-
-      if (error) throw error;
+      // loan_products table removed
+      toast.error('Loan products feature is currently unavailable');
+      setLoading(false);
+      return;
 
       toast.success('Food Shopping Loan created successfully!');
       setOpen(false);

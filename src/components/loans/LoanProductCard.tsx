@@ -55,18 +55,10 @@ export function LoanProductCard({ product, onApply }: LoanProductCardProps) {
 
     setLoading(true);
     try {
-      const { error } = await supabase.from('loan_applications').insert({
-        loan_product_id: product.id,
-        applicant_id: user.id,
-        agent_id: product.agent_id,
-        amount,
-        interest_rate: product.interest_rate,
-        duration_days: duration,
-        total_repayment: totalRepayment,
-        purpose,
-      });
-
-      if (error) throw error;
+      // loan_applications table removed
+      toast.error('Loan applications feature is currently unavailable');
+      setLoading(false);
+      return;
 
       toast.success('Loan application submitted! Waiting for manager approval.');
       setOpen(false);

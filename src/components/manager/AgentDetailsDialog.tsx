@@ -114,11 +114,8 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
         .select('*')
         .eq('agent_id', agent.id)
         .order('created_at', { ascending: false }),
-      supabase
-        .from('wallet_withdrawals')
-        .select('*')
-        .eq('agent_id', agent.id)
-        .order('created_at', { ascending: false }),
+      // wallet_withdrawals table removed - return empty
+      { data: [], error: null } as any,
       supabase
         .from('rent_requests')
         .select('id, rent_amount, status, created_at, tenant_id')

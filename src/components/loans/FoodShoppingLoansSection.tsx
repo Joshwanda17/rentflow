@@ -30,29 +30,8 @@ export function FoodShoppingLoansSection() {
 
   const fetchProducts = async () => {
     try {
-      const { data, error } = await supabase
-        .from('loan_products')
-        .select('*')
-        .eq('active', true)
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      // Fetch agent names
-      const agentIds = [...new Set(data?.map((p) => p.agent_id) || [])];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', agentIds);
-
-      const profileMap = new Map(profiles?.map((p) => [p.id, p.full_name]) || []);
-
-      setProducts(
-        (data || []).map((p) => ({
-          ...p,
-          agent_name: profileMap.get(p.agent_id) || 'Unknown',
-        }))
-      );
+      // loan_products table removed
+      setProducts([]);
     } catch (error) {
       console.error('Error fetching loan products:', error);
     } finally {

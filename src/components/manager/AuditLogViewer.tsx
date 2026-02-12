@@ -39,25 +39,8 @@ export const AuditLogViewer = ({ tableName, recordId, limit = 50 }: AuditLogView
   const { data: logs, isLoading } = useQuery({
     queryKey: ["audit-logs", page, actionFilter, tableFilter, searchTerm, recordId],
     queryFn: async () => {
-      let query = supabase
-        .from("audit_logs")
-        .select("*")
-        .order("created_at", { ascending: false })
-        .range(page * limit, (page + 1) * limit - 1);
-
-      if (actionFilter !== "all") {
-        query = query.eq("action_type", actionFilter);
-      }
-      if (tableFilter !== "all") {
-        query = query.eq("table_name", tableFilter);
-      }
-      if (recordId) {
-        query = query.eq("record_id", recordId);
-      }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as AuditLog[];
+      // audit_logs table removed
+      return [] as AuditLog[];
     },
   });
 

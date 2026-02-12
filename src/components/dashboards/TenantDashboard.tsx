@@ -139,14 +139,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         .eq('tenant_id', user.id)
         .order('created_at', { ascending: false });
       
-      const { data: payments } = await supabase
-        .from('repayments')
-        .select('*')
-        .eq('tenant_id', user.id)
-        .order('payment_date', { ascending: false });
-      
+      // repayments table removed - use empty array
       const newRentRequests = requests || [];
-      const newRepayments = payments || [];
+      const newRepayments: Repayment[] = [];
       
       setRentRequests(newRentRequests);
       setRepayments(newRepayments);
