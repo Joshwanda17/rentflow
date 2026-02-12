@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
+import { useOtpVerification } from '@/hooks/useOtpVerification';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
@@ -43,6 +44,7 @@ export function useAuthForm() {
 
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
+  const { otpSent, otpVerified, otpLoading, otpError, sendOtp, verifyOtp, resetOtp } = useOtpVerification();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -137,6 +139,11 @@ export function useAuthForm() {
     const validationError = validateSignUp({ password, confirmPassword, fullName, phone });
     if (validationError) {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
+      return;
+    }
+    // Require OTP verification before signup
+    if (!otpVerified) {
+      toast({ title: 'Phone Not Verified', description: 'Please verify your phone number with SMS code first.', variant: 'destructive' });
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
@@ -338,6 +345,9 @@ export function useAuthForm() {
     passwordInputRef,
     // Duplicate check
     isDuplicate, isCheckingDuplicate, duplicateMessage,
+    // OTP
+    otpSent, otpVerified, otpLoading, otpError,
+    sendOtp, verifyOtp, resetOtp,
     // Handlers
     handleSubmit,
     handleGoogleSignIn,
