@@ -84,60 +84,14 @@ function DashboardContent() {
     };
   }, []);
 
-  // Handle investment account activation via link
+   // Handle investment account activation via link (investment_accounts table removed)
   useEffect(() => {
     const activateAccountId = searchParams.get('activate_account');
     if (!activateAccountId || !user) return;
 
-    const activateAccount = async () => {
-      // Verify this account belongs to the current user and is pending_activation
-      const { data: account, error: fetchError } = await supabase
-        .from('investment_accounts')
-        .select('*')
-        .eq('id', activateAccountId)
-        .eq('user_id', user.id)
-        .eq('status', 'pending_activation')
-        .single();
-
-      if (fetchError || !account) {
-        if (fetchError?.code !== 'PGRST116') {
-          console.warn('[Dashboard] Account activation error:', fetchError);
-        }
-        // Clear the param to prevent repeated attempts
-        searchParams.delete('activate_account');
-        setSearchParams(searchParams, { replace: true });
-        return;
-      }
-
-      // Activate the account
-      const { error: updateError } = await supabase
-        .from('investment_accounts')
-        .update({
-          status: 'approved',
-          approved_at: new Date().toISOString()
-        })
-        .eq('id', activateAccountId);
-
-      if (updateError) {
-        toast({ 
-          title: 'Activation Failed', 
-          description: updateError.message, 
-          variant: 'destructive' 
-        });
-      } else {
-        fireSuccess();
-        toast({ 
-          title: '🎉 Account Activated!', 
-          description: `Your investment account "${account.name}" is now active. Start investing!` 
-        });
-      }
-
-      // Clear the activation param
-      searchParams.delete('activate_account');
-      setSearchParams(searchParams, { replace: true });
-    };
-
-    activateAccount();
+    // investment_accounts table removed - just clear the param
+    searchParams.delete('activate_account');
+    setSearchParams(searchParams, { replace: true });
   }, [searchParams, user, toast, fireSuccess, setSearchParams]);
 
   // Try to load cached roles for instant display

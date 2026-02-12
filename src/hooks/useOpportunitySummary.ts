@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
+import { useState } from 'react';
 
 export interface OpportunitySummary {
   id: string;
@@ -13,51 +12,7 @@ export interface OpportunitySummary {
   updated_at: string;
 }
 
+// opportunity_summaries table removed - stub hook
 export function useOpportunitySummary() {
-  const [summary, setSummary] = useState<OpportunitySummary | null>(null);
-  const [loading, setLoading] = useState(true);
-
-  const fetchLatest = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('opportunity_summaries')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (error) throw error;
-      setSummary(data);
-    } catch (e) {
-      console.error('Failed to fetch opportunity summary:', e);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    fetchLatest();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('opportunity_summaries_realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'opportunity_summaries',
-        },
-        () => {
-          fetchLatest();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  return { summary, loading, refetch: fetchLatest };
+  return { summary: null, loading: false, refetch: async () => {} };
 }

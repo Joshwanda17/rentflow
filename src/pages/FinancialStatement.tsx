@@ -58,8 +58,9 @@ export default function FinancialStatement() {
       const dateTo = endDate ? new Date(new Date(endDate).setHours(23, 59, 59, 999)).toISOString() : new Date().toISOString();
 
       // Fetch all data sources in parallel
+      // wallet_withdrawals and repayments tables removed - stub them
       const [
-        walletRes, profileRes, txRes, depositsRes, withdrawalsRes, repaymentsRes, earningsRes
+        walletRes, profileRes, txRes, depositsRes, earningsRes
       ] = await Promise.all([
         supabase.from('wallets').select('balance').eq('user_id', user.id).maybeSingle(),
         supabase.from('profiles').select('full_name, phone').eq('id', user.id).maybeSingle(),
@@ -71,19 +72,13 @@ export default function FinancialStatement() {
           .eq('user_id', user.id)
           .gte('created_at', dateFrom).lte('created_at', dateTo)
           .order('created_at', { ascending: true }),
-        supabase.from('wallet_withdrawals').select('*')
-          .eq('user_id', user.id)
-          .gte('created_at', dateFrom).lte('created_at', dateTo)
-          .order('created_at', { ascending: true }),
-        supabase.from('repayments').select('*')
-          .eq('tenant_id', user.id)
-          .gte('created_at', dateFrom).lte('created_at', dateTo)
-          .order('created_at', { ascending: true }),
         supabase.from('agent_earnings').select('*')
           .eq('agent_id', user.id)
           .gte('created_at', dateFrom).lte('created_at', dateTo)
           .order('created_at', { ascending: true }),
       ]);
+      const withdrawalsRes = { data: [] as any[] };
+      const repaymentsRes = { data: [] as any[] };
 
       setWalletBalance(walletRes.data?.balance || 0);
       setUserName(profileRes.data?.full_name || '');

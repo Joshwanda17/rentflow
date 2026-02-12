@@ -136,86 +136,9 @@ export default function InvestmentPortfolio() {
     setLoading(true);
 
     try {
-      // Fetch all investment accounts
-      const { data: accountsData, error: accountsError } = await supabase
-        .from('investment_accounts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (accountsError) throw accountsError;
-
-      // For each account, fetch linked fundings and interest payments
-      const enrichedAccounts = await Promise.all(
-        (accountsData || []).map(async (account) => {
-          // Fetch fundings linked to this account (by matching creation month)
-          const accountMonth = new Date(account.created_at);
-          const monthStart = new Date(accountMonth.getFullYear(), accountMonth.getMonth(), 1);
-          const monthEnd = new Date(accountMonth.getFullYear(), accountMonth.getMonth() + 1, 0, 23, 59, 59);
-
-          const { data: fundingsData } = await supabase
-            .from('landlord_payment_proofs')
-            .select(`
-              id,
-              amount,
-              status,
-              created_at,
-              verified_at,
-              total_roi_paid,
-              rent_request:rent_requests(
-                id,
-                rent_amount,
-                funded_at,
-                status,
-                tenant:profiles!rent_requests_tenant_id_fkey(full_name),
-                landlord:landlords!rent_requests_landlord_id_fkey(name)
-              )
-            `)
-            .eq('supporter_id', user.id)
-            .gte('created_at', monthStart.toISOString())
-            .lte('created_at', monthEnd.toISOString());
-
-          // Fetch interest payments for this account
-          const { data: interestData } = await supabase
-            .from('investment_interest_payments')
-            .select('*')
-            .eq('account_id', account.id)
-            .order('credited_at', { ascending: false });
-
-          const linkedFundings: LinkedFunding[] = (fundingsData || []).map((f: any) => ({
-            id: f.id,
-            rent_amount: Number(f.rent_request?.rent_amount || f.amount),
-            status: f.status,
-            funded_at: f.rent_request?.funded_at || f.created_at,
-            tenant_name: f.rent_request?.tenant?.full_name || 'Unknown Tenant',
-            landlord_name: f.rent_request?.landlord?.name || 'Unknown Landlord',
-            roi_earned: Number(f.total_roi_paid || 0),
-            roi_pending: f.status === 'verified' ? Math.round(Number(f.amount) * 0.15) : 0
-          }));
-
-          const interestPayments: InterestPayment[] = (interestData || []).map((i: any) => ({
-            id: i.id,
-            interest_amount: Number(i.interest_amount),
-            payment_month: i.payment_month,
-            credited_at: i.credited_at,
-            interest_rate: Number(i.interest_rate),
-            principal_amount: Number(i.principal_amount)
-          }));
-
-          const totalRoiEarned = interestPayments.reduce((sum, p) => sum + p.interest_amount, 0) +
-            linkedFundings.reduce((sum, f) => sum + f.roi_earned, 0);
-
-          return {
-            ...account,
-            balance: Number(account.balance),
-            linked_fundings: linkedFundings,
-            interest_payments: interestPayments,
-            total_roi_earned: totalRoiEarned
-          };
-        })
-      );
-
-      setAccounts(enrichedAccounts);
+      // investment_accounts table removed - use empty array
+      const enrichedAccounts: any[] = [];
+      setAccounts(enrichedAccounts as any);
     } catch (error) {
       console.error('Error fetching portfolio data:', error);
     } finally {
