@@ -839,7 +839,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <main className="px-3 py-3 space-y-3 animate-fade-in">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
-          <OpportunitySummaryForm onBack={() => setShowOpportunitySummary(false)} />
+          <OpportunitySummaryForm />
         ) : (
         <>
         {/* Role switching is now in the header popover */}

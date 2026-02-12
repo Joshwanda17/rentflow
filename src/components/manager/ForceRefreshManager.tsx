@@ -54,13 +54,8 @@ export function ForceRefreshManager() {
 
     setIsLoading(true);
     try {
-      const { error } = await supabase
-        .from('force_refresh_signals')
-        .insert({
-          target_user_id: targetType === 'all' ? null : selectedUserId || null,
-          triggered_by: user.id,
-          message: message || 'App updated! Refreshing...',
-        });
+      // force_refresh_signals table removed - show unavailable message
+      const error = new Error('Force refresh feature is currently unavailable');
 
       if (error) throw error;
 

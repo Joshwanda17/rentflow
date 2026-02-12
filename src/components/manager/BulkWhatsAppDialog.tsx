@@ -122,18 +122,8 @@ export default function BulkWhatsAppDialog({
 
   const handleDeleteTemplate = async (id: string) => {
     setDeletingId(id);
-    const { error } = await supabase
-      .from('message_templates')
-      .delete()
-      .eq('id', id);
-
-    if (error) {
-      console.error('Error deleting template:', error);
-      toast.error('Failed to delete template');
-    } else {
-      toast.success('Template deleted');
-      setTemplates(prev => prev.filter(t => t.id !== id));
-    }
+    // message_templates table removed
+    toast.error('Template management is currently unavailable');
     setDeletingId(null);
   };
 

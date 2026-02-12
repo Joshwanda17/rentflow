@@ -137,7 +137,7 @@ export function AgentDetailsDialog({ open, onOpenChange, agent, onAgentUpdated }
       const { data: profilesData } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('id', allUserIds);
+        .in('id', allUserIds as string[]);
       
       profiles = (profilesData || []).reduce((acc, p) => {
         acc[p.id] = p.full_name;

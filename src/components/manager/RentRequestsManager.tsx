@@ -150,11 +150,8 @@ export function RentRequestsManager() {
           : Promise.resolve({ data: [] });
       })(),
       // Fetch all repayments
-      (() => {
-        const requestIds = (requestsData || []).map(r => r.id);
-        return requestIds.length > 0
-          ? supabase.from('repayments').select('*').in('rent_request_id', requestIds)
-          : Promise.resolve({ data: [] });
+      // repayments table removed
+      (() => Promise.resolve({ data: [] }))(),
       })(),
       // Fetch wallet balances for tenants
       tenantIds.length > 0

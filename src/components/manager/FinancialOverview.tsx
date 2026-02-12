@@ -109,47 +109,43 @@ export function FinancialOverview() {
 
       // Apply date filters to transactional data
       let depositsQuery = supabase.from('wallet_deposits').select('amount, created_at');
-      let withdrawalsQuery = supabase.from('wallet_withdrawals').select('amount, created_at');
+      // wallet_withdrawals and platform_transactions tables removed
       let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
       let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
       let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
-      let platformTxQuery = supabase.from('platform_transactions').select('amount, direction, transaction_type, created_at');
       let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
       let productsQuery = supabase.from('products').select('id');
 
       if (startDate || endDate) {
         depositsQuery = buildDateFilter(depositsQuery);
-        withdrawalsQuery = buildDateFilter(withdrawalsQuery);
         transfersQuery = buildDateFilter(transfersQuery);
         earningsQuery = buildDateFilter(earningsQuery);
         requestsQuery = buildDateFilter(requestsQuery);
-        platformTxQuery = buildDateFilter(platformTxQuery);
         ordersQuery = buildDateFilter(ordersQuery);
       }
 
       const [
         walletsRes,
         depositsRes,
-        withdrawalsRes,
         transfersRes,
         earningsRes,
         requestsRes,
-        platformTxRes,
         rolesRes,
         ordersRes,
         productsRes,
       ] = await Promise.all([
         walletsQuery,
         depositsQuery,
-        withdrawalsQuery,
         transfersQuery,
         earningsQuery,
         requestsQuery,
-        platformTxQuery,
         supabase.from('user_roles').select('user_id, role'),
         ordersQuery,
         productsQuery,
       ]);
+      // Stub removed tables
+      const withdrawalsRes = { data: [] as { amount: number; created_at: string }[], error: null };
+      const platformTxRes = { data: [] as { amount: number; direction: string; transaction_type: string; created_at: string }[], error: null };
 
       const errors = [
         walletsRes.error,
