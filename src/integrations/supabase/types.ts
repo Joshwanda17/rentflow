@@ -4140,6 +4140,20 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      get_ledger_summary: {
+        Args: {
+          p_category?: string
+          p_direction?: string
+          p_end_date?: string
+          p_search?: string
+          p_start_date?: string
+        }
+        Returns: {
+          entry_count: number
+          total_credits: number
+          total_debits: number
+        }[]
+      }
       get_manager_dashboard_stats: { Args: never; Returns: Json }
       get_manager_productivity: {
         Args: {
