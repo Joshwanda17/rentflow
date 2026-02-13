@@ -39,7 +39,7 @@ export function useWallet() {
   const fetchWallet = useCallback(async () => {
     if (!user) return;
 
-    // Try cached data first for instant display
+    // Try cached data first
     try {
       const cached = await getCachedWallet(user.id);
       if (cached) {
@@ -47,46 +47,44 @@ export function useWallet() {
         setIsOfflineData(true);
       }
     } catch (e) {
-      console.warn('[useWallet] Failed to get cached wallet:', e);
+      console.warn('[useWallet] Cache read failed:', e);
     }
 
-    // Fetch fresh if online
-    if (navigator.onLine) {
-      try {
-        const { data, error } = await supabase
-          .from('wallets')
-          .select('*')
-          .eq('user_id', user.id)
-          .maybeSingle();
+    if (!navigator.onLine) return;
 
-        if (error) {
-          console.error('Error fetching wallet:', error);
+    try {
+      const { data, error } = await supabase
+        .from('wallets')
+        .select('*')
+        .eq('user_id', user.id)
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching wallet:', error);
+        return;
+      }
+
+      if (!data) {
+        const { data: newWallet, error: createError } = await supabase
+          .from('wallets')
+          .insert({ user_id: user.id, balance: 0 })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('Error creating wallet:', createError);
           return;
         }
-
-        if (!data) {
-          // Create wallet if doesn't exist
-          const { data: newWallet, error: createError } = await supabase
-            .from('wallets')
-            .insert({ user_id: user.id, balance: 0 })
-            .select()
-            .single();
-
-          if (createError) {
-            console.error('Error creating wallet:', createError);
-            return;
-          }
-          setWallet(newWallet);
-          setIsOfflineData(false);
-          await cacheWallet(newWallet);
-        } else {
-          setWallet(data);
-          setIsOfflineData(false);
-          await cacheWallet(data);
-        }
-      } catch (e) {
-        console.warn('[useWallet] Failed to fetch wallet:', e);
+        setWallet(newWallet);
+        setIsOfflineData(false);
+        await cacheWallet(newWallet);
+      } else {
+        setWallet(data);
+        setIsOfflineData(false);
+        await cacheWallet(data);
       }
+    } catch (e) {
+      console.warn('[useWallet] Failed to fetch wallet:', e);
     }
   }, [user]);
 
@@ -100,10 +98,9 @@ export function useWallet() {
         setTransactions(cached.filter(t => t.sender_id === user.id || t.recipient_id === user.id));
       }
     } catch (e) {
-      console.warn('[useWallet] Failed to get cached transactions:', e);
+      console.warn('[useWallet] Cache read failed:', e);
     }
 
-    // Fetch fresh if online
     if (!navigator.onLine) return;
 
     try {
@@ -119,7 +116,6 @@ export function useWallet() {
         return;
       }
 
-      // Fetch profile names for transactions
       if (data && data.length > 0) {
         const userIds = [...new Set([...data.map(t => t.sender_id), ...data.map(t => t.recipient_id)])];
         
@@ -138,7 +134,6 @@ export function useWallet() {
         }));
 
         setTransactions(enrichedTransactions);
-        // Cache for offline use
         await cacheTransactions(enrichedTransactions);
       } else {
         setTransactions([]);
@@ -149,88 +144,44 @@ export function useWallet() {
   }, [user]);
 
   const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
-    if (!user || !wallet) {
-      return { error: new Error('Not authenticated') };
-    }
+    if (!user || !wallet) return { error: new Error('Not authenticated') };
+    if (amount <= 0) return { error: new Error('Amount must be greater than 0') };
+    if (wallet.balance < amount) return { error: new Error('Insufficient balance') };
 
-    if (amount <= 0) {
-      return { error: new Error('Amount must be greater than 0') };
-    }
-
-    if (wallet.balance < amount) {
-      return { error: new Error('Insufficient balance') };
-    }
-
-    // Find recipient by phone
     const { data: recipientProfile, error: profileError } = await supabase
       .from('profiles')
       .select('id, full_name')
       .eq('phone', recipientPhone)
       .maybeSingle();
 
-    if (profileError || !recipientProfile) {
-      return { error: new Error('Recipient not found with this phone number') };
-    }
+    if (profileError || !recipientProfile) return { error: new Error('Recipient not found') };
+    if (recipientProfile.id === user.id) return { error: new Error('Cannot send money to yourself') };
 
-    if (recipientProfile.id === user.id) {
-      return { error: new Error('Cannot send money to yourself') };
-    }
-
-    // If offline, queue the transfer
     if (!navigator.onLine) {
       await addToSyncQueue({
         type: 'create',
         table: 'wallet_transfers_queue',
-        data: {
-          sender_id: user.id,
-          recipient_id: recipientProfile.id,
-          amount,
-          description: description || `Transfer to ${recipientProfile.full_name}`,
-        },
+        data: { sender_id: user.id, recipient_id: recipientProfile.id, amount, description: description || `Transfer to ${recipientProfile.full_name}` },
       });
-      
-      // Optimistically update local wallet
       const updatedWallet = { ...wallet, balance: wallet.balance - amount };
       setWallet(updatedWallet);
       await cacheWallet(updatedWallet);
-      
       return { data: { queued: true }, error: null };
     }
 
-    // Call edge function to process transfer
     const { data, error } = await supabase.functions.invoke('wallet-transfer', {
-      body: {
-        recipient_id: recipientProfile.id,
-        amount,
-        description: description || `Transfer to ${recipientProfile.full_name}`,
-      },
+      body: { recipient_id: recipientProfile.id, amount, description: description || `Transfer to ${recipientProfile.full_name}` },
     });
 
-    if (error) {
-      return { error: new Error(error.message || 'Transfer failed') };
-    }
-
-    // Refresh wallet and transactions
+    if (error) return { error: new Error(error.message || 'Transfer failed') };
     await Promise.all([fetchWallet(), fetchTransactions()]);
-
     return { data, error: null };
   }, [user, wallet, fetchWallet, fetchTransactions]);
 
   const depositMoney = useCallback(async (amount: number) => {
-    if (!user || !wallet) {
-      return { error: new Error('Not authenticated') };
-    }
-
-    // For demo purposes, directly update balance
-    const { error } = await supabase
-      .from('wallets')
-      .update({ balance: wallet.balance + amount })
-      .eq('user_id', user.id);
-
-    if (error) {
-      return { error: new Error('Deposit failed') };
-    }
-
+    if (!user || !wallet) return { error: new Error('Not authenticated') };
+    const { error } = await supabase.from('wallets').update({ balance: wallet.balance + amount }).eq('user_id', user.id);
+    if (error) return { error: new Error('Deposit failed') };
     await fetchWallet();
     return { error: null };
   }, [user, wallet, fetchWallet]);
@@ -238,23 +189,15 @@ export function useWallet() {
   useEffect(() => {
     if (user) {
       setLoading(true);
-      Promise.all([fetchWallet(), fetchTransactions()]).finally(() => {
-        setLoading(false);
-      });
+      Promise.all([fetchWallet(), fetchTransactions()]).finally(() => setLoading(false));
 
-      // Subscribe to realtime wallet balance changes
+      // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1)
       const walletChannel = supabase
-        .channel(`wallet-balance-${user.id}`)
+        .channel(`wallet-${user.id}`)
         .on(
           'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'wallets',
-            filter: `user_id=eq.${user.id}`,
-          },
+          { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
           (payload) => {
-            console.log('[useWallet] Wallet balance updated in realtime:', payload);
             if (payload.new) {
               setWallet(payload.new as Wallet);
               setIsOfflineData(false);
@@ -264,84 +207,8 @@ export function useWallet() {
         )
         .subscribe();
 
-      // Subscribe to new wallet transactions
-      const transactionChannel = supabase
-        .channel(`wallet-transactions-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'wallet_transactions',
-          },
-          (payload) => {
-            const tx = payload.new as WalletTransaction;
-            if (tx.sender_id === user.id || tx.recipient_id === user.id) {
-              console.log('[useWallet] New transaction detected:', payload);
-              fetchTransactions();
-            }
-          }
-        )
-        .subscribe();
-
-      // Subscribe to wallet withdrawals for instant balance updates
-      const withdrawalChannel = supabase
-        .channel(`wallet-withdrawals-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'wallet_withdrawals',
-            filter: `user_id=eq.${user.id}`,
-          },
-          () => {
-            console.log('[useWallet] Withdrawal detected, refreshing wallet');
-            fetchWallet();
-          }
-        )
-        .subscribe();
-
-      // Subscribe to referral credits for instant balance updates when someone accepts referral
-      const referralChannel = supabase
-        .channel(`referral-credits-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'referrals',
-            filter: `referrer_id=eq.${user.id}`,
-          },
-          (payload) => {
-            // When a referral is credited, refresh wallet balance
-            if (payload.new && (payload.new as any).credited === true) {
-              console.log('[useWallet] Referral bonus credited, refreshing wallet');
-              fetchWallet();
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'referrals',
-            filter: `referred_id=eq.${user.id}`,
-          },
-          () => {
-            // When current user is referred and signup bonus credited
-            console.log('[useWallet] Signup bonus credited, refreshing wallet');
-            fetchWallet();
-          }
-        )
-        .subscribe();
-
       return () => {
         supabase.removeChannel(walletChannel);
-        supabase.removeChannel(transactionChannel);
-        supabase.removeChannel(withdrawalChannel);
-        supabase.removeChannel(referralChannel);
       };
     }
   }, [user, fetchWallet, fetchTransactions]);

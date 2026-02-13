@@ -61,7 +61,7 @@ const DepositsManagement = lazy(() => import('./pages/DepositsManagement'));
 const Install = lazy(() => import('./pages/Install'));
 const ActivateSupporter = lazy(() => import('./pages/ActivateSupporter'));
 const Chat = lazy(() => import('./pages/Chat'));
-const ChatInvite = lazy(() => import('./pages/ChatInvite'));
+// ChatInvite removed — public chat links disabled
 const AgentRegistrations = lazy(() => import('./pages/AgentRegistrations'));
 const SubAgentAnalytics = lazy(() => import('./pages/SubAgentAnalytics'));
 const Join = lazy(() => import('./pages/Join'));
@@ -180,7 +180,7 @@ function AppRoutes() {
           <Route path="/install" element={<Install />} />
           <Route path="/activate-supporter" element={<ActivateSupporter />} />
           <Route path="/chat" element={<Chat />} />
-          <Route path="/chat/invite/:userId" element={<ChatInvite />} />
+          {/* Public chat invite route removed */}
           <Route path="/agent-registrations" element={<AgentRegistrations />} />
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
           <Route path="/join" element={<Join />} />
