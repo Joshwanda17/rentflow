@@ -59,7 +59,6 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       username,
       to: formattedPhone,
       message,
-      from: isSandbox ? "" : "Welile",
     });
 
     const response = await fetch(baseUrl, {
