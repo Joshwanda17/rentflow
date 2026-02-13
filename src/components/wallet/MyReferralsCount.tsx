@@ -2,11 +2,16 @@ import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Users, ChevronRight } from 'lucide-react';
+import { useUserSnapshot } from '@/hooks/useUserSnapshot';
+import { useAuth } from '@/hooks/useAuth';
 
 export function MyReferralsCount() {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { snapshot, loading } = useUserSnapshot(user?.id);
 
-  // Referral DB calls stubbed - feature deprioritized
+  const count = snapshot.referralCount || 0;
+
   return (
     <Button
       variant="ghost"
@@ -23,7 +28,9 @@ export function MyReferralsCount() {
         </div>
       </div>
       <div className="flex items-center gap-2">
-        <Badge variant="secondary" className="bg-primary/20 text-primary font-bold text-sm px-2.5">—</Badge>
+        <Badge variant="secondary" className="bg-primary/20 text-primary font-bold text-sm px-2.5">
+          {loading ? '—' : count}
+        </Badge>
         <ChevronRight className="h-4 w-4 text-muted-foreground" />
       </div>
     </Button>
