@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
+import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Skeleton } from '@/components/ui/skeleton';
 import { 
   ArrowLeft, 
   Users, 
@@ -26,35 +25,15 @@ import { motion } from 'framer-motion';
 import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 
-interface Referral {
-  id: string;
-  referred_id: string;
-  bonus_amount: number;
-  credited: boolean;
-  credited_at: string | null;
-  created_at: string;
-  first_transaction_bonus_credited?: boolean;
-  first_transaction_bonus_amount?: number;
-  referred_user?: {
-    full_name: string;
-    avatar_url: string | null;
-  };
-}
-
 export default function Referrals() {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { toast } = useToast();
-  const [referrals, setReferrals] = useState<Referral[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { snapshot, loading, refresh } = useUserSnapshot(user?.id);
   const [copied, setCopied] = useState(false);
 
+  const referrals = snapshot.referrals || [];
   const referralLink = user ? `${window.location.origin}/join?r=${user.id}` : '';
-
-  useEffect(() => {
-    // Referral DB calls stubbed for performance
-    setLoading(false);
-  }, [user]);
 
   const copyReferralLink = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -82,26 +61,22 @@ export default function Referrals() {
     }
   };
 
-  const totalSignupBonus = referrals.reduce((sum, r) => sum + Number(r.bonus_amount), 0);
+  const totalSignupBonus = referrals.reduce((sum: number, r: any) => sum + Number(r.bonus_amount), 0);
   const totalFirstTxBonus = referrals
-    .filter(r => r.first_transaction_bonus_credited)
-    .reduce((sum, r) => sum + Number(r.first_transaction_bonus_amount || 0), 0);
+    .filter((r: any) => r.first_transaction_bonus_credited)
+    .reduce((sum: number, r: any) => sum + Number(r.first_transaction_bonus_amount || 0), 0);
   const totalEarned = totalSignupBonus + totalFirstTxBonus;
   
   const pendingFirstTxBonus = referrals
-    .filter(r => !r.first_transaction_bonus_credited)
-    .length * 200; // Potential earnings from first transactions
+    .filter((r: any) => !r.first_transaction_bonus_credited)
+    .length * 200;
 
   if (loading) {
     return <ReferralsSkeleton />;
   }
 
-  const handleRefresh = async () => {
-    // Referral refresh stubbed for performance
-  };
-
   return (
-    <PullToRefresh onRefresh={handleRefresh} className="min-h-screen bg-background">
+    <PullToRefresh onRefresh={refresh} className="min-h-screen bg-background">
       <header className="sticky top-0 z-50 glass-card border-b border-border/50">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center gap-4">
@@ -127,7 +102,7 @@ export default function Referrals() {
             <Card className="text-center">
               <CardContent className="pt-4 pb-3">
                 <Users className="h-6 w-6 mx-auto text-primary mb-2" />
-                <p className="text-2xl font-bold">{referrals.length}</p>
+                <p className="text-2xl font-bold">{snapshot.referralCount || referrals.length}</p>
                 <p className="text-xs text-muted-foreground">Friends</p>
               </CardContent>
             </Card>
@@ -235,20 +210,7 @@ export default function Referrals() {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              {loading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="flex items-center gap-3">
-                      <Skeleton className="h-10 w-10 rounded-full" />
-                      <div className="flex-1 space-y-2">
-                        <Skeleton className="h-4 w-32" />
-                        <Skeleton className="h-3 w-24" />
-                      </div>
-                      <Skeleton className="h-5 w-16" />
-                    </div>
-                  ))}
-                </div>
-              ) : referrals.length === 0 ? (
+              {referrals.length === 0 ? (
                 <div className="text-center py-8">
                   <Users className="h-12 w-12 mx-auto text-muted-foreground/30 mb-3" />
                   <p className="text-muted-foreground">No referrals yet</p>
@@ -258,7 +220,7 @@ export default function Referrals() {
                 </div>
               ) : (
                 <div className="space-y-3">
-                  {referrals.map((referral, index) => (
+                  {referrals.map((referral: any, index: number) => (
                     <motion.div
                       key={referral.id}
                       initial={{ opacity: 0, x: -20 }}
@@ -267,15 +229,11 @@ export default function Referrals() {
                       className="flex items-center gap-3 p-3 rounded-lg bg-muted/30 hover:bg-muted/50 transition-colors"
                     >
                       <div className="h-10 w-10 rounded-full bg-gradient-to-br from-primary/20 to-primary/5 flex items-center justify-center">
-                        <span className="text-lg font-bold text-primary">
-                          {referral.referred_user?.full_name?.charAt(0) || '?'}
-                        </span>
+                        <Users className="h-5 w-5 text-primary" />
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">
-                          {referral.referred_user?.full_name || 'Unknown User'}
-                        </p>
+                        <p className="font-medium truncate">Referral</p>
                         <p className="text-xs text-muted-foreground">
                           {format(new Date(referral.created_at), 'MMM d, yyyy • h:mm a')}
                         </p>
@@ -283,22 +241,14 @@ export default function Referrals() {
 
                       <div className="text-right space-y-1">
                         <p className="font-bold text-success">
-                          +{formatUGX(Number(referral.bonus_amount) + (referral.first_transaction_bonus_credited ? Number(referral.first_transaction_bonus_amount || 0) : 0))}
+                          +{formatUGX(Number(referral.bonus_amount))}
                         </p>
-                        <div className="flex flex-col gap-0.5">
-                          <Badge 
-                            variant="default"
-                            className="text-xs"
-                          >
-                            Signup ✓
-                          </Badge>
-                          <Badge 
-                            variant={referral.first_transaction_bonus_credited ? 'default' : 'secondary'}
-                            className="text-xs"
-                          >
-                            {referral.first_transaction_bonus_credited ? '1st Tx ✓' : '1st Tx pending'}
-                          </Badge>
-                        </div>
+                        <Badge 
+                          variant={referral.credited ? 'default' : 'secondary'}
+                          className="text-xs"
+                        >
+                          {referral.credited ? 'Credited ✓' : 'Pending'}
+                        </Badge>
                       </div>
                     </motion.div>
                   ))}
