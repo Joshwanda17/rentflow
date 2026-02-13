@@ -265,13 +265,7 @@ export function AgentCommissionPayoutsManager() {
         throw error;
       }
 
-      // Create notification for agent
-      await supabase.from('notifications').insert({
-        user_id: selectedPayout.agent_id,
-        title: 'Commission Paid! 💰',
-        message: `Your ${formatUGX(selectedPayout.amount)} commission has been sent to ${selectedPayout.mobile_money_number}. Transaction ID: ${transactionId.trim().toUpperCase()}`,
-        type: 'payment'
-      });
+      // Notification removed - table dropped
 
       toast({ title: 'Payout approved successfully!' });
       // Re-fetch the agent's wallet balance so manager sees the deduction
@@ -309,13 +303,7 @@ export function AgentCommissionPayoutsManager() {
 
       if (error) throw error;
 
-      // Create notification for agent
-      await supabase.from('notifications').insert({
-        user_id: selectedPayout.agent_id,
-        title: 'Payout Request Rejected',
-        message: `Your ${formatUGX(selectedPayout.amount)} payout request was rejected. Reason: ${rejectionReason.trim()}`,
-        type: 'alert'
-      });
+      // Notification removed - table dropped
 
       toast({ title: 'Payout rejected' });
       setRejectDialogOpen(false);

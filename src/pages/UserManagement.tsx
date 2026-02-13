@@ -9,7 +9,7 @@ import {
   ArrowLeft, RefreshCw, MoreVertical, Loader2
 } from 'lucide-react';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
-import BulkNotificationDialog from '@/components/manager/BulkNotificationDialog';
+
 import BulkAssignRoleDialog from '@/components/manager/BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from '@/components/manager/BulkWhatsAppDialog';
@@ -644,7 +644,7 @@ export default function UserManagement() {
 
       {/* Dialogs */}
       <UserDetailsDialog open={dialogOpen} onOpenChange={setDialogOpen} user={selectedUser} onRolesUpdated={handleRefresh} onUserDeleted={handleRefresh} onUserUpdated={handleRefresh} />
-      <BulkNotificationDialog open={bulkNotificationOpen} onOpenChange={setBulkNotificationOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={clearSelection} />
+      
       <BulkAssignRoleDialog open={bulkAssignRoleOpen} onOpenChange={setBulkAssignRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
       <BulkRemoveRoleDialog open={bulkRemoveRoleOpen} onOpenChange={setBulkRemoveRoleOpen} selectedUserIds={Array.from(selectedUserIds)} onSuccess={() => { clearSelection(); handleRefresh(); }} />
       <BulkWhatsAppDialog open={bulkWhatsAppOpen} onOpenChange={setBulkWhatsAppOpen} selectedUsers={getSelectedUsers().map(u => ({ id: u.id, full_name: u.full_name, phone: u.phone, avatar_url: u.avatar_url }))} />

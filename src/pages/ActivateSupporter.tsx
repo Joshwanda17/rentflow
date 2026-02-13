@@ -235,16 +235,7 @@ export default function ActivateSupporter() {
       const { error } = await supabase.from('supporter_invites').update({ temp_password: pw }).eq('activation_token', token).eq('status', 'pending');
       if (error) throw error;
 
-      const { data: managers } = await supabase.from('user_roles').select('user_id').eq('role', 'manager').eq('enabled', true);
-      if (managers?.length) {
-        await supabase.from('notifications').insert(managers.map(m => ({
-          user_id: m.user_id,
-          title: '🔑 Password Reset Request',
-          message: `${inviteDetails?.full_name || 'A user'} (${emailForReset}) requested a new activation password.`,
-          type: 'info',
-          metadata: { email: emailForReset, phone: resetPhone, full_name: inviteDetails?.full_name, role: inviteDetails?.role },
-        })));
-      }
+      // Notification removed - table dropped
 
       setNewTempPassword(pw);
       setPageState('password-reset');

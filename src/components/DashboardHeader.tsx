@@ -14,7 +14,7 @@ import {
   PopoverTrigger,
 } from '@/components/ui/popover';
 import { Menu, Settings, LogOut, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown } from 'lucide-react';
-import { NotificationBell } from '@/components/NotificationBell';
+
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
 import { usePWAInstall } from '@/hooks/usePWAInstall';
@@ -164,7 +164,7 @@ const DashboardHeader = memo(function DashboardHeader({
 
             {/* Right: Notification + Menu */}
             <div className="flex items-center gap-0.5">
-              <NotificationBell />
+              
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>

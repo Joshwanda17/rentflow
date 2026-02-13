@@ -233,14 +233,7 @@ export default function SelectRole() {
         // Referral bonus is handled by the DB trigger (credit_referral_bonus)
         // which fires on profile insert. No need to credit here.
 
-        // Notify parent agent
-        await supabase.from('notifications').insert({
-          user_id: parentAgentId,
-          title: '🎉 New Sub-Agent Joined!',
-          message: `A new sub-agent has joined your team via your share link! You earned UGX 500 bonus.`,
-          type: 'success',
-          metadata: { sub_agent_id: user.id, source: 'link' },
-        });
+        // Notification removed - table dropped
         
         // Clear the stored values
         localStorage.removeItem('become_role');

@@ -107,18 +107,7 @@ export function PayLandlordDialog({
       
       // investment_accounts table removed - skip account creation
       
-      // Send notification to supporter about payment
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: '✅ Payment Proof Submitted!',
-        message: `Your payment of ${formatUGX(Number(request.rent_amount))} to ${request.landlord.name} is being verified. You'll earn ${formatUGX(reward)} (15% ROI) monthly once verified.`,
-        type: 'success',
-        metadata: {
-          rent_request_id: request.id,
-          amount: request.rent_amount,
-          expected_reward: reward
-        }
-      });
+      // Notification removed - table dropped
       
       setStep('success');
       fireSuccess();

@@ -132,13 +132,7 @@ export default function BecomeSupporter() {
             .eq('user_id', storedReferrerId);
         }
 
-        // Notify the referrer
-        await supabase.from('notifications').insert({
-          user_id: storedReferrerId,
-          title: '🎉 New Supporter Joined!',
-          message: `Someone you referred just became a Supporter! You earned UGX 500.`,
-          type: 'success',
-        });
+        // Notification removed - table dropped
 
         localStorage.removeItem('supporter_referrer_id');
         setReferrerIdState(null);

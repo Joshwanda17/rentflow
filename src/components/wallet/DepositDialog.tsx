@@ -162,13 +162,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
 
       // manager_recorded_transactions table removed - no auto-verify
 
-      // Send notification for pending
-      await supabase.from('notifications').insert({
-        user_id: user.id,
-        title: 'Deposit Request Submitted',
-        message: `Your deposit request of ${formatCurrency(parseFloat(amount))} is being verified. You'll be notified once approved.`,
-        type: 'info',
-      });
+      // Notification removed - table dropped
 
       toast.success('Deposit request submitted for verification');
 

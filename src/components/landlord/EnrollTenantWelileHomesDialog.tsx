@@ -105,14 +105,7 @@ export function EnrollTenantWelileHomesDialog({ trigger }: EnrollTenantWelileHom
 
       if (error) throw error;
 
-      // Create notification for tenant
-      await supabase.from('notifications').insert({
-        user_id: selectedTenant.tenant_id,
-        type: 'welile_homes_enrollment',
-        title: 'Welcome to Welile Homes! 🏠',
-        message: `Your landlord has enrolled you in Welile Homes. You'll start building savings towards your future home with every rent payment!`,
-        metadata: { landlord_id: user.id, monthly_rent: rent },
-      });
+      // Notification removed - table dropped
 
       // Try to send push notification
       try {

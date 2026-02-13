@@ -92,14 +92,7 @@ export function ManageTenantSubscriptionDialog({
 
       if (error) throw error;
 
-      // Notify the tenant
-      await supabase.from('notifications').insert({
-        user_id: subscription.tenant_id,
-        type: 'welile_homes_update',
-        title: 'Welile Homes Subscription Ended',
-        message: `Your Welile Homes subscription has been ended by your landlord. Your saved balance of ${formatUGX(subscription.total_savings)} will be processed according to the program terms.`,
-        metadata: { subscription_id: subscription.subscription_id },
-      });
+      // Notification removed - table dropped
     },
     onSuccess: () => {
       toast.success('Subscription removed');
@@ -128,16 +121,7 @@ export function ManageTenantSubscriptionDialog({
     const newStatus = subscription.subscription_status === 'active' ? 'paused' : 'active';
     updateMutation.mutate({ subscription_status: newStatus });
     
-    // Notify tenant
-    supabase.from('notifications').insert({
-      user_id: subscription.tenant_id,
-      type: 'welile_homes_update',
-      title: newStatus === 'paused' ? 'Welile Homes Paused ⏸️' : 'Welile Homes Resumed ▶️',
-      message: newStatus === 'paused' 
-        ? 'Your Welile Homes savings has been paused. No new contributions will be added until resumed.'
-        : 'Great news! Your Welile Homes savings is now active again. Contributions will continue with your next rent payment.',
-      metadata: { subscription_id: subscription.subscription_id, status: newStatus },
-    });
+    // Notification removed - table dropped
   };
 
   const isActive = subscription.subscription_status === 'active';
