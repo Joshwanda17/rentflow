@@ -1,7 +1,7 @@
 // Welile Service Worker - Offline-First PWA
 // Optimized for instant offline loading when tapped from home screen
 // Auto-updates across all devices when new version is published
-const CACHE_NAME = 'welile-v11';
+const CACHE_NAME = 'welile-v12';
 const OFFLINE_URL = '/offline.html';
 const API_CACHE_NAME = 'welile-api-v4';
 const STATIC_CACHE_NAME = 'welile-static-v4';
