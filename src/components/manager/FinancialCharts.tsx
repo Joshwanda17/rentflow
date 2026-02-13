@@ -68,8 +68,8 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
       end: startOfDay(effectiveEndDate)
     });
 
-    // Fetch all data including marketplace orders
-    const [depositsRes, transfersRes, requestsRes, earningsRes, rolesRes, ordersRes] = await Promise.all([
+    // Fetch only wallet + rent + earnings data (core), marketplace removed
+    const [depositsRes, transfersRes, requestsRes, earningsRes, rolesRes] = await Promise.all([
       supabase
         .from('wallet_deposits')
         .select('amount, created_at')
@@ -91,12 +91,8 @@ export function FinancialCharts({ startDate, endDate }: FinancialChartsProps) {
         .gte('created_at', effectiveStartDate.toISOString())
         .lte('created_at', effectiveEndDate.toISOString()),
       supabase.from('user_roles').select('role'),
-      supabase
-        .from('product_orders')
-        .select('total_price, agent_commission, created_at')
-        .gte('created_at', effectiveStartDate.toISOString())
-        .lte('created_at', effectiveEndDate.toISOString())
     ]);
+    const ordersRes = { data: [] as any[] };
     const withdrawalsRes = { data: [] as { amount: number; created_at: string }[] };
 
     const deposits = depositsRes.data || [];

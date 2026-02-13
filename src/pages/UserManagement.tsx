@@ -270,23 +270,14 @@ export default function UserManagement() {
         return;
       }
 
-      // Fetch related data for this page only
-      const [rolesRes, ratingsRes, subagentsRes] = await Promise.all([
+      // Only fetch roles (core auth data), stub ratings/subagents to reduce DB calls
+      const [rolesRes] = await Promise.all([
         supabase.from('user_roles').select('user_id, role, enabled').in('user_id', userIds),
-        supabase.from('tenant_ratings').select('tenant_id, rating').in('tenant_id', userIds),
-        supabase.from('agent_subagents').select('parent_agent_id').in('parent_agent_id', userIds),
       ]);
 
       const rolesData = rolesRes.data;
       const subagentCountByAgent = new Map<string, number>();
-      (subagentsRes.data || []).forEach(s => {
-        subagentCountByAgent.set(s.parent_agent_id, (subagentCountByAgent.get(s.parent_agent_id) || 0) + 1);
-      });
       const ratingsByTenant = new Map<string, { sum: number; count: number }>();
-      (ratingsRes.data || []).forEach(r => {
-        const current = ratingsByTenant.get(r.tenant_id) || { sum: 0, count: 0 };
-        ratingsByTenant.set(r.tenant_id, { sum: current.sum + r.rating, count: current.count + 1 });
-      });
 
       const pageUsers: UserWithRating[] = (profiles || []).map(p => {
         const userRolesData = rolesData?.filter(r => r.user_id === p.id) || [];

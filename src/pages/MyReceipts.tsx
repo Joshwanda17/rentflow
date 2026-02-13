@@ -94,46 +94,7 @@ export default function MyReceipts() {
     }
   }, [user, authLoading, navigate]);
 
-  // Real-time subscription for receipt updates
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('user-receipts-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'user_receipts',
-          filter: `user_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('Receipt update received:', payload);
-          
-          if (payload.eventType === 'INSERT') {
-            // Refetch to get full data with relations
-            fetchData();
-          } else if (payload.eventType === 'UPDATE') {
-            // Update the specific receipt in state
-            setReceipts(prev => prev.map(receipt => 
-              receipt.id === payload.new.id 
-                ? { ...receipt, ...payload.new }
-                : receipt
-            ));
-            // Refetch to update stats
-            fetchData();
-          } else if (payload.eventType === 'DELETE') {
-            setReceipts(prev => prev.filter(receipt => receipt.id !== payload.old.id));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Realtime subscription removed - receipts deprioritized to reduce DB connections
 
   const fetchData = async () => {
     if (!user) return;
@@ -144,47 +105,11 @@ export default function MyReceipts() {
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
     const endOfMonth = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59).toISOString();
 
-    const [receiptsRes, loanLimitRes, loansRes, monthlyReceiptsRes] = await Promise.all([
-      supabase
-        .from('user_receipts')
-        .select(`
-          *,
-          receipt_numbers (
-            receipt_code,
-            vendor_marked_at,
-            vendors (name)
-          )
-        `)
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false }),
-      // loan_limits table removed - stub
-      Promise.resolve({ data: null, error: null }) as any,
-      supabase
-        .from('user_loans')
-        .select('*')
-        .eq('borrower_id', user.id)
-        .order('created_at', { ascending: false }),
-      // Get this month's verified receipts for rent discount calculation
-      supabase
-        .from('user_receipts')
-        .select('claimed_amount')
-        .eq('user_id', user.id)
-        .eq('verified', true)
-        .gte('verified_at', startOfMonth)
-        .lte('verified_at', endOfMonth)
-    ]);
-
-    // Fetch lender profiles for loans
-    const loanData = loansRes.data || [];
-    const lenderIds = [...new Set(loanData.map(l => l.lender_id))];
-    const { data: lenderProfiles } = lenderIds.length > 0 
-      ? await supabase.from('profiles').select('id, full_name').in('id', lenderIds)
-      : { data: [] };
-
-    const loansWithLenders = loanData.map(l => ({
-      ...l,
-      lender: lenderProfiles?.find(p => p.id === l.lender_id)
-    }));
+    // Stub all non-wallet DB calls - receipts/loans use empty data to reduce DB load
+    const receiptsRes = { data: [] as any[], error: null };
+    const loanLimitRes = { data: null, error: null };
+    const monthlyReceiptsRes = { data: [] as any[], error: null };
+    const loansWithLenders: any[] = [];
 
     // Calculate monthly rent discount (1% of verified receipts)
     const monthlyTotal = monthlyReceiptsRes.data?.reduce((sum, r) => sum + Number(r.claimed_amount), 0) || 0;
@@ -204,12 +129,17 @@ export default function MyReceipts() {
 
     setSubmitting(true);
 
-    // Find the receipt number by code
-    const { data: receiptNumber, error: findError } = await supabase
-      .from('receipt_numbers')
-      .select('id, status, vendor_amount')
-      .eq('receipt_code', receiptCode.toUpperCase().trim())
-      .single();
+    // Receipts feature deprioritized - DB calls removed
+    toast({
+      title: 'Feature Unavailable',
+      description: 'Receipt submission is temporarily unavailable.',
+      variant: 'destructive'
+    });
+    setSubmitting(false);
+    return;
+    // eslint-disable-next-line no-unreachable
+    const receiptNumber: any = null;
+    const findError: any = null;
 
     if (findError || !receiptNumber) {
       toast({

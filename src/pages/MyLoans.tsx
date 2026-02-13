@@ -79,43 +79,16 @@ export default function MyLoans() {
     if (!user) return;
     setLoading(true);
 
-    const [loansRes, repaymentsRes, walletRes, lateFeesRes] = await Promise.all([
-      supabase
-        .from('user_loans')
-        .select('*')
-        .eq('borrower_id', user.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('user_loan_repayments')
-        .select('*')
-        .eq('borrower_id', user.id)
-        .order('created_at', { ascending: false }),
-      supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .maybeSingle(),
-      Promise.resolve({ data: [] }),
-    ]);
+    // Only fetch wallet balance (core), stub loans/repayments to reduce DB calls
+    const walletRes = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .maybeSingle();
 
-    // late_fees table removed - use empty array
-    const lateFeesData: any[] = [];
-
-    // Fetch lender profiles
-    const lenderIds = [...new Set((loansRes.data || []).map(l => l.lender_id))];
-    const { data: profiles } = lenderIds.length > 0
-      ? await supabase.from('profiles').select('id, full_name').in('id', lenderIds)
-      : { data: [] };
-
-    const loansWithLenders = (loansRes.data || []).map(loan => ({
-      ...loan,
-      lender: profiles?.find(p => p.id === loan.lender_id),
-      late_fees: 0
-    }));
-
-    setLoans(loansWithLenders);
-    setRepayments(repaymentsRes.data || []);
-    setLateFees(lateFeesData);
+    setLoans([]);
+    setRepayments([]);
+    setLateFees([]);
     setWalletBalance(walletRes.data?.balance || 0);
     setLoading(false);
   };

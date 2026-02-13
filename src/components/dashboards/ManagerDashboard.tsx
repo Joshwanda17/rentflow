@@ -574,18 +574,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
   const handleSelectOnboarder = async (userId: string) => {
     // Fetch full user details including roles and ratings
-    const [profileRes, rolesRes, ratingsRes] = await Promise.all([
+    // Only fetch profiles + roles (core), stub ratings to reduce DB calls
+    const [profileRes, rolesRes] = await Promise.all([
       supabase.from('profiles').select('*').eq('id', userId).single(),
       supabase.from('user_roles').select('role').eq('user_id', userId),
-      supabase.from('tenant_ratings').select('rating').eq('tenant_id', userId)
     ]);
 
     if (profileRes.data) {
       const roles = (rolesRes.data || []).map(r => r.role);
-      const ratings = (ratingsRes.data || []).map(r => r.rating);
-      const avgRating = ratings.length > 0 
-        ? ratings.reduce((a, b) => a + b, 0) / ratings.length 
-        : null;
+      const avgRating: number | null = null;
 
       setSelectedUser({
         id: profileRes.data.id,
@@ -597,7 +594,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         monthly_rent: profileRes.data.monthly_rent,
         roles,
         average_rating: avgRating,
-        rating_count: ratings.length
+        rating_count: 0
       });
     }
   };
