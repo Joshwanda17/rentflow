@@ -9,6 +9,14 @@ export default function Index() {
   const ref = searchParams.get('ref');
   const role = searchParams.get('role');
 
+  // Offline with no cached session → show landing page immediately
+  if (loading && !navigator.onLine) {
+    const cached = getCachedSession();
+    if (!cached) {
+      return <Navigate to="/welcome" replace />;
+    }
+  }
+
   // Wait for auth to finish loading before making any redirect decision
   if (loading) {
     return (
