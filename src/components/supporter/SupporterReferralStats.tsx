@@ -1,5 +1,3 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Users, Gift, TrendingUp, Clock, CheckCircle } from 'lucide-react';
@@ -7,77 +5,22 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
 import { motion } from 'framer-motion';
 import { ShareSupporterLink } from './ShareSupporterLink';
-
-interface SupporterReferral {
-  id: string;
-  referred_id: string;
-  bonus_amount: number;
-  bonus_credited: boolean;
-  bonus_credited_at: string | null;
-  first_investment_at: string | null;
-  created_at: string;
-  referred_name?: string;
-}
+import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 
 interface SupporterReferralStatsProps {
   userId: string;
 }
 
 export function SupporterReferralStats({ userId }: SupporterReferralStatsProps) {
-  const [referrals, setReferrals] = useState<SupporterReferral[]>([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    fetchReferrals();
-  }, [userId]);
-
-  const fetchReferrals = async () => {
-    setLoading(true);
-    
-    const { data, error } = await supabase
-      .from('supporter_referrals')
-      .select('*')
-      .eq('referrer_id', userId)
-      .order('created_at', { ascending: false });
-
-    if (error) {
-      console.error('Error fetching referrals:', error);
-      setLoading(false);
-      return;
-    }
-
-    // Fetch referred user names
-    if (data && data.length > 0) {
-      const referredIds = data.map(r => r.referred_id);
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name')
-        .in('id', referredIds);
-
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
-
-      const enrichedReferrals = data.map(r => ({
-        ...r,
-        referred_name: profileMap.get(r.referred_id) || 'Unknown',
-      }));
-
-      setReferrals(enrichedReferrals);
-    } else {
-      setReferrals([]);
-    }
-
-    setLoading(false);
-  };
+  const { snapshot, loading } = useUserSnapshot(userId);
+  const referrals = snapshot.supporterReferrals || [];
 
   const totalReferrals = referrals.length;
-  const pendingReferrals = referrals.filter(r => !r.first_investment_at).length;
-  const completedReferrals = referrals.filter(r => r.bonus_credited).length;
+  const pendingReferrals = referrals.filter((r: any) => !r.first_investment_at).length;
+  const completedReferrals = referrals.filter((r: any) => r.bonus_credited).length;
   const totalEarned = referrals
-    .filter(r => r.bonus_credited)
-    .reduce((sum, r) => sum + Number(r.bonus_amount), 0);
-  const pendingEarnings = referrals
-    .filter(r => r.first_investment_at && !r.bonus_credited)
-    .reduce((sum, r) => sum + Number(r.bonus_amount), 0);
+    .filter((r: any) => r.bonus_credited)
+    .reduce((sum: number, r: any) => sum + Number(r.bonus_amount), 0);
 
   return (
     <motion.div
@@ -138,7 +81,7 @@ export function SupporterReferralStats({ userId }: SupporterReferralStatsProps) 
             </div>
           ) : (
             <div className="space-y-2 max-h-64 overflow-y-auto">
-              {referrals.slice(0, 5).map((referral, index) => (
+              {referrals.slice(0, 5).map((referral: any, index: number) => (
                 <motion.div
                   key={referral.id}
                   initial={{ opacity: 0, x: -10 }}
@@ -163,7 +106,6 @@ export function SupporterReferralStats({ userId }: SupporterReferralStatsProps) 
                       )}
                     </div>
                     <div>
-                      <p className="font-medium text-sm">{referral.referred_name}</p>
                       <p className="text-xs text-muted-foreground">
                         Joined {format(new Date(referral.created_at), 'MMM d, yyyy')}
                       </p>
