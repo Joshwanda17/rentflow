@@ -1,9 +1,11 @@
 import { useUserSnapshot } from '@/hooks/useUserSnapshot';
+import { useAuth } from '@/hooks/useAuth';
 import { format } from 'date-fns';
 import { Users } from 'lucide-react';
 
 export function LinkSignupsList() {
-  const { snapshot } = useUserSnapshot(undefined); // Will be populated by parent context
+  const { user } = useAuth();
+  const { snapshot } = useUserSnapshot(user?.id);
   const signups = snapshot.linkSignups || [];
 
   if (signups.length === 0) {
