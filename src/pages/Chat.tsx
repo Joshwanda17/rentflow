@@ -7,7 +7,7 @@ import { PresenceProvider } from '@/hooks/usePresence';
 import ChatList from '@/components/chat/ChatList';
 import ChatWindow from '@/components/chat/ChatWindow';
 import OfflineBanner from '@/components/chat/OfflineBanner';
-import ShareChatLinkButton from '@/components/chat/ShareChatLinkButton';
+// ShareChatLinkButton removed — no public chat links
 import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { WhatsAppRequestsSheet } from '@/components/chat/WhatsAppRequestsSheet';
 import { Button } from '@/components/ui/button';
@@ -83,7 +83,6 @@ export default function ChatPage() {
                     </Button>
                   }
                 />
-                <ShareChatLinkButton />
               </>
             )}
           </div>
@@ -126,7 +125,6 @@ export default function ChatPage() {
                   </Button>
                 }
               />
-              <ShareChatLinkButton />
             </div>
             <div className="flex-1 overflow-hidden">
               <ChatList 

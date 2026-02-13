@@ -2,7 +2,7 @@ import { useEffect, useState, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
-import FloatingChatButton from '@/components/chat/FloatingChatButton';
+// FloatingChatButton removed — chat accessible only via nav
 
 import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
@@ -181,7 +181,6 @@ function DashboardContent() {
           {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
         </Suspense>
         <FloatingWalletButton />
-        <FloatingChatButton />
       </>
     );
   }
@@ -232,8 +231,6 @@ function DashboardContent() {
         {renderDashboard()}
       </Suspense>
       <FloatingWalletButton />
-      <FloatingChatButton />
-      
     </>
   );
 }

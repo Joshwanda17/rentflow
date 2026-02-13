@@ -2,6 +2,12 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { 
+  cacheConversations, 
+  getCachedConversations, 
+  cacheMessages, 
+  getCachedMessages 
+} from '@/lib/offlineStorage';
 
 export interface MessageReaction {
   emoji: string;
@@ -39,17 +45,77 @@ export interface Conversation {
   unread_count: number;
 }
 
+// In-memory profile cache to avoid repeated DB lookups
+const profileCache = new Map<string, { full_name: string; avatar_url: string | null }>();
+const rolesCache = new Map<string, string[]>();
+let profileCacheTime = 0;
+const PROFILE_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+async function getProfilesAndRoles(userIds: string[]): Promise<{
+  profiles: Map<string, { full_name: string; avatar_url: string | null }>;
+  roles: Map<string, string[]>;
+}> {
+  const now = Date.now();
+  // Invalidate stale cache
+  if (now - profileCacheTime > PROFILE_CACHE_TTL) {
+    profileCache.clear();
+    rolesCache.clear();
+    profileCacheTime = now;
+  }
+
+  const uncachedIds = userIds.filter(id => !profileCache.has(id));
+
+  if (uncachedIds.length > 0 && navigator.onLine) {
+    const [profilesRes, rolesRes] = await Promise.all([
+      supabase.from('profiles').select('id, full_name, avatar_url').in('id', uncachedIds),
+      supabase.from('user_roles').select('user_id, role').in('user_id', uncachedIds)
+    ]);
+
+    profilesRes.data?.forEach(p => profileCache.set(p.id, { full_name: p.full_name, avatar_url: p.avatar_url }));
+    rolesRes.data?.forEach(r => {
+      const existing = rolesCache.get(r.user_id) || [];
+      rolesCache.set(r.user_id, [...existing, r.role]);
+    });
+  }
+
+  return { profiles: profileCache, roles: rolesCache };
+}
+
 export function useChat() {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const lastFetchTime = useRef(0);
+  const FETCH_COOLDOWN = 30 * 1000; // 30 seconds minimum between fetches
 
-  const fetchConversations = useCallback(async () => {
+  const fetchConversations = useCallback(async (force = false) => {
     if (!user) return;
-    
+
+    // Cooldown to prevent repeated calls
+    const now = Date.now();
+    if (!force && now - lastFetchTime.current < FETCH_COOLDOWN) return;
+
     setLoading(true);
-    
-    // Get all conversations for the user
+
+    // Load cached conversations first for instant display
+    try {
+      const cached = await getCachedConversations();
+      if (cached.length > 0) {
+        setConversations(cached);
+        setLoading(false);
+      }
+    } catch (e) {
+      console.warn('[useChat] Cache read failed:', e);
+    }
+
+    if (!navigator.onLine) {
+      setLoading(false);
+      return;
+    }
+
+    lastFetchTime.current = now;
+
+    // Single query: get all participations
     const { data: participations } = await supabase
       .from('conversation_participants')
       .select('conversation_id, last_read_at')
@@ -64,89 +130,58 @@ export function useChat() {
     const conversationIds = participations.map(p => p.conversation_id);
     const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
 
-    // Get conversation details with participants
-    const { data: convData } = await supabase
-      .from('conversations')
-      .select('id, created_at, updated_at')
-      .in('id', conversationIds)
-      .order('updated_at', { ascending: false });
-
-    if (!convData) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    // Get all participants for these conversations
-    const { data: allParticipants } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id, user_id')
-      .in('conversation_id', conversationIds);
-
-    // Get profiles and roles for all participants
-    const participantIds = [...new Set(allParticipants?.map(p => p.user_id) || [])];
-    
-    const [profilesRes, rolesRes] = await Promise.all([
-      supabase.from('profiles').select('id, full_name, avatar_url').in('id', participantIds),
-      supabase.from('user_roles').select('user_id, role').in('user_id', participantIds)
+    // Batch: conversations + all participants + all last messages in parallel
+    const [convRes, allPartsRes, lastMsgsRes] = await Promise.all([
+      supabase.from('conversations').select('id, created_at, updated_at')
+        .in('id', conversationIds).order('updated_at', { ascending: false }),
+      supabase.from('conversation_participants').select('conversation_id, user_id')
+        .in('conversation_id', conversationIds),
+      // Get recent messages for ALL conversations in one query (sorted desc, pick first per conv in JS)
+      supabase.from('messages').select('id, conversation_id, sender_id, content, created_at, read_at')
+        .in('conversation_id', conversationIds)
+        .order('created_at', { ascending: false })
+        .limit(conversationIds.length * 2), // At most 2 per conversation
     ]);
 
-    const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
-    const rolesMap = new Map<string, string[]>();
-    rolesRes.data?.forEach(r => {
-      const existing = rolesMap.get(r.user_id) || [];
-      rolesMap.set(r.user_id, [...existing, r.role]);
-    });
+    const convData = convRes.data || [];
+    const allParticipants = allPartsRes.data || [];
+    const allMessages = lastMsgsRes.data || [];
 
-    // Get last message for each conversation
-    const lastMessagesPromises = conversationIds.map(async (convId) => {
-      const { data } = await supabase
-        .from('messages')
-        .select('*')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .single();
-      return { convId, message: data };
-    });
-
-    const lastMessages = await Promise.all(lastMessagesPromises);
-    const lastMessageMap = new Map(lastMessages.map(lm => [lm.convId, lm.message]));
-
-    // Get unread counts
-    const unreadPromises = conversationIds.map(async (convId) => {
-      const lastRead = lastReadMap.get(convId);
-      let query = supabase
-        .from('messages')
-        .select('id', { count: 'exact', head: true })
-        .eq('conversation_id', convId)
-        .neq('sender_id', user.id);
-      
-      if (lastRead) {
-        query = query.gt('created_at', lastRead);
+    // Build last message map (first message per conversation_id since sorted desc)
+    const lastMessageMap = new Map<string, any>();
+    for (const msg of allMessages) {
+      if (!lastMessageMap.has(msg.conversation_id)) {
+        lastMessageMap.set(msg.conversation_id, msg);
       }
-      
-      const { count } = await query;
-      return { convId, count: count || 0 };
-    });
+    }
 
-    const unreadCounts = await Promise.all(unreadPromises);
-    const unreadMap = new Map(unreadCounts.map(u => [u.convId, u.count]));
+    // Calculate unread counts from the messages we already have + simple count
+    // Instead of N queries, compute from what we know
+    const unreadMap = new Map<string, number>();
+    for (const convId of conversationIds) {
+      const lastRead = lastReadMap.get(convId);
+      const unreadMsgs = allMessages.filter(m => 
+        m.conversation_id === convId && 
+        m.sender_id !== user.id && 
+        (!lastRead || m.created_at > lastRead)
+      );
+      unreadMap.set(convId, unreadMsgs.length);
+    }
 
-    // Build conversation objects
+    // Get all participant profiles in one batch
+    const participantIds = [...new Set(allParticipants.map(p => p.user_id))];
+    const { profiles: profilesMap, roles: rolesMap } = await getProfilesAndRoles(participantIds);
+
     const conversationsWithDetails: Conversation[] = convData.map(conv => {
-      const convParticipants = allParticipants?.filter(p => p.conversation_id === conv.id) || [];
+      const convParticipants = allParticipants.filter(p => p.conversation_id === conv.id);
       const participants = convParticipants
         .filter(p => p.user_id !== user.id)
-        .map(p => {
-          const profile = profilesMap.get(p.user_id);
-          return {
-            user_id: p.user_id,
-            full_name: profile?.full_name || 'Unknown',
-            avatar_url: profile?.avatar_url || null,
-            roles: rolesMap.get(p.user_id) || []
-          };
-        });
+        .map(p => ({
+          user_id: p.user_id,
+          full_name: profilesMap.get(p.user_id)?.full_name || 'Unknown',
+          avatar_url: profilesMap.get(p.user_id)?.avatar_url || null,
+          roles: rolesMap.get(p.user_id) || []
+        }));
 
       return {
         id: conv.id,
@@ -160,34 +195,21 @@ export function useChat() {
 
     setConversations(conversationsWithDetails);
     setLoading(false);
+
+    // Cache for offline
+    await cacheConversations(conversationsWithDetails);
   }, [user]);
 
   const startConversation = async (otherUserId: string): Promise<string | null> => {
     if (!user) return null;
 
-    // Check if conversation already exists between these two users
-    const { data: existingParticipations } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id')
-      .eq('user_id', user.id);
+    // Check existing conversations from local state first (no DB call)
+    const existing = conversations.find(c => 
+      c.participants.some(p => p.user_id === otherUserId)
+    );
+    if (existing) return existing.id;
 
-    if (existingParticipations) {
-      for (const p of existingParticipations) {
-        const { data: otherParticipant } = await supabase
-          .from('conversation_participants')
-          .select('user_id')
-          .eq('conversation_id', p.conversation_id)
-          .eq('user_id', otherUserId)
-          .single();
-
-        if (otherParticipant) {
-          // Conversation exists
-          return p.conversation_id;
-        }
-      }
-    }
-
-    // Create (or reuse) a direct conversation on the server to avoid RLS edge-cases
+    // Create on server
     const { data: conversationId, error: convError } = await supabase
       .rpc('create_direct_conversation', { other_user_id: otherUserId });
 
@@ -196,12 +218,12 @@ export function useChat() {
       return null;
     }
 
-    await fetchConversations();
+    await fetchConversations(true);
     return conversationId;
   };
 
   useEffect(() => {
-    fetchConversations();
+    fetchConversations(true);
   }, [fetchConversations]);
 
   return {
@@ -223,96 +245,89 @@ export function useConversation(conversationId: string | null) {
     roles: string[];
   } | null>(null);
 
-  const fetchReactionsForMessages = useCallback(async (messageIds: string[]): Promise<Map<string, MessageReaction[]>> => {
-    // message_reactions table removed - return empty map
-    return new Map();
-  }, [user]);
-
   const fetchMessages = useCallback(async () => {
     if (!conversationId || !user) return;
 
     setLoading(true);
 
-    // Get messages
-    const { data: messagesData } = await supabase
-      .from('messages')
-      .select('*')
-      .eq('conversation_id', conversationId)
-      .order('created_at', { ascending: true });
-
-    if (messagesData) {
-      // Get sender info
-      const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
-      const messageIds = messagesData.map(m => m.id);
-      
-      const [profilesRes, rolesRes, reactionsMap] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url').in('id', senderIds),
-        supabase.from('user_roles').select('user_id, role').in('user_id', senderIds),
-        fetchReactionsForMessages(messageIds)
-      ]);
-
-      const profilesMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
-      const rolesMap = new Map<string, string[]>();
-      rolesRes.data?.forEach(r => {
-        const existing = rolesMap.get(r.user_id) || [];
-        rolesMap.set(r.user_id, [...existing, r.role]);
-      });
-
-      const messagesWithSenders = messagesData.map(m => ({
-        ...m,
-        sender: {
-          full_name: profilesMap.get(m.sender_id)?.full_name || 'Unknown',
-          avatar_url: profilesMap.get(m.sender_id)?.avatar_url || null,
-          roles: rolesMap.get(m.sender_id) || []
-        },
-        reactions: reactionsMap.get(m.id) || []
-      }));
-
-      setMessages(messagesWithSenders);
-    }
-
-    // Get other participant
-    const { data: participants } = await supabase
-      .from('conversation_participants')
-      .select('user_id')
-      .eq('conversation_id', conversationId)
-      .neq('user_id', user.id);
-
-    if (participants && participants.length > 0) {
-      const otherId = participants[0].user_id;
-      const [profileRes, rolesRes] = await Promise.all([
-        supabase.from('profiles').select('id, full_name, avatar_url').eq('id', otherId).single(),
-        supabase.from('user_roles').select('role').eq('user_id', otherId)
-      ]);
-
-      if (profileRes.data) {
-        setOtherParticipant({
-          user_id: otherId,
-          full_name: profileRes.data.full_name,
-          avatar_url: profileRes.data.avatar_url,
-          roles: rolesRes.data?.map(r => r.role) || []
-        });
+    // Load cached messages first
+    try {
+      const cached = await getCachedMessages(conversationId);
+      if (cached.length > 0) {
+        setMessages(cached);
+        setLoading(false);
       }
+    } catch (e) {
+      console.warn('[useConversation] Cache read failed:', e);
     }
 
-    // Mark as read (both participant timestamp and individual messages)
-    await supabase
-      .from('conversation_participants')
-      .update({ last_read_at: new Date().toISOString() })
-      .eq('conversation_id', conversationId)
-      .eq('user_id', user.id);
-
-    // Mark individual messages as read
-    const unreadMessageIds = messagesData
-      ?.filter(m => m.sender_id !== user.id && !m.read_at)
-      .map(m => m.id) || [];
-    
-    if (unreadMessageIds.length > 0) {
-      await supabase
-        .from('messages')
-        .update({ read_at: new Date().toISOString() })
-        .in('id', unreadMessageIds);
+    if (!navigator.onLine) {
+      setLoading(false);
+      return;
     }
+
+    // Get messages + participant in parallel
+    const [messagesRes, participantsRes] = await Promise.all([
+      supabase.from('messages').select('*')
+        .eq('conversation_id', conversationId)
+        .order('created_at', { ascending: true }),
+      supabase.from('conversation_participants').select('user_id')
+        .eq('conversation_id', conversationId)
+        .neq('user_id', user.id)
+    ]);
+
+    const messagesData = messagesRes.data || [];
+    const participants = participantsRes.data || [];
+
+    // Get all sender profiles in one batch (uses cache)
+    const allUserIds = [
+      ...new Set([
+        ...messagesData.map(m => m.sender_id),
+        ...participants.map(p => p.user_id)
+      ])
+    ];
+    const { profiles: profilesMap, roles: rolesMap } = await getProfilesAndRoles(allUserIds);
+
+    const messagesWithSenders: Message[] = messagesData.map(m => ({
+      ...m,
+      sender: {
+        full_name: profilesMap.get(m.sender_id)?.full_name || 'Unknown',
+        avatar_url: profilesMap.get(m.sender_id)?.avatar_url || null,
+        roles: rolesMap.get(m.sender_id) || []
+      },
+      reactions: []
+    }));
+
+    setMessages(messagesWithSenders);
+
+    // Set other participant
+    if (participants.length > 0) {
+      const otherId = participants[0].user_id;
+      setOtherParticipant({
+        user_id: otherId,
+        full_name: profilesMap.get(otherId)?.full_name || 'Unknown',
+        avatar_url: profilesMap.get(otherId)?.avatar_url || null,
+        roles: rolesMap.get(otherId) || []
+      });
+    }
+
+    // Mark as read (batch)
+    const unreadIds = messagesData
+      .filter(m => m.sender_id !== user.id && !m.read_at)
+      .map(m => m.id);
+
+    if (unreadIds.length > 0) {
+      await Promise.all([
+        supabase.from('messages').update({ read_at: new Date().toISOString() }).in('id', unreadIds),
+        supabase.from('conversation_participants')
+          .update({ last_read_at: new Date().toISOString() })
+          .eq('conversation_id', conversationId)
+          .eq('user_id', user.id)
+      ]);
+    }
+
+    // Cache messages for offline
+    await cacheMessages(conversationId, messagesWithSenders);
 
     setLoading(false);
   }, [conversationId, user]);
@@ -337,19 +352,15 @@ export function useConversation(conversationId: string | null) {
     return true;
   };
 
-  // Time window for editing/deleting messages (15 minutes)
   const MESSAGE_EDIT_WINDOW_MS = 15 * 60 * 1000;
 
   const canEditMessage = (message: Message) => {
     if (message.sender_id !== user?.id) return false;
-    const messageTime = new Date(message.created_at).getTime();
-    const now = Date.now();
-    return now - messageTime < MESSAGE_EDIT_WINDOW_MS;
+    return Date.now() - new Date(message.created_at).getTime() < MESSAGE_EDIT_WINDOW_MS;
   };
 
   const editMessage = async (messageId: string, newContent: string) => {
     if (!user || !newContent.trim()) return false;
-
     const message = messages.find(m => m.id === messageId);
     if (!message || !canEditMessage(message)) return false;
 
@@ -359,22 +370,13 @@ export function useConversation(conversationId: string | null) {
       .eq('id', messageId)
       .eq('sender_id', user.id);
 
-    if (error) {
-      console.error('Failed to edit message:', error);
-      return false;
-    }
-
-    // Update local state immediately
-    setMessages(prev => prev.map(m => 
-      m.id === messageId ? { ...m, content: newContent.trim() } : m
-    ));
-
+    if (error) return false;
+    setMessages(prev => prev.map(m => m.id === messageId ? { ...m, content: newContent.trim() } : m));
     return true;
   };
 
   const deleteMessage = async (messageId: string) => {
     if (!user) return false;
-
     const message = messages.find(m => m.id === messageId);
     if (!message || !canEditMessage(message)) return false;
 
@@ -384,48 +386,28 @@ export function useConversation(conversationId: string | null) {
       .eq('id', messageId)
       .eq('sender_id', user.id);
 
-    if (error) {
-      console.error('Failed to delete message:', error);
-      return false;
-    }
-
-    // Update local state immediately
+    if (error) return false;
     setMessages(prev => prev.filter(m => m.id !== messageId));
-
     return true;
   };
 
-  // Mark a specific message as read
   const markMessageAsRead = async (messageId: string) => {
     if (!user) return;
-    
-    await supabase
-      .from('messages')
-      .update({ read_at: new Date().toISOString() })
-      .eq('id', messageId)
-      .is('read_at', null);
+    await supabase.from('messages').update({ read_at: new Date().toISOString() })
+      .eq('id', messageId).is('read_at', null);
   };
 
-  // Mark all unread messages from others as read
   const markAllAsRead = useCallback(async () => {
     if (!conversationId || !user) return;
-    
-    const { data: unreadMessages } = await supabase
-      .from('messages')
-      .select('id')
-      .eq('conversation_id', conversationId)
-      .neq('sender_id', user.id)
-      .is('read_at', null);
-    
-    if (unreadMessages && unreadMessages.length > 0) {
-      await supabase
-        .from('messages')
-        .update({ read_at: new Date().toISOString() })
-        .in('id', unreadMessages.map(m => m.id));
+    const { data: unread } = await supabase.from('messages').select('id')
+      .eq('conversation_id', conversationId).neq('sender_id', user.id).is('read_at', null);
+    if (unread && unread.length > 0) {
+      await supabase.from('messages').update({ read_at: new Date().toISOString() })
+        .in('id', unread.map(m => m.id));
     }
   }, [conversationId, user]);
 
-  // Real-time subscription for new messages and updates
+  // Realtime subscription — only for messages (single channel)
   useEffect(() => {
     if (!conversationId || !user) return;
 
@@ -435,150 +417,37 @@ export function useConversation(conversationId: string | null) {
       .channel(`messages-${conversationId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
+        { event: 'INSERT', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         async (payload) => {
           const newMessage = payload.new as Message;
-          
-          // Get sender info
-          const [profileRes, rolesRes] = await Promise.all([
-            supabase.from('profiles').select('id, full_name, avatar_url').eq('id', newMessage.sender_id).single(),
-            supabase.from('user_roles').select('role').eq('user_id', newMessage.sender_id)
-          ]);
+          // Use cached profile data (no DB call)
+          const profile = profileCache.get(newMessage.sender_id);
+          const roles = rolesCache.get(newMessage.sender_id);
 
           const messageWithSender: Message = {
             ...newMessage,
             sender: {
-              full_name: profileRes.data?.full_name || 'Unknown',
-              avatar_url: profileRes.data?.avatar_url || null,
-              roles: rolesRes.data?.map(r => r.role) || []
+              full_name: profile?.full_name || 'Unknown',
+              avatar_url: profile?.avatar_url || null,
+              roles: roles || []
             }
           };
 
           setMessages(prev => [...prev, messageWithSender]);
 
-          // Mark as read if not sender
           if (newMessage.sender_id !== user.id) {
             await markMessageAsRead(newMessage.id);
-            await supabase
-              .from('conversation_participants')
-              .update({ last_read_at: new Date().toISOString() })
-              .eq('conversation_id', conversationId)
-              .eq('user_id', user.id);
           }
         }
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'messages',
-          filter: `conversation_id=eq.${conversationId}`
-        },
+        { event: 'UPDATE', schema: 'public', table: 'messages', filter: `conversation_id=eq.${conversationId}` },
         (payload) => {
-          const updatedMessage = payload.new as Message;
-          setMessages(prev => prev.map(m => 
-            m.id === updatedMessage.id ? { ...m, read_at: updatedMessage.read_at } : m
-          ));
+          const updated = payload.new as Message;
+          setMessages(prev => prev.map(m => m.id === updated.id ? { ...m, read_at: updated.read_at } : m));
         }
       )
-      .subscribe();
-
-    // Reactions channel for real-time updates
-    const messageIds = messages.map(m => m.id);
-    const reactionsChannel = supabase
-      .channel(`reactions-${conversationId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'message_reactions'
-        },
-        async (payload) => {
-          // Refresh reactions when any change happens
-          const messageId = (payload.new as any)?.message_id || (payload.old as any)?.message_id;
-          if (messageId) {
-            const reactionsMap = await fetchReactionsForMessages([messageId]);
-            setMessages(prev => prev.map(m => 
-              m.id === messageId ? { ...m, reactions: reactionsMap.get(messageId) || [] } : m
-            ));
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(reactionsChannel);
-    };
-  }, [conversationId, user, fetchMessages, fetchReactionsForMessages]);
-
-  // Typing indicator state
-  const [isTyping, setIsTyping] = useState(false);
-  const [typingUsers, setTypingUsers] = useState<string[]>([]);
-
-  // Broadcast typing status
-  const sendTypingIndicator = useCallback((typing: boolean) => {
-    if (!conversationId || !user) return;
-
-    const channel = supabase.channel(`typing-${conversationId}`);
-    channel.send({
-      type: 'broadcast',
-      event: 'typing',
-      payload: { 
-        user_id: user.id, 
-        typing,
-        user_name: otherParticipant?.full_name || 'Someone'
-      }
-    });
-  }, [conversationId, user, otherParticipant]);
-
-  // Typing timeout ref
-  const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-
-  // Debounced typing handler
-  const handleTyping = useCallback(() => {
-    if (!isTyping) {
-      setIsTyping(true);
-      sendTypingIndicator(true);
-    }
-
-    // Clear previous timeout
-    if (typingTimeoutRef.current) {
-      clearTimeout(typingTimeoutRef.current);
-    }
-
-    typingTimeoutRef.current = setTimeout(() => {
-      setIsTyping(false);
-      sendTypingIndicator(false);
-    }, 2000);
-  }, [isTyping, sendTypingIndicator]);
-
-  // Subscribe to typing events
-  useEffect(() => {
-    if (!conversationId || !user) return;
-
-    const channel = supabase
-      .channel(`typing-${conversationId}`)
-      .on('broadcast', { event: 'typing' }, (payload) => {
-        const { user_id, typing } = payload.payload as { user_id: string; typing: boolean };
-        if (user_id === user.id) return;
-
-        setTypingUsers(prev => {
-          if (typing && !prev.includes(user_id)) {
-            return [...prev, user_id];
-          } else if (!typing) {
-            return prev.filter(id => id !== user_id);
-          }
-          return prev;
-        });
-      })
       .subscribe();
 
     return () => {
@@ -591,12 +460,11 @@ export function useConversation(conversationId: string | null) {
     loading,
     otherParticipant,
     sendMessage,
-    fetchMessages,
-    handleTyping,
-    typingUsers,
-    markAllAsRead,
     editMessage,
     deleteMessage,
-    canEditMessage
+    canEditMessage,
+    markMessageAsRead,
+    markAllAsRead,
+    fetchMessages,
   };
 }

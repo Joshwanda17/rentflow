@@ -56,8 +56,6 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
     loading, 
     otherParticipant, 
     sendMessage, 
-    handleTyping, 
-    typingUsers,
     editMessage,
     deleteMessage,
     canEditMessage,
@@ -190,10 +188,9 @@ export default function ChatWindow({ conversationId, onBack, isOffline = false }
 
   const onInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setNewMessage(e.target.value);
-    handleTyping();
   };
 
-  const isOtherTyping = typingUsers.length > 0;
+  const isOtherTyping = false;
 
   const getInitials = (name: string) => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
