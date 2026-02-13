@@ -113,15 +113,15 @@ export function FinancialOverview() {
       let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
       let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
       let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
-      let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
-      let productsQuery = supabase.from('products').select('id');
+      // product_orders and products queries removed to reduce DB calls
+      const ordersStub = { data: [] as any[], error: null };
+      const productsStub = { data: [] as any[], error: null };
 
       if (startDate || endDate) {
         depositsQuery = buildDateFilter(depositsQuery);
         transfersQuery = buildDateFilter(transfersQuery);
         earningsQuery = buildDateFilter(earningsQuery);
         requestsQuery = buildDateFilter(requestsQuery);
-        ordersQuery = buildDateFilter(ordersQuery);
       }
 
       const [
@@ -131,8 +131,6 @@ export function FinancialOverview() {
         earningsRes,
         requestsRes,
         rolesRes,
-        ordersRes,
-        productsRes,
       ] = await Promise.all([
         walletsQuery,
         depositsQuery,
@@ -140,9 +138,9 @@ export function FinancialOverview() {
         earningsQuery,
         requestsQuery,
         supabase.from('user_roles').select('user_id, role'),
-        ordersQuery,
-        productsQuery,
       ]);
+      const ordersRes = ordersStub;
+      const productsRes = productsStub;
       // Stub removed tables
       const withdrawalsRes = { data: [] as { amount: number; created_at: string }[], error: null };
       const platformTxRes = { data: [] as { amount: number; direction: string; transaction_type: string; created_at: string }[], error: null };

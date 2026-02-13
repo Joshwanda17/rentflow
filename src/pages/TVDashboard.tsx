@@ -71,33 +71,27 @@ export default function TVDashboard() {
       const todayStart = new Date();
       todayStart.setHours(0, 0, 0, 0);
 
+      // Only fetch wallet + auth + rent data (core functions)
       const [
-        profilesRes,
         rolesRes,
         requestsRes,
-        ordersRes,
-        loansRes,
         walletsRes,
-        investmentsRes,
-        todayRepaymentsRes,
-        weeklyRepaymentsRes,
       ] = await Promise.all([
-        supabase.from('profiles').select('id, rent_discount_active, created_at'),
         supabase.from('user_roles').select('user_id, role'),
         supabase.from('rent_requests').select('id, status, rent_amount'),
-        supabase.from('product_orders').select('id, status'),
-        // loan_applications, investment_accounts, repayments removed
-        Promise.resolve({ data: [] }),
         supabase.from('wallets').select('balance'),
-        Promise.resolve({ data: [] }),
-        Promise.resolve({ data: [] }),
-        Promise.resolve({ data: [] }),
       ]);
+      // Stub removed queries
+      const profilesRes = { data: [] as any[] };
+      const ordersRes = { data: [] as any[] };
+      const loansRes = { data: [] as any[] };
+      const investmentsRes = { data: [] as any[] };
+      const todayRepaymentsRes = { data: [] as any[] };
+      const weeklyRepaymentsRes = { data: [] as any[] };
 
-      const profiles = profilesRes.data || [];
       const roles = rolesRes.data || [];
       const requests = requestsRes.data || [];
-      const newSignups = profiles.filter(p => new Date(p.created_at) >= oneWeekAgo);
+      const uniqueUserIds = new Set(roles.map(r => r.user_id));
 
       // Count roles
       const roleCounts = roles.reduce((acc, r) => {
@@ -112,9 +106,9 @@ export default function TVDashboard() {
       const weeklyRepayments = (weeklyRepaymentsRes.data || []).reduce((sum, r) => sum + Number(r.amount || 0), 0);
 
       setMetrics({
-        totalUsers: profiles.length,
-        activeUsers: profiles.filter(p => p.rent_discount_active).length,
-        newSignupsThisWeek: newSignups.length,
+        totalUsers: uniqueUserIds.size,
+        activeUsers: 0,
+        newSignupsThisWeek: 0,
         totalFacilitated: requests
           .filter(r => ['funded', 'disbursed', 'completed'].includes(r.status))
           .reduce((sum, r) => sum + Number(r.rent_amount), 0),

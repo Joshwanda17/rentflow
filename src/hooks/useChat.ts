@@ -86,7 +86,7 @@ export function useChat() {
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const lastFetchTime = useRef(0);
-  const FETCH_COOLDOWN = 30 * 1000; // 30 seconds minimum between fetches
+  const FETCH_COOLDOWN = 5 * 60 * 1000; // 5 minutes minimum between fetches (aggressive caching)
 
   const fetchConversations = useCallback(async (force = false) => {
     if (!user) return;

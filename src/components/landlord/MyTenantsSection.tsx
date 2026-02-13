@@ -86,13 +86,13 @@ export default function MyTenantsSection() {
     // Fetch tenant profiles, agent profiles, and review summaries in parallel
     const allProfileIds = [...new Set([...tenantIds, ...agentIds])];
     
-    const [profilesResult, reviewsResult] = await Promise.all([
+    // Only fetch profiles (auth-related), stub reviews to reduce DB calls
+    const [profilesResult] = await Promise.all([
       supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', allProfileIds),
-      supabase.from('user_reviews').select('reviewed_user_id, rating').in('reviewed_user_id', tenantIds),
     ]);
 
     const profiles = profilesResult.data;
-    const allReviews = reviewsResult.data || [];
+    const allReviews: any[] = []; // Stubbed - user_reviews query removed
 
     const tenantsWithProfiles: Tenant[] = (landlordEntries || []).map(entry => {
       const tenantProfile = profiles?.find(p => p.id === entry.tenant_id);

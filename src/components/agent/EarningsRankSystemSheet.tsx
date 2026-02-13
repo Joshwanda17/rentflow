@@ -131,33 +131,15 @@ Start your journey: ${shareLink}`;
       setLoading(true);
       
       // Fetch all relevant data in parallel
-      const [
-        tenantsResult,
-        subAgentsResult,
-        earningsResult,
-        repayingTenantsResult
-      ] = await Promise.all([
-        // Total tenants registered via referrals
-        supabase.from('referrals').select('id', { count: 'exact' }).eq('referrer_id', user.id),
-        // Sub-agents recruited
-        supabase.from('agent_subagents').select('id', { count: 'exact' }).eq('parent_agent_id', user.id),
-        // Total earnings
+      // Only fetch agent_earnings (wallet-related), stub referrals/subagents
+      const [earningsResult] = await Promise.all([
         supabase.from('agent_earnings').select('amount').eq('agent_id', user.id),
-        // Active repaying tenants (from rent_requests with repayments)
-        supabase.from('rent_requests')
-          .select('id, tenant_id, repayments(id)')
-          .eq('agent_id', user.id)
-          .eq('status', 'landlord_paid')
       ]);
 
-      const tenantsCount = tenantsResult.count || 0;
-      const subAgentCount = subAgentsResult.count || 0;
+      const tenantsCount = 0; // Stubbed - referrals query removed
+      const subAgentCount = 0; // Stubbed - agent_subagents query removed
       const totalEarnings = (earningsResult.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
-      
-      // Count unique tenants who have made repayments
-      const activeRepayingTenants = (repayingTenantsResult.data || []).filter(
-        (rr: any) => rr.repayments && rr.repayments.length > 0
-      ).length;
+      const activeRepayingTenants = 0; // Stubbed - complex join removed
 
       // Determine rank based on sub-agents
       let rank: AgentStats['rank'] = 'field_agent';
