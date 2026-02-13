@@ -141,11 +141,7 @@ export function useAuthForm() {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
       return;
     }
-    // Require OTP verification before signup
-    if (!otpVerified) {
-      toast({ title: 'Phone Not Verified', description: 'Please verify your phone number with SMS code first.', variant: 'destructive' });
-      return;
-    }
+    // OTP verification lifted — optional for now
     const cleanPhone = phone.replace(/\D/g, '');
     const generatedEmail = `${cleanPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
