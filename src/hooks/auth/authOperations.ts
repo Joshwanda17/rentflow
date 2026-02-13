@@ -42,13 +42,7 @@ export async function signInWithGoogle() {
 }
 
 export async function signOutUser(userId: string | undefined) {
-  if (userId) {
-    await supabase.from('user_activity_log').insert({
-      user_id: userId,
-      activity_type: 'logout',
-      description: 'Logged out',
-    });
-  }
+  // Activity log insert stubbed for performance
   await supabase.auth.signOut();
 }
 

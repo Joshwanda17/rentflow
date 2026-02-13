@@ -84,44 +84,27 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
     fetchInProgress.current = true;
 
     try {
-      // Parallel fetch for speed - all agent-relevant data
-      const [requestsRes, referralsRes, subAgentsRes, subAgentEarningsRes, walletRes, earningsRes] = 
+      // Only fetch wallet + rent requests (core). Referrals/subagents/earnings stubbed.
+      const [requestsRes, walletRes] = 
         await Promise.all([
           supabase
             .from('rent_requests')
             .select('id', { count: 'exact', head: true })
             .eq('agent_id', user.id),
           supabase
-            .from('referrals')
-            .select('id', { count: 'exact', head: true })
-            .eq('referrer_id', user.id),
-          supabase
-            .from('agent_subagents')
-            .select('id', { count: 'exact', head: true })
-            .eq('parent_agent_id', user.id),
-          supabase
-            .from('agent_earnings')
-            .select('amount')
-            .eq('agent_id', user.id)
-            .eq('earning_type', 'subagent_commission'),
-          supabase
             .from('wallets')
             .select('balance')
             .eq('user_id', user.id)
             .maybeSingle(),
-          supabase
-            .from('agent_earnings')
-            .select('amount')
-            .eq('agent_id', user.id),
         ]);
 
       const newStats: AgentDashboardStats = {
         tenantsCount: requestsRes.count || 0,
-        referralCount: referralsRes.count || 0,
-        subAgentCount: subAgentsRes.count || 0,
-        subAgentEarnings: subAgentEarningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+        referralCount: 0, // Stubbed
+        subAgentCount: 0, // Stubbed
+        subAgentEarnings: 0, // Stubbed
         walletBalance: walletRes.data?.balance || 0,
-        totalEarnings: earningsRes.data?.reduce((sum, e) => sum + (e.amount || 0), 0) || 0,
+        totalEarnings: 0, // Stubbed
       };
 
       // Update state

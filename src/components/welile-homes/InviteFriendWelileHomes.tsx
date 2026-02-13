@@ -25,22 +25,7 @@ export function InviteFriendWelileHomes({ currentSavings = 0, monthlyRent = 5000
   const [dialogOpen, setDialogOpen] = useState(false);
   const [referralCount, setReferralCount] = useState(0);
 
-  useEffect(() => {
-    if (user) {
-      fetchReferralCount();
-    }
-  }, [user]);
-
-  const fetchReferralCount = async () => {
-    if (!user) return;
-    
-    const { count } = await supabase
-      .from('referrals')
-      .select('*', { count: 'exact', head: true })
-      .eq('referrer_id', user.id);
-    
-    setReferralCount(count || 0);
-  };
+  // Referral DB calls stubbed for performance
 
   const getShareLink = () => {
     if (!user) return `${window.location.origin}/auth?promo=welile-homes`;

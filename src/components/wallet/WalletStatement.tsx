@@ -57,65 +57,8 @@ export function WalletStatement() {
     try {
       const allEntries: StatementEntry[] = [];
 
-      // 1. Fetch referral bonuses (as referrer - earned 500 each)
-      const { data: referralsAsReferrer } = await supabase
-        .from('referrals')
-        .select('id, created_at, bonus_amount, referred_id')
-        .eq('referrer_id', user.id)
-        .eq('credited', true);
-
-      // Get referred user names
-      const referredIds = (referralsAsReferrer || []).map(r => r.referred_id);
-      let referredNamesMap: Record<string, string> = {};
-      if (referredIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', referredIds);
-        referredNamesMap = (profiles || []).reduce((acc, p) => {
-          acc[p.id] = p.full_name || 'User';
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      for (const ref of referralsAsReferrer || []) {
-        allEntries.push({
-          id: `ref-${ref.id}`,
-          date: ref.created_at,
-          type: 'credit',
-          category: 'referral_bonus',
-          description: 'Referral Bonus',
-          amount: ref.bonus_amount || 500,
-          source_name: referredNamesMap[ref.referred_id],
-        });
-      }
-
-      // 2. Fetch welcome bonus (as referred)
-      const { data: welcomeBonus } = await supabase
-        .from('referrals')
-        .select('id, created_at, bonus_amount, referrer_id')
-        .eq('referred_id', user.id)
-        .eq('credited', true)
-        .maybeSingle();
-
-      if (welcomeBonus) {
-        // Get referrer name
-        const { data: referrerProfile } = await supabase
-          .from('profiles')
-          .select('full_name')
-          .eq('id', welcomeBonus.referrer_id)
-          .maybeSingle();
-
-        allEntries.push({
-          id: `welcome-${welcomeBonus.id}`,
-          date: welcomeBonus.created_at,
-          type: 'credit',
-          category: 'welcome_bonus',
-          description: 'Welcome Bonus',
-          amount: welcomeBonus.bonus_amount || 500,
-          source_name: referrerProfile?.full_name ? `Referred by ${referrerProfile.full_name}` : 'Signup reward',
-        });
-      }
+      // Referral bonus queries stubbed for performance
+      // Only fetch agent_earnings (wallet-related) and withdrawals
 
       // 3. Fetch agent earnings (excluding referral_bonus to avoid duplicates)
       const { data: earnings } = await supabase

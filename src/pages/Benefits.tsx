@@ -613,47 +613,7 @@ ${shareUrl}
 Trust me, you'll thank me later! 🙏`;
 
   // Fetch referral stats with realtime updates
-  useEffect(() => {
-    if (!user) return;
-
-    const fetchReferrals = async () => {
-      const { data } = await supabase
-        .from('referrals')
-        .select('id, bonus_amount, credited')
-        .eq('referrer_id', user.id);
-      
-      if (data) {
-        setReferralCount(data.length);
-        setReferralEarnings(data.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0));
-      }
-    };
-
-    fetchReferrals();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('referral-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'referrals',
-          filter: `referrer_id=eq.${user.id}`
-        },
-        (payload) => {
-          console.log('New referral!', payload);
-          setReferralCount(prev => prev + 1);
-          setReferralEarnings(prev => prev + Number(payload.new.bonus_amount || 100));
-          toast.success('🎉 You earned UGX 100 for a new referral!');
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Referral DB calls stubbed for performance
 
   const handleWhatsAppShare = () => {
     const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(shareMessage)}`;

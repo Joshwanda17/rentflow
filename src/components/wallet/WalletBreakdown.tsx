@@ -124,47 +124,10 @@ export function WalletBreakdown() {
         source_user_name: e.source_user_id ? userNamesMap[e.source_user_id] : null,
       }));
 
-      // Fetch referrals where user is referrer
-      const { data: referralsData } = await supabase
-        .from('referrals')
-        .select('*')
-        .eq('referrer_id', user.id)
-        .eq('credited', true)
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Referral queries stubbed for performance
+      const referralsWithNames: ReferralItem[] = [];
 
-      // Get referred user names
-      const referredIds = [...new Set(
-        (referralsData || []).map(r => r.referred_id)
-      )];
-
-      let referredNamesMap: Record<string, string> = {};
-      if (referredIds.length > 0) {
-        const { data: referredProfiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', referredIds);
-        
-        referredNamesMap = (referredProfiles || []).reduce((acc, p) => {
-          acc[p.id] = p.full_name || 'Unknown User';
-          return acc;
-        }, {} as Record<string, string>);
-      }
-
-      const referralsWithNames = (referralsData || []).map(r => ({
-        ...r,
-        referred_name: referredNamesMap[r.referred_id],
-      }));
-
-      // Check if user received a welcome bonus (was referred)
-      const { data: wasReferred } = await supabase
-        .from('referrals')
-        .select('bonus_amount, credited')
-        .eq('referred_id', user.id)
-        .eq('credited', true)
-        .maybeSingle();
-
-      // Fetch withdrawals (approved)
+      // Fetch withdrawals (approved) - wallet-related, keep
       const { data: withdrawalsData } = await supabase
         .from('agent_commission_payouts')
         .select('*')
@@ -174,9 +137,7 @@ export function WalletBreakdown() {
         .limit(20);
 
       // Calculate summary
-      const referralTotal = (referralsWithNames || []).reduce(
-        (sum, r) => sum + (r.bonus_amount || 500), 0
-      );
+      const referralTotal = 0; // Stubbed
       
       const approvalTotal = earningsWithNames
         .filter(e => e.earning_type === 'approval_bonus')
@@ -186,7 +147,7 @@ export function WalletBreakdown() {
         .filter(e => e.earning_type === 'commission' || e.earning_type === 'subagent_commission')
         .reduce((sum, e) => sum + e.amount, 0);
 
-      const welcomeBonus = wasReferred?.credited ? (wasReferred.bonus_amount || 500) : 0;
+      const welcomeBonus = 0; // Stubbed
 
       const withdrawalTotal = (withdrawalsData || []).reduce(
         (sum, w) => sum + w.amount, 0
