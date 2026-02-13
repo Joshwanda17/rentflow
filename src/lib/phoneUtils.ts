@@ -238,15 +238,7 @@ export function isValidUgandanPhoneNumber(phone: string): {
     }
   }
 
-  // Known disposable/VoIP prefixes to block (can be expanded)
-  const blockedPrefixes = [
-    '0701', // Known VoIP/test
-    '0702', // Test numbers
-  ];
-  
-  if (blockedPrefixes.some(prefix => local9.startsWith(prefix))) {
-    return { valid: false, reason: 'This phone number prefix is not supported' };
-  }
+  // Note: 0701, 0702 etc. are legitimate MTN Uganda prefixes — do NOT block them
 
   return { valid: true };
 }
