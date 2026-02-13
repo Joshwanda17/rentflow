@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
+import { useUserSnapshot } from '@/hooks/useUserSnapshot';
 import { 
   Sheet, 
   SheetContent, 
@@ -64,11 +65,21 @@ interface BreakdownSummary {
 
 export function WalletBreakdown() {
   const { user } = useAuth();
+  const { snapshot } = useUserSnapshot(user?.id);
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
   const [earnings, setEarnings] = useState<EarningItem[]>([]);
-  const [referrals, setReferrals] = useState<ReferralItem[]>([]);
   const [withdrawals, setWithdrawals] = useState<WithdrawalItem[]>([]);
+
+  // Get referrals from snapshot (cached, no direct DB call)
+  const referrals: ReferralItem[] = (snapshot.referrals || []).map((r: any) => ({
+    id: r.id,
+    referrer_id: user?.id || '',
+    referred_id: r.referred_id,
+    bonus_amount: r.bonus_amount,
+    created_at: r.created_at,
+    credited: r.credited,
+  }));
   const [summary, setSummary] = useState<BreakdownSummary>({
     referralBonuses: 0,
     approvalBonuses: 0,
@@ -124,10 +135,7 @@ export function WalletBreakdown() {
         source_user_name: e.source_user_id ? userNamesMap[e.source_user_id] : null,
       }));
 
-      // Referral queries stubbed for performance
-      const referralsWithNames: ReferralItem[] = [];
-
-      // Fetch withdrawals (approved) - wallet-related, keep
+      // Referrals from snapshot - calculate total
       const { data: withdrawalsData } = await supabase
         .from('agent_commission_payouts')
         .select('*')
@@ -137,7 +145,7 @@ export function WalletBreakdown() {
         .limit(20);
 
       // Calculate summary
-      const referralTotal = 0; // Stubbed
+      const referralTotal = referrals.reduce((sum, r) => sum + Number(r.bonus_amount || 0), 0);
       
       const approvalTotal = earningsWithNames
         .filter(e => e.earning_type === 'approval_bonus')
@@ -165,7 +173,6 @@ export function WalletBreakdown() {
       });
 
       setEarnings(earningsWithNames);
-      setReferrals(referralsWithNames);
       setWithdrawals(withdrawalsData || []);
     } catch (error) {
       console.error('[WalletBreakdown] Error:', error);
