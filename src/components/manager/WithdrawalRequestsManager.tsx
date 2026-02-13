@@ -562,14 +562,7 @@ export function WithdrawalRequestsManager() {
 
       if (requestError) throw requestError;
 
-      // 3. Send notification to user with transaction ID
-      await supabase.from('notifications').insert({
-        user_id: selectedRequest.user_id,
-        title: 'Withdrawal Approved ✅',
-        message: `Your withdrawal of ${formatCurrency(selectedRequest.amount)} has been sent! Transaction ID: ${transactionId.trim()}`,
-        type: 'success',
-        metadata: { transaction_id: transactionId.trim() }
-      });
+      // Notification removed - table dropped
 
       toast.success('Withdrawal approved successfully!');
       setApproveDialogOpen(false);
@@ -607,13 +600,7 @@ export function WithdrawalRequestsManager() {
 
       if (error) throw error;
 
-      // Send notification to user
-      await supabase.from('notifications').insert({
-        user_id: selectedRequest.user_id,
-        title: 'Withdrawal Rejected ❌',
-        message: `Your withdrawal request of ${formatCurrency(selectedRequest.amount)} was rejected. Reason: ${rejectionReason}`,
-        type: 'warning'
-      });
+      // Notification removed - table dropped
 
       toast.success('Withdrawal rejected');
       setRejectDialogOpen(false);
@@ -658,13 +645,7 @@ export function WithdrawalRequestsManager() {
 
         if (error) throw error;
 
-        // Send notification to user
-        await supabase.from('notifications').insert({
-          user_id: request.user_id,
-          title: 'Withdrawal Rejected ❌',
-          message: `Your withdrawal request of ${formatCurrency(request.amount)} was rejected. Reason: ${rejectionReason}`,
-          type: 'warning'
-        });
+        // Notification removed - table dropped
 
         processed++;
       } catch (error) {

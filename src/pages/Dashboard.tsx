@@ -6,7 +6,7 @@ import AddRoleDialog from '@/components/AddRoleDialog';
 
 import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
-import { useNotifications } from '@/hooks/useNotifications';
+
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
 import { supabase } from '@/integrations/supabase/client';
@@ -67,8 +67,6 @@ function DashboardContent() {
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
   
-  // Enable real-time notifications for money transfers and requests
-  useNotifications();
 
   // Monitor online status
   useEffect(() => {

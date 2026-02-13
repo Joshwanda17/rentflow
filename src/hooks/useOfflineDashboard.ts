@@ -8,7 +8,7 @@ import {
   cacheRentRequests,
   getCachedRentRequests,
   cacheNotifications,
-  getCachedNotifications
+  getCachedNotifications,
 } from '@/lib/offlineDataStorage';
 
 interface DashboardStats {
@@ -16,7 +16,7 @@ interface DashboardStats {
   activeRentRequests: number;
   totalRepayments: number;
   walletBalance: number;
-  unreadNotifications: number;
+  unreadNotifications: 0;
 }
 
 interface UseOfflineDashboardReturn {
@@ -94,19 +94,13 @@ export function useOfflineDashboard(): UseOfflineDashboardReturn {
 
     try {
       // Parallel fetch for speed
-      const [rentData, notifData, walletData] = await Promise.all([
+      const [rentData, walletData] = await Promise.all([
         supabase
           .from('rent_requests')
           .select('*')
           .eq('tenant_id', user.id)
           .order('created_at', { ascending: false })
           .limit(20),
-        supabase
-          .from('notifications')
-          .select('*')
-          .eq('user_id', user.id)
-          .order('created_at', { ascending: false })
-          .limit(50),
         supabase
           .from('wallets')
           .select('balance')
@@ -115,7 +109,7 @@ export function useOfflineDashboard(): UseOfflineDashboardReturn {
       ]);
 
       const requests = rentData.data || [];
-      const notifs = notifData.data || [];
+      const notifs: any[] = [];
       const walletBalance = walletData.data?.balance || 0;
 
       // Calculate stats
@@ -124,7 +118,7 @@ export function useOfflineDashboard(): UseOfflineDashboardReturn {
         activeRentRequests: requests.filter(r => r.status === 'active' || r.status === 'approved').length,
         totalRepayments: requests.reduce((sum, r) => sum + (r.total_repayment || 0), 0),
         walletBalance,
-        unreadNotifications: notifs.filter(n => !n.read).length,
+        unreadNotifications: 0,
       };
 
       // Update state

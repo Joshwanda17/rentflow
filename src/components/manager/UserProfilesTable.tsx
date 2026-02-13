@@ -13,7 +13,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from './UserDetailsDialog';
-import BulkNotificationDialog from './BulkNotificationDialog';
+
 import BulkAssignRoleDialog from './BulkAssignRoleDialog';
 import BulkRemoveRoleDialog from './BulkRemoveRoleDialog';
 import BulkWhatsAppDialog from './BulkWhatsAppDialog';
@@ -1062,12 +1062,6 @@ export default function UserProfilesTable() {
         onUserUpdated={handleRefresh}
       />
 
-      <BulkNotificationDialog
-        open={bulkNotificationOpen}
-        onOpenChange={setBulkNotificationOpen}
-        selectedUserIds={Array.from(selectedUserIds)}
-        onSuccess={handleBulkNotificationSuccess}
-      />
 
       <BulkAssignRoleDialog
         open={bulkAssignRoleOpen}

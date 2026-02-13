@@ -102,18 +102,7 @@ export default function EncouragementMessageDialog({ tenant, trigger }: Encourag
 
         if (msgError) throw msgError;
 
-        // Also create a notification for the tenant
-        await supabase.from('notifications').insert({
-          user_id: tenant.tenant_id,
-          type: 'welile_homes_encouragement',
-          title: 'Encouragement from your landlord! 💜',
-          message: `Your landlord sent you an encouraging message about your Welile Homes progress.`,
-          metadata: {
-            landlord_id: user.id,
-            savings_amount: tenant.total_savings,
-            months_enrolled: tenant.months_enrolled
-          }
-        });
+        // Notification removed - table dropped
 
         // Send push notification
         try {

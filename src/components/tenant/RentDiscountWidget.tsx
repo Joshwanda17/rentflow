@@ -27,43 +27,7 @@ export function RentDiscountWidget({ userId, estimatedRent }: RentDiscountWidget
     fetchData();
   }, [userId]);
 
-  const checkAndSendNotification = async (discountProgress: number, maxDiscount: number, currentDiscount: number) => {
-    // Only notify if at 80% or more of max discount and notification not already sent this session
-    if (discountProgress < 80 || notificationSentRef.current) return;
-    
-    // Check if a notification for this month already exists
-    const now = new Date();
-    const monthKey = `${now.getFullYear()}-${now.getMonth() + 1}`;
-    
-    const { data: existingNotification } = await supabase
-      .from('notifications')
-      .select('id')
-      .eq('user_id', userId)
-      .eq('type', 'warning')
-      .like('metadata->month', monthKey)
-      .limit(1);
-    
-    if (existingNotification && existingNotification.length > 0) {
-      notificationSentRef.current = true;
-      return;
-    }
-    
-    // Create notification
-    const remaining = maxDiscount - currentDiscount;
-    const message = discountProgress >= 100 
-      ? `Congratulations! You've reached the maximum rent discount of ${formatUGX(maxDiscount)} this month!`
-      : `You're at ${Math.round(discountProgress)}% of your max rent discount. Only ${formatUGX(remaining)} more to reach the ${formatUGX(maxDiscount)} limit!`;
-    
-    await supabase.from('notifications').insert({
-      user_id: userId,
-      title: discountProgress >= 100 ? '🎉 Maximum Discount Reached!' : '⚠️ Approaching Max Discount',
-      message,
-      type: 'warning',
-      metadata: { month: monthKey, progress: discountProgress }
-    });
-    
-    notificationSentRef.current = true;
-  };
+  // Notification check removed - table dropped
 
   const fetchData = async () => {
     setLoading(true);
@@ -107,10 +71,6 @@ export function RentDiscountWidget({ userId, estimatedRent }: RentDiscountWidget
     const maxDiscount = Math.round(rent * 0.7);
     const progress = maxDiscount > 0 ? Math.min((discount / maxDiscount) * 100, 100) : 0;
     
-    // Check if we need to send a notification
-    if (progress >= 80) {
-      checkAndSendNotification(progress, maxDiscount, discount);
-    }
     
     setMonthlyReceipts(totalVerified);
     setRentDiscount(discount);

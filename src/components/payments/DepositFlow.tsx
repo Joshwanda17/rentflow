@@ -151,23 +151,11 @@ export default function DepositFlow({
 
         // manager_recorded_transactions table removed - skip
 
-        // Send notification
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Deposit Verified!',
-          message: `Your deposit of ${formatCurrency(parseFloat(amount))} has been automatically verified and added to your wallet.`,
-          type: 'success',
-        });
+        // Notification removed - table dropped
 
         toast.success('Deposit verified and added to your wallet!');
       } else {
-        // Send notification for pending
-        await supabase.from('notifications').insert({
-          user_id: user.id,
-          title: 'Deposit Request Submitted',
-          message: `Your deposit request of ${formatCurrency(parseFloat(amount))} is being verified. You'll be notified once approved.`,
-          type: 'info',
-        });
+        // Notification removed - table dropped
 
         toast.success('Deposit request submitted for verification');
       }
