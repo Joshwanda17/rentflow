@@ -6,7 +6,7 @@ RESUME_DATE.setDate(RESUME_DATE.getDate() + 7);
 const formatDate = (d: Date) =>
   d.toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' });
 
-export const SIGNUP_PAUSED = true;
+export const SIGNUP_PAUSED = false;
 export const SIGNUP_RESUME_DATE = formatDate(RESUME_DATE);
 
 // v2 - build refresh
