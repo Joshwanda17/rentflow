@@ -52,71 +52,9 @@ export default function Referrals() {
   const referralLink = user ? `${window.location.origin}/join?r=${user.id}` : '';
 
   useEffect(() => {
-    if (!user) return;
-
-    const fetchReferrals = async () => {
-      const { data, error } = await supabase
-        .from('referrals')
-        .select('*')
-        .eq('referrer_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (!error && data) {
-        // Fetch referred user profiles
-        const referredIds = data.map(r => r.referred_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url')
-          .in('id', referredIds);
-
-        const referralsWithUsers = data.map(referral => ({
-          ...referral,
-          referred_user: profiles?.find(p => p.id === referral.referred_id)
-        }));
-
-        setReferrals(referralsWithUsers);
-      }
-      setLoading(false);
-    };
-
-    fetchReferrals();
-
-    // Subscribe to new referrals
-    const channel = supabase
-      .channel(`referrals-page-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'referrals',
-          filter: `referrer_id=eq.${user.id}`,
-        },
-        async (payload) => {
-          const newReferral = payload.new as Referral;
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, full_name, avatar_url')
-            .eq('id', newReferral.referred_id)
-            .single();
-
-          setReferrals(prev => [{
-            ...newReferral,
-            referred_user: profile || undefined
-          }, ...prev]);
-
-          toast({
-            title: '🎉 New Referral!',
-            description: `${profile?.full_name || 'Someone'} joined through your link!`,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, toast]);
+    // Referral DB calls stubbed for performance
+    setLoading(false);
+  }, [user]);
 
   const copyReferralLink = async () => {
     await navigator.clipboard.writeText(referralLink);
@@ -159,29 +97,7 @@ export default function Referrals() {
   }
 
   const handleRefresh = async () => {
-    setLoading(true);
-    const { data, error } = await supabase
-      .from('referrals')
-      .select('*')
-      .eq('referrer_id', user?.id)
-      .order('created_at', { ascending: false });
-
-    if (!error && data) {
-      const referredIds = data.map(r => r.referred_id);
-      if (referredIds.length > 0) {
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, avatar_url')
-          .in('id', referredIds);
-
-        const referralsWithUsers = data.map(r => ({
-          ...r,
-          referred_user: profiles?.find(p => p.id === r.referred_id)
-        }));
-        setReferrals(referralsWithUsers);
-      }
-    }
-    setLoading(false);
+    // Referral refresh stubbed for performance
   };
 
   return (

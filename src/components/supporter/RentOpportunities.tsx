@@ -474,18 +474,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
         
         agentUserIds = agentRoles?.map(r => r.user_id) || [];
         
-        // Count tenants registered by each agent via referrals
-        const { data: referrals } = await supabase
-          .from('referrals')
-          .select('referrer_id, referred_id');
-        
-        const tenantIdSet = new Set(tenantUserIds);
-        
-        (referrals || []).forEach(r => {
-          if (tenantIdSet.has(r.referred_id)) {
-            agentTenantCounts.set(r.referrer_id, (agentTenantCounts.get(r.referrer_id) || 0) + 1);
-          }
-        });
+        // Referral tenant count stubbed for performance
         
         // Also count tenants from rent_requests agent_id
         const { data: rentRequestAgents } = await supabase
@@ -576,25 +565,8 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
           .order('created_at', { ascending: false })
           .range(from, to);
         
-        // Count tenants for agents
-        const { data: referrals } = await supabase
-          .from('referrals')
-          .select('referrer_id, referred_id');
-        
-        const { data: tenantRoles } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'tenant')
-          .eq('enabled', true);
-        
-        const tenantIdSet = new Set(tenantRoles?.map(r => r.user_id) || []);
-        
+        // Referral tenant count stubbed for performance - use rent_requests only
         const counts = new Map<string, number>();
-        (referrals || []).forEach(r => {
-          if (tenantIdSet.has(r.referred_id)) {
-            counts.set(r.referrer_id, (counts.get(r.referrer_id) || 0) + 1);
-          }
-        });
         
         const { data: rentRequestAgents } = await supabase
           .from('rent_requests')

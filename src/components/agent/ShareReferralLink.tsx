@@ -32,49 +32,8 @@ export function ShareReferralLink() {
   const [shareMilestone, setShareMilestone] = useState<typeof MILESTONES[0] | null>(null);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchStats = async () => {
-      const { data, error } = await supabase
-        .from('referrals')
-        .select('bonus_amount, credited')
-        .eq('referrer_id', user.id);
-
-      if (!error && data) {
-        setStats({
-          signups: data.length,
-          earned: data.filter(r => r.credited).reduce((sum, r) => sum + Number(r.bonus_amount), 0),
-        });
-      }
-      setLoading(false);
-    };
-
-    fetchStats();
-
-    // Real-time subscription for new referrals
-    const channel = supabase
-      .channel(`referral-stats-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'referrals',
-          filter: `referrer_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const newReferral = payload.new as { bonus_amount: number; credited: boolean };
-          setStats(prev => ({
-            signups: prev.signups + 1,
-            earned: newReferral.credited ? prev.earned + Number(newReferral.bonus_amount) : prev.earned,
-          }));
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Referral DB calls stubbed for performance
+    setLoading(false);
   }, [user]);
 
   const getShareLink = () => {

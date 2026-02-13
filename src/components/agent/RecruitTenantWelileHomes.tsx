@@ -31,30 +31,8 @@ export function RecruitTenantWelileHomes() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!user) return;
-    
-    const fetchStats = async () => {
-      // Count referrals where the referred user is a tenant
-      const { data, error } = await supabase
-        .from('referrals')
-        .select(`
-          id,
-          referred_id,
-          profiles!referrals_referred_id_fkey(roles)
-        `)
-        .eq('referrer_id', user.id);
-
-      if (!error && data) {
-        // Count tenants
-        const tenants = data.filter((r: any) => 
-          r.profiles?.roles?.includes('tenant')
-        );
-        setTenantSignups(tenants.length);
-      }
-      setLoading(false);
-    };
-
-    fetchStats();
+    // Referral DB calls stubbed for performance
+    setLoading(false);
   }, [user]);
 
   const getShareLink = () => {

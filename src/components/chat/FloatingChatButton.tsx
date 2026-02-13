@@ -42,67 +42,8 @@ export default function FloatingChatButton() {
     }
   }, []);
 
-  useEffect(() => {
-    if (!user) return;
-
-    // Optimized: Fetch conversation IDs first, then count unread in batches
-    const fetchUnreadCount = async () => {
-      try {
-        // Step 1: Get user's conversation IDs
-        const { data: participations } = await supabase
-          .from('conversation_participants')
-          .select('conversation_id, last_read_at')
-          .eq('user_id', user.id);
-
-        if (!participations || participations.length === 0) {
-          setUnreadCount(0);
-          return;
-        }
-
-        // Step 2: Single query to get unread count using OR conditions
-        // This is much faster than N individual queries
-        const convIds = participations.map(p => p.conversation_id);
-        
-        const { count } = await supabase
-          .from('messages')
-          .select('id', { count: 'exact', head: true })
-          .in('conversation_id', convIds)
-          .neq('sender_id', user.id)
-          .is('read_at', null);
-        
-        setUnreadCount(count || 0);
-      } catch {
-        setUnreadCount(0);
-      }
-    };
-
-    fetchUnreadCount();
-
-    // Debounced subscription to avoid excessive refetches
-    let timeout: ReturnType<typeof setTimeout>;
-    const debouncedFetch = () => {
-      clearTimeout(timeout);
-      timeout = setTimeout(fetchUnreadCount, 500);
-    };
-
-    const channel = supabase
-      .channel(`floating-chat-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'messages',
-        },
-        debouncedFetch
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(timeout);
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Chat unread count DB calls stubbed - use IndexedDB cached data only
+  // No realtime subscription for messages to reduce DB load
 
   const handleClick = () => {
     // Only open drawer if not dragging

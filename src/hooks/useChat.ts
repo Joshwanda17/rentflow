@@ -91,113 +91,19 @@ export function useChat() {
   const fetchConversations = useCallback(async (force = false) => {
     if (!user) return;
 
-    // Cooldown to prevent repeated calls
-    const now = Date.now();
-    if (!force && now - lastFetchTime.current < FETCH_COOLDOWN) return;
-
+    // Chat reads are now offline-only via IndexedDB cache
     setLoading(true);
 
-    // Load cached conversations first for instant display
     try {
       const cached = await getCachedConversations();
       if (cached.length > 0) {
         setConversations(cached);
-        setLoading(false);
       }
     } catch (e) {
       console.warn('[useChat] Cache read failed:', e);
     }
 
-    if (!navigator.onLine) {
-      setLoading(false);
-      return;
-    }
-
-    lastFetchTime.current = now;
-
-    // Single query: get all participations
-    const { data: participations } = await supabase
-      .from('conversation_participants')
-      .select('conversation_id, last_read_at')
-      .eq('user_id', user.id);
-
-    if (!participations || participations.length === 0) {
-      setConversations([]);
-      setLoading(false);
-      return;
-    }
-
-    const conversationIds = participations.map(p => p.conversation_id);
-    const lastReadMap = new Map(participations.map(p => [p.conversation_id, p.last_read_at]));
-
-    // Batch: conversations + all participants + all last messages in parallel
-    const [convRes, allPartsRes, lastMsgsRes] = await Promise.all([
-      supabase.from('conversations').select('id, created_at, updated_at')
-        .in('id', conversationIds).order('updated_at', { ascending: false }),
-      supabase.from('conversation_participants').select('conversation_id, user_id')
-        .in('conversation_id', conversationIds),
-      // Get recent messages for ALL conversations in one query (sorted desc, pick first per conv in JS)
-      supabase.from('messages').select('id, conversation_id, sender_id, content, created_at, read_at')
-        .in('conversation_id', conversationIds)
-        .order('created_at', { ascending: false })
-        .limit(conversationIds.length * 2), // At most 2 per conversation
-    ]);
-
-    const convData = convRes.data || [];
-    const allParticipants = allPartsRes.data || [];
-    const allMessages = lastMsgsRes.data || [];
-
-    // Build last message map (first message per conversation_id since sorted desc)
-    const lastMessageMap = new Map<string, any>();
-    for (const msg of allMessages) {
-      if (!lastMessageMap.has(msg.conversation_id)) {
-        lastMessageMap.set(msg.conversation_id, msg);
-      }
-    }
-
-    // Calculate unread counts from the messages we already have + simple count
-    // Instead of N queries, compute from what we know
-    const unreadMap = new Map<string, number>();
-    for (const convId of conversationIds) {
-      const lastRead = lastReadMap.get(convId);
-      const unreadMsgs = allMessages.filter(m => 
-        m.conversation_id === convId && 
-        m.sender_id !== user.id && 
-        (!lastRead || m.created_at > lastRead)
-      );
-      unreadMap.set(convId, unreadMsgs.length);
-    }
-
-    // Get all participant profiles in one batch
-    const participantIds = [...new Set(allParticipants.map(p => p.user_id))];
-    const { profiles: profilesMap, roles: rolesMap } = await getProfilesAndRoles(participantIds);
-
-    const conversationsWithDetails: Conversation[] = convData.map(conv => {
-      const convParticipants = allParticipants.filter(p => p.conversation_id === conv.id);
-      const participants = convParticipants
-        .filter(p => p.user_id !== user.id)
-        .map(p => ({
-          user_id: p.user_id,
-          full_name: profilesMap.get(p.user_id)?.full_name || 'Unknown',
-          avatar_url: profilesMap.get(p.user_id)?.avatar_url || null,
-          roles: rolesMap.get(p.user_id) || []
-        }));
-
-      return {
-        id: conv.id,
-        created_at: conv.created_at,
-        updated_at: conv.updated_at,
-        participants,
-        last_message: lastMessageMap.get(conv.id) || undefined,
-        unread_count: unreadMap.get(conv.id) || 0
-      };
-    });
-
-    setConversations(conversationsWithDetails);
     setLoading(false);
-
-    // Cache for offline
-    await cacheConversations(conversationsWithDetails);
   }, [user]);
 
   const startConversation = async (otherUserId: string): Promise<string | null> => {
@@ -250,84 +156,15 @@ export function useConversation(conversationId: string | null) {
 
     setLoading(true);
 
-    // Load cached messages first
+    // Chat message reads are now offline-only via IndexedDB cache
     try {
       const cached = await getCachedMessages(conversationId);
       if (cached.length > 0) {
         setMessages(cached);
-        setLoading(false);
       }
     } catch (e) {
       console.warn('[useConversation] Cache read failed:', e);
     }
-
-    if (!navigator.onLine) {
-      setLoading(false);
-      return;
-    }
-
-    // Get messages + participant in parallel
-    const [messagesRes, participantsRes] = await Promise.all([
-      supabase.from('messages').select('*')
-        .eq('conversation_id', conversationId)
-        .order('created_at', { ascending: true }),
-      supabase.from('conversation_participants').select('user_id')
-        .eq('conversation_id', conversationId)
-        .neq('user_id', user.id)
-    ]);
-
-    const messagesData = messagesRes.data || [];
-    const participants = participantsRes.data || [];
-
-    // Get all sender profiles in one batch (uses cache)
-    const allUserIds = [
-      ...new Set([
-        ...messagesData.map(m => m.sender_id),
-        ...participants.map(p => p.user_id)
-      ])
-    ];
-    const { profiles: profilesMap, roles: rolesMap } = await getProfilesAndRoles(allUserIds);
-
-    const messagesWithSenders: Message[] = messagesData.map(m => ({
-      ...m,
-      sender: {
-        full_name: profilesMap.get(m.sender_id)?.full_name || 'Unknown',
-        avatar_url: profilesMap.get(m.sender_id)?.avatar_url || null,
-        roles: rolesMap.get(m.sender_id) || []
-      },
-      reactions: []
-    }));
-
-    setMessages(messagesWithSenders);
-
-    // Set other participant
-    if (participants.length > 0) {
-      const otherId = participants[0].user_id;
-      setOtherParticipant({
-        user_id: otherId,
-        full_name: profilesMap.get(otherId)?.full_name || 'Unknown',
-        avatar_url: profilesMap.get(otherId)?.avatar_url || null,
-        roles: rolesMap.get(otherId) || []
-      });
-    }
-
-    // Mark as read (batch)
-    const unreadIds = messagesData
-      .filter(m => m.sender_id !== user.id && !m.read_at)
-      .map(m => m.id);
-
-    if (unreadIds.length > 0) {
-      await Promise.all([
-        supabase.from('messages').update({ read_at: new Date().toISOString() }).in('id', unreadIds),
-        supabase.from('conversation_participants')
-          .update({ last_read_at: new Date().toISOString() })
-          .eq('conversation_id', conversationId)
-          .eq('user_id', user.id)
-      ]);
-    }
-
-    // Cache messages for offline
-    await cacheMessages(conversationId, messagesWithSenders);
 
     setLoading(false);
   }, [conversationId, user]);
