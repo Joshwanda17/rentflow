@@ -1,10 +1,9 @@
-import { useState, useEffect } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { UsersRound } from 'lucide-react';
 import { CollapsibleAgentSection } from './CollapsibleAgentSection';
 import { SubAgentsList } from './SubAgentsList';
 import { SubAgentInvitesList } from './SubAgentInvitesList';
+import { useUserSnapshot } from '@/hooks/useUserSnapshot';
+import { useAuth } from '@/hooks/useAuth';
 
 interface CollapsibleSubAgentsProps {
   isOpen?: boolean;
@@ -13,39 +12,12 @@ interface CollapsibleSubAgentsProps {
 
 export function CollapsibleSubAgents({ isOpen, onToggle }: CollapsibleSubAgentsProps) {
   const { user } = useAuth();
-  const [activeCount, setActiveCount] = useState(0);
-  const [pendingCount, setPendingCount] = useState(0);
+  const { snapshot } = useUserSnapshot(user?.id);
 
-  useEffect(() => {
-    if (user) {
-      fetchCounts();
-    }
-  }, [user]);
-
-  const fetchCounts = async () => {
-    if (!user) return;
-
-    // Fetch active sub-agents count
-    const { count: activeSubAgents } = await supabase
-      .from('agent_subagents')
-      .select('*', { count: 'exact', head: true })
-      .eq('parent_agent_id', user.id);
-
-    // Fetch pending sub-agent invites count
-    const { count: pendingInvites } = await supabase
-      .from('supporter_invites')
-      .select('*', { count: 'exact', head: true })
-      .eq('created_by', user.id)
-      .eq('role', 'agent')
-      .eq('status', 'pending');
-
-    setActiveCount(activeSubAgents || 0);
-    setPendingCount(pendingInvites || 0);
-  };
-
+  const activeCount = snapshot.subAgents?.length || 0;
+  const pendingCount = snapshot.pendingSubAgentInvites?.length || 0;
   const totalCount = activeCount + pendingCount;
 
-  // Don't show if no sub-agents at all
   if (totalCount === 0) return null;
 
   return (

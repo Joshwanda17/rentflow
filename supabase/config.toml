@@ -74,3 +74,6 @@ verify_jwt = false
 
 [functions.sms-otp]
 verify_jwt = false
+
+[functions.user-snapshot]
+verify_jwt = false
