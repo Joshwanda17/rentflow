@@ -148,14 +148,7 @@ export function WithdrawalRequestsManager() {
     }
   }, [requests]);
 
-  // Auto-refresh wallet balances every 5 seconds
-  useEffect(() => {
-    const interval = setInterval(() => {
-      refreshWalletBalances();
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [refreshWalletBalances]);
+  // Polling removed — violates no-polling rule. Manager refreshes manually.
 
   const copyToClipboard = async (text: string, requestId: string) => {
     try {
@@ -465,47 +458,8 @@ export function WithdrawalRequestsManager() {
 
   useEffect(() => {
     fetchRequests();
-
-    // Subscribe to real-time updates for withdrawal requests
-    const withdrawalChannel = supabase
-      .channel('withdrawal_requests_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'withdrawal_requests'
-        },
-        () => {
-          fetchRequests();
-          if (activeTab === 'history') {
-            fetchHistory();
-          }
-        }
-      )
-      .subscribe();
-
-    // Subscribe to real-time wallet balance changes
-    const walletChannel = supabase
-      .channel('wallet_balance_changes')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wallets'
-        },
-        () => {
-          refreshWalletBalances();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(withdrawalChannel);
-      supabase.removeChannel(walletChannel);
-    };
-  }, [fetchRequests, refreshWalletBalances, activeTab, fetchHistory]);
+    // Realtime removed — withdrawal_requests not in realtime whitelist
+  }, [fetchRequests]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {
     // Fetch the CURRENT wallet balance to avoid stale data

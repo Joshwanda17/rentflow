@@ -14,20 +14,7 @@ export function CollapsibleRentRequests({ isOpen, onToggle }: CollapsibleRentReq
 
   useEffect(() => {
     fetchPendingCount();
-    
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('rent-requests-count')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rent_requests' },
-        () => fetchPendingCount()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — rent_requests not in realtime whitelist
   }, []);
 
   const fetchPendingCount = async () => {

@@ -126,25 +126,7 @@ export function MarketplaceSection({
   useEffect(() => {
     fetchProducts();
     fetchWishlist();
-
-    const channel = supabase
-      .channel('marketplace-products')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'products',
-        },
-        () => {
-          fetchProducts();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — products not in realtime whitelist
   }, [user]);
 
   const categories = useMemo(() => 

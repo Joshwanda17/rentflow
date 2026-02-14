@@ -55,23 +55,9 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
     if (currentRole !== 'supporter') return;
     
     fetchUnseenCount();
+    // Realtime removed — rent_requests not in realtime whitelist
     
-    const channel = supabase
-      .channel('nav-opportunities')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'rent_requests',
-        },
-        () => {
-          fetchUnseenCount();
-        }
-      )
-      .subscribe();
-    
-    // Also listen for storage changes (when user marks all as seen)
+    // Listen for storage changes (when user marks all as seen)
     const handleStorageChange = (e: StorageEvent) => {
       if (e.key === 'opportunities_last_seen_at') {
         fetchUnseenCount();
@@ -84,7 +70,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
     window.addEventListener('opportunities-marked-seen', handleCustomEvent);
 
     return () => {
-      supabase.removeChannel(channel);
       window.removeEventListener('storage', handleStorageChange);
       window.removeEventListener('opportunities-marked-seen', handleCustomEvent);
     };

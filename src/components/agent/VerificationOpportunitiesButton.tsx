@@ -35,16 +35,7 @@ export function VerificationOpportunitiesButton() {
 
   useEffect(() => {
     fetchCount();
-
-    const channel = supabase
-      .channel('unverified-count')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => {
-        fetchCount();
-        if (open) fetchRequests();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
+    // Realtime removed — rent_requests not in realtime whitelist
   }, [open]);
 
   const fetchCount = async () => {

@@ -81,17 +81,7 @@ export function FloatingDepositsWidget() {
 
   useEffect(() => {
     fetchDeposits();
-
-    const channel = supabase
-      .channel('floating-deposits')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposit_requests' }, () => {
-        fetchDeposits();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — deposit_requests not in realtime whitelist
   }, []);
 
   const handleApprove = async (deposit: DepositRequest) => {

@@ -98,23 +98,7 @@ export function useUserReviews(userId: string | undefined) {
     fetchReviews();
   }, [fetchReviews]);
 
-  // Subscribe to realtime changes
-  useEffect(() => {
-    if (!userId) return;
-    const channel = supabase
-      .channel(`reviews-${userId}`)
-      .on('postgres_changes', {
-        event: '*',
-        schema: 'public',
-        table: 'user_reviews',
-        filter: `reviewed_user_id=eq.${userId}`,
-      }, () => {
-        fetchReviews();
-      })
-      .subscribe();
-
-    return () => { supabase.removeChannel(channel); };
-  }, [userId, fetchReviews]);
+  // Realtime removed — user_reviews not in realtime whitelist. Refresh on revisit.
 
   return { reviews, summary, myReview, loading, refetch: fetchReviews };
 }

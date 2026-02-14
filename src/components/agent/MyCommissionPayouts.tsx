@@ -46,25 +46,7 @@ export function MyCommissionPayouts({ minimal = false }: MyCommissionPayoutsProp
   useEffect(() => {
     if (user) {
       fetchPayouts();
-      
-      // Subscribe to realtime updates
-      const channel = supabase
-        .channel('agent-payouts')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'agent_commission_payouts',
-            filter: `agent_id=eq.${user.id}`
-          },
-          () => fetchPayouts()
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Realtime removed — agent_commission_payouts not in realtime whitelist
     }
   }, [user?.id]);
 
