@@ -67,46 +67,8 @@ export function AgentCommissionPayoutsManager() {
 
   useEffect(() => {
     fetchPayouts();
-    
-    // Subscribe to realtime updates for payouts
-    const channel = supabase
-      .channel('manager-payouts')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'agent_commission_payouts'
-        },
-        () => fetchPayouts()
-      )
-      .subscribe();
-
-    // Subscribe to realtime wallet balance changes so manager sees updated balances
-    const walletChannel = supabase
-      .channel('manager-wallet-watch')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wallets'
-        },
-        (payload) => {
-          const updated = payload.new as { user_id: string; balance: number };
-          // Update the displayed balance if it's the currently selected agent
-          if (selectedPayout && updated.user_id === selectedPayout.agent_id) {
-            setAgentWalletBalance(updated.balance);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(walletChannel);
-    };
-  }, [selectedPayout?.agent_id]);
+    // Realtime removed — agent_commission_payouts not in realtime whitelist
+  }, []);
 
   const fetchPayouts = async () => {
     try {

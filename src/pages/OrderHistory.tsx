@@ -99,40 +99,7 @@ export default function OrderHistory() {
     }
   }, [user]);
 
-  // Real-time order status updates
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('order-status-updates')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'product_orders',
-          filter: `buyer_id=eq.${user.id}`,
-        },
-        (payload) => {
-          const updatedOrder = payload.new as OrderWithProduct;
-          setPurchases(prev => 
-            prev.map(order => 
-              order.id === updatedOrder.id 
-                ? { ...order, status: updatedOrder.status, status_updated_at: updatedOrder.status_updated_at }
-                : order
-            )
-          );
-          toast.success('Order status updated', {
-            description: `Your order is now: ${updatedOrder.status}`,
-          });
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user]);
+  // Realtime removed — product_orders not in realtime whitelist
 
   const fetchOrders = async () => {
     if (!user) return;

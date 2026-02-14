@@ -88,26 +88,7 @@ export function PendingDepositsSection() {
 
   useEffect(() => {
     fetchDeposits();
-
-    // Set up realtime subscription
-    const channel = supabase
-      .channel('deposit-requests-changes')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deposit_requests',
-        },
-        () => {
-          fetchDeposits();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — deposit_requests not in realtime whitelist
   }, [user]);
 
   const handleApprove = async (deposit: DepositRequest) => {

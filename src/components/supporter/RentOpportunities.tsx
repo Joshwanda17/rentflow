@@ -259,55 +259,7 @@ export function RentOpportunities({ onFund, isLocked, onLockedClick, onRefreshRe
     fetchOpportunities();
     fetchWatchedOpportunities();
     fetchAllTenantsAndLandlords();
-    
-    // Set up realtime subscription for new rent requests
-    const channel = supabase
-      .channel('rent-opportunities-realtime')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'rent_requests',
-        },
-        (payload) => {
-          console.log('[RentOpportunities] New rent request received:', payload.new.id);
-          fetchSingleOpportunity(payload.new.id, true); // isNew = true for INSERT
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'rent_requests',
-        },
-        (payload) => {
-          console.log('[RentOpportunities] Rent request updated:', payload.new.id, payload.new.status);
-          // For updates, always refresh the specific opportunity to get full data
-          // We now show all statuses including rejected
-          fetchSingleOpportunity(payload.new.id, false); // isNew = false for UPDATE
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'rent_requests',
-        },
-        (payload) => {
-          console.log('[RentOpportunities] Rent request deleted:', payload.old.id);
-          setOpportunities(prev => prev.filter(opp => opp.id !== payload.old.id));
-        }
-      )
-      .subscribe((status) => {
-        console.log('[RentOpportunities] Realtime subscription status:', status);
-      });
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — rent_requests not in realtime whitelist. Pull-to-refresh updates data.
   }, []);
 
   const fetchWatchedOpportunities = async () => {

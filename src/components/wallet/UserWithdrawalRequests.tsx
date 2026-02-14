@@ -68,72 +68,7 @@ export function UserWithdrawalRequests() {
 
   useEffect(() => {
     fetchRequests();
-
-    // Subscribe to real-time updates for this user
-    if (user) {
-      const channel = supabase
-        .channel(`user_withdrawals_realtime_${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'withdrawal_requests',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            const updated = payload.new as WithdrawalRequest;
-            const old = payload.old as WithdrawalRequest;
-            
-            // Update local state
-            setRequests((prev) =>
-              prev.map((req) =>
-                req.id === updated.id ? updated : req
-              )
-            );
-
-            // Show toast notification for status changes
-            if (old.status === 'pending' && updated.status === 'approved') {
-              hapticSuccess();
-              toast.success(
-                `Withdrawal of ${formatCurrency(updated.amount)} approved! 🎉`,
-                { 
-                  description: updated.mobile_money_number 
-                    ? `Funds sent to ${updated.mobile_money_provider?.toUpperCase() || 'MoMo'} ${updated.mobile_money_number}`
-                    : 'Funds sent to your mobile money',
-                  duration: 6000
-                }
-              );
-            } else if (old.status === 'pending' && updated.status === 'rejected') {
-              toast.error(
-                'Withdrawal request rejected',
-                { 
-                  description: updated.rejection_reason || 'Contact support for details',
-                  duration: 6000
-                }
-              );
-            }
-          }
-        )
-        .on(
-          'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'withdrawal_requests',
-            filter: `user_id=eq.${user.id}`
-          },
-          (payload) => {
-            const newRequest = payload.new as WithdrawalRequest;
-            setRequests((prev) => [newRequest, ...prev]);
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
+    // Realtime removed — withdrawal_requests not in realtime whitelist
   }, [user, fetchRequests]);
 
   const getStatusConfig = (status: string) => {

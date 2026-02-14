@@ -99,35 +99,7 @@ export default function InvestmentPortfolio() {
   useEffect(() => {
     if (user) {
       fetchPortfolioData();
-
-      // Real-time subscription for investment account balance changes
-      const channel = supabase
-        .channel(`portfolio-investment-${user.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: 'UPDATE',
-            schema: 'public',
-            table: 'investment_accounts',
-            filter: `user_id=eq.${user.id}`,
-          },
-          (payload) => {
-            console.log('[InvestmentPortfolio] Account updated:', payload);
-            if (payload.new) {
-              const updatedAccount = payload.new as any;
-              setAccounts(prev => prev.map(acc => 
-                acc.id === updatedAccount.id 
-                  ? { ...acc, balance: Number(updatedAccount.balance), status: updatedAccount.status }
-                  : acc
-              ));
-            }
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
+      // Realtime removed — investment_accounts not in realtime whitelist (table removed)
     }
   }, [user]);
 

@@ -76,52 +76,7 @@ export function AgentInvitesList() {
     fetchInvites();
   }, [user]);
 
-  // Real-time subscription for activation events
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel('agent-invite-activations')
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'supporter_invites',
-          filter: `created_by=eq.${user.id}`,
-        },
-        (payload) => {
-          const updated = payload.new as UserInvite;
-          
-          // Check if this is a new activation (wasn't activated before)
-          if (updated.status === 'activated' && !activatedIdsRef.current.has(updated.id)) {
-            // Mark as seen so we don't trigger again
-            activatedIdsRef.current.add(updated.id);
-            
-            // Play celebration sound and haptic
-            playSuccessSound();
-            hapticSuccess();
-            
-            // Show toast notification
-            const config = roleConfig[updated.role] || roleConfig.tenant;
-            toast({
-              title: `🎉 ${updated.full_name} activated!`,
-              description: `Your ${config.label.toLowerCase()} just joined Welile!`,
-            });
-            
-            // Update local state
-            setInvites(prev => 
-              prev.map(inv => inv.id === updated.id ? updated : inv)
-            );
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, [user, toast]);
+  // Realtime removed — supporter_invites not in realtime whitelist. Refresh on revisit.
 
   const getShareLink = (token: string) => {
     return `${window.location.origin}/join?t=${token}`;

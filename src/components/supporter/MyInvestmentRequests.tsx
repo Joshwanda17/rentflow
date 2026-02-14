@@ -53,25 +53,7 @@ export function MyInvestmentRequests() {
 
   useEffect(() => {
     fetchRequests();
-
-    // Subscribe to realtime updates
-    const channel = supabase
-      .channel('my-investment-requests')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'manager_investment_requests',
-          filter: `supporter_id=eq.${user?.id}`,
-        },
-        () => fetchRequests()
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — manager_investment_requests not in realtime whitelist
   }, [user]);
 
   const handleRefresh = () => {

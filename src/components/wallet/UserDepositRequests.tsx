@@ -72,25 +72,7 @@ export function UserDepositRequests() {
 
   useEffect(() => {
     fetchRequests();
-
-    const channel = supabase
-      .channel('user-deposit-requests')
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'deposit_requests',
-        },
-        () => {
-          fetchRequests();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Realtime removed — deposit_requests not in realtime whitelist
   }, [user]);
 
   const getStatusIcon = (status: string) => {
