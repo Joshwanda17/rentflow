@@ -212,13 +212,27 @@ export function isValidUgandanPhoneNumber(phone: string): {
     return { valid: false, reason: 'Phone number must have at least 9 digits' };
   }
 
-  // Extract the local 9 digits (last 9 if country code present)
-  const local9 = cleaned.length >= 10 ? cleaned.slice(-9) : cleaned.slice(-9).padStart(9, '0');
+  // Normalize to local 10-digit format (0XXXXXXXXX) for validation
+  let local10: string;
+  if (cleaned.startsWith('256') && cleaned.length >= 12) {
+    // Has country code: 256XXXXXXXXX -> 0XXXXXXXXX
+    local10 = '0' + cleaned.slice(3);
+  } else if (cleaned.startsWith('0') && cleaned.length >= 10) {
+    // Already local format
+    local10 = cleaned;
+  } else if (cleaned.length === 9 && !cleaned.startsWith('0')) {
+    // Bare 9 digits (e.g. 759423982) -> 0759423982
+    local10 = '0' + cleaned;
+  } else {
+    local10 = cleaned;
+  }
 
   // Valid Uganda prefixes: 07x, 03x (MTN, Airtel, etc.)
-  if (!local9.match(/^(07|03)/)) {
+  if (!local10.match(/^(07|03)/)) {
     return { valid: false, reason: 'Phone number must start with 07 or 03 (Uganda format)' };
   }
+
+  const local9 = local10.slice(-9);
 
   // Reject sequential digits (0777777777, 0700123456 where all chars follow a pattern)
   if (/^(\d)\1{7,}$/.test(local9)) {
