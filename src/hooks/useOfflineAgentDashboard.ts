@@ -84,26 +84,27 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
     fetchInProgress.current = true;
 
     try {
-      // Only fetch wallet + rent requests (core). Referrals/subagents/earnings stubbed.
-      const [requestsRes, walletRes] = 
-        await Promise.all([
-          supabase
-            .from('rent_requests')
-            .select('id', { count: 'exact', head: true })
-            .eq('agent_id', user.id),
-          supabase
-            .from('wallets')
-            .select('balance')
-            .eq('user_id', user.id)
-            .maybeSingle(),
-        ]);
+      // Only fetch rent request count (core). Wallet balance comes from useWallet to avoid duplicate DB calls.
+      const requestsRes = await supabase
+        .from('rent_requests')
+        .select('id', { count: 'exact', head: true })
+        .eq('agent_id', user.id);
+
+      // Wallet balance is read from cache or useWallet — no duplicate query
+      const cachedWalletBalance = await (async () => {
+        try {
+          const { getCachedWallet } = await import('@/lib/offlineDataStorage');
+          const cached = await getCachedWallet(user.id);
+          return cached?.balance || 0;
+        } catch { return 0; }
+      })();
 
       const newStats: AgentDashboardStats = {
         tenantsCount: requestsRes.count || 0,
         referralCount: 0, // Stubbed
         subAgentCount: 0, // Stubbed
         subAgentEarnings: 0, // Stubbed
-        walletBalance: walletRes.data?.balance || 0,
+        walletBalance: cachedWalletBalance,
         totalEarnings: 0, // Stubbed
       };
 
