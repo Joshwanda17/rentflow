@@ -78,36 +78,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [payoutProperty, setPayoutProperty] = useState<any>(null);
 
-  // Real-time subscription for referrals
-  useEffect(() => {
-    let debounceTimer: NodeJS.Timeout;
-    
-    const channel = supabase
-      .channel(`agent-referrals-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'referrals',
-          filter: `referrer_id=eq.${user.id}`,
-        },
-        () => {
-          clearTimeout(debounceTimer);
-          debounceTimer = setTimeout(() => {
-            refreshOfflineData();
-            refreshEarnings();
-            refreshWallet();
-          }, 500);
-        }
-      )
-      .subscribe();
-
-    return () => {
-      clearTimeout(debounceTimer);
-      supabase.removeChannel(channel);
-    };
-  }, [user.id, refreshEarnings, refreshWallet, refreshOfflineData]);
+  // Realtime referrals channel REMOVED — 'referrals' table is not in the
+  // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
 
   if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;

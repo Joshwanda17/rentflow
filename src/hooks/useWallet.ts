@@ -189,7 +189,8 @@ export function useWallet() {
   useEffect(() => {
     if (user) {
       setLoading(true);
-      Promise.all([fetchWallet(), fetchTransactions()]).finally(() => setLoading(false));
+      // Only fetch wallet balance on mount — transactions load lazily when wallet sheet opens
+      fetchWallet().finally(() => setLoading(false));
 
       // SINGLE realtime channel for wallet balance only (reduced from 4 channels to 1)
       const walletChannel = supabase

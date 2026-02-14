@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from './useAuth';
+import { getCachedDashboardData, cacheDashboardData } from '@/lib/offlineDataStorage';
 
 interface Earning {
   id: string;
@@ -11,6 +12,8 @@ interface Earning {
   source_user_id: string | null;
 }
 
+const EARNINGS_CACHE_KEY = 'agent_earnings';
+
 export function useAgentEarnings() {
   const { user } = useAuth();
   const [earnings, setEarnings] = useState<Earning[]>([]);
@@ -19,8 +22,26 @@ export function useAgentEarnings() {
   const [commissionTotal, setCommissionTotal] = useState(0);
   const [bonusTotal, setBonusTotal] = useState(0);
 
+  const computeTotals = (data: Earning[]) => {
+    setTotalEarnings(data.reduce((sum, e) => sum + Number(e.amount), 0));
+    setCommissionTotal(data.filter(e => e.earning_type === 'commission').reduce((sum, e) => sum + Number(e.amount), 0));
+    setBonusTotal(data.filter(e => e.earning_type === 'approval_bonus').reduce((sum, e) => sum + Number(e.amount), 0));
+  };
+
   const fetchEarnings = useCallback(async () => {
     if (!user) return;
+
+    // Try cache first
+    if (!navigator.onLine) {
+      try {
+        const cached = await getCachedDashboardData(user.id, EARNINGS_CACHE_KEY);
+        if (cached) {
+          setEarnings(cached as Earning[]);
+          computeTotals(cached as Earning[]);
+        }
+      } catch {}
+      return;
+    }
 
     const { data, error } = await supabase
       .from('agent_earnings')
@@ -33,17 +54,12 @@ export function useAgentEarnings() {
       return;
     }
 
-    setEarnings(data || []);
-    
-    const total = (data || []).reduce((sum, e) => sum + Number(e.amount), 0);
-    const commissions = (data || []).filter(e => e.earning_type === 'commission')
-      .reduce((sum, e) => sum + Number(e.amount), 0);
-    const bonuses = (data || []).filter(e => e.earning_type === 'approval_bonus')
-      .reduce((sum, e) => sum + Number(e.amount), 0);
+    const result = data || [];
+    setEarnings(result);
+    computeTotals(result);
 
-    setTotalEarnings(total);
-    setCommissionTotal(commissions);
-    setBonusTotal(bonuses);
+    // Cache for offline
+    try { await cacheDashboardData(user.id, EARNINGS_CACHE_KEY, result); } catch {}
   }, [user]);
 
   useEffect(() => {
@@ -53,69 +69,8 @@ export function useAgentEarnings() {
     }
   }, [user, fetchEarnings]);
 
-  // Subscribe to real-time earnings updates
-  useEffect(() => {
-    if (!user) return;
-
-    const channel = supabase
-      .channel(`agent-earnings-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Listen to all events (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'agent_earnings',
-          filter: `agent_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('[useAgentEarnings] Earnings changed:', payload);
-          fetchEarnings();
-        }
-      )
-      .subscribe();
-
-    // Also subscribe to wallet balance changes for agents (for withdrawal updates)
-    const walletChannel = supabase
-      .channel(`agent-wallet-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'wallets',
-          filter: `user_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('[useAgentEarnings] Wallet balance updated:', payload);
-          // Trigger re-render by refetching earnings (which updates related displays)
-        }
-      )
-      .subscribe();
-
-    // Subscribe to commission payouts for status updates
-    const payoutChannel = supabase
-      .channel(`agent-payouts-${user.id}`)
-      .on(
-        'postgres_changes',
-        {
-          event: '*',
-          schema: 'public',
-          table: 'agent_commission_payouts',
-          filter: `agent_id=eq.${user.id}`,
-        },
-        (payload) => {
-          console.log('[useAgentEarnings] Commission payout status changed:', payload);
-          fetchEarnings();
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-      supabase.removeChannel(walletChannel);
-      supabase.removeChannel(payoutChannel);
-    };
-  }, [user, fetchEarnings]);
+  // NO realtime channels — earnings are not in the realtime whitelist.
+  // Users see updated earnings on pull-to-refresh or next dashboard visit.
 
   return {
     earnings,
