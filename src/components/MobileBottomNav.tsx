@@ -1,12 +1,8 @@
 import { Link, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
-import { Home, MessageCircle, Settings, Store, Users, FileText, TrendingUp } from 'lucide-react';
+import { Home, MessageCircle, Settings, Store, Users, FileText } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
-import { useEffect, useState, useCallback } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { getLastSeenAt } from '@/lib/opportunitySeenStorage';
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
@@ -15,65 +11,6 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottomNavProps) {
   const location = useLocation();
-  const [pendingOpportunities, setPendingOpportunities] = useState(0);
-  const [prevCount, setPrevCount] = useState(0);
-  const [isPulsing, setIsPulsing] = useState(false);
-  
-  // Fetch unseen opportunities count for supporters
-  const fetchUnseenCount = useCallback(async () => {
-    const lastSeenAt = getLastSeenAt();
-    
-    let query = supabase
-      .from('rent_requests')
-      .select('*', { count: 'exact', head: true })
-      .in('status', ['pending', 'approved']);
-    
-    // Only count opportunities created after last seen timestamp
-    if (lastSeenAt) {
-      query = query.gt('created_at', lastSeenAt.toISOString());
-    }
-    
-    const { count, error } = await query;
-    
-    if (!error && count !== null) {
-      setPendingOpportunities(count);
-    }
-  }, []);
-
-  // Trigger pulse animation when count increases
-  useEffect(() => {
-    if (pendingOpportunities > prevCount && prevCount >= 0) {
-      setIsPulsing(true);
-      // Stop pulsing after 3 seconds
-      const timeout = setTimeout(() => setIsPulsing(false), 3000);
-      return () => clearTimeout(timeout);
-    }
-    setPrevCount(pendingOpportunities);
-  }, [pendingOpportunities, prevCount]);
-
-  useEffect(() => {
-    if (currentRole !== 'supporter') return;
-    
-    fetchUnseenCount();
-    // Realtime removed — rent_requests not in realtime whitelist
-    
-    // Listen for storage changes (when user marks all as seen)
-    const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === 'opportunities_last_seen_at') {
-        fetchUnseenCount();
-      }
-    };
-    window.addEventListener('storage', handleStorageChange);
-    
-    // Custom event for same-tab updates
-    const handleCustomEvent = () => fetchUnseenCount();
-    window.addEventListener('opportunities-marked-seen', handleCustomEvent);
-
-    return () => {
-      window.removeEventListener('storage', handleStorageChange);
-      window.removeEventListener('opportunities-marked-seen', handleCustomEvent);
-    };
-  }, [currentRole, fetchUnseenCount]);
   
   // Role-specific navigation items with large, clear icons
   const getNavItems = () => {
@@ -148,18 +85,10 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       ];
     }
 
-    // Supporter-specific navigation with opportunities badge
+    // Supporter-specific navigation
     if (currentRole === 'supporter') {
       return [
         ...baseItems,
-        { 
-          href: '/opportunities', 
-          icon: TrendingUp, 
-          label: 'Invest',
-          active: location.pathname === '/opportunities',
-          badge: pendingOpportunities > 0 ? pendingOpportunities : undefined,
-          pulse: isPulsing && pendingOpportunities > 0
-        },
         { 
           href: '/marketplace', 
           icon: Store, 
@@ -227,8 +156,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
       <div className="flex items-center justify-around py-2 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
-          const badge = 'badge' in item ? item.badge : undefined;
-          const shouldPulse = 'pulse' in item ? item.pulse : false;
           return (
             <Link
               key={item.label + item.href}
@@ -250,27 +177,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
                   "h-6 w-6 transition-transform",
                   item.active && "scale-110"
                 )} strokeWidth={item.active ? 2.5 : 2} />
-                
-                {/* Badge for pending opportunities with pulse animation */}
-                {badge !== undefined && badge > 0 && (
-                  <motion.span
-                    initial={{ scale: 0 }}
-                    animate={{ 
-                      scale: shouldPulse ? [1, 1.3, 1] : 1,
-                    }}
-                    transition={shouldPulse ? {
-                      duration: 0.6,
-                      repeat: Infinity,
-                      ease: "easeInOut"
-                    } : undefined}
-                    className={cn(
-                      "absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] px-1 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold shadow-sm",
-                      shouldPulse && "ring-2 ring-destructive/50 ring-offset-1 ring-offset-background"
-                    )}
-                  >
-                    {badge > 99 ? '99+' : badge}
-                  </motion.span>
-                )}
               </div>
               
               {/* Clear label */}
