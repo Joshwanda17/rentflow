@@ -74,6 +74,13 @@ const menuItems = [
     description: 'Financial overview'
   },
   { 
+    icon: Wallet, 
+    label: 'Ledger', 
+    path: '/manager-access?tab=ledger',
+    color: 'bg-indigo-500',
+    description: 'General ledger'
+  },
+  { 
     icon: ClipboardList, 
     label: 'Audit', 
     path: '/audit-log',
