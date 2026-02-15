@@ -17,7 +17,7 @@ export interface RentCategory {
 }
 
 interface RentCategoryFeedProps {
-  onFundCategory: (category: string) => void;
+  onFundCategory: (category: RentCategory) => void;
   isLocked?: boolean;
   onLockedClick?: () => void;
   onRefreshRef?: React.MutableRefObject<(() => Promise<void>) | null>;
@@ -156,7 +156,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                 hapticTap();
                 if (isEmpty) return;
                 if (isLocked) { onLockedClick?.(); return; }
-                onFundCategory(cat.category);
+                onFundCategory(cat);
               }}
               disabled={isEmpty && !isLocked}
               className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all text-left touch-manipulation active:scale-[0.98] ${
