@@ -83,7 +83,25 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
     onOpenChange(val);
   };
 
-  const buildPDF = () => {
+  const loadLogoAsBase64 = (): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = 'anonymous';
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        canvas.width = img.naturalWidth;
+        canvas.height = img.naturalHeight;
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return reject('No canvas context');
+        ctx.drawImage(img, 0, 0);
+        resolve(canvas.toDataURL('image/png'));
+      };
+      img.onerror = reject;
+      img.src = welileLogo;
+    });
+  };
+
+  const buildPDF = async () => {
     const doc = new jsPDF();
     const pw = doc.internal.pageSize.getWidth();
     const ph = doc.internal.pageSize.getHeight();
@@ -102,15 +120,25 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
     // ── HEADER BAR ──
     doc.setFillColor(purple.r, purple.g, purple.b);
     doc.rect(0, 0, pw, 50, 'F');
+
+    // Add actual logo image
+    try {
+      const logoBase64 = await loadLogoAsBase64();
+      doc.addImage(logoBase64, 'PNG', m, 8, 14, 14);
+    } catch (e) {
+      console.warn('Could not load logo for PDF', e);
+    }
+
+    const logoTextX = m + 18;
     doc.setTextColor(white.r, white.g, white.b);
-    doc.setFontSize(26);
+    doc.setFontSize(22);
     doc.setFont('helvetica', 'bold');
-    doc.text('WELILE', m, 22);
+    doc.text('Welile.com', logoTextX, 19);
     doc.setFontSize(13);
     doc.setFont('helvetica', 'normal');
-    doc.text('SUPPORTER PACKAGE', m, 32);
+    doc.text('SUPPORTER PACKAGE', logoTextX, 32);
     doc.setFontSize(11);
-    doc.text(category.category, m, 43);
+    doc.text(category.category, logoTextX, 43);
     doc.setFontSize(9);
     doc.text(format(new Date(), 'MMMM d, yyyy'), pw - m - 40, 43);
 
@@ -244,7 +272,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   const generatePDF = async () => {
     setGenerating(true);
     try {
-      const doc = buildPDF();
+      const doc = await buildPDF();
       doc.save(`welile-package-${category.category.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       toast.success('Package PDF downloaded!');
     } catch (err) {
@@ -258,7 +286,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   const handleShareWhatsApp = async () => {
     setGenerating(true);
     try {
-      const doc = buildPDF();
+      const doc = await buildPDF();
       const pdfBlob = doc.output('blob');
       const fileName = `welile-package-${category.category.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
       const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
