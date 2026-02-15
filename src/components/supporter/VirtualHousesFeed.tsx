@@ -22,9 +22,9 @@ export function VirtualHousesFeed({ houses, loading, onHouseTap }: VirtualHouses
 
   const filters: { value: HealthFilter; label: string }[] = [
     { value: 'all', label: 'All' },
-    { value: 'green', label: '🟢 Good' },
-    { value: 'amber', label: '🟡 Pending' },
-    { value: 'red', label: '🔴 Risk' },
+    { value: 'green', label: '🟢 Assured' },
+    { value: 'amber', label: '🟡 Processing' },
+    { value: 'red', label: '🔵 Managed' },
   ];
 
   if (loading) {

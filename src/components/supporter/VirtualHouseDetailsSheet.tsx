@@ -12,9 +12,9 @@ interface VirtualHouseDetailsSheetProps {
 }
 
 const healthConfig = {
-  green: { label: 'Good', color: 'text-success', bg: 'bg-success/10' },
-  amber: { label: 'Pending', color: 'text-amber-600', bg: 'bg-amber-500/10' },
-  red: { label: 'At Risk', color: 'text-destructive', bg: 'bg-destructive/10' },
+  green: { label: 'Assured', color: 'text-success', bg: 'bg-success/10' },
+  amber: { label: 'Processing', color: 'text-amber-600', bg: 'bg-amber-500/10' },
+  red: { label: 'Under Management', color: 'text-primary', bg: 'bg-primary/10' },
 };
 
 export function VirtualHouseDetailsSheet({ house, open, onOpenChange }: VirtualHouseDetailsSheetProps) {
@@ -23,7 +23,7 @@ export function VirtualHouseDetailsSheet({ house, open, onOpenChange }: VirtualH
   if (!house) return null;
 
   const health = healthConfig[house.paymentHealth];
-  const confidenceScore = house.paymentHealth === 'green' ? 95 : house.paymentHealth === 'amber' ? 65 : 30;
+  const confidenceScore = house.paymentHealth === 'green' ? 95 : house.paymentHealth === 'amber' ? 75 : 60;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -57,7 +57,7 @@ export function VirtualHouseDetailsSheet({ house, open, onOpenChange }: VirtualH
               <p className="text-sm font-semibold">{format(new Date(house.updatedAt), 'dd MMM yyyy')}</p>
             </div>
             <div className={`rounded-xl p-3 ${health.bg}`}>
-              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Confidence</p>
+              <p className="text-[10px] text-muted-foreground uppercase tracking-wide mb-1">Assurance</p>
               <p className={`text-lg font-bold ${health.color}`}>{confidenceScore}%</p>
             </div>
           </div>
@@ -77,10 +77,10 @@ export function VirtualHouseDetailsSheet({ house, open, onOpenChange }: VirtualH
             </div>
           </div>
 
-          {/* Payment health badge */}
+          {/* Status badge */}
           <div className="flex items-center gap-2">
             <TrendingUp className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm text-muted-foreground">Payment Health:</span>
+            <span className="text-sm text-muted-foreground">Status:</span>
             <Badge variant="outline" className={`${health.bg} ${health.color}`}>
               {health.label}
             </Badge>

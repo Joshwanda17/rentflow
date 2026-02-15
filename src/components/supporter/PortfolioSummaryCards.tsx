@@ -11,9 +11,9 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
   const { formatAmount } = useCurrency();
 
   const healthConfig = {
-    stable: { label: 'Stable', color: 'text-success', dot: 'bg-success', bg: 'bg-success/10' },
+    stable: { label: 'Protected', color: 'text-success', dot: 'bg-success', bg: 'bg-success/10' },
     growing: { label: 'Growing', color: 'text-primary', dot: 'bg-primary', bg: 'bg-primary/10' },
-    at_risk: { label: 'At Risk', color: 'text-destructive', dot: 'bg-destructive', bg: 'bg-destructive/10' },
+    at_risk: { label: 'Under Management', color: 'text-amber-600', dot: 'bg-amber-500', bg: 'bg-amber-500/10' },
   };
 
   const health = healthConfig[portfolioHealth];
