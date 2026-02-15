@@ -145,43 +145,46 @@ export default function SupporterDashboard({
     }
   }, [location.hash]);
 
-  // Fetch funded houses (virtual houses)
+  const HOUSES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
+  // Fetch funded houses — cache-first, lazy secondary data
   useEffect(() => {
     fetchMyHouses();
   }, [user.id]);
 
   const fetchMyHouses = async () => {
-    if (!navigator.onLine && hasCachedData) {
+    // Always serve cache first
+    if (hasCachedData) {
+      setLoading(false);
+      // Check TTL — skip network if fresh
+      try {
+        const cached = localStorage.getItem(`supporter_houses_${user.id}`);
+        if (cached) {
+          const { timestamp } = JSON.parse(cached);
+          if (Date.now() - timestamp < HOUSES_CACHE_TTL) return;
+        }
+      } catch {}
+    }
+
+    if (!navigator.onLine) {
       setLoading(false);
       return;
     }
-    setLoading(true);
+
+    if (!hasCachedData) setLoading(true);
 
     try {
       const { data, error } = await supabase
         .from('rent_requests')
-        .select(`
-          id,
-          rent_amount,
-          duration_days,
-          status,
-          funded_at,
-          updated_at,
-          agent_id,
-          agent_verified,
-          landlord:landlords!rent_requests_landlord_id_fkey(property_address)
-        `)
+        .select('id, rent_amount, duration_days, status, funded_at, updated_at, agent_id, request_city')
         .eq('supporter_id', user.id)
-        .order('funded_at', { ascending: false });
+        .order('funded_at', { ascending: false })
+        .limit(100);
 
       if (!error && data) {
         const houses: VirtualHouse[] = data.map(r => {
-          const address = (r.landlord as any)?.property_address || '';
-          const parts = address.split(',').map((s: string) => s.trim());
-          const area = parts[0] || 'Unknown Area';
-          const city = parts[1] || parts[0] || 'Uganda';
+          const city = r.request_city || 'Uganda';
 
-          // Derive payment health from status
           let paymentHealth: 'green' | 'amber' | 'red' = 'green';
           if (r.status === 'funded' || r.status === 'disbursed') paymentHealth = 'amber';
           if (r.status === 'completed' || r.status === 'repaid') paymentHealth = 'green';
@@ -190,7 +193,7 @@ export default function SupporterDashboard({
           return {
             id: r.id,
             shortId: r.id.slice(0, 6).toUpperCase(),
-            area,
+            area: city,
             city,
             rentAmount: Number(r.rent_amount),
             paymentHealth,
@@ -206,11 +209,8 @@ export default function SupporterDashboard({
         setTotalRentSecured(totalRent);
         setHasEverFunded(houses.length > 0);
 
-        // Cache
         localStorage.setItem(`supporter_houses_${user.id}`, JSON.stringify({
-          houses,
-          totalRent,
-          timestamp: Date.now(),
+          houses, totalRent, timestamp: Date.now(),
         }));
         setHasCachedData(true);
       }
@@ -338,14 +338,7 @@ export default function SupporterDashboard({
             portfolioHealth={portfolioHealth}
           />
 
-          {/* ═══ MY HOUSES FEED ═══ */}
-          <VirtualHousesFeed
-            houses={virtualHouses}
-            loading={loading}
-            onHouseTap={handleHouseTap}
-          />
-
-          {/* ═══ RENT CATEGORIES (CATEGORY-FIRST) ═══ */}
+          {/* ═══ PRIMARY: RENT CATEGORIES (CATEGORY-FIRST) ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
@@ -362,6 +355,15 @@ export default function SupporterDashboard({
               onRefreshRef={opportunitiesRefreshRef}
             />
           </div>
+
+          {/* ═══ SECONDARY: MY FUNDED HOUSES (collapsed by default) ═══ */}
+          {virtualHouses.length > 0 && (
+            <VirtualHousesFeed
+              houses={virtualHouses}
+              loading={loading}
+              onHouseTap={handleHouseTap}
+            />
+          )}
 
           {/* ADD ROLE */}
           <div className="flex justify-center">
