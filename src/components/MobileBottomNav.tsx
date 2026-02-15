@@ -1,8 +1,10 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, Settings, Store, Users, FileText } from 'lucide-react';
+import { Home, MessageCircle, Settings, Store, Users, FileText, DollarSign } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
+import { useCurrency } from '@/hooks/useCurrency';
+import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
@@ -11,6 +13,7 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottomNavProps) {
   const location = useLocation();
+  const { currency } = useCurrency();
   
   // Role-specific navigation items with large, clear icons
   const getNavItems = () => {
@@ -45,12 +48,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
           label: 'Shop',
           active: location.pathname === '/marketplace'
         },
-        { 
-          href: '/settings', 
-          icon: Settings, 
-          label: 'More',
-          active: location.pathname === '/settings'
-        },
       ];
     }
 
@@ -76,12 +73,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
           label: 'Invite',
           active: location.pathname === '/referrals'
         },
-        { 
-          href: '/settings', 
-          icon: Settings, 
-          label: 'More',
-          active: location.pathname === '/settings'
-        },
       ];
     }
 
@@ -100,12 +91,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
           icon: MessageCircle, 
           label: 'Chat',
           active: location.pathname === '/chat'
-        },
-        { 
-          href: '/settings', 
-          icon: Settings, 
-          label: 'More',
-          active: location.pathname === '/settings'
         },
       ];
     }
@@ -131,12 +116,6 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
         label: 'Invite',
         active: location.pathname === '/referrals'
       },
-      { 
-        href: '/settings', 
-        icon: Settings, 
-        label: 'More',
-        active: location.pathname === '/settings'
-      },
     ];
   };
 
@@ -153,7 +132,7 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
         paddingBottom: 'env(safe-area-inset-bottom, 0px)',
       }}
     >
-      <div className="flex items-center justify-around py-2 px-1">
+      <div className="flex items-center justify-around py-1.5 px-1">
         {navItems.map((item) => {
           const Icon = item.icon;
           return (
@@ -162,38 +141,66 @@ export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottom
               to={item.href}
               onClick={handleTap}
               className={cn(
-                "flex flex-col items-center justify-center gap-1 py-2.5 px-3 rounded-2xl transition-all min-w-[60px] relative touch-manipulation",
+                "flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-2xl transition-all min-w-[52px] relative touch-manipulation",
                 item.active 
                   ? "text-primary bg-primary/12 scale-105" 
                   : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
               )}
             >
-              {/* Large icon for easy tapping */}
               <div className={cn(
                 "relative p-1 rounded-xl transition-all",
                 item.active && "bg-primary/15"
               )}>
                 <Icon className={cn(
-                  "h-6 w-6 transition-transform",
+                  "h-5 w-5 transition-transform",
                   item.active && "scale-110"
                 )} strokeWidth={item.active ? 2.5 : 2} />
               </div>
-              
-              {/* Clear label */}
               <span className={cn(
-                "text-[10px] font-bold tracking-wide leading-tight",
+                "text-[9px] font-bold tracking-wide leading-tight",
                 item.active ? "text-primary" : "text-muted-foreground"
               )}>{item.label}</span>
-              
-              {/* Active indicator dot — no layoutId to prevent layout thrashing */}
               {item.active && (
-                <div
-                  className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-6 h-1 rounded-full bg-primary"
-                />
+                <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
               )}
             </Link>
           );
         })}
+
+        {/* Currency quick-switch button */}
+        <CurrencySwitcher 
+          variant="compact" 
+          className="flex flex-col items-center justify-center gap-0.5 py-2 px-2 rounded-2xl min-w-[52px] min-h-[48px] text-muted-foreground hover:text-foreground active:scale-95 touch-manipulation !h-auto !w-auto"
+        />
+
+        {/* Big Menu button */}
+        <Link
+          to="/settings"
+          onClick={handleTap}
+          className={cn(
+            "flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] relative touch-manipulation",
+            location.pathname === '/settings'
+              ? "text-primary bg-primary/12 scale-105" 
+              : "text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95"
+          )}
+        >
+          <div className={cn(
+            "relative p-1.5 rounded-xl transition-all",
+            location.pathname === '/settings' && "bg-primary/15"
+          )}>
+            <Settings className={cn(
+              "h-6 w-6 transition-transform",
+              location.pathname === '/settings' && "scale-110"
+            )} strokeWidth={location.pathname === '/settings' ? 2.5 : 2} />
+          </div>
+          <span className={cn(
+            "text-[9px] font-bold tracking-wide leading-tight",
+            location.pathname === '/settings' ? "text-primary" : "text-muted-foreground"
+          )}>Menu</span>
+          {location.pathname === '/settings' && (
+            <div className="absolute -top-0.5 left-1/2 -translate-x-1/2 w-5 h-0.5 rounded-full bg-primary" />
+          )}
+        </Link>
       </div>
     </nav>
   );
