@@ -7,22 +7,23 @@ import { CurrencyConverter } from '@/components/CurrencyConverter';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useLanguage } from '@/hooks/useLanguage';
 import { useCurrency } from '@/hooks/useCurrency';
-import { languageFlags, Language } from '@/i18n/translations';
+import { languageFlags } from '@/i18n/translations';
 import { useHighContrast } from '@/hooks/useHighContrast';
 import { HighContrastToggle } from '@/components/HighContrastToggle';
 
 export const GlobalSettingsToolbar = () => {
   const [isOpen, setIsOpen] = useState(false);
-  const [isMinimized, setIsMinimized] = useState(false);
+  const [converterOpen, setConverterOpen] = useState(false);
+  
   const { language } = useLanguage();
   const { currency } = useCurrency();
   const { highContrast } = useHighContrast();
 
   return (
     <>
-      {/* Floating Trigger Button */}
+      {/* Floating buttons — always visible */}
       <AnimatePresence>
-        {!isOpen && (
+        {!isOpen && !converterOpen && (
           <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
@@ -32,53 +33,72 @@ export const GlobalSettingsToolbar = () => {
             {/* High Contrast Quick Toggle */}
             <HighContrastToggle 
               variant="default" 
-              className={`rounded-full h-12 w-12 shadow-lg ${
+              className={`rounded-full h-10 w-10 shadow-lg ${
                 highContrast 
                   ? 'bg-foreground text-background ring-2 ring-primary' 
                   : 'bg-muted text-foreground hover:bg-muted/80'
               }`}
             />
-            
-            {/* Language/Currency Button */}
-            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+
+            {/* CURRENCY CONVERTER — Big, prominent, easy to find */}
+            <Sheet open={converterOpen} onOpenChange={setConverterOpen}>
               <SheetTrigger asChild>
                 <Button
                   size="lg"
-                  className="rounded-full h-14 w-14 shadow-lg bg-gradient-to-r from-primary to-primary/80 hover:from-primary/90 hover:to-primary/70"
+                  className="rounded-full h-12 px-4 shadow-xl bg-gradient-to-r from-success to-emerald-600 hover:from-success/90 hover:to-emerald-600/90 text-white gap-2 font-bold"
+                >
+                  <ArrowLeftRight className="h-5 w-5" />
+                  <span className="text-sm">Convert</span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="bottom" className="rounded-t-2xl max-h-[85vh]">
+                <SheetHeader className="pb-3">
+                  <SheetTitle className="flex items-center gap-2">
+                    <ArrowLeftRight className="h-5 w-5 text-primary" />
+                    Currency Converter
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="overflow-y-auto max-h-[calc(85vh-80px)] pb-6">
+                  <CurrencyConverter />
+                </div>
+              </SheetContent>
+            </Sheet>
+            
+            {/* Language/Currency Settings — Smaller secondary button */}
+            <Sheet open={isOpen} onOpenChange={setIsOpen}>
+              <SheetTrigger asChild>
+                <Button
+                  size="icon"
+                  variant="secondary"
+                  className="rounded-full h-11 w-11 shadow-lg"
                 >
                   <div className="flex flex-col items-center">
-                    <span className="text-lg">{languageFlags[language]}</span>
-                    <span className="text-[10px] font-bold">{currency.code}</span>
+                    <span className="text-base">{languageFlags[language]}</span>
+                    <span className="text-[8px] font-bold text-muted-foreground">{currency.code}</span>
                   </div>
                 </Button>
               </SheetTrigger>
               <SheetContent side="bottom" className="h-[75vh] rounded-t-2xl">
                 <SheetHeader className="pb-4">
-                  <SheetTitle className="flex items-center justify-between">
-                    <span className="flex items-center gap-2">
-                      <Globe className="h-5 w-5 text-primary" />
-                      Language & Currency
-                    </span>
+                  <SheetTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5 text-primary" />
+                    Language & Currency
                   </SheetTitle>
                 </SheetHeader>
                 
                 <Tabs defaultValue="language" className="h-full">
-                  <TabsList className="w-full grid grid-cols-4">
+                  <TabsList className="w-full grid grid-cols-3">
                     <TabsTrigger value="language" className="gap-1.5">
                       <Globe className="h-4 w-4" />
-                      <span className="hidden sm:inline">Language</span>
+                      <span className="text-xs">Language</span>
                     </TabsTrigger>
                     <TabsTrigger value="currency" className="gap-1.5">
                       <DollarSign className="h-4 w-4" />
-                      <span className="hidden sm:inline">Currency</span>
-                    </TabsTrigger>
-                    <TabsTrigger value="converter" className="gap-1.5">
-                      <ArrowLeftRight className="h-4 w-4" />
-                      <span className="hidden sm:inline">Convert</span>
+                      <span className="text-xs">Currency</span>
                     </TabsTrigger>
                     <TabsTrigger value="accessibility" className="gap-1.5">
                       <Eye className="h-4 w-4" />
-                      <span className="hidden sm:inline">Vision</span>
+                      <span className="text-xs">Vision</span>
                     </TabsTrigger>
                   </TabsList>
                   
@@ -89,10 +109,6 @@ export const GlobalSettingsToolbar = () => {
                     
                     <TabsContent value="currency" className="mt-0">
                       <CurrencySelectorGrid />
-                    </TabsContent>
-                    
-                    <TabsContent value="converter" className="mt-0">
-                      <CurrencyConverter />
                     </TabsContent>
                     
                     <TabsContent value="accessibility" className="mt-0">
@@ -115,7 +131,6 @@ const AccessibilitySettings = () => {
 
   return (
     <div className="space-y-4">
-      {/* High Contrast Mode Card */}
       <motion.button
         onClick={toggleHighContrast}
         className={`w-full flex items-center gap-4 p-4 rounded-xl border-2 transition-all touch-manipulation ${
@@ -143,7 +158,6 @@ const AccessibilitySettings = () => {
         </div>
       </motion.button>
 
-      {/* Info Card */}
       <div className="p-4 rounded-xl bg-muted/50 border border-border">
         <h4 className="font-semibold text-base mb-2">👁️ Vision Accessibility</h4>
         <ul className="space-y-2 text-sm text-muted-foreground">
@@ -166,7 +180,6 @@ const AccessibilitySettings = () => {
         </ul>
       </div>
 
-      {/* Current Status */}
       <div className={`p-4 rounded-xl text-center ${
         highContrast 
           ? 'bg-success/15 border-2 border-success text-success' 
