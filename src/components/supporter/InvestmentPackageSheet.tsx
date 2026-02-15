@@ -11,7 +11,7 @@ import {
   Wallet, BarChart3, Clock, Lock, ArrowRight, Percent
 } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
-
+import welileLogo from '@/assets/welile-logo-small.png';
 import { motion, AnimatePresence } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { format, addMonths } from 'date-fns';
@@ -178,9 +178,9 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.setFontSize(8);
       doc.setFont('helvetica', 'normal');
       doc.setTextColor(146, 64, 14);
-      doc.text('• Capital is locked for 90 days from the date of deposit.', m + 5, y + 6);
-      doc.text('• After 90 days, you may request withdrawal with 7 days processing.', m + 5, y + 12);
-      doc.text('• ROI payouts continue monthly even during the lock-in period.', m + 5, y + 18);
+      doc.text('• Capital is locked for 90 days (rent is paid 90 days upfront for tenants).', m + 5, y + 6);
+      doc.text('• Capital is NOT accessible during the 90-day lock period.', m + 5, y + 12);
+      doc.text('• ROI payouts continue monthly throughout the lock-in period.', m + 5, y + 18);
 
       // Footer
       y = 278;
@@ -290,12 +290,16 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
               {/* Hero Header */}
               <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white p-5 pb-6 rounded-t-lg">
                 <DialogHeader>
+                  <div className="flex items-center justify-between mb-1">
+                    <img src={welileLogo} alt="Welile" className="h-7 w-auto" />
+                    <Badge className="bg-white/10 text-white/80 border-white/20 text-[10px]">Investment Package</Badge>
+                  </div>
                   <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
-                    Investment Package
+                    {category.category}
                   </DialogTitle>
                 </DialogHeader>
-                <p className="text-slate-300 text-sm mt-1">{category.category}</p>
+                <p className="text-slate-400 text-xs mt-0.5">Welile Supporters Program</p>
                 <div className="mt-4 flex items-end justify-between">
                   <div>
                     <p className="text-[10px] text-slate-400 uppercase tracking-wider">Investment Amount</p>
@@ -388,17 +392,30 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                   </div>
                 </div>
 
-                {/* 90-Day Withdrawal Policy */}
+                {/* 90-Day Capital Lock Policy */}
                 <div className="p-3.5 rounded-xl bg-amber-500/5 border border-amber-500/20">
                   <div className="flex items-center gap-2 mb-2">
                     <Lock className="h-4 w-4 text-amber-600" />
-                    <span className="text-xs font-bold text-amber-700">90-Day Capital Withdrawal Policy</span>
+                    <span className="text-xs font-bold text-amber-700">90-Day Capital Lock Policy</span>
                   </div>
-                  <ul className="text-[11px] text-amber-700/80 space-y-1.5 pl-6 list-disc">
-                    <li>Your capital is locked for <strong>90 days</strong> from deposit date</li>
-                    <li>After 90 days, request withdrawal with <strong>7-day processing</strong></li>
-                    <li><strong>ROI payouts continue monthly</strong> even during lock-in</li>
-                    <li>Early withdrawal may forfeit pending ROI</li>
+                  <ul className="text-[11px] text-amber-700/80 space-y-2 pl-6 list-disc">
+                    <li>Your capital is <strong>locked for 90 days</strong> from deposit date — this allows Welile agents to recover funds from tenants (rent is paid 90 days upfront)</li>
+                    <li>During the 90-day lock period, <strong>your capital is not accessible</strong> for withdrawal</li>
+                    <li><strong>ROI payouts continue monthly</strong> throughout the lock-in period</li>
+                    <li>Early withdrawal is <strong>not permitted</strong> during the 90-day period</li>
+                  </ul>
+                </div>
+
+                {/* Supporter Options */}
+                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-2">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">Supporter Options</span>
+                  </div>
+                  <ul className="text-[11px] text-muted-foreground space-y-2 pl-6 list-disc">
+                    <li><strong>Renew Contract</strong> — After 90 days, renew for another cycle to keep earning</li>
+                    <li><strong>Top Up</strong> — Add more funds to an existing package anytime</li>
+                    <li><strong>Multiple Accounts</strong> — Create up to <strong>12 different investment accounts</strong> across categories</li>
                   </ul>
                 </div>
 
