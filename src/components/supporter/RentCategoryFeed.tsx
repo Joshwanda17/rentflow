@@ -37,12 +37,15 @@ interface CategoryTier {
 }
 
 const WELILE_TIERS: CategoryTier[] = [
-  { name: 'single-room', label: 'Welile Single Room', emoji: '🚪', rentRange: [0, 200000] },
-  { name: '1-bed', label: 'Welile 1 Bed House', emoji: '🏠', rentRange: [200001, 500000] },
-  { name: '2-bed', label: 'Welile 2 Bedroom House', emoji: '🏡', rentRange: [500001, 1000000] },
-  { name: '2-bed-full', label: 'Welile 2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️', rentRange: [1000001, 2000000] },
-  { name: '3-bed', label: 'Welile 3 Bedroom Apartment', emoji: '🏢', rentRange: [2000001, 5000000] },
-  { name: 'commercial', label: 'Welile Commercial Property', emoji: '🏪', rentRange: [5000001, Infinity] },
+  { name: 'single-room', label: 'Welile Single Room', emoji: '🚪', rentRange: [0, 150000] },
+  { name: 'double-room', label: 'Welile Double Room', emoji: '🛏️', rentRange: [150001, 250000] },
+  { name: '1-bed', label: 'Welile 1 Bed House', emoji: '🏠', rentRange: [250001, 400000] },
+  { name: '2-bed', label: 'Welile 2 Bedroom House', emoji: '🏡', rentRange: [400001, 700000] },
+  { name: '2-bed-full', label: 'Welile 2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️', rentRange: [700001, 1200000] },
+  { name: '3-bed', label: 'Welile 3 Bedroom Apartment', emoji: '🏢', rentRange: [1200001, 2500000] },
+  { name: '3-bed-luxury', label: 'Welile 3 Bed Luxury + Boys Quarter', emoji: '🏰', rentRange: [2500001, 5000000] },
+  { name: '4-bed', label: 'Welile 4+ Bedroom Villa', emoji: '🏛️', rentRange: [5000001, 10000000] },
+  { name: 'commercial', label: 'Welile Commercial Property', emoji: '🏪', rentRange: [10000001, Infinity] },
 ];
 
 const getTierForRent = (amount: number): CategoryTier => {
@@ -92,15 +95,13 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
       });
 
       const cats: RentCategory[] = Array.from(tierMap.values())
-        .filter(v => v.count > 0)
         .map(v => ({
           category: v.tier.label,
           totalHouses: v.count,
           totalRent: v.totalRent,
-          avgRent: Math.round(v.totalRent / v.count),
+          avgRent: v.count > 0 ? Math.round(v.totalRent / v.count) : 0,
           expectedReturn: v.totalReward,
-        }))
-        .sort((a, b) => b.totalHouses - a.totalHouses);
+        }));
 
       setCategories(cats);
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: cats, timestamp: Date.now() }));
@@ -130,17 +131,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     );
   }
 
-  if (categories.length === 0) {
-    return (
-      <div className="text-center py-10 space-y-3">
-        <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto">
-          <Home className="h-8 w-8 text-muted-foreground/50" />
-        </div>
-        <p className="font-bold text-foreground text-sm">No Categories Available</p>
-        <p className="text-xs text-muted-foreground">Check back soon for new rent funding opportunities.</p>
-      </div>
-    );
-  }
+  // All tiers always shown, even with 0 houses
 
   const totalHouses = categories.reduce((s, c) => s + c.totalHouses, 0);
   const totalRent = categories.reduce((s, c) => s + c.totalRent, 0);
@@ -183,65 +174,75 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
       {/* Category cards */}
       <div className="space-y-2">
-        {categories.map((cat, i) => (
-          <motion.div
-            key={cat.category}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.04, duration: 0.2 }}
-          >
-            <Card className="border border-border/60 bg-card">
-              <CardContent className="p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <div className="flex-1 min-w-0 space-y-2">
-                    {/* Category name + houses */}
-                    <div className="flex items-center gap-2">
-                      <span className="text-xl">{WELILE_TIERS.find(t => t.label === cat.category)?.emoji || '🏠'}</span>
-                      <div className="min-w-0">
-                        <p className="font-bold text-sm text-foreground truncate">{cat.category}</p>
-                        <p className="text-[10px] text-muted-foreground">{cat.totalHouses.toLocaleString()} houses available</p>
+        {categories.map((cat, i) => {
+          const isEmpty = cat.totalHouses === 0;
+          return (
+            <motion.div
+              key={cat.category}
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: i * 0.04, duration: 0.2 }}
+            >
+              <Card className={`border border-border/60 bg-card ${isEmpty ? 'opacity-70' : ''}`}>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between gap-3">
+                    <div className="flex-1 min-w-0 space-y-2">
+                      {/* Category name + houses */}
+                      <div className="flex items-center gap-2">
+                        <span className="text-xl">{WELILE_TIERS.find(t => t.label === cat.category)?.emoji || '🏠'}</span>
+                        <div className="min-w-0">
+                          <p className="font-bold text-sm text-foreground truncate">{cat.category}</p>
+                          <p className="text-[10px] text-muted-foreground">
+                            {isEmpty ? 'Coming soon' : `${cat.totalHouses.toLocaleString()} houses available`}
+                          </p>
+                        </div>
                       </div>
+
+                      {/* Stats row */}
+                      {!isEmpty ? (
+                        <div className="grid grid-cols-3 gap-2 text-center">
+                          <div>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Rent</p>
+                            <p className="text-xs font-bold text-foreground">{formatAmount(cat.totalRent)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Avg Rent</p>
+                            <p className="text-xs font-bold text-foreground">{formatAmount(cat.avgRent)}</p>
+                          </div>
+                          <div>
+                            <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Return</p>
+                            <p className="text-xs font-bold text-success">+{formatAmount(cat.expectedReturn)}</p>
+                          </div>
+                        </div>
+                      ) : (
+                        <p className="text-[10px] text-muted-foreground italic">No houses in this tier yet — check back soon.</p>
+                      )}
                     </div>
 
-                    {/* Stats row */}
-                    <div className="grid grid-cols-3 gap-2 text-center">
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Total Rent</p>
-                        <p className="text-xs font-bold text-foreground">{formatAmount(cat.totalRent)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Avg Rent</p>
-                        <p className="text-xs font-bold text-foreground">{formatAmount(cat.avgRent)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[9px] text-muted-foreground uppercase tracking-wider">Return</p>
-                        <p className="text-xs font-bold text-success">+{formatAmount(cat.expectedReturn)}</p>
-                      </div>
-                    </div>
+                    {/* Fund button */}
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        hapticTap();
+                        if (isLocked) {
+                          onLockedClick?.();
+                          return;
+                        }
+                        onFundCategory(cat.category);
+                      }}
+                      size="sm"
+                      disabled={isEmpty}
+                      className="h-10 px-3 font-bold shrink-0"
+                    >
+                      <HandCoins className="h-4 w-4 mr-1" />
+                      {isEmpty ? 'Soon' : 'Fund'}
+                    </Button>
                   </div>
-
-                  {/* Fund button */}
-                  <Button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      hapticTap();
-                      if (isLocked) {
-                        onLockedClick?.();
-                        return;
-                      }
-                      onFundCategory(cat.category);
-                    }}
-                    size="sm"
-                    className="h-10 px-3 font-bold shrink-0"
-                  >
-                    <HandCoins className="h-4 w-4 mr-1" />
-                    Fund
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          </motion.div>
-        ))}
+                </CardContent>
+              </Card>
+            </motion.div>
+          );
+        })}
       </div>
     </div>
   );
