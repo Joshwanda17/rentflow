@@ -47,17 +47,21 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   const monthlyReward = Math.round(rentAmount * REWARD_RATE);
   const estimatedLandlords = Math.max(1, Math.ceil(category.totalHouses * 0.7));
 
-  // 12-month reward schedule
+  // 12-month reward schedule with tenant growth
   const rewardSchedule = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const date = addMonths(new Date(), month);
     let payout: number;
+    let tenantsSupported: number;
     if (autoCompound) {
+      const compoundedCapital = rentAmount * Math.pow(1 + REWARD_RATE, month);
       payout = Math.round(rentAmount * (Math.pow(1 + REWARD_RATE, month) - Math.pow(1 + REWARD_RATE, month - 1)));
+      tenantsSupported = Math.max(category.totalHouses, Math.round(category.totalHouses * (compoundedCapital / rentAmount)));
     } else {
       payout = monthlyReward;
+      tenantsSupported = category.totalHouses;
     }
-    return { month, date, payout };
+    return { month, date, payout, tenantsSupported };
   });
 
   const totalRewards12Months = rewardSchedule.reduce((s, r) => s + r.payout, 0);
@@ -164,7 +168,8 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
     doc.setFont('helvetica', 'bold');
     doc.text('MONTH', m + 4, y + 6.5);
     doc.text('DATE', m + 35, y + 6.5);
-    doc.text('REWARD', m + 90, y + 6.5);
+    if (autoCompound) doc.text('TENANTS', m + 75, y + 6.5);
+    doc.text('REWARD', m + (autoCompound ? 105 : 90), y + 6.5);
     doc.text('TOTAL', m + 135, y + 6.5);
     y += 9;
 
@@ -180,9 +185,14 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.setTextColor(darkText.r, darkText.g, darkText.b);
       doc.text(`Month ${r.month}`, m + 4, y + 6);
       doc.text(format(r.date, 'MMM d, yyyy'), m + 35, y + 6);
+      if (autoCompound) {
+        doc.setTextColor(purple.r, purple.g, purple.b);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`${r.tenantsSupported}`, m + 75, y + 6);
+      }
       doc.setTextColor(green.r, green.g, green.b);
       doc.setFont('helvetica', 'bold');
-      doc.text(`+${formatAmount(r.payout)}`, m + 90, y + 6);
+      doc.text(`+${formatAmount(r.payout)}`, m + (autoCompound ? 105 : 90), y + 6);
       doc.setTextColor(darkText.r, darkText.g, darkText.b);
       doc.setFont('helvetica', 'normal');
       doc.text(formatAmount(cumulative), m + 135, y + 6);
@@ -433,11 +443,20 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-foreground">Auto-Compound Rewards</p>
-                      <p className="text-[10px] text-muted-foreground">Reinvest rewards automatically</p>
+                      <p className="text-[10px] text-muted-foreground">Reinvest rewards — tenants supported grow each month</p>
                     </div>
                   </div>
                   <Switch checked={autoCompound} onCheckedChange={setAutoCompound} />
                 </div>
+
+                {autoCompound && (
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 flex items-start gap-2">
+                    <TrendingUp className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                    <p className="text-[11px] text-muted-foreground">
+                      With compounding, your rewards are reinvested — growing your facilitation capital and <strong className="text-foreground">increasing the number of tenants you support</strong> each month.
+                    </p>
+                  </div>
+                )}
 
                 {/* 12-Month Reward Schedule */}
                 <div>
@@ -447,9 +466,10 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                   </h4>
                   <div className="rounded-xl border border-border/60 overflow-hidden">
                     {/* Table header */}
-                    <div className="grid grid-cols-3 gap-0 bg-muted/80 px-3 py-2">
+                    <div className={`grid ${autoCompound ? 'grid-cols-4' : 'grid-cols-3'} gap-0 bg-muted/80 px-3 py-2`}>
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Month</span>
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Date</span>
+                      {autoCompound && <span className="text-[10px] font-bold text-muted-foreground uppercase text-center">Tenants</span>}
                       <span className="text-[10px] font-bold text-muted-foreground uppercase text-right">Reward</span>
                     </div>
                     {/* Table rows */}
@@ -457,10 +477,11 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                       {rewardSchedule.map((r, i) => (
                         <div
                           key={r.month}
-                          className={`grid grid-cols-3 gap-0 px-3 py-2 ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
+                          className={`grid ${autoCompound ? 'grid-cols-4' : 'grid-cols-3'} gap-0 px-3 py-2 ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
                         >
                           <span className="text-xs text-foreground font-medium">Month {r.month}</span>
                           <span className="text-xs text-muted-foreground">{format(r.date, 'MMM yyyy')}</span>
+                          {autoCompound && <span className="text-xs font-bold text-primary text-center">{r.tenantsSupported}</span>}
                           <span className="text-xs font-bold text-success text-right">+{formatAmount(r.payout)}</span>
                         </div>
                       ))}
