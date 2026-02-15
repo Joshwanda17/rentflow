@@ -46,7 +46,8 @@ import { PortfolioSummaryCards } from '@/components/supporter/PortfolioSummaryCa
 import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
-import { RentCategoryFeed } from '@/components/supporter/RentCategoryFeed';
+import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 
 // Tenant request details and payment dialogs (for funding flow)
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
@@ -84,6 +85,8 @@ export default function SupporterDashboard({
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<VirtualHouse | null>(null);
   const [showHouseDetails, setShowHouseDetails] = useState(false);
+  const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
+  const [showPackageSheet, setShowPackageSheet] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
@@ -388,12 +391,13 @@ export default function SupporterDashboard({
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
             <RentCategoryFeed
-              onFundCategory={() => {
+              onFundCategory={(cat) => {
                 if (!effectiveHasAccepted) {
                   setShowAgreementModal(true);
                   return;
                 }
-                setShowPaymentPartners(true);
+                setSelectedPackageCategory(cat);
+                setShowPackageSheet(true);
               }}
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
@@ -511,6 +515,13 @@ export default function SupporterDashboard({
         onOpenChange={setShowHouseDetails}
       />
       
+      <InvestmentPackageSheet
+        open={showPackageSheet}
+        onOpenChange={setShowPackageSheet}
+        category={selectedPackageCategory}
+        onAcceptAndDeposit={() => setShowPaymentPartners(true)}
+      />
+
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
