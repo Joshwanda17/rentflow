@@ -6,11 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { 
-  Wallet, TrendingUp, Plus, 
-  Receipt, History, Share2, Download, CreditCard,
-  Calculator, Store, Users,
-  FileText, ScrollText, BarChart3, PieChart, Banknote, HandCoins,
-  Menu, ChevronRight
+  CreditCard, Calculator, FileText, Menu
 } from 'lucide-react';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
@@ -23,29 +19,13 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
-
-import { InvestmentAccount } from '@/components/supporter/InvestmentAccountCard';
-import { CreateAccountDialog } from '@/components/supporter/CreateAccountDialog';
-import { FundAccountDialog } from '@/components/supporter/FundAccountDialog';
-import { WithdrawAccountDialog } from '@/components/supporter/WithdrawAccountDialog';
-import { AccountDetailsDialog } from '@/components/supporter/AccountDetailsDialog';
 import { useWallet } from '@/hooks/useWallet';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
-
-// Modern fintech components
-import { HeroBalanceCard } from '@/components/supporter/HeroBalanceCard';
-import { OpportunityHeroButton } from '@/components/supporter/OpportunityHeroButton';
-import { RentOpportunities } from '@/components/supporter/RentOpportunities';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
-import { FloatingPortfolioButton } from '@/components/supporter/FloatingPortfolioButton';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 
-// Tenant request details and payment dialogs
-import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
-import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
-
-// Agreement components
+// Agreement
 import { useSupporterAgreement } from '@/hooks/useSupporterAgreement';
 import { 
   SupporterAgreementModal, 
@@ -59,6 +39,17 @@ import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer'
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 
+// Virtual Houses components
+import { PortfolioSummaryCards } from '@/components/supporter/PortfolioSummaryCards';
+import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
+import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
+import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
+import { HouseOpportunities } from '@/components/supporter/HouseOpportunities';
+import { OpportunityHeroButton } from '@/components/supporter/OpportunityHeroButton';
+
+// Tenant request details and payment dialogs (for funding flow)
+import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
+import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 
 interface SupporterDashboardProps {
   user: User;
@@ -69,25 +60,6 @@ interface SupporterDashboardProps {
   addRoleComponent: ReactNode;
 }
 
-interface AvailableRequest {
-  id: string;
-  rent_amount: number;
-  duration_days: number;
-  status: string;
-  created_at: string;
-  tenant_name?: string;
-  agent_verified?: boolean;
-  manager_verified?: boolean;
-}
-
-interface FundedRequest {
-  id: string;
-  rent_amount: number;
-  duration_days: number;
-  status: string;
-  funded_at: string;
-}
-
 export default function SupporterDashboard({ 
   user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent 
 }: SupporterDashboardProps) {
@@ -95,18 +67,8 @@ export default function SupporterDashboard({
   const location = useLocation();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
-  const [availableRequests, setAvailableRequests] = useState<AvailableRequest[]>([]);
-  const [fundedRequests, setFundedRequests] = useState<FundedRequest[]>([]);
-  const [opportunityCount, setOpportunityCount] = useState<number>(0);
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
-  const [showCreateAccount, setShowCreateAccount] = useState(false);
-  const [showFundAccount, setShowFundAccount] = useState(false);
-  const [showWithdrawAccount, setShowWithdrawAccount] = useState(false);
-  const [showAccountDetails, setShowAccountDetails] = useState(false);
-  const [selectedAccountForFunding, setSelectedAccountForFunding] = useState<InvestmentAccount | null>(null);
-  const [selectedAccountForWithdraw, setSelectedAccountForWithdraw] = useState<InvestmentAccount | null>(null);
-  const [selectedAccountForDetails, setSelectedAccountForDetails] = useState<InvestmentAccount | null>(null);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
@@ -119,27 +81,23 @@ export default function SupporterDashboard({
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [selectedHouse, setSelectedHouse] = useState<VirtualHouse | null>(null);
+  const [showHouseDetails, setShowHouseDetails] = useState(false);
   const { toast } = useToast();
   const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
-  
-  // Agreement status
-  const { 
-    hasAccepted, 
-    acceptance, 
-    loading: agreementLoading, 
-    acceptAgreement 
-  } = useSupporterAgreement();
 
-  const [accounts, setAccounts] = useState<InvestmentAccount[]>([]);
-  
-  // Ref for refreshing opportunities from parent
-  const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
-  
-  // Track local acceptance state
+  // Virtual houses data (from funded rent_requests)
+  const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
+  const [totalRentSecured, setTotalRentSecured] = useState(0);
+
+  // Agreement
+  const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
   const effectiveHasAccepted = localHasAccepted === true || hasAccepted === true;
-  
+
+  const opportunitiesRefreshRef = useRef<(() => Promise<void>) | null>(null);
+
   // Show agreement modal on first load if not accepted
   useEffect(() => {
     if (hasAccepted === false && !agreementLoading && localHasAccepted !== true) {
@@ -147,7 +105,6 @@ export default function SupporterDashboard({
     }
   }, [hasAccepted, agreementLoading, localHasAccepted]);
 
-  // Handle agreement acceptance
   const handleAcceptAgreement = async (): Promise<boolean> => {
     const success = await acceptAgreement();
     if (success) {
@@ -164,122 +121,103 @@ export default function SupporterDashboard({
     return success;
   };
 
-  // Load cached data first for offline support
+  // Load cached data
   useEffect(() => {
-    const cached = localStorage.getItem(`supporter_dashboard_${user.id}`);
+    const cached = localStorage.getItem(`supporter_houses_${user.id}`);
     if (cached) {
       try {
         const data = JSON.parse(cached);
-        setAvailableRequests(data.availableRequests || []);
-        setFundedRequests(data.fundedRequests || []);
-        setAccounts(data.accounts || []);
+        setVirtualHouses(data.houses || []);
+        setTotalRentSecured(data.totalRent || 0);
         setHasCachedData(true);
       } catch (e) {
-        console.warn('[SupporterDashboard] Failed to load cached data');
+        console.warn('[SupporterDashboard] Cache read failed');
       }
     }
   }, [user.id]);
 
-  // Scroll to opportunities section when hash is present
+  // Scroll to opportunities
   useEffect(() => {
     if (location.hash === '#opportunities') {
       setTimeout(() => {
         const el = document.getElementById('opportunities');
-        if (el) {
-          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-        }
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
       }, 100);
     }
   }, [location.hash]);
 
+  // Fetch funded houses (virtual houses)
   useEffect(() => {
-    fetchData();
-    
-    const opportunityChannel = supabase
-      .channel('supporter-opportunity-count')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rent_requests' },
-        async () => {
-          const { count } = await supabase
-            .from('rent_requests')
-            .select('id', { count: 'exact', head: true })
-            .in('status', ['pending', 'approved']);
-          setOpportunityCount(count || 0);
-        }
-      )
-      .subscribe();
+    fetchMyHouses();
+  }, [user.id]);
 
-    // investment_accounts table removed - no realtime subscription needed
-
-    const walletChannel = supabase
-      .channel(`supporter-wallet-${user.id}`)
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
-        () => {}
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(opportunityChannel);
-      supabase.removeChannel(walletChannel);
-    };
-  }, [user]);
-
-  const fetchData = async () => {
+  const fetchMyHouses = async () => {
     if (!navigator.onLine && hasCachedData) {
       setLoading(false);
       return;
     }
-    
     setLoading(true);
-    
-    try {
-      const [availableRes, fundedRes, accountsRes, opportunityCountRes] = await Promise.all([
-        supabase
-          .from('rent_requests')
-          .select('id, rent_amount, duration_days, status, created_at, agent_verified, manager_verified')
-          .eq('status', 'approved')
-          .order('created_at', { ascending: true }),
-        supabase
-          .from('rent_requests')
-          .select('id, rent_amount, duration_days, status, funded_at')
-          .eq('supporter_id', user.id)
-          .order('funded_at', { ascending: false }),
-        // investment_accounts table removed - return empty
-        { data: [], count: null, error: null, status: 200, statusText: 'OK' } as any,
-        supabase
-          .from('rent_requests')
-          .select('id', { count: 'exact', head: true })
-          .in('status', ['pending', 'approved'])
-      ]);
-      
-      const newAvailableRequests = availableRes.data || [];
-      const newFundedRequests = fundedRes.data || [];
-      const newAccounts: InvestmentAccount[] = [];
-      const newOpportunityCount = opportunityCountRes.count || 0;
-      
-      setAvailableRequests(newAvailableRequests);
-      setFundedRequests(newFundedRequests);
-      setAccounts(newAccounts);
-      setOpportunityCount(newOpportunityCount);
-      
-      if (hasEverFunded === null) {
-        setHasEverFunded(newFundedRequests.length > 0);
-      }
-      
-      localStorage.setItem(`supporter_dashboard_${user.id}`, JSON.stringify({
-        availableRequests: newAvailableRequests,
-        fundedRequests: newFundedRequests,
-        accounts: newAccounts,
-        timestamp: Date.now()
-      }));
-      setHasCachedData(true);
-    } catch (error) {
-      console.error('[SupporterDashboard] Error fetching data:', error);
-    }
 
+    try {
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select(`
+          id,
+          rent_amount,
+          duration_days,
+          status,
+          funded_at,
+          updated_at,
+          agent_id,
+          agent_verified,
+          landlord:landlords!rent_requests_landlord_id_fkey(property_address)
+        `)
+        .eq('supporter_id', user.id)
+        .order('funded_at', { ascending: false });
+
+      if (!error && data) {
+        const houses: VirtualHouse[] = data.map(r => {
+          const address = (r.landlord as any)?.property_address || '';
+          const parts = address.split(',').map((s: string) => s.trim());
+          const area = parts[0] || 'Unknown Area';
+          const city = parts[1] || parts[0] || 'Uganda';
+
+          // Derive payment health from status
+          let paymentHealth: 'green' | 'amber' | 'red' = 'green';
+          if (r.status === 'funded' || r.status === 'disbursed') paymentHealth = 'amber';
+          if (r.status === 'completed' || r.status === 'repaid') paymentHealth = 'green';
+          if (r.status === 'defaulted' || r.status === 'overdue') paymentHealth = 'red';
+
+          return {
+            id: r.id,
+            shortId: r.id.slice(0, 6).toUpperCase(),
+            area,
+            city,
+            rentAmount: Number(r.rent_amount),
+            paymentHealth,
+            agentManaged: !!r.agent_id,
+            updatedAt: r.updated_at || r.funded_at || new Date().toISOString(),
+            status: r.status || 'funded',
+            durationDays: r.duration_days,
+          };
+        });
+
+        const totalRent = houses.reduce((sum, h) => sum + h.rentAmount, 0);
+        setVirtualHouses(houses);
+        setTotalRentSecured(totalRent);
+        setHasEverFunded(houses.length > 0);
+
+        // Cache
+        localStorage.setItem(`supporter_houses_${user.id}`, JSON.stringify({
+          houses,
+          totalRent,
+          timestamp: Date.now(),
+        }));
+        setHasCachedData(true);
+      }
+    } catch (error) {
+      console.error('[SupporterDashboard] Error:', error);
+    }
     setLoading(false);
   };
 
@@ -297,10 +235,7 @@ export default function SupporterDashboard({
     if (error) {
       toast({ title: 'Funding Failed', description: error.message, variant: 'destructive' });
     } else {
-      // platform_transactions table removed - skip logging
-
       const isFirstFunding = hasEverFunded === false;
-      
       if (isFirstFunding) {
         fireFirstFunding();
         playFirstFundingFanfare();
@@ -313,67 +248,30 @@ export default function SupporterDashboard({
         fireSuccess();
         playSuccessSound();
         toast({
-          title: '🎉 Request Funded!',
-          description: `You've funded ${formatUGX(rentAmount)} for rent facilitation`
+          title: '🎉 House Funded!',
+          description: `You've secured ${formatUGX(rentAmount)} for a new virtual house`
         });
       }
-      
-      fetchData();
+      fetchMyHouses();
     }
   };
 
-  const handleCreateAccount = async (name: string, color: string) => {
-    // investment_accounts table removed - feature not active
-    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
-  };
+  // Portfolio health
+  const portfolioHealth = (() => {
+    if (virtualHouses.length === 0) return 'stable' as const;
+    const redCount = virtualHouses.filter(h => h.paymentHealth === 'red').length;
+    if (redCount > 0) return 'at_risk' as const;
+    const greenRatio = virtualHouses.filter(h => h.paymentHealth === 'green').length / virtualHouses.length;
+    return greenRatio >= 0.8 ? 'growing' as const : 'stable' as const;
+  })();
 
-  const handleFundAccountClick = (account: InvestmentAccount) => {
-    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
-  };
-
-  const handleFundAccount = async (accountId: string, amount: number) => {
-    toast({ title: 'Investment accounts feature is not currently active', variant: 'destructive' });
-  };
-
-  const handleWithdrawAccountClick = (account: InvestmentAccount) => {
-    if (account.status !== 'approved') {
-      toast({ title: 'Account Not Approved', description: 'Only approved accounts can withdraw funds', variant: 'destructive' });
-      return;
+  const handleHouseTap = (id: string) => {
+    const house = virtualHouses.find(h => h.id === id);
+    if (house) {
+      setSelectedHouse(house);
+      setShowHouseDetails(true);
     }
-    if (account.balance <= 0) {
-      toast({ title: 'No Balance', description: 'This account has no funds to withdraw', variant: 'destructive' });
-      return;
-    }
-    setSelectedAccountForWithdraw(account);
-    setShowWithdrawAccount(true);
   };
-
-  const handleWithdrawAccount = async (accountId: string, amount: number) => {
-    const account = accounts.find(a => a.id === accountId);
-    if (!account || account.balance < amount) {
-      toast({ title: 'Insufficient Balance', description: "The account doesn't have enough funds", variant: 'destructive' });
-      return;
-    }
-
-    // investment_accounts table removed - withdrawals not available
-    toast({ title: 'Not Available', description: 'Investment accounts feature is currently disabled.', variant: 'destructive' });
-    return;
-
-    await refreshWallet();
-    fireSuccess();
-    toast({ title: '💰 Withdrawal Submitted!', description: `${formatUGX(amount)} transferred to wallet. Please wait for manager approval before cashing out.` });
-  };
-
-  // Calculations
-  const totalInvested = accounts.reduce((sum, acc) => sum + acc.balance, 0);
-  const totalFunded = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
-  const expectedRewards = fundedRequests
-    .filter(r => r.status !== 'completed')
-    .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
-  const completedRewards = fundedRequests
-    .filter(r => r.status === 'completed')
-    .reduce((sum, r) => sum + calculateSupporterReward(Number(r.rent_amount)), 0);
-  const activeFundings = fundedRequests.filter(r => r.status !== 'completed').length;
 
   if (loading && isOnline && !hasCachedData) {
     return <SupporterDashboardSkeleton />;
@@ -381,7 +279,7 @@ export default function SupporterDashboard({
 
   const handleRefresh = async () => {
     await Promise.all([
-      fetchData(),
+      fetchMyHouses(),
       opportunitiesRefreshRef.current?.()
     ]);
   };
@@ -405,21 +303,16 @@ export default function SupporterDashboard({
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
         <main className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
           
-          {/* ═══════════════════════════════════════════════════════
-              PROFILE SECTION - Clean & Minimal like Agent dashboard
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══ PROFILE SECTION ═══ */}
           <div className="text-center space-y-3">
             <button onClick={() => navigate('/settings')} className="mx-auto block">
               <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
             </button>
             <div>
-              <h1 className="font-bold text-2xl">
-                {profile?.full_name || 'Supporter'}
-              </h1>
+              <h1 className="font-bold text-2xl">{profile?.full_name || 'Supporter'}</h1>
               <p className="text-sm text-muted-foreground">Welile Supporter</p>
             </div>
 
-            {/* Agreement Status - Inline */}
             {effectiveHasAccepted ? (
               <AgreementAcceptedBadge 
                 acceptedAt={acceptance?.accepted_at}
@@ -437,53 +330,29 @@ export default function SupporterDashboard({
                 Accept Terms to Start
               </Button>
             )}
-            
-            {/* Quick Stats */}
-            <div className="flex justify-center gap-6 text-center">
-              <div>
-                <p className="font-bold text-lg">{activeFundings}</p>
-                <p className="text-xs text-muted-foreground">Active</p>
-              </div>
-              <div className="w-px bg-border" />
-              <div>
-                <p className="font-bold text-lg">{fundedRequests.length}</p>
-                <p className="text-xs text-muted-foreground">Funded</p>
-              </div>
-              <div className="w-px bg-border" />
-              <div>
-                <p className="font-bold text-lg">{accounts.length}</p>
-                <p className="text-xs text-muted-foreground">Accounts</p>
-              </div>
-            </div>
           </div>
 
-          {/* ═══════════════════════════════════════════════════════
-              PORTFOLIO CARD - Primary Action
-          ═══════════════════════════════════════════════════════ */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={() => navigate('/investment-portfolio')}
-            className="w-full text-left"
-          >
-            <HeroBalanceCard
-              totalInvested={totalInvested}
-              monthlyReturns={totalInvested * 0.15}
-              completedRewards={completedRewards}
-              activeFundings={activeFundings}
-              onAddInvestment={() => setShowPaymentPartners(true)}
-              onViewPortfolio={() => navigate('/investment-portfolio')}
-            />
-          </motion.button>
+          {/* ═══ PORTFOLIO SUMMARY CARDS ═══ */}
+          <PortfolioSummaryCards
+            housesFunded={virtualHouses.length}
+            rentSecured={totalRentSecured}
+            portfolioHealth={portfolioHealth}
+          />
 
-          {/* ═══════════════════════════════════════════════════════
-              OPPORTUNITIES - Second Primary Card
-          ═══════════════════════════════════════════════════════ */}
+          {/* ═══ MY HOUSES FEED ═══ */}
+          <VirtualHousesFeed
+            houses={virtualHouses}
+            loading={loading}
+            onHouseTap={handleHouseTap}
+          />
+
+          {/* ═══ OPPORTUNITIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
             
             <OpportunityHeroButton onClick={() => navigate('/opportunities')} />
 
-            <RentOpportunities
+            <HouseOpportunities
               onFund={(id) => {
                 if (!effectiveHasAccepted) {
                   setShowAgreementModal(true);
@@ -495,13 +364,10 @@ export default function SupporterDashboard({
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
               onRefreshRef={opportunitiesRefreshRef}
-              showCounts={false}
             />
           </div>
 
-          {/* Role switching is now in the header popover */}
-
-          {/* ADD ROLE COMPONENT */}
+          {/* ADD ROLE */}
           <div className="flex justify-center">
             {addRoleComponent}
           </div>
@@ -509,9 +375,7 @@ export default function SupporterDashboard({
         </main>
       </PullToRefresh>
 
-      {/* ═══════════════════════════════════════════════════════
-          FLOATING MENU BUTTON - Like Agent dashboard
-      ═══════════════════════════════════════════════════════ */}
+      {/* ═══ FLOATING MENU ═══ */}
       <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
         <button
           onClick={handleOpenMenu}
@@ -522,7 +386,7 @@ export default function SupporterDashboard({
         </button>
       </div>
 
-      {/* Menu Drawer */}
+      {/* Drawers & Dialogs */}
       <SupporterMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
@@ -531,47 +395,6 @@ export default function SupporterDashboard({
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
       />
 
-      {/* Dialogs */}
-      <CreateAccountDialog
-        open={showCreateAccount}
-        onOpenChange={setShowCreateAccount}
-        onCreateAccount={handleCreateAccount}
-      />
-
-      {selectedAccountForFunding && (
-        <FundAccountDialog
-          open={showFundAccount}
-          onOpenChange={setShowFundAccount}
-          accountName={selectedAccountForFunding.name}
-          accountId={selectedAccountForFunding.id}
-          walletBalance={wallet?.balance || 0}
-          onFund={handleFundAccount}
-        />
-      )}
-
-      {selectedAccountForWithdraw && (
-        <WithdrawAccountDialog
-          open={showWithdrawAccount}
-          onOpenChange={setShowWithdrawAccount}
-          accountName={selectedAccountForWithdraw.name}
-          accountId={selectedAccountForWithdraw.id}
-          accountBalance={selectedAccountForWithdraw.balance}
-          onWithdraw={handleWithdrawAccount}
-        />
-      )}
-
-      <AccountDetailsDialog
-        open={showAccountDetails}
-        onOpenChange={setShowAccountDetails}
-        account={selectedAccountForDetails}
-        onFund={() => {
-          if (selectedAccountForDetails) handleFundAccountClick(selectedAccountForDetails);
-        }}
-        onWithdraw={() => {
-          if (selectedAccountForDetails) handleWithdrawAccountClick(selectedAccountForDetails);
-        }}
-      />
-      
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
         onOpenChange={setShowPaymentPartners}
@@ -622,12 +445,17 @@ export default function SupporterDashboard({
         onOpenChange={setShowPayLandlord}
         request={selectedRequestForPayment}
         onSuccess={() => {
-          fetchData();
+          fetchMyHouses();
           setSelectedRequestForPayment(null);
         }}
       />
+
+      <VirtualHouseDetailsSheet
+        house={selectedHouse}
+        open={showHouseDetails}
+        onOpenChange={setShowHouseDetails}
+      />
       
-      <FloatingPortfolioButton totalBalance={totalInvested} />
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
     </div>
