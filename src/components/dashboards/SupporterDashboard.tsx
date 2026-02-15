@@ -302,45 +302,88 @@ export default function SupporterDashboard({
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
           
-          {/* ═══ PROFILE SECTION ═══ */}
-          <div className="text-center space-y-3">
-            <button onClick={() => navigate('/settings')} className="mx-auto block">
-              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-            </button>
-            <div>
-              <h1 className="font-bold text-2xl">{profile?.full_name || 'Supporter'}</h1>
-              <p className="text-sm text-muted-foreground">Welile Supporter</p>
+          {/* ═══ GREETING + QUICK ACTIONS ═══ */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <button onClick={() => navigate('/settings')} className="shrink-0">
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+              </button>
+              <div>
+                <p className="text-xs text-muted-foreground">Welcome back</p>
+                <h1 className="font-bold text-lg leading-tight">{profile?.full_name?.split(' ')[0] || 'Supporter'}</h1>
+              </div>
             </div>
-
-            {effectiveHasAccepted ? (
-              <AgreementAcceptedBadge 
-                acceptedAt={acceptance?.accepted_at}
-                showCelebration={justAccepted}
-                variant="compact"
-              />
-            ) : (
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setShowAgreementModal(true)}
-                className="text-xs border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl"
-              >
-                <FileText className="h-3.5 w-3.5" />
-                Accept Terms to Start
-              </Button>
-            )}
+            <div className="flex items-center gap-2">
+              {effectiveHasAccepted ? (
+                <AgreementAcceptedBadge 
+                  acceptedAt={acceptance?.accepted_at}
+                  showCelebration={justAccepted}
+                  variant="compact"
+                />
+              ) : (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowAgreementModal(true)}
+                  className="text-[11px] border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1 rounded-xl h-8 px-2.5"
+                >
+                  <FileText className="h-3 w-3" />
+                  Accept Terms
+                </Button>
+              )}
+            </div>
           </div>
 
-          {/* ═══ PORTFOLIO SUMMARY CARDS ═══ */}
+          {/* ═══ PORTFOLIO HERO CARD ═══ */}
           <PortfolioSummaryCards
             housesFunded={virtualHouses.length}
             rentSecured={totalRentSecured}
             portfolioHealth={portfolioHealth}
           />
 
-          {/* ═══ PRIMARY: RENT CATEGORIES (CATEGORY-FIRST) ═══ */}
+          {/* ═══ QUICK ACTION BUTTONS ═══ */}
+          <div className="grid grid-cols-3 gap-2.5">
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              onClick={() => {
+                hapticTap();
+                if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
+                setShowPaymentPartners(true);
+              }}
+              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation"
+            >
+              <CreditCard className="h-6 w-6" />
+              <span className="text-[11px] font-bold">Add Funds</span>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.15 }}
+              onClick={() => { hapticTap(); setShowCalculator(true); }}
+              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-card border border-border/60 text-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+            >
+              <Calculator className="h-6 w-6 text-primary" />
+              <span className="text-[11px] font-bold">Calculator</span>
+            </motion.button>
+
+            <motion.button
+              initial={{ opacity: 0, y: 8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              onClick={handleOpenMenu}
+              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-card border border-border/60 text-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+            >
+              <Menu className="h-6 w-6 text-muted-foreground" />
+              <span className="text-[11px] font-bold">More</span>
+            </motion.button>
+          </div>
+
+          {/* ═══ RENT CATEGORIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
@@ -358,19 +401,26 @@ export default function SupporterDashboard({
             />
           </div>
 
-          {/* ═══ SECONDARY: MY FUNDED HOUSES (collapsible) ═══ */}
+          {/* ═══ MY FUNDED HOUSES (collapsible) ═══ */}
           {virtualHouses.length > 0 && (
             <Collapsible>
               <CollapsibleTrigger asChild>
-                <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors touch-manipulation active:scale-[0.98]">
+                <button className="w-full flex items-center justify-between px-4 py-3 rounded-2xl bg-card border border-border/60 shadow-sm hover:bg-accent/30 transition-colors touch-manipulation active:scale-[0.98]">
+                  <div className="flex items-center gap-2.5">
+                    <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+                      <span className="text-lg">🏘️</span>
+                    </div>
+                    <div className="text-left">
+                      <span className="font-bold text-sm text-foreground">My Houses</span>
+                      <p className="text-[10px] text-muted-foreground">{virtualHouses.length} funded properties</p>
+                    </div>
+                  </div>
                   <div className="flex items-center gap-2">
-                    <span className="text-lg">🏘️</span>
-                    <span className="font-bold text-sm text-foreground">My Houses</span>
                     <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
                       {virtualHouses.length}
                     </Badge>
+                    <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                   </div>
-                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
                 </button>
               </CollapsibleTrigger>
               <CollapsibleContent>
@@ -392,19 +442,6 @@ export default function SupporterDashboard({
 
         </main>
       </PullToRefresh>
-
-      {/* ═══ FLOATING MENU ═══ */}
-      <div className="md:hidden fixed bottom-20 left-4 z-40" style={{ bottom: 'calc(env(safe-area-inset-bottom, 0px) + 80px)' }}>
-        <button
-          onClick={handleOpenMenu}
-          className="flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-primary text-primary-foreground shadow-lg active:scale-[0.98] transition-transform touch-manipulation"
-        >
-          <Menu className="h-5 w-5" />
-          <span className="font-semibold text-sm">Menu</span>
-        </button>
-      </div>
-
-      {/* Drawers & Dialogs */}
       <SupporterMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}

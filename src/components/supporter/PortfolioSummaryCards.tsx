@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
 import { useCurrency } from '@/hooks/useCurrency';
+import { TrendingUp, Home, Shield } from 'lucide-react';
 
 interface PortfolioSummaryCardsProps {
   housesFunded: number;
@@ -18,57 +19,52 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
 
   const health = healthConfig[portfolioHealth];
 
-  const cards = [
-    {
-      emoji: '🏠',
-      value: `${housesFunded}`,
-      label: 'Houses Funded',
-      sublabel: 'Active',
-    },
-    {
-      emoji: '💰',
-      value: formatAmount(rentSecured),
-      label: 'Rent Secured',
-      sublabel: '/ month',
-    },
-    {
-      emoji: '',
-      value: health.label,
-      label: 'Portfolio Health',
-      sublabel: '',
-      isHealth: true,
-    },
-  ];
-
   return (
-    <div className="grid grid-cols-3 gap-2">
-      {cards.map((card, i) => (
-        <motion.div
-          key={card.label}
-          initial={{ opacity: 0, y: 12 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: i * 0.08, duration: 0.3 }}
-          className="rounded-2xl border border-border/60 bg-card p-3 text-center"
-        >
-          {card.isHealth ? (
-            <div className={`inline-flex items-center gap-1.5 px-2 py-1 rounded-full ${health.bg} mb-1`}>
-              <span className={`h-2 w-2 rounded-full ${health.dot} animate-pulse`} />
-              <span className={`text-[10px] font-bold uppercase tracking-wider ${health.color}`}>{health.label}</span>
+    <motion.div
+      initial={{ opacity: 0, y: 16 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.4 }}
+      className="rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-primary/85 text-primary-foreground p-5 shadow-xl shadow-primary/20 relative overflow-hidden"
+    >
+      {/* Decorative circles */}
+      <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/8 rounded-full" />
+      <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full" />
+
+      <div className="relative z-10">
+        {/* Main balance */}
+        <p className="text-xs opacity-70 uppercase tracking-widest font-semibold mb-1">Total Rent Secured</p>
+        <p className="text-3xl font-black tracking-tight mb-4">{formatAmount(rentSecured)}</p>
+
+        {/* Stats row */}
+        <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
+            <Home className="h-4 w-4 opacity-80" />
+            <div>
+              <p className="text-lg font-black leading-none">{housesFunded}</p>
+              <p className="text-[9px] opacity-60 uppercase tracking-wider">Houses</p>
             </div>
-          ) : (
-            <span className="text-xl block mb-1">{card.emoji}</span>
-          )}
-          {!card.isHealth && (
-            <p className="text-sm font-black text-foreground truncate">{card.value}</p>
-          )}
-          <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wider mt-0.5">
-            {card.label}
-          </p>
-          {card.sublabel && !card.isHealth && (
-            <p className="text-[9px] text-muted-foreground/70">{card.sublabel}</p>
-          )}
-        </motion.div>
-      ))}
-    </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
+            <TrendingUp className="h-4 w-4 opacity-80" />
+            <div>
+              <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.12)}</p>
+              <p className="text-[9px] opacity-60 uppercase tracking-wider">Est. Return</p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
+            <Shield className="h-4 w-4 opacity-80" />
+            <div>
+              <div className="flex items-center gap-1">
+                <span className={`h-1.5 w-1.5 rounded-full ${health.dot} animate-pulse`} />
+                <p className="text-xs font-bold leading-none">{health.label}</p>
+              </div>
+              <p className="text-[9px] opacity-60 uppercase tracking-wider">Health</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </motion.div>
   );
 }
