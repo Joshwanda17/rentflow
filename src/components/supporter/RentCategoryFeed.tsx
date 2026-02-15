@@ -28,16 +28,26 @@ interface RentCategoryFeedProps {
 const CACHE_KEY = 'welile_rent_categories';
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
-const categoryIcons: Record<string, string> = {
-  'Residential': '🏠',
-  'Commercial': '🏢',
-  'Single Room': '🚪',
-  'Self-Contained': '🏡',
-  'Double Room': '🛏️',
-  'Shop': '🏪',
-};
+// Predefined Welile housing product tiers
+interface CategoryTier {
+  name: string;
+  label: string;
+  emoji: string;
+  rentRange: [number, number]; // min, max rent to bucket into this tier
+}
 
-const getCategoryEmoji = (cat: string) => categoryIcons[cat] || '🏠';
+const WELILE_TIERS: CategoryTier[] = [
+  { name: 'single-room', label: 'Welile Single Room', emoji: '🚪', rentRange: [0, 200000] },
+  { name: '1-bed', label: 'Welile 1 Bed House', emoji: '🏠', rentRange: [200001, 500000] },
+  { name: '2-bed', label: 'Welile 2 Bedroom House', emoji: '🏡', rentRange: [500001, 1000000] },
+  { name: '2-bed-full', label: 'Welile 2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️', rentRange: [1000001, 2000000] },
+  { name: '3-bed', label: 'Welile 3 Bedroom Apartment', emoji: '🏢', rentRange: [2000001, 5000000] },
+  { name: 'commercial', label: 'Welile Commercial Property', emoji: '🏪', rentRange: [5000001, Infinity] },
+];
+
+const getTierForRent = (amount: number): CategoryTier => {
+  return WELILE_TIERS.find(t => amount >= t.rentRange[0] && amount <= t.rentRange[1]) || WELILE_TIERS[0];
+};
 
 export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRefreshRef }: RentCategoryFeedProps) {
   const { formatAmount } = useCurrency();
@@ -60,7 +70,6 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
     setLoading(true);
 
-    // Single aggregated query — group by city/area as "category"
     const { data, error } = await supabase
       .from('rent_requests')
       .select('id, rent_amount, request_city, duration_days')
@@ -68,30 +77,32 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
       .limit(500);
 
     if (!error && data) {
-      const categoryMap = new Map<string, { count: number; totalRent: number; totalReward: number }>();
+      const tierMap = new Map<string, { tier: CategoryTier; count: number; totalRent: number; totalReward: number }>();
+
+      // Initialize all tiers
+      WELILE_TIERS.forEach(t => tierMap.set(t.name, { tier: t, count: 0, totalRent: 0, totalReward: 0 }));
 
       data.forEach(r => {
-        const cat = r.request_city || 'Other';
-        const existing = categoryMap.get(cat) || { count: 0, totalRent: 0, totalReward: 0 };
+        const amount = Number(r.rent_amount);
+        const tier = getTierForRent(amount);
+        const existing = tierMap.get(tier.name)!;
         existing.count += 1;
-        existing.totalRent += Number(r.rent_amount);
-        existing.totalReward += calculateSupporterReward(Number(r.rent_amount));
-        categoryMap.set(cat, existing);
+        existing.totalRent += amount;
+        existing.totalReward += calculateSupporterReward(amount);
       });
 
-      const cats: RentCategory[] = Array.from(categoryMap.entries())
-        .map(([name, stats]) => ({
-          category: name,
-          totalHouses: stats.count,
-          totalRent: stats.totalRent,
-          avgRent: Math.round(stats.totalRent / stats.count),
-          expectedReturn: stats.totalReward,
+      const cats: RentCategory[] = Array.from(tierMap.values())
+        .filter(v => v.count > 0)
+        .map(v => ({
+          category: v.tier.label,
+          totalHouses: v.count,
+          totalRent: v.totalRent,
+          avgRent: Math.round(v.totalRent / v.count),
+          expectedReturn: v.totalReward,
         }))
         .sort((a, b) => b.totalHouses - a.totalHouses);
 
       setCategories(cats);
-
-      // Cache
       localStorage.setItem(CACHE_KEY, JSON.stringify({ data: cats, timestamp: Date.now() }));
     }
 
@@ -185,10 +196,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                   <div className="flex-1 min-w-0 space-y-2">
                     {/* Category name + houses */}
                     <div className="flex items-center gap-2">
-                      <span className="text-xl">{getCategoryEmoji(cat.category)}</span>
+                      <span className="text-xl">{WELILE_TIERS.find(t => t.label === cat.category)?.emoji || '🏠'}</span>
                       <div className="min-w-0">
                         <p className="font-bold text-sm text-foreground truncate">{cat.category}</p>
-                        <p className="text-[10px] text-muted-foreground">{cat.totalHouses} houses available</p>
+                        <p className="text-[10px] text-muted-foreground">{cat.totalHouses.toLocaleString()} houses available</p>
                       </div>
                     </div>
 
