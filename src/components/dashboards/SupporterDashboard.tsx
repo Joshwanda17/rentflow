@@ -358,8 +358,7 @@ export default function SupporterDashboard({
                   setShowAgreementModal(true);
                   return;
                 }
-                setSelectedRequestId(id);
-                setShowRequestDetails(true);
+                setShowPaymentPartners(true);
               }}
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
