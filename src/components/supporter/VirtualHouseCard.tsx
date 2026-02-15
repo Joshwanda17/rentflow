@@ -25,9 +25,9 @@ interface VirtualHouseCardProps {
 }
 
 const healthConfig = {
-  green: { label: 'Assured', dot: 'bg-success', text: 'text-success', bg: 'bg-success/10 border-success/20' },
-  amber: { label: 'Processing', dot: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-500/10 border-amber-500/20' },
-  red: { label: 'Under Management', dot: 'bg-primary', text: 'text-primary', bg: 'bg-primary/10 border-primary/20' },
+  green: { label: 'Good', dot: 'bg-success', text: 'text-success', bg: 'bg-success/10 border-success/20' },
+  amber: { label: 'Pending', dot: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-500/10 border-amber-500/20' },
+  red: { label: 'At Risk', dot: 'bg-destructive', text: 'text-destructive', bg: 'bg-destructive/10 border-destructive/20' },
 };
 
 export function VirtualHouseCard({ house, onTap, index = 0 }: VirtualHouseCardProps) {
