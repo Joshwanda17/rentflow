@@ -57,13 +57,23 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
   const [categories, setCategories] = useState<RentCategory[]>([]);
   const [loading, setLoading] = useState(true);
 
+  // Build default categories from all tiers (0 houses)
+  const buildDefaultCategories = (): RentCategory[] =>
+    WELILE_TIERS.map(t => ({
+      category: t.label,
+      totalHouses: 0,
+      totalRent: 0,
+      avgRent: 0,
+      expectedReturn: 0,
+    }));
+
   const fetchCategories = useCallback(async () => {
     // Check cache first
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const { data, timestamp } = JSON.parse(cached);
-        if (Date.now() - timestamp < CACHE_TTL) {
+        if (Date.now() - timestamp < CACHE_TTL && data?.length === WELILE_TIERS.length) {
           setCategories(data);
           setLoading(false);
           return;
@@ -79,12 +89,11 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
       .eq('status', 'approved')
       .limit(500);
 
+    // Always start from all tiers
+    const tierMap = new Map<string, { tier: CategoryTier; count: number; totalRent: number; totalReward: number }>();
+    WELILE_TIERS.forEach(t => tierMap.set(t.name, { tier: t, count: 0, totalRent: 0, totalReward: 0 }));
+
     if (!error && data) {
-      const tierMap = new Map<string, { tier: CategoryTier; count: number; totalRent: number; totalReward: number }>();
-
-      // Initialize all tiers
-      WELILE_TIERS.forEach(t => tierMap.set(t.name, { tier: t, count: 0, totalRent: 0, totalReward: 0 }));
-
       data.forEach(r => {
         const amount = Number(r.rent_amount);
         const tier = getTierForRent(amount);
@@ -93,19 +102,19 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
         existing.totalRent += amount;
         existing.totalReward += calculateSupporterReward(amount);
       });
-
-      const cats: RentCategory[] = Array.from(tierMap.values())
-        .map(v => ({
-          category: v.tier.label,
-          totalHouses: v.count,
-          totalRent: v.totalRent,
-          avgRent: v.count > 0 ? Math.round(v.totalRent / v.count) : 0,
-          expectedReturn: v.totalReward,
-        }));
-
-      setCategories(cats);
-      localStorage.setItem(CACHE_KEY, JSON.stringify({ data: cats, timestamp: Date.now() }));
     }
+
+    const cats: RentCategory[] = Array.from(tierMap.values())
+      .map(v => ({
+        category: v.tier.label,
+        totalHouses: v.count,
+        totalRent: v.totalRent,
+        avgRent: v.count > 0 ? Math.round(v.totalRent / v.count) : 0,
+        expectedReturn: v.totalReward,
+      }));
+
+    setCategories(cats);
+    localStorage.setItem(CACHE_KEY, JSON.stringify({ data: cats, timestamp: Date.now() }));
 
     setLoading(false);
   }, []);
