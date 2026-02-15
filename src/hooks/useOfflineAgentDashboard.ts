@@ -8,6 +8,7 @@ import {
   cacheProfile,
   getCachedProfile
 } from '@/lib/offlineDataStorage';
+import { useUserSnapshot } from './useUserSnapshot';
 
 interface AgentDashboardStats {
   tenantsCount: number;
@@ -38,6 +39,7 @@ const defaultStats: AgentDashboardStats = {
 
 export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
   const { user } = useAuth();
+  const { snapshot } = useUserSnapshot(user?.id);
   const [stats, setStats] = useState<AgentDashboardStats>(defaultStats);
   const [isLoading, setIsLoading] = useState(true);
   const [isOfflineData, setIsOfflineData] = useState(false);
@@ -101,11 +103,11 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
 
       const newStats: AgentDashboardStats = {
         tenantsCount: requestsRes.count || 0,
-        referralCount: 0, // Stubbed
-        subAgentCount: 0, // Stubbed
-        subAgentEarnings: 0, // Stubbed
+        referralCount: snapshot.referralCount || 0,
+        subAgentCount: snapshot.subAgents?.length || 0,
+        subAgentEarnings: 0, // Derived from snapshot if needed
         walletBalance: cachedWalletBalance,
-        totalEarnings: 0, // Stubbed
+        totalEarnings: 0,
       };
 
       // Update state
