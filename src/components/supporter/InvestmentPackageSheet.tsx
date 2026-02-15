@@ -84,112 +84,154 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
     try {
       const doc = new jsPDF();
       const pw = doc.internal.pageSize.getWidth();
-      const m = 15;
-      let y = 15;
+      const ph = doc.internal.pageSize.getHeight();
+      const m = 18;
+      let y = 0;
 
-      // Header
-      doc.setFillColor(15, 23, 42); // slate-900
-      doc.rect(0, 0, pw, 42, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(20);
+      // Brand colors
+      const purple = { r: 124, g: 58, b: 237 }; // #7C3AED
+      const darkPurple = { r: 91, g: 33, b: 182 }; // #5B21B6
+      const lightPurple = { r: 245, g: 243, b: 255 }; // #F5F3FF
+      const white = { r: 255, g: 255, b: 255 };
+      const darkText = { r: 30, g: 30, b: 30 };
+      const mutedText = { r: 100, g: 100, b: 100 };
+      const green = { r: 22, g: 163, b: 74 };
+
+      // ── HEADER BAR ──
+      doc.setFillColor(purple.r, purple.g, purple.b);
+      doc.rect(0, 0, pw, 50, 'F');
+      doc.setTextColor(white.r, white.g, white.b);
+      doc.setFontSize(26);
       doc.setFont('helvetica', 'bold');
-      doc.text('WELILE SUPPORTER PACKAGE', m, 18);
-      doc.setFontSize(11);
+      doc.text('WELILE', m, 22);
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'normal');
-      doc.text(category.category, m, 26);
+      doc.text('SUPPORTER PACKAGE', m, 32);
+      doc.setFontSize(11);
+      doc.text(category.category, m, 43);
       doc.setFontSize(9);
-      doc.text(`Generated: ${format(new Date(), 'MMMM d, yyyy')}`, m, 34);
+      doc.text(format(new Date(), 'MMMM d, yyyy'), pw - m - 40, 43);
 
-      y = 52;
-      doc.setTextColor(0, 0, 0);
+      y = 60;
 
-      // Summary box
-      doc.setFillColor(241, 245, 249);
-      doc.roundedRect(m, y, pw - m * 2, 38, 3, 3, 'F');
+      // ── HERO STATS (big readable numbers) ──
+      doc.setFillColor(lightPurple.r, lightPurple.g, lightPurple.b);
+      doc.roundedRect(m, y, pw - m * 2, 50, 4, 4, 'F');
+      doc.setDrawColor(purple.r, purple.g, purple.b);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(m, y, pw - m * 2, 50, 4, 4, 'S');
+
+      const col1 = m + 8;
+      const col2 = pw / 2 + 5;
+
+      doc.setTextColor(mutedText.r, mutedText.g, mutedText.b);
       doc.setFontSize(10);
-      doc.setFont('helvetica', 'bold');
-      doc.text('PACKAGE OVERVIEW', m + 5, y + 10);
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      doc.text(`Facilitation Amount: ${formatAmount(rentAmount)}`, m + 5, y + 18);
-      doc.text(`Monthly Reward (15%): ${formatAmount(monthlyReward)}`, m + 5, y + 25);
-      doc.text(`Tenants: ${category.totalHouses}  |  Landlords: ~${estimatedLandlords}`, m + 5, y + 32);
-      doc.text(`Auto-Compounding: ${autoCompound ? 'YES' : 'NO'}`, pw / 2 + 10, y + 18);
-      doc.text(`Capital Lock-in: 90 days`, pw / 2 + 10, y + 25);
-
-      y += 48;
-
-      // 12-Month Reward Table
-      doc.setFontSize(11);
+      doc.text('FACILITATION AMOUNT', col1, y + 12);
+      doc.setTextColor(darkPurple.r, darkPurple.g, darkPurple.b);
+      doc.setFontSize(22);
       doc.setFont('helvetica', 'bold');
+      doc.text(formatAmount(rentAmount), col1, y + 25);
+
+      doc.setTextColor(mutedText.r, mutedText.g, mutedText.b);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text('MONTHLY REWARD (15%)', col2, y + 12);
+      doc.setTextColor(green.r, green.g, green.b);
+      doc.setFontSize(22);
+      doc.setFont('helvetica', 'bold');
+      doc.text(formatAmount(monthlyReward), col2, y + 25);
+
+      // Sub-stats
+      doc.setFontSize(11);
+      doc.setTextColor(darkText.r, darkText.g, darkText.b);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`Tenants: ${category.totalHouses}`, col1, y + 40);
+      doc.text(`Landlords: ~${estimatedLandlords}`, col2, y + 40);
+      doc.text(`Auto-Compound: ${autoCompound ? 'YES' : 'NO'}`, col1, y + 47);
+      doc.text(`Capital Lock: 90 days`, col2, y + 47);
+
+      y += 60;
+
+      // ── 12-MONTH REWARD TABLE ──
+      doc.setFontSize(14);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(purple.r, purple.g, purple.b);
       doc.text('12-MONTH REWARD SCHEDULE', m, y);
       y += 6;
 
       // Table header
-      doc.setFillColor(15, 23, 42);
-      doc.rect(m, y, pw - m * 2, 7, 'F');
-      doc.setTextColor(255, 255, 255);
-      doc.setFontSize(8);
+      doc.setFillColor(purple.r, purple.g, purple.b);
+      doc.rect(m, y, pw - m * 2, 9, 'F');
+      doc.setTextColor(white.r, white.g, white.b);
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
-      doc.text('Month', m + 3, y + 5);
-      doc.text('Payout Date', m + 30, y + 5);
-      doc.text('Reward', m + 80, y + 5);
-      doc.text('Cumulative', m + 125, y + 5);
-      y += 7;
+      doc.text('MONTH', m + 4, y + 6.5);
+      doc.text('DATE', m + 35, y + 6.5);
+      doc.text('REWARD', m + 90, y + 6.5);
+      doc.text('TOTAL', m + 135, y + 6.5);
+      y += 9;
 
-      doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
       let cumulative = 0;
       rewardSchedule.forEach((r, i) => {
         cumulative += r.payout;
         if (i % 2 === 0) {
-          doc.setFillColor(248, 250, 252);
-          doc.rect(m, y, pw - m * 2, 6, 'F');
+          doc.setFillColor(lightPurple.r, lightPurple.g, lightPurple.b);
+          doc.rect(m, y, pw - m * 2, 8, 'F');
         }
-        doc.setFontSize(8);
-        doc.text(`Month ${r.month}`, m + 3, y + 4.5);
-        doc.text(format(r.date, 'MMM d, yyyy'), m + 30, y + 4.5);
-        doc.setTextColor(22, 163, 74);
-        doc.text(formatAmount(r.payout), m + 80, y + 4.5);
-        doc.setTextColor(0, 0, 0);
-        doc.text(formatAmount(cumulative), m + 125, y + 4.5);
-        y += 6;
+        doc.setFontSize(10);
+        doc.setTextColor(darkText.r, darkText.g, darkText.b);
+        doc.text(`Month ${r.month}`, m + 4, y + 6);
+        doc.text(format(r.date, 'MMM d, yyyy'), m + 35, y + 6);
+        doc.setTextColor(green.r, green.g, green.b);
+        doc.setFont('helvetica', 'bold');
+        doc.text(`+${formatAmount(r.payout)}`, m + 90, y + 6);
+        doc.setTextColor(darkText.r, darkText.g, darkText.b);
+        doc.setFont('helvetica', 'normal');
+        doc.text(formatAmount(cumulative), m + 135, y + 6);
+        y += 8;
       });
 
-      y += 6;
-      doc.setFillColor(236, 253, 245);
+      // Total row
+      y += 2;
+      doc.setFillColor(purple.r, purple.g, purple.b);
       doc.roundedRect(m, y, pw - m * 2, 14, 3, 3, 'F');
-      doc.setFontSize(10);
+      doc.setTextColor(white.r, white.g, white.b);
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
-      doc.setTextColor(22, 101, 52);
-      doc.text(`Total 12-Month Rewards: ${formatAmount(totalRewards12Months)}`, m + 5, y + 6);
-      doc.text(`Capital + Rewards: ${formatAmount(totalWithCapital)}`, m + 5, y + 12);
+      doc.text(`Total Rewards: ${formatAmount(totalRewards12Months)}`, m + 6, y + 6);
+      doc.text(`Capital + Rewards: ${formatAmount(totalWithCapital)}`, m + 6, y + 12);
 
       y += 22;
 
-      // Withdrawal Policy
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(10);
+      // ── 90-DAY LOCK POLICY ──
+      doc.setFontSize(13);
       doc.setFont('helvetica', 'bold');
-      doc.text('CAPITAL WITHDRAWAL POLICY', m, y);
-      y += 6;
-      doc.setFillColor(254, 243, 199);
-      doc.roundedRect(m, y, pw - m * 2, 18, 3, 3, 'F');
-      doc.setFontSize(8);
+      doc.setTextColor(purple.r, purple.g, purple.b);
+      doc.text('90-DAY CAPITAL LOCK POLICY', m, y);
+      y += 5;
+      doc.setFillColor(lightPurple.r, lightPurple.g, lightPurple.b);
+      doc.roundedRect(m, y, pw - m * 2, 28, 3, 3, 'F');
+      doc.setDrawColor(purple.r, purple.g, purple.b);
+      doc.roundedRect(m, y, pw - m * 2, 28, 3, 3, 'S');
+      doc.setFontSize(10);
       doc.setFont('helvetica', 'normal');
-      doc.setTextColor(146, 64, 14);
-      doc.text('• Capital is locked for 90 days (rent is paid 90 days upfront for tenants).', m + 5, y + 6);
-      doc.text('• Capital is NOT accessible during the 90-day lock period.', m + 5, y + 12);
-      doc.text('• ROI payouts continue monthly throughout the lock-in period.', m + 5, y + 18);
+      doc.setTextColor(darkText.r, darkText.g, darkText.b);
+      doc.text('• Capital is locked for 90 days — Welile pays rent upfront for tenants.', m + 6, y + 8);
+      doc.text('• Capital is NOT accessible during the 90-day lock period.', m + 6, y + 16);
+      doc.text('• Reward payouts continue monthly throughout the lock-in period.', m + 6, y + 24);
 
-      // Footer
-      y = 278;
-      doc.setDrawColor(200, 200, 200);
+      // ── FOOTER ──
+      y = ph - 18;
+      doc.setDrawColor(purple.r, purple.g, purple.b);
+      doc.setLineWidth(0.3);
       doc.line(m, y, pw - m, y);
-      doc.setFontSize(7);
-      doc.setTextColor(150, 150, 150);
-      doc.text('Rewards are guaranteed by Welile operational assurance. Welile Supporters Program.', m, y + 5);
-      doc.text(`Ref: WS-${Date.now().toString(36).toUpperCase()}`, pw - m - 35, y + 5);
+      doc.setFontSize(8);
+      doc.setTextColor(mutedText.r, mutedText.g, mutedText.b);
+      doc.text('Rewards guaranteed by Welile operational assurance. Welile Supporters Program.', m, y + 5);
+      doc.setTextColor(purple.r, purple.g, purple.b);
+      doc.text(`Ref: WS-${Date.now().toString(36).toUpperCase()}`, pw - m - 40, y + 5);
 
       doc.save(`welile-package-${category.category.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
       toast.success('Package PDF downloaded!');
