@@ -6,8 +6,10 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { 
-  CreditCard, Calculator, FileText, Menu
+  CreditCard, Calculator, FileText, Menu, ChevronDown
 } from 'lucide-react';
+import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
+import { Badge } from '@/components/ui/badge';
 import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
 import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
 import { useToast } from '@/hooks/use-toast';
@@ -356,13 +358,31 @@ export default function SupporterDashboard({
             />
           </div>
 
-          {/* ═══ SECONDARY: MY FUNDED HOUSES (collapsed by default) ═══ */}
+          {/* ═══ SECONDARY: MY FUNDED HOUSES (collapsible) ═══ */}
           {virtualHouses.length > 0 && (
-            <VirtualHousesFeed
-              houses={virtualHouses}
-              loading={loading}
-              onHouseTap={handleHouseTap}
-            />
+            <Collapsible>
+              <CollapsibleTrigger asChild>
+                <button className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl bg-muted/50 hover:bg-muted transition-colors touch-manipulation active:scale-[0.98]">
+                  <div className="flex items-center gap-2">
+                    <span className="text-lg">🏘️</span>
+                    <span className="font-bold text-sm text-foreground">My Houses</span>
+                    <Badge variant="secondary" className="text-[10px] px-2 py-0.5">
+                      {virtualHouses.length}
+                    </Badge>
+                  </div>
+                  <ChevronDown className="h-4 w-4 text-muted-foreground transition-transform duration-200 [[data-state=open]>&]:rotate-180" />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="pt-3">
+                  <VirtualHousesFeed
+                    houses={virtualHouses}
+                    loading={loading}
+                    onHouseTap={handleHouseTap}
+                  />
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
           )}
 
           {/* ADD ROLE */}
