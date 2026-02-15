@@ -44,8 +44,7 @@ import { PortfolioSummaryCards } from '@/components/supporter/PortfolioSummaryCa
 import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
-import { HouseOpportunities } from '@/components/supporter/HouseOpportunities';
-import { OpportunityHeroButton } from '@/components/supporter/OpportunityHeroButton';
+import { RentCategoryFeed } from '@/components/supporter/RentCategoryFeed';
 
 // Tenant request details and payment dialogs (for funding flow)
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
@@ -346,14 +345,12 @@ export default function SupporterDashboard({
             onHouseTap={handleHouseTap}
           />
 
-          {/* ═══ OPPORTUNITIES ═══ */}
+          {/* ═══ RENT CATEGORIES (CATEGORY-FIRST) ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
-            
-            <OpportunityHeroButton onClick={() => navigate('/opportunities')} />
 
-            <HouseOpportunities
-              onFund={(id) => {
+            <RentCategoryFeed
+              onFundCategory={() => {
                 if (!effectiveHasAccepted) {
                   setShowAgreementModal(true);
                   return;
