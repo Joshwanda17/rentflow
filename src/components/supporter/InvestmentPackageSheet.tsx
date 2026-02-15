@@ -32,7 +32,7 @@ interface InvestmentPackageSheetProps {
 
 type SheetStep = 'summary' | 'accepted' | 'deposit';
 
-const ROI_RATE = 0.15; // 15% monthly
+const REWARD_RATE = 0.15; // 15% monthly supporter reward
 
 export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptAndDeposit }: InvestmentPackageSheetProps) {
   const { formatAmount } = useCurrency();
@@ -44,24 +44,24 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   if (!category) return null;
 
   const rentAmount = category.avgRent || category.totalRent;
-  const monthlyROI = Math.round(rentAmount * ROI_RATE);
+  const monthlyReward = Math.round(rentAmount * REWARD_RATE);
   const estimatedLandlords = Math.max(1, Math.ceil(category.totalHouses * 0.7));
 
-  // 12-month ROI schedule
-  const roiSchedule = Array.from({ length: 12 }, (_, i) => {
+  // 12-month reward schedule
+  const rewardSchedule = Array.from({ length: 12 }, (_, i) => {
     const month = i + 1;
     const date = addMonths(new Date(), month);
     let payout: number;
     if (autoCompound) {
-      payout = Math.round(rentAmount * (Math.pow(1 + ROI_RATE, month) - Math.pow(1 + ROI_RATE, month - 1)));
+      payout = Math.round(rentAmount * (Math.pow(1 + REWARD_RATE, month) - Math.pow(1 + REWARD_RATE, month - 1)));
     } else {
-      payout = monthlyROI;
+      payout = monthlyReward;
     }
     return { month, date, payout };
   });
 
-  const totalROI12Months = roiSchedule.reduce((s, r) => s + r.payout, 0);
-  const totalWithCapital = rentAmount + totalROI12Months;
+  const totalRewards12Months = rewardSchedule.reduce((s, r) => s + r.payout, 0);
+  const totalWithCapital = rentAmount + totalRewards12Months;
 
   const handleAccept = () => {
     hapticTap();
@@ -93,7 +93,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(20);
       doc.setFont('helvetica', 'bold');
-      doc.text('WELILE INVESTMENT PACKAGE', m, 18);
+      doc.text('WELILE SUPPORTER PACKAGE', m, 18);
       doc.setFontSize(11);
       doc.setFont('helvetica', 'normal');
       doc.text(category.category, m, 26);
@@ -111,18 +111,18 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.text('PACKAGE OVERVIEW', m + 5, y + 10);
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
-      doc.text(`Investment Amount: ${formatAmount(rentAmount)}`, m + 5, y + 18);
-      doc.text(`Monthly ROI (15%): ${formatAmount(monthlyROI)}`, m + 5, y + 25);
+      doc.text(`Facilitation Amount: ${formatAmount(rentAmount)}`, m + 5, y + 18);
+      doc.text(`Monthly Reward (15%): ${formatAmount(monthlyReward)}`, m + 5, y + 25);
       doc.text(`Tenants: ${category.totalHouses}  |  Landlords: ~${estimatedLandlords}`, m + 5, y + 32);
       doc.text(`Auto-Compounding: ${autoCompound ? 'YES' : 'NO'}`, pw / 2 + 10, y + 18);
       doc.text(`Capital Lock-in: 90 days`, pw / 2 + 10, y + 25);
 
       y += 48;
 
-      // 12-Month ROI Table
+      // 12-Month Reward Table
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
-      doc.text('12-MONTH ROI PROJECTION', m, y);
+      doc.text('12-MONTH REWARD SCHEDULE', m, y);
       y += 6;
 
       // Table header
@@ -133,14 +133,14 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.setFont('helvetica', 'bold');
       doc.text('Month', m + 3, y + 5);
       doc.text('Payout Date', m + 30, y + 5);
-      doc.text('ROI Payout', m + 80, y + 5);
+      doc.text('Reward', m + 80, y + 5);
       doc.text('Cumulative', m + 125, y + 5);
       y += 7;
 
       doc.setTextColor(0, 0, 0);
       doc.setFont('helvetica', 'normal');
       let cumulative = 0;
-      roiSchedule.forEach((r, i) => {
+      rewardSchedule.forEach((r, i) => {
         cumulative += r.payout;
         if (i % 2 === 0) {
           doc.setFillColor(248, 250, 252);
@@ -162,8 +162,8 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.setFontSize(10);
       doc.setFont('helvetica', 'bold');
       doc.setTextColor(22, 101, 52);
-      doc.text(`Total 12-Month Returns: ${formatAmount(totalROI12Months)}`, m + 5, y + 6);
-      doc.text(`Capital + Returns: ${formatAmount(totalWithCapital)}`, m + 5, y + 12);
+      doc.text(`Total 12-Month Rewards: ${formatAmount(totalRewards12Months)}`, m + 5, y + 6);
+      doc.text(`Capital + Rewards: ${formatAmount(totalWithCapital)}`, m + 5, y + 12);
 
       y += 22;
 
@@ -188,7 +188,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
       doc.line(m, y, pw - m, y);
       doc.setFontSize(7);
       doc.setTextColor(150, 150, 150);
-      doc.text('This is a projected estimate. Actual returns may vary. Welile Supporters Program.', m, y + 5);
+      doc.text('Rewards are guaranteed by Welile operational assurance. Welile Supporters Program.', m, y + 5);
       doc.text(`Ref: WS-${Date.now().toString(36).toUpperCase()}`, pw - m - 35, y + 5);
 
       doc.save(`welile-package-${category.category.replace(/\s+/g, '-').toLowerCase()}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
@@ -202,7 +202,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
   };
 
   const handleShareWhatsApp = () => {
-    const text = `📊 *Welile Investment Package*\n\n🏠 *${category.category}*\n💰 Investment: ${formatAmount(rentAmount)}\n📈 Monthly ROI: ${formatAmount(monthlyROI)} (15%)\n🏡 Tenants: ${category.totalHouses}\n👤 Landlords: ~${estimatedLandlords}\n\n📅 12-Month Total Returns: ${formatAmount(totalROI12Months)}\n💎 Capital + Returns: ${formatAmount(totalWithCapital)}\n\n🔒 90-day capital lock-in\n${autoCompound ? '🔄 Auto-compounding enabled' : '💸 Monthly payouts'}\n\nJoin Welile Supporters today!`;
+    const text = `📊 *Welile Supporter Package*\n\n🏠 *${category.category}*\n💰 Facilitation Amount: ${formatAmount(rentAmount)}\n📈 Monthly Reward: ${formatAmount(monthlyReward)} (15%)\n🏡 Tenants: ${category.totalHouses}\n👤 Landlords: ~${estimatedLandlords}\n\n📅 12-Month Total Rewards: ${formatAmount(totalRewards12Months)}\n💎 Capital + Rewards: ${formatAmount(totalWithCapital)}\n\n🔒 90-day capital lock-in\n${autoCompound ? '🔄 Auto-compounding enabled' : '💸 Monthly payouts'}\n\n✅ Welile guarantees rewards through operational assurance — upfront rent & agent-managed tenant replacement.\n\nJoin Welile Supporters today!`;
     const url = `https://wa.me/?text=${encodeURIComponent(text)}`;
     window.open(url, '_blank');
   };
@@ -292,7 +292,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                 <DialogHeader>
                   <div className="flex items-center justify-between mb-1">
                     <img src={welileLogo} alt="Welile" className="h-7 w-auto" />
-                    <Badge className="bg-white/10 text-white/80 border-white/20 text-[10px]">Investment Package</Badge>
+                    <Badge className="bg-white/10 text-white/80 border-white/20 text-[10px]">Supporter Package</Badge>
                   </div>
                   <DialogTitle className="text-white text-lg font-bold flex items-center gap-2">
                     <BarChart3 className="h-5 w-5" />
@@ -302,11 +302,11 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                 <p className="text-slate-400 text-xs mt-0.5">Welile Supporters Program</p>
                 <div className="mt-4 flex items-end justify-between">
                   <div>
-                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Investment Amount</p>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">Facilitation Amount</p>
                     <p className="text-2xl font-black mt-0.5">{formatAmount(rentAmount)}</p>
                   </div>
                   <Badge className="bg-emerald-500/20 text-emerald-300 border-emerald-500/30 text-xs">
-                    15% Monthly ROI
+                    15% Monthly Reward
                   </Badge>
                 </div>
               </div>
@@ -331,49 +331,64 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                   <div className="p-3 rounded-xl bg-success/5 border border-success/20">
                     <div className="flex items-center gap-1.5 mb-1">
                       <TrendingUp className="h-3.5 w-3.5 text-success" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Monthly ROI</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">Monthly Reward</span>
                     </div>
-                    <p className="text-lg font-bold text-success">{formatAmount(monthlyROI)}</p>
+                    <p className="text-lg font-bold text-success">{formatAmount(monthlyReward)}</p>
                   </div>
                   <div className="p-3 rounded-xl bg-primary/5 border border-primary/20">
                     <div className="flex items-center gap-1.5 mb-1">
                       <Calendar className="h-3.5 w-3.5 text-primary" />
-                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">12-Mo Total</span>
+                      <span className="text-[10px] text-muted-foreground uppercase tracking-wide">12-Mo Rewards</span>
                     </div>
-                    <p className="text-lg font-bold text-primary">{formatAmount(totalROI12Months)}</p>
+                    <p className="text-lg font-bold text-primary">{formatAmount(totalRewards12Months)}</p>
                   </div>
                 </div>
 
                 {/* Auto-Compounding Toggle */}
+                {/* How It Works — Operational Assurance */}
+                <div className="p-3.5 rounded-xl bg-primary/5 border border-primary/20">
+                  <div className="flex items-center gap-2 mb-2.5">
+                    <Shield className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold text-foreground">How Welile Guarantees Your Rewards</span>
+                  </div>
+                  <ul className="text-[11px] text-muted-foreground space-y-2 pl-1">
+                    <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" /><span>Welile pays rent <strong className="text-foreground">upfront</strong> for tenants — never in arrears. Your funds are deployed immediately.</span></li>
+                    <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" /><span>Welile Agents hold <strong className="text-foreground">tenant placement rights</strong> — if a tenant defaults, the agent replaces them with a paying tenant.</span></li>
+                    <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" /><span>Defaults <strong className="text-foreground">do not affect supporters</strong>. Welile's operational model absorbs and mitigates all default risk.</span></li>
+                    <li className="flex gap-2"><CheckCircle2 className="h-3.5 w-3.5 text-success shrink-0 mt-0.5" /><span>Your <strong className="text-foreground">15% monthly reward</strong> is a platform service reward — not an investment return.</span></li>
+                  </ul>
+                </div>
+
+                {/* Auto-Compound Toggle */}
                 <div className="flex items-center justify-between p-3.5 rounded-xl bg-card border border-border/60">
                   <div className="flex items-center gap-2.5">
                     <div className="w-9 h-9 rounded-lg bg-primary/10 flex items-center justify-center">
                       <Percent className="h-4 w-4 text-primary" />
                     </div>
                     <div>
-                      <p className="text-sm font-semibold text-foreground">Auto-Compound ROI</p>
-                      <p className="text-[10px] text-muted-foreground">Reinvest returns automatically</p>
+                      <p className="text-sm font-semibold text-foreground">Auto-Compound Rewards</p>
+                      <p className="text-[10px] text-muted-foreground">Reinvest rewards automatically</p>
                     </div>
                   </div>
                   <Switch checked={autoCompound} onCheckedChange={setAutoCompound} />
                 </div>
 
-                {/* 12-Month ROI Schedule */}
+                {/* 12-Month Reward Schedule */}
                 <div>
                   <h4 className="text-xs font-bold text-foreground mb-2.5 flex items-center gap-1.5">
                     <Calendar className="h-3.5 w-3.5 text-primary" />
-                    12-Month Payout Schedule
+                    12-Month Reward Schedule
                   </h4>
                   <div className="rounded-xl border border-border/60 overflow-hidden">
                     {/* Table header */}
                     <div className="grid grid-cols-3 gap-0 bg-muted/80 px-3 py-2">
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Month</span>
                       <span className="text-[10px] font-bold text-muted-foreground uppercase">Date</span>
-                      <span className="text-[10px] font-bold text-muted-foreground uppercase text-right">Payout</span>
+                      <span className="text-[10px] font-bold text-muted-foreground uppercase text-right">Reward</span>
                     </div>
                     {/* Table rows */}
                     <div className="max-h-[200px] overflow-y-auto">
-                      {roiSchedule.map((r, i) => (
+                      {rewardSchedule.map((r, i) => (
                         <div
                           key={r.month}
                           className={`grid grid-cols-3 gap-0 px-3 py-2 ${i % 2 === 0 ? 'bg-background' : 'bg-muted/30'}`}
@@ -386,8 +401,8 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                     </div>
                     {/* Total */}
                     <div className="grid grid-cols-3 gap-0 px-3 py-2.5 bg-success/5 border-t border-success/20">
-                      <span className="text-xs font-bold text-foreground col-span-2">Total Returns</span>
-                      <span className="text-sm font-black text-success text-right">{formatAmount(totalROI12Months)}</span>
+                      <span className="text-xs font-bold text-foreground col-span-2">Total Rewards</span>
+                      <span className="text-sm font-black text-success text-right">{formatAmount(totalRewards12Months)}</span>
                     </div>
                   </div>
                 </div>
@@ -399,9 +414,9 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                     <span className="text-xs font-bold text-amber-700">90-Day Capital Lock Policy</span>
                   </div>
                   <ul className="text-[11px] text-amber-700/80 space-y-2 pl-6 list-disc">
-                    <li>Your capital is <strong>locked for 90 days</strong> from deposit date — this allows Welile agents to recover funds from tenants (rent is paid 90 days upfront)</li>
+                    <li>Your capital is <strong>locked for 90 days</strong> — Welile pays rent upfront for tenants, and agents need this window to collect repayments</li>
                     <li>During the 90-day lock period, <strong>your capital is not accessible</strong> for withdrawal</li>
-                    <li><strong>ROI payouts continue monthly</strong> throughout the lock-in period</li>
+                    <li><strong>Reward payouts continue monthly</strong> throughout the lock-in period</li>
                     <li>Early withdrawal is <strong>not permitted</strong> during the 90-day period</li>
                   </ul>
                 </div>
@@ -423,7 +438,7 @@ export function InvestmentPackageSheet({ open, onOpenChange, category, onAcceptA
                 <div className="flex items-start gap-2.5 p-3 rounded-xl bg-muted/30 border border-border/40">
                   <Shield className="h-4 w-4 text-primary mt-0.5 shrink-0" />
                   <p className="text-[11px] text-muted-foreground">
-                    All deposits are verified by a <strong className="text-foreground">Welile Manager</strong> before your portfolio is activated. 
+                    All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your portfolio is activated. 
                     You'll be notified once approved.
                   </p>
                 </div>
