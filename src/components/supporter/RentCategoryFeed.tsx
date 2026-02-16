@@ -71,7 +71,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, request_city, duration_days')
+      .select('id, rent_amount, request_city, duration_days, house_category')
       .eq('status', 'approved')
       .limit(500);
 
@@ -81,7 +81,11 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     if (!error && data) {
       data.forEach(r => {
         const amount = Number(r.rent_amount);
-        const tier = getTierForRent(amount);
+        // Use explicit house_category if set, otherwise fall back to rent-amount-based tier
+        const houseCategory = (r as any).house_category as string | null;
+        const tier = houseCategory
+          ? WELILE_TIERS.find(t => t.name === houseCategory) || getTierForRent(amount)
+          : getTierForRent(amount);
         const existing = tierMap.get(tier.name)!;
         existing.count += 1;
         existing.totalRent += amount;

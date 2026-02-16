@@ -1117,6 +1117,7 @@ export type Database = {
           fund_recipient_type: string | null
           fund_routed_at: string | null
           funded_at: string | null
+          house_category: string | null
           id: string
           landlord_id: string
           lc1_id: string
@@ -1158,6 +1159,7 @@ export type Database = {
           fund_recipient_type?: string | null
           fund_routed_at?: string | null
           funded_at?: string | null
+          house_category?: string | null
           id?: string
           landlord_id: string
           lc1_id: string
@@ -1199,6 +1201,7 @@ export type Database = {
           fund_recipient_type?: string | null
           fund_routed_at?: string | null
           funded_at?: string | null
+          house_category?: string | null
           id?: string
           landlord_id?: string
           lc1_id?: string

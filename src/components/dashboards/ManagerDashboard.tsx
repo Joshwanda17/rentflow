@@ -107,6 +107,7 @@ import { ChromecastButton } from '@/components/manager/ChromecastButton';
 import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
+import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
 
 interface ManagerDashboardProps {
   user: User;
@@ -892,6 +893,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         >
           <PendingInvitesWidget minimal />
         </CollapsibleAgentSection>
+
+        {/* Pending Rent Requests - Incoming from agents/tenants */}
+        <PendingRentRequestsWidget />
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
