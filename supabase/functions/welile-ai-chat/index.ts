@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -186,66 +185,8 @@ serve(async (req) => {
       });
     }
 
-    let userContext = "";
-    
-    // Try to get authenticated user context (optional)
-    const authHeader = req.headers.get("Authorization");
-    if (authHeader?.startsWith("Bearer ")) {
-      try {
-        const supabase = createClient(
-          Deno.env.get("SUPABASE_URL")!,
-          Deno.env.get("SUPABASE_ANON_KEY")!,
-          { global: { headers: { Authorization: authHeader } } }
-        );
-
-        const token = authHeader.replace("Bearer ", "");
-        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-        
-        if (!claimsError && claimsData?.claims) {
-          const userId = claimsData.claims.sub;
-
-          const [profileRes, rolesRes, baselineRes, predictionRes] = await Promise.all([
-            supabase.from("profiles").select("full_name, phone, verified, referrer_id, last_active_at, rent_discount_active, agent_type").eq("id", userId).single(),
-            supabase.from("user_roles").select("role").eq("user_id", userId),
-            supabase.from("earning_baselines").select("*").eq("user_id", userId).single(),
-            supabase.from("earning_predictions").select("*").eq("user_id", userId).eq("period", "weekly").order("created_at", { ascending: false }).limit(1).single(),
-          ]);
-
-          const profile = profileRes.data;
-          const roles = rolesRes.data?.map((r: any) => r.role) || [];
-          const baseline = baselineRes.data;
-          const prediction = predictionRes.data;
-
-          userContext = `\n\nUSER CONTEXT:\n- User ID: ${userId}\n- Roles: ${roles.join(", ") || "none"}\n`;
-          if (profile) {
-            userContext += `- Name: ${profile.full_name}\n- Verified: ${profile.verified}\n- Agent type: ${profile.agent_type || "N/A"}\n- Last active: ${profile.last_active_at || "unknown"}\n`;
-          }
-          if (baseline) {
-            userContext += `\nEARNING BASELINE:\n- Avg daily earnings: UGX ${baseline.avg_daily_earnings}\n- Avg weekly earnings: UGX ${baseline.avg_weekly_earnings}\n- Receipts posted (last 7 days): ${baseline.receipt_count_7d}\n- Referrals (last 7 days): ${baseline.referral_count_7d}\n- Avg receipts per day: ${baseline.avg_receipts_per_day}\n`;
-          }
-          if (prediction) {
-            userContext += `\nEARNING PREDICTION:\n- Predicted weekly earnings: UGX ${prediction.predicted_earnings}\n- Confidence: ${Math.round(prediction.confidence * 100)}%\n- Assumptions: ${JSON.stringify(prediction.assumptions)}\n`;
-            userContext += `\nIMPORTANT: Use these predictions to personalize your responses. Reference specific numbers when suggesting earning actions.\n`;
-          }
-
-          // Save the latest user message for logged-in users
-          const lastUserMsg = messages[messages.length - 1];
-          if (lastUserMsg?.role === "user") {
-            await supabase.from("ai_chat_messages").insert({
-              user_id: userId,
-              role: "user",
-              content: lastUserMsg.content,
-            });
-          }
-        }
-      } catch (authErr) {
-        console.warn("Auth context fetch failed (continuing as guest):", authErr);
-      }
-    }
-
-    if (!userContext) {
-      userContext = "\n\nUSER CONTEXT:\n- This user is NOT logged in (guest). Introduce Welile warmly and encourage sign-up.\n";
-    }
+    // No DB calls — Welile AI operates statelessly from its built-in knowledge
+    const userContext = "\n\nUSER CONTEXT:\n- Treat every user as a potential Supporter. Focus on selling the passive income opportunity.\n- If they mention signing up, direct them to the sign-up page.\n";
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
