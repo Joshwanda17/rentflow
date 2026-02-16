@@ -25,7 +25,10 @@ import {
   Calculator,
   Calendar,
   Banknote,
-  Users
+  Users,
+  Share2,
+  Copy,
+  MessageCircle
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
@@ -44,6 +47,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const { user } = useAuth();
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [activationLink, setActivationLink] = useState<string | null>(null);
   const [step, setStep] = useState<'type' | 'details' | 'confirm'>('type');
   
   // Income type
@@ -82,6 +86,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setLc1Phone('');
     setLc1Village('');
     setSuccess(false);
+    setActivationLink(null);
     setStep('type');
   };
 
@@ -227,6 +232,32 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       if (requestError) throw requestError;
 
+      // Create activation invite so tenant can claim their account later
+      const tempPassword = crypto.randomUUID().slice(0, 8);
+      const activationToken = crypto.randomUUID();
+      
+      const { error: inviteError } = await supabase
+        .from('supporter_invites')
+        .insert({
+          full_name: tenantName.trim(),
+          phone: tenantPhone.trim(),
+          email: virtualEmail,
+          temp_password: tempPassword,
+          activation_token: activationToken,
+          created_by: user.id,
+          role: 'tenant',
+          status: 'pending',
+        });
+
+      if (inviteError) {
+        console.error('Invite creation failed:', inviteError);
+      }
+
+      // Build activation link
+      const baseUrl = window.location.origin;
+      const link = `${baseUrl}/join?t=${activationToken}`;
+      setActivationLink(link);
+
       hapticSuccess();
       setSuccess(true);
       toast.success('Rent request posted successfully!');
@@ -267,21 +298,64 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
               key="success"
               initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="py-8 text-center"
+              className="py-6 text-center space-y-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
-                className="w-16 h-16 mx-auto mb-4 rounded-full bg-emerald-500/20 flex items-center justify-center"
+                className="w-16 h-16 mx-auto rounded-full bg-success/20 flex items-center justify-center"
               >
-                <CheckCircle2 className="h-8 w-8 text-emerald-500" />
+                <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
-              <h3 className="text-lg font-semibold mb-2">Request Posted!</h3>
-              <p className="text-muted-foreground text-sm mb-4">
+              <h3 className="text-lg font-semibold">Request Posted!</h3>
+              <p className="text-muted-foreground text-sm">
                 The rent request is now visible to supporters
               </p>
-              <Button onClick={() => handleOpenChange(false)}>
+
+              {/* Activation Link Section */}
+              {activationLink && (
+                <div className="space-y-3 pt-2">
+                  <Separator />
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/20 text-left space-y-2">
+                    <p className="text-xs font-medium text-primary flex items-center gap-1.5">
+                      <Share2 className="h-3.5 w-3.5" />
+                      Tenant Activation Link
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Share this link with <strong>{tenantName}</strong> so they can activate their account when they get a smartphone.
+                    </p>
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="flex-1 gap-1.5 text-xs"
+                        onClick={() => {
+                          navigator.clipboard.writeText(activationLink);
+                          toast.success('Link copied!');
+                        }}
+                      >
+                        <Copy className="h-3.5 w-3.5" />
+                        Copy Link
+                      </Button>
+                      <Button
+                        size="sm"
+                        className="flex-1 gap-1.5 text-xs bg-[#25D366] hover:bg-[#20BD5A] text-white"
+                        onClick={() => {
+                          const message = `Hi ${tenantName}! 👋\n\nYour rent request has been submitted on Welile. When you get a smartphone, tap this link to activate your account:\n\n${activationLink}\n\nYou'll be able to track your rent status and make payments.`;
+                          const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+                          window.open(whatsappUrl, '_blank');
+                        }}
+                      >
+                        <MessageCircle className="h-3.5 w-3.5" />
+                        Share on WhatsApp
+                      </Button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              <Button onClick={() => handleOpenChange(false)} className="w-full mt-2">
                 Done
               </Button>
             </motion.div>
