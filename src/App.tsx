@@ -14,9 +14,9 @@ import { LanguageProvider } from "@/hooks/useLanguage";
 import { CurrencyProvider } from "@/hooks/useCurrency";
 import { CombinedSettingsProvider } from "@/hooks/useCombinedSettings";
 
-// Auth providers — must be eager since they wrap all routes
-import { PinAuthProvider } from "@/hooks/usePinAuth";
-import { BiometricAuthProvider } from "@/hooks/useBiometricAuth";
+// Auth providers — deferred since they're not needed for first paint
+const PinAuthProvider = lazy(() => import("@/hooks/usePinAuth").then(m => ({ default: m.PinAuthProvider })));
+const BiometricAuthProvider = lazy(() => import("@/hooks/useBiometricAuth").then(m => ({ default: m.BiometricAuthProvider })));
 
 // Deferred providers - loaded after first paint
 const CartProvider = lazy(() => import("@/hooks/useCart").then(m => ({ default: m.CartProvider })));
@@ -96,8 +96,8 @@ const isIOSStandalone = (() => {
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: isIOSStandalone ? 30 * 1000 : 10 * 60 * 1000,
-      gcTime: isIOSStandalone ? 5 * 60 * 1000 : 60 * 60 * 1000,
+      staleTime: isIOSStandalone ? 5 * 60 * 1000 : 10 * 60 * 1000,
+      gcTime: isIOSStandalone ? 30 * 60 * 1000 : 60 * 60 * 1000,
       retry: 2,
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
@@ -231,13 +231,17 @@ function DeferredProviders({ children }: { children: ReactNode }) {
   return (
     <DeferredErrorBoundary>
       <Suspense fallback={<>{children}</>}>
-        <OfflineProvider>
-          <CartProvider>
-            <ComparisonProvider>
-              {children}
-            </ComparisonProvider>
-          </CartProvider>
-        </OfflineProvider>
+        <PinAuthProvider>
+          <BiometricAuthProvider>
+            <OfflineProvider>
+              <CartProvider>
+                <ComparisonProvider>
+                  {children}
+                </ComparisonProvider>
+              </CartProvider>
+            </OfflineProvider>
+          </BiometricAuthProvider>
+        </PinAuthProvider>
       </Suspense>
     </DeferredErrorBoundary>
   );
@@ -252,20 +256,16 @@ const App = () => (
             <LanguageProvider>
               <CurrencyProvider>
                 <AuthProvider>
-                  <PinAuthProvider>
-                    <BiometricAuthProvider>
-                      <TooltipProvider delayDuration={300}>
-                        <DeferredProviders>
-                          <AppRoutes />
-                        </DeferredProviders>
-                        <Suspense fallback={null}>
-                          <DeferredExtras />
-                          <Toaster />
-                          <Sonner />
-                        </Suspense>
-                      </TooltipProvider>
-                    </BiometricAuthProvider>
-                  </PinAuthProvider>
+                  <TooltipProvider delayDuration={300}>
+                    <DeferredProviders>
+                      <AppRoutes />
+                    </DeferredProviders>
+                    <Suspense fallback={null}>
+                      <DeferredExtras />
+                      <Toaster />
+                      <Sonner />
+                    </Suspense>
+                  </TooltipProvider>
                 </AuthProvider>
               </CurrencyProvider>
             </LanguageProvider>
@@ -275,5 +275,4 @@ const App = () => (
     </ThemeProvider>
   </ChunkErrorBoundary>
 );
-
 export default App;
