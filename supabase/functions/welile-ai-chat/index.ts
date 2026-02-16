@@ -107,18 +107,29 @@ serve(async (req) => {
       });
     }
 
-    // Fetch user context for personalization
-    const [profileRes, rolesRes] = await Promise.all([
+    // Fetch user context for personalization including earning predictions
+    const [profileRes, rolesRes, baselineRes, predictionRes] = await Promise.all([
       supabase.from("profiles").select("full_name, phone, verified, referrer_id, last_active_at, rent_discount_active, agent_type").eq("id", userId).single(),
       supabase.from("user_roles").select("role").eq("user_id", userId),
+      supabase.from("earning_baselines").select("*").eq("user_id", userId).single(),
+      supabase.from("earning_predictions").select("*").eq("user_id", userId).eq("period", "weekly").order("created_at", { ascending: false }).limit(1).single(),
     ]);
 
     const profile = profileRes.data;
     const roles = rolesRes.data?.map((r: any) => r.role) || [];
+    const baseline = baselineRes.data;
+    const prediction = predictionRes.data;
 
     let userContext = `\n\nUSER CONTEXT:\n- User ID: ${userId}\n- Roles: ${roles.join(", ") || "none"}\n`;
     if (profile) {
       userContext += `- Name: ${profile.full_name}\n- Verified: ${profile.verified}\n- Agent type: ${profile.agent_type || "N/A"}\n- Last active: ${profile.last_active_at || "unknown"}\n`;
+    }
+    if (baseline) {
+      userContext += `\nEARNING BASELINE:\n- Avg daily earnings: UGX ${baseline.avg_daily_earnings}\n- Avg weekly earnings: UGX ${baseline.avg_weekly_earnings}\n- Receipts posted (last 7 days): ${baseline.receipt_count_7d}\n- Referrals (last 7 days): ${baseline.referral_count_7d}\n- Avg receipts per day: ${baseline.avg_receipts_per_day}\n`;
+    }
+    if (prediction) {
+      userContext += `\nEARNING PREDICTION:\n- Predicted weekly earnings: UGX ${prediction.predicted_earnings}\n- Confidence: ${Math.round(prediction.confidence * 100)}%\n- Assumptions: ${JSON.stringify(prediction.assumptions)}\n`;
+      userContext += `\nIMPORTANT: Use these predictions to personalize your responses. Reference specific numbers when suggesting earning actions. For example: "Based on your activity, you can earn UGX ${prediction.predicted_earnings} this week if you keep posting receipts daily."\n`;
     }
 
     // Save the latest user message
