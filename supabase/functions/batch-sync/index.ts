@@ -79,11 +79,31 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
     for (const item of items) {
       try {
+        // Validate item structure
+        if (!item.id || !item.type || !item.table || typeof item.data !== 'object' || item.data === null) {
+          results.push({ id: item.id || 'unknown', success: false, error: 'Invalid item structure' });
+          continue;
+        }
+
+        if (!['create', 'update', 'delete'].includes(item.type)) {
+          results.push({ id: item.id, success: false, error: `Invalid type: ${item.type}` });
+          continue;
+        }
+
         // Validate table is allowed
         if (!allowedTables.has(item.table)) {
           results.push({ id: item.id, success: false, error: `Table '${item.table}' not allowed` });
+          continue;
+        }
+
+        // Limit data payload size (prevent DoS via large payloads)
+        const dataStr = JSON.stringify(item.data);
+        if (dataStr.length > 10000) {
+          results.push({ id: item.id, success: false, error: 'Data payload too large (max 10KB)' });
           continue;
         }
 

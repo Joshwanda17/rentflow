@@ -40,16 +40,29 @@ serve(async (req) => {
     }
 
     const senderId = user.id;
-    const { recipient_id, amount, description } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { recipient_id, amount, description } = body as { recipient_id?: string; amount?: number; description?: string };
 
-    console.log(`Processing transfer: ${senderId} -> ${recipient_id}, amount: ${amount}`);
-
-    if (!recipient_id || !amount || amount <= 0) {
+    // UUID validation
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!recipient_id || typeof recipient_id !== 'string' || !UUID_REGEX.test(recipient_id)) {
       return new Response(
-        JSON.stringify({ error: 'Invalid request parameters' }),
+        JSON.stringify({ error: 'Invalid recipient ID' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    if (typeof amount !== 'number' || !Number.isFinite(amount) || amount <= 0 || amount > 100000000) {
+      return new Response(
+        JSON.stringify({ error: 'Amount must be between 1 and 100,000,000' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // Sanitize description
+    const safeDescription = typeof description === 'string' ? description.trim().slice(0, 500) : 'Wallet transfer';
+
+    console.log(`Processing transfer: ${senderId} -> ${recipient_id}, amount: ${amount}`);
 
     if (senderId === recipient_id) {
       return new Response(
@@ -164,7 +177,7 @@ serve(async (req) => {
         sender_id: senderId,
         recipient_id: recipient_id,
         amount: amount,
-        description: description || 'Wallet transfer',
+        description: safeDescription,
       });
 
     if (txError) {
