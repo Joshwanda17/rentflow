@@ -4,7 +4,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
-import { ArrowLeft, Mail, Lock, User, Phone, Loader2, Eye, EyeOff, MessageCircle, AlertCircle, LogIn } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn } from 'lucide-react';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -218,20 +218,23 @@ export default function Auth() {
                         value={password}
                         onChange={(e) => setPassword(e.target.value)}
                         placeholder="••••••••"
-                        className="pl-11 pr-12 h-14 text-base rounded-xl"
+                        className="pl-11 h-14 text-base rounded-xl"
                         style={{ fontSize: '16px' }}
                         required
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-2"
-                        aria-label={showPassword ? "Hide password" : "Show password"}
-                      >
-                        {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
                     </div>
                     {isSignUp && <PasswordStrengthIndicator password={password} />}
+                    <div className="flex items-center space-x-2 mt-1">
+                      <Checkbox
+                        id="showPassword"
+                        checked={showPassword}
+                        onCheckedChange={(checked) => setShowPassword(!!checked)}
+                        className="h-4 w-4"
+                      />
+                      <Label htmlFor="showPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
+                        Show password
+                      </Label>
+                    </div>
                   </div>
                 )}
 
@@ -248,18 +251,10 @@ export default function Auth() {
                         value={confirmPassword}
                         onChange={(e) => setConfirmPassword(e.target.value)}
                         placeholder="••••••••"
-                        className={`pl-11 pr-12 h-14 text-base rounded-xl ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
+                        className={`pl-11 h-14 text-base rounded-xl ${confirmPassword && password !== confirmPassword ? 'border-destructive' : confirmPassword && password === confirmPassword ? 'border-emerald-500' : ''}`}
                         style={{ fontSize: '16px' }}
                         required
                       />
-                      <button
-                        type="button"
-                        onClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground transition-colors touch-manipulation p-2"
-                        aria-label={showConfirmPassword ? "Hide password" : "Show password"}
-                      >
-                        {showConfirmPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
-                      </button>
                     </div>
                     {confirmPassword && password !== confirmPassword && (
                       <p className="text-xs text-destructive">Passwords don't match</p>
