@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Share2, MessageCircle, Copy, Check, Gift } from 'lucide-react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import {
   Dialog,
   DialogContent,
@@ -17,9 +18,10 @@ export function ShareAppButton() {
   const [copied, setCopied] = useState(false);
 
   // Generate referral link with user's ID - shorter format
+  const origin = getPublicOrigin();
   const referralLink = user 
-    ? `${window.location.origin}/join?r=${user.id}`
-    : window.location.origin;
+    ? `${origin}/join?r=${user.id}`
+    : origin;
   
   const shareMessage = `🏠 Hey! I'm using Welile to manage my rent payments and build credit through shopping. It's super easy! Join using my link and we both get rewarded: ${referralLink}`;
 

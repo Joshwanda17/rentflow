@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -331,7 +332,7 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
 
   const getShareLink = () => {
     if (!createdInvite) return '';
-    return `${window.location.origin}/join?t=${createdInvite.token}`;
+    return `${getPublicOrigin()}/join?t=${createdInvite.token}`;
   };
 
   const getWhatsAppMessage = () => {

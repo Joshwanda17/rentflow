@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -79,7 +80,7 @@ export function AgentInvitesList() {
   // Realtime removed — supporter_invites not in realtime whitelist. Refresh on revisit.
 
   const getShareLink = (token: string) => {
-    return `${window.location.origin}/join?t=${token}`;
+    return `${getPublicOrigin()}/join?t=${token}`;
   };
 
   const handleCopyLink = async (invite: UserInvite) => {

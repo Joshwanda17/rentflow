@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -56,7 +57,7 @@ export function SubAgentInvitesList() {
   const pendingInvites = invites.filter(i => i.status === 'pending');
 
   const getShareLink = (token: string) => {
-    return `${window.location.origin}/join?t=${token}`;
+    return `${getPublicOrigin()}/join?t=${token}`;
   };
 
   const generateNewPassword = () => {
