@@ -83,6 +83,7 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
+const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -197,6 +198,7 @@ function AppRoutes() {
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/share" element={<Index />} />
+          <Route path="/ai" element={<WelileAIPage />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
