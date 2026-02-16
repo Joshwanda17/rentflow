@@ -1886,6 +1886,7 @@ export type Database = {
           name: string
           phone: string | null
           pin: string | null
+          pin_hash: string | null
         }
         Insert: {
           active?: boolean
@@ -1896,6 +1897,7 @@ export type Database = {
           name: string
           phone?: string | null
           pin?: string | null
+          pin_hash?: string | null
         }
         Update: {
           active?: boolean
@@ -1906,6 +1908,7 @@ export type Database = {
           name?: string
           phone?: string | null
           pin?: string | null
+          pin_hash?: string | null
         }
         Relationships: []
       }

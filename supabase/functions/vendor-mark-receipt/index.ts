@@ -12,6 +12,30 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+
+    // Authenticate the caller
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Not authenticated' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, Deno.env.get('SUPABASE_ANON_KEY')!, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(
+        JSON.stringify({ success: false, message: 'Invalid authentication' }),
+        { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     const { vendorId, receiptId, amount } = await req.json();
 
     if (!vendorId || !receiptId || !amount) {
@@ -28,9 +52,33 @@ serve(async (req) => {
       );
     }
 
-    const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify the caller is a manager or the vendor owner
+    // Check if the user has a manager role (managers can mark on behalf of vendors)
+    const { data: managerRole } = await supabase
+      .from('user_roles')
+      .select('role')
+      .eq('user_id', user.id)
+      .eq('role', 'manager')
+      .maybeSingle();
+
+    // If not a manager, verify this is the actual vendor
+    if (!managerRole) {
+      const { data: vendor } = await supabase
+        .from('vendors')
+        .select('id')
+        .eq('id', vendorId)
+        .eq('active', true)
+        .maybeSingle();
+
+      if (!vendor) {
+        return new Response(
+          JSON.stringify({ success: false, message: 'Unauthorized - vendor not found or inactive' }),
+          { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+    }
 
     // Verify the receipt belongs to this vendor and is available
     const { data: receipt, error: fetchError } = await supabase
@@ -80,7 +128,18 @@ serve(async (req) => {
       );
     }
 
-    console.log(`Receipt ${receipt.receipt_code} marked with amount ${amount} by vendor ${vendorId}`);
+    // Audit log
+    try {
+      await supabase.from('audit_logs').insert({
+        action_type: 'vendor_mark_receipt',
+        table_name: 'receipt_numbers',
+        record_id: receiptId,
+        performed_by: user.id,
+        metadata: { vendorId, amount, receipt_code: receipt.receipt_code }
+      });
+    } catch {}
+
+    console.log(`Receipt ${receipt.receipt_code} marked with amount ${amount} by vendor ${vendorId} (user ${user.id})`);
 
     return new Response(
       JSON.stringify({ success: true, message: 'Receipt marked successfully' }),

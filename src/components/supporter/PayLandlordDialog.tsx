@@ -85,11 +85,11 @@ export function PayLandlordDialog({
         
         if (uploadError) throw uploadError;
         
-        const { data: { publicUrl } } = supabase.storage
+        const { data: signedUrlData } = await supabase.storage
           .from('payment-proofs')
-          .getPublicUrl(fileName);
+          .createSignedUrl(fileName, 86400); // 24 hour expiry
         
-        proofImageUrl = publicUrl;
+        proofImageUrl = signedUrlData?.signedUrl || null;
       }
       
       // landlord_payment_proofs table removed - skip proof creation
