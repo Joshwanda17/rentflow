@@ -12,20 +12,64 @@ serve(async (req) => {
   }
 
   try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY") ?? "";
+
+    // 1. Verify caller is authenticated
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: { user }, error: authError } = await userClient.auth.getUser();
+    if (authError || !user) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 2. Verify caller is a manager
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false },
+    });
+
+    const { data: roleData, error: roleError } = await supabaseAdmin
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "manager")
+      .eq("enabled", true)
+      .maybeSingle();
+
+    if (roleError || !roleData) {
+      return new Response(JSON.stringify({ error: "Only managers can reset passwords" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // 3. Validate input
     const { user_id, new_password } = await req.json();
 
     if (!user_id || !new_password) {
       throw new Error("user_id and new_password are required");
     }
 
-    // Create admin client with service role key
-    const supabaseAdmin = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "",
-      { auth: { autoRefreshToken: false, persistSession: false } }
-    );
+    if (typeof new_password !== "string" || new_password.length < 6) {
+      throw new Error("Password must be at least 6 characters");
+    }
 
-    // Update the user's password
+    // 4. Reset the password
     const { data, error } = await supabaseAdmin.auth.admin.updateUserById(
       user_id,
       { password: new_password }
@@ -35,7 +79,7 @@ serve(async (req) => {
       throw error;
     }
 
-    console.log(`Password reset successful for user: ${user_id}`);
+    console.log(`Password reset by manager ${user.id} for user: ${user_id}`);
 
     return new Response(
       JSON.stringify({ success: true, message: "Password reset successfully" }),
