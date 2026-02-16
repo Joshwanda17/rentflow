@@ -315,6 +315,72 @@ export type Database = {
         }
         Relationships: []
       }
+      earning_baselines: {
+        Row: {
+          avg_daily_earnings: number | null
+          avg_receipts_per_day: number | null
+          avg_referrals_per_week: number | null
+          avg_weekly_earnings: number | null
+          last_calculated_at: string | null
+          receipt_count_7d: number | null
+          referral_count_7d: number | null
+          total_agent_earnings: number | null
+          user_id: string
+        }
+        Insert: {
+          avg_daily_earnings?: number | null
+          avg_receipts_per_day?: number | null
+          avg_referrals_per_week?: number | null
+          avg_weekly_earnings?: number | null
+          last_calculated_at?: string | null
+          receipt_count_7d?: number | null
+          referral_count_7d?: number | null
+          total_agent_earnings?: number | null
+          user_id: string
+        }
+        Update: {
+          avg_daily_earnings?: number | null
+          avg_receipts_per_day?: number | null
+          avg_referrals_per_week?: number | null
+          avg_weekly_earnings?: number | null
+          last_calculated_at?: string | null
+          receipt_count_7d?: number | null
+          referral_count_7d?: number | null
+          total_agent_earnings?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      earning_predictions: {
+        Row: {
+          assumptions: Json | null
+          confidence: number
+          created_at: string
+          id: string
+          period: string
+          predicted_earnings: number
+          user_id: string
+        }
+        Insert: {
+          assumptions?: Json | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          period: string
+          predicted_earnings?: number
+          user_id: string
+        }
+        Update: {
+          assumptions?: Json | null
+          confidence?: number
+          created_at?: string
+          id?: string
+          period?: string
+          predicted_earnings?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       general_ledger: {
         Row: {
           amount: number

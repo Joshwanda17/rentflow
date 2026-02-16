@@ -83,3 +83,6 @@ verify_jwt = false
 
 [functions.welile-ai-chat]
 verify_jwt = false
+
+[functions.earning-predictor]
+verify_jwt = false

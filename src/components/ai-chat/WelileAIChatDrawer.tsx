@@ -1,10 +1,12 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Send, Trash2, Bot, User, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
+
+const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
 const QUICK_REPLIES = [
   "How do I earn more?",
@@ -106,6 +108,11 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                 <X className="h-5 w-5" />
               </Button>
             </div>
+
+            {/* Earning Prediction */}
+            <Suspense fallback={null}>
+              <EarningPredictionCard />
+            </Suspense>
 
             {/* Messages */}
             <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 py-3 space-y-4">
