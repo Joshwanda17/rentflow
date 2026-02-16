@@ -10,10 +10,10 @@ import ShareWelileAIBanner from './ShareWelileAIBanner';
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
 const SUGGESTIONS = [
-  { icon: "💰", text: "How do I earn more?" },
-  { icon: "🧾", text: "Why was my receipt rejected?" },
-  { icon: "🤝", text: "Become a Partner" },
-  { icon: "💸", text: "Withdraw earnings" },
+  { icon: "🏠", text: "How does the Supporter Package work?" },
+  { icon: "💰", text: "How much can I earn as a Supporter?" },
+  { icon: "🔒", text: "Is my capital safe on Welile?" },
+  { icon: "📈", text: "What is auto-compound?" },
 ];
 
 interface Props {
