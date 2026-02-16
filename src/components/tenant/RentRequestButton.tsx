@@ -20,6 +20,7 @@ import {
 } from 'lucide-react';
 import { calculateRentRepayment, RentCalculation } from '@/lib/rentCalculations';
 import { supabase } from '@/integrations/supabase/client';
+import { validateFormPayload, RENT_REQUEST_CONTRACT } from '@/lib/formContracts';
 import { useToast } from '@/hooks/use-toast';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCurrency } from '@/hooks/useCurrency';
@@ -303,8 +304,8 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
         console.warn('Could not capture location for rent request:', locErr);
       }
 
-      // Create rent request
-      const { error: requestError } = await supabase.from('rent_requests').insert({
+      // Build rent request payload with validated types
+      const rentPayload = {
         tenant_id: userId,
         agent_id: agentId || null,
         landlord_id: landlord.id,
@@ -319,6 +320,18 @@ export function RentRequestButton({ userId, onSuccess }: RentRequestButtonProps)
         request_longitude: requestLon,
         request_city: requestCity,
         request_country: requestCountry,
+      };
+
+      // Contract-driven pre-submit validation
+      const validation = validateFormPayload(RENT_REQUEST_CONTRACT, rentPayload as Record<string, unknown>);
+      if (!validation.valid) {
+        const msg = validation.errors.map(e => e.message).join('; ');
+        throw new Error(`Validation: ${msg}`);
+      }
+
+      // Create rent request
+      const { error: requestError } = await supabase.from('rent_requests').insert({
+        ...rentPayload,
         status: 'pending'
       } as any);
 
