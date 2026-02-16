@@ -234,19 +234,30 @@ export default function Referrals() {
                       </div>
                       
                       <div className="flex-1 min-w-0">
-                        <p className="font-medium truncate">Referral</p>
-                        <p className="text-xs text-muted-foreground">
-                          {format(new Date(referral.created_at), 'MMM d, yyyy • h:mm a')}
+                        <p className="font-medium truncate">
+                          {referral.referred_name || 'Unknown'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          {referral.referred_phone || '—'}
+                          {referral.referred_city ? ` • ${referral.referred_city}` : ''}
+                        </p>
+                        <p className="text-[10px] text-muted-foreground">
+                          {format(new Date(referral.created_at), 'MMM d, yyyy')}
                         </p>
                       </div>
 
                       <div className="text-right space-y-1">
-                        <p className="font-bold text-success">
+                        <p className="font-bold text-success text-sm">
                           +{formatUGX(Number(referral.bonus_amount))}
                         </p>
+                        {referral.first_transaction_bonus_credited && (
+                          <p className="text-[10px] text-success">
+                            +{formatUGX(Number(referral.first_transaction_bonus_amount || 0))} tx
+                          </p>
+                        )}
                         <Badge 
                           variant={referral.credited ? 'default' : 'secondary'}
-                          className="text-xs"
+                          className="text-[10px]"
                         >
                           {referral.credited ? 'Credited ✓' : 'Pending'}
                         </Badge>
