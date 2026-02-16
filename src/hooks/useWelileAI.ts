@@ -1,6 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from 'react';
-import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useState, useCallback, useRef } from 'react';
 import { toast } from 'sonner';
 
 export interface AIChatMessage {
@@ -13,33 +11,9 @@ export interface AIChatMessage {
 const CHAT_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/welile-ai-chat`;
 
 export function useWelileAI() {
-  const { user } = useAuth();
   const [messages, setMessages] = useState<AIChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  const [historyLoaded, setHistoryLoaded] = useState(false);
   const abortRef = useRef<AbortController | null>(null);
-
-  // Load chat history on mount (only for logged-in users)
-  useEffect(() => {
-    if (!user || historyLoaded) return;
-    (async () => {
-      const { data } = await supabase
-        .from('ai_chat_messages')
-        .select('id, role, content, created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: true })
-        .limit(50);
-      if (data && data.length > 0) {
-        setMessages(data as AIChatMessage[]);
-      }
-      setHistoryLoaded(true);
-    })();
-  }, [user, historyLoaded]);
-
-  // Mark history as loaded for guests so UI doesn't wait
-  useEffect(() => {
-    if (!user && !historyLoaded) setHistoryLoaded(true);
-  }, [user, historyLoaded]);
 
   const sendMessage = useCallback(async (input: string) => {
     if (!input.trim() || isLoading) return;
@@ -64,21 +38,12 @@ export function useWelileAI() {
     abortRef.current = controller;
 
     try {
-      // Build headers — include auth token if available
-      const headers: Record<string, string> = {
-        'Content-Type': 'application/json',
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      };
-
-      if (user) {
-        const session = await supabase.auth.getSession();
-        const token = session.data.session?.access_token;
-        if (token) headers['Authorization'] = `Bearer ${token}`;
-      }
-
       const resp = await fetch(CHAT_URL, {
         method: 'POST',
-        headers,
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
         body: JSON.stringify({ messages: recentMessages }),
         signal: controller.signal,
       });
@@ -133,15 +98,6 @@ export function useWelileAI() {
 
       const finalId = crypto.randomUUID();
       setMessages(prev => prev.map(m => m.id === 'streaming' ? { ...m, id: finalId } : m));
-
-      // Save to DB only for logged-in users
-      if (user && assistantContent) {
-        await supabase.from('ai_chat_messages').insert({
-          user_id: user.id,
-          role: 'assistant',
-          content: assistantContent,
-        });
-      }
     } catch (e: any) {
       if (e.name === 'AbortError') return;
       console.error('Welile AI error:', e);
@@ -151,19 +107,16 @@ export function useWelileAI() {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [user, messages, isLoading]);
+  }, [messages, isLoading]);
 
-  const clearHistory = useCallback(async () => {
-    if (user) {
-      await supabase.from('ai_chat_messages').delete().eq('user_id', user.id);
-    }
+  const clearHistory = useCallback(() => {
     setMessages([]);
-  }, [user]);
+  }, []);
 
   const cancelStream = useCallback(() => {
     abortRef.current?.abort();
     setIsLoading(false);
   }, []);
 
-  return { messages, isLoading, sendMessage, clearHistory, cancelStream, historyLoaded };
+  return { messages, isLoading, sendMessage, clearHistory, cancelStream, historyLoaded: true };
 }
