@@ -178,13 +178,11 @@ export function useWallet() {
     return { data, error: null };
   }, [user, wallet, fetchWallet, fetchTransactions]);
 
-  const depositMoney = useCallback(async (amount: number) => {
-    if (!user || !wallet) return { error: new Error('Not authenticated') };
-    const { error } = await supabase.from('wallets').update({ balance: wallet.balance + amount }).eq('user_id', user.id);
-    if (error) return { error: new Error('Deposit failed') };
-    await fetchWallet();
-    return { error: null };
-  }, [user, wallet, fetchWallet]);
+  const depositMoney = useCallback(async (_amount: number) => {
+    // Direct client-side wallet updates are not allowed for security.
+    // Use the deposit request flow instead (approve-deposit edge function).
+    return { error: new Error('Direct deposits not allowed. Please use the deposit request flow.') };
+  }, []);
 
   useEffect(() => {
     if (user) {

@@ -47,19 +47,24 @@ Deno.serve(async (req) => {
       rejection_reason?: string;
     };
 
-    if (!deposit_request_id || !action) {
+    // UUID validation
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!deposit_request_id || typeof deposit_request_id !== 'string' || !UUID_REGEX.test(deposit_request_id)) {
       return new Response(
-        JSON.stringify({ error: "Missing deposit_request_id or action" }),
+        JSON.stringify({ error: "Invalid or missing deposit_request_id" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (!["approve", "reject"].includes(action)) {
+    if (!action || !["approve", "reject"].includes(action)) {
       return new Response(
         JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Sanitize rejection_reason
+    const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
 
     // Create admin client
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
@@ -216,7 +221,7 @@ Deno.serve(async (req) => {
         .update({
           status: "rejected",
           rejected_at: new Date().toISOString(),
-          rejection_reason: rejection_reason || "Rejected by manager",
+          rejection_reason: safeRejectionReason || "Rejected by manager",
           processed_by: user.id,
         })
         .eq("id", deposit_request_id);
@@ -230,12 +235,12 @@ Deno.serve(async (req) => {
       await supabaseAdmin.from("notifications").insert({
         user_id: depositRequest.user_id,
         title: "Deposit Rejected ❌",
-        message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected by ${processorName}. Reason: ${rejection_reason || "No reason provided"}`,
+        message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected by ${processorName}. Reason: ${safeRejectionReason || "No reason provided"}`,
         type: "warning",
         metadata: { 
           deposit_request_id, 
           amount: depositRequest.amount, 
-          reason: rejection_reason,
+          reason: safeRejectionReason,
           processed_by: user.id,
           processed_by_name: processorName
         },
@@ -249,7 +254,7 @@ Deno.serve(async (req) => {
         performed_by: user.id,
         old_values: { status: "pending" },
         new_values: { status: "rejected", rejected_at: new Date().toISOString() },
-        reason: rejection_reason || "Rejected by manager",
+        reason: safeRejectionReason || "Rejected by manager",
         metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
       });
 

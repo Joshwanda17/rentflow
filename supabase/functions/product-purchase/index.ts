@@ -33,10 +33,19 @@ Deno.serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { productId, quantity = 1 } = await req.json();
+    const body = await req.json().catch(() => ({}));
+    const { productId, quantity: rawQuantity = 1 } = body as { productId?: string; quantity?: number };
 
-    if (!productId) {
-      throw new Error('Product ID is required');
+    // Validate productId
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!productId || typeof productId !== 'string' || !UUID_REGEX.test(productId)) {
+      throw new Error('Valid Product ID is required');
+    }
+
+    // Validate quantity
+    const quantity = Number(rawQuantity);
+    if (!Number.isInteger(quantity) || quantity < 1 || quantity > 1000) {
+      throw new Error('Quantity must be an integer between 1 and 1000');
     }
 
     console.log(`Processing purchase: user ${user.id}, product ${productId}, quantity ${quantity}`);

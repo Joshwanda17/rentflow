@@ -310,10 +310,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       // Delete roles for all selected users
       await supabase.from('user_roles').delete().in('user_id', userIds);
       
-      // Delete wallets for all selected users
-      await supabase.from('wallets').delete().in('user_id', userIds);
-      
-      // Delete profiles for all selected users
+      // Delete profiles for all selected users (wallets cleaned up by cascade/triggers)
       const { error } = await supabase.from('profiles').delete().in('id', userIds);
       
       if (error) throw error;
@@ -367,10 +364,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       // Delete user roles
       await supabase.from('user_roles').delete().eq('user_id', userId);
       
-      // Delete user wallet
-      await supabase.from('wallets').delete().eq('user_id', userId);
-      
-      // Delete user profile
+      // Delete user profile (wallets cleaned up by cascade/triggers)
       const { error } = await supabase.from('profiles').delete().eq('id', userId);
       
       if (error) throw error;
