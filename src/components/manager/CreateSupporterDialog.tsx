@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -97,7 +98,7 @@ export function CreateSupporterDialog({ open, onOpenChange }: CreateSupporterDia
 
   const getShareLink = () => {
     if (!createdInvite) return '';
-    return `${window.location.origin}/join?t=${createdInvite.token}`;
+    return `${getPublicOrigin()}/join?t=${createdInvite.token}`;
   };
 
   const getWhatsAppMessage = () => {

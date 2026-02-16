@@ -5,6 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useProfile } from '@/hooks/useProfile';
 import { useState } from 'react';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface ModernInviteCardProps {
   onShare: () => void;
@@ -16,8 +17,9 @@ export function ModernInviteCard({ onShare, className }: ModernInviteCardProps) 
   const { profile } = useProfile();
   const [copiedCalc, setCopiedCalc] = useState(false);
 
-  const referralLink = `${window.location.origin}/join?ref=${profile?.id || ''}`;
-  const calculatorLink = `${window.location.origin}/try-calculator?ref=${profile?.id || ''}`;
+  const origin = getPublicOrigin();
+  const referralLink = `${origin}/join?ref=${profile?.id || ''}`;
+  const calculatorLink = `${origin}/try-calculator?ref=${profile?.id || ''}`;
 
   const handleCopyLink = async () => {
     hapticTap();

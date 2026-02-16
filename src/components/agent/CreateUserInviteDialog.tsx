@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Button } from '@/components/ui/button';
@@ -133,7 +134,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: Create
 
   const getShareLink = () => {
     if (!createdInvite) return '';
-    return `${window.location.origin}/join?t=${createdInvite.token}`;
+    return `${getPublicOrigin()}/join?t=${createdInvite.token}`;
   };
 
   const getWhatsAppMessage = () => {

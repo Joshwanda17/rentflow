@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { motion, AnimatePresence } from 'framer-motion';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -274,9 +275,8 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
         console.error('Invite creation failed:', inviteError);
       }
 
-      // Build activation link
-      const baseUrl = window.location.origin;
-      const link = `${baseUrl}/join?t=${activationToken}`;
+      // Build activation link - use public domain so links work without Lovable auth
+      const link = `${getPublicOrigin()}/join?t=${activationToken}`;
       setActivationLink(link);
 
       hapticSuccess();

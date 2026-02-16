@@ -4,6 +4,7 @@ import { Share2, Users } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/hooks/useAuth';
 import { useUserSnapshot } from '@/hooks/useUserSnapshot';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface ShareSupporterLinkProps {
   className?: string;
@@ -18,9 +19,10 @@ export function ShareSupporterLink({ className, variant = 'outline', size = 'def
   const { snapshot } = useUserSnapshot(user?.id);
   const referralCount = snapshot.supporterReferrals?.length || 0;
 
+  const origin = getPublicOrigin();
   const shareLink = user 
-    ? `${window.location.origin}/join?s=${user.id}`
-    : `${window.location.origin}/become-supporter`;
+    ? `${origin}/join?s=${user.id}`
+    : `${origin}/become-supporter`;
   
   const shareMessage = `🎉 Join Welile as a Tenant Supporter and earn 15% monthly returns! 
 

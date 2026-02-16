@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -86,7 +87,7 @@ export function SupporterInvitesList() {
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const getShareLink = (token: string) => {
-    return `${window.location.origin}/join?t=${token}`;
+    return `${getPublicOrigin()}/join?t=${token}`;
   };
 
   const handleCopyLink = async (invite: SupporterInvite) => {

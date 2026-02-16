@@ -24,6 +24,7 @@ import { RewardHistoryBadges } from '@/components/RewardHistoryBadges';
 import { motion } from 'framer-motion';
 import { ReferralsSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 export default function Referrals() {
   const navigate = useNavigate();
@@ -33,7 +34,7 @@ export default function Referrals() {
   const [copied, setCopied] = useState(false);
 
   const referrals = snapshot.referrals || [];
-  const referralLink = user ? `${window.location.origin}/join?r=${user.id}` : '';
+  const referralLink = user ? `${getPublicOrigin()}/join?r=${user.id}` : '';
 
   const copyReferralLink = async () => {
     await navigator.clipboard.writeText(referralLink);
