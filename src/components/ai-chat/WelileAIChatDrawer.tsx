@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
+import ShareWelileAIBanner from './ShareWelileAIBanner';
 
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
@@ -140,37 +141,44 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
               )}
 
               {messages.map((msg) => (
-                <div
-                  key={msg.id}
-                  className={cn(
-                    "flex gap-2",
-                    msg.role === 'user' ? 'justify-end' : 'justify-start'
-                  )}
-                >
-                  {msg.role === 'assistant' && (
-                    <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
-                      <Bot className="h-4 w-4 text-primary" />
-                    </div>
-                  )}
+                <div key={msg.id} className="space-y-1">
                   <div
                     className={cn(
-                      "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
-                      msg.role === 'user'
-                        ? 'bg-primary text-primary-foreground rounded-tr-md'
-                        : 'bg-muted text-foreground rounded-tl-md'
+                      "flex gap-2",
+                      msg.role === 'user' ? 'justify-end' : 'justify-start'
                     )}
                   >
-                    {msg.role === 'assistant' ? (
-                      <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2">
-                        <ReactMarkdown>{msg.content}</ReactMarkdown>
+                    {msg.role === 'assistant' && (
+                      <div className="h-7 w-7 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-1">
+                        <Bot className="h-4 w-4 text-primary" />
                       </div>
-                    ) : (
-                      <p className="whitespace-pre-wrap">{msg.content}</p>
+                    )}
+                    <div
+                      className={cn(
+                        "max-w-[80%] rounded-2xl px-4 py-2.5 text-sm",
+                        msg.role === 'user'
+                          ? 'bg-primary text-primary-foreground rounded-tr-md'
+                          : 'bg-muted text-foreground rounded-tl-md'
+                      )}
+                    >
+                      {msg.role === 'assistant' ? (
+                        <div className="prose prose-sm dark:prose-invert max-w-none [&>p]:mb-2 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2">
+                          <ReactMarkdown>{msg.content}</ReactMarkdown>
+                        </div>
+                      ) : (
+                        <p className="whitespace-pre-wrap">{msg.content}</p>
+                      )}
+                    </div>
+                    {msg.role === 'user' && (
+                      <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
+                        <User className="h-4 w-4 text-primary-foreground" />
+                      </div>
                     )}
                   </div>
-                  {msg.role === 'user' && (
-                    <div className="h-7 w-7 rounded-full bg-primary flex items-center justify-center flex-shrink-0 mt-1">
-                      <User className="h-4 w-4 text-primary-foreground" />
+                  {/* Share CTA after every assistant message */}
+                  {msg.role === 'assistant' && msg.id !== 'streaming' && (
+                    <div className="ml-9 max-w-[80%]">
+                      <ShareWelileAIBanner />
                     </div>
                   )}
                 </div>
