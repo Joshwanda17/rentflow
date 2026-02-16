@@ -28,7 +28,8 @@ import {
   Users,
   Share2,
   Copy,
-  MessageCircle
+  MessageCircle,
+  Home
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { formatUGX, calculateRentRepayment } from '@/lib/rentCalculations';
@@ -42,6 +43,18 @@ interface AgentRentRequestDialogProps {
 
 type IncomeType = 'daily' | 'weekly-monthly';
 type RepaymentPeriod = '7' | '14' | '21' | '120';
+
+const HOUSE_CATEGORIES = [
+  { value: 'single-room', label: 'Single Room', emoji: '🚪' },
+  { value: 'double-room', label: 'Double Room', emoji: '🛏️' },
+  { value: '1-bed', label: '1 Bed House', emoji: '🏠' },
+  { value: '2-bed', label: '2 Bedroom House', emoji: '🏡' },
+  { value: '2-bed-full', label: '2 Bed + Sitting Room, Kitchen & 2 Toilets', emoji: '🏘️' },
+  { value: '3-bed', label: '3 Bedroom Apartment', emoji: '🏢' },
+  { value: '3-bed-luxury', label: '3 Bed Luxury + Boys Quarter', emoji: '🏰' },
+  { value: '4-bed', label: '4+ Bedroom Villa', emoji: '🏛️' },
+  { value: 'commercial', label: 'Commercial Property', emoji: '🏪' },
+];
 
 export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }: AgentRentRequestDialogProps) {
   const { user } = useAuth();
@@ -71,6 +84,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [lc1Name, setLc1Name] = useState('');
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
+  const [houseCategory, setHouseCategory] = useState('');
 
   const resetForm = () => {
     setIncomeType(null);
@@ -85,6 +99,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setLc1Name('');
     setLc1Phone('');
     setLc1Village('');
+    setHouseCategory('');
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -141,6 +156,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
     if (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim()) {
       toast.error('Please fill in all LC1 details');
+      return;
+    }
+
+    if (!houseCategory) {
+      toast.error('Please select a house category');
       return;
     }
 
@@ -228,6 +248,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           total_repayment: fees.totalRepayment,
           daily_repayment: fees.dailyRepayment,
           status: 'pending',
+          house_category: houseCategory,
         });
 
       if (requestError) throw requestError;
@@ -445,6 +466,28 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                     />
                   </div>
                 </div>
+              </div>
+
+              <Separator />
+
+              {/* House Category */}
+              <div className="space-y-3">
+                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <Home className="h-3 w-3" />
+                  House Category *
+                </h4>
+                <Select value={houseCategory} onValueChange={setHouseCategory}>
+                  <SelectTrigger className="h-10">
+                    <SelectValue placeholder="Select house type" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {HOUSE_CATEGORIES.map(cat => (
+                      <SelectItem key={cat.value} value={cat.value}>
+                        {cat.emoji} {cat.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
 
               <Separator />
