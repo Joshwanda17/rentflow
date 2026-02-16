@@ -44,8 +44,41 @@ export function WelileAITrigger() {
   );
 }
 
-// Default floating button (kept for backward compat but now hidden)
+// Global floating button — visible on all pages
 export default function WelileAIChatButton() {
-  // No longer renders a floating button — trigger is now in wallet card
-  return null;
+  const [open, setOpen] = useState(false);
+
+  return (
+    <>
+      <motion.button
+        onClick={() => setOpen(true)}
+        className={cn(
+          "fixed bottom-20 right-4 z-[60]",
+          "h-14 w-14 rounded-full",
+          "bg-gradient-to-br from-primary via-primary to-purple-400",
+          "text-white",
+          "shadow-xl shadow-primary/40",
+          "flex items-center justify-center",
+          "hover:shadow-2xl hover:shadow-primary/50",
+          "active:scale-90 transition-all duration-200",
+        )}
+        whileHover={{ scale: 1.1, rotate: 10 }}
+        whileTap={{ scale: 0.9 }}
+        animate={{
+          boxShadow: [
+            "0 10px 25px -5px rgba(var(--primary), 0.4)",
+            "0 15px 35px -5px rgba(var(--primary), 0.6)",
+            "0 10px 25px -5px rgba(var(--primary), 0.4)",
+          ],
+        }}
+        transition={{ boxShadow: { duration: 2, repeat: Infinity } }}
+        aria-label="Open Welile AI"
+      >
+        <GeminiSparkle size={26} />
+        {/* Pulse ring */}
+        <span className="absolute inset-0 rounded-full animate-ping bg-primary/20 pointer-events-none" style={{ animationDuration: '3s' }} />
+      </motion.button>
+      <WelileAIChatDrawer open={open} onOpenChange={setOpen} />
+    </>
+  );
 }
