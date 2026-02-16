@@ -173,11 +173,11 @@ export function AgentCommissionPayoutsManager() {
 
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: signedUrlData } = await supabase.storage
         .from('payment-proofs')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 86400); // 24 hour expiry
 
-      return publicUrl;
+      return signedUrlData?.signedUrl || null;
     } catch (error) {
       console.error('Screenshot upload failed:', error);
       return null;
