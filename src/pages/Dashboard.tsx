@@ -4,7 +4,7 @@ import { useAuth, AppRole } from '@/hooks/useAuth';
 import AddRoleDialog from '@/components/AddRoleDialog';
 // FloatingChatButton removed — chat accessible only via nav
 
-import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
+
 import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
@@ -178,7 +178,6 @@ function DashboardContent() {
           {cachedDisplayRole === 'landlord' && <LandlordDashboard {...dashboardProps} />}
           {cachedDisplayRole === 'manager' && <ManagerDashboard {...dashboardProps} />}
         </Suspense>
-        <FloatingWalletButton />
       </>
     );
   }
@@ -228,7 +227,7 @@ function DashboardContent() {
       <Suspense fallback={<DashboardLoadingFallback />}>
         {renderDashboard()}
       </Suspense>
-      <FloatingWalletButton />
+      
     </>
   );
 }
