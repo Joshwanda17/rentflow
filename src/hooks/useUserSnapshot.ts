@@ -4,7 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 const SNAPSHOT_DB = 'welile-snapshot';
 const SNAPSHOT_STORE = 'snapshot';
 const SNAPSHOT_DB_VERSION = 1;
-const CACHE_TTL_MS = 10 * 60 * 1000; // 10 minutes
+const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 export interface UserSnapshot {
   userId: string;
