@@ -28,6 +28,7 @@ import {
 import { Plus, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
+import { validateFormPayload, GENERAL_LEDGER_CONTRACT } from '@/lib/formContracts';
 
 interface TransactionFormProps {
   onSubmit: (transaction: Omit<Transaction, 'id'>) => void;
@@ -52,9 +53,31 @@ export function TransactionForm({ onSubmit }: TransactionFormProps) {
       return;
     }
 
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount)) {
+      toast.error('Amount must be a valid number');
+      return;
+    }
+
+    // Contract-driven validation for ledger entries
+    const ledgerPayload = {
+      amount: parsedAmount,
+      direction,
+      category: category as string,
+      linked_party: linkedParty as string,
+      reference_id: referenceId,
+      description: description || null,
+      source_table: 'manual',
+    };
+    const validation = validateFormPayload(GENERAL_LEDGER_CONTRACT, ledgerPayload as Record<string, unknown>);
+    if (!validation.valid) {
+      toast.error(validation.errors.map(e => e.message).join('; '));
+      return;
+    }
+
     onSubmit({
       date: new Date(),
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       direction,
       category: category as TransactionCategory,
       linkedParty: linkedParty as LinkedParty,

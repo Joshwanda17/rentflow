@@ -8,6 +8,7 @@ import { Upload, Loader2, Receipt, CheckCircle, Calendar, Clock } from 'lucide-r
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
+import { validateFormPayload, DEPOSIT_REQUEST_CONTRACT } from '@/lib/formContracts';
 import { format, subDays, isAfter, isBefore, startOfDay } from 'date-fns';
 
 interface PaymentConfirmationFormProps {
@@ -99,16 +100,31 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
       // Combine date and time into a full timestamp
       const transactionDateTime = new Date(`${transactionDate}T${transactionTime}:00`);
 
+      // Build payload with correct types
+      const depositPayload = {
+        user_id: user.id,
+        amount: parseFloat(amount),
+        transaction_id: transactionId.trim(),
+        transaction_date: transactionDateTime.toISOString(),
+        provider: partner || null,
+        notes: `Payment confirmation - ${partner}`,
+      };
+
+      // Contract-driven pre-submit validation
+      const validation = validateFormPayload(DEPOSIT_REQUEST_CONTRACT, depositPayload as Record<string, unknown>);
+      if (!validation.valid) {
+        const msg = validation.errors.map(e => e.message).join('; ');
+        toast.error(`Validation: ${msg}`);
+        setIsSubmitting(false);
+        return;
+      }
+
       // Insert payment confirmation
       const { data: newConfirmation, error } = await supabase
         .from('deposit_requests')
         .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          transaction_id: transactionId.trim(),
-          transaction_date: transactionDateTime.toISOString(),
+          ...depositPayload,
           status: confirmationStatus,
-          notes: `Payment confirmation - ${partner}`,
         } as any)
         .select()
         .single();
