@@ -57,7 +57,7 @@ Deno.serve(async (req) => {
     // Referrals — every user can have these
     queries.referrals = supabase
       .from("referrals")
-      .select("id, referred_id, bonus_amount, credited, credited_at, created_at")
+      .select("id, referred_id, bonus_amount, credited, credited_at, created_at, first_transaction_bonus_amount, first_transaction_bonus_credited")
       .eq("referrer_id", userId)
       .order("created_at", { ascending: false })
       .limit(50);
@@ -153,6 +153,30 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Enrich referrals with profile data (name, phone, city)
+    let enrichedReferrals = results.referrals || [];
+    if (enrichedReferrals.length > 0) {
+      const referredIds = enrichedReferrals.map((r: any) => r.referred_id);
+      const { data: referredProfiles } = await supabase
+        .from("profiles")
+        .select("id, full_name, phone, city")
+        .in("id", referredIds);
+
+      const profileMap: Record<string, any> = {};
+      if (referredProfiles) {
+        for (const p of referredProfiles) {
+          profileMap[p.id] = p;
+        }
+      }
+
+      enrichedReferrals = enrichedReferrals.map((r: any) => ({
+        ...r,
+        referred_name: profileMap[r.referred_id]?.full_name || null,
+        referred_phone: profileMap[r.referred_id]?.phone || null,
+        referred_city: profileMap[r.referred_id]?.city || null,
+      }));
+    }
+
     // Build snapshot
     const snapshot = {
       userId,
@@ -160,8 +184,8 @@ Deno.serve(async (req) => {
       fetchedAt: new Date().toISOString(),
 
       // Referrals
-      referrals: results.referrals || [],
-      referralCount: results.referralCount?.count ?? (results.referrals?.length || 0),
+      referrals: enrichedReferrals,
+      referralCount: results.referralCount?.count ?? (enrichedReferrals.length || 0),
 
       // Agent data
       subAgents: results.subAgents || [],
