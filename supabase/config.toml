@@ -80,3 +80,6 @@ verify_jwt = false
 
 [functions.password-reset-sms]
 verify_jwt = false
+
+[functions.welile-ai-chat]
+verify_jwt = false
