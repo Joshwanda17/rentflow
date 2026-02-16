@@ -44,7 +44,7 @@ export function useAuthForm() {
 
   const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
-  const { otpSent, otpVerified, otpLoading, otpError, sendOtp, verifyOtp, resetOtp } = useOtpVerification();
+  const { otpSent, otpVerified, otpLoading, otpError, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
   const navigate = useNavigate();
   const { toast } = useToast();
 
@@ -116,18 +116,97 @@ export function useAuthForm() {
     }
   };
 
+  // SMS reset state
+  const [resetStep, setResetStep] = useState<'phone' | 'otp' | 'new-password'>('phone');
+  const [resetPhone, setResetPhone] = useState('');
+  const [resetOtp, setResetOtpCode] = useState('');
+  const [resetNewPassword, setResetNewPassword] = useState('');
+  const [resetConfirmPassword, setResetConfirmPassword] = useState('');
+
   const handleForgotPasswordSubmit = async () => {
-    const isValidEmail = email.includes('@') && email.includes('.');
-    if (!isValidEmail) {
-      toast({ title: 'Error', description: 'Please enter a valid email', variant: 'destructive' });
+    if (resetStep === 'phone') {
+      // Check if it looks like an email (real email user) or phone
+      const isEmail = email && email.includes('@') && email.includes('.') && !email.includes('@welile.');
+      if (isEmail) {
+        // Real email user — use Supabase email reset
+        const { error } = await resetPassword(email);
+        if (error) {
+          toast({ title: 'Reset Failed', description: error.message, variant: 'destructive' });
+        } else {
+          toast({ title: 'Check Your Email', description: 'We sent you a password reset link' });
+          setIsForgotPassword(false);
+        }
+        return;
+      }
+
+      // Phone-based reset via SMS
+      const cleanedPhone = resetPhone.replace(/\D/g, '');
+      if (cleanedPhone.length < 9) {
+        toast({ title: 'Error', description: 'Please enter a phone number or email', variant: 'destructive' });
+        return;
+      }
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset-sms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          body: JSON.stringify({ action: 'send', phone: cleanedPhone }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          toast({ title: 'Error', description: data.error || 'Failed to send reset code', variant: 'destructive' });
+        } else {
+          toast({ title: 'Code Sent', description: 'Check your phone for the reset code' });
+          setResetStep('otp');
+        }
+      } catch {
+        toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
+      }
       return;
     }
-    const { error } = await resetPassword(email);
-    if (error) {
-      toast({ title: 'Reset Failed', description: error.message, variant: 'destructive' });
-    } else {
-      toast({ title: 'Check Your Email', description: 'We sent you a password reset link' });
-      setIsForgotPassword(false);
+
+    if (resetStep === 'otp') {
+      if (resetOtp.length !== 6) {
+        toast({ title: 'Error', description: 'Please enter the 6-digit code', variant: 'destructive' });
+        return;
+      }
+      setResetStep('new-password');
+      return;
+    }
+
+    if (resetStep === 'new-password') {
+      if (resetNewPassword.length < 6) {
+        toast({ title: 'Error', description: 'Password must be at least 6 characters', variant: 'destructive' });
+        return;
+      }
+      if (resetNewPassword !== resetConfirmPassword) {
+        toast({ title: 'Error', description: "Passwords don't match", variant: 'destructive' });
+        return;
+      }
+      const cleanedPhone = resetPhone.replace(/\D/g, '');
+      try {
+        const response = await fetch(`${import.meta.env.VITE_SUPABASE_URL}/functions/v1/password-reset-sms`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY },
+          body: JSON.stringify({ action: 'verify-and-reset', phone: cleanedPhone, otp: resetOtp, new_password: resetNewPassword }),
+        });
+        const data = await response.json();
+        if (!response.ok) {
+          if (data.error?.includes('Invalid code') || data.error?.includes('expired')) {
+            setResetStep('otp');
+          }
+          toast({ title: 'Reset Failed', description: data.error || 'Failed to reset password', variant: 'destructive' });
+        } else {
+          toast({ title: 'Password Reset!', description: 'You can now sign in with your new password' });
+          setIsForgotPassword(false);
+          setResetStep('phone');
+          setResetPhone('');
+          setResetOtpCode('');
+          setResetNewPassword('');
+          setResetConfirmPassword('');
+        }
+      } catch {
+        toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
+      }
     }
   };
 
@@ -343,7 +422,13 @@ export function useAuthForm() {
     isDuplicate, isCheckingDuplicate, duplicateMessage,
     // OTP
     otpSent, otpVerified, otpLoading, otpError,
-    sendOtp, verifyOtp, resetOtp,
+    sendOtp, verifyOtp, resetOtp: resetOtpState,
+    // SMS password reset
+    resetStep, setResetStep,
+    resetPhone, setResetPhone,
+    resetOtpCode: resetOtp, setResetOtpCode,
+    resetNewPassword, setResetNewPassword,
+    resetConfirmPassword, setResetConfirmPassword,
     // Handlers
     handleSubmit,
     handleGoogleSignIn,
