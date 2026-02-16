@@ -71,12 +71,15 @@ PROACTIVE GUIDANCE:
 - If user qualifies for higher level → promote it clearly
 - If user is close to a milestone → motivate action
 
+FOR NON-REGISTERED USERS:
+- If the user is not logged in, warmly introduce Welile and explain how they can benefit.
+- Encourage them to sign up and explore the platform.
+- Answer general questions about how Welile works.
+- Always end with a call to action to sign up or explore the Rent Calculator.
+
 ESCALATION:
 If you cannot resolve an issue, say exactly:
-"Please inbox our tech team on WhatsApp: 0708257899 (WhatsApp only) to report issues or suggest new features."
-
-USER CONTEXT:
-The user's role and profile info will be provided. Use it to personalize responses. Reference their specific situation when possible.`;
+"Please inbox our tech team on WhatsApp: 0708257899 (WhatsApp only) to report issues or suggest new features."`;
 
 serve(async (req) => {
   if (req.method === "OPTIONS") {
@@ -84,30 +87,6 @@ serve(async (req) => {
   }
 
   try {
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader?.startsWith("Bearer ")) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_ANON_KEY")!,
-      { global: { headers: { Authorization: authHeader } } }
-    );
-
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
-    if (claimsError || !claimsData?.claims) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-    const userId = claimsData.claims.sub;
-
     const { messages } = await req.json();
     if (!messages || !Array.isArray(messages)) {
       return new Response(JSON.stringify({ error: "Messages array required" }), {
@@ -116,39 +95,65 @@ serve(async (req) => {
       });
     }
 
-    // Fetch user context for personalization including earning predictions
-    const [profileRes, rolesRes, baselineRes, predictionRes] = await Promise.all([
-      supabase.from("profiles").select("full_name, phone, verified, referrer_id, last_active_at, rent_discount_active, agent_type").eq("id", userId).single(),
-      supabase.from("user_roles").select("role").eq("user_id", userId),
-      supabase.from("earning_baselines").select("*").eq("user_id", userId).single(),
-      supabase.from("earning_predictions").select("*").eq("user_id", userId).eq("period", "weekly").order("created_at", { ascending: false }).limit(1).single(),
-    ]);
+    let userContext = "";
+    
+    // Try to get authenticated user context (optional)
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader?.startsWith("Bearer ")) {
+      try {
+        const supabase = createClient(
+          Deno.env.get("SUPABASE_URL")!,
+          Deno.env.get("SUPABASE_ANON_KEY")!,
+          { global: { headers: { Authorization: authHeader } } }
+        );
 
-    const profile = profileRes.data;
-    const roles = rolesRes.data?.map((r: any) => r.role) || [];
-    const baseline = baselineRes.data;
-    const prediction = predictionRes.data;
+        const token = authHeader.replace("Bearer ", "");
+        const { data: claimsData, error: claimsError } = await supabase.auth.getClaims(token);
+        
+        if (!claimsError && claimsData?.claims) {
+          const userId = claimsData.claims.sub;
 
-    let userContext = `\n\nUSER CONTEXT:\n- User ID: ${userId}\n- Roles: ${roles.join(", ") || "none"}\n`;
-    if (profile) {
-      userContext += `- Name: ${profile.full_name}\n- Verified: ${profile.verified}\n- Agent type: ${profile.agent_type || "N/A"}\n- Last active: ${profile.last_active_at || "unknown"}\n`;
-    }
-    if (baseline) {
-      userContext += `\nEARNING BASELINE:\n- Avg daily earnings: UGX ${baseline.avg_daily_earnings}\n- Avg weekly earnings: UGX ${baseline.avg_weekly_earnings}\n- Receipts posted (last 7 days): ${baseline.receipt_count_7d}\n- Referrals (last 7 days): ${baseline.referral_count_7d}\n- Avg receipts per day: ${baseline.avg_receipts_per_day}\n`;
-    }
-    if (prediction) {
-      userContext += `\nEARNING PREDICTION:\n- Predicted weekly earnings: UGX ${prediction.predicted_earnings}\n- Confidence: ${Math.round(prediction.confidence * 100)}%\n- Assumptions: ${JSON.stringify(prediction.assumptions)}\n`;
-      userContext += `\nIMPORTANT: Use these predictions to personalize your responses. Reference specific numbers when suggesting earning actions. For example: "Based on your activity, you can earn UGX ${prediction.predicted_earnings} this week if you keep posting receipts daily."\n`;
+          const [profileRes, rolesRes, baselineRes, predictionRes] = await Promise.all([
+            supabase.from("profiles").select("full_name, phone, verified, referrer_id, last_active_at, rent_discount_active, agent_type").eq("id", userId).single(),
+            supabase.from("user_roles").select("role").eq("user_id", userId),
+            supabase.from("earning_baselines").select("*").eq("user_id", userId).single(),
+            supabase.from("earning_predictions").select("*").eq("user_id", userId).eq("period", "weekly").order("created_at", { ascending: false }).limit(1).single(),
+          ]);
+
+          const profile = profileRes.data;
+          const roles = rolesRes.data?.map((r: any) => r.role) || [];
+          const baseline = baselineRes.data;
+          const prediction = predictionRes.data;
+
+          userContext = `\n\nUSER CONTEXT:\n- User ID: ${userId}\n- Roles: ${roles.join(", ") || "none"}\n`;
+          if (profile) {
+            userContext += `- Name: ${profile.full_name}\n- Verified: ${profile.verified}\n- Agent type: ${profile.agent_type || "N/A"}\n- Last active: ${profile.last_active_at || "unknown"}\n`;
+          }
+          if (baseline) {
+            userContext += `\nEARNING BASELINE:\n- Avg daily earnings: UGX ${baseline.avg_daily_earnings}\n- Avg weekly earnings: UGX ${baseline.avg_weekly_earnings}\n- Receipts posted (last 7 days): ${baseline.receipt_count_7d}\n- Referrals (last 7 days): ${baseline.referral_count_7d}\n- Avg receipts per day: ${baseline.avg_receipts_per_day}\n`;
+          }
+          if (prediction) {
+            userContext += `\nEARNING PREDICTION:\n- Predicted weekly earnings: UGX ${prediction.predicted_earnings}\n- Confidence: ${Math.round(prediction.confidence * 100)}%\n- Assumptions: ${JSON.stringify(prediction.assumptions)}\n`;
+            userContext += `\nIMPORTANT: Use these predictions to personalize your responses. Reference specific numbers when suggesting earning actions.\n`;
+          }
+
+          // Save the latest user message for logged-in users
+          const lastUserMsg = messages[messages.length - 1];
+          if (lastUserMsg?.role === "user") {
+            await supabase.from("ai_chat_messages").insert({
+              user_id: userId,
+              role: "user",
+              content: lastUserMsg.content,
+            });
+          }
+        }
+      } catch (authErr) {
+        console.warn("Auth context fetch failed (continuing as guest):", authErr);
+      }
     }
 
-    // Save the latest user message
-    const lastUserMsg = messages[messages.length - 1];
-    if (lastUserMsg?.role === "user") {
-      await supabase.from("ai_chat_messages").insert({
-        user_id: userId,
-        role: "user",
-        content: lastUserMsg.content,
-      });
+    if (!userContext) {
+      userContext = "\n\nUSER CONTEXT:\n- This user is NOT logged in (guest). Introduce Welile warmly and encourage sign-up.\n";
     }
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");

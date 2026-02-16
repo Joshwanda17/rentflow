@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { useAuth } from '@/hooks/useAuth';
+import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import WelileAIChatDrawer from './WelileAIChatDrawer';
 
@@ -15,10 +15,7 @@ const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
 
 // Inline trigger for embedding in cards (e.g. wallet header)
 export function WelileAITrigger() {
-  const { user } = useAuth();
   const [open, setOpen] = useState(false);
-
-  if (!user) return null;
 
   return (
     <>
@@ -44,7 +41,7 @@ export function WelileAITrigger() {
   );
 }
 
-// Global floating button — visible on all pages
+// Global floating button — visible on all pages for everyone
 export default function WelileAIChatButton() {
   const [open, setOpen] = useState(false);
 
@@ -54,31 +51,40 @@ export default function WelileAIChatButton() {
         onClick={() => setOpen(true)}
         className={cn(
           "fixed bottom-20 right-4 z-[60]",
-          "h-14 w-14 rounded-full",
-          "bg-gradient-to-br from-primary via-primary to-purple-400",
-          "text-white",
+          "h-14 px-4 rounded-full",
+          "bg-gradient-to-r from-primary via-primary to-purple-400",
+          "text-primary-foreground",
           "shadow-xl shadow-primary/40",
-          "flex items-center justify-center",
+          "flex items-center gap-2",
           "hover:shadow-2xl hover:shadow-primary/50",
           "active:scale-90 transition-all duration-200",
         )}
-        whileHover={{ scale: 1.1, rotate: 10 }}
-        whileTap={{ scale: 0.9 }}
-        animate={{
-          boxShadow: [
-            "0 10px 25px -5px rgba(var(--primary), 0.4)",
-            "0 15px 35px -5px rgba(var(--primary), 0.6)",
-            "0 10px 25px -5px rgba(var(--primary), 0.4)",
-          ],
-        }}
-        transition={{ boxShadow: { duration: 2, repeat: Infinity } }}
+        whileHover={{ scale: 1.05 }}
+        whileTap={{ scale: 0.92 }}
         aria-label="Open Welile AI"
       >
-        <GeminiSparkle size={26} />
+        <GeminiSparkle size={22} />
+        <span className="font-bold text-sm whitespace-nowrap">Welile AI</span>
         {/* Pulse ring */}
-        <span className="absolute inset-0 rounded-full animate-ping bg-primary/20 pointer-events-none" style={{ animationDuration: '3s' }} />
+        <span className="absolute inset-0 rounded-full animate-ping bg-primary/15 pointer-events-none" style={{ animationDuration: '3s' }} />
       </motion.button>
       <WelileAIChatDrawer open={open} onOpenChange={setOpen} />
     </>
+  );
+}
+
+// Standalone page trigger — opens drawer immediately when /ai is visited
+export function WelileAIPage() {
+  const [open, setOpen] = useState(true);
+  const navigate = useNavigate();
+
+  return (
+    <WelileAIChatDrawer
+      open={open}
+      onOpenChange={(v) => {
+        setOpen(v);
+        if (!v) navigate('/welcome');
+      }}
+    />
   );
 }
