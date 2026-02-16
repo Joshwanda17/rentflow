@@ -206,7 +206,7 @@ export default function Auth() {
                           placeholder="0700123456"
                           className="pl-11 h-14 text-base rounded-xl"
                           style={{ fontSize: '16px' }}
-                          required
+                          
                         />
                       </div>
                     </div>
