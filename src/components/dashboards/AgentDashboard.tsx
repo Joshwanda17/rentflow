@@ -38,6 +38,7 @@ import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPrope
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
+import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -77,6 +78,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [managedPropertiesSheetOpen, setManagedPropertiesSheetOpen] = useState(false);
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [payoutProperty, setPayoutProperty] = useState<any>(null);
+  const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -233,6 +235,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenEarningsRank={() => setEarningsRankOpen(true)}
         onManageProperty={() => { setMenuOpen(false); setManagedPropertyOpen(true); }}
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
+        onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -274,6 +277,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       {/* Verification opportunities FAB */}
       <VerificationOpportunitiesButton />
+      
+      {/* Agent's own rent requests */}
+      <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />

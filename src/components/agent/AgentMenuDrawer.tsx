@@ -43,6 +43,7 @@ interface AgentMenuDrawerProps {
   onOpenEarningsRank: () => void;
   onManageProperty?: () => void;
   onViewManagedProperties?: () => void;
+  onViewMyRentRequests?: () => void;
 }
 
 interface MenuSection {
@@ -70,6 +71,7 @@ export function AgentMenuDrawer({
   onOpenEarningsRank,
   onManageProperty,
   onViewManagedProperties,
+  onViewMyRentRequests,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -113,6 +115,13 @@ export function AgentMenuDrawer({
           onClick: onPostRentRequest,
           color: 'text-blue-500'
         },
+        ...(onViewMyRentRequests ? [{ 
+          icon: ScrollText, 
+          label: 'My Rent Requests', 
+          description: 'View & verify your posted requests',
+          onClick: onViewMyRentRequests,
+          color: 'text-indigo-500'
+        }] : []),
         { 
           icon: Handshake, 
           label: 'Register Sub-Agent', 
