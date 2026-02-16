@@ -6,7 +6,18 @@ const SHARE_URL = `${getPublicOrigin()}/ai`;
 
 export default function ShareWelileAIBanner() {
   const handleShare = async () => {
-    const text = `Try Welile AI — your free earnings assistant! 🚀 Sign up through this link and we both earn UGX 500: ${SHARE_URL}`;
+    const text = `💰 Earn 15% monthly passive income by helping tenants pay rent in Africa!
+
+🏠 How it works:
+• You fund a tenant's rent cycle (30-90 days)
+• Welile manages collection & tenant replacement
+• You earn 15% monthly platform rewards
+
+🔒 Your capital is secured by Welile's Operational Assurance — if a tenant defaults, Welile replaces them.
+
+📈 Start with as little as UGX 50,000 and auto-compound your rewards!
+
+🤖 Chat with Welile AI to learn more: ${SHARE_URL}`;
     
     if (navigator.share) {
       try {
