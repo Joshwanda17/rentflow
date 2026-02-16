@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Wallet, Users, ArrowDownLeft, ArrowUpRight, FileText, TrendingUp } from 'lucide-react';
+import { Wallet, Users, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 import { formatCurrency } from '@/lib/paymentMethods';
 import FundTenantsFlow from './FundTenantsFlow';
 import DepositFlow from './DepositFlow';
 import WithdrawFlow from './WithdrawFlow';
+import { WelileAITrigger } from '@/components/ai-chat/WelileAIChatButton';
 
 interface PartnerWalletWidgetProps {
   availableBalance?: number;
@@ -26,10 +27,13 @@ export default function PartnerWalletWidget({
     <>
       <Card className="bg-gradient-to-br from-emerald-500/5 to-emerald-500/10 border-emerald-500/20">
         <CardHeader className="pb-2">
-          <CardTitle className="text-base flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-emerald-600" />
-            Wallet Overview
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base flex items-center gap-2">
+              <Wallet className="w-5 h-5 text-emerald-600" />
+              Wallet Overview
+            </CardTitle>
+            <WelileAITrigger />
+          </div>
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Balances */}
