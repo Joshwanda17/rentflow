@@ -237,18 +237,16 @@ Deno.serve(async (req) => {
       })
       .eq("id", invite.id);
 
-    // Supporter referral
+    // Supporter referral tracking (not bonus - that's handled by profile trigger → referrals trigger)
     if (userRole === 'supporter') {
       await adminClient.from("supporter_referrals").insert({
         referrer_id: invite.created_by, referred_id: authData.user.id, bonus_amount: 500,
       });
     }
 
-    // General referral
-    await adminClient.from("referrals").insert({
-      referrer_id: invite.created_by, referred_id: authData.user.id,
-      bonus_amount: 500, credited: true, credited_at: new Date().toISOString(),
-    });
+    // Note: General referral + wallet bonus is handled automatically by the
+    // credit_referral_bonus trigger on profiles (inserts into referrals table)
+    // which then fires credit_signup_referral_bonus to credit the referrer's wallet.
 
     const roleLabels: Record<string, string> = {
       tenant: 'Tenant', agent: 'Agent', supporter: 'Supporter', landlord: 'Landlord',
