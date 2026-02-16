@@ -496,6 +496,33 @@ export type Database = {
         }
         Relationships: []
       }
+      loan_applications: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       messages: {
         Row: {
           content: string
@@ -597,6 +624,36 @@ export type Database = {
           type?: string
           updated_at?: string | null
           user_id?: string
+        }
+        Relationships: []
+      }
+      onboarding_targets: {
+        Row: {
+          achieved_count: number
+          agent_id: string
+          created_at: string
+          id: string
+          target_count: number
+          target_month: string
+          updated_at: string
+        }
+        Insert: {
+          achieved_count?: number
+          agent_id: string
+          created_at?: string
+          id?: string
+          target_count?: number
+          target_month: string
+          updated_at?: string
+        }
+        Update: {
+          achieved_count?: number
+          agent_id?: string
+          created_at?: string
+          id?: string
+          target_count?: number
+          target_month?: string
+          updated_at?: string
         }
         Relationships: []
       }
