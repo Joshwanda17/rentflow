@@ -40,6 +40,7 @@ import {
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
 import UserProfilesTable from '@/components/manager/UserProfilesTable';
+import UserCountsSummary from '@/components/manager/UserCountsSummary';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
@@ -89,6 +90,7 @@ export default function ManagerAccess() {
   const [isSearching, setIsSearching] = useState(false);
   const [showResults, setShowResults] = useState(false);
   const searchInputRef = useRef<HTMLInputElement>(null);
+  const [showFullUserTable, setShowFullUserTable] = useState(false);
   
   // Filter states
   const [showFilters, setShowFilters] = useState(false);
@@ -712,9 +714,13 @@ export default function ManagerAccess() {
                   <span className="hidden xs:inline">Locations</span>
                 </Button>
               </div>
-              {/* User profiles table with full height */}
+              {/* User counts summary + load full table on demand */}
               <div className="h-[calc(100vh-60px)] overflow-auto md:h-auto md:overflow-visible pb-20 md:pb-0">
-                <UserProfilesTable />
+                {showFullUserTable ? (
+                  <UserProfilesTable />
+                ) : (
+                  <UserCountsSummary onViewAll={() => setShowFullUserTable(true)} />
+                )}
               </div>
             </div>
           </TabsContent>
