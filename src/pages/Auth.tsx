@@ -36,7 +36,13 @@ export default function Auth() {
     phoneInputRef, passwordInputRef,
     isDuplicate, isCheckingDuplicate, duplicateMessage,
     otpSent, otpVerified, otpLoading, otpError,
-    sendOtp, verifyOtp, resetOtp,
+    sendOtp, verifyOtp, resetOtp: resetOtpState,
+    // SMS reset
+    resetStep, setResetStep,
+    resetPhone, setResetPhone,
+    resetOtpCode, setResetOtpCode,
+    resetNewPassword, setResetNewPassword,
+    resetConfirmPassword, setResetConfirmPassword,
     handleSubmit, handleGoogleSignIn,
   } = useAuthForm();
 
@@ -95,7 +101,9 @@ export default function Auth() {
               </CardTitle>
               <CardDescription className="text-sm">
                 {isForgotPassword
-                  ? 'Enter your email to receive a reset link'
+                  ? resetStep === 'phone' ? 'Enter your phone number to receive a reset code via SMS, or your email for a reset link'
+                    : resetStep === 'otp' ? 'Enter the 6-digit code sent to your phone'
+                    : 'Set your new password'
                   : isForgotPhone
                     ? 'Enter the email you used with Google sign-in'
                     : isSignUp
@@ -182,8 +190,124 @@ export default function Auth() {
                   </div>
                 )}
 
-                {/* Email (forgot flows) */}
-                {(isForgotPassword || isForgotPhone) && (
+                {/* Forgot Password - SMS/Email dual flow */}
+                {isForgotPassword && resetStep === 'phone' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="resetPhone" className="text-sm font-medium">Phone Number</Label>
+                      <div className="relative">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="resetPhone"
+                          type="tel"
+                          inputMode="tel"
+                          value={resetPhone}
+                          onChange={(e) => setResetPhone(e.target.value)}
+                          placeholder="0700123456"
+                          className="pl-11 h-14 text-base rounded-xl"
+                          style={{ fontSize: '16px' }}
+                          required
+                        />
+                      </div>
+                    </div>
+                    <div className="relative flex items-center py-1">
+                      <div className="flex-1 border-t border-border/50" />
+                      <span className="px-3 text-xs text-muted-foreground">or</span>
+                      <div className="flex-1 border-t border-border/50" />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="resetEmail" className="text-sm font-medium">Email (for Google/email accounts)</Label>
+                      <div className="relative">
+                        <Mail className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="resetEmail"
+                          type="email"
+                          inputMode="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          placeholder="you@example.com"
+                          className="pl-11 h-14 text-base rounded-xl"
+                          style={{ fontSize: '16px' }}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* OTP step */}
+                {isForgotPassword && resetStep === 'otp' && (
+                  <div className="space-y-2">
+                    <Label htmlFor="resetOtp" className="text-sm font-medium">Reset Code</Label>
+                    <Input
+                      id="resetOtp"
+                      type="text"
+                      inputMode="numeric"
+                      maxLength={6}
+                      value={resetOtpCode}
+                      onChange={(e) => setResetOtpCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                      placeholder="Enter 6-digit code"
+                      className="h-14 text-center text-2xl tracking-[0.5em] rounded-xl font-mono"
+                      style={{ fontSize: '24px' }}
+                      required
+                    />
+                  </div>
+                )}
+
+                {/* New password step */}
+                {isForgotPassword && resetStep === 'new-password' && (
+                  <>
+                    <div className="space-y-2">
+                      <Label htmlFor="newPassword" className="text-sm font-medium">New Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="newPassword"
+                          type={showPassword ? "text" : "password"}
+                          value={resetNewPassword}
+                          onChange={(e) => setResetNewPassword(e.target.value)}
+                          placeholder="Enter new password"
+                          className="pl-11 h-14 text-base rounded-xl"
+                          style={{ fontSize: '16px' }}
+                          required
+                        />
+                      </div>
+                      <PasswordStrengthIndicator password={resetNewPassword} />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="confirmNewPassword" className="text-sm font-medium">Confirm Password</Label>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          id="confirmNewPassword"
+                          type={showPassword ? "text" : "password"}
+                          value={resetConfirmPassword}
+                          onChange={(e) => setResetConfirmPassword(e.target.value)}
+                          placeholder="Confirm new password"
+                          className={`pl-11 h-14 text-base rounded-xl ${resetConfirmPassword && resetNewPassword !== resetConfirmPassword ? 'border-destructive' : resetConfirmPassword && resetNewPassword === resetConfirmPassword ? 'border-emerald-500' : ''}`}
+                          style={{ fontSize: '16px' }}
+                          required
+                        />
+                      </div>
+                      {resetConfirmPassword && resetNewPassword !== resetConfirmPassword && (
+                        <p className="text-xs text-destructive">Passwords don't match</p>
+                      )}
+                      <div className="flex items-center space-x-2 mt-1">
+                        <Checkbox
+                          id="showResetPassword"
+                          checked={showPassword}
+                          onCheckedChange={(checked) => setShowPassword(!!checked)}
+                          className="h-4 w-4"
+                        />
+                        <Label htmlFor="showResetPassword" className="text-xs text-muted-foreground cursor-pointer select-none">
+                          Show password
+                        </Label>
+                      </div>
+                    </div>
+                  </>
+                )}
+
+                {/* Email for forgot phone flow */}
+                {isForgotPhone && (
                   <div className="space-y-2">
                     <Label htmlFor="email" className="text-sm font-medium">Email</Label>
                     <div className="relative">
@@ -266,11 +390,24 @@ export default function Auth() {
                 {(isForgotPassword || isForgotPhone) && (
                   <button
                     type="button"
-                    onClick={() => { setIsForgotPassword(false); setIsForgotPhone(false); setEmail(''); }}
+                    onClick={() => {
+                      if (isForgotPassword && resetStep !== 'phone') {
+                        setResetStep(resetStep === 'new-password' ? 'otp' : 'phone');
+                      } else {
+                        setIsForgotPassword(false);
+                        setIsForgotPhone(false);
+                        setEmail('');
+                        setResetStep('phone');
+                        setResetPhone('');
+                        setResetOtpCode('');
+                        setResetNewPassword('');
+                        setResetConfirmPassword('');
+                      }
+                    }}
                     className="flex items-center gap-1 text-sm text-muted-foreground hover:text-primary transition-colors touch-manipulation"
                   >
                     <ArrowLeft className="h-3 w-3" />
-                    Back to sign in
+                    {isForgotPassword && resetStep !== 'phone' ? 'Back' : 'Back to sign in'}
                   </button>
                 )}
 
@@ -314,7 +451,11 @@ export default function Auth() {
                   ) : (
                     <>
                       {isForgotPassword ? <Mail className="h-5 w-5" /> : <LogIn className="h-5 w-5" />}
-                      {isForgotPassword ? 'Send Reset Link' : isForgotPhone ? 'Sign In' : isSignUp ? 'Create Account' : 'Sign In'}
+                      {isForgotPassword 
+                        ? resetStep === 'phone' ? (email ? 'Send Reset Link' : 'Send Reset Code')
+                          : resetStep === 'otp' ? 'Verify Code'
+                          : 'Reset Password'
+                        : isForgotPhone ? 'Sign In' : isSignUp ? 'Create Account' : 'Sign In'}
                     </>
                   )}
                 </Button>

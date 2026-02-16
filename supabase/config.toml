@@ -77,3 +77,6 @@ verify_jwt = false
 
 [functions.user-snapshot]
 verify_jwt = false
+
+[functions.password-reset-sms]
+verify_jwt = false
