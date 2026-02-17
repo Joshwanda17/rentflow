@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { Sparkles, Clock, CheckCircle2, XCircle, Banknote } from 'lucide-react';
+import { Sparkles, Clock, CheckCircle2, XCircle } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { motion } from 'framer-motion';
 import { formatDistanceToNow } from 'date-fns';
@@ -26,7 +26,7 @@ interface CreditRequestsFeedProps {
 }
 
 const CACHE_KEY = 'welile_credit_requests';
-const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+const CACHE_TTL = 2 * 60 * 1000;
 
 export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: CreditRequestsFeedProps) {
   const { formatAmount } = useCurrency();
@@ -34,7 +34,6 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
   const [loading, setLoading] = useState(true);
 
   const fetchRequests = useCallback(async () => {
-    // Try cache first
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
@@ -62,7 +61,6 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
       return;
     }
 
-    // Fetch borrower profiles
     const borrowerIds = [...new Set((data || []).map(d => d.borrower_id))];
     let profileMap: Record<string, { full_name: string; phone: string }> = {};
 
@@ -105,91 +103,84 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
     return (
       <div className="space-y-3">
         {[1, 2].map(i => (
-          <div key={i} className="h-20 rounded-2xl bg-muted/50 animate-pulse" />
+          <div key={i} className="h-24 rounded-2xl bg-muted/50 animate-pulse" />
         ))}
       </div>
     );
   }
 
-  const getStatusIcon = (status: string) => {
+  const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'approved': return <CheckCircle2 className="h-3.5 w-3.5 text-success" />;
-      case 'rejected': return <XCircle className="h-3.5 w-3.5 text-destructive" />;
-      default: return <Clock className="h-3.5 w-3.5 text-warning" />;
-    }
-  };
-
-  const getStatusLabel = (status: string) => {
-    switch (status) {
-      case 'approved': return 'Approved';
-      case 'active': return 'Active';
-      case 'rejected': return 'Rejected';
-      default: return 'Pending';
+      case 'approved': return { icon: <CheckCircle2 className="h-4 w-4" />, label: '✅ Approved', cls: 'bg-success/15 text-success border-success/30' };
+      case 'rejected': return { icon: <XCircle className="h-4 w-4" />, label: '❌ Rejected', cls: 'bg-destructive/15 text-destructive border-destructive/30' };
+      default: return { icon: <Clock className="h-4 w-4" />, label: '⏳ Pending', cls: 'bg-amber-500/15 text-amber-600 border-amber-500/30' };
     }
   };
 
   return (
-    <div className="space-y-4">
-      {/* Section header */}
+    <div className="space-y-5">
+      {/* Section header - BIGGER */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-accent/50">
-            <Sparkles className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-accent/50">
+            <Sparkles className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-bold text-foreground text-sm">Welile AI Credit Requests</h3>
-            <p className="text-[10px] text-muted-foreground">{requests.length} active requests</p>
+            <h3 className="font-black text-foreground text-base">Welile AI Credit Requests</h3>
+            <p className="text-xs text-muted-foreground font-medium">{requests.length} active requests</p>
           </div>
         </div>
       </div>
 
       {requests.length === 0 ? (
-        <div className="text-center py-6 text-sm text-muted-foreground rounded-2xl border border-dashed border-border/60">
+        <div className="text-center py-8 text-base text-muted-foreground rounded-2xl border-2 border-dashed border-border/60 font-medium">
           No credit requests at the moment
         </div>
       ) : (
-        <div className="space-y-2.5">
-          {requests.map((req, i) => (
-            <motion.button
-              key={req.id}
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03, duration: 0.2 }}
-              onClick={() => {
-                if (isLocked) { onLockedClick?.(); return; }
-                onFundRequest?.(req);
-              }}
-              className="w-full flex items-center gap-3 p-3.5 rounded-2xl border border-border/60 bg-card hover:bg-accent/30 hover:border-primary/30 shadow-sm transition-all text-left touch-manipulation active:scale-[0.98]"
-            >
-              {/* Icon */}
-              <div className="w-12 h-12 rounded-xl bg-primary/8 flex items-center justify-center text-2xl shrink-0">
-                💳
-              </div>
-
-              {/* Info */}
-              <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground truncate">{req.borrower_name}</p>
-                <div className="flex items-center gap-2 mt-0.5">
-                  <span className="text-xs font-semibold text-foreground">{formatAmount(req.amount)}</span>
-                  <Badge variant="secondary" className="text-[10px] gap-0.5 px-1.5 py-0">
-                    {getStatusIcon(req.status)}
-                    {getStatusLabel(req.status)}
-                  </Badge>
+        <div className="space-y-3">
+          {requests.map((req, i) => {
+            const statusBadge = getStatusBadge(req.status);
+            return (
+              <motion.button
+                key={req.id}
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03, duration: 0.2 }}
+                onClick={() => {
+                  if (isLocked) { onLockedClick?.(); return; }
+                  onFundRequest?.(req);
+                }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border-2 border-border/60 bg-card hover:bg-accent/30 hover:border-primary/30 shadow-sm transition-all text-left touch-manipulation active:scale-[0.97] min-h-[80px]"
+              >
+                {/* Icon - BIGGER */}
+                <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center text-3xl shrink-0">
+                  💳
                 </div>
-                <p className="text-[10px] text-muted-foreground mt-0.5">
-                  {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
-                </p>
-              </div>
 
-              {/* Return info */}
-              <div className="shrink-0 text-right">
-                <p className="text-[10px] text-muted-foreground">Return</p>
-                <p className="text-sm font-bold text-success">
-                  +{formatAmount(req.total_repayment - req.amount)}
-                </p>
-              </div>
-            </motion.button>
-          ))}
+                {/* Info - BIGGER */}
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-base text-foreground truncate">{req.borrower_name}</p>
+                  <p className="text-base font-bold text-foreground mt-0.5">{formatAmount(req.amount)}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <Badge variant="outline" className={`text-xs font-bold px-2 py-0.5 border ${statusBadge.cls}`}>
+                      {statusBadge.label}
+                    </Badge>
+                    <span className="text-xs text-muted-foreground">
+                      {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Return info - BIGGER */}
+                <div className="shrink-0 text-right px-3 py-2 rounded-xl bg-success/10 border border-success/20">
+                  <p className="text-[11px] text-muted-foreground font-semibold">Return</p>
+                  <p className="text-base font-black text-success">
+                    +{formatAmount(req.total_repayment - req.amount)}
+                  </p>
+                </div>
+              </motion.button>
+            );
+          })}
         </div>
       )}
     </div>

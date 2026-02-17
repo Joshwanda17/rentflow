@@ -314,11 +314,11 @@ export default function SupporterDashboard({
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-3">
               <button onClick={() => navigate('/settings')} className="shrink-0">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="md" />
+                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
               </button>
               <div>
-                <p className="text-xs text-muted-foreground">Welcome back</p>
-                <h1 className="font-bold text-lg leading-tight">{profile?.full_name?.split(' ')[0] || 'Supporter'}</h1>
+                <p className="text-sm text-muted-foreground font-medium">Welcome back 👋</p>
+                <h1 className="font-black text-xl leading-tight">{profile?.full_name?.split(' ')[0] || 'Supporter'}</h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
@@ -332,11 +332,11 @@ export default function SupporterDashboard({
               ) : (
                 <Button
                   variant="outline"
-                  size="sm"
+                  size="default"
                   onClick={() => setShowAgreementModal(true)}
-                  className="text-[11px] border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1 rounded-xl h-8 px-2.5"
+                  className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold"
                 >
-                  <FileText className="h-3 w-3" />
+                  <FileText className="h-4 w-4" />
                   Accept Terms
                 </Button>
               )}
@@ -350,8 +350,8 @@ export default function SupporterDashboard({
             portfolioHealth={portfolioHealth}
           />
 
-          {/* ═══ QUICK ACTION BUTTONS ═══ */}
-          <div className="grid grid-cols-3 gap-2.5">
+          {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
+          <div className="grid grid-cols-3 gap-3">
             <motion.button
               initial={{ opacity: 0, y: 8 }}
               animate={{ opacity: 1, y: 0 }}
@@ -361,10 +361,10 @@ export default function SupporterDashboard({
                 if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
                 setShowPaymentPartners(true);
               }}
-              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
             >
-              <CreditCard className="h-6 w-6" />
-              <span className="text-[11px] font-bold">Add Funds</span>
+              <CreditCard className="h-8 w-8" />
+              <span className="text-sm font-black">Add Funds</span>
             </motion.button>
 
             <motion.button
@@ -372,10 +372,10 @@ export default function SupporterDashboard({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.15 }}
               onClick={() => { hapticTap(); setShowCalculator(true); }}
-              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-card border border-border/60 text-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
             >
-              <Calculator className="h-6 w-6 text-primary" />
-              <span className="text-[11px] font-bold">Calculator</span>
+              <Calculator className="h-8 w-8 text-primary" />
+              <span className="text-sm font-black">Calculator</span>
             </motion.button>
 
             <motion.button
@@ -383,10 +383,10 @@ export default function SupporterDashboard({
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2 }}
               onClick={handleOpenMenu}
-              className="flex flex-col items-center gap-1.5 p-3.5 rounded-2xl bg-card border border-border/60 text-foreground shadow-sm active:scale-[0.96] transition-transform touch-manipulation"
+              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
             >
-              <Menu className="h-6 w-6 text-muted-foreground" />
-              <span className="text-[11px] font-bold">More</span>
+              <Menu className="h-8 w-8 text-muted-foreground" />
+              <span className="text-sm font-black">More</span>
             </motion.button>
           </div>
 

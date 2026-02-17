@@ -24,44 +24,40 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
       initial={{ opacity: 0, y: 16 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4 }}
-      className="rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-primary/85 text-primary-foreground p-5 shadow-xl shadow-primary/20 relative overflow-hidden"
+      className="rounded-3xl bg-gradient-to-br from-primary via-primary/95 to-primary/85 text-primary-foreground p-6 shadow-xl shadow-primary/20 relative overflow-hidden"
     >
       {/* Decorative circles */}
       <div className="absolute -top-8 -right-8 w-28 h-28 bg-white/8 rounded-full" />
       <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full" />
 
-      <div className="relative z-10">
-        {/* Main balance */}
-        <p className="text-xs opacity-70 uppercase tracking-widest font-semibold mb-1">Total Rent Secured</p>
-        <p className="text-3xl font-black tracking-tight mb-4">{formatAmount(rentSecured)}</p>
+      <div className="relative z-10 space-y-5">
+        {/* Main balance - BIGGER */}
+        <div>
+          <p className="text-sm opacity-80 uppercase tracking-widest font-bold mb-2">💰 Total Rent Secured</p>
+          <p className="text-4xl font-black tracking-tight">{formatAmount(rentSecured)}</p>
+        </div>
 
-        {/* Stats row */}
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
-            <Home className="h-4 w-4 opacity-80" />
-            <div>
-              <p className="text-lg font-black leading-none">{housesFunded}</p>
-              <p className="text-[9px] opacity-60 uppercase tracking-wider">Houses</p>
-            </div>
+        {/* Stats row - BIGGER cards */}
+        <div className="grid grid-cols-3 gap-2.5">
+          <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+            <Home className="h-6 w-6 opacity-90" />
+            <p className="text-2xl font-black leading-none">{housesFunded}</p>
+            <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Houses</p>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
-            <TrendingUp className="h-4 w-4 opacity-80" />
-            <div>
-              <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.12)}</p>
-              <p className="text-[9px] opacity-60 uppercase tracking-wider">Est. Return</p>
-            </div>
+          <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+            <TrendingUp className="h-6 w-6 opacity-90" />
+            <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.12)}</p>
+            <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
           </div>
 
-          <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-white/12 backdrop-blur-sm">
-            <Shield className="h-4 w-4 opacity-80" />
-            <div>
-              <div className="flex items-center gap-1">
-                <span className={`h-1.5 w-1.5 rounded-full ${health.dot} animate-pulse`} />
-                <p className="text-xs font-bold leading-none">{health.label}</p>
-              </div>
-              <p className="text-[9px] opacity-60 uppercase tracking-wider">Health</p>
+          <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+            <Shield className="h-6 w-6 opacity-90" />
+            <div className="flex items-center gap-1.5">
+              <span className={`h-2.5 w-2.5 rounded-full ${health.dot} animate-pulse`} />
+              <p className="text-base font-black leading-none">{health.label}</p>
             </div>
+            <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Health</p>
           </div>
         </div>
       </div>
