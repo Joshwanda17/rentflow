@@ -109,6 +109,7 @@ import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
+import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 
@@ -965,6 +966,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Pending Rent Requests - Incoming from agents/tenants */}
         <PendingRentRequestsWidget />
+
+        {/* Approved Rent Requests - Awaiting supporter funding */}
+        <ApprovedRentRequestsWidget mode="manager" />
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />
