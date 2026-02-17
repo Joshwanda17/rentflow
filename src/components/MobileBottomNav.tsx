@@ -8,10 +8,9 @@ import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
 interface MobileBottomNavProps {
   currentRole: AppRole;
-  onSignOut: () => void;
 }
 
-export default function MobileBottomNav({ currentRole, onSignOut }: MobileBottomNavProps) {
+export default function MobileBottomNav({ currentRole }: MobileBottomNavProps) {
   const location = useLocation();
   const { currency } = useCurrency();
   

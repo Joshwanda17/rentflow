@@ -352,7 +352,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
       />
       
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      <MobileBottomNav currentRole={currentRole} />
     </div>
   );
 }

@@ -411,7 +411,19 @@ export default function Auth() {
                   </button>
                 )}
 
-                {/* OTP Verification - lifted for now */}
+                {/* OTP Verification - MANDATORY for signup */}
+                {isSignUp && !isForgotPassword && !isForgotPhone && phone.replace(/\D/g, '').length >= 9 && (
+                  <OtpVerificationStep
+                    phone={phone}
+                    otpSent={otpSent}
+                    otpVerified={otpVerified}
+                    otpLoading={otpLoading}
+                    otpError={otpError}
+                    onSendOtp={() => sendOtp(phone)}
+                    onVerifyOtp={(otp) => verifyOtp(phone, otp)}
+                    onResendOtp={() => sendOtp(phone)}
+                  />
+                )}
 
                 {/* Remember me & Forgot password */}
                 {!isSignUp && !isForgotPassword && !isForgotPhone && (
@@ -443,7 +455,7 @@ export default function Auth() {
                 <Button
                   type="submit"
                   className="w-full gap-2 h-14 text-base rounded-xl touch-manipulation active:scale-[0.98] transition-transform font-medium"
-                  disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate))}
+                  disabled={isLoading || (isSignUp && (isDuplicate || isCheckingDuplicate || !otpVerified))}
                   style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
                 >
                   {isLoading ? (

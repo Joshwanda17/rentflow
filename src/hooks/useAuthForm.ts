@@ -220,7 +220,11 @@ export function useAuthForm() {
       toast({ title: 'Error', description: validationError, variant: 'destructive' });
       return;
     }
-    // OTP verification lifted — optional for now
+    // OTP verification is MANDATORY before account creation
+    if (!otpVerified) {
+      toast({ title: 'Phone Verification Required', description: 'Please verify your phone number with the SMS code before creating your account.', variant: 'destructive' });
+      return;
+    }
     const cleanPhone = phone.replace(/\D/g, '');
     const generatedEmail = `${cleanPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');

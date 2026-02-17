@@ -282,7 +282,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      <MobileBottomNav currentRole={currentRole} />
     </div>
   );
 }

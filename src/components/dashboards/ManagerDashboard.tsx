@@ -2258,7 +2258,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <FloatingDepositsWidget />
       
       <FloatingShareButton />
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      <MobileBottomNav currentRole={currentRole} />
       
       {/* Floating Action Button */}
       <FloatingActionButton 
