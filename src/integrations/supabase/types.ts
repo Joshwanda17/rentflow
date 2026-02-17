@@ -300,6 +300,98 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_request_details: {
+        Row: {
+          agent_id: string | null
+          agent_verified: boolean | null
+          agent_verified_at: string | null
+          borrower_id: string
+          borrower_mm_name: string
+          borrower_phone: string
+          created_at: string
+          duration_days: number
+          electricity_meter_number: string | null
+          funder_interest_rate: number
+          id: string
+          landlord_id: string | null
+          landlord_name: string
+          landlord_on_platform: boolean | null
+          landlord_phone: string
+          loan_id: string | null
+          location_address: string | null
+          location_latitude: number | null
+          location_longitude: number | null
+          platform_fee_amount: number
+          platform_fee_rate: number
+          repayment_frequency: string
+          total_with_fees: number
+          updated_at: string
+          water_meter_number: string | null
+        }
+        Insert: {
+          agent_id?: string | null
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          borrower_id: string
+          borrower_mm_name: string
+          borrower_phone: string
+          created_at?: string
+          duration_days?: number
+          electricity_meter_number?: string | null
+          funder_interest_rate?: number
+          id?: string
+          landlord_id?: string | null
+          landlord_name: string
+          landlord_on_platform?: boolean | null
+          landlord_phone: string
+          loan_id?: string | null
+          location_address?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          platform_fee_amount?: number
+          platform_fee_rate?: number
+          repayment_frequency?: string
+          total_with_fees?: number
+          updated_at?: string
+          water_meter_number?: string | null
+        }
+        Update: {
+          agent_id?: string | null
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          borrower_id?: string
+          borrower_mm_name?: string
+          borrower_phone?: string
+          created_at?: string
+          duration_days?: number
+          electricity_meter_number?: string | null
+          funder_interest_rate?: number
+          id?: string
+          landlord_id?: string | null
+          landlord_name?: string
+          landlord_on_platform?: boolean | null
+          landlord_phone?: string
+          loan_id?: string | null
+          location_address?: string | null
+          location_latitude?: number | null
+          location_longitude?: number | null
+          platform_fee_amount?: number
+          platform_fee_rate?: number
+          repayment_frequency?: string
+          total_with_fees?: number
+          updated_at?: string
+          water_meter_number?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "credit_request_details_loan_id_fkey"
+            columns: ["loan_id"]
+            isOneToOne: false
+            referencedRelation: "user_loans"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       deposit_requests: {
         Row: {
           agent_id: string | null
