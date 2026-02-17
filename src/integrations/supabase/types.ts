@@ -2491,7 +2491,7 @@ export type Database = {
             Args: {
               p_custom_end?: string
               p_custom_start?: string
-              p_filter?: string
+              p_filter: string
             }
             Returns: Json
           }
