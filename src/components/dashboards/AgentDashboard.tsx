@@ -46,6 +46,7 @@ import { RecordTenantPaymentDialog } from '@/components/agent/RecordTenantPaymen
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
+import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 
 interface AgentDashboardProps {
   user: User;
@@ -237,6 +238,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </motion.button>
         </div>
+
+        {/* Approved Rent Requests posted by this agent */}
+        <ApprovedRentRequestsWidget mode="agent" />
 
         {/* ADD ROLE COMPONENT */}
         <div className="flex justify-center">
