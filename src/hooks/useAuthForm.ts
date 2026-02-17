@@ -260,66 +260,66 @@ export function useAuthForm() {
     const phoneLocal9 = cleanedPhone.slice(-9);
     const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
 
-    // STEP 1: Try profile lookup and primary generated email in parallel
-    const primaryEmail = `${cleanedPhone}@welile.user`;
-    let profileEmail: string | null = null;
+    // STEP 1: Try profile lookup to find the correct auth email
+    let profileEmails: string[] = [];
 
     try {
       const profilePromise = supabase
         .from('profiles')
         .select('email, phone')
-        .in('phone', phoneFormats)
-        .limit(1);
+        .in('phone', phoneFormats);
       
-      // Race against a 10-second timeout to prevent indefinite spinning
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Network timeout: Unable to reach the server. Please check your connection and try again.')), 10000)
       );
 
       const { data } = await Promise.race([profilePromise, timeoutPromise]);
-      if (data?.[0]?.email) profileEmail = data[0].email;
+      if (data?.length) {
+        // Prefer @welile.user emails first, then @welile.agent
+        const userEmails = data.filter(p => p.email?.includes('@welile.user')).map(p => p.email);
+        const agentEmails = data.filter(p => p.email?.includes('@welile.agent')).map(p => p.email);
+        profileEmails = [...userEmails, ...agentEmails];
+      }
     } catch (e: any) {
       if (e?.message?.includes('Network timeout')) {
         toast({ title: 'Connection Error', description: e.message, variant: 'destructive' });
         return;
       }
-      // Continue with generated email for other errors
     }
 
-    // Use profile email if found, otherwise use the primary generated one
-    const emailToTry = profileEmail || primaryEmail;
+    // Build ordered list of emails to try (profile matches first, then generated fallbacks)
+    const emailCandidates = new Set<string>();
+    for (const e of profileEmails) emailCandidates.add(e);
+    emailCandidates.add(`${cleanedPhone}@welile.user`);
+    emailCandidates.add(`0${phoneLocal9}@welile.user`);
+    emailCandidates.add(`256${phoneLocal9}@welile.user`);
+    // Also try agent variants as fallback
+    emailCandidates.add(`0${phoneLocal9}@welile.agent`);
+    emailCandidates.add(`256${phoneLocal9}@welile.agent`);
 
-    // STEP 2: Single sign-in attempt with best candidate
+    // STEP 2: Try sign-in with each candidate until one works
     let loginSuccess = false;
     let lastError: Error | null = null;
 
-    try {
-      const signInPromise = signIn(emailToTry, password);
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Network timeout')), 12000)
-      );
-      const { error } = await Promise.race([signInPromise, timeoutPromise]);
-      if (!error) {
-        loginSuccess = true;
-      } else {
-        lastError = error;
-      }
-    } catch (e: any) {
-      lastError = e;
-    }
-
-    // If first attempt failed with wrong credentials and we have an alternative, try it
-    if (!loginSuccess && lastError?.message.includes('Invalid login credentials') && profileEmail && profileEmail !== primaryEmail) {
+    for (const emailToTry of emailCandidates) {
       try {
-        const { error } = await signIn(primaryEmail, password);
+        const signInPromise = signIn(emailToTry, password);
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('Network timeout')), 12000)
+        );
+        const { error } = await Promise.race([signInPromise, timeoutPromise]);
         if (!error) {
           loginSuccess = true;
           lastError = null;
-        } else {
-          lastError = error;
+          break;
         }
+        lastError = error;
+        // Only continue trying if it's a credentials error (wrong email variant)
+        if (!error.message.includes('Invalid login credentials')) break;
       } catch (e: any) {
         lastError = e;
+        // Network errors — stop trying
+        if (e?.message?.includes('Network timeout') || e?.message?.includes('Failed to fetch')) break;
       }
     }
 
@@ -338,9 +338,10 @@ export function useAuthForm() {
     let errorMessage = lastError?.message || 'Sign in failed';
 
     if (lastError?.message.includes('Invalid login credentials')) {
-      if (profileEmail && !profileEmail.includes('@welile.')) {
+      const hasRealEmail = profileEmails.some(e => !e.includes('@welile.'));
+      if (hasRealEmail) {
         errorMessage = `This phone number is linked to an account that uses email login. Please use "Continue with Google" instead.`;
-      } else if (emailToTry) {
+      } else if (profileEmails.length > 0) {
         errorMessage = 'Incorrect password. Please check your password and try again.';
       } else {
         errorMessage = 'No account found with this phone number. Please sign up first.';
