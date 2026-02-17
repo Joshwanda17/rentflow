@@ -85,14 +85,20 @@ export default function AddBalanceDialog({
       const delta = type === 'credit' ? amountNum : -amountNum;
       const newBalance = Math.max(0, wallet.balance + delta);
 
-      // Optimistic lock update
-      const { error: updateError } = await supabase
+      // Optimistic lock update — verify rows were actually changed
+      const { data: updatedWallet, error: updateError } = await supabase
         .from('wallets')
         .update({ balance: newBalance, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
-        .eq('balance', wallet.balance);
+        .eq('balance', wallet.balance)
+        .select()
+        .maybeSingle();
 
       if (updateError) throw updateError;
+      if (!updatedWallet) {
+        toast.error('Balance changed while updating. Please close and try again.');
+        return;
+      }
 
       // Generate reference ID: WBA + YYMMDD + random 4 digits
       const now = new Date();
