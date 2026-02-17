@@ -81,16 +81,14 @@ export default function AgentRegistrations() {
     if (!user) return;
     
     setLoading(true);
+
+    // Build base query without status filter first — we reconcile status client-side
     let query = supabase
       .from('supporter_invites')
       .select('*')
       .eq('created_by', user.id)
       .in('role', ['tenant', 'landlord'])
       .order('created_at', { ascending: false });
-
-    if (statusFilter !== 'all') {
-      query = query.eq('status', statusFilter);
-    }
 
     if (roleFilter !== 'all') {
       query = query.eq('role', roleFilter);
@@ -99,7 +97,47 @@ export default function AgentRegistrations() {
     const { data, error } = await query;
 
     if (!error && data) {
-      setInvites(data);
+      // Reconcile: check which "pending" invites have users who already registered
+      const pendingInvites = data.filter(i => i.status === 'pending');
+      
+      if (pendingInvites.length > 0) {
+        // Extract last 9 digits of phones for matching
+        const phoneDigits = pendingInvites.map(i => i.phone.replace(/\D/g, '').slice(-9));
+        
+        // Fetch profiles matching these phone numbers
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, phone')
+          .or(phoneDigits.map(d => `phone.ilike.%${d}`).join(','));
+        
+        const matchedPhones = new Set(
+          (profiles || []).map(p => p.phone.replace(/\D/g, '').slice(-9))
+        );
+
+        // Auto-reconcile: mark matching invites as activated in local state
+        const reconciled = data.map(invite => {
+          if (invite.status === 'pending') {
+            const inviteDigits = invite.phone.replace(/\D/g, '').slice(-9);
+            if (matchedPhones.has(inviteDigits)) {
+              return { ...invite, status: 'activated' as string };
+            }
+          }
+          return invite;
+        });
+
+        // Apply status filter after reconciliation
+        const filtered = statusFilter === 'all' 
+          ? reconciled 
+          : reconciled.filter(i => i.status === statusFilter);
+
+        setInvites(filtered);
+      } else {
+        // No pending invites, apply status filter directly
+        const filtered = statusFilter === 'all'
+          ? data
+          : data.filter(i => i.status === statusFilter);
+        setInvites(filtered);
+      }
     }
     setLoading(false);
   };
