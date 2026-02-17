@@ -1921,6 +1921,11 @@ export type Database = {
       }
       user_loans: {
         Row: {
+          agent_verified: boolean | null
+          agent_verified_at: string | null
+          agent_verified_by: string | null
+          ai_insurance_accepted: boolean | null
+          ai_insurance_accepted_at: string | null
           amount: number
           borrower_id: string
           created_at: string
@@ -1930,10 +1935,16 @@ export type Database = {
           lender_id: string
           paid_amount: number
           repaid_at: string | null
+          repayment_frequency: string | null
           status: string
           total_repayment: number
         }
         Insert: {
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          agent_verified_by?: string | null
+          ai_insurance_accepted?: boolean | null
+          ai_insurance_accepted_at?: string | null
           amount: number
           borrower_id: string
           created_at?: string
@@ -1943,10 +1954,16 @@ export type Database = {
           lender_id: string
           paid_amount?: number
           repaid_at?: string | null
+          repayment_frequency?: string | null
           status?: string
           total_repayment: number
         }
         Update: {
+          agent_verified?: boolean | null
+          agent_verified_at?: string | null
+          agent_verified_by?: string | null
+          ai_insurance_accepted?: boolean | null
+          ai_insurance_accepted_at?: string | null
           amount?: number
           borrower_id?: string
           created_at?: string
@@ -1956,6 +1973,7 @@ export type Database = {
           lender_id?: string
           paid_amount?: number
           repaid_at?: string | null
+          repayment_frequency?: string | null
           status?: string
           total_repayment?: number
         }

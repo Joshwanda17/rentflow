@@ -51,6 +51,7 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
   const [borrowerName, setBorrowerName] = useState('');
   const [borrowerId, setBorrowerId] = useState('');
   const [resolving, setResolving] = useState(false);
+  const [insuranceAccepted, setInsuranceAccepted] = useState(false);
 
   // Resolve AI ID to get borrower name on open
   useEffect(() => {
@@ -120,6 +121,9 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
         interest_rate: lenderInterest + AGENT_FEE_RATE * 100,
         total_repayment: totalBorrowerRepayment,
         due_date: dueDate.toISOString().split('T')[0],
+        repayment_frequency: frequency,
+        ai_insurance_accepted: true,
+        ai_insurance_accepted_at: new Date().toISOString(),
       });
 
       if (loanError) {
@@ -172,6 +176,7 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
     setStep(1);
     setBorrowerName('');
     setBorrowerId('');
+    setInsuranceAccepted(false);
     onOpenChange(false);
   };
 
@@ -194,7 +199,7 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
         {/* Step indicator */}
         {!success && (
           <div className="flex items-center gap-1 justify-center pb-2">
-            {[1, 2, 3].map((s) => (
+            {[1, 2, 3, 4].map((s) => (
               <div
                 key={s}
                 className={`h-1.5 rounded-full transition-all ${
@@ -366,12 +371,75 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
                 <Button onClick={() => setStep(3)} disabled={!canProceedStep2} className="flex-1 gap-1">
-                  Review <ArrowRight className="h-4 w-4" />
+                  Next <ArrowRight className="h-4 w-4" />
                 </Button>
               </div>
             </motion.div>
 
           ) : step === 3 ? (
+            <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
+              <h4 className="font-semibold text-sm flex items-center gap-2">
+                <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                Welile AI Insurance
+              </h4>
+
+              <div className="rounded-xl border-2 border-emerald-500/30 bg-emerald-50 dark:bg-emerald-500/10 p-4 space-y-3">
+                <div className="flex items-center gap-2">
+                  <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <ShieldCheck className="h-5 w-5 text-emerald-600" />
+                  </div>
+                  <div>
+                    <p className="font-bold text-sm text-emerald-800 dark:text-emerald-300">100% Capital Protection</p>
+                    <p className="text-[10px] text-emerald-700 dark:text-emerald-400">Welile AI Insurance</p>
+                  </div>
+                </div>
+                
+                <div className="space-y-2 text-xs text-emerald-800 dark:text-emerald-300">
+                  <p>By proceeding, you acknowledge and agree:</p>
+                  <ul className="space-y-1.5 ml-3">
+                    <li className="flex gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                      <span>Your capital of <strong>{formatUGX(lendAmount)}</strong> is 100% protected by Welile AI Insurance</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                      <span>Welile is a technology platform — not a financial lender. We use AI and data to verify trust</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                      <span>A Welile Agent will verify the borrower and earn 5% for collection services</span>
+                    </li>
+                    <li className="flex gap-2">
+                      <CheckCircle2 className="h-3.5 w-3.5 shrink-0 mt-0.5 text-emerald-600" />
+                      <span>Welile's Operational Assurance includes agent replacement rights for unverified defaults</span>
+                    </li>
+                  </ul>
+                </div>
+              </div>
+
+              <label className="flex items-start gap-3 p-3 rounded-lg border border-border cursor-pointer hover:bg-accent/30 transition-colors">
+                <input
+                  type="checkbox"
+                  checked={insuranceAccepted}
+                  onChange={(e) => setInsuranceAccepted(e.target.checked)}
+                  className="mt-1 h-4 w-4 rounded border-border accent-emerald-600"
+                />
+                <span className="text-xs leading-relaxed">
+                  I accept the <strong>Welile AI Insurance</strong> terms and understand that Welile is a technology platform facilitating trust verification, not a financial institution.
+                </span>
+              </label>
+
+              <div className="flex gap-2 pt-2">
+                <Button variant="outline" onClick={() => setStep(2)} className="flex-1 gap-1">
+                  <ArrowLeft className="h-4 w-4" /> Back
+                </Button>
+                <Button onClick={() => setStep(4)} disabled={!insuranceAccepted} className="flex-1 gap-1">
+                  Review <ArrowRight className="h-4 w-4" />
+                </Button>
+              </div>
+            </motion.div>
+
+          ) : step === 4 ? (
             <motion.div key="step3" initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-4">
               <h4 className="font-semibold text-sm">Confirm Facilitation</h4>
 
@@ -416,7 +484,7 @@ export function AiIdLendDialog({ open, onOpenChange, targetAiId, maxAmount }: Pr
               </div>
 
               <div className="flex gap-2 pt-2">
-                <Button variant="outline" onClick={() => setStep(2)} className="flex-1 gap-1">
+                <Button variant="outline" onClick={() => setStep(3)} className="flex-1 gap-1">
                   <ArrowLeft className="h-4 w-4" /> Back
                 </Button>
                 <Button onClick={handleLend} disabled={loading} className="flex-1 gap-2">
