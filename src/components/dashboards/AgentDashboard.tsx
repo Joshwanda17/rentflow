@@ -40,6 +40,7 @@ import { AgentManagedPropertyDialog } from '@/components/agent/AgentManagedPrope
 import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedPropertiesSheet';
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
+import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { RecordTenantPaymentDialog } from '@/components/agent/RecordTenantPaymentDialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -301,6 +302,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       {/* Verification opportunities FAB */}
       <VerificationOpportunitiesButton />
+      <CreditVerificationButton />
       
       {/* Agent's own rent requests */}
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />

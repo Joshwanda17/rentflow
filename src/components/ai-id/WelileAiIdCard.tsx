@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Copy, CheckCircle, Search, Shield, TrendingUp, Users, Calendar, Loader2, AlertTriangle, Fingerprint, Banknote } from 'lucide-react';
+import { Copy, CheckCircle, Search, Shield, TrendingUp, Users, Calendar, Loader2, AlertTriangle, Fingerprint, Banknote, Share2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent } from '@/components/ui/card';
@@ -110,6 +110,13 @@ export default function WelileAiIdCard({ onLendClick }: Props) {
     }
   };
 
+  const shareOnWhatsApp = () => {
+    if (!mySummary?.ai_id) return;
+    const message = `🔐 My Welile AI ID: *${mySummary.ai_id}*\n\nUse this ID to verify my credit profile on Welile. Open your Welile Supporter Dashboard → Look Up AI ID → Enter my ID to see my trust score and facilitate credit.\n\n✅ 100% Capital Protected by Welile AI Insurance\n📱 Download Welile: https://welilereceipts-com.lovable.app`;
+    const url = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(url, '_blank');
+  };
+
   const handleLookup = () => {
     if (!isValidAiId(searchId)) {
       toast.error('Enter a valid Welile AI ID (e.g. WEL-A3F8K2)');
@@ -152,10 +159,16 @@ export default function WelileAiIdCard({ onLendClick }: Props) {
             ) : mySummary ? (
               <div className="space-y-3">
                 <SummaryDisplay summary={mySummary} isOwn />
-                <Button variant="outline" size="sm" className="w-full gap-2" onClick={copyAiId}>
-                  <Copy className="h-4 w-4" />
-                  Copy & Share AI ID
-                </Button>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant="outline" size="sm" className="gap-2" onClick={copyAiId}>
+                    <Copy className="h-4 w-4" />
+                    Copy ID
+                  </Button>
+                  <Button size="sm" className="gap-2 bg-emerald-600 hover:bg-emerald-700 text-white" onClick={shareOnWhatsApp}>
+                    <Share2 className="h-4 w-4" />
+                    WhatsApp
+                  </Button>
+                </div>
               </div>
             ) : null}
           </motion.div>
@@ -181,14 +194,22 @@ export default function WelileAiIdCard({ onLendClick }: Props) {
             {lookupResult && (
               <div className="space-y-3">
                 <SummaryDisplay summary={lookupResult} isOwn={false} />
-                {mySummary?.can_lend && lookupResult.estimated_borrowing_limit > 0 && onLendClick && (
-                  <Button
-                    className="w-full gap-2"
-                    onClick={() => onLendClick(lookupResult.ai_id, lookupResult.estimated_borrowing_limit)}
-                  >
-                    <Banknote className="h-4 w-4" />
-                    Lend via Wallet
-                  </Button>
+                {lookupResult.estimated_borrowing_limit > 0 && onLendClick && (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2 p-2.5 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                      <Shield className="h-4 w-4 text-emerald-600 shrink-0" />
+                      <p className="text-[10px] text-emerald-700 dark:text-emerald-400">
+                        <span className="font-bold">Welile AI Insurance</span> — 100% capital protected
+                      </p>
+                    </div>
+                    <Button
+                      className="w-full gap-2"
+                      onClick={() => onLendClick(lookupResult.ai_id, lookupResult.estimated_borrowing_limit)}
+                    >
+                      <Banknote className="h-4 w-4" />
+                      Facilitate via Wallet
+                    </Button>
+                  </div>
                 )}
               </div>
             )}
