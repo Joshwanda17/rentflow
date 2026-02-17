@@ -131,6 +131,90 @@ A: 1. Sign up on Welile → 2. Add the Supporter role → 3. Accept the Supporte
 END SUPPORTER KNOWLEDGE
 ========================================
 
+========================================
+UGANDA-SPECIFIC LEGAL & RISK DISCLAIMER (FULL TEXT — USE WHEN ASKED ABOUT LEGAL, COMPLIANCE, RISK, OR PARTNER TERMS)
+========================================
+
+IMPORTANT NOTICE:
+This document is issued for information purposes only and does not constitute an invitation, public offer, prospectus, or solicitation to invest under the laws of the Republic of Uganda.
+
+1. LEGAL STATUS OF WELILE
+Welile Technologies (U) Ltd is a private limited liability company duly incorporated under the Companies Act, 2012 (Uganda).
+Welile operates a housing support and rent facilitation business and is NOT licensed or regulated as:
+- A bank or financial institution under the Bank of Uganda
+- A deposit-taking institution
+- A microfinance institution
+- A unit trust or collective investment scheme
+- A capital markets product under the Capital Markets Authority (CMA)
+- An insurance provider under the Insurance Regulatory Authority (IRA)
+
+2. NATURE OF PARTNER PARTICIPATION
+Partner funds are provided under a private commercial agreement and are applied solely for the purpose of paying rent directly to landlords to support tenant occupancy.
+Participation does NOT create:
+- A deposit relationship
+- A loan agreement
+- A trust or fiduciary relationship
+- A pooled investment scheme
+
+3. RETURNS AND EARNINGS
+The stated 15% return represents a targeted operational margin arising from rent repayment cycles.
+Returns:
+- Are not interest
+- Are not fixed or guaranteed
+- Depend on the continued operation of Welile's housing facilitation activities
+Any reference to expected returns is indicative only.
+
+4. RISK DISCLOSURE
+Participation involves business and operational risks, including but not limited to:
+- Tenant repayment delays or default
+- Operational or system disruptions
+- Market or regulatory changes
+- Liquidity timing constraints
+While Welile undertakes to manage tenant-related risks internally, no assurance is given that all risks are eliminated.
+
+5. CAPITAL WITHDRAWAL TERMS
+Partner capital is not repayable on demand.
+Withdrawal of capital is subject to:
+- A minimum ninety (90) days' written notice
+- Completion of active rent cycles
+- Availability of operational liquidity at the time of withdrawal
+
+6. NO DEPOSIT PROTECTION
+Partner contributions:
+- Are not deposits
+- Are not insured
+- Are not protected by the Deposit Protection Fund or any other statutory compensation scheme in Uganda
+Partners should only commit funds they can reasonably allocate to a business arrangement.
+
+7. NO PUBLIC OFFERING
+Participation is strictly on a private and invitation-only basis and does not constitute a public offer within the meaning of the Capital Markets Authority Act.
+
+8. INDEPENDENT ADVICE
+Prospective partners are advised to:
+- Seek independent legal advice from a qualified advocate in Uganda
+- Consult a licensed financial advisor where necessary
+- Conduct their own due diligence before entering into any agreement
+
+9. AMENDMENTS AND OPERATIONAL CHANGES
+Welile reserves the right to:
+- Improve operational processes
+- Update internal systems
+- Adjust non-material procedures
+Any material changes affecting partner funds will be communicated in advance.
+
+10. ACKNOWLEDGEMENT
+By participating, the partner acknowledges that:
+- They understand the nature of the Welile business
+- They accept the associated risks
+- They are entering into a private commercial arrangement
+- They are not relying on protections applicable to banks, unit trusts, or regulated financial products in Uganda
+
+This arrangement is a housing support business model and is NOT a regulated financial investment product under Ugandan law.
+
+========================================
+END LEGAL DISCLAIMER
+========================================
+
 CORE KNOWLEDGE (OTHER ROLES):
 1. TENANTS: Request rent facilitation, repay daily, earn by referring others and posting receipts.
 2. AGENTS: Register users, verify tenants. Earn: 500 UGX/registration, 5,000 UGX/approved request, 10,000 UGX on delivery, 5% repayment commission.
