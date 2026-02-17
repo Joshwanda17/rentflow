@@ -76,8 +76,12 @@ export function VerifyTenantButton({
 
   const handleAgentVerify = async () => {
     if (!user || !landlordId) return;
-    if (pin1.length !== 4 || pin2.length !== 4) {
-      toast.error('Both PINs must be exactly 4 digits');
+    if (pin1.trim() && pin1.length !== 4) {
+      toast.error('PIN 1 must be exactly 4 digits');
+      return;
+    }
+    if (pin2.trim() && pin2.length !== 4) {
+      toast.error('PIN 2 must be exactly 4 digits');
       return;
     }
     hapticTap();
@@ -107,25 +111,22 @@ export function VerifyTenantButton({
 
       const normalize = (v: string | null | undefined) => (v || '').trim().toUpperCase();
 
-      // Match each field
-      const pin1Match = normalize(pin1) === normalize(landlord.verification_pin_1);
-      const pin2Match = normalize(pin2) === normalize(landlord.verification_pin_2);
-      const tinMatch = landlord.tin ? normalize(tin) === normalize(landlord.tin) : null;
+      // Match each field — PINs and TIN are now optional
+      const pin1Match = (pin1.trim() && landlord.verification_pin_1) ? normalize(pin1) === normalize(landlord.verification_pin_1) : null;
+      const pin2Match = (pin2.trim() && landlord.verification_pin_2) ? normalize(pin2) === normalize(landlord.verification_pin_2) : null;
+      const tinMatch = (tin.trim() && landlord.tin) ? normalize(tin) === normalize(landlord.tin) : null;
       const landlordWaterMatch = landlord.water_meter_number ? normalize(landlordWaterMeter) === normalize(landlord.water_meter_number) : null;
       const landlordElecMatch = landlord.electricity_meter_number ? normalize(landlordElectricityMeter) === normalize(landlord.electricity_meter_number) : null;
       const tenantWaterMatch = request?.tenant_water_meter ? normalize(tenantWaterMeter) === normalize(request.tenant_water_meter) : null;
       const tenantElecMatch = request?.tenant_electricity_meter ? normalize(tenantElectricityMeter) === normalize(request.tenant_electricity_meter) : null;
 
-      // PINs must always match. Other fields match if they were provided by tenant/landlord
-      const requiredMatch = pin1Match && pin2Match;
-      const optionalChecks = [tinMatch, landlordWaterMatch, landlordElecMatch, tenantWaterMatch, tenantElecMatch].filter(v => v !== null);
-      const optionalPass = optionalChecks.length === 0 || optionalChecks.every(v => v === true);
-      const overallMatch = requiredMatch && optionalPass;
+      // All provided fields must match; skipped fields are ignored
+      const allChecks = [pin1Match, pin2Match, tinMatch, landlordWaterMatch, landlordElecMatch, tenantWaterMatch, tenantElecMatch].filter(v => v !== null);
+      const overallMatch = allChecks.length === 0 || allChecks.every(v => v === true);
 
-      const details: Record<string, boolean> = {
-        'Landlord PIN 1': pin1Match,
-        'Landlord PIN 2': pin2Match,
-      };
+      const details: Record<string, boolean> = {};
+      if (pin1Match !== null) details['Landlord PIN 1'] = pin1Match;
+      if (pin2Match !== null) details['Landlord PIN 2'] = pin2Match;
       if (tinMatch !== null) details['Landlord TIN'] = tinMatch;
       if (landlordWaterMatch !== null) details['Landlord NWSC Meter'] = landlordWaterMatch;
       if (landlordElecMatch !== null) details['Landlord UEDCL Meter'] = landlordElecMatch;
@@ -233,7 +234,7 @@ export function VerifyTenantButton({
             <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
               <p className="text-xs font-semibold flex items-center gap-1.5">
                 <KeyRound className="h-3.5 w-3.5 text-primary" />
-                Landlord Verification PINs (from landlord)
+                Landlord Verification PINs (optional)
               </p>
               <div className="grid grid-cols-2 gap-3">
                 <div className="space-y-1">
@@ -265,7 +266,7 @@ export function VerifyTenantButton({
             <div className="space-y-1">
               <Label className="text-xs flex items-center gap-1">
                 <FileText className="h-3 w-3 text-muted-foreground" />
-                Landlord TIN
+                Landlord TIN (optional)
               </Label>
               <Input 
                 value={tin}
@@ -353,7 +354,7 @@ export function VerifyTenantButton({
             {/* Submit */}
             <Button
               onClick={handleAgentVerify}
-              disabled={loading || pin1.length !== 4 || pin2.length !== 4}
+              disabled={loading}
               className="w-full gap-2"
               variant={verificationResult?.match === false ? 'destructive' : 'default'}
             >
