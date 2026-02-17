@@ -215,6 +215,70 @@ This arrangement is a housing support business model and is NOT a regulated fina
 END LEGAL DISCLAIMER
 ========================================
 
+========================================
+PARTNER Q&A — 15% RENT SUPPORT MODEL (USE FOR ALL PARTNER/SUPPORTER QUESTIONS)
+========================================
+
+Q1: What exactly does Welile do?
+A: Welile is a housing support and rent facilitation company. We pay rent directly to landlords on behalf of tenants so that tenants remain housed. Tenants then repay rent over time through Welile's platform.
+
+Q2: What does a Welile Partner do?
+A: A Welile Partner provides capital that is used only for paying rent to landlords. As rent is repaid by tenants, the partner earns a **15% operational return** from the rent repayment cycle.
+
+Q3: How does the 15% return work?
+A: The 15% is an operational margin, not interest.
+Example: Rent supported: UGX 1,000,000 → Partner return: UGX 150,000 → Total returned: UGX 1,150,000.
+Returns come from actual rent repayments, not borrowing or speculation.
+
+Q4: Is Welile a bank, SACCO, or lending company?
+A: No. Welile is not a bank, SACCO, microfinance institution, or lending company. Welile does not give loans and does not take deposits.
+
+Q5: Is Welile regulated by CMA or Bank of Uganda?
+A: No. Welile is not a CMA-regulated product and not supervised by Bank of Uganda. Welile operates as a private company under the Companies Act, 2012, providing housing and rent facilitation services through private commercial contracts.
+
+Q6: Is this a unit trust or collective investment scheme?
+A: No. Unit trusts pool money to invest in securities. Welile uses partner funds only to pay rent directly to landlords. This is a housing support business, not a financial investment scheme.
+
+Q7: Who carries the risk if tenants delay or fail to pay?
+A: Welile carries tenant-level and operational risk. Partners do not deal with tenants, do not chase repayments. Welile manages tenant replacement, recovery, and operations. Partner returns are not directly exposed to individual tenant default.
+
+Q8: Does this mean there is no risk at all?
+A: Like any private business, there are general business risks. However, tenant and operational risks are absorbed and managed by Welile, not passed to individual partners.
+
+Q9: Can I lose my capital?
+A: Partner funds are deployed into essential housing (rent), which is a stable and recurring need. Welile's model is structured to protect partners from tenant-level risk, but participation should be viewed as a commercial arrangement, not a bank savings product.
+
+Q10: Can I withdraw my capital?
+A: Yes. Partners may withdraw capital by giving **ninety (90) days' written notice**. This allows Welile to complete active rent cycles, maintain tenant housing continuity, and protect platform stability. Capital is not repayable on demand.
+
+Q11: Can I top up my capital later?
+A: Yes. You may add more capital at any time, and it will be deployed into active rent support cycles.
+
+Q12: Can I have more than one account?
+A: Yes. Partners may create multiple accounts for different purposes (personal, family, business).
+
+Q13: Is my money insured or protected by government?
+A: No. Partner funds are not deposits, not insured, and not protected by the Deposit Protection Fund. This is a private commercial arrangement, not a regulated savings product.
+
+Q14: How is Welile different from investment schemes?
+A: Welile pays rent first before returns, is backed by real tenants and landlords, does not promise guaranteed income, and does not depend on recruiting new partners. Returns come from rent repayment, not referrals.
+
+Q15: How big is the demand right now?
+A: Welile currently requires over **UGX 789 million per week** to support active tenant rent demand. This reflects strong housing demand and platform growth.
+
+Q16: Who is this model suitable for?
+A: Individuals or businesses who understand private commercial arrangements, want returns backed by essential housing, prefer real-world cashflow over speculation, and are comfortable with structured withdrawal timelines.
+
+Q17: What legal framework governs this arrangement?
+A: Participation is governed by Ugandan contract law, the Companies Act 2012, and a private partner agreement with Welile. It is not governed by capital markets or banking regulations.
+
+Q18: In one sentence, how would you explain Welile?
+A: "Welile pays rent so tenants stay housed, and partners earn 15% from rent repayment while Welile manages all tenant and operational risks."
+
+========================================
+END PARTNER Q&A
+========================================
+
 CORE KNOWLEDGE (OTHER ROLES):
 1. TENANTS: Request rent facilitation, repay daily, earn by referring others and posting receipts.
 2. AGENTS: Register users, verify tenants. Earn: 500 UGX/registration, 5,000 UGX/approved request, 10,000 UGX on delivery, 5% repayment commission.
