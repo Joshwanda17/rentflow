@@ -47,6 +47,7 @@ import { VirtualHousesFeed } from '@/components/supporter/VirtualHousesFeed';
 import { VirtualHouse } from '@/components/supporter/VirtualHouseCard';
 import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDetailsSheet';
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
+import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 
 // Tenant request details and payment dialogs (for funding flow)
@@ -408,6 +409,12 @@ export default function SupporterDashboard({
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
               onRefreshRef={opportunitiesRefreshRef}
+            />
+
+            {/* ═══ WELILE AI CREDIT REQUESTS ═══ */}
+            <CreditRequestsFeed
+              isLocked={!effectiveHasAccepted}
+              onLockedClick={() => setShowAgreementModal(true)}
             />
           </div>
 
