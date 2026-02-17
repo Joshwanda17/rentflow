@@ -180,39 +180,63 @@ export function WithdrawRequestDialog({
     }
 
     setLoading(true);
-    try {
-      const { error } = await supabase
-        .from('withdrawal_requests')
-        .insert({
-          user_id: user.id,
-          amount,
-          status: 'pending',
-          mobile_money_number: mobileNumber.trim(),
-          mobile_money_provider: provider
-        });
-
-      if (error) throw error;
-
-      // Save the mobile money number to profile if not saved
-      if (!hasSavedNumber) {
-        await supabase
-          .from('profiles')
-          .update({
+    
+    // Retry logic for unreliable mobile networks
+    const MAX_RETRIES = 3;
+    let lastError: any = null;
+    
+    for (let attempt = 0; attempt < MAX_RETRIES; attempt++) {
+      try {
+        const { error } = await supabase
+          .from('withdrawal_requests')
+          .insert({
+            user_id: user.id,
+            amount,
+            status: 'pending',
             mobile_money_number: mobileNumber.trim(),
             mobile_money_provider: provider
-          })
-          .eq('id', user.id);
-      }
+          });
 
-      setSuccess(true);
-      toast.success('Withdrawal request submitted! 🎉');
-      onSuccess?.();
-    } catch (error: any) {
-      console.error('Error submitting withdrawal request:', error);
-      toast.error(error.message || 'Failed to submit request');
-    } finally {
-      setLoading(false);
+        if (error) throw error;
+
+        // Save the mobile money number to profile if not saved
+        if (!hasSavedNumber) {
+          await supabase
+            .from('profiles')
+            .update({
+              mobile_money_number: mobileNumber.trim(),
+              mobile_money_provider: provider
+            })
+            .eq('id', user.id);
+        }
+
+        setSuccess(true);
+        toast.success('Withdrawal request submitted! 🎉');
+        onSuccess?.();
+        setLoading(false);
+        return; // Success — exit
+      } catch (error: any) {
+        lastError = error;
+        const isNetworkError = error instanceof TypeError && error.message === 'Failed to fetch';
+        
+        if (isNetworkError && attempt < MAX_RETRIES - 1) {
+          // Wait before retrying (exponential backoff: 1s, 2s)
+          await new Promise(resolve => setTimeout(resolve, (attempt + 1) * 1000));
+          continue;
+        }
+        break; // Non-network error or final attempt — stop retrying
+      }
     }
+
+    // All retries failed
+    console.error('Error submitting withdrawal request:', lastError);
+    const isNetworkError = lastError instanceof TypeError && lastError.message === 'Failed to fetch';
+    toast.error(
+      isNetworkError
+        ? 'Network error — please check your internet connection and try again'
+        : (lastError?.message || 'Failed to submit request')
+    );
+    setLoading(false);
   };
 
   const handleClose = () => {
