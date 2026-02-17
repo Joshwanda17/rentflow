@@ -194,52 +194,30 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       if (lc1Error) throw lc1Error;
 
-      // Create a "virtual" tenant profile entry for non-account holders
-      // We'll use a placeholder tenant_id since tenant doesn't have an account
-      // The agent is the one posting on their behalf
-      const virtualEmail = `${tenantPhone.replace(/[^0-9]/g, '')}@noapp.welile.user`;
-      
-      // Try to find existing profile with this phone
-      const { data: existingProfile } = await supabase
-        .from('profiles')
-        .select('id')
-        .eq('phone', tenantPhone.trim())
-        .maybeSingle();
+      // Register tenant via edge function (handles both existing and new users)
+      const { data: sessionData } = await supabase.auth.getSession();
+      const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
+        body: {
+          full_name: tenantName.trim(),
+          phone: tenantPhone.trim(),
+        },
+      });
 
-      let tenantId: string;
-
-      if (existingProfile) {
-        tenantId = existingProfile.id;
-      } else {
-        // Create a new profile for the non-account tenant
-        // Generate a UUID for the profile
-        const newProfileId = crypto.randomUUID();
-        
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert({
-            id: newProfileId,
-            full_name: tenantName.trim(),
-            phone: tenantPhone.trim(),
-            email: virtualEmail,
-          });
-
-        if (profileError) {
-          // If profile creation fails, we'll proceed without creating a new profile
-          console.error('Profile creation failed:', profileError);
-          toast.error('Failed to register tenant profile');
-          setLoading(false);
-          return;
-        }
-        tenantId = newProfileId;
+      if (tenantRegError || !tenantResult?.user_id) {
+        console.error('Tenant registration failed:', tenantRegError || tenantResult);
+        toast.error(tenantResult?.error || 'Failed to register tenant');
+        setLoading(false);
+        return;
       }
+
+      const tenantId = tenantResult.user_id;
 
       // Create rent request with agent_id
       const { error: requestError } = await supabase
         .from('rent_requests')
         .insert({
           tenant_id: tenantId,
-          agent_id: user.id, // The agent posting on behalf
+          agent_id: user.id,
           landlord_id: landlord.id,
           lc1_id: lc1.id,
           rent_amount: fees.rentAmount,
@@ -254,30 +232,11 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
 
       if (requestError) throw requestError;
 
-      // Create activation invite so tenant can claim their account later
-      const tempPassword = crypto.randomUUID().slice(0, 8);
-      const activationToken = crypto.randomUUID();
-      
-      const { error: inviteError } = await supabase
-        .from('supporter_invites')
-        .insert({
-          full_name: tenantName.trim(),
-          phone: tenantPhone.trim(),
-          email: virtualEmail,
-          temp_password: tempPassword,
-          activation_token: activationToken,
-          created_by: user.id,
-          role: 'tenant',
-          status: 'pending',
-        });
-
-      if (inviteError) {
-        console.error('Invite creation failed:', inviteError);
+      // Build activation link if tenant is new
+      if (!tenantResult.existing && tenantResult.activation_token) {
+        const link = `${getPublicOrigin()}/join?t=${tenantResult.activation_token}`;
+        setActivationLink(link);
       }
-
-      // Build activation link - use public domain so links work without Lovable auth
-      const link = `${getPublicOrigin()}/join?t=${activationToken}`;
-      setActivationLink(link);
 
       hapticSuccess();
       setSuccess(true);
