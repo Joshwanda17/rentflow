@@ -109,6 +109,7 @@ import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUse
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 
 interface ManagerDashboardProps {
   user: User;
@@ -885,6 +886,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           iconColor="text-warning"
         >
           <WithdrawalRequestsManager />
+        </CollapsibleAgentSection>
+
+        {/* Financial Ledger Summary — Cash In/Out, Withdrawal Details, Printable */}
+        <CollapsibleAgentSection
+          icon={Banknote}
+          label="Financial Ledger"
+          iconColor="text-primary"
+        >
+          <ManagerLedgerSummary />
         </CollapsibleAgentSection>
 
         {/* Pending Invites Widget - Quick view of unactivated users (Collapsible) */}
