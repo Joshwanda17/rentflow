@@ -41,6 +41,15 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   componentDidCatch(error: Error) {
     console.error("ChunkErrorBoundary caught:", error);
+    
+    // Auto-retry once after 2 seconds to handle transient chunk load failures
+    const alreadyRetried = sessionStorage.getItem("chunk_auto_retry");
+    if (!alreadyRetried) {
+      sessionStorage.setItem("chunk_auto_retry", "1");
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
   }
 
   handleRetry = async () => {
