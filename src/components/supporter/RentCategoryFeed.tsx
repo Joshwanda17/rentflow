@@ -81,7 +81,6 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     if (!error && data) {
       data.forEach(r => {
         const amount = Number(r.rent_amount);
-        // Use explicit house_category if set, otherwise fall back to rent-amount-based tier
         const houseCategory = (r as any).house_category as string | null;
         const tier = houseCategory
           ? WELILE_TIERS.find(t => t.name === houseCategory) || getTierForRent(amount)
@@ -122,7 +121,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     return (
       <div className="space-y-3">
         {[1, 2, 3].map(i => (
-          <div key={i} className="h-24 rounded-2xl bg-muted/50 animate-pulse" />
+          <div key={i} className="h-28 rounded-2xl bg-muted/50 animate-pulse" />
         ))}
       </div>
     );
@@ -131,22 +130,22 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
   const totalHouses = categories.reduce((s, c) => s + c.totalHouses, 0);
 
   return (
-    <div className="space-y-4">
-      {/* Section header */}
+    <div className="space-y-5">
+      {/* Section header - BIGGER */}
       <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="p-1.5 rounded-lg bg-primary/10">
-            <Building2 className="h-4 w-4 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="p-2.5 rounded-xl bg-primary/15">
+            <Building2 className="h-5 w-5 text-primary" />
           </div>
           <div>
-            <h3 className="font-bold text-foreground text-sm">Investment Categories</h3>
-            <p className="text-[10px] text-muted-foreground">{totalHouses} houses across {categories.length} tiers</p>
+            <h3 className="font-black text-foreground text-base">Investment Categories</h3>
+            <p className="text-xs text-muted-foreground font-medium">{totalHouses} houses across {categories.length} tiers</p>
           </div>
         </div>
       </div>
 
-      {/* Category cards — modern pill-style */}
-      <div className="space-y-2.5">
+      {/* Category cards — BIGGER, bolder */}
+      <div className="space-y-3">
         {categories.map((cat, i) => {
           const isEmpty = cat.totalHouses === 0;
           const tier = WELILE_TIERS.find(t => t.label === cat.category);
@@ -163,44 +162,44 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                 onFundCategory(cat);
               }}
               disabled={isEmpty && !isLocked}
-              className={`w-full flex items-center gap-3 p-3.5 rounded-2xl border transition-all text-left touch-manipulation active:scale-[0.98] ${
+              className={`w-full flex items-center gap-4 p-4 rounded-2xl border-2 transition-all text-left touch-manipulation active:scale-[0.97] min-h-[80px] ${
                 isEmpty 
-                  ? 'border-border/40 bg-muted/30 opacity-60' 
-                  : 'border-border/60 bg-card hover:bg-accent/30 hover:border-primary/30 shadow-sm'
+                  ? 'border-border/40 bg-muted/30 opacity-50' 
+                  : 'border-border/60 bg-card hover:bg-accent/30 hover:border-primary/40 shadow-sm'
               }`}
             >
-              {/* Emoji */}
-              <div className={`w-12 h-12 rounded-xl flex items-center justify-center text-2xl shrink-0 ${
-                isEmpty ? 'bg-muted/50' : 'bg-primary/8'
+              {/* Emoji - MUCH BIGGER */}
+              <div className={`w-14 h-14 rounded-2xl flex items-center justify-center text-3xl shrink-0 ${
+                isEmpty ? 'bg-muted/50' : 'bg-primary/10'
               }`}>
                 {tier?.emoji || '🏠'}
               </div>
 
-              {/* Info */}
+              {/* Info - BIGGER text */}
               <div className="flex-1 min-w-0">
-                <p className="font-bold text-sm text-foreground truncate">{cat.category}</p>
+                <p className="font-black text-base text-foreground leading-tight">{cat.category}</p>
                 {isEmpty ? (
-                  <p className="text-[11px] text-muted-foreground mt-0.5">Coming soon</p>
+                  <p className="text-sm text-muted-foreground mt-1 font-medium">Coming soon</p>
                 ) : (
-                  <div className="flex items-center gap-3 mt-0.5">
-                    <span className="text-[11px] text-muted-foreground">
-                      {cat.totalHouses} {cat.totalHouses === 1 ? 'house' : 'houses'}
+                  <div className="flex flex-col gap-0.5 mt-1">
+                    <span className="text-sm text-muted-foreground font-semibold">
+                      {cat.totalHouses} {cat.totalHouses === 1 ? 'house' : 'houses'} available
                     </span>
-                    <span className="text-[11px] font-semibold text-success">
+                    <span className="text-sm font-bold text-success">
                       +{formatAmount(cat.expectedReturn)} return
                     </span>
                   </div>
                 )}
               </div>
 
-              {/* Action */}
+              {/* Action - BIGGER button */}
               {!isEmpty ? (
-                <div className="shrink-0 flex items-center gap-1 px-3 py-2 rounded-xl bg-primary text-primary-foreground">
-                  <HandCoins className="h-4 w-4" />
-                  <span className="text-xs font-bold">Fund</span>
+                <div className="shrink-0 flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-primary text-primary-foreground shadow-md shadow-primary/20">
+                  <HandCoins className="h-5 w-5" />
+                  <span className="text-sm font-black">Fund</span>
                 </div>
               ) : (
-                <Badge variant="secondary" className="text-[10px] shrink-0">Soon</Badge>
+                <Badge variant="secondary" className="text-xs shrink-0 font-bold px-3 py-1">Soon</Badge>
               )}
             </motion.button>
           );
