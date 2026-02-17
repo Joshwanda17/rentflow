@@ -122,8 +122,8 @@ export function PeriodComparison() {
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString()),
       supabase
-        .from('user_roles')
-        .select('id')
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString())
     ]);
@@ -141,7 +141,7 @@ export function PeriodComparison() {
     );
     
     const agentEarnings = (earningsRes.data || []).reduce((sum, e) => sum + Number(e.amount), 0);
-    const newUsers = (rolesRes.data || []).length;
+    const newUsers = rolesRes.count || 0;
     const rentRequests = (requestsRes.data || []).length;
 
     return {
