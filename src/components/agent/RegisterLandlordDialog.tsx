@@ -86,55 +86,59 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
 
     setLoading(true);
 
-    // Check if landlord with this phone already exists
-    const { data: existingLandlord } = await supabase
-      .from('landlords')
-      .select('id')
-      .eq('phone', landlordPhone.trim())
-      .maybeSingle();
+    try {
+      // Check if landlord with this phone already exists
+      const { data: existingLandlord } = await supabase
+        .from('landlords')
+        .select('id')
+        .eq('phone', landlordPhone.trim())
+        .maybeSingle();
 
-    if (existingLandlord) {
-      toast.error('A landlord with this phone number already exists');
+      if (existingLandlord) {
+        toast.error('A landlord with this phone number already exists');
+        return;
+      }
+
+      const rentAmount = desiredRentFromWelile ? parseInt(desiredRentFromWelile.replace(/,/g, '')) : null;
+
+      // Register landlord
+      const { error } = await supabase
+        .from('landlords')
+        .insert({
+          name: landlordName.trim(),
+          phone: landlordPhone.trim(),
+          property_address: propertyAddress.trim(),
+          mobile_money_number: mobileMoneyNumber.trim() || null,
+          bank_name: bankName.trim() || null,
+          account_number: accountNumber.trim() || null,
+          registered_by: user.id,
+          has_smartphone: hasSmartphone,
+          electricity_meter_number: electricityMeterNumber.trim() || null,
+          number_of_houses: parseInt(numberOfHouses) || 1,
+          desired_rent_from_welile: rentAmount,
+          caretaker_name: caretakerName.trim() || null,
+          caretaker_phone: caretakerPhone.trim() || null,
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null,
+          location_captured_at: location ? new Date().toISOString() : null,
+          location_captured_by: location ? user.id : null,
+        });
+
+      if (error) {
+        toast.error('Failed to register landlord');
+        console.error('Registration error:', error);
+        return;
+      }
+
+      setSuccess(true);
+      toast.success('Landlord registered successfully!');
+      onSuccess?.();
+    } catch (err) {
+      toast.error('An unexpected error occurred');
+      console.error('Error:', err);
+    } finally {
       setLoading(false);
-      return;
     }
-
-    const rentAmount = desiredRentFromWelile ? parseInt(desiredRentFromWelile.replace(/,/g, '')) : null;
-
-    // Register landlord
-    const { error } = await supabase
-      .from('landlords')
-      .insert({
-        name: landlordName.trim(),
-        phone: landlordPhone.trim(),
-        property_address: propertyAddress.trim(),
-        mobile_money_number: mobileMoneyNumber.trim() || null,
-        bank_name: bankName.trim() || null,
-        account_number: accountNumber.trim() || null,
-        registered_by: user.id,
-        has_smartphone: hasSmartphone,
-        electricity_meter_number: electricityMeterNumber.trim() || null,
-        number_of_houses: parseInt(numberOfHouses) || 1,
-        desired_rent_from_welile: rentAmount,
-        caretaker_name: caretakerName.trim() || null,
-        caretaker_phone: caretakerPhone.trim() || null,
-         latitude: location?.latitude || null,
-         longitude: location?.longitude || null,
-         location_captured_at: location ? new Date().toISOString() : null,
-         location_captured_by: location ? user.id : null,
-      });
-
-    setLoading(false);
-
-    if (error) {
-      toast.error('Failed to register landlord');
-      console.error('Registration error:', error);
-      return;
-    }
-
-    setSuccess(true);
-    toast.success('Landlord registered successfully!');
-    onSuccess?.();
   };
 
   return (

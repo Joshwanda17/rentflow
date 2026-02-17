@@ -172,7 +172,6 @@ export default function RegisterPropertyDialog({
 
       if (!landlordProfile) {
         toast.error('Could not load your profile');
-        setLoading(false);
         return;
       }
 
@@ -215,7 +214,6 @@ export default function RegisterPropertyDialog({
           toast.error('Failed to register property');
           console.error('Registration error:', landlordError);
         }
-        setLoading(false);
         return;
       }
 
@@ -263,9 +261,9 @@ export default function RegisterPropertyDialog({
     } catch (err) {
       toast.error('An unexpected error occurred');
       console.error('Error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
