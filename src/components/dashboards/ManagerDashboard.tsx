@@ -570,12 +570,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     
     // Fetch withdrawal stats
     try {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
       const { data: wdData } = await supabase
         .from('withdrawal_requests')
-        .select('status, amount');
+        .select('status, amount, created_at');
       if (wdData) {
         const wdStats = { pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 };
         wdData.forEach((r: any) => {
+          // Skip pending requests older than 12 hours
+          if (r.status === 'pending' && r.created_at < twelveHoursAgo) return;
           if (r.status === 'pending') { wdStats.pending++; wdStats.pendingAmount += Number(r.amount); }
           else if (r.status === 'approved') { wdStats.approved++; wdStats.approvedAmount += Number(r.amount); }
           else if (r.status === 'rejected') { wdStats.rejected++; wdStats.rejectedAmount += Number(r.amount); }
