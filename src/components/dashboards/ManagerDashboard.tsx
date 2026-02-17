@@ -50,7 +50,8 @@ import {
   Save,
   BookmarkPlus,
   Shield,
-  AlertTriangle
+  AlertTriangle,
+  ArrowDownToLine
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -225,6 +226,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [activityFilter, setActivityFilter] = useState<'all' | 'today' | 'week' | 'inactive'>('all');
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
+  const [withdrawalStats, setWithdrawalStats] = useState<{ pending: number; approved: number; rejected: number; pendingAmount: number; approvedAmount: number; rejectedAmount: number }>({ pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 });
 
   // Compute online users from topOnboarders list
   const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
@@ -566,6 +568,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       console.error('[ManagerDashboard] Error fetching data:', error);
     }
     
+    // Fetch withdrawal stats
+    try {
+      const { data: wdData } = await supabase
+        .from('withdrawal_requests')
+        .select('status, amount');
+      if (wdData) {
+        const wdStats = { pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 };
+        wdData.forEach((r: any) => {
+          if (r.status === 'pending') { wdStats.pending++; wdStats.pendingAmount += Number(r.amount); }
+          else if (r.status === 'approved') { wdStats.approved++; wdStats.approvedAmount += Number(r.amount); }
+          else if (r.status === 'rejected') { wdStats.rejected++; wdStats.rejectedAmount += Number(r.amount); }
+        });
+        setWithdrawalStats(wdStats);
+      }
+    } catch (e) {
+      console.error('[ManagerDashboard] withdrawal stats error:', e);
+    }
+    
     setLoading(false);
   };
 
@@ -877,6 +897,40 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             pendingOrders={pendingOrders}
             totalUsers={totalUsers}
           />
+        </div>
+
+        {/* Withdrawal Stats Overview */}
+        <div className="grid grid-cols-3 gap-2">
+          <Card className="border-warning/30 bg-warning/5">
+            <CardContent className="p-3 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <Clock className="h-4 w-4 text-warning" />
+                <span className="text-[10px] font-medium text-warning">Pending</span>
+              </div>
+              <p className="text-xl font-black text-warning">{withdrawalStats.pending}</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.pendingAmount)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-success/30 bg-success/5">
+            <CardContent className="p-3 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <CheckCircle className="h-4 w-4 text-success" />
+                <span className="text-[10px] font-medium text-success">Approved</span>
+              </div>
+              <p className="text-xl font-black text-success">{withdrawalStats.approved}</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.approvedAmount)}</p>
+            </CardContent>
+          </Card>
+          <Card className="border-destructive/30 bg-destructive/5">
+            <CardContent className="p-3 text-center">
+              <div className="flex items-center justify-center gap-1 mb-1">
+                <ArrowDownToLine className="h-4 w-4 text-destructive" />
+                <span className="text-[10px] font-medium text-destructive">Rejected</span>
+              </div>
+              <p className="text-xl font-black text-destructive">{withdrawalStats.rejected}</p>
+              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.rejectedAmount)}</p>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
