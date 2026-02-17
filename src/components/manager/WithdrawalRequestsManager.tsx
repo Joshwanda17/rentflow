@@ -234,77 +234,93 @@ export function WithdrawalRequestsManager() {
     }
     setPrinting(true);
     try {
-      const { jsPDF } = await import('jspdf');
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const margin = 10;
-      let y = 15;
+      const printWindow = window.open('', '_blank');
+      if (!printWindow) { toast.error('Please allow popups to print'); setPrinting(false); return; }
 
-      pdf.setFontSize(16);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text(`Withdrawal Requests — ${activeTab === 'pending' ? 'Pending' : 'History'}`, margin, y);
-      y += 8;
-      pdf.setFontSize(9);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`Generated: ${format(new Date(), 'MMM dd, yyyy HH:mm')}  •  ${dataToPrint.length} requests`, margin, y);
-      y += 10;
+      const total = dataToPrint.reduce((sum, r) => sum + r.amount, 0);
+      const isPending = activeTab === 'pending';
+      const title = isPending ? 'Pending Withdrawal Requests' : 'Withdrawal History';
 
-      pdf.setTextColor(0, 0, 0);
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'bold');
-      const cols = [margin, margin + 35, margin + 75, margin + 110, margin + 145];
-      pdf.text('Name / Phone', cols[0], y);
-      pdf.text('MoMo Details', cols[1], y);
-      pdf.text('Amount (UGX)', cols[2], y);
-      pdf.text('Status', cols[3], y);
-      pdf.text('Date', cols[4], y);
-      y += 2;
-      pdf.setDrawColor(200, 200, 200);
-      pdf.line(margin, y, pageWidth - margin, y);
-      y += 5;
-
-      pdf.setFont('helvetica', 'normal');
-      pdf.setFontSize(8);
-      for (const req of dataToPrint) {
-        if (y > 275) {
-          pdf.addPage();
-          y = 15;
-        }
+      const rows = dataToPrint.map((req, i) => {
         const name = req.user?.full_name || 'Unknown';
-        const phone = req.user?.phone || '';
-        const momoProvider = (req.mobile_money_provider || '').toUpperCase();
-        const momoNumber = req.mobile_money_number || '';
+        const phone = req.user?.phone || '-';
+        const momoProvider = (req.mobile_money_provider || '-').toUpperCase();
+        const momoNumber = req.mobile_money_number || '-';
+        const momoName = req.mobile_money_name || '-';
         const amount = formatCurrency(req.amount);
         const status = req.status.charAt(0).toUpperCase() + req.status.slice(1);
-        const date = format(new Date(req.created_at), 'MMM dd, HH:mm');
+        const date = format(new Date(req.created_at), 'MMM dd, yyyy HH:mm');
+        const walletBal = req.wallet_balance !== undefined ? formatCurrency(req.wallet_balance) : '-';
+        const timeAgo = formatDistanceToNow(new Date(req.created_at), { addSuffix: true });
+        const txId = req.transaction_id || '-';
+        const rejReason = req.rejection_reason || '-';
+        const processedAt = req.processed_at ? format(new Date(req.processed_at), 'MMM dd, yyyy HH:mm') : '-';
 
-        pdf.setFont('helvetica', 'bold');
-        pdf.text(name, cols[0], y);
-        pdf.setFont('helvetica', 'normal');
-        pdf.text(phone, cols[0], y + 4);
-        pdf.text(momoProvider, cols[1], y);
-        pdf.text(momoNumber, cols[1], y + 4);
-        pdf.text(amount, cols[2], y);
-        pdf.text(status, cols[3], y);
-        pdf.text(date, cols[4], y);
+        return `
+          <tr>
+            <td style="text-align:center;font-weight:bold;">${i + 1}</td>
+            <td>
+              <strong>${name}</strong><br/>
+              <span style="color:#666;font-size:11px;">${phone}</span>
+            </td>
+            <td>
+              <strong>${momoProvider}</strong><br/>
+              <span style="font-size:12px;">${momoNumber}</span><br/>
+              <span style="color:#666;font-size:11px;">Name: ${momoName}</span>
+            </td>
+            <td style="text-align:right;font-weight:bold;white-space:nowrap;">${amount}</td>
+            ${isPending ? `<td style="text-align:right;white-space:nowrap;">${walletBal}</td>` : ''}
+            ${isPending ? `<td style="font-size:11px;">${timeAgo}</td>` : ''}
+            ${!isPending ? `<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${req.status === 'approved' ? '#dcfce7' : '#fee2e2'};color:${req.status === 'approved' ? '#166534' : '#991b1b'}">${status}</span></td>` : ''}
+            <td style="font-size:11px;">${date}</td>
+            ${!isPending ? `<td style="font-size:11px;font-family:monospace;">${txId}</td>` : ''}
+            ${!isPending && req.status === 'rejected' ? `<td style="font-size:11px;color:#991b1b;">${rejReason}</td>` : !isPending ? '<td>-</td>' : ''}
+            ${!isPending ? `<td style="font-size:11px;">${processedAt}</td>` : ''}
+          </tr>`;
+      }).join('');
 
-        y += 12;
-        pdf.setDrawColor(230, 230, 230);
-        pdf.line(margin, y - 3, pageWidth - margin, y - 3);
-      }
+      const pendingHeaders = `
+        <th>#</th><th>User</th><th>Mobile Money Details</th>
+        <th style="text-align:right">Amount</th><th style="text-align:right">Wallet Balance</th>
+        <th>Waiting</th><th>Requested</th>`;
 
-      y += 2;
-      const total = dataToPrint.reduce((sum, r) => sum + r.amount, 0);
-      pdf.setFont('helvetica', 'bold');
-      pdf.setFontSize(10);
-      pdf.text(`Total: ${formatCurrency(total)}`, margin, y);
+      const historyHeaders = `
+        <th>#</th><th>User</th><th>Mobile Money Details</th>
+        <th style="text-align:right">Amount</th><th>Status</th>
+        <th>Requested</th><th>Transaction ID</th><th>Reason</th><th>Processed</th>`;
 
-      pdf.save(`withdrawals-${activeTab}-${format(new Date(), 'yyyy-MM-dd')}.pdf`);
-      toast.success('PDF downloaded');
+      printWindow.document.write(`<!DOCTYPE html><html><head><title>${title} - Welile</title>
+        <style>
+          body{font-family:Arial,sans-serif;padding:20px;color:#333;font-size:13px;}
+          h1{text-align:center;margin-bottom:4px;font-size:20px;}
+          .subtitle{text-align:center;color:#666;margin-bottom:16px;font-size:12px;}
+          .summary{display:flex;justify-content:space-around;margin-bottom:16px;padding:12px;background:#f3f4f6;border-radius:8px;}
+          .summary-item{text-align:center;}
+          .summary-label{font-size:11px;color:#666;}
+          .summary-value{font-size:18px;font-weight:bold;}
+          table{width:100%;border-collapse:collapse;font-size:12px;}
+          th{background:#f3f4f6;padding:8px 6px;text-align:left;border-bottom:2px solid #d1d5db;font-weight:600;font-size:11px;}
+          td{padding:6px;border-bottom:1px solid #e5e7eb;vertical-align:top;}
+          .footer{margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;text-align:right;font-weight:bold;font-size:14px;}
+          @media print{body{padding:0;} .no-print{display:none;}}
+        </style></head><body>
+          <h1>WELILE — ${title}</h1>
+          <p class="subtitle">Generated: ${format(new Date(), 'EEEE, MMM dd yyyy, HH:mm')} &bull; ${dataToPrint.length} request(s)</p>
+          <div class="summary">
+            <div class="summary-item"><div class="summary-label">Total Requests</div><div class="summary-value">${dataToPrint.length}</div></div>
+            <div class="summary-item"><div class="summary-label">Total Amount</div><div class="summary-value">${formatCurrency(total)}</div></div>
+          </div>
+          <table><thead><tr>${isPending ? pendingHeaders : historyHeaders}</tr></thead>
+          <tbody>${rows}</tbody></table>
+          <div class="footer">Grand Total: ${formatCurrency(total)}</div>
+          <script>window.onload=function(){window.print();}</script>
+        </body></html>`);
+      printWindow.document.close();
+
+      toast.success('Print window opened');
     } catch (err) {
-      console.error('PDF generation failed:', err);
-      toast.error('Failed to generate PDF');
+      console.error('Print failed:', err);
+      toast.error('Failed to generate print view');
     } finally {
       setPrinting(false);
     }
