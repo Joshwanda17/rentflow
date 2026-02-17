@@ -2,9 +2,8 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
 import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
+import { DayGroupedLedger } from './DayGroupedLedger';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -356,68 +355,15 @@ export function GeneralLedger() {
         </div>
       </div>
 
-      {/* Ledger Table */}
+      {/* Ledger Table - Day Grouped */}
       <div ref={printRef}>
-        <Card>
-          <CardContent className="p-0">
-            {loading ? (
-              <div className="p-8 text-center text-muted-foreground">Loading ledger...</div>
-            ) : entries.length === 0 ? (
-              <div className="p-8 text-center text-muted-foreground">No transactions match the current filters</div>
-            ) : (
-              <div className="overflow-x-auto">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-10">#</TableHead>
-                      <TableHead>Date</TableHead>
-                      <TableHead>Description</TableHead>
-                      <TableHead>Category</TableHead>
-                      <TableHead>Ref</TableHead>
-                      <TableHead className="text-right">Debit</TableHead>
-                      <TableHead className="text-right">Credit</TableHead>
-                      <TableHead className="text-right">Balance</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {entries.map((entry, i) => (
-                      <TableRow key={entry.id}>
-                        <TableCell className="text-xs text-muted-foreground">{page * PAGE_SIZE + i + 1}</TableCell>
-                        <TableCell className="text-xs whitespace-nowrap">{format(new Date(entry.date), 'dd/MM/yy')}</TableCell>
-                        <TableCell className="text-xs max-w-[150px] truncate">{entry.description}</TableCell>
-                        <TableCell>
-                          <Badge variant="outline" className="text-[10px]">{entry.category}</Badge>
-                        </TableCell>
-                        <TableCell className="text-xs text-muted-foreground">{entry.reference}</TableCell>
-                        <TableCell className="text-right text-xs font-medium text-destructive">
-                          {entry.debit > 0 ? formatUGX(entry.debit) : '-'}
-                        </TableCell>
-                        <TableCell className="text-right text-xs font-medium text-success">
-                          {entry.credit > 0 ? formatUGX(entry.credit) : '-'}
-                        </TableCell>
-                        <TableCell className={cn("text-right text-xs font-bold", entry.balance >= 0 ? 'text-foreground' : 'text-destructive')}>
-                          {formatUGX(entry.balance)}
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                  <TableFooter>
-                    <TableRow>
-                      <TableCell colSpan={5} className="font-bold">PAGE TOTALS</TableCell>
-                      <TableCell className="text-right font-bold text-destructive">
-                        {formatUGX(entries.reduce((s, e) => s + e.debit, 0))}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-success">
-                        {formatUGX(entries.reduce((s, e) => s + e.credit, 0))}
-                      </TableCell>
-                      <TableCell className="text-right font-bold text-muted-foreground">—</TableCell>
-                    </TableRow>
-                  </TableFooter>
-                </Table>
-              </div>
-            )}
-          </CardContent>
-        </Card>
+        {loading ? (
+          <Card><CardContent className="p-8 text-center text-muted-foreground">Loading ledger...</CardContent></Card>
+        ) : entries.length === 0 ? (
+          <Card><CardContent className="p-8 text-center text-muted-foreground">No transactions match the current filters</CardContent></Card>
+        ) : (
+          <DayGroupedLedger entries={entries} page={page} />
+        )}
       </div>
     </div>
   );
