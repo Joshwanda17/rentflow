@@ -71,7 +71,9 @@ export function UserWithdrawalRequests() {
 
   useEffect(() => {
     fetchRequests();
-    // Realtime removed — withdrawal_requests not in realtime whitelist
+    // Auto-refresh every 60s so pending requests older than 12h disappear automatically
+    const interval = setInterval(fetchRequests, 60_000);
+    return () => clearInterval(interval);
   }, [user, fetchRequests]);
 
   const getStatusConfig = (status: string) => {
