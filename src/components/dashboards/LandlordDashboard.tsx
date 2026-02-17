@@ -29,6 +29,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { motion } from 'framer-motion';
 import { hapticTap } from '@/lib/haptics';
 import { Skeleton } from '@/components/ui/skeleton';
+import { CreditAccessCard } from '@/components/CreditAccessCard';
 
 interface LandlordDashboardProps {
   user: User;
@@ -124,6 +125,9 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               <p className="text-[11px] font-medium text-muted-foreground mt-0.5">Rent/Month</p>
             </div>
           </div>
+
+          {/* Credit Access Limit — based on rent collected */}
+          <CreditAccessCard userId={user.id} />
 
           {/* THREE MAIN ACTION BUTTONS — tall, finger-friendly */}
           <div className="space-y-3">

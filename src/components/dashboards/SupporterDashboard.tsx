@@ -53,6 +53,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
 import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { CreditAccessCard } from '@/components/CreditAccessCard';
 
 interface SupporterDashboardProps {
   user: User;
@@ -387,6 +388,9 @@ export default function SupporterDashboard({
               <span className="text-[11px] font-bold">More</span>
             </motion.button>
           </div>
+
+          {/* ═══ CREDIT ACCESS (visible to supporters/funders) ═══ */}
+          <CreditAccessCard userId={user.id} compact />
 
           {/* ═══ RENT CATEGORIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">

@@ -25,6 +25,7 @@ import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet
 import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { CreditAccessCard } from '@/components/CreditAccessCard';
 
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -222,6 +223,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             </div>
             <AiIdButton variant="compact" />
           </div>
+
+          {/* Credit Access Limit */}
+          <CreditAccessCard userId={user.id} />
 
           {/* ═══════════════════════════════════════════════════════════════════
               THREE MAIN ACTION BUTTONS

@@ -3,8 +3,9 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { supabase } from '@/integrations/supabase/client';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import { MapPin, User, Home, DoorOpen, Navigation, BedDouble, Banknote } from 'lucide-react';
+import { MapPin, User, Home, DoorOpen, Navigation, BedDouble, Banknote, Star } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import TenantRating from '@/components/landlord/TenantRating';
 
 interface Property {
   id: string;
@@ -156,15 +157,36 @@ export function MyPropertiesSheet({ open, onOpenChange, userId }: MyPropertiesSh
                       </div>
                     </div>
 
-                    {/* Tenant */}
-                    <div className="flex items-center gap-1.5 text-xs">
-                      <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
-                      {isOccupied ? (
-                        <span className="text-foreground">{p.tenant_name || 'Tenant assigned'}</span>
-                      ) : (
-                        <span className="text-warning italic">No tenant — awaiting placement</span>
+                    {/* Tenant + Rating */}
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-1.5 text-xs">
+                        <User className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
+                        {isOccupied ? (
+                          <span className="text-foreground">{p.tenant_name || 'Tenant assigned'}</span>
+                        ) : (
+                          <span className="text-warning italic">No tenant — awaiting placement</span>
+                        )}
+                      </div>
+                      {isOccupied && p.tenant_id && (
+                        <div className="flex items-center gap-1">
+                          <span className="text-[10px] text-muted-foreground">Rate:</span>
+                          <TenantRating
+                            tenantId={p.tenant_id}
+                            tenantName={p.tenant_name || 'Tenant'}
+                          />
+                        </div>
                       )}
                     </div>
+
+                    {/* Rating tip for occupied */}
+                    {isOccupied && (
+                      <div className="flex items-center gap-1.5 p-2 rounded-lg bg-yellow-500/5 border border-yellow-500/10">
+                        <Star className="h-3 w-3 text-yellow-500 shrink-0" />
+                        <p className="text-[10px] text-yellow-700 dark:text-yellow-400">
+                          Rate your tenant to help them access more credit
+                        </p>
+                      </div>
+                    )}
 
                     {/* Location */}
                     {p.latitude && p.longitude ? (

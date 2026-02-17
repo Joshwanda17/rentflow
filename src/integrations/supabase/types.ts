@@ -261,6 +261,45 @@ export type Database = {
         }
         Relationships: []
       }
+      credit_access_limits: {
+        Row: {
+          base_limit: number
+          bonus_from_landlord_rent: number
+          bonus_from_ratings: number
+          bonus_from_receipts: number
+          bonus_from_rent_history: number
+          created_at: string
+          id: string
+          total_limit: number | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          base_limit?: number
+          bonus_from_landlord_rent?: number
+          bonus_from_ratings?: number
+          bonus_from_receipts?: number
+          bonus_from_rent_history?: number
+          created_at?: string
+          id?: string
+          total_limit?: number | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          base_limit?: number
+          bonus_from_landlord_rent?: number
+          bonus_from_ratings?: number
+          bonus_from_receipts?: number
+          bonus_from_rent_history?: number
+          created_at?: string
+          id?: string
+          total_limit?: number | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       deposit_requests: {
         Row: {
           agent_id: string | null
@@ -2507,6 +2546,7 @@ export type Database = {
         Returns: undefined
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
+      recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       update_user_risk_score: {

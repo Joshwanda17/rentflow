@@ -44,6 +44,7 @@ import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequests
 import { RecordTenantPaymentDialog } from '@/components/agent/RecordTenantPaymentDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
+import { CreditAccessCard } from '@/components/CreditAccessCard';
 
 interface AgentDashboardProps {
   user: User;
@@ -167,6 +168,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </div>
         </div>
+
+        {/* Credit Access Limit */}
+        <CreditAccessCard userId={user.id} compact />
 
         {/* ═══════════════════════════════════════════════════════════════════
             THREE MAIN ACTION BUTTONS
