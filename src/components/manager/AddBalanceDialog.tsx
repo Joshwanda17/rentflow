@@ -116,6 +116,14 @@ export default function AddBalanceDialog({
         running_balance: newBalance,
       });
 
+      // Record in wallet_transactions for wallet history
+      await supabase.from('wallet_transactions').insert({
+        sender_id: type === 'debit' ? userId : (user?.id || userId),
+        recipient_id: type === 'credit' ? userId : (user?.id || userId),
+        amount: amountNum,
+        description: `${type === 'credit' ? 'Credit' : 'Debit'} by Manager: ${reason.trim()} (Ref: ${referenceId})`,
+      });
+
       const verb = type === 'credit' ? 'Added' : 'Deducted';
       toast.success(`${verb} ${formatUGX(amountNum)} ${type === 'credit' ? 'to' : 'from'} ${userName}'s wallet`);
       setAmount('');
