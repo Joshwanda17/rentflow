@@ -98,12 +98,20 @@ export default function PublicRentCalculator() {
     <div className="min-h-screen bg-gradient-to-b from-background to-secondary/20">
       {/* Header */}
       <div className="bg-primary text-primary-foreground py-6 px-4">
-        <div className="max-w-lg mx-auto text-center">
-          <div className="flex items-center justify-center gap-2 mb-2">
-            <Home className="h-6 w-6" />
+        <div className="max-w-lg mx-auto">
+          <div className="flex items-center justify-between mb-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="h-10 w-10 text-primary-foreground hover:bg-primary-foreground/20"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
             <h1 className="text-xl font-bold">Welile Rent Calculator</h1>
+            <div className="w-10" />
           </div>
-          <p className="text-sm text-primary-foreground/80">
+          <p className="text-sm text-primary-foreground/80 text-center">
             Calculate your rent repayment plan - No signup required!
           </p>
         </div>

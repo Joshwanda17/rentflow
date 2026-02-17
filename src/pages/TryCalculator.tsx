@@ -8,7 +8,7 @@ import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { 
   Calculator, TrendingUp, ArrowRight, Sparkles, Shield, Clock, 
-  Share2, WifiOff, RefreshCw, Download, ChevronDown, Settings, Globe, FileDown, Check
+  Share2, WifiOff, RefreshCw, Download, ChevronDown, Settings, Globe, FileDown, Check, Home
 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -277,13 +277,23 @@ export default function TryCalculator() {
       {/* Header - Mobile optimized */}
       <header className="sticky top-0 z-50 bg-white/90 dark:bg-background/90 backdrop-blur-xl border-b safe-area-top">
         <div className="px-3 py-2.5 flex items-center justify-between">
-          <span 
-            className="text-xl font-bold text-primary cursor-pointer"
-            style={{ fontFamily: "'Chewy', cursive" }}
-            onClick={() => navigate('/')}
-          >
-            Welile
-          </span>
+          <div className="flex items-center gap-2">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/')}
+              className="h-10 w-10"
+            >
+              <Home className="h-5 w-5" />
+            </Button>
+            <span 
+              className="text-xl font-bold text-primary cursor-pointer"
+              style={{ fontFamily: "'Chewy', cursive" }}
+              onClick={() => navigate('/')}
+            >
+              Welile
+            </span>
+          </div>
           <div className="flex items-center gap-1.5">
             {/* Settings Toggle - Larger touch target */}
             <Button 
