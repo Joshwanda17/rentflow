@@ -12,6 +12,7 @@ import {
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
+import AiIdButton from '@/components/ai-id/AiIdButton';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
@@ -87,6 +88,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               </div>
               <p className="text-xs text-muted-foreground">Property Owner</p>
             </div>
+            <AiIdButton variant="compact" />
           </div>
 
           {/* Property Stats Row — large touch targets */}

@@ -560,6 +560,13 @@ export type Database = {
             referencedRelation: "referral_leaderboard"
             referencedColumns: ["user_id"]
           },
+          {
+            foreignKeyName: "landlords_verified_by_fkey"
+            columns: ["verified_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
         ]
       }
       lc1_chairpersons: {
@@ -1395,6 +1402,13 @@ export type Database = {
             referencedColumns: ["user_id"]
           },
           {
+            foreignKeyName: "rent_requests_agent_verified_by_fkey"
+            columns: ["agent_verified_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
             foreignKeyName: "rent_requests_landlord_id_fkey"
             columns: ["landlord_id"]
             isOneToOne: false
@@ -1427,6 +1441,13 @@ export type Database = {
             columns: ["manager_verified_by"]
             isOneToOne: false
             referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "rent_requests_manager_verified_by_fkey"
+            columns: ["manager_verified_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
           },
         ]
@@ -2337,6 +2358,26 @@ export type Database = {
         }
         Relationships: []
       }
+      user_financial_summaries: {
+        Row: {
+          ai_id: string | null
+          estimated_borrowing_limit: number | null
+          funded_requests: number | null
+          last_refreshed_at: string | null
+          member_since: string | null
+          on_time_payment_rate: number | null
+          referral_count: number | null
+          risk_level: string | null
+          risk_score: number | null
+          total_missed_payments: number | null
+          total_on_time_payments: number | null
+          total_rent_facilitated: number | null
+          total_rent_requests: number | null
+          user_id: string | null
+          wallet_balance: number | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
@@ -2344,6 +2385,7 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
       get_ledger_summary: {
         Args: {
           p_category?: string
@@ -2382,6 +2424,7 @@ export type Database = {
           user_id: string
         }[]
       }
+      get_my_ai_id_summary: { Args: never; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]
@@ -2408,6 +2451,7 @@ export type Database = {
         }
         Returns: string
       }
+      lookup_ai_id: { Args: { p_ai_id: string }; Returns: Json }
       lookup_profile_by_phone_last9: {
         Args: { phone_last9: string }
         Returns: {
@@ -2421,6 +2465,8 @@ export type Database = {
         Returns: undefined
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
+      refresh_financial_summaries: { Args: never; Returns: undefined }
+      resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number

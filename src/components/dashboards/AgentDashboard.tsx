@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
 import { supabase } from '@/integrations/supabase/client';
+import AiIdButton from '@/components/ai-id/AiIdButton';
 import { Button } from '@/components/ui/button';
 import { 
   UserPlus,
@@ -148,6 +149,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
           </div>
+          <AiIdButton variant="compact" />
           
           {/* Quick Stats */}
           <div className="flex justify-center gap-6 text-center">

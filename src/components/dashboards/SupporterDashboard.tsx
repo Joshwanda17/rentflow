@@ -52,6 +52,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 // Tenant request details and payment dialogs (for funding flow)
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
 import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
+import AiIdButton from '@/components/ai-id/AiIdButton';
 
 interface SupporterDashboardProps {
   user: User;
@@ -319,6 +320,7 @@ export default function SupporterDashboard({
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <AiIdButton variant="compact" />
               {effectiveHasAccepted ? (
                 <AgreementAcceptedBadge 
                   acceptedAt={acceptance?.accepted_at}

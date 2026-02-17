@@ -108,6 +108,7 @@ import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
+import AiIdButton from '@/components/ai-id/AiIdButton';
 
 interface ManagerDashboardProps {
   user: User;
@@ -867,6 +868,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               Quick Actions
             </h2>
             <ChromecastButton />
+            <AiIdButton variant="icon" />
           </div>
           <MobileQuickActions
             pendingRequests={pendingRequests}
