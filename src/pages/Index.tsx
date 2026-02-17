@@ -1,6 +1,5 @@
 import { Navigate, useSearchParams } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
-import { getCachedSession } from '@/lib/sessionCache';
 
 export default function Index() {
   const { user, roles, loading } = useAuth();
@@ -18,14 +17,9 @@ export default function Index() {
     return <Navigate to={queryString ? `/auth?${queryString}` : '/auth'} replace />;
   }
 
-  // While auth is loading: show landing page INSTANTLY unless we have a cached session
+  // While auth is loading: ALWAYS show spinner — never redirect to /welcome
+  // This prevents signed-in users from being kicked out on refresh/update
   if (loading) {
-    const cached = getCachedSession();
-    // No cached session → user is almost certainly not logged in → show landing NOW
-    if (!cached) {
-      return <Navigate to="/welcome" replace />;
-    }
-    // Has cached session → brief spinner while auth confirms
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="w-6 h-6 border-2 border-primary border-t-transparent rounded-full animate-spin" />
