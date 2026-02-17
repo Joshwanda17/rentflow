@@ -125,7 +125,7 @@ export function useOfflineAgentDashboard(): UseOfflineAgentDashboardReturn {
     } finally {
       fetchInProgress.current = false;
     }
-  }, [user]);
+  }, [user, snapshot]);
 
   // Main data loading function
   const refreshData = useCallback(async () => {
