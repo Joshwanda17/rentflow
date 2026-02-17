@@ -100,10 +100,17 @@ export function PeriodComparison() {
   };
 
   const fetchPeriodMetrics = async (start: Date, end: Date): Promise<PeriodMetrics> => {
-    const [depositsRes, transfersRes, requestsRes, earningsRes, rolesRes] = await Promise.all([
+    const [depositsRes, withdrawalsRes, transfersRes, requestsRes, earningsRes, rolesRes] = await Promise.all([
       supabase
-        .from('wallet_deposits')
+        .from('deposit_requests')
         .select('amount')
+        .eq('status', 'approved')
+        .gte('created_at', start.toISOString())
+        .lte('created_at', end.toISOString()),
+      supabase
+        .from('withdrawal_requests')
+        .select('amount')
+        .eq('status', 'approved')
         .gte('created_at', start.toISOString())
         .lte('created_at', end.toISOString()),
       supabase
@@ -129,7 +136,7 @@ export function PeriodComparison() {
     ]);
 
     const deposits = (depositsRes.data || []).reduce((sum, d) => sum + Number(d.amount), 0);
-    const withdrawals = 0; // wallet_withdrawals table removed
+    const withdrawals = (withdrawalsRes.data || []).reduce((sum, w) => sum + Number(w.amount), 0);
     const transfers = (transfersRes.data || []).reduce((sum, t) => sum + Number(t.amount), 0);
     
     const completedRequests = (requestsRes.data || []).filter(r => 

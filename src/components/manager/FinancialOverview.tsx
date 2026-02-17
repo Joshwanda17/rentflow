@@ -108,42 +108,46 @@ export function FinancialOverview() {
       const walletsQuery = supabase.from('wallets').select('balance');
 
       // Apply date filters to transactional data
-      let depositsQuery = supabase.from('wallet_deposits').select('amount, created_at');
-      // wallet_withdrawals and platform_transactions tables removed
+      let depositsQuery = supabase.from('deposit_requests').select('amount, created_at').eq('status', 'approved');
+      let withdrawalsQuery = supabase.from('withdrawal_requests').select('amount, created_at').eq('status', 'approved');
       let transfersQuery = supabase.from('wallet_transactions').select('amount, created_at');
       let earningsQuery = supabase.from('agent_earnings').select('amount, earning_type, created_at');
       let requestsQuery = supabase.from('rent_requests').select('rent_amount, total_repayment, access_fee, request_fee, status, created_at');
-      // product_orders and products queries removed to reduce DB calls
-      const ordersStub = { data: [] as any[], error: null };
-      const productsStub = { data: [] as any[], error: null };
+      let ordersQuery = supabase.from('product_orders').select('total_price, agent_commission, created_at');
+      let productsQuery = supabase.from('products').select('id', { count: 'exact', head: true }).eq('active', true);
 
       if (startDate || endDate) {
         depositsQuery = buildDateFilter(depositsQuery);
+        withdrawalsQuery = buildDateFilter(withdrawalsQuery);
         transfersQuery = buildDateFilter(transfersQuery);
         earningsQuery = buildDateFilter(earningsQuery);
         requestsQuery = buildDateFilter(requestsQuery);
+        ordersQuery = buildDateFilter(ordersQuery);
       }
 
       const [
         walletsRes,
         depositsRes,
+        withdrawalsRes,
         transfersRes,
         earningsRes,
         requestsRes,
         rolesRes,
+        profilesRes,
+        ordersRes,
+        productsRes,
       ] = await Promise.all([
         walletsQuery,
         depositsQuery,
+        withdrawalsQuery,
         transfersQuery,
         earningsQuery,
         requestsQuery,
         supabase.from('user_roles').select('user_id, role'),
+        supabase.from('profiles').select('id', { count: 'exact', head: true }),
+        ordersQuery,
+        productsQuery,
       ]);
-      const ordersRes = ordersStub;
-      const productsRes = productsStub;
-      // Stub removed tables
-      const withdrawalsRes = { data: [] as { amount: number; created_at: string }[], error: null };
-      const platformTxRes = { data: [] as { amount: number; direction: string; transaction_type: string; created_at: string }[], error: null };
 
       const errors = [
         walletsRes.error,
@@ -152,7 +156,6 @@ export function FinancialOverview() {
         transfersRes.error,
         earningsRes.error,
         requestsRes.error,
-        platformTxRes.error,
         rolesRes.error,
         ordersRes.error,
         productsRes.error,
@@ -171,7 +174,6 @@ export function FinancialOverview() {
       const requests = requestsRes.data || [];
       const roles = rolesRes.data || [];
       const orders = ordersRes.data || [];
-      const products = productsRes.data || [];
 
       const totalWalletBalances = wallets.reduce((sum, w) => sum + Number(w.balance), 0);
       const totalDeposits = deposits.reduce((sum, d) => sum + Number(d.amount), 0);
@@ -196,15 +198,14 @@ export function FinancialOverview() {
       const activeRequests = requests.filter((r) => ['funded', 'disbursed'].includes(r.status));
       const pendingRepayments = activeRequests.reduce((sum, r) => sum + Number(r.total_repayment), 0);
 
-      // Marketplace metrics
+      // Marketplace metrics from real data
       const totalMarketplaceSales = orders.reduce((sum, o) => sum + Number(o.total_price), 0);
       const totalMarketplaceCommissions = orders.reduce((sum, o) => sum + Number(o.agent_commission), 0);
       const marketplaceOrderCount = orders.length;
-      const marketplaceProductCount = products.length;
+      const marketplaceProductCount = productsRes.count || 0;
 
-      // Count unique users, not role entries (a user with 2 roles should count as 1 user)
-      const uniqueUserIds = new Set(roles.map((r) => r.user_id));
-      const userCount = uniqueUserIds.size;
+      // True user count from profiles table
+      const userCount = profilesRes.count || 0;
       const agentCount = roles.filter((r) => r.role === 'agent').length;
       const tenantCount = roles.filter((r) => r.role === 'tenant').length;
       const supporterCount = roles.filter((r) => r.role === 'supporter').length;
