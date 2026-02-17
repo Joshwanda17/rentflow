@@ -397,6 +397,12 @@ export default function SupporterDashboard({
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
             {!effectiveHasAccepted && <LockedOverlay onAcceptClick={() => setShowAgreementModal(true)} />}
 
+            {/* ═══ WELILE AI CREDIT REQUESTS ═══ */}
+            <CreditRequestsFeed
+              isLocked={!effectiveHasAccepted}
+              onLockedClick={() => setShowAgreementModal(true)}
+            />
+
             <RentCategoryFeed
               onFundCategory={(cat) => {
                 if (!effectiveHasAccepted) {
@@ -409,12 +415,6 @@ export default function SupporterDashboard({
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
               onRefreshRef={opportunitiesRefreshRef}
-            />
-
-            {/* ═══ WELILE AI CREDIT REQUESTS ═══ */}
-            <CreditRequestsFeed
-              isLocked={!effectiveHasAccepted}
-              onLockedClick={() => setShowAgreementModal(true)}
             />
           </div>
 
