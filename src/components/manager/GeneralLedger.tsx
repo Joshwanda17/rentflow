@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filter, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Printer, Download, RefreshCw, ArrowDownLeft, ArrowUpRight, Search, Filter, ChevronLeft, ChevronRight, Share2, Loader2 } from 'lucide-react';
 import { DayGroupedLedger } from './DayGroupedLedger';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay, endOfDay, subDays, startOfMonth, startOfYear } from 'date-fns';
@@ -245,6 +245,121 @@ export function GeneralLedger() {
     toast.success('CSV exported successfully');
   };
 
+  const [sharing, setSharing] = useState(false);
+
+  const handleSharePDF = async () => {
+    if (entries.length === 0) {
+      toast.error('No ledger entries to share');
+      return;
+    }
+    setSharing(true);
+    try {
+      const { jsPDF } = await import('jspdf');
+      const pdf = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+      let y = 15;
+
+      // Header
+      pdf.setFontSize(16);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('WELILE — General Ledger', margin, y);
+      y += 7;
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(
+        `Period: ${startDate ? format(startDate, 'dd MMM yyyy') : 'All time'} — ${endDate ? format(endDate, 'dd MMM yyyy') : 'Present'}  •  Page ${page + 1}  •  Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`,
+        margin, y
+      );
+      y += 8;
+
+      // Summary row
+      pdf.setTextColor(0, 0, 0);
+      pdf.setFillColor(243, 244, 246);
+      pdf.rect(margin, y - 4, pageWidth - margin * 2, 14, 'F');
+      pdf.setFontSize(9);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Debits: UGX ${summary.totalDebits.toLocaleString()}`, margin + 5, y + 2);
+      pdf.text(`Credits: UGX ${summary.totalCredits.toLocaleString()}`, margin + 75, y + 2);
+      pdf.text(`Net: UGX ${(summary.totalCredits - summary.totalDebits).toLocaleString()}`, margin + 150, y + 2);
+      pdf.text(`Entries: ${summary.entryCount.toLocaleString()}`, margin + 220, y + 2);
+      y += 16;
+
+      // Table header
+      const cols = [margin, margin + 10, margin + 35, margin + 95, margin + 130, margin + 165, margin + 205, margin + 240];
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'bold');
+      pdf.setTextColor(80, 80, 80);
+      ['#', 'Date', 'Description', 'Category', 'Reference', 'Debit (UGX)', 'Credit (UGX)', 'Balance (UGX)'].forEach((h, i) => {
+        pdf.text(h, cols[i], y);
+      });
+      y += 2;
+      pdf.setDrawColor(180, 180, 180);
+      pdf.line(margin, y, pageWidth - margin, y);
+      y += 5;
+
+      // Rows
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(0, 0, 0);
+      for (let i = 0; i < entries.length; i++) {
+        if (y > pdf.internal.pageSize.getHeight() - 15) {
+          pdf.addPage();
+          y = 15;
+        }
+        const e = entries[i];
+        pdf.setFontSize(7);
+        pdf.text(`${page * PAGE_SIZE + i + 1}`, cols[0], y);
+        pdf.text(format(new Date(e.date), 'dd/MM/yy'), cols[1], y);
+        pdf.text(e.description.substring(0, 40), cols[2], y);
+        pdf.text(e.category.substring(0, 20), cols[3], y);
+        pdf.text(e.reference.substring(0, 20), cols[4], y);
+        pdf.setTextColor(220, 38, 38);
+        pdf.text(e.debit > 0 ? e.debit.toLocaleString() : '-', cols[5], y);
+        pdf.setTextColor(22, 163, 74);
+        pdf.text(e.credit > 0 ? e.credit.toLocaleString() : '-', cols[6], y);
+        pdf.setTextColor(0, 0, 0);
+        pdf.text(e.balance.toLocaleString(), cols[7], y);
+        y += 5;
+      }
+
+      // Total row
+      y += 2;
+      pdf.setFont('helvetica', 'bold');
+      pdf.setFontSize(9);
+      pdf.text(`Page Total — Debits: UGX ${entries.reduce((s, e) => s + e.debit, 0).toLocaleString()}  |  Credits: UGX ${entries.reduce((s, e) => s + e.credit, 0).toLocaleString()}`, margin, y);
+
+      const fileName = `welile-ledger-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      const pdfBlob = pdf.output('blob');
+      const pdfFile = new File([pdfBlob], fileName, { type: 'application/pdf' });
+
+      // Try Web Share API (works on mobile for WhatsApp sharing)
+      if (navigator.share && navigator.canShare && navigator.canShare({ files: [pdfFile] })) {
+        await navigator.share({
+          title: 'Welile General Ledger',
+          text: `Welile Ledger Report — ${startDate ? format(startDate, 'dd MMM yyyy') : 'All time'} to ${endDate ? format(endDate, 'dd MMM yyyy') : 'Present'}`,
+          files: [pdfFile],
+        });
+        toast.success('Shared successfully!');
+      } else {
+        // Fallback: download the PDF and open WhatsApp with a message
+        pdf.save(fileName);
+        const message = encodeURIComponent(
+          `📊 Welile General Ledger Report\n📅 Period: ${startDate ? format(startDate, 'dd MMM yyyy') : 'All time'} — ${endDate ? format(endDate, 'dd MMM yyyy') : 'Present'}\n💰 Debits: UGX ${summary.totalDebits.toLocaleString()}\n💰 Credits: UGX ${summary.totalCredits.toLocaleString()}\n📄 PDF downloaded — please attach it to this chat.`
+        );
+        window.open(`https://wa.me/?text=${message}`, '_blank');
+        toast.success('PDF downloaded! Attach it in WhatsApp.');
+      }
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        toast.error('Failed to share PDF');
+      }
+    } finally {
+      setSharing(false);
+    }
+  };
+
   return (
     <div className="space-y-4">
       {/* Date Presets */}
@@ -336,6 +451,10 @@ export function GeneralLedger() {
         </Button>
         <Button onClick={handleExportCSV} size="sm" variant="outline" className="gap-2">
           <Download className="h-4 w-4" /> CSV
+        </Button>
+        <Button onClick={handleSharePDF} size="sm" variant="outline" className="gap-2 text-green-600 border-green-300 hover:bg-green-50" disabled={sharing || entries.length === 0}>
+          {sharing ? <Loader2 className="h-4 w-4 animate-spin" /> : <Share2 className="h-4 w-4" />}
+          WhatsApp
         </Button>
         <Button onClick={() => { fetchLedgerData(); fetchSummary(); }} size="sm" variant="ghost" className="gap-2" disabled={loading}>
           <RefreshCw className={cn("h-4 w-4", loading && "animate-spin")} />
