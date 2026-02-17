@@ -1746,6 +1746,48 @@ export type Database = {
         }
         Relationships: []
       }
+      tenant_merchant_payments: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          merchant_name: string
+          notes: string | null
+          payment_date: string
+          tenant_id: string | null
+          tenant_phone: string | null
+          transaction_id: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          merchant_name: string
+          notes?: string | null
+          payment_date?: string
+          tenant_id?: string | null
+          tenant_phone?: string | null
+          transaction_id: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          merchant_name?: string
+          notes?: string | null
+          payment_date?: string
+          tenant_id?: string | null
+          tenant_phone?: string | null
+          transaction_id?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       tenant_ratings: {
         Row: {
           created_at: string

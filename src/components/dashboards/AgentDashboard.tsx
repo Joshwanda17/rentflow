@@ -10,6 +10,7 @@ import {
   Menu,
   WifiOff,
   RefreshCw,
+  Receipt,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -40,6 +41,7 @@ import { AgentManagedPropertiesSheet } from '@/components/agent/AgentManagedProp
 import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayoutDialog';
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
+import { RecordTenantPaymentDialog } from '@/components/agent/RecordTenantPaymentDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -80,6 +82,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
   const [payoutProperty, setPayoutProperty] = useState<any>(null);
   const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
+  const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -199,7 +202,22 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </motion.button>
 
-          {/* 3. MENU BUTTON - Just below Register */}
+          {/* 3. RECORD PAYMENT BUTTON */}
+          <motion.button
+            whileTap={{ scale: 0.98 }}
+            onClick={() => { hapticTap(); setRecordPaymentOpen(true); }}
+            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-amber-500/10 to-orange-500/10 border-2 border-amber-500/30 hover:border-amber-500/50 transition-all touch-manipulation"
+          >
+            <div className="p-3 rounded-xl bg-amber-500/20">
+              <Receipt className="h-7 w-7 text-amber-600" />
+            </div>
+            <div className="flex-1 text-left">
+              <p className="font-bold text-lg">Record Payment</p>
+              <p className="text-sm text-muted-foreground">Log tenant merchant payments</p>
+            </div>
+          </motion.button>
+
+          {/* 4. MENU BUTTON - Just below Record Payment */}
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={handleOpenMenu}
@@ -282,6 +300,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       
       {/* Agent's own rent requests */}
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
+      
+      {/* Record Tenant Payment */}
+      <RecordTenantPaymentDialog
+        open={recordPaymentOpen}
+        onOpenChange={setRecordPaymentOpen}
+        onSuccess={refreshOfflineData}
+      />
       
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
