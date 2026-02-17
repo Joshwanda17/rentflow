@@ -2,10 +2,12 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { CheckCircle, Clock, Home, MapPin, Loader2, User } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { CheckCircle, Clock, Home, MapPin, Loader2, User, Pencil } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
+import { EditApprovedRentDialog } from './EditApprovedRentDialog';
 
 import { useAuth } from '@/hooks/useAuth';
 
@@ -18,6 +20,11 @@ interface ApprovedRequest {
   created_at: string;
   house_category: string | null;
   request_city: string | null;
+  access_fee?: number;
+  request_fee?: number;
+  total_repayment?: number;
+  daily_repayment?: number;
+  number_of_payments?: number | null;
   tenant: { full_name: string; phone: string } | null;
   agent: { full_name: string } | null;
 }
@@ -44,12 +51,15 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
   const [requests, setRequests] = useState<ApprovedRequest[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [editingRequest, setEditingRequest] = useState<ApprovedRequest | null>(null);
+  const [editOpen, setEditOpen] = useState(false);
+
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
     let query = supabase
       .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, tenant_id, agent_id')
+      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, tenant_id, agent_id')
       .eq('status', 'approved')
       .order('approved_at', { ascending: false })
       .limit(20);
@@ -144,12 +154,28 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
                         )}
                       </div>
                     </div>
-                    <div className="text-right shrink-0">
-                      <p className="font-extrabold text-base text-success">{formatUGX(req.rent_amount)}</p>
-                      <Badge variant="success" className="text-[10px] gap-0.5 mt-0.5">
-                        <CheckCircle className="h-2.5 w-2.5" />
-                        Approved
-                      </Badge>
+                    <div className="text-right shrink-0 flex items-start gap-1.5">
+                      <div>
+                        <p className="font-extrabold text-base text-success">{formatUGX(req.rent_amount)}</p>
+                        <Badge variant="success" className="text-[10px] gap-0.5 mt-0.5">
+                          <CheckCircle className="h-2.5 w-2.5" />
+                          Approved
+                        </Badge>
+                      </div>
+                      {mode === 'manager' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-7 w-7 shrink-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingRequest(req);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      )}
                     </div>
                   </div>
 
@@ -175,6 +201,13 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
           )}
         </CardContent>
       </Card>
+
+      <EditApprovedRentDialog
+        request={editingRequest}
+        open={editOpen}
+        onOpenChange={setEditOpen}
+        onSaved={fetchRequests}
+      />
     </motion.div>
   );
 }
