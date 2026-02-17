@@ -50,10 +50,13 @@ export function UserWithdrawalRequests() {
     if (!user) return;
 
     try {
+      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
+      
       const { data, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('user_id', user.id)
+        .or(`status.neq.pending,created_at.gte.${twelveHoursAgo}`)
         .order('created_at', { ascending: false })
         .limit(10);
 
