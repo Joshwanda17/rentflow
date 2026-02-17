@@ -6,7 +6,7 @@ import { CheckCircle, Clock, Home, MapPin, Loader2, User } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
-import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
+
 import { useAuth } from '@/hooks/useAuth';
 
 interface ApprovedRequest {
@@ -84,43 +84,54 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
 
   if (loading) {
     return (
-      <CollapsibleAgentSection icon={CheckCircle} label="Approved Rent Requests" iconColor="text-success">
-        <div className="flex justify-center py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
-        </div>
-      </CollapsibleAgentSection>
+      <Card className="border-2 border-success/50 bg-success/5">
+        <CardContent className="flex justify-center py-8">
+          <Loader2 className="h-5 w-5 animate-spin text-success" />
+        </CardContent>
+      </Card>
     );
   }
 
   return (
-    <CollapsibleAgentSection
-      icon={CheckCircle}
-      label={`Approved Rent Requests${requests.length > 0 ? ` (${requests.length})` : ''}`}
-      iconColor="text-success"
+    <motion.div
+      initial={{ opacity: 0, scale: 0.97 }}
+      animate={{ opacity: 1, scale: 1 }}
+      transition={{ duration: 0.3 }}
     >
-      {requests.length === 0 ? (
-        <div className="text-center py-6 text-sm text-muted-foreground">
-          No approved rent requests
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {requests.map((req, i) => (
-            <motion.div
-              key={req.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-            >
-              <Card className="border border-success/30 bg-success/5">
-                <CardContent className="p-3 space-y-2">
+      <Card className="border-2 border-success bg-gradient-to-br from-success/15 via-success/10 to-emerald-500/5 shadow-lg shadow-success/10 overflow-hidden">
+        <CardContent className="p-0">
+          {/* Header */}
+          <div className="flex items-center gap-3 px-4 py-3 bg-success/20 border-b border-success/30">
+            <div className="p-2 rounded-full bg-success/30">
+              <CheckCircle className="h-5 w-5 text-success" />
+            </div>
+            <h3 className="font-bold text-base text-success">
+              ✅ Approved Rent Requests{requests.length > 0 ? ` (${requests.length})` : ''}
+            </h3>
+          </div>
+
+          {requests.length === 0 ? (
+            <div className="text-center py-8 text-sm text-muted-foreground">
+              No approved rent requests yet
+            </div>
+          ) : (
+            <div className="divide-y divide-success/20">
+              {requests.map((req, i) => (
+                <motion.div
+                  key={req.id}
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  transition={{ delay: i * 0.05 }}
+                  className="px-4 py-3 hover:bg-success/10 transition-colors"
+                >
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
                         {req.tenant?.full_name || 'Unknown Tenant'}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <div className="flex items-center gap-2 flex-wrap mt-1">
                         {req.house_category && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+                          <Badge variant="success" className="text-[10px] px-1.5 py-0 gap-0.5">
                             <Home className="h-2.5 w-2.5" />
                             {CATEGORY_LABELS[req.house_category] || req.house_category}
                           </Badge>
@@ -134,15 +145,15 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
                       </div>
                     </div>
                     <div className="text-right shrink-0">
-                      <p className="font-bold text-sm">{formatUGX(req.rent_amount)}</p>
-                      <Badge variant="outline" className="text-[10px] gap-0.5 bg-success/10 text-success border-success/30">
+                      <p className="font-extrabold text-base text-success">{formatUGX(req.rent_amount)}</p>
+                      <Badge variant="success" className="text-[10px] gap-0.5 mt-0.5">
                         <CheckCircle className="h-2.5 w-2.5" />
                         Approved
                       </Badge>
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground mt-1.5">
                     <Clock className="h-2.5 w-2.5" />
                     {req.approved_at
                       ? `Approved ${formatDistanceToNow(new Date(req.approved_at), { addSuffix: true })}`
@@ -158,12 +169,12 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
                     <span>•</span>
                     <span>{req.duration_days}d</span>
                   </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          ))}
-        </div>
-      )}
-    </CollapsibleAgentSection>
+                </motion.div>
+              ))}
+            </div>
+          )}
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 }
