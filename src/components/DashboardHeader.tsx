@@ -13,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -233,6 +233,16 @@ const DashboardHeader = memo(function DashboardHeader({
                       <Settings className="h-4 w-4" />
                     </div>
                     Settings
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem 
+                    onClick={() => { hapticTap(); onSignOut(); }}
+                    className="gap-3 cursor-pointer py-3 px-3 rounded-xl text-sm font-medium text-destructive touch-manipulation"
+                  >
+                    <div className="p-1.5 rounded-lg bg-destructive/10">
+                      <LogOut className="h-4 w-4 text-destructive" />
+                    </div>
+                    Sign Out
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
