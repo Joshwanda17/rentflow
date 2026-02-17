@@ -1,14 +1,12 @@
 import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
-import { TrendingUp, Star, Receipt, Home, ChevronDown, Send, Loader2 } from 'lucide-react';
+import { TrendingUp, Star, Receipt, Home, ChevronDown, Send } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useCreditAccessLimit, formatCreditAmount } from '@/hooks/useCreditAccessLimit';
 import { Skeleton } from '@/components/ui/skeleton';
-import { supabase } from '@/integrations/supabase/client';
-import { useToast } from '@/hooks/use-toast';
 import { hapticTap } from '@/lib/haptics';
+import { CreditRequestSheet } from '@/components/CreditRequestSheet';
 
 interface CreditAccessCardProps {
   userId: string;
@@ -25,41 +23,14 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
   const { limit, loading } = useCreditAccessLimit(userId);
   const [currency, setCurrency] = useState('UGX');
   const [expanded, setExpanded] = useState(false);
-  const [requesting, setRequesting] = useState(false);
-  const [hasRequested, setHasRequested] = useState(false);
-  const { toast } = useToast();
+  const [sheetOpen, setSheetOpen] = useState(false);
 
   const progressPercentage = Math.min((limit.totalLimit / MAX_LIMIT) * 100, 100);
 
-  const handleRequestCredit = async () => {
-    if (requesting || hasRequested || limit.totalLimit <= 0) return;
+  const handleRequestCredit = () => {
+    if (limit.totalLimit <= 0) return;
     hapticTap();
-    setRequesting(true);
-    try {
-      const interestRate = 10;
-      const totalRepayment = Math.round(limit.totalLimit * (1 + interestRate / 100));
-      const dueDate = new Date();
-      dueDate.setDate(dueDate.getDate() + 30);
-
-      const { error } = await supabase.from('user_loans').insert({
-        borrower_id: userId,
-        lender_id: userId, // placeholder — funder claims it
-        amount: limit.totalLimit,
-        interest_rate: interestRate,
-        total_repayment: totalRepayment,
-        due_date: dueDate.toISOString().split('T')[0],
-        status: 'pending',
-      });
-
-      if (error) throw error;
-
-      setHasRequested(true);
-      toast({ title: '✅ Credit Request Sent', description: 'Funders can now see and fund your request.' });
-    } catch (err: any) {
-      toast({ title: 'Request Failed', description: err.message, variant: 'destructive' });
-    } finally {
-      setRequesting(false);
-    }
+    setSheetOpen(true);
   };
 
   if (loading) {
@@ -113,11 +84,12 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
           <Progress value={progressPercentage} className="h-1 mt-2" />
           <button
             onClick={handleRequestCredit}
-            disabled={requesting || hasRequested || limit.totalLimit <= 0}
+            disabled={limit.totalLimit <= 0}
             className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
           >
-            {requesting ? <Loader2 className="h-3 w-3 animate-spin" /> : hasRequested ? '✅ Requested' : <><Send className="h-3 w-3" /> Request Credit</>}
+            <Send className="h-3 w-3" /> Request Credit
           </button>
+          <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
         </CardContent>
       </Card>
     );
@@ -227,19 +199,15 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
           {/* Request Credit Button */}
           <button
             onClick={handleRequestCredit}
-            disabled={requesting || hasRequested || limit.totalLimit <= 0}
+            disabled={limit.totalLimit <= 0}
             className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation shadow-lg shadow-primary/20"
           >
-            {requesting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : hasRequested ? (
-              '✅ Credit Requested'
-            ) : (
-              <><Send className="h-4 w-4" /> Request Credit from Funders</>
-            )}
+            <Send className="h-4 w-4" /> Request Credit from Funders
           </button>
         </CardContent>
       </Card>
+
+      <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
     </motion.div>
   );
 }
