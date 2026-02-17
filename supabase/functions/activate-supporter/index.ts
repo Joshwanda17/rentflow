@@ -193,10 +193,10 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Add user role
+    // Add user role (use upsert to avoid duplicate key errors from auto_assign trigger)
     const { error: roleError } = await adminClient
       .from("user_roles")
-      .insert({ user_id: authData.user.id, role: userRole });
+      .upsert({ user_id: authData.user.id, role: userRole }, { onConflict: 'user_id,role' });
     if (roleError) console.error("[activate-supporter] Role error:", roleError);
 
     // If landlord, create landlord record

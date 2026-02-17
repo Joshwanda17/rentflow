@@ -1581,7 +1581,7 @@ export type Database = {
           property_address: string | null
           role: string
           status: string
-          temp_password: string
+          temp_password: string | null
         }
         Insert: {
           activated_at?: string | null
@@ -1600,7 +1600,7 @@ export type Database = {
           property_address?: string | null
           role?: string
           status?: string
-          temp_password: string
+          temp_password?: string | null
         }
         Update: {
           activated_at?: string | null
@@ -1619,7 +1619,7 @@ export type Database = {
           property_address?: string | null
           role?: string
           status?: string
-          temp_password?: string
+          temp_password?: string | null
         }
         Relationships: []
       }
@@ -2359,14 +2359,19 @@ export type Database = {
         }[]
       }
       get_manager_dashboard_stats: { Args: never; Returns: Json }
-      get_manager_productivity: {
-        Args: {
-          p_custom_end?: string
-          p_custom_start?: string
-          p_filter?: string
-        }
-        Returns: Json
-      }
+      get_manager_productivity:
+        | {
+            Args: { filter_end?: string; filter_start?: string }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_custom_end?: string
+              p_custom_start?: string
+              p_filter?: string
+            }
+            Returns: Json
+          }
       get_manager_profiles: {
         Args: never
         Returns: {
