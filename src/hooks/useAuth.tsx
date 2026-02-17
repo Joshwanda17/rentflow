@@ -105,7 +105,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
             const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
             await Promise.race([rolePromise, timeoutPromise]);
-          } else {
+          } else if (!cachedSession) {
+            // Only clear cache if we had NO cached session — prevents
+            // transient getSession() nulls from signing out real users
             clearSessionCache();
           }
         }
