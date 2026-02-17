@@ -228,9 +228,9 @@ export default function RegisterTenantDialog({ open, onOpenChange, onSuccess }: 
     } catch (err) {
       toast.error('An unexpected error occurred');
       console.error('Error:', err);
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
