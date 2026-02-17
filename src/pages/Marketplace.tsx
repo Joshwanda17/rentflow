@@ -199,7 +199,7 @@ export default function Marketplace() {
 
       {/* Mobile Bottom Navigation */}
       {user && role && (
-        <MobileBottomNav currentRole={role} onSignOut={signOut} />
+        <MobileBottomNav currentRole={role} />
       )}
     </div>
   );

@@ -198,7 +198,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
       />
 
       {/* Fixed footer navigation */}
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      <MobileBottomNav currentRole={currentRole} />
     </div>
   );
 }

@@ -96,7 +96,7 @@ export default function ChatPage() {
             )}
           </div>
 
-          <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+          <MobileBottomNav currentRole={currentRole} />
         </div>
       </PresenceProvider>
     );

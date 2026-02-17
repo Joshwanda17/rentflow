@@ -523,7 +523,7 @@ export default function SupporterDashboard({
       />
 
       <FloatingShareButton />
-      <MobileBottomNav currentRole={currentRole} onSignOut={signOut} />
+      <MobileBottomNav currentRole={currentRole} />
     </div>
   );
 }
