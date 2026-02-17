@@ -13,8 +13,9 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
-import { Loader2, Plus, Wallet } from 'lucide-react';
+import { Loader2, Plus, Minus, Wallet } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
+import { useAuth } from '@/hooks/useAuth';
 
 interface AddBalanceDialogProps {
   open: boolean;
@@ -25,6 +26,8 @@ interface AddBalanceDialogProps {
   onSuccess?: () => void;
 }
 
+type AdjustmentType = 'credit' | 'debit';
+
 export default function AddBalanceDialog({
   open,
   onOpenChange,
@@ -33,15 +36,27 @@ export default function AddBalanceDialog({
   currentBalance,
   onSuccess
 }: AddBalanceDialogProps) {
+  const { user } = useAuth();
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
+  const [type, setType] = useState<AdjustmentType>('credit');
 
-  const handleAddBalance = async () => {
+  const handleAdjustBalance = async () => {
     const amountNum = parseFloat(amount);
-    
+
     if (isNaN(amountNum) || amountNum <= 0) {
       toast.error('Please enter a valid amount');
+      return;
+    }
+
+    if (!reason.trim()) {
+      toast.error('A reason is required for every adjustment');
+      return;
+    }
+
+    if (type === 'debit' && amountNum > currentBalance) {
+      toast.error(`Cannot debit more than the current balance (${formatUGX(currentBalance)})`);
       return;
     }
 
@@ -58,46 +73,70 @@ export default function AddBalanceDialog({
       if (walletError) throw walletError;
 
       if (!wallet) {
-        // Create wallet if doesn't exist
         const { data: newWallet, error: createError } = await supabase
           .from('wallets')
           .insert({ user_id: userId, balance: 0 })
           .select('id, balance')
           .single();
-
         if (createError) throw createError;
         wallet = newWallet;
       }
 
-      // Update wallet balance
-      const newBalance = wallet.balance + amountNum;
+      const delta = type === 'credit' ? amountNum : -amountNum;
+      const newBalance = Math.max(0, wallet.balance + delta);
+
+      // Optimistic lock update
       const { error: updateError } = await supabase
         .from('wallets')
-        .update({ 
-          balance: newBalance,
-          updated_at: new Date().toISOString()
-        })
-        .eq('user_id', userId);
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq('user_id', userId)
+        .eq('balance', wallet.balance);
 
       if (updateError) throw updateError;
 
-      // Audit logging - table removed, skip
-      console.log('Balance adjusted:', { userId, userName, amount: amountNum });
+      // Generate reference ID: WBA + YYMMDD + random 4 digits
+      const now = new Date();
+      const yy = String(now.getFullYear()).slice(-2);
+      const mm = String(now.getMonth() + 1).padStart(2, '0');
+      const dd = String(now.getDate()).padStart(2, '0');
+      const seq = String(Math.floor(1000 + Math.random() * 9000));
+      const referenceId = `WBA${yy}${mm}${dd}${seq}`;
 
-      toast.success(`Added ${formatUGX(amountNum)} to ${userName}'s wallet`);
+      // Record in general ledger for traceability
+      await supabase.from('general_ledger').insert({
+        user_id: userId,
+        amount: amountNum,
+        direction: type === 'credit' ? 'cash_in' : 'cash_out',
+        category: type === 'credit' ? 'manager_credit' : 'manager_debit',
+        source_table: 'wallets',
+        source_id: wallet.id,
+        description: `Manager adjustment (${type}): ${reason.trim()}`,
+        reference_id: referenceId,
+        linked_party: user?.email || 'Manager',
+        running_balance: newBalance,
+      });
+
+      const verb = type === 'credit' ? 'Added' : 'Deducted';
+      toast.success(`${verb} ${formatUGX(amountNum)} ${type === 'credit' ? 'to' : 'from'} ${userName}'s wallet`);
       setAmount('');
       setReason('');
+      setType('credit');
       onOpenChange(false);
       onSuccess?.();
     } catch (error) {
-      console.error('Error adding balance:', error);
-      toast.error('Failed to add balance');
+      console.error('Error adjusting balance:', error);
+      toast.error('Failed to adjust balance. Please try again.');
     } finally {
       setLoading(false);
     }
   };
 
   const quickAmounts = [5000, 10000, 50000, 100000];
+  const previewBalance = amount && parseFloat(amount) > 0
+    ? type === 'credit'
+      ? currentBalance + parseFloat(amount)
+      : Math.max(0, currentBalance - parseFloat(amount))
+    : null;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -105,15 +144,38 @@ export default function AddBalanceDialog({
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Wallet className="h-5 w-5 text-primary" />
-            Add Balance
+            Adjust Balance
           </DialogTitle>
           <DialogDescription>
-            Add funds to <strong>{userName}</strong>'s wallet.
+            Credit or debit <strong>{userName}</strong>'s wallet.
             Current balance: <strong>{formatUGX(currentBalance)}</strong>
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 py-4">
+          {/* Credit / Debit Toggle */}
+          <div className="grid grid-cols-2 gap-2">
+            <Button
+              type="button"
+              variant={type === 'credit' ? 'default' : 'outline'}
+              className={`h-14 text-base font-bold gap-2 ${type === 'credit' ? 'bg-success hover:bg-success/90 text-white' : ''}`}
+              onClick={() => setType('credit')}
+            >
+              <Plus className="h-5 w-5" />
+              Credit
+            </Button>
+            <Button
+              type="button"
+              variant={type === 'debit' ? 'default' : 'outline'}
+              className={`h-14 text-base font-bold gap-2 ${type === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-white' : ''}`}
+              onClick={() => setType('debit')}
+            >
+              <Minus className="h-5 w-5" />
+              Debit
+            </Button>
+          </div>
+
+          {/* Amount */}
           <div className="space-y-2">
             <Label htmlFor="amount">Amount (UGX)</Label>
             <Input
@@ -123,7 +185,6 @@ export default function AddBalanceDialog({
               value={amount}
               onChange={(e) => {
                 const val = e.target.value;
-                // Only allow positive numbers
                 if (val === '' || (Number(val) >= 0 && !isNaN(Number(val)))) {
                   setAmount(val);
                 }
@@ -134,36 +195,40 @@ export default function AddBalanceDialog({
           </div>
 
           <div className="flex flex-wrap gap-2">
-            {quickAmounts.map((quickAmount) => (
+            {quickAmounts.map((q) => (
               <Button
-                key={quickAmount}
+                key={q}
                 type="button"
                 variant="outline"
                 size="sm"
-                onClick={() => setAmount(quickAmount.toString())}
+                onClick={() => setAmount(q.toString())}
                 className="flex-1 min-w-[70px]"
               >
-                {formatUGX(quickAmount)}
+                {formatUGX(q)}
               </Button>
             ))}
           </div>
 
+          {/* Reason — required */}
           <div className="space-y-2">
-            <Label htmlFor="reason">Reason (optional)</Label>
+            <Label htmlFor="reason">
+              Reason <span className="text-destructive">*</span>
+            </Label>
             <Textarea
               id="reason"
-              placeholder="Why are you adding this balance?"
+              placeholder="Why are you adjusting this balance? (required)"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               rows={2}
             />
           </div>
 
-          {amount && parseFloat(amount) > 0 && (
-            <div className="p-3 bg-success/10 rounded-lg border border-success/30">
+          {/* Preview */}
+          {previewBalance !== null && (
+            <div className={`p-3 rounded-lg border ${type === 'credit' ? 'bg-success/10 border-success/30' : 'bg-destructive/10 border-destructive/30'}`}>
               <p className="text-sm text-muted-foreground">New balance will be:</p>
-              <p className="text-lg font-bold text-success">
-                {formatUGX(currentBalance + parseFloat(amount))}
+              <p className={`text-lg font-bold ${type === 'credit' ? 'text-success' : 'text-destructive'}`}>
+                {formatUGX(previewBalance)}
               </p>
             </div>
           )}
@@ -173,17 +238,19 @@ export default function AddBalanceDialog({
           <Button variant="outline" onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button 
-            onClick={handleAddBalance} 
-            disabled={loading || !amount || parseFloat(amount) <= 0}
-            className="gap-2"
+          <Button
+            onClick={handleAdjustBalance}
+            disabled={loading || !amount || parseFloat(amount) <= 0 || !reason.trim()}
+            className={`gap-2 ${type === 'debit' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
           >
             {loading ? (
               <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
+            ) : type === 'credit' ? (
               <Plus className="h-4 w-4" />
+            ) : (
+              <Minus className="h-4 w-4" />
             )}
-            Add Balance
+            {type === 'credit' ? 'Credit' : 'Debit'} Account
           </Button>
         </DialogFooter>
       </DialogContent>
