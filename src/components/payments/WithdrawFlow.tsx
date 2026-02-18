@@ -97,41 +97,9 @@ export default function WithdrawFlow({
     if (!user) return;
 
     try {
-      // Fetch fresh wallet balance
-      const { data: freshWallet, error: fetchError } = await supabase
-        .from('wallets')
-        .select('balance')
-        .eq('user_id', user.id)
-        .single();
-
-      if (fetchError || !freshWallet) {
-        throw new Error('Failed to fetch wallet balance');
-      }
-
-      if (freshWallet.balance < amount) {
-        throw new Error('Insufficient balance. Your balance may have changed.');
-      }
-
-      // Deduct from wallet using optimistic locking
-      const { data: updatedWallet, error: updateError } = await supabase
-        .from('wallets')
-        .update({ 
-          balance: freshWallet.balance - amount, 
-          updated_at: new Date().toISOString() 
-        })
-        .eq('user_id', user.id)
-        .eq('balance', freshWallet.balance) // Optimistic lock
-        .select()
-        .maybeSingle();
-
-      if (updateError || !updatedWallet) {
-        throw new Error('Balance changed during withdrawal. Please try again.');
-      }
-
-      // wallet_withdrawals table removed - skip recording
       const ref = `WTH-${Date.now()}`;
 
-      // Also record in withdrawal_requests for manager approval tracking
+      // Insert withdrawal request — trigger automatically deducts wallet balance
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .insert({
@@ -144,7 +112,7 @@ export default function WithdrawFlow({
         });
 
       if (requestError) {
-        console.error('Failed to record withdrawal request:', requestError);
+        throw new Error(requestError.message || 'Failed to submit withdrawal request');
       }
 
       setWithdrawalRef(ref);
