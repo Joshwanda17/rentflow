@@ -339,13 +339,12 @@ export function WithdrawalRequestsManager() {
       // Calculate 12 hours ago cutoff
       const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
 
-      // Fetch pending withdrawal requests: exclude ≤500 UGX and older than 12 hours
+      // Fetch ALL pending withdrawal requests: exclude ≤500 UGX
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('status', 'pending')
         .gt('amount', 500)
-        .gte('created_at', twelveHoursAgo)
         .order('created_at', { ascending: false });
 
       if (error) throw error;
@@ -480,28 +479,9 @@ export function WithdrawalRequestsManager() {
   }, [fetchRequests]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {
-    // Fetch the CURRENT wallet balance to avoid stale data
-    const { data: currentWallet, error } = await supabase
-      .from('wallets')
-      .select('balance')
-      .eq('user_id', request.user_id)
-      .maybeSingle();
-    
-    const currentBalance = currentWallet?.balance || 0;
-    
-    if (error) {
-      toast.error('Failed to verify user balance');
-      return;
-    }
-    
-    // Check if user has sufficient balance with CURRENT data
-    if (request.amount > currentBalance) {
-      toast.error(`Insufficient balance! User has ${formatCurrency(currentBalance)} but requested ${formatCurrency(request.amount)}`);
-      return;
-    }
-    
-    // Update the request with current balance for the approval flow
-    setSelectedRequest({ ...request, wallet_balance: currentBalance });
+    // Balance was already deducted when the request was created (via trigger),
+    // so no need to check balance again — just proceed to approval
+    setSelectedRequest(request);
     setTransactionId('');
     setApproveDialogOpen(true);
   };
