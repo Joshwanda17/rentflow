@@ -1,7 +1,6 @@
 import { useState, useRef, useEffect, lazy, Suspense } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, RotateCcw, Bot, User, ChevronDown, Smartphone } from 'lucide-react';
-import { Button } from '@/components/ui/button';
+import { X, Send, RotateCcw, Bot, ChevronDown, Smartphone, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
@@ -26,6 +25,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
   const { messages, isLoading, sendMessage, clearHistory, cancelStream } = useWelileAI();
   const [input, setInput] = useState('');
   const [depositOpen, setDepositOpen] = useState(false);
+  const [confirmClear, setConfirmClear] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -38,14 +38,21 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
   useEffect(() => {
     if (open) {
-      setTimeout(() => inputRef.current?.focus(), 300);
+      setTimeout(() => inputRef.current?.focus(), 350);
     }
   }, [open]);
+
+  // Auto-resize textarea
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setInput(e.target.value);
+    e.target.style.height = 'auto';
+    e.target.style.height = Math.min(e.target.scrollHeight, 128) + 'px';
+  };
 
   const handleScroll = () => {
     if (!scrollRef.current) return;
     const { scrollTop, scrollHeight, clientHeight } = scrollRef.current;
-    setShowScrollDown(scrollHeight - scrollTop - clientHeight > 100);
+    setShowScrollDown(scrollHeight - scrollTop - clientHeight > 80);
   };
 
   const scrollToBottom = () => {
@@ -56,6 +63,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
     if (!input.trim() || isLoading) return;
     sendMessage(input.trim());
     setInput('');
+    if (inputRef.current) inputRef.current.style.height = '44px';
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -65,254 +73,345 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
     }
   };
 
+  const handleClear = () => {
+    if (confirmClear) {
+      clearHistory();
+      setConfirmClear(false);
+    } else {
+      setConfirmClear(true);
+      setTimeout(() => setConfirmClear(false), 3000);
+    }
+  };
+
   const hasMessages = messages.length > 0;
 
   return (
     <AnimatePresence>
       {open && (
         <>
+          {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 bg-black/50 z-[70]"
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[70]"
             onClick={() => onOpenChange(false)}
           />
 
+          {/* Chat panel */}
           <motion.div
-            initial={{ y: '100%', opacity: 0 }}
+            initial={{ y: '100%', opacity: 0.5 }}
             animate={{ y: 0, opacity: 1 }}
             exit={{ y: '100%', opacity: 0 }}
-            transition={{ type: 'spring', damping: 30, stiffness: 300 }}
+            transition={{ type: 'spring', damping: 32, stiffness: 320, mass: 0.8 }}
             className={cn(
-              "fixed inset-0 md:inset-auto md:bottom-4 md:right-4",
-              "md:w-[480px] md:h-[640px] md:rounded-2xl",
+              "fixed inset-x-0 bottom-0 md:inset-auto md:bottom-5 md:right-5",
+              "md:w-[460px] md:h-[660px]",
+              "rounded-t-3xl md:rounded-3xl",
               "bg-background z-[71] flex flex-col",
-              "shadow-2xl md:border border-border overflow-hidden"
+              "shadow-2xl border border-border/40 overflow-hidden"
             )}
           >
-            {/* Minimal header */}
-            <div className="flex items-center justify-between px-4 py-3 border-b border-border/50">
-              <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold text-foreground">Welile AI</span>
-                <span className="text-[10px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-medium">Beta</span>
+            {/* Header */}
+            <div className="relative flex items-center justify-between px-4 py-3.5 border-b border-border/40 bg-background/95 backdrop-blur-md">
+              {/* Drag handle for mobile */}
+              <div className="absolute top-2 left-1/2 -translate-x-1/2 w-10 h-1 rounded-full bg-muted-foreground/20 md:hidden" />
+
+              <div className="flex items-center gap-2.5 mt-2 md:mt-0">
+                <div className="h-8 w-8 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center">
+                  <Sparkles className="h-4 w-4 text-primary" />
+                </div>
+                <div>
+                  <div className="flex items-center gap-1.5">
+                    <span className="text-sm font-bold text-foreground tracking-tight">Welile AI</span>
+                    <span className="text-[9px] px-1.5 py-0.5 rounded-full bg-primary/10 text-primary font-semibold uppercase tracking-wide">Beta</span>
+                  </div>
+                  <p className="text-[10px] text-muted-foreground leading-none mt-0.5">Your earnings assistant</p>
+                </div>
               </div>
-              <div className="flex items-center gap-1">
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
-                  onClick={() => { if (confirm('Start a new chat?')) clearHistory(); }}
-                  title="New chat"
-                >
-                  <RotateCcw className="h-4 w-4 text-muted-foreground" />
-                </Button>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="h-8 w-8 rounded-lg"
+
+              <div className="flex items-center gap-1 mt-2 md:mt-0">
+                <AnimatePresence mode="wait">
+                  {hasMessages && (
+                    <motion.button
+                      key="clear"
+                      initial={{ opacity: 0, scale: 0.8 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.8 }}
+                      onClick={handleClear}
+                      className={cn(
+                        "h-8 px-2.5 rounded-xl text-[11px] font-semibold transition-all flex items-center gap-1",
+                        confirmClear
+                          ? "bg-destructive/15 text-destructive border border-destructive/30"
+                          : "hover:bg-muted text-muted-foreground"
+                      )}
+                      title="Clear chat"
+                    >
+                      {confirmClear ? (
+                        <><RotateCcw className="h-3 w-3" /> Confirm?</>
+                      ) : (
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      )}
+                    </motion.button>
+                  )}
+                </AnimatePresence>
+                <button
                   onClick={() => onOpenChange(false)}
+                  className="h-8 w-8 rounded-xl hover:bg-muted flex items-center justify-center transition-colors"
                 >
                   <X className="h-4 w-4 text-muted-foreground" />
-                </Button>
+                </button>
               </div>
             </div>
 
-            {/* Main content area */}
+            {/* Messages area */}
             <div
               ref={scrollRef}
               onScroll={handleScroll}
-              className="flex-1 overflow-y-auto"
+              className="flex-1 overflow-y-auto overscroll-contain scroll-smooth"
             >
-              {!hasMessages && !isLoading ? (
-                /* ChatGPT-style empty state */
-                <div className="flex flex-col items-center justify-center h-full px-6">
-                  <div className="h-14 w-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-5">
-                    <Bot className="h-7 w-7 text-primary" />
-                  </div>
-                  <h2 className="text-lg font-semibold text-foreground mb-1">How can I help you earn?</h2>
-                  <p className="text-sm text-muted-foreground text-center mb-8 max-w-[280px]">
-                    Ask me about earnings, receipts, referrals, or anything on Welile.
-                  </p>
+              <AnimatePresence mode="wait">
+                {!hasMessages && !isLoading ? (
+                  /* Empty state */
+                  <motion.div
+                    key="empty"
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -8 }}
+                    transition={{ duration: 0.3 }}
+                    className="flex flex-col items-center justify-center min-h-full px-5 py-8"
+                  >
+                    <motion.div
+                      initial={{ scale: 0.8, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      transition={{ delay: 0.1, type: 'spring', stiffness: 300 }}
+                      className="h-16 w-16 rounded-2xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center mb-4 shadow-lg shadow-primary/10"
+                    >
+                      <Sparkles className="h-8 w-8 text-primary" />
+                    </motion.div>
 
-                  {/* Earning prediction inline */}
-                  <Suspense fallback={null}>
-                    <div className="w-full max-w-[340px] mb-4">
-                      <EarningPredictionCard />
-                    </div>
-                  </Suspense>
+                    <motion.div
+                      initial={{ opacity: 0, y: 8 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.2 }}
+                      className="text-center mb-6"
+                    >
+                      <h2 className="text-lg font-bold text-foreground mb-1">How can I help you earn?</h2>
+                      <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
+                        Ask about earnings, deposits, referrals, or anything Welile.
+                      </p>
+                    </motion.div>
 
-                  {/* Suggestion grid */}
-                  <div className="grid grid-cols-2 gap-2 w-full max-w-[340px]">
-                    {SUGGESTIONS.map((s) => (
-                      <button
-                        key={s.text}
-                        onClick={() => sendMessage(s.text)}
-                        className="flex items-start gap-2 p-3 rounded-xl border border-border/60 bg-card hover:bg-accent/40 transition-colors text-left group"
+                    {/* Earning prediction */}
+                    <Suspense fallback={null}>
+                      <motion.div
+                        initial={{ opacity: 0, y: 12 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="w-full max-w-[340px] mb-4"
                       >
-                        <span className="text-base leading-none mt-0.5">{s.icon}</span>
-                        <span className="text-xs text-foreground/80 group-hover:text-foreground leading-snug">{s.text}</span>
-                      </button>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                /* Messages */
-                <div className="max-w-[680px] mx-auto w-full">
-                  {messages.map((msg) => (
-                    <div key={msg.id}>
-                      <div
-                        className={cn(
-                          "px-4 md:px-6 py-4",
-                          msg.role === 'assistant' ? 'bg-transparent' : 'bg-transparent'
-                        )}
-                      >
-                        <div className="flex gap-3 max-w-full">
-                          {/* Avatar */}
-                          <div className={cn(
-                            "h-7 w-7 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5",
-                            msg.role === 'assistant' 
-                              ? 'bg-primary/10 border border-primary/20' 
-                              : 'bg-foreground/10'
-                          )}>
-                            {msg.role === 'assistant' ? (
-                              <Bot className="h-4 w-4 text-primary" />
-                            ) : (
-                              <User className="h-4 w-4 text-foreground/70" />
-                            )}
-                          </div>
+                        <EarningPredictionCard />
+                      </motion.div>
+                    </Suspense>
 
-                          {/* Content */}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-xs font-semibold text-foreground/60 mb-1">
-                              {msg.role === 'assistant' ? 'Welile AI' : 'You'}
-                            </p>
-                            {msg.role === 'assistant' ? (
-                              <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&>p]:mb-2.5 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>ul]:pl-4 [&>ol]:pl-4 [&_li]:mb-1">
-                                <ReactMarkdown
-                                  components={{
-                                    a: ({ href, children }) => (
-                                      <a
-                                        href={href}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
-                                        onClick={(e) => e.stopPropagation()}
-                                      >
-                                        {children}
-                                      </a>
-                                    ),
-                                  }}
-                                >
-                                  {msg.content}
-                                </ReactMarkdown>
+                    {/* Suggestion pills */}
+                    <motion.div
+                      initial={{ opacity: 0, y: 12 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.35 }}
+                      className="grid grid-cols-2 gap-2 w-full max-w-[340px]"
+                    >
+                      {SUGGESTIONS.map((s, i) => (
+                        <motion.button
+                          key={s.text}
+                          initial={{ opacity: 0, y: 8 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          transition={{ delay: 0.4 + i * 0.06 }}
+                          onClick={() => sendMessage(s.text)}
+                          className="flex items-start gap-2 p-3 rounded-2xl border border-border/60 bg-card hover:bg-accent/30 hover:border-border active:scale-95 transition-all text-left group"
+                        >
+                          <span className="text-base leading-none mt-0.5 flex-shrink-0">{s.icon}</span>
+                          <span className="text-xs text-foreground/75 group-hover:text-foreground leading-snug font-medium">{s.text}</span>
+                        </motion.button>
+                      ))}
+                    </motion.div>
+                  </motion.div>
+                ) : (
+                  /* Messages list */
+                  <motion.div
+                    key="messages"
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    className="py-4 space-y-1"
+                  >
+                    {messages.map((msg, idx) => (
+                      <motion.div
+                        key={msg.id}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ duration: 0.25, delay: idx === messages.length - 1 ? 0 : 0 }}
+                      >
+                        {/* Message bubble */}
+                        <div className={cn(
+                          "px-4 py-2",
+                          msg.role === 'user' ? 'flex justify-end' : ''
+                        )}>
+                          {msg.role === 'user' ? (
+                            /* User bubble */
+                            <div className="max-w-[80%] px-4 py-2.5 rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-sm">
+                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            </div>
+                          ) : (
+                            /* AI message with avatar */
+                            <div className="flex gap-2.5 max-w-full">
+                              <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center flex-shrink-0 mt-0.5 shadow-sm">
+                                <Bot className="h-3.5 w-3.5 text-primary" />
                               </div>
-                            ) : (
-                              <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
-                            )}
-                          </div>
+                              <div className="flex-1 min-w-0 pt-0.5">
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed
+                                  [&>p]:mb-2 [&>p:last-child]:mb-0
+                                  [&>ul]:mb-2 [&>ol]:mb-2 [&>ul]:pl-4 [&>ol]:pl-4 [&_li]:mb-0.5
+                                  [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm
+                                  [&>strong]:font-semibold [&>code]:bg-muted [&>code]:px-1 [&>code]:rounded
+                                ">
+                                  <ReactMarkdown
+                                    components={{
+                                      a: ({ href, children }) => (
+                                        <a
+                                          href={href}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+                                          onClick={(e) => e.stopPropagation()}
+                                        >
+                                          {children}
+                                        </a>
+                                      ),
+                                    }}
+                                  >
+                                    {msg.content}
+                                  </ReactMarkdown>
+                                </div>
+                              </div>
+                            </div>
+                          )}
                         </div>
-                      </div>
 
-                      {/* Deposit button + share banner after assistant messages */}
-                      {msg.role === 'assistant' && msg.id !== 'streaming' && (
-                        <div className="px-4 md:px-6 pb-3 pl-14 md:pl-16 flex flex-col gap-2">
-                          <Button
-                            size="sm"
-                            onClick={() => setDepositOpen(true)}
-                            className="w-full h-9 text-xs font-semibold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 text-white border-0"
+                        {/* CTA after last AI message (non-streaming) */}
+                        {msg.role === 'assistant' && msg.id !== 'streaming' && idx === messages.length - 1 && (
+                          <motion.div
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: 0.3 }}
+                            className="px-4 pt-1 pb-2 ml-[38px] flex flex-col gap-2"
                           >
-                            <Smartphone className="h-3.5 w-3.5 mr-1.5" />
-                            Deposit via MTN / Airtel Money
-                          </Button>
-                          <ShareWelileAIBanner />
-                        </div>
-                      )}
-                    </div>
-                  ))}
+                            <button
+                              onClick={() => setDepositOpen(true)}
+                              className="w-full h-10 px-4 rounded-2xl text-xs font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 active:scale-95 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20"
+                            >
+                              <Smartphone className="h-3.5 w-3.5 flex-shrink-0" />
+                              Deposit via MTN / Airtel Money
+                            </button>
+                            <ShareWelileAIBanner />
+                          </motion.div>
+                        )}
+                      </motion.div>
+                    ))}
 
-                  {/* Typing indicator */}
-                  {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
-                    <div className="px-4 md:px-6 py-4">
-                      <div className="flex gap-3">
-                        <div className="h-7 w-7 rounded-lg bg-primary/10 border border-primary/20 flex items-center justify-center flex-shrink-0">
-                          <Bot className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-xs font-semibold text-foreground/60 mb-1">Welile AI</p>
-                          <div className="flex gap-1 py-2">
-                            <span className="h-2 w-2 rounded-full bg-foreground/30 animate-bounce [animation-delay:0ms]" />
-                            <span className="h-2 w-2 rounded-full bg-foreground/30 animate-bounce [animation-delay:150ms]" />
-                            <span className="h-2 w-2 rounded-full bg-foreground/30 animate-bounce [animation-delay:300ms]" />
+                    {/* Typing indicator */}
+                    {isLoading && messages[messages.length - 1]?.role !== 'assistant' && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 8 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="px-4 py-2"
+                      >
+                        <div className="flex gap-2.5">
+                          <div className="h-7 w-7 rounded-xl bg-gradient-to-br from-primary/20 to-primary/5 border border-primary/20 flex items-center justify-center flex-shrink-0 shadow-sm">
+                            <Bot className="h-3.5 w-3.5 text-primary" />
+                          </div>
+                          <div className="flex items-center gap-1 py-2.5 px-3 rounded-2xl rounded-bl-sm bg-muted/60">
+                            {[0, 150, 300].map((delay) => (
+                              <span
+                                key={delay}
+                                className="h-2 w-2 rounded-full bg-foreground/40 animate-bounce"
+                                style={{ animationDelay: `${delay}ms` }}
+                              />
+                            ))}
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
+                      </motion.div>
+                    )}
 
-                  {/* Bottom spacing */}
-                  <div className="h-4" />
-                </div>
-              )}
+                    <div className="h-2" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
             </div>
 
-            {/* Scroll to bottom */}
+            {/* Scroll to bottom button */}
             <AnimatePresence>
               {showScrollDown && (
                 <motion.button
-                  initial={{ opacity: 0, y: 10 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.8 }}
                   onClick={scrollToBottom}
-                  className="absolute bottom-28 left-1/2 -translate-x-1/2 h-8 w-8 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10"
+                  className="absolute bottom-24 right-4 h-8 w-8 rounded-full bg-background border border-border shadow-lg flex items-center justify-center z-10"
                 >
                   <ChevronDown className="h-4 w-4 text-muted-foreground" />
                 </motion.button>
               )}
             </AnimatePresence>
 
-            {/* ChatGPT-style input area */}
-            <div className="px-3 pb-3 pt-2">
-              <div className="relative flex items-end rounded-2xl border border-border/80 bg-muted/30 focus-within:border-primary/40 focus-within:ring-1 focus-within:ring-primary/20 transition-all">
+            {/* Input area */}
+            <div className="px-3 pb-4 pt-2 bg-background/95 backdrop-blur-sm border-t border-border/40">
+              <div className={cn(
+                "relative flex items-end gap-2 rounded-2xl border bg-muted/30 transition-all duration-200",
+                "focus-within:border-primary/40 focus-within:ring-2 focus-within:ring-primary/10 focus-within:bg-background",
+                "border-border/60"
+              )}>
                 <textarea
                   ref={inputRef}
                   value={input}
-                  onChange={(e) => setInput(e.target.value)}
+                  onChange={handleInputChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Message Welile AI..."
                   rows={1}
                   className={cn(
-                    "flex-1 resize-none bg-transparent px-4 py-3 pr-12",
-                    "text-base md:text-sm placeholder:text-muted-foreground/60",
-                    "focus:outline-none",
-                    "max-h-32 touch-manipulation"
+                    "flex-1 resize-none bg-transparent px-4 py-3 pr-2",
+                    "text-base md:text-sm placeholder:text-muted-foreground/50",
+                    "focus:outline-none leading-relaxed",
+                    "touch-manipulation"
                   )}
-                  style={{ minHeight: '44px' }}
+                  style={{ minHeight: '44px', maxHeight: '128px' }}
                 />
-                <button
+                <motion.button
                   onClick={isLoading ? cancelStream : handleSend}
                   disabled={!isLoading && !input.trim()}
+                  whileTap={!(!isLoading && !input.trim()) ? { scale: 0.9 } : {}}
                   className={cn(
-                    "absolute right-2 bottom-2 h-8 w-8 rounded-lg flex items-center justify-center transition-all",
+                    "flex-shrink-0 mr-2 mb-2 h-9 w-9 rounded-xl flex items-center justify-center transition-all duration-200",
                     (isLoading || input.trim())
-                      ? "bg-primary text-primary-foreground hover:bg-primary/90"
-                      : "bg-foreground/10 text-foreground/30"
+                      ? "bg-primary text-primary-foreground shadow-md shadow-primary/25 hover:bg-primary/90"
+                      : "bg-muted text-muted-foreground/50 cursor-not-allowed"
                   )}
                 >
                   {isLoading ? (
-                    <X className="h-4 w-4" />
+                    <Square className="h-3.5 w-3.5 fill-current" />
                   ) : (
                     <Send className="h-4 w-4" />
                   )}
-                </button>
+                </motion.button>
               </div>
-              <p className="text-[10px] text-center text-muted-foreground/50 mt-1.5">
+              <p className="text-[10px] text-center text-muted-foreground/40 mt-1.5 leading-none">
                 Welile AI can make mistakes. Verify important info.
               </p>
             </div>
           </motion.div>
         </>
       )}
+
       <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
     </AnimatePresence>
   );
