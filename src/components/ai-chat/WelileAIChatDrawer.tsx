@@ -123,6 +123,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
   const hasMessages = messages.length > 0;
 
   return (
+    <>
     <AnimatePresence>
       {open && (
         <>
@@ -464,7 +465,10 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
         </>
       )}
 
-      <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
     </AnimatePresence>
+
+    {/* Deposit dialog — rendered outside AnimatePresence so it's always in the DOM */}
+    <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+    </>
   );
 }
