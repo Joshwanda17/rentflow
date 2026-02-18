@@ -59,7 +59,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
                 <TrendingUp className="h-4 w-4 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Credit Access</p>
+                <p className="text-xs text-muted-foreground">Available Loan</p>
                 <p className="font-bold text-sm text-primary">
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
@@ -87,7 +87,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
             disabled={limit.totalLimit <= 0}
             className="w-full mt-2 flex items-center justify-center gap-1.5 py-1.5 rounded-xl bg-primary text-primary-foreground text-[11px] font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation"
           >
-            <Send className="h-3 w-3" /> Request Credit
+            <Send className="h-3 w-3" /> Apply Now
           </button>
           <CreditRequestSheet open={sheetOpen} onOpenChange={setSheetOpen} userId={userId} creditLimit={limit.totalLimit} />
         </CardContent>
@@ -101,17 +101,17 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="overflow-hidden border-primary/20 bg-gradient-to-br from-primary/[0.04] to-transparent">
+      <Card className="overflow-hidden border-primary/30 bg-gradient-to-br from-primary/[0.08] via-primary/[0.03] to-transparent shadow-lg shadow-primary/10">
         <CardContent className="p-4 space-y-3">
           {/* Header */}
           <div className="flex items-start justify-between">
             <div className="flex items-center gap-2.5">
-              <div className="p-2 rounded-xl bg-primary/10">
+              <div className="p-2 rounded-xl bg-primary/15 ring-1 ring-primary/20">
                 <TrendingUp className="h-5 w-5 text-primary" />
               </div>
               <div>
-                <p className="text-xs text-muted-foreground font-medium">Your Credit Access</p>
-                <p className="font-bold text-xl text-foreground">
+                <p className="text-[10px] uppercase tracking-widest text-muted-foreground font-semibold">Your Available Loan</p>
+                <p className="font-black text-2xl text-foreground leading-tight">
                   {formatCreditAmount(limit.totalLimit, currency)}
                 </p>
               </div>
@@ -136,7 +136,7 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
 
           {/* Progress Bar */}
           <div className="space-y-1.5">
-            <Progress value={progressPercentage} className="h-2" />
+            <Progress value={progressPercentage} className="h-2.5 rounded-full" />
             <div className="flex justify-between text-[10px] text-muted-foreground">
               <span>{formatCreditAmount(MIN_LIMIT, currency)}</span>
               <span>{formatCreditAmount(MAX_LIMIT, currency)}</span>
@@ -196,14 +196,17 @@ export function CreditAccessCard({ userId, showBreakdown = true, compact = false
             )}
           </AnimatePresence>
 
-          {/* Request Credit Button */}
-          <button
+          {/* Apply Now Button */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
             onClick={handleRequestCredit}
             disabled={limit.totalLimit <= 0}
-            className="w-full flex items-center justify-center gap-2 py-2.5 rounded-xl bg-primary text-primary-foreground text-sm font-bold active:scale-[0.97] transition-transform disabled:opacity-50 touch-manipulation shadow-lg shadow-primary/20"
+            className="w-full relative overflow-hidden flex items-center justify-center gap-2 py-3 rounded-2xl bg-primary text-primary-foreground text-sm font-black tracking-wide disabled:opacity-50 touch-manipulation shadow-xl shadow-primary/30 active:scale-[0.97] transition-transform"
           >
-            <Send className="h-4 w-4" /> Request Credit from Funders
-          </button>
+            <span className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-full animate-[shimmer_2s_infinite]" />
+            <Send className="h-4 w-4" />
+            ⚡ Apply Now — Instant Decision
+          </motion.button>
         </CardContent>
       </Card>
 
