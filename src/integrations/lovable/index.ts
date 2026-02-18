@@ -2,17 +2,21 @@
 
 import { createLovableAuth } from "@lovable.dev/cloud-auth-js";
 import { supabase } from "../supabase/client";
-// Use the hosted OAuth broker to avoid relying on a local /~oauth route (which can 404 on some domains).
-const lovableAuth = createLovableAuth({
-  oauthBrokerUrl: "https://oauth.lovable.app/~oauth/initiate",
-  supportedOAuthOrigins: ["https://oauth.lovable.app"],
-});
+const lovableAuth = createLovableAuth();
+
+type SignInOptions = {
+  redirect_uri?: string;
+  extraParams?: Record<string, string>;
+};
 
 export const lovable = {
   auth: {
-    signInWithOAuth: async (provider: "google" | "apple", opts?: { redirect_uri?: string }) => {
+    signInWithOAuth: async (provider: "google" | "apple", opts?: SignInOptions) => {
       const result = await lovableAuth.signInWithOAuth(provider, {
-        ...opts,
+        redirect_uri: opts?.redirect_uri,
+        extraParams: {
+          ...opts?.extraParams,
+        },
       });
 
       if (result.redirected) {
