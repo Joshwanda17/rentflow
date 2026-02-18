@@ -86,17 +86,25 @@ export default function AddBalanceDialog({
       const newBalance = Math.max(0, wallet.balance + delta);
 
       // Optimistic lock update — verify rows were actually changed
-      const { data: updatedWallet, error: updateError } = await supabase
+      const { data: updatedRows, error: updateError } = await supabase
         .from('wallets')
         .update({ balance: newBalance, updated_at: new Date().toISOString() })
         .eq('user_id', userId)
         .eq('balance', wallet.balance)
-        .select()
-        .maybeSingle();
+        .select();
 
       if (updateError) throw updateError;
-      if (!updatedWallet) {
-        toast.error('Balance changed while updating. Please close and try again.');
+      if (!updatedRows || updatedRows.length === 0) {
+        // Re-fetch to show current balance
+        const { data: freshWallet } = await supabase
+          .from('wallets')
+          .select('balance')
+          .eq('user_id', userId)
+          .single();
+        const msg = freshWallet
+          ? `Balance changed (now ${formatUGX(freshWallet.balance)}). Please close and try again.`
+          : 'Balance changed while updating. Please close and try again.';
+        toast.error(msg);
         return;
       }
 
