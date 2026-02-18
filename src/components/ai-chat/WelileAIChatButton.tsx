@@ -49,7 +49,7 @@ export function WelileAITrigger() {
 export default function WelileAIChatButton() {
   const [open, setOpen] = useState(false);
   const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
+  const didDragRef = useRef(false);
   const constraintsRef = useRef<HTMLDivElement>(null);
 
   // Load saved position
@@ -61,16 +61,24 @@ export default function WelileAIChatButton() {
   }, []);
 
   const handleClick = () => {
-    if (!isDragging) setOpen(true);
+    if (!didDragRef.current) setOpen(true);
   };
 
-  const handleDragStart = () => setIsDragging(true);
+  const handleDragStart = () => {
+    didDragRef.current = false;
+  };
 
   const handleDragEnd = (_: any, info: PanInfo) => {
-    setTimeout(() => setIsDragging(false), 100);
-    const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
-    setPosition(newPos);
-    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newPos)); } catch {}
+    // Only treat as a drag if pointer moved more than 8px
+    const moved = Math.abs(info.offset.x) + Math.abs(info.offset.y);
+    if (moved > 8) {
+      didDragRef.current = true;
+      const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
+      setPosition(newPos);
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newPos)); } catch {}
+    } else {
+      didDragRef.current = false;
+    }
   };
 
   return (
@@ -88,7 +96,7 @@ export default function WelileAIChatButton() {
         initial={{ scale: 0, opacity: 0, x: position.x, y: position.y }}
         animate={{ scale: 1, opacity: 1, x: position.x, y: position.y }}
         transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        whileHover={{ scale: isDragging ? 1 : 1.08 }}
+        whileHover={{ scale: 1.08 }}
         whileTap={{ scale: 0.93 }}
         whileDrag={{ scale: 1.12, cursor: 'grabbing' }}
         onClick={handleClick}
