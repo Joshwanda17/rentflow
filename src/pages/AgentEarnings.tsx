@@ -18,7 +18,7 @@ import { hapticTap } from '@/lib/haptics';
 export default function AgentEarnings() {
   const navigate = useNavigate();
   const { user, role, loading: authLoading } = useAuth();
-  const { earnings, loading, totalEarnings, commissionTotal, bonusTotal, refreshEarnings } = useAgentEarnings();
+  const { earnings, loading, totalEarnings, commissionTotal, bonusTotal, availableToWithdraw, totalPaidOut, refreshEarnings } = useAgentEarnings();
   const [payoutDialogOpen, setPayoutDialogOpen] = useState(false);
 
   useEffect(() => {
@@ -197,19 +197,32 @@ export default function AgentEarnings() {
           </Card>
         </div>
 
-        {/* Request Payout Button */}
-        {totalEarnings > 0 && (
-          <Button
-            onClick={() => {
-              hapticTap();
-              setPayoutDialogOpen(true);
-            }}
-            className="w-full h-14 mb-6 bg-success hover:bg-success/90 text-lg gap-2"
-          >
-            <Banknote className="h-5 w-5" />
-            Request Commission Payout
-          </Button>
-        )}
+        {/* Available to Withdraw Banner */}
+        <Card className="mb-4 border-success/30 bg-success/5">
+          <CardContent className="p-4 flex items-center justify-between">
+            <div>
+              <p className="text-xs text-muted-foreground">Available to Withdraw</p>
+              <p className="text-2xl font-bold font-mono text-success">{formatUGX(availableToWithdraw)}</p>
+              {totalPaidOut > 0 && (
+                <p className="text-xs text-muted-foreground mt-1">
+                  Already withdrawn: {formatUGX(totalPaidOut)}
+                </p>
+              )}
+            </div>
+            {availableToWithdraw > 0 && (
+              <Button
+                onClick={() => {
+                  hapticTap();
+                  setPayoutDialogOpen(true);
+                }}
+                className="bg-success hover:bg-success/90 gap-2"
+              >
+                <Banknote className="h-4 w-4" />
+                Withdraw
+              </Button>
+            )}
+          </CardContent>
+        </Card>
 
         {/* Mobile Money Settings */}
         <div className="mb-6">
@@ -296,7 +309,7 @@ export default function AgentEarnings() {
       <RequestCommissionPayoutDialog
         open={payoutDialogOpen}
         onOpenChange={setPayoutDialogOpen}
-        availableBalance={totalEarnings}
+        availableBalance={availableToWithdraw}
         onSuccess={refreshEarnings}
       />
     </div>
