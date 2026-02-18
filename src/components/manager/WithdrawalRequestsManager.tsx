@@ -898,7 +898,7 @@ export function WithdrawalRequestsManager() {
                                 <Button
                                   size="sm"
                                   onClick={() => handleApproveClick(request)}
-                                  disabled={processing === request.id || (request.wallet_balance !== undefined && request.amount > request.wallet_balance)}
+                                  disabled={processing === request.id}
                                   className="gap-1"
                                 >
                                   {processing === request.id ? (
