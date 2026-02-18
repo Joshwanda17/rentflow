@@ -153,6 +153,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         signUpWithoutRole: ops.signUpWithoutRole,
         signIn: ops.signIn,
         signInWithGoogle: ops.signInWithGoogle,
+        signInWithApple: ops.signInWithApple,
         signOut,
         switchRole,
         addRole,
