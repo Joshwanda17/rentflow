@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -228,6 +228,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [currentPage, setCurrentPage] = useState(1);
   const [usersPerPage, setUsersPerPage] = useState(10);
   const [withdrawalStats, setWithdrawalStats] = useState<{ pending: number; approved: number; rejected: number; pendingAmount: number; approvedAmount: number; rejectedAmount: number }>({ pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 });
+  const [withdrawalSectionOpen, setWithdrawalSectionOpen] = useState(false);
+  const withdrawalSectionRef = useRef<HTMLDivElement>(null);
 
   // Compute online users from topOnboarders list
   const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
@@ -905,7 +907,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* Withdrawal Stats Overview */}
         <div className="grid grid-cols-3 gap-2">
-          <Card className="border-warning/30 bg-warning/5">
+          <Card 
+            className="border-warning/30 bg-warning/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+            onClick={() => {
+              setWithdrawalSectionOpen(true);
+              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+            }}
+          >
             <CardContent className="p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <Clock className="h-4 w-4 text-warning" />
@@ -915,7 +923,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.pendingAmount)}</p>
             </CardContent>
           </Card>
-          <Card className="border-success/30 bg-success/5">
+          <Card 
+            className="border-success/30 bg-success/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+            onClick={() => {
+              setWithdrawalSectionOpen(true);
+              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+            }}
+          >
             <CardContent className="p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <CheckCircle className="h-4 w-4 text-success" />
@@ -925,7 +939,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.approvedAmount)}</p>
             </CardContent>
           </Card>
-          <Card className="border-destructive/30 bg-destructive/5">
+          <Card 
+            className="border-destructive/30 bg-destructive/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+            onClick={() => {
+              setWithdrawalSectionOpen(true);
+              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+            }}
+          >
             <CardContent className="p-3 text-center">
               <div className="flex items-center justify-center gap-1 mb-1">
                 <ArrowDownToLine className="h-4 w-4 text-destructive" />
@@ -938,13 +958,17 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </div>
 
         {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
-        <CollapsibleAgentSection
-          icon={Wallet}
-          label="Wallet Withdrawals"
-          iconColor="text-warning"
-        >
-          <WithdrawalRequestsManager />
-        </CollapsibleAgentSection>
+        <div ref={withdrawalSectionRef}>
+          <CollapsibleAgentSection
+            icon={Wallet}
+            label="Wallet Withdrawals"
+            iconColor="text-warning"
+            isOpen={withdrawalSectionOpen}
+            onToggle={() => setWithdrawalSectionOpen(!withdrawalSectionOpen)}
+          >
+            <WithdrawalRequestsManager />
+          </CollapsibleAgentSection>
+        </div>
 
         {/* Financial Ledger Summary — Cash In/Out, Withdrawal Details, Printable */}
         <CollapsibleAgentSection
