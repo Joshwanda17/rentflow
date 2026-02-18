@@ -352,10 +352,22 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                             className="px-4 pt-2 pb-2 ml-[38px] flex flex-col gap-2"
                           >
                             <button
-                              onClick={() => setDepositOpen(true)}
-                              className="w-full h-11 px-4 rounded-2xl text-xs font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 active:scale-95 text-white flex items-center justify-center gap-2 transition-all shadow-md shadow-orange-500/20"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setDepositOpen(true);
+                              }}
+                              onPointerDown={(e) => e.stopPropagation()}
+                              onTouchEnd={(e) => {
+                                e.stopPropagation();
+                                e.preventDefault();
+                                setDepositOpen(true);
+                              }}
+                              className="w-full h-14 px-4 rounded-2xl text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 active:scale-95 text-white flex items-center justify-center gap-2.5 transition-all shadow-md shadow-orange-500/20 touch-manipulation select-none"
+                              style={{ WebkitTapHighlightColor: 'transparent' }}
                             >
-                              <Smartphone className="h-3.5 w-3.5 flex-shrink-0" />
+                              <Smartphone className="h-4 w-4 flex-shrink-0" />
                               Deposit via MTN / Airtel Money
                             </button>
                             <ShareWelileAIBanner />
@@ -467,8 +479,10 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
     </AnimatePresence>
 
-    {/* Deposit dialog — rendered outside AnimatePresence so it's always in the DOM */}
-    <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+    {/* Deposit dialog — rendered outside AnimatePresence at highest z-index */}
+    <div style={{ position: 'relative', zIndex: 9999 }}>
+      <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+    </div>
     </>
   );
 }
