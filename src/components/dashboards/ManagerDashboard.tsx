@@ -957,6 +957,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </Card>
         </div>
 
+        {/* Fraud Report Button */}
+        <Button
+          variant="destructive"
+          size="sm"
+          className="w-full gap-2"
+          onClick={async () => {
+            toast.info('Generating fraud report...');
+            try {
+              const { generateFraudReportPDF } = await import('@/lib/fraudReportPDF');
+              await generateFraudReportPDF();
+              toast.success('Fraud report downloaded!');
+            } catch (e) {
+              console.error(e);
+              toast.error('Failed to generate report');
+            }
+          }}
+        >
+          <Shield className="h-4 w-4" />
+          Download Fraud Report (PDF)
+        </Button>
+
         {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
         <div ref={withdrawalSectionRef}>
           <CollapsibleAgentSection
