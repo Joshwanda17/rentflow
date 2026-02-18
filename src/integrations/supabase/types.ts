@@ -2528,6 +2528,20 @@ export type Database = {
         }
         Relationships: []
       }
+      platform_stats: {
+        Row: {
+          active_disbursements: number | null
+          refreshed_at: string | null
+          total_agents: number | null
+          total_disbursed_amount: number | null
+          total_landlords: number | null
+          total_rent_requests: number | null
+          total_supporters: number | null
+          total_tenants: number | null
+          total_users: number | null
+        }
+        Relationships: []
+      }
       referral_leaderboard: {
         Row: {
           avatar_url: string | null
@@ -2572,6 +2586,8 @@ export type Database = {
     }
     Functions: {
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      cleanup_expired_otps: { Args: never; Returns: undefined }
+      cleanup_old_system_events: { Args: never; Returns: undefined }
       create_direct_conversation: {
         Args: { other_user_id: string }
         Returns: string
