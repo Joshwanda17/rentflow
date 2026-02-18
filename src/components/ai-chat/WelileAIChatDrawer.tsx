@@ -189,7 +189,23 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                             </p>
                             {msg.role === 'assistant' ? (
                               <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed [&>p]:mb-2.5 [&>p:last-child]:mb-0 [&>ul]:mb-2 [&>ol]:mb-2 [&>ul]:pl-4 [&>ol]:pl-4 [&_li]:mb-1">
-                                <ReactMarkdown>{msg.content}</ReactMarkdown>
+                                <ReactMarkdown
+                                  components={{
+                                    a: ({ href, children }) => (
+                                      <a
+                                        href={href}
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                        className="text-primary underline underline-offset-2 hover:text-primary/80 font-medium"
+                                        onClick={(e) => e.stopPropagation()}
+                                      >
+                                        {children}
+                                      </a>
+                                    ),
+                                  }}
+                                >
+                                  {msg.content}
+                                </ReactMarkdown>
                               </div>
                             ) : (
                               <p className="text-sm text-foreground whitespace-pre-wrap">{msg.content}</p>
