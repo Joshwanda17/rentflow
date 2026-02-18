@@ -143,40 +143,10 @@ export function useWallet() {
     }
   }, [user]);
 
-  const sendMoney = useCallback(async (recipientPhone: string, amount: number, description?: string) => {
-    if (!user || !wallet) return { error: new Error('Not authenticated') };
-    if (amount <= 0) return { error: new Error('Amount must be greater than 0') };
-    if (wallet.balance < amount) return { error: new Error('Insufficient balance') };
-
-    const { data: recipientProfile, error: profileError } = await supabase
-      .from('profiles')
-      .select('id, full_name')
-      .eq('phone', recipientPhone)
-      .maybeSingle();
-
-    if (profileError || !recipientProfile) return { error: new Error('Recipient not found') };
-    if (recipientProfile.id === user.id) return { error: new Error('Cannot send money to yourself') };
-
-    if (!navigator.onLine) {
-      await addToSyncQueue({
-        type: 'create',
-        table: 'wallet_transfers_queue',
-        data: { sender_id: user.id, recipient_id: recipientProfile.id, amount, description: description || `Transfer to ${recipientProfile.full_name}` },
-      });
-      const updatedWallet = { ...wallet, balance: wallet.balance - amount };
-      setWallet(updatedWallet);
-      await cacheWallet(updatedWallet);
-      return { data: { queued: true }, error: null };
-    }
-
-    const { data, error } = await supabase.functions.invoke('wallet-transfer', {
-      body: { recipient_id: recipientProfile.id, amount, description: description || `Transfer to ${recipientProfile.full_name}` },
-    });
-
-    if (error) return { error: new Error(error.message || 'Transfer failed') };
-    await Promise.all([fetchWallet(), fetchTransactions()]);
-    return { data, error: null };
-  }, [user, wallet, fetchWallet, fetchTransactions]);
+  const sendMoney = useCallback(async (_recipientPhone: string, _amount: number, _description?: string) => {
+    // FRAUD PREVENTION: All wallet transfers suspended
+    return { error: new Error('Wallet transfers are temporarily suspended for security review. Contact support for assistance.') };
+  }, []);
 
   const depositMoney = useCallback(async (_amount: number) => {
     // Direct client-side wallet updates are not allowed for security.

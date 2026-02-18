@@ -13,6 +13,12 @@ serve(async (req) => {
   }
 
   try {
+    // FRAUD PREVENTION: All wallet-to-wallet transfers are suspended
+    return new Response(
+      JSON.stringify({ error: 'Wallet transfers are temporarily suspended for security review. Contact support for assistance.' }),
+      { status: 403, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+    );
+
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     
