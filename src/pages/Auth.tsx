@@ -9,6 +9,7 @@ import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
 import { GoogleSignInButton } from '@/components/auth/GoogleSignInButton';
+import { AppleSignInButton } from '@/components/auth/AppleSignInButton';
 import { ReferralBanner } from '@/components/auth/ReferralBanner';
 import { AuthTabToggle } from '@/components/auth/AuthTabToggle';
 import { OtpVerificationStep } from '@/components/auth/OtpVerificationStep';
@@ -32,7 +33,7 @@ export default function Auth() {
     failedAttempts,
     rememberMe, setRememberMe,
     showPassword, setShowPassword,
-    isGoogleLoading,
+    isGoogleLoading, isAppleLoading,
     phoneInputRef, passwordInputRef,
     isDuplicate, isCheckingDuplicate, duplicateMessage,
     otpSent, otpVerified, otpLoading, otpError,
@@ -43,7 +44,7 @@ export default function Auth() {
     resetOtpCode, setResetOtpCode,
     resetNewPassword, setResetNewPassword,
     resetConfirmPassword, setResetConfirmPassword,
-    handleSubmit, handleGoogleSignIn,
+    handleSubmit, handleGoogleSignIn, handleAppleSignIn,
   } = useAuthForm();
 
   return (
@@ -80,14 +81,22 @@ export default function Auth() {
           <ReferralBanner referralId={referralId} becomeRole={becomeRole} />
 
           <Card className="border-border/50 shadow-lg overflow-hidden">
-            {/* Prominent Google sign-in for login view */}
+            {/* Prominent social sign-in for login view */}
             {!isForgotPassword && !isForgotPhone && !isSignUp && (
-              <GoogleSignInButton
-                onClick={handleGoogleSignIn}
-                disabled={isGoogleLoading || isLoading}
-                isLoading={isGoogleLoading}
-                variant="prominent"
-              />
+              <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30 space-y-3">
+                <GoogleSignInButton
+                  onClick={handleGoogleSignIn}
+                  disabled={isGoogleLoading || isAppleLoading || isLoading}
+                  isLoading={isGoogleLoading}
+                  variant="prominent"
+                />
+                <AppleSignInButton
+                  onClick={handleAppleSignIn}
+                  disabled={isGoogleLoading || isAppleLoading || isLoading}
+                  isLoading={isAppleLoading}
+                />
+                <p className="text-center text-xs text-muted-foreground">Fastest way to sign in</p>
+              </div>
             )}
 
             {/* Tab toggle - hidden during signup pause */}
@@ -473,14 +482,21 @@ export default function Auth() {
                 </Button>
               </form>
 
-              {/* Google button for signup */}
+              {/* Social buttons for signup */}
               {isSignUp && (
-                <GoogleSignInButton
-                  onClick={handleGoogleSignIn}
-                  disabled={isGoogleLoading || isLoading}
-                  isLoading={isGoogleLoading}
-                  variant="standard"
-                />
+                <div className="space-y-3">
+                  <GoogleSignInButton
+                    onClick={handleGoogleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isGoogleLoading}
+                    variant="standard"
+                  />
+                  <AppleSignInButton
+                    onClick={handleAppleSignIn}
+                    disabled={isGoogleLoading || isAppleLoading || isLoading}
+                    isLoading={isAppleLoading}
+                  />
+                </div>
               )}
 
               {/* Forgot phone link */}

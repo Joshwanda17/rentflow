@@ -41,6 +41,14 @@ export async function signInWithGoogle() {
   return { error: result.error ?? null };
 }
 
+export async function signInWithApple() {
+  const result = await lovable.auth.signInWithOAuth('apple', {
+    redirect_uri: `${window.location.origin}/auth`,
+  });
+  if (result.redirected) return { error: null };
+  return { error: result.error ?? null };
+}
+
 export async function signOutUser(userId: string | undefined) {
   // Activity log insert stubbed for performance
   await supabase.auth.signOut();

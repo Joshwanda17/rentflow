@@ -20,24 +20,21 @@ interface GoogleSignInButtonProps {
 export function GoogleSignInButton({ onClick, disabled, isLoading, variant = 'standard' }: GoogleSignInButtonProps) {
   if (variant === 'prominent') {
     return (
-      <div className="p-4 bg-gradient-to-r from-primary/5 to-primary/10 border-b border-border/30">
-        <Button
-          type="button"
-          variant="outline"
-          className="w-full gap-3 h-14 text-base bg-background hover:bg-muted/50 border-2 shadow-sm touch-manipulation active:scale-[0.98] transition-all"
-          onClick={onClick}
-          disabled={disabled}
-          style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
-        >
-          {isLoading ? (
-            <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
-          ) : (
-            <GoogleIcon />
-          )}
-          <span className="font-medium">Continue with Google</span>
-        </Button>
-        <p className="text-center text-xs text-muted-foreground mt-2">Fastest way to sign in</p>
-      </div>
+      <Button
+        type="button"
+        variant="outline"
+        className="w-full gap-3 h-14 text-base bg-background hover:bg-muted/50 border-2 shadow-sm touch-manipulation active:scale-[0.98] transition-all"
+        onClick={onClick}
+        disabled={disabled}
+        style={{ fontSize: '16px', WebkitTapHighlightColor: 'transparent' }}
+      >
+        {isLoading ? (
+          <div className="w-5 h-5 border-2 border-muted-foreground/30 border-t-muted-foreground rounded-full animate-spin" />
+        ) : (
+          <GoogleIcon />
+        )}
+        <span className="font-medium">Continue with Google</span>
+      </Button>
     );
   }
 

@@ -38,11 +38,12 @@ export function useAuthForm() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const [isAppleLoading, setIsAppleLoading] = useState(false);
 
   const phoneInputRef = useRef<HTMLInputElement>(null);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  const { signUpWithoutRole, signIn, signInWithGoogle, resetPassword, user, roles } = useAuth();
+  const { signUpWithoutRole, signIn, signInWithGoogle, signInWithApple, resetPassword, user, roles } = useAuth();
   const { isDuplicate, isChecking: isCheckingDuplicate, duplicateMessage } = usePhoneDuplicateCheck(phone, 400);
   const { otpSent, otpVerified, otpLoading, otpError, sendOtp, verifyOtp, resetOtp: resetOtpState } = useOtpVerification();
   const navigate = useNavigate();
@@ -399,6 +400,20 @@ export function useAuthForm() {
     }
   };
 
+  const handleAppleSignIn = async () => {
+    setIsAppleLoading(true);
+    try {
+      const { error } = await signInWithApple();
+      if (error) {
+        toast({ title: 'Apple Sign In Failed', description: error.message, variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Failed to sign in with Apple', variant: 'destructive' });
+    } finally {
+      setIsAppleLoading(false);
+    }
+  };
+
   return {
     // URL params
     referralId,
@@ -420,6 +435,7 @@ export function useAuthForm() {
     rememberMe, setRememberMe,
     showPassword, setShowPassword,
     isGoogleLoading,
+    isAppleLoading,
     // Refs
     phoneInputRef,
     passwordInputRef,
@@ -437,5 +453,6 @@ export function useAuthForm() {
     // Handlers
     handleSubmit,
     handleGoogleSignIn,
+    handleAppleSignIn,
   };
 }
