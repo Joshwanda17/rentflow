@@ -26,7 +26,9 @@ import {
   Square,
   CheckSquare,
   Minus,
-  Printer
+  Printer,
+  Share2,
+  ExternalLink
 } from 'lucide-react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -40,6 +42,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { UserAvatar } from '@/components/UserAvatar';
 import { format, formatDistanceToNow } from 'date-fns';
 import { exportToCSV } from '@/lib/exportUtils';
+import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -50,6 +53,11 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+
+interface FundSource {
+  category: string;
+  total: number;
+}
 
 interface WithdrawalRequest {
   id: string;
@@ -70,6 +78,7 @@ interface WithdrawalRequest {
     avatar_url: string | null;
   };
   wallet_balance?: number;
+  fund_sources?: FundSource[];
 }
 
 export function WithdrawalRequestsManager() {
@@ -83,10 +92,18 @@ export function WithdrawalRequestsManager() {
   const [rejectionReason, setRejectionReason] = useState('');
   const [transactionId, setTransactionId] = useState('');
   const [copiedId, setCopiedId] = useState<string | null>(null);
-  const [allRequests, setAllRequests] = useState<WithdrawalRequest[]>([]);
+  const [_allRequests, _setAllRequests] = useState<WithdrawalRequest[]>([]);
   const [exporting, setExporting] = useState(false);
   const [printing, setPrinting] = useState(false);
-  const [lastBalanceUpdate, setLastBalanceUpdate] = useState<Date>(new Date());
+  const [sharing, setSharing] = useState(false);
+
+  // User details dialog state
+  const [selectedUserForDetail, setSelectedUserForDetail] = useState<{
+    id: string; full_name: string; email: string; phone: string; avatar_url: string | null;
+    rent_discount_active: boolean; monthly_rent: number | null; roles: string[];
+    average_rating: number | null; rating_count: number; verified?: boolean;
+  } | null>(null);
+  const [userDetailOpen, setUserDetailOpen] = useState(false);
   
   // History state
   const [activeTab, setActiveTab] = useState<'pending' | 'history'>('pending');
@@ -128,25 +145,33 @@ export function WithdrawalRequestsManager() {
 
   const clearSelection = () => setSelectedIds(new Set());
 
-  // Function to refresh only wallet balances (lightweight)
-  const refreshWalletBalances = useCallback(async () => {
-    if (requests.length === 0) return;
-    
-    const userIds = [...new Set(requests.map(r => r.user_id))];
-    const { data: wallets } = await supabase
-      .from('wallets')
-      .select('user_id, balance')
-      .in('user_id', userIds);
-    
-    if (wallets) {
-      const walletMap = new Map(wallets.map(w => [w.user_id, w.balance]));
-      setRequests(prev => prev.map(r => ({
-        ...r,
-        wallet_balance: walletMap.get(r.user_id) ?? r.wallet_balance
-      })));
-      setLastBalanceUpdate(new Date());
+  // Open user details dialog by fetching full user data
+  const openUserDetail = useCallback(async (userId: string) => {
+    try {
+      const [profileRes, rolesRes] = await Promise.all([
+        supabase.from('profiles').select('*').eq('id', userId).single(),
+        supabase.from('user_roles').select('role').eq('user_id', userId),
+      ]);
+      if (profileRes.data) {
+        setSelectedUserForDetail({
+          id: profileRes.data.id,
+          full_name: profileRes.data.full_name,
+          email: profileRes.data.email,
+          phone: profileRes.data.phone,
+          avatar_url: profileRes.data.avatar_url,
+          rent_discount_active: profileRes.data.rent_discount_active,
+          monthly_rent: profileRes.data.monthly_rent ?? null,
+          roles: (rolesRes.data || []).map((r: any) => r.role),
+          average_rating: null,
+          rating_count: 0,
+          verified: profileRes.data.verified,
+        });
+        setUserDetailOpen(true);
+      }
+    } catch (e) {
+      console.error('Failed to load user details:', e);
     }
-  }, [requests]);
+  }, []);
 
   // Polling removed — violates no-polling rule. Manager refreshes manually.
 
@@ -226,6 +251,84 @@ export function WithdrawalRequestsManager() {
     }
   };
 
+  const buildPendingPdfHtml = (data: WithdrawalRequest[]) => {
+    const total = data.reduce((sum, r) => sum + r.amount, 0);
+    const rows = data.map((req, i) => {
+      const name = req.user?.full_name || 'Unknown';
+      const phone = req.user?.phone || '-';
+      const momoProvider = (req.mobile_money_provider || '-').toUpperCase();
+      const momoNumber = req.mobile_money_number || '-';
+      const momoName = req.mobile_money_name || '-';
+      const amount = formatCurrency(req.amount);
+      const date = format(new Date(req.created_at), 'MMM dd, yyyy HH:mm');
+      const walletBal = req.wallet_balance !== undefined ? formatCurrency(req.wallet_balance) : '-';
+      const timeAgo = formatDistanceToNow(new Date(req.created_at), { addSuffix: true });
+
+      const sourcesHtml = (req.fund_sources || []).length > 0
+        ? `<div style="margin-top:4px;font-size:10px;color:#555;">
+            ${(req.fund_sources || []).map(s => 
+              `<span style="display:inline-block;margin:1px 2px;padding:1px 6px;border-radius:3px;background:#f0f4ff;border:1px solid #c7d2fe;">
+                ${s.category}: <strong>${formatCurrency(s.total)}</strong>
+              </span>`
+            ).join('')}
+          </div>`
+        : `<div style="margin-top:4px;font-size:10px;color:#999;">No ledger sources found</div>`;
+
+      return `
+        <tr style="border-bottom:1px solid #e5e7eb;">
+          <td style="padding:8px 6px;text-align:center;font-weight:bold;font-size:12px;">${i + 1}</td>
+          <td style="padding:8px 6px;">
+            <strong>${name}</strong><br/>
+            <span style="color:#666;font-size:11px;">${phone}</span>
+          </td>
+          <td style="padding:8px 6px;">
+            <strong>${momoProvider}</strong> &bull; ${momoNumber}<br/>
+            <span style="color:#666;font-size:11px;">Acc Name: ${momoName}</span>
+          </td>
+          <td style="padding:8px 6px;">
+            <div style="font-size:14px;font-weight:bold;">${amount}</div>
+            <div style="font-size:10px;color:#666;">Wallet: ${walletBal}</div>
+            ${sourcesHtml}
+          </td>
+          <td style="padding:8px 6px;font-size:11px;color:#555;">${timeAgo}<br/><span style="color:#888;">${date}</span></td>
+        </tr>`;
+    }).join('');
+
+    return `<!DOCTYPE html><html><head><title>Pending Withdrawals - Welile</title>
+      <style>
+        body{font-family:Arial,sans-serif;padding:20px;color:#111;font-size:13px;}
+        h1{text-align:center;margin:0 0 4px;font-size:22px;}
+        .sub{text-align:center;color:#666;margin-bottom:14px;font-size:11px;}
+        .summary{display:flex;justify-content:space-around;margin-bottom:16px;padding:10px;background:#f3f4f6;border-radius:8px;}
+        .s-item{text-align:center;}
+        .s-label{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px;}
+        .s-value{font-size:20px;font-weight:bold;}
+        table{width:100%;border-collapse:collapse;}
+        th{background:#1e40af;color:#fff;padding:8px 6px;text-align:left;font-size:11px;}
+        tr:nth-child(even){background:#f9fafb;}
+        .footer{margin-top:14px;padding:10px 14px;background:#1e40af;color:#fff;border-radius:8px;text-align:right;font-weight:bold;font-size:15px;}
+        @media print{body{padding:0;}.no-print{display:none;}}
+      </style></head><body>
+      <h1>🏦 WELILE — Pending Withdrawal Requests</h1>
+      <p class="sub">Generated: ${format(new Date(), 'EEEE, MMM dd yyyy • HH:mm')} &bull; ${data.length} request(s)</p>
+      <div class="summary">
+        <div class="s-item"><div class="s-label">Total Requests</div><div class="s-value">${data.length}</div></div>
+        <div class="s-item"><div class="s-label">Total Amount</div><div class="s-value">${formatCurrency(total)}</div></div>
+      </div>
+      <table>
+        <thead><tr>
+          <th style="width:30px;">#</th>
+          <th>User</th>
+          <th>Mobile Money</th>
+          <th>Amount &amp; Source of Funds</th>
+          <th>Requested</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+      <div class="footer">Grand Total: ${formatCurrency(total)}</div>
+    </body></html>`;
+  };
+
   const handlePrintPDF = async () => {
     const dataToPrint = activeTab === 'pending' ? requests : historyRequests;
     if (dataToPrint.length === 0) {
@@ -237,85 +340,72 @@ export function WithdrawalRequestsManager() {
       const printWindow = window.open('', '_blank');
       if (!printWindow) { toast.error('Please allow popups to print'); setPrinting(false); return; }
 
-      const total = dataToPrint.reduce((sum, r) => sum + r.amount, 0);
-      const isPending = activeTab === 'pending';
-      const title = isPending ? 'Pending Withdrawal Requests' : 'Withdrawal History';
+      if (activeTab === 'pending') {
+        printWindow.document.write(buildPendingPdfHtml(dataToPrint));
+      } else {
+        const total = dataToPrint.reduce((sum, r) => sum + r.amount, 0);
+        const rows = dataToPrint.map((req, i) => {
+          const name = req.user?.full_name || 'Unknown';
+          const phone = req.user?.phone || '-';
+          const momoProvider = (req.mobile_money_provider || '-').toUpperCase();
+          const momoNumber = req.mobile_money_number || '-';
+          const momoName = req.mobile_money_name || '-';
+          const amount = formatCurrency(req.amount);
+          const status = req.status.charAt(0).toUpperCase() + req.status.slice(1);
+          const date = format(new Date(req.created_at), 'MMM dd, yyyy HH:mm');
+          const txId = req.transaction_id || '-';
+          const rejReason = req.rejection_reason || '-';
+          const processedAt = req.processed_at ? format(new Date(req.processed_at), 'MMM dd, yyyy HH:mm') : '-';
 
-      const rows = dataToPrint.map((req, i) => {
-        const name = req.user?.full_name || 'Unknown';
-        const phone = req.user?.phone || '-';
-        const momoProvider = (req.mobile_money_provider || '-').toUpperCase();
-        const momoNumber = req.mobile_money_number || '-';
-        const momoName = req.mobile_money_name || '-';
-        const amount = formatCurrency(req.amount);
-        const status = req.status.charAt(0).toUpperCase() + req.status.slice(1);
-        const date = format(new Date(req.created_at), 'MMM dd, yyyy HH:mm');
-        const walletBal = req.wallet_balance !== undefined ? formatCurrency(req.wallet_balance) : '-';
-        const timeAgo = formatDistanceToNow(new Date(req.created_at), { addSuffix: true });
-        const txId = req.transaction_id || '-';
-        const rejReason = req.rejection_reason || '-';
-        const processedAt = req.processed_at ? format(new Date(req.processed_at), 'MMM dd, yyyy HH:mm') : '-';
+          return `
+            <tr>
+              <td style="text-align:center;font-weight:bold;">${i + 1}</td>
+              <td><strong>${name}</strong><br/><span style="color:#666;font-size:11px;">${phone}</span></td>
+              <td><strong>${momoProvider}</strong><br/><span style="font-size:12px;">${momoNumber}</span><br/><span style="color:#666;font-size:11px;">Name: ${momoName}</span></td>
+              <td style="text-align:right;font-weight:bold;white-space:nowrap;">${amount}</td>
+              <td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${req.status === 'approved' ? '#dcfce7' : '#fee2e2'};color:${req.status === 'approved' ? '#166534' : '#991b1b'}">${status}</span></td>
+              <td style="font-size:11px;">${date}</td>
+              <td style="font-size:11px;font-family:monospace;">${txId}</td>
+              <td style="font-size:11px;color:#991b1b;">${req.status === 'rejected' ? rejReason : '-'}</td>
+              <td style="font-size:11px;">${processedAt}</td>
+            </tr>`;
+        }).join('');
 
-        return `
-          <tr>
-            <td style="text-align:center;font-weight:bold;">${i + 1}</td>
-            <td>
-              <strong>${name}</strong><br/>
-              <span style="color:#666;font-size:11px;">${phone}</span>
-            </td>
-            <td>
-              <strong>${momoProvider}</strong><br/>
-              <span style="font-size:12px;">${momoNumber}</span><br/>
-              <span style="color:#666;font-size:11px;">Name: ${momoName}</span>
-            </td>
-            <td style="text-align:right;font-weight:bold;white-space:nowrap;">${amount}</td>
-            ${isPending ? `<td style="text-align:right;white-space:nowrap;">${walletBal}</td>` : ''}
-            ${isPending ? `<td style="font-size:11px;">${timeAgo}</td>` : ''}
-            ${!isPending ? `<td><span style="padding:2px 8px;border-radius:4px;font-size:11px;background:${req.status === 'approved' ? '#dcfce7' : '#fee2e2'};color:${req.status === 'approved' ? '#166534' : '#991b1b'}">${status}</span></td>` : ''}
-            <td style="font-size:11px;">${date}</td>
-            ${!isPending ? `<td style="font-size:11px;font-family:monospace;">${txId}</td>` : ''}
-            ${!isPending && req.status === 'rejected' ? `<td style="font-size:11px;color:#991b1b;">${rejReason}</td>` : !isPending ? '<td>-</td>' : ''}
-            ${!isPending ? `<td style="font-size:11px;">${processedAt}</td>` : ''}
-          </tr>`;
-      }).join('');
-
-      const pendingHeaders = `
-        <th>#</th><th>User</th><th>Mobile Money Details</th>
-        <th style="text-align:right">Amount</th><th style="text-align:right">Wallet Balance</th>
-        <th>Waiting</th><th>Requested</th>`;
-
-      const historyHeaders = `
-        <th>#</th><th>User</th><th>Mobile Money Details</th>
-        <th style="text-align:right">Amount</th><th>Status</th>
-        <th>Requested</th><th>Transaction ID</th><th>Reason</th><th>Processed</th>`;
-
-      printWindow.document.write(`<!DOCTYPE html><html><head><title>${title} - Welile</title>
-        <style>
-          body{font-family:Arial,sans-serif;padding:20px;color:#333;font-size:13px;}
-          h1{text-align:center;margin-bottom:4px;font-size:20px;}
-          .subtitle{text-align:center;color:#666;margin-bottom:16px;font-size:12px;}
-          .summary{display:flex;justify-content:space-around;margin-bottom:16px;padding:12px;background:#f3f4f6;border-radius:8px;}
-          .summary-item{text-align:center;}
-          .summary-label{font-size:11px;color:#666;}
-          .summary-value{font-size:18px;font-weight:bold;}
-          table{width:100%;border-collapse:collapse;font-size:12px;}
-          th{background:#f3f4f6;padding:8px 6px;text-align:left;border-bottom:2px solid #d1d5db;font-weight:600;font-size:11px;}
-          td{padding:6px;border-bottom:1px solid #e5e7eb;vertical-align:top;}
-          .footer{margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;text-align:right;font-weight:bold;font-size:14px;}
-          @media print{body{padding:0;} .no-print{display:none;}}
-        </style></head><body>
-          <h1>WELILE — ${title}</h1>
+        printWindow.document.write(`<!DOCTYPE html><html><head><title>Withdrawal History - Welile</title>
+          <style>
+            body{font-family:Arial,sans-serif;padding:20px;color:#333;font-size:13px;}
+            h1{text-align:center;margin-bottom:4px;font-size:20px;}
+            .subtitle{text-align:center;color:#666;margin-bottom:16px;font-size:12px;}
+            .summary{display:flex;justify-content:space-around;margin-bottom:16px;padding:12px;background:#f3f4f6;border-radius:8px;}
+            .summary-item{text-align:center;}
+            .summary-label{font-size:11px;color:#666;}
+            .summary-value{font-size:18px;font-weight:bold;}
+            table{width:100%;border-collapse:collapse;font-size:12px;}
+            th{background:#f3f4f6;padding:8px 6px;text-align:left;border-bottom:2px solid #d1d5db;font-weight:600;font-size:11px;}
+            td{padding:6px;border-bottom:1px solid #e5e7eb;vertical-align:top;}
+            .footer{margin-top:16px;padding:12px;background:#f9fafb;border-radius:8px;text-align:right;font-weight:bold;font-size:14px;}
+            @media print{body{padding:0;} .no-print{display:none;}}
+          </style></head><body>
+          <h1>WELILE — Withdrawal History</h1>
           <p class="subtitle">Generated: ${format(new Date(), 'EEEE, MMM dd yyyy, HH:mm')} &bull; ${dataToPrint.length} request(s)</p>
           <div class="summary">
             <div class="summary-item"><div class="summary-label">Total Requests</div><div class="summary-value">${dataToPrint.length}</div></div>
             <div class="summary-item"><div class="summary-label">Total Amount</div><div class="summary-value">${formatCurrency(total)}</div></div>
           </div>
-          <table><thead><tr>${isPending ? pendingHeaders : historyHeaders}</tr></thead>
+          <table><thead><tr>
+            <th>#</th><th>User</th><th>Mobile Money Details</th>
+            <th style="text-align:right">Amount</th><th>Status</th>
+            <th>Requested</th><th>Transaction ID</th><th>Reason</th><th>Processed</th>
+          </tr></thead>
           <tbody>${rows}</tbody></table>
           <div class="footer">Grand Total: ${formatCurrency(total)}</div>
           <script>window.onload=function(){window.print();}</script>
         </body></html>`);
+      }
       printWindow.document.close();
+      if (activeTab === 'pending') {
+        printWindow.onload = () => { printWindow.print(); };
+      }
 
       toast.success('Print window opened');
     } catch (err) {
@@ -323,6 +413,52 @@ export function WithdrawalRequestsManager() {
       toast.error('Failed to generate print view');
     } finally {
       setPrinting(false);
+    }
+  };
+
+  const handleSharePDF = async () => {
+    if (requests.length === 0) {
+      toast.error('No pending requests to share');
+      return;
+    }
+    setSharing(true);
+    try {
+      const html = buildPendingPdfHtml(requests);
+      const blob = new Blob([html], { type: 'text/html' });
+
+      // Try Web Share API first (mobile)
+      if (navigator.share && navigator.canShare) {
+        const file = new File([blob], `pending_withdrawals_${format(new Date(), 'yyyy-MM-dd')}.html`, { type: 'text/html' });
+        if (navigator.canShare({ files: [file] })) {
+          await navigator.share({ title: 'Pending Withdrawal Requests', files: [file] });
+          toast.success('Shared successfully');
+          setSharing(false);
+          return;
+        }
+      }
+
+      // Fallback: open in new window and prompt print/save
+      const url = URL.createObjectURL(blob);
+      const win = window.open(url, '_blank');
+      if (win) {
+        win.onload = () => { win.print(); };
+        toast.success('PDF opened — use Print → Save as PDF to share');
+      } else {
+        // Last resort: download the file
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `pending_withdrawals_${format(new Date(), 'yyyy-MM-dd')}.html`;
+        link.click();
+        toast.success('Report downloaded');
+      }
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+    } catch (err: any) {
+      if (err?.name !== 'AbortError') {
+        console.error('Share failed:', err);
+        toast.error('Failed to share');
+      }
+    } finally {
+      setSharing(false);
     }
   };
 
@@ -336,9 +472,6 @@ export function WithdrawalRequestsManager() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      // Calculate 12 hours ago cutoff
-      const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
-
       // Fetch ALL pending withdrawal requests: exclude ≤500 UGX
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
@@ -350,26 +483,39 @@ export function WithdrawalRequestsManager() {
       if (error) throw error;
 
       if (requestsData && requestsData.length > 0) {
-        // Fetch user profiles
         const userIds = [...new Set(requestsData.map(r => r.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone, avatar_url')
-          .in('id', userIds);
 
-        // Fetch wallet balances
-        const { data: wallets } = await supabase
-          .from('wallets')
-          .select('user_id, balance')
-          .in('user_id', userIds);
+        // Fetch user profiles, wallet balances, and fund sources in parallel
+        const [profilesRes, walletsRes, ledgerRes] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', userIds),
+          supabase.from('wallets').select('user_id, balance').in('user_id', userIds),
+          supabase.from('general_ledger')
+            .select('user_id, category, amount, direction')
+            .in('user_id', userIds)
+            .eq('direction', 'in'),
+        ]);
 
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-        const walletMap = new Map(wallets?.map(w => [w.user_id, w.balance]) || []);
+        const profileMap = new Map(profilesRes.data?.map(p => [p.id, p]) || []);
+        const walletMap = new Map(walletsRes.data?.map(w => [w.user_id, w.balance]) || []);
+
+        // Build fund sources per user from ledger
+        const fundSourcesMap = new Map<string, FundSource[]>();
+        for (const entry of (ledgerRes.data || [])) {
+          const existing = fundSourcesMap.get(entry.user_id) || [];
+          const cat = existing.find(c => c.category === entry.category);
+          if (cat) {
+            cat.total += Number(entry.amount);
+          } else {
+            existing.push({ category: entry.category, total: Number(entry.amount) });
+          }
+          fundSourcesMap.set(entry.user_id, existing);
+        }
 
         const enrichedRequests = requestsData.map(r => ({
           ...r,
           user: profileMap.get(r.user_id) || { full_name: 'Unknown', phone: '', avatar_url: null },
-          wallet_balance: walletMap.get(r.user_id) || 0
+          wallet_balance: walletMap.get(r.user_id) || 0,
+          fund_sources: (fundSourcesMap.get(r.user_id) || []).sort((a, b) => b.total - a.total),
         }));
 
         setRequests(enrichedRequests);
@@ -638,6 +784,21 @@ export function WithdrawalRequestsManager() {
               )}
             </CardTitle>
             <div className="flex items-center gap-1">
+              {activeTab === 'pending' && (
+                <Button 
+                  variant="ghost" 
+                  size="icon"
+                  onClick={handleSharePDF}
+                  disabled={sharing || requests.length === 0}
+                  title="Share PDF (includes fund sources)"
+                >
+                  {sharing ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Share2 className="h-4 w-4" />
+                  )}
+                </Button>
+              )}
               <Button 
                 variant="ghost" 
                 size="icon"
@@ -785,7 +946,13 @@ export function WithdrawalRequestsManager() {
                           />
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 flex-wrap">
-                              <p className="font-semibold truncate">{request.user?.full_name}</p>
+                              <button
+                                onClick={() => openUserDetail(request.user_id)}
+                                className="font-semibold truncate hover:text-primary hover:underline flex items-center gap-1 transition-colors"
+                              >
+                                {request.user?.full_name}
+                                <ExternalLink className="h-3 w-3 opacity-50" />
+                              </button>
                               <Badge variant="outline" className="gap-1 text-xs">
                                 <Clock className="h-3 w-3" />
                                 {formatDistanceToNow(new Date(request.created_at), { addSuffix: true })}
@@ -920,6 +1087,26 @@ export function WithdrawalRequestsManager() {
                               <div className="flex items-center gap-2 mt-2 p-2 bg-destructive/10 rounded-lg text-destructive text-sm">
                                 <AlertCircle className="h-4 w-4 flex-shrink-0" />
                                 <span>Insufficient balance for this withdrawal</span>
+                              </div>
+                            )}
+
+                            {/* Fund Sources */}
+                            {(request.fund_sources || []).length > 0 && (
+                              <div className="mt-2 p-2 rounded-lg bg-muted/40 border border-border/50">
+                                <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wide mb-1.5">
+                                  Source of Funds
+                                </p>
+                                <div className="flex flex-wrap gap-1">
+                                  {(request.fund_sources || []).map((source) => (
+                                    <Badge
+                                      key={source.category}
+                                      variant="secondary"
+                                      className="text-[10px] font-medium gap-1"
+                                    >
+                                      {source.category}: <span className="font-bold">{formatCurrency(source.total)}</span>
+                                    </Badge>
+                                  ))}
+                                </div>
                               </div>
                             )}
                           </div>
@@ -1103,9 +1290,15 @@ export function WithdrawalRequestsManager() {
                           fullName={request.user?.full_name} 
                           size="md" 
                         />
-                        <div className="flex-1 min-w-0">
+                          <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2 flex-wrap">
-                            <p className="font-semibold truncate">{request.user?.full_name}</p>
+                            <button
+                              onClick={() => openUserDetail(request.user_id)}
+                              className="font-semibold truncate hover:text-primary hover:underline flex items-center gap-1 transition-colors"
+                            >
+                              {request.user?.full_name}
+                              <ExternalLink className="h-3 w-3 opacity-50" />
+                            </button>
                             <Badge 
                               variant={request.status === 'approved' ? 'default' : 'destructive'}
                               className="gap-1 text-xs"
@@ -1487,6 +1680,18 @@ export function WithdrawalRequestsManager() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* User Details Dialog — opened when name is clicked */}
+      {selectedUserForDetail && (
+        <UserDetailsDialog
+          open={userDetailOpen}
+          onOpenChange={(open) => {
+            setUserDetailOpen(open);
+            if (!open) setSelectedUserForDetail(null);
+          }}
+          user={selectedUserForDetail}
+        />
+      )}
     </>
   );
 }
