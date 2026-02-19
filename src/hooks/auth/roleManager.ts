@@ -12,23 +12,41 @@ export async function fetchUserRoles(
   setRoles: (r: AppRole[]) => void,
   setRole: (r: AppRole) => void,
 ) {
-  const { data, error } = await supabase
-    .from('user_roles')
-    .select('role, enabled')
-    .eq('user_id', userId)
-    .or('enabled.is.null,enabled.eq.true');
+  try {
+    const { data, error } = await supabase
+      .from('user_roles')
+      .select('role, enabled')
+      .eq('user_id', userId)
+      .or('enabled.is.null,enabled.eq.true');
 
-  if (!error && data && data.length > 0) {
-    let userRoles = data.map(r => r.role as AppRole);
-    if (!userRoles.includes('agent')) {
-      userRoles = ['agent', ...userRoles];
+    if (error) {
+      console.warn('[RoleManager] Error fetching roles:', error.message);
+      // Don't overwrite existing roles on error
+      setRoles(DEFAULT_ROLES);
+      setRole(DEFAULT_ROLE);
+      setCachedRoles(DEFAULT_ROLES);
+      return;
     }
-    setRoles(userRoles);
-    setCachedRoles(userRoles);
-    if (!currentRole || !userRoles.includes(currentRole)) {
-      setRole('agent');
+
+    if (data && data.length > 0) {
+      let userRoles = data.map(r => r.role as AppRole);
+      if (!userRoles.includes('agent')) {
+        userRoles = ['agent', ...userRoles];
+      }
+      console.log('[RoleManager] Fetched roles:', userRoles);
+      setRoles(userRoles);
+      setCachedRoles(userRoles);
+      if (!currentRole || !userRoles.includes(currentRole)) {
+        setRole('agent');
+      }
+    } else {
+      console.warn('[RoleManager] No roles found for user:', userId);
+      setRoles(DEFAULT_ROLES);
+      setRole(DEFAULT_ROLE);
+      setCachedRoles(DEFAULT_ROLES);
     }
-  } else {
+  } catch (err: any) {
+    console.warn('[RoleManager] Exception fetching roles:', err?.message);
     setRoles(DEFAULT_ROLES);
     setRole(DEFAULT_ROLE);
     setCachedRoles(DEFAULT_ROLES);
