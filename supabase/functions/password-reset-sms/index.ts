@@ -29,6 +29,26 @@ function generateOTP(): string {
   return otp;
 }
 
+// Known country code prefixes (longest first for greedy matching)
+const KNOWN_COUNTRY_CODES = [
+  '256', '254', '255', '250', '257', '211', '243', '234', '27', '44', '1',
+  '91', '86', '33', '49', '81', '82', '61', '55', '7', '966', '971', '20',
+  '212', '233', '225', '221', '260', '263', '267', '251',
+];
+
+function formatPhoneInternational(rawPhone: string): string {
+  let digits = rawPhone.replace(/\D/g, "");
+  for (const code of KNOWN_COUNTRY_CODES) {
+    if (digits.startsWith(code) && digits.length > code.length + 5) {
+      return "+" + digits;
+    }
+  }
+  if (digits.startsWith("0")) {
+    digits = "256" + digits.slice(1);
+  }
+  return "+" + digits;
+}
+
 async function sendSMS(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
@@ -41,9 +61,7 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     ? "https://api.sandbox.africastalking.com/version1/messaging"
     : "https://api.africastalking.com/version1/messaging";
 
-  let formattedPhone = phone.replace(/\D/g, "");
-  if (formattedPhone.startsWith("0")) formattedPhone = "256" + formattedPhone.slice(1);
-  if (!formattedPhone.startsWith("+")) formattedPhone = "+" + formattedPhone;
+  const formattedPhone = formatPhoneInternational(phone);
 
   try {
     const params = new URLSearchParams({ username, to: formattedPhone, message });

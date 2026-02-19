@@ -29,6 +29,7 @@ export function useAuthForm() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [fullName, setFullName] = useState('');
   const [phone, setPhone] = useState('');
+  const [countryCode, setCountryCode] = useState('256');
   const [isLoading, setIsLoading] = useState(false);
   const [loginError, setLoginError] = useState<{ message: string; triedFormats: string[] } | null>(null);
   const [failedAttempts, setFailedAttempts] = useState(0);
@@ -227,11 +228,13 @@ export function useAuthForm() {
       return;
     }
     const cleanPhone = phone.replace(/\D/g, '');
-    const generatedEmail = `${cleanPhone}@welile.user`;
+    // Prepend country code if the number doesn't already include it
+    const fullPhone = cleanPhone.startsWith(countryCode) ? cleanPhone : countryCode + (cleanPhone.startsWith('0') ? cleanPhone.slice(1) : cleanPhone);
+    const generatedEmail = `${fullPhone}@welile.user`;
     const storedReferrerId = referrerIdState || localStorage.getItem('referral_agent_id');
     console.log('[Auth] Signup with referrer:', storedReferrerId, '(state:', referrerIdState, ', localStorage:', localStorage.getItem('referral_agent_id'), ')');
 
-    const { error } = await signUpWithoutRole(generatedEmail, password, fullName, phone, storedReferrerId || undefined);
+    const { error } = await signUpWithoutRole(generatedEmail, password, fullName, fullPhone, storedReferrerId || undefined);
     if (error) {
       let errorMessage = error.message;
       if (error.message.includes('already registered')) {
@@ -250,7 +253,7 @@ export function useAuthForm() {
     if (!isValidPhoneNumber(phone)) {
       toast({
         title: 'Invalid Phone Number',
-        description: 'Please enter a valid phone number (e.g., 0700123456 or 256700123456)',
+        description: 'Please enter a valid phone number',
         variant: 'destructive',
       });
       return;
@@ -262,8 +265,10 @@ export function useAuthForm() {
       return;
     }
 
+    // Build full number with country code
+    const fullPhone = cleanedPhone.startsWith(countryCode) ? cleanedPhone : countryCode + (cleanedPhone.startsWith('0') ? cleanedPhone.slice(1) : cleanedPhone);
     const phoneLocal9 = cleanedPhone.slice(-9);
-    const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`];
+    const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`, `${countryCode}${phoneLocal9}`, fullPhone];
 
     // STEP 1: Try profile lookup to find the correct auth email
     let profileEmails: string[] = [];
@@ -295,12 +300,15 @@ export function useAuthForm() {
     // Build ordered list of emails to try (profile matches first, then generated fallbacks)
     const emailCandidates = new Set<string>();
     for (const e of profileEmails) emailCandidates.add(e);
+    emailCandidates.add(`${fullPhone}@welile.user`);
     emailCandidates.add(`${cleanedPhone}@welile.user`);
     emailCandidates.add(`0${phoneLocal9}@welile.user`);
     emailCandidates.add(`256${phoneLocal9}@welile.user`);
+    emailCandidates.add(`${countryCode}${phoneLocal9}@welile.user`);
     // Also try agent variants as fallback
     emailCandidates.add(`0${phoneLocal9}@welile.agent`);
     emailCandidates.add(`256${phoneLocal9}@welile.agent`);
+    emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
 
     // STEP 2: Try sign-in with each candidate until one works
     let loginSuccess = false;
@@ -429,6 +437,7 @@ export function useAuthForm() {
     showConfirmPassword, setShowConfirmPassword,
     fullName, setFullName,
     phone, setPhone,
+    countryCode, setCountryCode,
     isLoading,
     loginError, setLoginError,
     failedAttempts,

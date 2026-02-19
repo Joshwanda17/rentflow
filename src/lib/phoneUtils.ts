@@ -198,61 +198,53 @@ export function isValidPhoneNumber(phone: string): boolean {
 }
 
 /**
- * Validate Ugandan phone number with strict format rules
- * Detects fake numbers like sequential digits, repeated patterns, etc.
+ * Validate any global phone number.
+ * Accepts numbers with country codes, or bare local numbers (9+ digits).
+ * Detects fake numbers like sequential/repeated digits.
  */
-export function isValidUgandanPhoneNumber(phone: string): {
+export function isValidPhoneNumberGlobal(phone: string): {
   valid: boolean;
   reason?: string;
 } {
   const cleaned = cleanPhoneNumber(phone);
 
-  // Must be 9+ digits
-  if (cleaned.length < 9) {
-    return { valid: false, reason: 'Phone number must have at least 9 digits' };
+  // Must be 7+ digits (some countries have short numbers)
+  if (cleaned.length < 7) {
+    return { valid: false, reason: 'Phone number must have at least 7 digits' };
   }
 
-  // Normalize to local 10-digit format (0XXXXXXXXX) for validation
-  let local10: string;
-  if (cleaned.startsWith('256') && cleaned.length >= 12) {
-    // Has country code: 256XXXXXXXXX -> 0XXXXXXXXX
-    local10 = '0' + cleaned.slice(3);
-  } else if (cleaned.startsWith('0') && cleaned.length >= 10) {
-    // Already local format
-    local10 = cleaned;
-  } else if (cleaned.length === 9 && !cleaned.startsWith('0')) {
-    // Bare 9 digits (e.g. 759423982) -> 0759423982
-    local10 = '0' + cleaned;
-  } else {
-    local10 = cleaned;
+  if (cleaned.length > 15) {
+    return { valid: false, reason: 'Phone number is too long' };
   }
 
-  // Valid Uganda prefixes: 07x, 03x (MTN, Airtel, etc.)
-  if (!local10.match(/^(07|03)/)) {
-    return { valid: false, reason: 'Phone number must start with 07 or 03 (Uganda format)' };
-  }
-
-  const local9 = local10.slice(-9);
-
-  // Reject sequential digits (0777777777, 0700123456 where all chars follow a pattern)
-  if (/^(\d)\1{7,}$/.test(local9)) {
+  // Reject all-same digits (e.g. 0000000000, 1111111111)
+  const lastDigits = cleaned.slice(-7);
+  if (/^(\d)\1{6,}$/.test(lastDigits)) {
     return { valid: false, reason: 'Phone number looks invalid (repeated digits)' };
   }
 
-  // Reject obvious patterns (0700000000, 0711111111)
-  if (/^0[0-9]0{7}$/.test(local9) || /^0[0-9]1{7}$/.test(local9)) {
-    return { valid: false, reason: 'Phone number looks invalid (obvious pattern)' };
-  }
-
-  // Reject alternating patterns (0707070707, 0103010301)
-  if (/^(0[0-9])(\d\2)*/.test(local9.slice(0, 6))) {
-    const chunk = local9.slice(2, 6);
-    if (/(.)(\1){3}/.test(chunk)) {
-      return { valid: false, reason: 'Phone number looks invalid (suspicious pattern)' };
+  // Reject sequential ascending/descending (1234567, 7654321)
+  const isSequential = (s: string) => {
+    let asc = true, desc = true;
+    for (let i = 1; i < s.length; i++) {
+      if (parseInt(s[i]) !== parseInt(s[i-1]) + 1) asc = false;
+      if (parseInt(s[i]) !== parseInt(s[i-1]) - 1) desc = false;
     }
+    return asc || desc;
+  };
+  if (isSequential(lastDigits)) {
+    return { valid: false, reason: 'Phone number looks invalid (sequential digits)' };
   }
-
-  // Note: 0701, 0702 etc. are legitimate MTN Uganda prefixes — do NOT block them
 
   return { valid: true };
+}
+
+/**
+ * @deprecated Use isValidPhoneNumberGlobal instead. Kept for backward compatibility.
+ */
+export function isValidUgandanPhoneNumber(phone: string): {
+  valid: boolean;
+  reason?: string;
+} {
+  return isValidPhoneNumberGlobal(phone);
 }
