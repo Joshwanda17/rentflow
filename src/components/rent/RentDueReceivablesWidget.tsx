@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
   Clock, Home, MapPin, Loader2, User, Pencil,
   TrendingUp, Calendar, ChevronDown, ChevronUp,
-  CalendarDays, Banknote
+  CalendarDays
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { addDays, format } from 'date-fns';
@@ -150,18 +150,18 @@ function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
                   {/* Access Fee */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-amber-500" />
+                      <div className="w-2 h-2 rounded-full bg-warning" />
                       <span className="text-xs text-muted-foreground">Access Fee (33%/mo)</span>
                     </div>
-                    <span className="text-xs font-bold text-amber-600">{formatUGX(req.access_fee || 0)}</span>
+                    <span className="text-xs font-bold text-warning">{formatUGX(req.access_fee || 0)}</span>
                   </div>
                   {/* Platform/Request Fee */}
                   <div className="flex items-center justify-between">
                     <div className="flex items-center gap-1.5">
-                      <div className="w-2 h-2 rounded-full bg-blue-500" />
+                      <div className="w-2 h-2 rounded-full bg-accent" />
                       <span className="text-xs text-muted-foreground">Platform Fee</span>
                     </div>
-                    <span className="text-xs font-bold text-blue-600">{formatUGX(req.request_fee || 0)}</span>
+                    <span className="text-xs font-bold text-accent-foreground">{formatUGX(req.request_fee || 0)}</span>
                   </div>
                   {/* Divider */}
                   <div className="border-t border-success/30 pt-2 flex items-center justify-between">
@@ -282,28 +282,30 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
     );
   }
 
+  // Income statement aggregates
+  const totalPrincipal = requests.reduce((sum, r) => sum + (r.rent_amount || 0), 0);
+  const totalAccessFees = requests.reduce((sum, r) => sum + (r.access_fee || 0), 0);
+  const totalPlatformFees = requests.reduce((sum, r) => sum + (r.request_fee || 0), 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.97 }}
       animate={{ opacity: 1, scale: 1 }}
       transition={{ duration: 0.3 }}
     >
-      <Card className="border-2 border-success bg-gradient-to-br from-success/15 via-success/10 to-emerald-500/5 shadow-lg shadow-success/10 overflow-hidden">
+      <Card className="border-2 border-success/60 overflow-hidden shadow-lg shadow-success/10">
         <CardContent className="p-0">
-          {/* Header */}
+
+          {/* ── Statement Header ── */}
           <div className="flex items-center gap-3 px-4 py-3 bg-success/20 border-b border-success/30">
             <div className="p-2 rounded-full bg-success/30">
               <TrendingUp className="h-5 w-5 text-success" />
             </div>
             <div className="flex-1 min-w-0">
-              <h3 className="font-bold text-base text-success">
-                💰 Rent Due — Receivables {requests.length > 0 ? `(${requests.length})` : ''}
-              </h3>
-              <p className="text-[10px] text-success/70">Approved requests awaiting repayment</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-success/70">Total</p>
-              <p className="font-extrabold text-success">{formatUGX(totalReceivable)}</p>
+              <h3 className="font-bold text-base text-success">Receivables Statement</h3>
+              <p className="text-[10px] text-success/70">
+                {requests.length} approved {requests.length === 1 ? 'request' : 'requests'} · awaiting repayment
+              </p>
             </div>
           </div>
 
@@ -313,50 +315,93 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
             </div>
           ) : (
             <>
-              {/* Aggregate Collection Summary */}
-              <div className="grid grid-cols-3 divide-x divide-success/20 bg-success/10 border-b border-success/20">
-                <div className="p-3 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-medium mb-1">Daily</p>
-                  <p className="text-[11px] font-extrabold text-success">{formatUGX(totalDaily)}</p>
-                  <p className="text-[8px] text-muted-foreground">expected/day</p>
+              {/* ── Income Statement Body ── */}
+              <div className="px-5 py-4 space-y-5">
+
+                {/* SECTION: Rent Receivables */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-success uppercase tracking-wider border-b border-success/20 pb-1">
+                    Rent Receivables
+                  </p>
+
+                  <div className="space-y-1.5 pl-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Principal (Rent Facilitated)</span>
+                      <span className="font-mono font-medium">{formatUGX(totalPrincipal)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Access Fee Income (33%/mo)</span>
+                      <span className="font-mono font-medium">{formatUGX(totalAccessFees)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Platform Fee Income</span>
+                      <span className="font-mono font-medium">{formatUGX(totalPlatformFees)}</span>
+                    </div>
+                  </div>
+
+                  {/* Subtotal */}
+                  <div className="flex justify-between font-semibold pt-1.5 border-t border-border/60">
+                    <span className="text-sm">Total Receivable</span>
+                    <span className="font-mono text-success">{formatUGX(totalReceivable)}</span>
+                  </div>
                 </div>
-                <div className="p-3 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-medium mb-1">Weekly</p>
-                  <p className="text-[11px] font-extrabold text-success">{formatUGX(totalWeekly)}</p>
-                  <p className="text-[8px] text-muted-foreground">expected/week</p>
+
+                {/* SECTION: Expected Collections */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider border-b border-primary/20 pb-1">
+                    Expected Collections
+                  </p>
+                  <div className="space-y-1.5 pl-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Per Day</span>
+                      <span className="font-mono font-medium">{formatUGX(totalDaily)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Per Week</span>
+                      <span className="font-mono font-medium">{formatUGX(totalWeekly)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Per Month</span>
+                      <span className="font-mono font-medium">{formatUGX(totalMonthly)}</span>
+                    </div>
+                  </div>
                 </div>
-                <div className="p-3 text-center">
-                  <p className="text-[9px] text-muted-foreground uppercase font-medium mb-1">Monthly</p>
-                  <p className="text-[11px] font-extrabold text-success">{formatUGX(totalMonthly)}</p>
-                  <p className="text-[8px] text-muted-foreground">expected/month</p>
+
+                {/* ── NET TOTAL ── */}
+                <div className="flex justify-between items-center pt-3 border-t-2 border-success/40">
+                  <span className="text-base font-bold text-success">Net Total Receivable</span>
+                  <span className="font-mono text-lg font-extrabold text-success">{formatUGX(totalReceivable)}</span>
                 </div>
               </div>
 
-              {/* Per-request breakdown (tap to expand) */}
-              <div className="divide-y divide-success/10">
-                <div className="px-4 py-2 bg-muted/30 flex items-center justify-between">
-                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">Tap a request for full breakdown</p>
-                  <Banknote className="h-3.5 w-3.5 text-muted-foreground" />
+              {/* ── Per-request detail list ── */}
+              <div className="border-t border-border/50">
+                <div className="px-4 py-2 bg-muted/30">
+                  <p className="text-[10px] text-muted-foreground font-medium uppercase tracking-wide">
+                    Line Items · tap to expand
+                  </p>
                 </div>
-                {requests.map((req) => (
-                  <div key={req.id} className="relative">
-                    <RequestBreakdownRow req={req} />
-                    {mode === 'manager' && (
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="absolute top-2.5 right-10 h-7 w-7"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingRequest(req);
-                          setEditOpen(true);
-                        }}
-                      >
-                        <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
-                      </Button>
-                    )}
-                  </div>
-                ))}
+                <div className="divide-y divide-border/40">
+                  {requests.map((req) => (
+                    <div key={req.id} className="relative">
+                      <RequestBreakdownRow req={req} />
+                      {mode === 'manager' && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-2.5 right-10 h-7 w-7"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingRequest(req);
+                            setEditOpen(true);
+                          }}
+                        >
+                          <Pencil className="h-3.5 w-3.5 text-muted-foreground" />
+                        </Button>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
             </>
           )}
