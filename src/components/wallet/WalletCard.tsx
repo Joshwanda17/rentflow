@@ -233,6 +233,14 @@ export function WalletCard() {
           {/* My Referrals Count */}
           <MyReferralsCount />
 
+          {/* Minimum Withdrawal Policy Notice */}
+          <div className="flex items-center gap-2 px-3 py-2.5 bg-warning/10 border border-warning/30 rounded-xl">
+            <span className="text-base">🚫</span>
+            <p className="text-[11px] font-semibold text-warning-foreground leading-tight">
+              Min. withdrawal balance: <span className="font-bold">UGX 50,000</span>. Requests below this are automatically rejected.
+            </p>
+          </div>
+
           {/* Recent transactions - Simplified */}
           {transactions.length > 0 && (
             <div className="pt-3 border-t border-border/50">
