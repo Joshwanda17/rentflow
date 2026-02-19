@@ -110,7 +110,7 @@ import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
-import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
+import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWidget';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
@@ -233,6 +233,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [withdrawalSectionOpen, setWithdrawalSectionOpen] = useState(false);
   const [depositSectionOpen, setDepositSectionOpen] = useState(true);
   const [rentDueSectionOpen, setRentDueSectionOpen] = useState(false);
+  const [rentDueTotal, setRentDueTotal] = useState(0);
   const withdrawalSectionRef = useRef<HTMLDivElement>(null);
   const rentDueSectionRef = useRef<HTMLDivElement>(null);
 
@@ -910,6 +911,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             pendingOrders={pendingOrders}
             totalUsers={totalUsers}
             pendingWithdrawals={withdrawalStats.pending}
+            rentDueTotal={rentDueTotal}
             onRentDueClick={() => {
               setRentDueSectionOpen(true);
               setTimeout(() => rentDueSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
@@ -1058,7 +1060,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             isOpen={rentDueSectionOpen}
             onToggle={() => setRentDueSectionOpen(!rentDueSectionOpen)}
           >
-            <ApprovedRentRequestsWidget mode="manager" />
+            <RentDueReceivablesWidget mode="manager" onTotalChange={setRentDueTotal} />
           </CollapsibleAgentSection>
         </div>
 
