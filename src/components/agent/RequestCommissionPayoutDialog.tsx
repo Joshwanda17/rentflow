@@ -58,6 +58,14 @@ export function RequestCommissionPayoutDialog({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    // FROZEN: Commission payouts temporarily suspended
+    toast({ 
+      title: 'Commission payouts are temporarily suspended', 
+      description: 'This feature is currently inactive. Please contact management for assistance.',
+      variant: 'destructive' 
+    });
+    return;
     
     const amountNum = parseFloat(amount);
     if (isNaN(amountNum) || amountNum <= 0) {
