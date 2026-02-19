@@ -52,6 +52,7 @@ interface TenantDashboardProps {
   currentRole: AppRole;
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
+  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   addRoleComponent: ReactNode;
 }
 
@@ -74,7 +75,7 @@ interface Repayment {
   rent_request_id: string;
 }
 
-export default function TenantDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: TenantDashboardProps) {
+export default function TenantDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, onAddRole, addRoleComponent }: TenantDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
@@ -183,6 +184,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         availableRoles={availableRoles}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
+        onAddRole={onAddRole}
         menuItems={menuItems}
       />
 

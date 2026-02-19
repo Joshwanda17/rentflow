@@ -37,10 +37,11 @@ interface LandlordDashboardProps {
   currentRole: AppRole;
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
+  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   addRoleComponent: ReactNode;
 }
 
-export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: LandlordDashboardProps) {
+export default function LandlordDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, onAddRole, addRoleComponent }: LandlordDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { wallet, refreshWallet } = useWallet();
@@ -70,6 +71,7 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
         availableRoles={availableRoles}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
+        onAddRole={onAddRole}
         menuItems={menuItems}
       />
 

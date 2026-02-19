@@ -166,6 +166,7 @@ function DashboardContent() {
       currentRole: cachedDisplayRole, 
       availableRoles: cachedRoles, 
       onRoleChange: switchRole,
+      onAddRole: addRole,
       addRoleComponent: <AddRoleDialog availableRoles={cachedRoles} onAddRole={addRole} />
     };
 
@@ -198,6 +199,7 @@ function DashboardContent() {
     currentRole: displayRole, 
     availableRoles: displayRoles, 
     onRoleChange: switchRole,
+    onAddRole: addRole,
     addRoleComponent: <AddRoleDialog availableRoles={displayRoles} onAddRole={addRole} />
   };
 
