@@ -871,6 +871,11 @@ export function WithdrawalRequestsManager() {
                                   }`}>
                                     {formatCurrency(request.wallet_balance || 0)}
                                   </span>
+                                  {(request.wallet_balance || 0) < request.amount && (
+                                    <span className="text-destructive font-bold text-sm" title="Withdrawal exceeds wallet balance">
+                                      🚩
+                                    </span>
+                                  )}
                                   <span className="inline-flex items-center gap-0.5 text-[10px] text-muted-foreground/70">
                                     <span className="relative flex h-1.5 w-1.5">
                                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-success opacity-75"></span>
