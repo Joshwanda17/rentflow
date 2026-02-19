@@ -121,12 +121,13 @@ interface ManagerDashboardProps {
   currentRole: AppRole;
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
+  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   addRoleComponent: ReactNode;
 }
 
 const MANAGER_ACCESS_CODE = 'Manager@welile';
 
-export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
+export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, onAddRole, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
@@ -859,6 +860,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         availableRoles={availableRoles}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
+        onAddRole={onAddRole}
         menuItems={menuItems}
       />
 
