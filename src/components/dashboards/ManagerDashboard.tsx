@@ -112,6 +112,7 @@ import { PendingRentRequestsWidget } from '@/components/manager/PendingRentReque
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
+import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
 
 interface ManagerDashboardProps {
   user: User;
@@ -229,6 +230,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [usersPerPage, setUsersPerPage] = useState(10);
   const [withdrawalStats, setWithdrawalStats] = useState<{ pending: number; approved: number; rejected: number; pendingAmount: number; approvedAmount: number; rejectedAmount: number }>({ pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 });
   const [withdrawalSectionOpen, setWithdrawalSectionOpen] = useState(false);
+  const [depositSectionOpen, setDepositSectionOpen] = useState(true);
   const withdrawalSectionRef = useRef<HTMLDivElement>(null);
 
   // Compute online users from topOnboarders list
@@ -977,6 +979,31 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <Shield className="h-4 w-4" />
           Download Fraud Report (PDF)
         </Button>
+
+        {/* ===== DEPOSITS — Priority section ===== */}
+        <CollapsibleAgentSection
+          icon={Wallet}
+          label="Deposits"
+          iconColor="text-primary"
+          isOpen={depositSectionOpen}
+          onToggle={() => setDepositSectionOpen(!depositSectionOpen)}
+        >
+          <div className="space-y-3">
+            {/* Full-page shortcut button */}
+            <motion.button
+              whileTap={{ scale: 0.97 }}
+              onClick={() => navigate('/deposits-management')}
+              className="w-full flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors touch-manipulation"
+            >
+              <span className="flex items-center gap-2">
+                <Wallet className="h-4 w-4" />
+                Open Full Deposits Manager
+              </span>
+              <ArrowRight className="h-4 w-4 opacity-70" />
+            </motion.button>
+            <ManagerDepositsWidget />
+          </div>
+        </CollapsibleAgentSection>
 
         {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
         <div ref={withdrawalSectionRef}>
