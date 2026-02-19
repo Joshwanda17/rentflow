@@ -1,210 +1,112 @@
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { 
-  Users, 
-  FileText, 
-  Banknote, 
-  ShoppingCart, 
-  Receipt, 
   Wallet,
-  TrendingUp,
-  UserPlus,
-  ChevronRight,
-  Megaphone,
-  MessageSquare
+  ArrowDownToLine,
+  Home,
+  ArrowRight
 } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
 import { hapticTap } from '@/lib/haptics';
-
-import BroadcastMessageDialog from '@/components/chat/BroadcastMessageDialog';
 import { cn } from '@/lib/utils';
-
-interface QuickAction {
-  icon: React.ElementType;
-  label: string;
-  sublabel: string;
-  path: string;
-  color: string;
-  bgColor: string;
-  count?: number;
-  urgent?: boolean;
-}
 
 interface MobileQuickActionsProps {
   pendingRequests: number;
   pendingLoans: number;
   pendingOrders: number;
   totalUsers: number;
+  pendingWithdrawals?: number;
 }
 
 export function MobileQuickActions({ 
-  pendingRequests, 
-  pendingLoans, 
-  pendingOrders, 
-  totalUsers 
+  pendingWithdrawals = 0,
 }: MobileQuickActionsProps) {
   const navigate = useNavigate();
 
-  const quickActions: QuickAction[] = [
-    {
-      icon: Users,
-      label: 'Users',
-      sublabel: 'View all',
-      path: '/manager-access?tab=users',
-      color: 'text-primary',
-      bgColor: 'bg-primary/15 hover:bg-primary/25',
-      count: totalUsers
-    },
-    {
-      icon: FileText,
-      label: 'Rent',
-      sublabel: 'Requests',
-      path: '/manager-access',
-      color: 'text-amber-600 dark:text-amber-400',
-      bgColor: 'bg-amber-500/15 hover:bg-amber-500/25',
-      count: pendingRequests,
-      urgent: pendingRequests > 0
-    },
-    {
-      icon: Banknote,
-      label: 'Loans',
-      sublabel: 'Pending',
-      path: '/manager-access?tab=loans',
-      color: 'text-success',
-      bgColor: 'bg-success/15 hover:bg-success/25',
-      count: pendingLoans,
-      urgent: pendingLoans > 0
-    },
-    {
-      icon: ShoppingCart,
-      label: 'Orders',
-      sublabel: 'Pending',
-      path: '/manager-access?tab=orders',
-      color: 'text-blue-600 dark:text-blue-400',
-      bgColor: 'bg-blue-500/15 hover:bg-blue-500/25',
-      count: pendingOrders,
-      urgent: pendingOrders > 0
-    },
-    {
-      icon: Receipt,
-      label: 'Receipts',
-      sublabel: 'User submissions',
-      path: '/manager-access?tab=receipts',
-      color: 'text-purple-600 dark:text-purple-400',
-      bgColor: 'bg-purple-500/15 hover:bg-purple-500/25'
-    },
+  const primaryActions = [
     {
       icon: Wallet,
-      label: 'Invest',
-      sublabel: 'Accounts',
-      path: '/manager-access?tab=investments',
-      color: 'text-emerald-600 dark:text-emerald-400',
-      bgColor: 'bg-emerald-500/15 hover:bg-emerald-500/25'
+      label: 'Deposits',
+      sublabel: 'User payments in',
+      path: '/deposits-management',
+      iconBg: 'bg-primary',
+      cardBg: 'bg-primary/10 hover:bg-primary/15 border-primary/30',
+      textColor: 'text-primary',
+    },
+    {
+      icon: ArrowDownToLine,
+      label: 'Withdrawals',
+      sublabel: 'Pending requests',
+      path: '#withdrawals',
+      iconBg: 'bg-amber-500',
+      cardBg: 'bg-amber-500/10 hover:bg-amber-500/15 border-amber-500/30',
+      textColor: 'text-amber-600 dark:text-amber-400',
+      badge: pendingWithdrawals,
+    },
+    {
+      icon: Home,
+      label: 'Rent Due',
+      sublabel: 'Repayments receivable',
+      path: '/manager-access',
+      iconBg: 'bg-emerald-600',
+      cardBg: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/30',
+      textColor: 'text-emerald-600 dark:text-emerald-400',
     },
   ];
 
   const handleAction = (path: string) => {
     hapticTap();
-    navigate(path);
+    if (path === '#withdrawals') {
+      // Scroll to withdrawal section
+      const el = document.getElementById('withdrawal-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }
+    } else {
+      navigate(path);
+    }
   };
 
   return (
-    <Card className="border-0 bg-transparent shadow-none">
-      <CardContent className="p-0">
-        <div className="grid grid-cols-3 gap-3">
-          {quickActions.map((action, index) => {
-            const Icon = action.icon;
-            return (
-              <motion.button
-                key={action.label}
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: index * 0.05 }}
-                onClick={() => handleAction(action.path)}
-                className={cn(
-                  "relative flex flex-col items-center justify-center gap-2 p-5 rounded-2xl border-2 border-border/50 transition-all touch-manipulation active:scale-95 min-h-[110px]",
-                  action.bgColor
-                )}
-              >
-                {/* Urgent indicator */}
-                {action.urgent && (
-                  <motion.div
-                    initial={{ scale: 0 }}
-                    animate={{ scale: 1 }}
-                    className="absolute -top-1 -right-1 w-4 h-4 bg-destructive rounded-full animate-pulse"
-                  />
-                )}
-                
-                {/* Large icon */}
-                <div className="relative">
-                  <Icon className={cn("h-10 w-10", action.color)} strokeWidth={1.5} />
-                  {action.count !== undefined && action.count > 0 && (
-                    <Badge 
-                      className={cn(
-                        "absolute -top-2 -right-4 h-6 min-w-[24px] px-1.5 text-xs font-bold",
-                        action.urgent ? "bg-destructive" : "bg-primary"
-                      )}
-                    >
-                      {action.count > 99 ? '99+' : action.count}
-                    </Badge>
-                  )}
-                </div>
-                
-                {/* Label - Large and clear */}
-                <span className={cn("text-base font-bold leading-tight", action.color)}>
-                  {action.label}
-                </span>
-                
-                {/* Sublabel */}
-                <span className="text-xs text-muted-foreground font-medium">
-                  {action.sublabel}
-                </span>
-              </motion.button>
-            );
-          })}
-        </div>
-
-        {/* Broadcast & Add User Buttons - Larger touch targets */}
-        <div className="mt-4 grid grid-cols-3 gap-3">
-          {/* Broadcast Notification removed - notifications table dropped */}
-
-          {/* Broadcast Message Button */}
-          <BroadcastMessageDialog 
-            trigger={
-              <motion.button
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.32 }}
-                onClick={() => hapticTap()}
-                className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-blue-500/20 via-blue-500/15 to-blue-500/10 border-2 border-blue-500/30 touch-manipulation active:scale-[0.98] min-h-[90px]"
-              >
-                <div className="p-3 rounded-xl bg-blue-500 text-white">
-                  <MessageSquare className="h-6 w-6" />
-                </div>
-                <p className="text-sm font-bold text-blue-600 dark:text-blue-400">Message All</p>
-              </motion.button>
-            }
-          />
-
-          {/* Add User Button */}
+    <div className="grid grid-cols-3 gap-3">
+      {primaryActions.map((action, index) => {
+        const Icon = action.icon;
+        return (
           <motion.button
-            initial={{ opacity: 0, y: 10 }}
+            key={action.label}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.35 }}
-            onClick={() => {
-              hapticTap();
-              navigate('/manager-access?tab=users&action=add');
-            }}
-            className="w-full flex flex-col items-center justify-center gap-2 p-4 rounded-2xl bg-gradient-to-r from-primary/20 via-primary/15 to-primary/10 border-2 border-primary/30 touch-manipulation active:scale-[0.98] min-h-[90px]"
+            transition={{ delay: index * 0.07, type: 'spring', stiffness: 300, damping: 25 }}
+            onClick={() => handleAction(action.path)}
+            className={cn(
+              "relative flex flex-col items-center justify-center gap-2.5 p-4 rounded-2xl border-2 transition-all touch-manipulation active:scale-95 min-h-[120px]",
+              action.cardBg
+            )}
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            <div className="p-3 rounded-xl bg-primary text-primary-foreground">
-              <UserPlus className="h-6 w-6" />
+            {/* Badge for pending count */}
+            {action.badge !== undefined && action.badge > 0 && (
+              <span className="absolute -top-2 -right-2 min-w-[22px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">
+                {action.badge > 99 ? '99+' : action.badge}
+              </span>
+            )}
+
+            <div className={cn("p-3 rounded-xl text-white shadow-sm", action.iconBg)}>
+              <Icon className="h-6 w-6" strokeWidth={2} />
             </div>
-            <p className="text-sm font-bold text-primary">Add User</p>
+
+            <div className="text-center">
+              <p className={cn("text-sm font-bold leading-tight", action.textColor)}>
+                {action.label}
+              </p>
+              <p className="text-[10px] text-muted-foreground font-medium mt-0.5 leading-tight">
+                {action.sublabel}
+              </p>
+            </div>
+
+            <ArrowRight className={cn("h-3.5 w-3.5 opacity-50", action.textColor)} />
           </motion.button>
-        </div>
-      </CardContent>
-    </Card>
+        );
+      })}
+    </div>
   );
 }

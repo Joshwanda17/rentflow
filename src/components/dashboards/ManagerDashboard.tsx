@@ -889,21 +889,24 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </div>
         </motion.button>
 
-        {/* Mobile Quick Actions Grid - Shows on all screens but optimized for mobile */}
+        {/* Mobile Quick Actions Grid - 3 Priority Buttons */}
         <div className="block">
           <div className="flex items-center justify-between mb-3">
             <h2 className="text-lg font-bold flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-primary" />
               Quick Actions
             </h2>
-            <ChromecastButton />
-            <AiIdButton variant="icon" />
+            <div className="flex items-center gap-2">
+              <ChromecastButton />
+              <AiIdButton variant="icon" />
+            </div>
           </div>
           <MobileQuickActions
             pendingRequests={pendingRequests}
             pendingLoans={pendingLoans}
             pendingOrders={pendingOrders}
             totalUsers={totalUsers}
+            pendingWithdrawals={withdrawalStats.pending}
           />
         </div>
 
@@ -1006,7 +1009,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </CollapsibleAgentSection>
 
         {/* Withdrawal Requests - Priority Section for Manager (Collapsible) */}
-        <div ref={withdrawalSectionRef}>
+        <div ref={withdrawalSectionRef} id="withdrawal-section">
           <CollapsibleAgentSection
             icon={Wallet}
             label="Wallet Withdrawals"
