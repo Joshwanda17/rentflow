@@ -163,6 +163,11 @@ export function WithdrawRequestDialog({
       return;
     }
 
+    if (walletBalance < 50000) {
+      toast.error('Your wallet balance must be at least UGX 50,000 to withdraw');
+      return;
+    }
+
     const MIN_WITHDRAWAL = 500;
     if (amount < MIN_WITHDRAWAL) {
       toast.error(`Minimum withdrawal is UGX ${MIN_WITHDRAWAL.toLocaleString()}`);
@@ -249,7 +254,9 @@ export function WithdrawRequestDialog({
     setAmount(value[0]);
   };
 
-  const isFormValid = amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
+  const MIN_BALANCE_FOR_WITHDRAWAL = 50000;
+  const meetsMinimumBalance = walletBalance >= MIN_BALANCE_FOR_WITHDRAWAL;
+  const isFormValid = meetsMinimumBalance && amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -317,10 +324,26 @@ export function WithdrawRequestDialog({
                 </div>
               )}
 
+              {/* Minimum Balance Policy Notice — always visible */}
+              <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
+                <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
+                <p className="text-xs text-destructive font-medium">
+                  🚫 Policy: Withdrawals are only allowed when your wallet balance is <strong>UGX 50,000 or more</strong>. Requests below this threshold will be automatically rejected.
+                </p>
+              </div>
+
               {walletBalance <= 0 ? (
                 <div className="flex items-center gap-2 p-3 bg-warning/10 rounded-lg text-warning">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm">No funds available to withdraw</p>
+                </div>
+              ) : !meetsMinimumBalance ? (
+                <div className="flex items-center gap-2 p-4 bg-destructive/10 border border-destructive/20 rounded-xl text-destructive">
+                  <AlertCircle className="h-5 w-5 flex-shrink-0" />
+                  <div>
+                    <p className="font-semibold text-sm">Insufficient balance to withdraw</p>
+                    <p className="text-xs mt-0.5">You need at least <strong>UGX 50,000</strong> in your wallet. Your current balance is <strong>{formatCurrency(walletBalance)}</strong>.</p>
+                  </div>
                 </div>
               ) : workingHoursStatus.isOpen ? (
                 <>
