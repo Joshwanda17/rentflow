@@ -5,6 +5,7 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Checkbox } from '@/components/ui/checkbox';
 import { ArrowLeft, Mail, Lock, User, Phone, Loader2, MessageCircle, AlertCircle, LogIn } from 'lucide-react';
+import { CountryCodeSelect } from '@/components/auth/CountryCodeSelect';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 import PasswordStrengthIndicator from '@/components/auth/PasswordStrengthIndicator';
@@ -28,6 +29,7 @@ export default function Auth() {
     showConfirmPassword, setShowConfirmPassword,
     fullName, setFullName,
     phone, setPhone,
+    countryCode, setCountryCode,
     isLoading,
     loginError, setLoginError,
     failedAttempts,
@@ -146,21 +148,24 @@ export default function Auth() {
                 {!isForgotPassword && !isForgotPhone && (
                   <div className="space-y-2">
                     <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
-                    <div className="relative">
-                      <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
-                      <Input
-                        ref={phoneInputRef}
-                        id="phone"
-                        type="tel"
-                        inputMode="tel"
-                        autoComplete="tel"
-                        value={phone}
-                        onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
-                        placeholder="0700123456"
-                        className={`pl-11 h-14 text-base rounded-xl ${loginError || (isSignUp && isDuplicate) ? 'border-destructive focus:ring-destructive' : ''}`}
-                        style={{ fontSize: '16px' }}
-                        required
-                      />
+                    <div className="relative flex">
+                      <CountryCodeSelect value={countryCode} onChange={setCountryCode} />
+                      <div className="relative flex-1">
+                        <Phone className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
+                        <Input
+                          ref={phoneInputRef}
+                          id="phone"
+                          type="tel"
+                          inputMode="tel"
+                          autoComplete="tel"
+                          value={phone}
+                          onChange={(e) => { setPhone(e.target.value); setLoginError(null); }}
+                          placeholder="700123456"
+                          className={`pl-11 h-14 text-base rounded-xl rounded-l-none ${loginError || (isSignUp && isDuplicate) ? 'border-destructive focus:ring-destructive' : ''}`}
+                          style={{ fontSize: '16px' }}
+                          required
+                        />
+                      </div>
                     </div>
                     {isSignUp && isDuplicate && (
                       <p className="text-xs text-destructive flex items-center gap-1">
@@ -428,9 +433,21 @@ export default function Auth() {
                     otpVerified={otpVerified}
                     otpLoading={otpLoading}
                     otpError={otpError}
-                    onSendOtp={() => sendOtp(phone)}
-                    onVerifyOtp={(otp) => verifyOtp(phone, otp)}
-                    onResendOtp={() => sendOtp(phone)}
+                    onSendOtp={() => {
+                      const cleanDigits = phone.replace(/\D/g, '');
+                      const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
+                      sendOtp(fullNum);
+                    }}
+                    onVerifyOtp={(otp) => {
+                      const cleanDigits = phone.replace(/\D/g, '');
+                      const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
+                      verifyOtp(fullNum, otp);
+                    }}
+                    onResendOtp={() => {
+                      const cleanDigits = phone.replace(/\D/g, '');
+                      const fullNum = cleanDigits.startsWith(countryCode) ? cleanDigits : countryCode + (cleanDigits.startsWith('0') ? cleanDigits.slice(1) : cleanDigits);
+                      sendOtp(fullNum);
+                    }}
                   />
                 )}
 
