@@ -51,7 +51,8 @@ import {
   BookmarkPlus,
   Shield,
   AlertTriangle,
-  ArrowDownToLine
+  ArrowDownToLine,
+  Home
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -231,7 +232,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const [withdrawalStats, setWithdrawalStats] = useState<{ pending: number; approved: number; rejected: number; pendingAmount: number; approvedAmount: number; rejectedAmount: number }>({ pending: 0, approved: 0, rejected: 0, pendingAmount: 0, approvedAmount: 0, rejectedAmount: 0 });
   const [withdrawalSectionOpen, setWithdrawalSectionOpen] = useState(false);
   const [depositSectionOpen, setDepositSectionOpen] = useState(true);
+  const [rentDueSectionOpen, setRentDueSectionOpen] = useState(false);
   const withdrawalSectionRef = useRef<HTMLDivElement>(null);
+  const rentDueSectionRef = useRef<HTMLDivElement>(null);
 
   // Compute online users from topOnboarders list
   const activeOnlineUsers = topOnboarders.filter(u => isUserOnline(u.id)).map(u => ({
@@ -907,6 +910,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             pendingOrders={pendingOrders}
             totalUsers={totalUsers}
             pendingWithdrawals={withdrawalStats.pending}
+            onRentDueClick={() => {
+              setRentDueSectionOpen(true);
+              setTimeout(() => rentDueSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+            }}
           />
         </div>
 
@@ -1042,8 +1049,18 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {/* Pending Rent Requests - Incoming from agents/tenants */}
         <PendingRentRequestsWidget />
 
-        {/* Approved Rent Requests - Awaiting supporter funding */}
-        <ApprovedRentRequestsWidget mode="manager" />
+        {/* Rent Due — Approved requests = receivables, triggered by "Rent Due" quick action */}
+        <div ref={rentDueSectionRef} id="rent-due-section">
+          <CollapsibleAgentSection
+            icon={Home}
+            label="Rent Due (Receivables)"
+            iconColor="text-emerald-600"
+            isOpen={rentDueSectionOpen}
+            onToggle={() => setRentDueSectionOpen(!rentDueSectionOpen)}
+          >
+            <ApprovedRentRequestsWidget mode="manager" />
+          </CollapsibleAgentSection>
+        </div>
 
         {/* Pending Investment Requests - Quick view of supporter requests */}
         <PendingInvestmentRequestsWidget />

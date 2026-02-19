@@ -15,10 +15,12 @@ interface MobileQuickActionsProps {
   pendingOrders: number;
   totalUsers: number;
   pendingWithdrawals?: number;
+  onRentDueClick?: () => void;
 }
 
 export function MobileQuickActions({ 
   pendingWithdrawals = 0,
+  onRentDueClick,
 }: MobileQuickActionsProps) {
   const navigate = useNavigate();
 
@@ -46,7 +48,7 @@ export function MobileQuickActions({
       icon: Home,
       label: 'Rent Due',
       sublabel: 'Repayments receivable',
-      path: '/manager-access',
+      path: '#rent-due',
       iconBg: 'bg-emerald-600',
       cardBg: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/30',
       textColor: 'text-emerald-600 dark:text-emerald-400',
@@ -56,11 +58,10 @@ export function MobileQuickActions({
   const handleAction = (path: string) => {
     hapticTap();
     if (path === '#withdrawals') {
-      // Scroll to withdrawal section
       const el = document.getElementById('withdrawal-section');
-      if (el) {
-        el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }
+      if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    } else if (path === '#rent-due') {
+      onRentDueClick?.();
     } else {
       navigate(path);
     }
@@ -83,7 +84,6 @@ export function MobileQuickActions({
             )}
             style={{ WebkitTapHighlightColor: 'transparent' }}
           >
-            {/* Badge for pending count */}
             {action.badge !== undefined && action.badge > 0 && (
               <span className="absolute -top-2 -right-2 min-w-[22px] h-5 px-1.5 rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold flex items-center justify-center shadow-sm">
                 {action.badge > 99 ? '99+' : action.badge}
