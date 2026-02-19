@@ -72,17 +72,19 @@ const DashboardHeader = memo(function DashboardHeader({
   };
 
   const handleRoleSwitch = (role: AppRole) => {
-    if (role !== currentRole) {
-      hapticTap();
+    hapticTap();
+    if (role === currentRole) {
       setRolePickerOpen(false);
-      if (role === 'manager') {
-        navigate('/manager-login');
-        return;
-      }
-      onRoleChange(role);
-    } else {
-      setRolePickerOpen(false);
+      return;
     }
+    if (role === 'manager') {
+      setRolePickerOpen(false);
+      navigate('/manager-login');
+      return;
+    }
+    // Switch role first, then close popover after a tick to avoid swallowed events on mobile
+    onRoleChange(role);
+    setTimeout(() => setRolePickerOpen(false), 100);
   };
 
   const showInstallButton = (isIOS && !isInstalled) || (isInstallable && !isInstalled);
