@@ -154,6 +154,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [subAgents, setSubAgents] = useState<SubAgent[]>([]);
   const [subAgentsLoading, setSubAgentsLoading] = useState(false);
   const [addBalanceOpen, setAddBalanceOpen] = useState(false);
+  const [referralCount, setReferralCount] = useState<number>(0);
+
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
@@ -169,6 +171,12 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
         phone: user.phone,
         monthly_rent: user.monthly_rent?.toString() || ''
       });
+      // Fetch referral count
+      supabase
+        .from('profiles')
+        .select('id', { count: 'exact', head: true })
+        .eq('referrer_id', user.id)
+        .then(({ count }) => setReferralCount(count || 0));
     }
   }, [open, user]);
 
