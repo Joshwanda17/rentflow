@@ -5,7 +5,10 @@ import type { AppRole } from './types';
 export const DEFAULT_ROLE: AppRole = 'agent';
 export const DEFAULT_ROLES: AppRole[] = ['agent'];
 
-/** Fetch roles from DB, always ensuring 'agent' is included. */
+/** Standard roles every user should have */
+const STANDARD_ROLES: AppRole[] = ['agent', 'tenant', 'supporter', 'landlord'];
+
+/** Fetch roles from DB, always ensuring 'agent' is included. Auto-creates roles if missing. */
 export async function fetchUserRoles(
   userId: string,
   currentRole: AppRole | null,
@@ -21,7 +24,6 @@ export async function fetchUserRoles(
 
     if (error) {
       console.warn('[RoleManager] Error fetching roles:', error.message);
-      // Don't overwrite existing roles on error
       setRoles(DEFAULT_ROLES);
       setRole(DEFAULT_ROLE);
       setCachedRoles(DEFAULT_ROLES);
@@ -33,17 +35,35 @@ export async function fetchUserRoles(
       if (!userRoles.includes('agent')) {
         userRoles = ['agent', ...userRoles];
       }
-      console.log('[RoleManager] Fetched roles:', userRoles);
       setRoles(userRoles);
       setCachedRoles(userRoles);
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole('agent');
       }
     } else {
-      console.warn('[RoleManager] No roles found for user:', userId);
-      setRoles(DEFAULT_ROLES);
-      setRole(DEFAULT_ROLE);
-      setCachedRoles(DEFAULT_ROLES);
+      // No roles found — auto-create standard roles for this user
+      console.log('[RoleManager] No roles found, auto-creating for user:', userId);
+      const inserts = STANDARD_ROLES.map(role => ({
+        user_id: userId,
+        role,
+        enabled: true,
+      }));
+      const { error: insertError } = await supabase
+        .from('user_roles')
+        .insert(inserts);
+
+      if (!insertError) {
+        setRoles(STANDARD_ROLES);
+        setCachedRoles(STANDARD_ROLES);
+        if (!currentRole || !STANDARD_ROLES.includes(currentRole)) {
+          setRole('agent');
+        }
+      } else {
+        console.warn('[RoleManager] Failed to auto-create roles:', insertError.message);
+        setRoles(DEFAULT_ROLES);
+        setRole(DEFAULT_ROLE);
+        setCachedRoles(DEFAULT_ROLES);
+      }
     }
   } catch (err: any) {
     console.warn('[RoleManager] Exception fetching roles:', err?.message);
