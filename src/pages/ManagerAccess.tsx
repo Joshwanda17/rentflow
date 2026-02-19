@@ -35,7 +35,8 @@ import {
   Activity,
   CreditCard,
   BadgeCheck,
-  MapPin
+  MapPin,
+  Landmark,
 } from 'lucide-react';
 import { RentRequestsManager } from '@/components/manager/RentRequestsManager';
 import { LoanApplicationsManager } from '@/components/manager/LoanApplicationsManager';
@@ -44,6 +45,7 @@ import UserCountsSummary from '@/components/manager/UserCountsSummary';
 import { ReceiptManagement } from '@/components/manager/ReceiptManagement';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
+import { ManagerBankingLedger } from '@/components/manager/ManagerBankingLedger';
 import { OrdersManager } from '@/components/manager/OrdersManager';
 import { InvestmentAccountsManager } from '@/components/manager/InvestmentAccountsManager';
 import { ManagerInvestmentRequestsSection } from '@/components/manager/ManagerInvestmentRequestsSection';
@@ -662,8 +664,8 @@ export default function ManagerAccess() {
               <MapPin className="h-3.5 w-3.5" />
               Locations
             </TabsTrigger>
-            <TabsTrigger value="ledger" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <FileText className="h-3.5 w-3.5" />
+          <TabsTrigger value="ledger" className="gap-1.5 text-xs flex-1 min-w-[100px]">
+              <Landmark className="h-3.5 w-3.5" />
               Ledger
             </TabsTrigger>
           </TabsList>
@@ -734,7 +736,7 @@ export default function ManagerAccess() {
           </TabsContent>
 
           <TabsContent value="ledger" className="mt-4">
-            <GeneralLedger />
+            <ManagerBankingLedger />
           </TabsContent>
 
           <TabsContent value="deposits" className="mt-4">
