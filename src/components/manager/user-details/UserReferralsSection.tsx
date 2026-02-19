@@ -171,8 +171,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
       </div>
 
       {/* User list - infinite scroll */}
-      <ScrollArea className="max-h-[400px]">
-        <div className="space-y-2 pr-1">
+      <div className="max-h-[400px] overflow-y-auto space-y-2 pr-1">
           {registeredUsers.map((user, index) => (
             <div
               key={user.id}
@@ -232,8 +231,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
               {loadingMore && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
             </div>
           )}
-        </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
