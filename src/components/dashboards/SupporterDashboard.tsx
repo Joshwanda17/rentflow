@@ -62,12 +62,11 @@ interface SupporterDashboardProps {
   currentRole: AppRole;
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
-  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   addRoleComponent: ReactNode;
 }
 
 export default function SupporterDashboard({ 
-  user, signOut, currentRole, availableRoles, onRoleChange, onAddRole, addRoleComponent 
+  user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent 
 }: SupporterDashboardProps) {
   const navigate = useNavigate();
   const location = useLocation();
@@ -305,7 +304,6 @@ export default function SupporterDashboard({
         availableRoles={availableRoles}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
-        onAddRole={onAddRole}
         menuItems={menuItems}
       />
 

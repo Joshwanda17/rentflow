@@ -1,6 +1,5 @@
-import { useState, memo, useCallback } from 'react';
+import { useState, memo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useToast } from '@/hooks/use-toast';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -14,7 +13,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from '@/components/ui/popover';
-import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut, Plus } from 'lucide-react';
+import { Menu, Settings, Download, Globe, Home, Users, Wallet, Building2, Shield, ChevronDown, LogOut } from 'lucide-react';
 
 import { hapticTap } from '@/lib/haptics';
 import { AppRole } from '@/hooks/useAuth';
@@ -35,13 +34,10 @@ interface DashboardHeaderProps {
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
   onSignOut: () => Promise<void>;
-  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   menuItems?: MenuItemConfig[];
   opportunityCount?: number;
   onOpportunityBadgeClick?: () => void;
 }
-
-const ALL_ROLES: AppRole[] = ['tenant', 'agent', 'supporter', 'landlord', 'manager'];
 
 const roleConfig: Record<AppRole, { label: string; emoji: string; icon: React.ReactNode }> = {
   tenant: { label: 'Tenant', emoji: '🏠', icon: <Home className="h-4 w-4" /> },
@@ -56,17 +52,14 @@ const DashboardHeader = memo(function DashboardHeader({
   availableRoles,
   onRoleChange,
   onSignOut,
-  onAddRole,
   menuItems = [],
   opportunityCount,
   onOpportunityBadgeClick,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
-  const { toast } = useToast();
   const { isIOS, isInstalled, isInstallable, promptInstall } = usePWAInstall();
   const [showIOSGuide, setShowIOSGuide] = useState(false);
   const [rolePickerOpen, setRolePickerOpen] = useState(false);
-  const [addingRole, setAddingRole] = useState<AppRole | null>(null);
 
   const handleInstallClick = async () => {
     if (isIOS) {
@@ -78,39 +71,17 @@ const DashboardHeader = memo(function DashboardHeader({
     }
   };
 
-  const handleRoleSwitch = async (role: AppRole) => {
-    hapticTap();
-    const hasRole = availableRoles.includes(role);
-    
-    if (hasRole) {
-      if (role === currentRole) {
-        setRolePickerOpen(false);
-        return;
-      }
+  const handleRoleSwitch = (role: AppRole) => {
+    if (role !== currentRole) {
+      hapticTap();
+      setRolePickerOpen(false);
       if (role === 'manager') {
-        setRolePickerOpen(false);
         navigate('/manager-login');
         return;
       }
       onRoleChange(role);
-      setTimeout(() => setRolePickerOpen(false), 100);
-    } else if (onAddRole) {
-      // Adding a new role
-      if (role === 'manager') {
-        setRolePickerOpen(false);
-        navigate('/manager-login');
-        return;
-      }
-      setAddingRole(role);
-      const { error } = await onAddRole(role);
-      setAddingRole(null);
-      if (error) {
-        toast({ title: 'Error', description: error.message, variant: 'destructive' });
-      } else {
-        toast({ title: 'Role Added', description: `You now have access to the ${roleConfig[role].label} dashboard` });
-        onRoleChange(role);
-        setTimeout(() => setRolePickerOpen(false), 100);
-      }
+    } else {
+      setRolePickerOpen(false);
     }
   };
 
@@ -153,37 +124,24 @@ const DashboardHeader = memo(function DashboardHeader({
                       <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest px-2 pt-1 pb-1.5">
                         Switch Role
                       </p>
-                      {ALL_ROLES.map((role) => {
+                      {availableRoles.map((role) => {
                         const config = roleConfig[role];
                         const isActive = role === currentRole;
-                        const hasRole = availableRoles.includes(role);
-                        const isAdding = addingRole === role;
                         return (
                           <button
                             key={role}
                             onClick={() => handleRoleSwitch(role)}
-                            disabled={isAdding}
                             className={cn(
                               "w-full flex items-center gap-2.5 px-2.5 py-2.5 rounded-xl text-sm font-medium transition-all touch-manipulation min-h-[44px]",
                               isActive
                                 ? "bg-primary/10 text-primary font-semibold"
-                                : hasRole
-                                  ? "text-foreground hover:bg-muted active:scale-[0.98]"
-                                  : "text-muted-foreground hover:bg-muted/50 active:scale-[0.98]"
+                                : "text-foreground hover:bg-muted active:scale-[0.98]"
                             )}
                           >
                             <span className="text-base">{config.emoji}</span>
                             <span>{config.label}</span>
                             {isActive && (
                               <span className="ml-auto text-primary text-xs">✓</span>
-                            )}
-                            {!hasRole && !isAdding && (
-                              <span className="ml-auto flex items-center gap-1 text-[10px] text-primary">
-                                <Plus className="h-3 w-3" /> Add
-                              </span>
-                            )}
-                            {isAdding && (
-                              <span className="ml-auto text-[10px] text-muted-foreground animate-pulse">Adding...</span>
                             )}
                           </button>
                         );

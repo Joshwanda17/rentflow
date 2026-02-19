@@ -54,11 +54,10 @@ interface AgentDashboardProps {
   currentRole: AppRole;
   availableRoles: AppRole[];
   onRoleChange: (role: AppRole) => void;
-  onAddRole?: (role: AppRole) => Promise<{ error: Error | null }>;
   addRoleComponent: ReactNode;
 }
 
-export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, onAddRole, addRoleComponent }: AgentDashboardProps) {
+export default function AgentDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: AgentDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
   const { refreshEarnings } = useAgentEarnings();
@@ -119,7 +118,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         availableRoles={availableRoles}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
-        onAddRole={onAddRole}
         menuItems={menuItems}
       />
 
