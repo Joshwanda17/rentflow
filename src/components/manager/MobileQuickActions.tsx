@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { cn } from '@/lib/utils';
+import { formatUGX } from '@/lib/rentCalculations';
 
 interface MobileQuickActionsProps {
   pendingRequests: number;
@@ -15,11 +16,13 @@ interface MobileQuickActionsProps {
   pendingOrders: number;
   totalUsers: number;
   pendingWithdrawals?: number;
+  rentDueTotal?: number;
   onRentDueClick?: () => void;
 }
 
 export function MobileQuickActions({ 
   pendingWithdrawals = 0,
+  rentDueTotal = 0,
   onRentDueClick,
 }: MobileQuickActionsProps) {
   const navigate = useNavigate();
@@ -47,7 +50,7 @@ export function MobileQuickActions({
     {
       icon: Home,
       label: 'Rent Due',
-      sublabel: 'Repayments receivable',
+      sublabel: rentDueTotal > 0 ? formatUGX(rentDueTotal) : 'Repayments receivable',
       path: '#rent-due',
       iconBg: 'bg-emerald-600',
       cardBg: 'bg-emerald-500/10 hover:bg-emerald-500/15 border-emerald-500/30',
