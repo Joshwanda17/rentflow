@@ -915,7 +915,14 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
           <span className={isMobile ? '' : 'hidden sm:inline'}>Invest</span>
         </TabsTrigger>
         <TabsTrigger value="referrals" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
-          <UserPlus className="h-4 w-4" />
+          <div className="relative">
+            <UserPlus className="h-4 w-4" />
+            {referralCount > 0 && (
+              <span className="absolute -top-2 -right-2 bg-primary text-primary-foreground text-[9px] font-bold rounded-full min-w-[14px] h-[14px] flex items-center justify-center px-0.5 leading-none">
+                {referralCount > 99 ? '99+' : referralCount}
+              </span>
+            )}
+          </div>
           <span className={isMobile ? '' : 'hidden sm:inline'}>Referrals</span>
         </TabsTrigger>
         <TabsTrigger value="terms" className={`gap-1.5 ${isMobile ? 'flex-col h-full py-1.5 text-[10px] px-3 shrink-0' : 'gap-2'}`}>
