@@ -36,6 +36,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     let isMounted = true;
+    let rolesFetched = false; // prevent duplicate role fetches
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, session) => {
@@ -46,7 +47,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (session?.user) {
           setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
-          fetchUserRoles(session.user.id, role, setRoles, setRole);
+          
+          // Only fetch roles if initializeAuth hasn't already done it
+          if (!rolesFetched) {
+            rolesFetched = true;
+            fetchUserRoles(session.user.id, role, setRoles, setRole);
+          }
 
         if (event === 'SIGNED_IN') {
             // Defer non-critical profile update — don't block login
@@ -59,6 +65,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             }, 5000);
           }
         } else if (event === 'SIGNED_OUT') {
+          rolesFetched = false;
           setRole(null);
           setRoles([]);
           clearSessionCache();
@@ -102,6 +109,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           if (session?.user) {
             setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
+            // Always fetch roles here — this is the authoritative fetch
+            rolesFetched = true;
             const rolePromise = fetchUserRoles(session.user.id, role, setRoles, setRole);
             const timeoutPromise = new Promise<void>((resolve) => setTimeout(resolve, 5000));
             await Promise.race([rolePromise, timeoutPromise]);
