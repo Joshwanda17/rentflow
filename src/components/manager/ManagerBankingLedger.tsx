@@ -4,11 +4,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import { Separator } from '@/components/ui/separator';
 import {
   Dialog,
   DialogContent,
@@ -19,35 +17,24 @@ import {
 } from '@/components/ui/dialog';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { toast } from 'sonner';
 import {
   Search,
   Loader2,
-  Landmark,
+  ArrowLeft,
+  RefreshCw,
+  ChevronRight,
+  TriangleAlert,
+  Wallet,
+  PlusCircle,
+  MinusCircle,
+  ArrowDownCircle,
+  ArrowUpCircle,
+  Phone,
+  Calendar,
   TrendingUp,
   TrendingDown,
-  Plus,
-  Minus,
-  ArrowUpDown,
-  Calendar,
-  RefreshCw,
-  Users,
-  Banknote,
-  ArrowDownToLine,
-  Coins,
-  CheckCircle2,
-  Gift,
-  ChevronRight,
-  Filter,
-  FileText,
-  TriangleAlert,
+  BadgeInfo,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -78,135 +65,103 @@ interface LedgerEntry {
   balance_after: number;
 }
 
-/* ─── Category meta ──────────────────────────────────────────────────────── */
+/* ─── Human-friendly category labels ────────────────────────────────────── */
 
-const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; colorClass: string }> = {
-  referral_bonus:             { label: 'Referral Bonus',          Icon: Users,          colorClass: 'text-primary bg-primary/10' },
-  agent_commission:           { label: 'Commission Earned',        Icon: TrendingUp,     colorClass: 'text-success bg-success/10' },
-  approval_bonus:             { label: 'Approval Bonus',           Icon: CheckCircle2,   colorClass: 'text-success bg-success/10' },
-  subagent_commission:        { label: 'Sub-agent Commission',     Icon: TrendingUp,     colorClass: 'text-success bg-success/10' },
-  referral_first_transaction: { label: 'First Transaction Bonus',  Icon: Gift,           colorClass: 'text-warning bg-warning/10' },
-  welcome_bonus:              { label: 'Welcome Bonus',            Icon: Gift,           colorClass: 'text-warning bg-warning/10' },
-  deposit:                    { label: 'Mobile Money Deposit',     Icon: Landmark,       colorClass: 'text-primary bg-primary/10' },
-  wallet_withdrawal:          { label: 'Withdrawal',               Icon: ArrowDownToLine,colorClass: 'text-destructive bg-destructive/10' },
-  supporter_reward:           { label: 'Supporter Reward',         Icon: Coins,          colorClass: 'text-success bg-success/10' },
-  rent_repayment:             { label: 'Rent Repayment',           Icon: Banknote,       colorClass: 'text-primary bg-primary/10' },
-  manager_credit:             { label: 'Manager Credit',           Icon: Plus,           colorClass: 'text-success bg-success/10' },
-  manager_debit:              { label: 'Manager Debit',            Icon: Minus,          colorClass: 'text-destructive bg-destructive/10' },
+const CATEGORY_LABELS: Record<string, { label: string; emoji: string; note: string }> = {
+  referral_bonus:             { label: 'Referral Reward',        emoji: '👥', note: 'Earned for bringing a friend' },
+  agent_commission:           { label: 'Commission Earned',       emoji: '💼', note: 'Earned from helping a tenant' },
+  approval_bonus:             { label: 'Approval Bonus',          emoji: '✅', note: 'Bonus for approving a request' },
+  subagent_commission:        { label: 'Team Commission',         emoji: '🤝', note: 'Earned from your sub-agent' },
+  referral_first_transaction: { label: 'First Deal Bonus',        emoji: '🎉', note: 'Bonus when your referral first transacted' },
+  welcome_bonus:              { label: 'Welcome Gift',            emoji: '🎁', note: 'One-time welcome reward' },
+  deposit:                    { label: 'Money Added (Deposit)',   emoji: '📲', note: 'Sent from mobile money' },
+  wallet_withdrawal:          { label: 'Money Withdrawn',         emoji: '🏧', note: 'Sent out to mobile money' },
+  supporter_reward:           { label: 'Investment Return',       emoji: '📈', note: 'Return from supporting a tenant' },
+  rent_repayment:             { label: 'Rent Payment Received',   emoji: '🏠', note: 'Tenant paid back rent' },
+  manager_credit:             { label: 'Added by Manager',        emoji: '➕', note: 'Manager manually added funds' },
+  manager_debit:              { label: 'Removed by Manager',      emoji: '➖', note: 'Manager manually removed funds' },
 };
 
-function getCategoryMeta(category: string, direction: string) {
-  const meta = CATEGORY_META[category];
+function getCategoryInfo(category: string, direction: string) {
+  const meta = CATEGORY_LABELS[category];
   if (meta) return meta;
-  if (direction === 'cash_out') return { label: category.replace(/_/g, ' '), Icon: ArrowDownToLine, colorClass: 'text-destructive bg-destructive/10' };
-  return { label: category.replace(/_/g, ' '), Icon: Banknote, colorClass: 'text-muted-foreground bg-muted' };
+  if (direction === 'cash_out') return { label: 'Money Sent Out', emoji: '📤', note: '' };
+  return { label: 'Money Received', emoji: '📥', note: '' };
 }
 
 /* ─── Quick amounts ──────────────────────────────────────────────────────── */
-
 const QUICK_AMOUNTS = [5_000, 10_000, 50_000, 100_000, 500_000];
 
-/* ─── Main component ─────────────────────────────────────────────────────── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   MAIN COMPONENT
+═══════════════════════════════════════════════════════════════════════════ */
 
 export function ManagerBankingLedger() {
   const { user } = useAuth();
 
-  // Search / user list
   const [searchQuery, setSearchQuery] = useState('');
-  const [users, setUsers]         = useState<UserSummary[]>([]);
+  const [users, setUsers]             = useState<UserSummary[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
 
-  // Selected user
   const [selectedUser, setSelectedUser] = useState<UserSummary | null>(null);
-  const [ledger, setLedger]       = useState<LedgerEntry[]>([]);
+  const [ledger, setLedger]            = useState<LedgerEntry[]>([]);
   const [loadingLedger, setLoadingLedger] = useState(false);
-  const [filterDir, setFilterDir] = useState<'all' | 'cash_in' | 'cash_out'>('all');
+  const [showOnlyType, setShowOnlyType]  = useState<'all' | 'cash_in' | 'cash_out'>('all');
 
-  // Adjustment dialog
-  const [adjOpen, setAdjOpen]     = useState(false);
-  const [adjType, setAdjType]     = useState<'credit' | 'debit'>('credit');
-  const [adjAmount, setAdjAmount] = useState('');
-  const [adjReason, setAdjReason] = useState('');
+  const [adjOpen, setAdjOpen]       = useState(false);
+  const [adjType, setAdjType]       = useState<'add' | 'remove'>('add');
+  const [adjAmount, setAdjAmount]   = useState('');
+  const [adjReason, setAdjReason]   = useState('');
   const [adjLoading, setAdjLoading] = useState(false);
 
-  /* ── Fetch users with balances ── */
+  /* ── load user list ── */
   const fetchUsers = useCallback(async (q: string) => {
     setLoadingUsers(true);
     try {
-      let query = supabase
-        .from('profiles')
-        .select('id, full_name, phone, email')
-        .order('full_name');
-
+      let query = supabase.from('profiles').select('id, full_name, phone, email').order('full_name');
       if (q.trim()) {
         query = query.or(`full_name.ilike.%${q}%,phone.ilike.%${q}%,email.ilike.%${q}%`);
       }
-
-      const { data: profiles, error } = await query.limit(50);
+      const { data: profiles, error } = await query.limit(60);
       if (error) throw error;
-
       if (!profiles?.length) { setUsers([]); return; }
 
       const ids = profiles.map(p => p.id);
-
-      // Batch fetch wallets + ledger summaries
       const [walletsRes, ledgerRes] = await Promise.all([
         supabase.from('wallets').select('user_id, id, balance').in('user_id', ids),
-        supabase
-          .from('general_ledger')
-          .select('user_id, direction, amount')
-          .in('user_id', ids),
+        supabase.from('general_ledger').select('user_id, direction, amount').in('user_id', ids),
       ]);
 
-      const walletMap = new Map(
-        (walletsRes.data || []).map(w => [w.user_id, { id: w.id, balance: w.balance }])
-      );
-
-      // Aggregate per user
-      const ledgerAgg = new Map<string, { totalIn: number; totalOut: number; count: number }>();
+      const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, { id: w.id, balance: w.balance }]));
+      const aggMap    = new Map<string, { totalIn: number; totalOut: number; count: number }>();
       for (const row of ledgerRes.data || []) {
-        const agg = ledgerAgg.get(row.user_id) || { totalIn: 0, totalOut: 0, count: 0 };
-        if (row.direction === 'cash_in') agg.totalIn += row.amount;
-        else agg.totalOut += row.amount;
-        agg.count++;
-        ledgerAgg.set(row.user_id, agg);
+        const a = aggMap.get(row.user_id) || { totalIn: 0, totalOut: 0, count: 0 };
+        if (row.direction === 'cash_in') a.totalIn += row.amount; else a.totalOut += row.amount;
+        a.count++;
+        aggMap.set(row.user_id, a);
       }
 
-      const summaries: UserSummary[] = profiles.map(p => {
+      setUsers(profiles.map(p => {
         const w = walletMap.get(p.id);
-        const agg = ledgerAgg.get(p.id) || { totalIn: 0, totalOut: 0, count: 0 };
-        return {
-          id: p.id,
-          full_name: p.full_name,
-          phone: p.phone,
-          email: p.email,
-          balance: w?.balance ?? 0,
-          walletId: w?.id ?? null,
-          totalIn: agg.totalIn,
-          totalOut: agg.totalOut,
-          entryCount: agg.count,
-        };
-      });
-
-      setUsers(summaries);
+        const a = aggMap.get(p.id) || { totalIn: 0, totalOut: 0, count: 0 };
+        return { id: p.id, full_name: p.full_name, phone: p.phone, email: p.email,
+                 balance: w?.balance ?? 0, walletId: w?.id ?? null,
+                 totalIn: a.totalIn, totalOut: a.totalOut, entryCount: a.count };
+      }));
     } catch (e) {
-      console.error('[ManagerBankingLedger] fetchUsers', e);
+      console.error(e);
     } finally {
       setLoadingUsers(false);
     }
   }, []);
 
-  useEffect(() => {
-    fetchUsers('');
-  }, [fetchUsers]);
-
-  // Debounced search
+  useEffect(() => { fetchUsers(''); }, [fetchUsers]);
   useEffect(() => {
     const t = setTimeout(() => fetchUsers(searchQuery), 300);
     return () => clearTimeout(t);
   }, [searchQuery, fetchUsers]);
 
-  /* ── Fetch ledger for selected user ── */
+  /* ── load ledger for one user ── */
   const fetchLedger = useCallback(async (userId: string) => {
     setLoadingLedger(true);
     try {
@@ -216,265 +171,205 @@ export function ManagerBankingLedger() {
         .eq('user_id', userId)
         .order('transaction_date', { ascending: false })
         .limit(200);
-
       if (error) throw error;
 
       let running = 0;
-      const chronological = [...(data || [])].reverse();
-      const withBalance: LedgerEntry[] = chronological.map(row => {
-        if (row.direction === 'cash_in') running += row.amount;
-        else running -= row.amount;
+      const withBal: LedgerEntry[] = [...(data || [])].reverse().map(row => {
+        if (row.direction === 'cash_in') running += row.amount; else running -= row.amount;
         return {
-          id: row.id,
-          date: row.transaction_date,
+          id: row.id, date: row.transaction_date,
           direction: row.direction as 'cash_in' | 'cash_out',
           category: row.category,
-          description: row.description || getCategoryMeta(row.category, row.direction).label,
-          amount: row.amount,
-          reference_id: row.reference_id,
-          linked_party: row.linked_party,
+          description: row.description || getCategoryInfo(row.category, row.direction).label,
+          amount: row.amount, reference_id: row.reference_id, linked_party: row.linked_party,
           balance_after: Math.max(0, running),
         };
       });
-
-      setLedger(withBalance.reverse()); // newest first
+      setLedger(withBal.reverse());
     } catch (e) {
-      console.error('[ManagerBankingLedger] fetchLedger', e);
+      console.error(e);
     } finally {
       setLoadingLedger(false);
     }
   }, []);
 
-  const selectUser = (u: UserSummary) => {
-    setSelectedUser(u);
-    setFilterDir('all');
-    fetchLedger(u.id);
-  };
+  const openUser = (u: UserSummary) => { setSelectedUser(u); setShowOnlyType('all'); fetchLedger(u.id); };
+  const goBack   = () => { setSelectedUser(null); setLedger([]); fetchUsers(searchQuery); };
 
-  const handleBack = () => {
-    setSelectedUser(null);
-    setLedger([]);
-    fetchUsers(searchQuery);
-  };
-
-  /* ── Adjust balance ── */
+  /* ── adjust ── */
   const handleAdjust = async () => {
     if (!selectedUser || !user) return;
     const amountNum = parseFloat(adjAmount);
-
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Enter a valid amount');
+    if (isNaN(amountNum) || amountNum <= 0) { toast.error('Enter a valid amount'); return; }
+    if (!adjReason.trim())                   { toast.error('Please explain the reason'); return; }
+    if (adjType === 'remove' && amountNum > selectedUser.balance) {
+      toast.error(`Can't remove more than the current balance (${formatUGX(selectedUser.balance)})`);
       return;
     }
-    if (!adjReason.trim()) {
-      toast.error('A reason is required');
-      return;
-    }
-    if (adjType === 'debit' && amountNum > selectedUser.balance) {
-      toast.error(`Cannot debit more than balance (${formatUGX(selectedUser.balance)})`);
-      return;
-    }
-
     setAdjLoading(true);
     try {
-      // Get / create wallet
-      let { data: wallet, error: wErr } = await supabase
-        .from('wallets')
-        .select('id, balance')
-        .eq('user_id', selectedUser.id)
-        .maybeSingle();
+      let { data: wallet, error: wErr } = await supabase.from('wallets').select('id, balance').eq('user_id', selectedUser.id).maybeSingle();
       if (wErr) throw wErr;
-
       if (!wallet) {
-        const { data: nw, error: nwErr } = await supabase
-          .from('wallets')
-          .insert({ user_id: selectedUser.id, balance: 0 })
-          .select('id, balance')
-          .single();
+        const { data: nw, error: nwErr } = await supabase.from('wallets').insert({ user_id: selectedUser.id, balance: 0 }).select('id, balance').single();
         if (nwErr) throw nwErr;
         wallet = nw;
       }
+      const delta  = adjType === 'add' ? amountNum : -amountNum;
+      const newBal = Math.max(0, wallet.balance + delta);
 
-      const delta    = adjType === 'credit' ? amountNum : -amountNum;
-      const newBal   = Math.max(0, wallet.balance + delta);
-
-      // Optimistic-lock update
       const { data: updated, error: uErr } = await supabase
         .from('wallets')
         .update({ balance: newBal, updated_at: new Date().toISOString() })
-        .eq('user_id', selectedUser.id)
-        .eq('balance', wallet.balance)
-        .select();
-
+        .eq('user_id', selectedUser.id).eq('balance', wallet.balance).select();
       if (uErr) throw uErr;
       if (!updated || updated.length === 0) {
-        const { data: fw } = await supabase
-          .from('wallets').select('balance').eq('user_id', selectedUser.id).single();
-        toast.error(fw
-          ? `Balance changed (now ${formatUGX(fw.balance)}). Refresh and try again.`
-          : 'Balance changed. Refresh and try again.');
+        toast.error('Balance changed while you were working. Please refresh and try again.');
         return;
       }
 
-      // Reference ID: WBA + YYMMDD + 4 digits
       const now = new Date();
       const ref = `WBA${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}${String(Math.floor(1000+Math.random()*9000))}`;
 
-      // Ledger entry
       await supabase.from('general_ledger').insert({
         user_id:         selectedUser.id,
         amount:          amountNum,
-        direction:       adjType === 'credit' ? 'cash_in' : 'cash_out',
-        category:        adjType === 'credit' ? 'manager_credit' : 'manager_debit',
+        direction:       adjType === 'add' ? 'cash_in' : 'cash_out',
+        category:        adjType === 'add' ? 'manager_credit' : 'manager_debit',
         source_table:    'wallets',
         source_id:       wallet.id,
-        description:     `Manager ${adjType}: ${adjReason.trim()}`,
+        description:     `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()}`,
         reference_id:    ref,
         linked_party:    user.email || 'Manager',
         running_balance: newBal,
       });
-
-      // Wallet transactions history
       await supabase.from('wallet_transactions').insert({
-        sender_id:    adjType === 'debit'  ? selectedUser.id : user.id,
-        recipient_id: adjType === 'credit' ? selectedUser.id : user.id,
+        sender_id:    adjType === 'remove' ? selectedUser.id : user.id,
+        recipient_id: adjType === 'add'    ? selectedUser.id : user.id,
         amount:       amountNum,
-        description:  `${adjType === 'credit' ? 'Credit' : 'Debit'} by Manager: ${adjReason.trim()} (Ref: ${ref})`,
+        description:  `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()} (Ref: ${ref})`,
       });
 
-      const verb = adjType === 'credit' ? 'Credited' : 'Debited';
-      toast.success(`${verb} ${formatUGX(amountNum)} ${adjType === 'credit' ? 'to' : 'from'} ${selectedUser.full_name}`);
+      const verb = adjType === 'add' ? 'Added' : 'Removed';
+      toast.success(`✅ ${verb} ${formatUGX(amountNum)} ${adjType === 'add' ? 'to' : 'from'} ${selectedUser.full_name}'s wallet`);
 
-      // Refresh UI
       const updatedUser = { ...selectedUser, balance: newBal };
       setSelectedUser(updatedUser);
       setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
       fetchLedger(selectedUser.id);
-
-      setAdjOpen(false);
-      setAdjAmount('');
-      setAdjReason('');
-      setAdjType('credit');
+      setAdjOpen(false); setAdjAmount(''); setAdjReason(''); setAdjType('add');
     } catch (e) {
-      console.error('[ManagerBankingLedger] adjust', e);
-      toast.error('Adjustment failed. Please try again.');
+      console.error(e);
+      toast.error('Something went wrong. Please try again.');
     } finally {
       setAdjLoading(false);
     }
   };
 
-  /* ── Filtered ledger entries ── */
-  const filteredLedger = filterDir === 'all'
-    ? ledger
-    : ledger.filter(e => e.direction === filterDir);
-
-  /* ── Grouped by date ── */
-  const grouped = filteredLedger.reduce((acc, entry) => {
-    const key = format(new Date(entry.date), 'yyyy-MM-dd');
-    if (!acc[key]) acc[key] = [];
-    acc[key].push(entry);
-    return acc;
-  }, {} as Record<string, LedgerEntry[]>);
-
-  /* ── Income / expense breakdown ── */
-  const incomeSummary  = ledger
-    .filter(e => e.direction === 'cash_in')
-    .reduce((acc, e) => { acc[e.category] = (acc[e.category] || 0) + e.amount; return acc; }, {} as Record<string,number>);
-  const expenseSummary = ledger
-    .filter(e => e.direction === 'cash_out')
-    .reduce((acc, e) => { acc[e.category] = (acc[e.category] || 0) + e.amount; return acc; }, {} as Record<string,number>);
-
+  const filtered = showOnlyType === 'all' ? ledger : ledger.filter(e => e.direction === showOnlyType);
   const totalIn  = ledger.filter(e => e.direction === 'cash_in').reduce((s,e) => s+e.amount, 0);
   const totalOut = ledger.filter(e => e.direction === 'cash_out').reduce((s,e) => s+e.amount, 0);
 
-  /* ─── Render ──────────────────────────────────────────────────────────── */
+  const grouped = filtered.reduce((acc, e) => {
+    const k = format(new Date(e.date), 'yyyy-MM-dd');
+    if (!acc[k]) acc[k] = [];
+    acc[k].push(e);
+    return acc;
+  }, {} as Record<string, LedgerEntry[]>);
 
-  /* USER LIST VIEW */
+  /* ═══════════════════════════════════════════════════════════════════
+     USER LIST
+  ═══════════════════════════════════════════════════════════════════ */
   if (!selectedUser) {
     return (
-      <div className="space-y-4">
-        {/* Header */}
+      <div className="space-y-4 pb-8">
+
+        {/* Title */}
         <div className="flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold flex items-center gap-2">
-              <Landmark className="h-5 w-5 text-primary" />
-              Banking Ledger
+              <Wallet className="h-6 w-6 text-primary" />
+              Wallet Manager
             </h2>
-            <p className="text-xs text-muted-foreground mt-0.5">Select any user to view & manage their account</p>
+            <p className="text-sm text-muted-foreground mt-0.5">
+              Tap any person to see their money history and make changes
+            </p>
           </div>
-          <Button variant="outline" size="sm" onClick={() => fetchUsers(searchQuery)} className="gap-2">
-            <RefreshCw className="h-3.5 w-3.5" />
-            Refresh
+          <Button variant="outline" size="icon" className="h-11 w-11" onClick={() => fetchUsers(searchQuery)}>
+            <RefreshCw className="h-4 w-4" />
           </Button>
         </div>
 
         {/* Search */}
         <div className="relative">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Search className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted-foreground" />
           <Input
-            placeholder="Search by name, phone or email…"
+            placeholder="Search by name or phone number…"
             value={searchQuery}
             onChange={e => setSearchQuery(e.target.value)}
-            className="pl-9"
+            className="pl-12 h-12 text-base"
           />
         </div>
 
-        {/* Aggregate stats */}
-        <div className="grid grid-cols-3 gap-3">
-          <Card className="bg-primary/5 border-primary/20">
-            <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground font-medium">Users</p>
-              <p className="text-xl font-bold text-primary">{users.length}</p>
-            </CardContent>
-          </Card>
+        {/* Summary strip */}
+        <div className="grid grid-cols-2 gap-3">
           <Card className="bg-success/5 border-success/20">
-            <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground font-medium">Total Balances</p>
-              <p className="text-sm font-bold text-success">{formatUGX(users.reduce((s,u) => s+u.balance, 0))}</p>
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">Total Money Held</p>
+              <p className="text-lg font-bold text-success mt-0.5">
+                {formatUGX(users.reduce((s,u) => s+u.balance, 0))}
+              </p>
+              <p className="text-[11px] text-muted-foreground">across all wallets</p>
             </CardContent>
           </Card>
-          <Card className="bg-warning/5 border-warning/20">
-            <CardContent className="p-3 text-center">
-              <p className="text-xs text-muted-foreground font-medium">Total Entries</p>
-              <p className="text-xl font-bold text-warning">{users.reduce((s,u) => s+u.entryCount, 0)}</p>
+          <Card className="bg-primary/5 border-primary/20">
+            <CardContent className="p-4">
+              <p className="text-xs text-muted-foreground font-medium">People Listed</p>
+              <p className="text-2xl font-bold text-primary mt-0.5">{users.length}</p>
+              <p className="text-[11px] text-muted-foreground">tap to manage</p>
             </CardContent>
           </Card>
         </div>
 
-        {/* User rows */}
+        {/* User list */}
         {loadingUsers ? (
-          <div className="space-y-2">
-            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          <div className="space-y-3">
+            {[...Array(6)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
           </div>
         ) : users.length === 0 ? (
-          <div className="text-center py-12 text-muted-foreground">
-            <Users className="h-10 w-10 mx-auto mb-3 opacity-40" />
-            <p className="font-medium">No users found</p>
+          <div className="text-center py-16 text-muted-foreground">
+            <Search className="h-12 w-12 mx-auto mb-3 opacity-30" />
+            <p className="font-semibold text-base">Nobody found</p>
+            <p className="text-sm">Try a different name or phone number</p>
           </div>
         ) : (
           <div className="space-y-2">
             {users.map(u => (
               <button
                 key={u.id}
-                onClick={() => selectUser(u)}
-                className="w-full flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/50 transition-colors text-left"
+                onClick={() => openUser(u)}
+                style={{ touchAction: 'manipulation', WebkitTapHighlightColor: 'transparent' }}
+                className="w-full flex items-center gap-4 p-4 rounded-2xl border bg-card hover:bg-muted/50 active:scale-[0.98] transition-all text-left min-h-[72px]"
               >
-                <Avatar className="h-10 w-10 shrink-0">
-                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-sm">
-                    {u.full_name.split(' ').map(n => n[0]).join('').slice(0,2).toUpperCase()}
+                <Avatar className="h-12 w-12 shrink-0">
+                  <AvatarFallback className="bg-primary/10 text-primary font-bold text-base">
+                    {u.full_name.split(' ').map(n=>n[0]).join('').slice(0,2).toUpperCase()}
                   </AvatarFallback>
                 </Avatar>
                 <div className="flex-1 min-w-0">
-                  <p className="font-semibold text-sm truncate">{u.full_name}</p>
-                  <p className="text-xs text-muted-foreground truncate">{u.phone}</p>
+                  <p className="font-bold text-base truncate">{u.full_name}</p>
+                  <p className="text-sm text-muted-foreground flex items-center gap-1">
+                    <Phone className="h-3 w-3" />
+                    {u.phone}
+                  </p>
                 </div>
-                <div className="text-right shrink-0 mr-1">
-                  <p className={`font-bold text-sm ${u.balance > 0 ? 'text-success' : 'text-muted-foreground'}`}>
+                <div className="text-right shrink-0">
+                  <p className={`font-bold text-base ${u.balance > 0 ? 'text-success' : 'text-muted-foreground'}`}>
                     {formatUGX(u.balance)}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">{u.entryCount} entries</p>
+                  <p className="text-xs text-muted-foreground">{u.entryCount} transactions</p>
                 </div>
-                <ChevronRight className="h-4 w-4 text-muted-foreground shrink-0" />
+                <ChevronRight className="h-5 w-5 text-muted-foreground shrink-0 ml-1" />
               </button>
             ))}
           </div>
@@ -483,221 +378,257 @@ export function ManagerBankingLedger() {
     );
   }
 
-  /* ─── LEDGER DETAIL VIEW ───────────────────────────────────────────── */
-
+  /* ═══════════════════════════════════════════════════════════════════
+     DETAIL VIEW
+  ═══════════════════════════════════════════════════════════════════ */
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 pb-24">
 
-      {/* Header bar */}
+      {/* Back + name */}
       <div className="flex items-center gap-3">
-        <Button variant="ghost" size="icon" onClick={handleBack} className="shrink-0">
-          <ArrowUpDown className="h-4 w-4 rotate-90" />
+        <Button variant="ghost" size="icon" onClick={goBack} className="h-11 w-11 shrink-0">
+          <ArrowLeft className="h-5 w-5" />
         </Button>
         <div className="flex-1 min-w-0">
-          <h2 className="font-bold text-base truncate">{selectedUser.full_name}</h2>
-          <p className="text-xs text-muted-foreground">{selectedUser.phone}</p>
+          <h2 className="font-bold text-lg leading-tight truncate">{selectedUser.full_name}</h2>
+          <p className="text-sm text-muted-foreground flex items-center gap-1">
+            <Phone className="h-3 w-3" />
+            {selectedUser.phone}
+          </p>
         </div>
+        <Button variant="outline" size="icon" className="h-11 w-11 shrink-0" onClick={() => fetchLedger(selectedUser.id)}>
+          <RefreshCw className="h-4 w-4" />
+        </Button>
+      </div>
+
+      {/* Balance hero */}
+      <div className="rounded-3xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-6">
+        <p className="text-sm font-semibold opacity-80 uppercase tracking-wide">💰 Wallet Balance</p>
+        <p className="text-5xl font-extrabold mt-2 font-mono leading-none">
+          {formatUGX(selectedUser.balance)}
+        </p>
+        <p className="text-sm opacity-70 mt-1">This is how much money is in their wallet right now</p>
+
+        <div className="grid grid-cols-2 gap-4 mt-5">
+          <div className="bg-primary-foreground/10 rounded-2xl p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowDownCircle className="h-4 w-4 text-success" />
+              <p className="text-xs opacity-80 font-medium">Total Money In</p>
+            </div>
+            <p className="text-xl font-bold">+{formatUGX(totalIn)}</p>
+          </div>
+          <div className="bg-primary-foreground/10 rounded-2xl p-3">
+            <div className="flex items-center gap-2 mb-1">
+              <ArrowUpCircle className="h-4 w-4 text-destructive" />
+              <p className="text-xs opacity-80 font-medium">Total Money Out</p>
+            </div>
+            <p className="text-xl font-bold">-{formatUGX(totalOut)}</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Action buttons */}
+      <div className="grid grid-cols-2 gap-3">
         <Button
-          size="sm"
-          className="gap-2 bg-primary hover:bg-primary/90 shrink-0"
-          onClick={() => setAdjOpen(true)}
+          className="h-16 text-base font-bold gap-3 bg-success hover:bg-success/90 text-white rounded-2xl"
+          style={{ touchAction: 'manipulation' }}
+          onClick={() => { setAdjType('add'); setAdjOpen(true); }}
         >
-          <ArrowUpDown className="h-3.5 w-3.5" />
-          Adjust
+          <PlusCircle className="h-6 w-6" />
+          Add Money
         </Button>
-        <Button variant="outline" size="icon" onClick={() => fetchLedger(selectedUser.id)}>
-          <RefreshCw className="h-3.5 w-3.5" />
+        <Button
+          variant="outline"
+          className="h-16 text-base font-bold gap-3 border-destructive text-destructive hover:bg-destructive/10 rounded-2xl"
+          style={{ touchAction: 'manipulation' }}
+          onClick={() => { setAdjType('remove'); setAdjOpen(true); }}
+        >
+          <MinusCircle className="h-6 w-6" />
+          Remove Money
         </Button>
       </div>
 
-      {/* Balance card */}
-      <div className="rounded-2xl bg-gradient-to-br from-primary to-primary/70 text-primary-foreground p-5">
-        <p className="text-xs font-semibold uppercase tracking-wider opacity-80">Current Balance</p>
-        <p className="text-4xl font-extrabold mt-1 font-mono">{formatUGX(selectedUser.balance)}</p>
-        <div className="flex gap-4 mt-4 text-xs">
-          <div>
-            <p className="opacity-70">Total In</p>
-            <p className="font-bold text-sm">+{formatUGX(totalIn)}</p>
+      {/* Where money came from — simple breakdown */}
+      {!loadingLedger && ledger.length > 0 && (
+        <div className="rounded-2xl border overflow-hidden">
+          <div className="px-4 py-3 bg-muted/50 border-b">
+            <p className="font-bold text-sm">📊 Where Their Money Came From</p>
+            <p className="text-xs text-muted-foreground">A simple summary of all money movements</p>
           </div>
-          <div>
-            <p className="opacity-70">Total Out</p>
-            <p className="font-bold text-sm">-{formatUGX(totalOut)}</p>
-          </div>
-          <div>
-            <p className="opacity-70">Net</p>
-            <p className="font-bold text-sm">{formatUGX(Math.max(0, totalIn - totalOut))}</p>
-          </div>
-        </div>
-      </div>
 
-      {/* Income Statement style breakdown */}
-      {!loadingLedger && (Object.keys(incomeSummary).length > 0 || Object.keys(expenseSummary).length > 0) && (
-        <div className="rounded-xl border overflow-hidden">
-          {/* CREDITS */}
-          {Object.keys(incomeSummary).length > 0 && (
+          {/* Money In section */}
+          {totalIn > 0 && (
             <>
-              <div className="px-4 py-2 bg-success/5 border-b flex items-center gap-2">
-                <TrendingUp className="h-3.5 w-3.5 text-success" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-success">Credits (Money In)</span>
+              <div className="px-4 py-2 bg-success/5">
+                <p className="text-xs font-bold text-success flex items-center gap-1.5">
+                  <TrendingUp className="h-3.5 w-3.5" />
+                  MONEY THAT CAME IN — {formatUGX(totalIn)}
+                </p>
               </div>
-              {Object.entries(incomeSummary).map(([cat, amt]) => {
-                const { label, Icon, colorClass } = getCategoryMeta(cat, 'cash_in');
+              {Object.entries(
+                ledger.filter(e=>e.direction==='cash_in').reduce((acc, e) => {
+                  acc[e.category] = (acc[e.category]||0) + e.amount; return acc;
+                }, {} as Record<string,number>)
+              ).map(([cat, amt]) => {
+                const info = getCategoryInfo(cat, 'cash_in');
                 return (
-                  <div key={cat} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0 bg-card">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{label}</span>
+                  <div key={cat} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 bg-card">
+                    <span className="text-2xl">{info.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{info.label}</p>
+                      {info.note && <p className="text-xs text-muted-foreground">{info.note}</p>}
                     </div>
-                    <span className="font-mono text-sm font-semibold text-success">+{formatUGX(amt)}</span>
+                    <p className="font-bold text-success font-mono text-sm">+{formatUGX(amt)}</p>
                   </div>
                 );
               })}
-              <div className="flex justify-between px-4 py-2 bg-success/10 font-bold border-b">
-                <span className="text-sm">Subtotal Credits</span>
-                <span className="font-mono text-sm text-success">+{formatUGX(totalIn)}</span>
-              </div>
             </>
           )}
 
-          {/* DEBITS */}
-          {Object.keys(expenseSummary).length > 0 && (
+          {/* Money Out section */}
+          {totalOut > 0 && (
             <>
-              <div className="px-4 py-2 bg-destructive/5 border-b flex items-center gap-2">
-                <TrendingDown className="h-3.5 w-3.5 text-destructive" />
-                <span className="text-[11px] font-bold uppercase tracking-wider text-destructive">Debits (Money Out)</span>
+              <div className="px-4 py-2 bg-destructive/5">
+                <p className="text-xs font-bold text-destructive flex items-center gap-1.5">
+                  <TrendingDown className="h-3.5 w-3.5" />
+                  MONEY THAT WENT OUT — {formatUGX(totalOut)}
+                </p>
               </div>
-              {Object.entries(expenseSummary).map(([cat, amt]) => {
-                const { label, Icon, colorClass } = getCategoryMeta(cat, 'cash_out');
+              {Object.entries(
+                ledger.filter(e=>e.direction==='cash_out').reduce((acc, e) => {
+                  acc[e.category] = (acc[e.category]||0) + e.amount; return acc;
+                }, {} as Record<string,number>)
+              ).map(([cat, amt]) => {
+                const info = getCategoryInfo(cat, 'cash_out');
                 return (
-                  <div key={cat} className="flex items-center justify-between px-4 py-2 border-b last:border-b-0 bg-card">
-                    <div className="flex items-center gap-2.5">
-                      <div className={`h-7 w-7 rounded-full flex items-center justify-center ${colorClass}`}>
-                        <Icon className="h-3.5 w-3.5" />
-                      </div>
-                      <span className="text-sm text-muted-foreground">{label}</span>
+                  <div key={cat} className="flex items-center gap-3 px-4 py-3 border-b last:border-b-0 bg-card">
+                    <span className="text-2xl">{info.emoji}</span>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-semibold text-sm">{info.label}</p>
+                      {info.note && <p className="text-xs text-muted-foreground">{info.note}</p>}
                     </div>
-                    <span className="font-mono text-sm font-semibold text-destructive">-{formatUGX(amt)}</span>
+                    <p className="font-bold text-destructive font-mono text-sm">-{formatUGX(amt)}</p>
                   </div>
                 );
               })}
-              <div className="flex justify-between px-4 py-2 bg-destructive/10 font-bold border-b">
-                <span className="text-sm">Subtotal Debits</span>
-                <span className="font-mono text-sm text-destructive">-{formatUGX(totalOut)}</span>
-              </div>
             </>
           )}
 
-          {/* NET */}
-          <div className="flex justify-between px-4 py-3 bg-muted font-bold">
-            <span className="text-sm">Net Balance</span>
-            <span className={`font-mono text-sm ${totalIn - totalOut >= 0 ? 'text-success' : 'text-destructive'}`}>
+          {/* Net */}
+          <div className="flex items-center justify-between px-4 py-4 bg-muted/70 border-t">
+            <div>
+              <p className="font-bold text-sm">Money Left in Wallet</p>
+              <p className="text-xs text-muted-foreground">After all ins and outs</p>
+            </div>
+            <p className={`font-extrabold text-xl font-mono ${totalIn - totalOut >= 0 ? 'text-success' : 'text-destructive'}`}>
               {formatUGX(Math.max(0, totalIn - totalOut))}
-            </span>
+            </p>
           </div>
         </div>
       )}
 
-      {/* Filter bar */}
-      <div className="flex items-center gap-2">
-        <Filter className="h-4 w-4 text-muted-foreground shrink-0" />
-        {(['all', 'cash_in', 'cash_out'] as const).map(d => (
+      {/* Filter pills */}
+      <div className="flex gap-2">
+        {[
+          { key: 'all',      label: 'All Activity' },
+          { key: 'cash_in',  label: '📥 Money In' },
+          { key: 'cash_out', label: '📤 Money Out' },
+        ].map(opt => (
           <Button
-            key={d}
-            variant={filterDir === d ? 'default' : 'outline'}
+            key={opt.key}
+            variant={showOnlyType === opt.key ? 'default' : 'outline'}
             size="sm"
-            className="text-xs h-7 px-3"
-            onClick={() => setFilterDir(d)}
+            className="h-10 rounded-full px-4 text-sm"
+            onClick={() => setShowOnlyType(opt.key as typeof showOnlyType)}
           >
-            {d === 'all' ? 'All' : d === 'cash_in' ? '↑ Credits' : '↓ Debits'}
+            {opt.label}
           </Button>
         ))}
-        <span className="ml-auto text-xs text-muted-foreground">{filteredLedger.length} entries</span>
       </div>
 
-      {/* Transaction timeline */}
+      {/* Transaction list */}
       {loadingLedger ? (
         <div className="space-y-3">
-          {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-xl" />)}
+          {[...Array(5)].map((_,i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />)}
         </div>
-      ) : filteredLedger.length === 0 ? (
-        <div className="text-center py-12 text-muted-foreground">
-          <FileText className="h-10 w-10 mx-auto mb-3 opacity-40" />
-          <p className="font-medium">No transactions found</p>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16 text-muted-foreground">
+          <Wallet className="h-12 w-12 mx-auto mb-3 opacity-30" />
+          <p className="font-semibold text-base">No transactions yet</p>
+          <p className="text-sm">Nothing to show for the selected filter</p>
         </div>
       ) : (
         <div className="space-y-6">
+          <p className="text-xs font-bold uppercase tracking-wider text-muted-foreground px-1">
+            Transaction History ({filtered.length} records)
+          </p>
           {Object.entries(grouped).map(([dateKey, dayEntries]) => {
-            const dayIn  = dayEntries.filter(e => e.direction === 'cash_in').reduce((s,e) => s+e.amount, 0);
-            const dayOut = dayEntries.filter(e => e.direction === 'cash_out').reduce((s,e) => s+e.amount, 0);
+            const dayIn  = dayEntries.filter(e=>e.direction==='cash_in').reduce((s,e)=>s+e.amount, 0);
+            const dayOut = dayEntries.filter(e=>e.direction==='cash_out').reduce((s,e)=>s+e.amount, 0);
             return (
               <div key={dateKey}>
-                {/* Date header */}
-                <div className="flex items-center justify-between mb-2">
+                {/* Day header */}
+                <div className="flex items-center justify-between mb-3 px-1">
                   <div className="flex items-center gap-2">
-                    <Calendar className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="text-xs font-bold text-muted-foreground">
+                    <Calendar className="h-4 w-4 text-muted-foreground" />
+                    <span className="text-sm font-bold text-muted-foreground">
                       {format(new Date(dateKey), 'EEEE, MMM d, yyyy')}
                     </span>
                   </div>
-                  <div className="flex gap-3 text-[10px]">
-                    {dayIn  > 0 && <span className="text-success font-semibold">+{formatUGX(dayIn)}</span>}
-                    {dayOut > 0 && <span className="text-destructive font-semibold">-{formatUGX(dayOut)}</span>}
+                  <div className="flex gap-3 text-xs font-semibold">
+                    {dayIn  > 0 && <span className="text-success">+{formatUGX(dayIn)}</span>}
+                    {dayOut > 0 && <span className="text-destructive">-{formatUGX(dayOut)}</span>}
                   </div>
                 </div>
 
-                <div className="space-y-2 pl-2 border-l-2 border-muted ml-2">
+                <div className="space-y-2">
                   {dayEntries.map(entry => {
-                    const isIn = entry.direction === 'cash_in';
-                    const { label, Icon, colorClass } = getCategoryMeta(entry.category, entry.direction);
-                    const isManagerAdj = entry.category === 'manager_credit' || entry.category === 'manager_debit';
+                    const isIn     = entry.direction === 'cash_in';
+                    const info     = getCategoryInfo(entry.category, entry.direction);
+                    const isMgr    = entry.category === 'manager_credit' || entry.category === 'manager_debit';
                     return (
-                      <div key={entry.id} className="relative pl-4">
-                        <div className={`absolute -left-[9px] top-4 h-4 w-4 rounded-full border-2 border-background ${
-                          isIn ? 'bg-success' : 'bg-destructive'
-                        }`} />
-                        <div className={`p-3 rounded-xl border shadow-sm ${isManagerAdj ? 'bg-warning/5 border-warning/30' : 'bg-card'}`}>
-                          <div className="flex items-start justify-between gap-3">
-                            <div className="flex items-start gap-3 flex-1 min-w-0">
-                              <div className={`h-9 w-9 rounded-full flex items-center justify-center shrink-0 ${colorClass}`}>
-                                <Icon className="h-4 w-4" />
-                              </div>
-                              <div className="min-w-0 flex-1">
-                                <div className="flex items-center gap-1.5 flex-wrap">
-                                  <p className="font-semibold text-sm">{entry.description || label}</p>
-                                  {isManagerAdj && (
-                                    <Badge variant="outline" className="text-[9px] px-1 py-0 border-warning text-warning">
-                                      Manager Adj.
-                                    </Badge>
-                                  )}
-                                  <Badge
-                                    variant="outline"
-                                    className={`text-[10px] px-1.5 py-0 shrink-0 ${
-                                      isIn
-                                        ? 'border-success/30 text-success'
-                                        : 'border-destructive/30 text-destructive'
-                                    }`}
-                                  >
-                                    {isIn ? 'IN' : 'OUT'}
-                                  </Badge>
-                                </div>
-                                <p className="text-[10px] text-muted-foreground mt-0.5">
-                                  {format(new Date(entry.date), 'h:mm a')}
-                                  {entry.reference_id && ` · Ref: ${entry.reference_id.slice(0,10)}`}
-                                  {entry.linked_party && ` · ${entry.linked_party}`}
-                                </p>
-                              </div>
-                            </div>
-                            <div className="text-right shrink-0">
-                              <p className={`font-bold text-sm ${isIn ? 'text-success' : 'text-destructive'}`}>
-                                {isIn ? '+' : '-'}{formatUGX(entry.amount)}
-                              </p>
-                              <p className="text-[10px] text-muted-foreground font-mono">
-                                Bal: {formatUGX(entry.balance_after)}
-                              </p>
-                            </div>
+                      <div
+                        key={entry.id}
+                        className={`flex items-center gap-4 p-4 rounded-2xl border ${
+                          isMgr ? 'bg-warning/5 border-warning/30' : 'bg-card'
+                        }`}
+                      >
+                        {/* Emoji icon */}
+                        <div className={`h-12 w-12 rounded-2xl flex items-center justify-center text-2xl shrink-0 ${
+                          isIn ? 'bg-success/10' : 'bg-destructive/10'
+                        }`}>
+                          {info.emoji}
+                        </div>
+
+                        {/* Description */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <p className="font-bold text-sm leading-tight">{info.label}</p>
+                            {isMgr && (
+                              <Badge variant="outline" className="text-[10px] px-1.5 py-0 border-warning text-warning">
+                                Manager
+                              </Badge>
+                            )}
                           </div>
+                          {entry.linked_party && (
+                            <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                              {isMgr ? `By: ${entry.linked_party}` : entry.linked_party}
+                            </p>
+                          )}
+                          <p className="text-xs text-muted-foreground">
+                            {format(new Date(entry.date), 'h:mm a')}
+                            {entry.reference_id && ` · #${entry.reference_id.slice(0, 8)}`}
+                          </p>
+                        </div>
+
+                        {/* Amount + balance */}
+                        <div className="text-right shrink-0">
+                          <p className={`font-extrabold text-base ${isIn ? 'text-success' : 'text-destructive'}`}>
+                            {isIn ? '+' : '-'}{formatUGX(entry.amount)}
+                          </p>
+                          <p className="text-[11px] text-muted-foreground font-mono">
+                            Balance: {formatUGX(entry.balance_after)}
+                          </p>
                         </div>
                       </div>
                     );
@@ -709,94 +640,118 @@ export function ManagerBankingLedger() {
         </div>
       )}
 
-      {/* ── Adjustment Dialog ── */}
+      {/* ═══ ADJUSTMENT DIALOG ═══════════════════════════════════════════ */}
       <Dialog open={adjOpen} onOpenChange={setAdjOpen}>
-        <DialogContent className="sm:max-w-md">
+        <DialogContent className="sm:max-w-md rounded-3xl mx-4">
           <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Landmark className="h-5 w-5 text-primary" />
-              Adjust Account — {selectedUser.full_name}
+            <DialogTitle className="text-xl flex items-center gap-2">
+              {adjType === 'add' ? (
+                <><PlusCircle className="h-6 w-6 text-success" /> Add Money to Wallet</>
+              ) : (
+                <><MinusCircle className="h-6 w-6 text-destructive" /> Remove Money from Wallet</>
+              )}
             </DialogTitle>
-            <DialogDescription>
-              Current balance: <strong>{formatUGX(selectedUser.balance)}</strong>
+            <DialogDescription className="text-base">
+              <span className="font-semibold">{selectedUser.full_name}</span> — current balance:{' '}
+              <span className="font-bold text-foreground">{formatUGX(selectedUser.balance)}</span>
             </DialogDescription>
           </DialogHeader>
 
-          <div className="space-y-4 py-2">
-            {/* Credit / Debit toggle */}
-            <div className="grid grid-cols-2 gap-2">
-              <Button
+          <div className="space-y-5 py-2">
+
+            {/* Toggle */}
+            <div className="grid grid-cols-2 gap-3">
+              <button
                 type="button"
-                variant={adjType === 'credit' ? 'default' : 'outline'}
-                className={`h-14 text-base font-bold gap-2 ${adjType === 'credit' ? 'bg-success hover:bg-success/90 text-white' : ''}`}
-                onClick={() => setAdjType('credit')}
+                onClick={() => setAdjType('add')}
+                style={{ touchAction: 'manipulation' }}
+                className={`h-16 rounded-2xl text-base font-bold flex items-center justify-center gap-2 border-2 transition-all ${
+                  adjType === 'add'
+                    ? 'bg-success text-white border-success'
+                    : 'bg-card text-muted-foreground border-border'
+                }`}
               >
-                <Plus className="h-5 w-5" />
-                Credit
-              </Button>
-              <Button
+                <PlusCircle className="h-6 w-6" />
+                Add Money
+              </button>
+              <button
                 type="button"
-                variant={adjType === 'debit' ? 'default' : 'outline'}
-                className={`h-14 text-base font-bold gap-2 ${adjType === 'debit' ? 'bg-destructive hover:bg-destructive/90 text-white' : ''}`}
-                onClick={() => setAdjType('debit')}
+                onClick={() => setAdjType('remove')}
+                style={{ touchAction: 'manipulation' }}
+                className={`h-16 rounded-2xl text-base font-bold flex items-center justify-center gap-2 border-2 transition-all ${
+                  adjType === 'remove'
+                    ? 'bg-destructive text-white border-destructive'
+                    : 'bg-card text-muted-foreground border-border'
+                }`}
               >
-                <Minus className="h-5 w-5" />
-                Debit
-              </Button>
+                <MinusCircle className="h-6 w-6" />
+                Remove
+              </button>
             </div>
 
-            {/* Amount */}
+            {/* Amount input */}
             <div className="space-y-2">
-              <Label>Amount (UGX)</Label>
+              <Label className="text-base font-bold">How much? (UGX)</Label>
               <Input
                 type="number"
-                placeholder="Enter amount"
+                placeholder="e.g. 50000"
                 value={adjAmount}
                 onChange={e => {
                   const v = e.target.value;
                   if (v === '' || (Number(v) >= 0 && !isNaN(Number(v)))) setAdjAmount(v);
                 }}
                 min={1}
-                className="h-12 text-lg font-semibold"
+                className="h-14 text-2xl font-bold text-center rounded-xl"
               />
             </div>
 
             {/* Quick amounts */}
             <div className="flex flex-wrap gap-2">
               {QUICK_AMOUNTS.map(q => (
-                <Button
+                <button
                   key={q}
                   type="button"
-                  variant="outline"
-                  size="sm"
                   onClick={() => setAdjAmount(q.toString())}
-                  className="flex-1 min-w-[70px]"
+                  style={{ touchAction: 'manipulation' }}
+                  className="flex-1 min-w-[80px] h-11 rounded-xl border bg-card hover:bg-muted/50 text-sm font-semibold transition-colors"
                 >
                   {formatUGX(q)}
-                </Button>
+                </button>
               ))}
             </div>
 
             {/* Reason */}
             <div className="space-y-2">
-              <Label>
-                Reason <span className="text-destructive">*</span>
+              <Label className="text-base font-bold">
+                Why are you doing this? <span className="text-destructive">*</span>
               </Label>
               <Textarea
-                placeholder="Why are you making this adjustment? (required for audit trail)"
+                placeholder={adjType === 'add'
+                  ? "e.g. Refund for failed withdrawal, Agent bonus payment…"
+                  : "e.g. Recovering incorrect deposit, Penalty deduction…"
+                }
                 value={adjReason}
                 onChange={e => setAdjReason(e.target.value)}
-                rows={2}
+                rows={3}
+                className="text-base rounded-xl"
               />
+              <p className="text-xs text-muted-foreground flex items-center gap-1">
+                <BadgeInfo className="h-3 w-3" />
+                This reason is saved permanently for the audit record
+              </p>
             </div>
 
-            {/* Preview */}
+            {/* Preview new balance */}
             {adjAmount && parseFloat(adjAmount) > 0 && (
-              <div className={`p-3 rounded-xl border ${adjType === 'credit' ? 'bg-success/10 border-success/30' : 'bg-destructive/10 border-destructive/30'}`}>
-                <p className="text-xs text-muted-foreground">New balance:</p>
-                <p className={`text-xl font-bold font-mono ${adjType === 'credit' ? 'text-success' : 'text-destructive'}`}>
+              <div className={`p-4 rounded-2xl border-2 text-center ${
+                adjType === 'add'
+                  ? 'bg-success/10 border-success/40'
+                  : 'bg-destructive/10 border-destructive/40'
+              }`}>
+                <p className="text-sm text-muted-foreground font-medium">New balance after this change</p>
+                <p className={`text-3xl font-extrabold font-mono mt-1 ${adjType === 'add' ? 'text-success' : 'text-destructive'}`}>
                   {formatUGX(
-                    adjType === 'credit'
+                    adjType === 'add'
                       ? selectedUser.balance + parseFloat(adjAmount)
                       : Math.max(0, selectedUser.balance - parseFloat(adjAmount))
                   )}
@@ -804,31 +759,38 @@ export function ManagerBankingLedger() {
               </div>
             )}
 
-            {adjType === 'debit' && (
-              <div className="flex items-start gap-2 p-2.5 rounded-lg bg-warning/10 border border-warning/30">
-                <TriangleAlert className="h-4 w-4 text-warning mt-0.5 shrink-0" />
-                <p className="text-xs text-warning font-medium">
-                  Debits are non-refundable and logged permanently in the audit trail.
-                </p>
+            {/* Warning for remove */}
+            {adjType === 'remove' && (
+              <div className="flex items-start gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/30">
+                <TriangleAlert className="h-5 w-5 text-warning mt-0.5 shrink-0" />
+                <div>
+                  <p className="text-sm font-bold text-warning">This cannot be undone</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Money removed from a wallet is permanently recorded in the audit log.
+                  </p>
+                </div>
               </div>
             )}
           </div>
 
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setAdjOpen(false)}>Cancel</Button>
+          <DialogFooter className="flex-col gap-2 sm:flex-row">
+            <Button variant="outline" onClick={() => setAdjOpen(false)} className="h-12 rounded-xl text-base">
+              Cancel
+            </Button>
             <Button
               onClick={handleAdjust}
               disabled={adjLoading || !adjAmount || parseFloat(adjAmount) <= 0 || !adjReason.trim()}
-              className={`gap-2 ${adjType === 'debit' ? 'bg-destructive hover:bg-destructive/90' : ''}`}
+              className={`h-12 rounded-xl text-base font-bold flex-1 gap-2 ${
+                adjType === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''
+              }`}
             >
               {adjLoading ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : adjType === 'credit' ? (
-                <Plus className="h-4 w-4" />
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : adjType === 'add' ? (
+                <><PlusCircle className="h-5 w-5" /> Confirm — Add {adjAmount ? formatUGX(parseFloat(adjAmount)) : ''}</>
               ) : (
-                <Minus className="h-4 w-4" />
+                <><MinusCircle className="h-5 w-5" /> Confirm — Remove {adjAmount ? formatUGX(parseFloat(adjAmount)) : ''}</>
               )}
-              {adjType === 'credit' ? 'Credit Account' : 'Debit Account'}
             </Button>
           </DialogFooter>
         </DialogContent>
