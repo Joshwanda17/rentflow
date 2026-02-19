@@ -18,7 +18,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
-import { Wallet, Check, X, Loader2, User, Phone, Calendar, BarChart3, ExternalLink } from 'lucide-react';
+import { Wallet, Check, X, Loader2, User, Phone, Calendar, BarChart3, ExternalLink, UserCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from 'sonner';
 import { format } from 'date-fns';
@@ -50,7 +50,7 @@ export function DepositRequestsManager() {
     deposit: null,
   });
   const [rejectionReason, setRejectionReason] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected'>('pending');
+  const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'approved' | 'rejected' | 'agent'>('pending');
 
   const fetchDeposits = async () => {
     try {
@@ -59,7 +59,10 @@ export function DepositRequestsManager() {
         .select('*')
         .order('created_at', { ascending: false });
 
-      if (statusFilter !== 'all') {
+      if (statusFilter === 'agent') {
+        // Show all deposits made by agents (agent_id is not null)
+        query = query.not('agent_id', 'is', null);
+      } else if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
       }
 
@@ -210,16 +213,22 @@ export function DepositRequestsManager() {
       <TabsContent value="requests" className="space-y-4">
         {/* Header with filter and full page link */}
         <div className="flex items-center justify-between gap-2">
-          <div className="flex gap-2 overflow-x-auto">
-            {(['all', 'pending', 'approved', 'rejected'] as const).map(status => (
+          <div className="flex gap-2 overflow-x-auto pb-1">
+            {([
+              { value: 'pending', label: 'Pending' },
+              { value: 'agent', label: '🧑‍💼 Agent' },
+              { value: 'approved', label: 'Approved' },
+              { value: 'rejected', label: 'Rejected' },
+              { value: 'all', label: 'All' },
+            ] as const).map(({ value, label }) => (
               <Button
-                key={status}
-                variant={statusFilter === status ? 'default' : 'outline'}
+                key={value}
+                variant={statusFilter === value ? 'default' : 'outline'}
                 size="sm"
-                onClick={() => setStatusFilter(status)}
-                className="capitalize"
+                onClick={() => setStatusFilter(value)}
+                className="whitespace-nowrap"
               >
-                {status}
+                {label}
               </Button>
             ))}
           </div>
@@ -238,7 +247,9 @@ export function DepositRequestsManager() {
           <Card>
             <CardContent className="py-12 text-center">
               <Wallet className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No {statusFilter !== 'all' ? statusFilter : ''} deposit requests</p>
+              <p className="text-muted-foreground">
+                {statusFilter === 'agent' ? 'No agent deposits found' : `No ${statusFilter !== 'all' ? statusFilter : ''} deposit requests`}
+              </p>
             </CardContent>
           </Card>
         ) : (
@@ -290,9 +301,12 @@ export function DepositRequestsManager() {
                     )}
 
                     {deposit.agent_name && (
-                      <p className="text-xs text-muted-foreground mb-3">
-                        Assigned Agent: {deposit.agent_name}
-                      </p>
+                      <div className="flex items-center gap-1.5 mb-3 px-2 py-1.5 rounded-md bg-primary/5 border border-primary/10">
+                        <UserCheck className="h-3.5 w-3.5 text-primary shrink-0" />
+                        <p className="text-xs text-primary font-medium">
+                          Agent: {deposit.agent_name}
+                        </p>
+                      </div>
                     )}
 
                     {deposit.status === 'pending' && (
