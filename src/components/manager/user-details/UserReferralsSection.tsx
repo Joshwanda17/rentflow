@@ -1,11 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, UserPlus, Calendar, Phone, Wallet } from 'lucide-react';
-import { formatDistanceToNow, format } from 'date-fns';
+import { Users, UserPlus, Calendar, Phone, Wallet, Loader2 } from 'lucide-react';
+import { formatDistanceToNow } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 
 interface RegisteredUser {
@@ -22,6 +21,8 @@ interface UserReferralsSectionProps {
   userId: string;
 }
 
+const PAGE_SIZE = 20;
+
 const roleColors: Record<string, string> = {
   tenant: 'bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20',
   agent: 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20',
@@ -33,56 +34,79 @@ const roleColors: Record<string, string> = {
 export default function UserReferralsSection({ userId }: UserReferralsSectionProps) {
   const [registeredUsers, setRegisteredUsers] = useState<RegisteredUser[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
+  const [hasMore, setHasMore] = useState(true);
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const sentinelRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetchRegisteredUsers();
+    setRegisteredUsers([]);
+    setHasMore(true);
+    fetchRegisteredUsers(0, true);
   }, [userId]);
 
-  const fetchRegisteredUsers = async () => {
-    setLoading(true);
+  // Intersection observer for infinite scroll
+  useEffect(() => {
+    if (!sentinelRef.current) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+          fetchRegisteredUsers(registeredUsers.length, false);
+        }
+      },
+      { threshold: 0.1 }
+    );
+    observer.observe(sentinelRef.current);
+    return () => observer.disconnect();
+  }, [hasMore, loading, loadingMore, registeredUsers.length]);
+
+  const fetchRegisteredUsers = async (offset: number, isInitial: boolean) => {
+    if (isInitial) setLoading(true);
+    else setLoadingMore(true);
+
     try {
-      // Fetch profiles where referrer_id = this user
+      // Get total count on initial load
+      if (isInitial) {
+        const { count } = await supabase
+          .from('profiles')
+          .select('id', { count: 'exact', head: true })
+          .eq('referrer_id', userId);
+        setTotalCount(count || 0);
+      }
+
       const { data: profiles, error } = await supabase
         .from('profiles')
         .select('id, full_name, phone, avatar_url, created_at')
         .eq('referrer_id', userId)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1);
 
       if (error) throw error;
 
       if (!profiles || profiles.length === 0) {
-        setRegisteredUsers([]);
-        setTotalCount(0);
+        setHasMore(false);
+        if (isInitial) setRegisteredUsers([]);
         return;
       }
 
-      setTotalCount(profiles.length);
+      if (profiles.length < PAGE_SIZE) setHasMore(false);
 
-      // Fetch roles for all registered users
+      // Fetch roles & wallets for this batch
       const userIds = profiles.map(p => p.id);
-      const { data: rolesData } = await supabase
-        .from('user_roles')
-        .select('user_id, role')
-        .in('user_id', userIds)
-        .eq('enabled', true);
+      const [rolesRes, walletsRes] = await Promise.all([
+        supabase.from('user_roles').select('user_id, role').in('user_id', userIds).eq('enabled', true),
+        supabase.from('wallets').select('user_id, balance').in('user_id', userIds),
+      ]);
 
-      // Fetch wallet balances
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', userIds);
-
-      // Build role map
       const rolesMap: Record<string, string[]> = {};
-      (rolesData || []).forEach(r => {
+      (rolesRes.data || []).forEach(r => {
         if (!rolesMap[r.user_id]) rolesMap[r.user_id] = [];
         rolesMap[r.user_id].push(r.role);
       });
 
-      // Build wallet map
       const walletMap: Record<string, number> = {};
-      (wallets || []).forEach(w => {
+      (walletsRes.data || []).forEach(w => {
         walletMap[w.user_id] = w.balance;
       });
 
@@ -96,11 +120,12 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
         wallet_balance: walletMap[p.id] || 0,
       }));
 
-      setRegisteredUsers(enriched);
+      setRegisteredUsers(prev => isInitial ? enriched : [...prev, ...enriched]);
     } catch (err) {
       console.error('UserReferralsSection fetch error:', err);
     } finally {
-      setLoading(false);
+      if (isInitial) setLoading(false);
+      else setLoadingMore(false);
     }
   };
 
@@ -124,7 +149,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
     );
   }
 
-  if (registeredUsers.length === 0) {
+  if (registeredUsers.length === 0 && totalCount === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-10 text-center">
         <div className="p-4 rounded-full bg-muted/50 mb-3">
@@ -151,15 +176,18 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
         </div>
       </div>
 
-      {/* User list */}
-      <ScrollArea className="max-h-[400px]">
-        <div className="space-y-2 pr-1">
+      {/* Scrollable user list */}
+      <div
+        ref={scrollRef}
+        className="max-h-[60vh] overflow-y-auto overscroll-contain -mx-1 px-1"
+        style={{ WebkitOverflowScrolling: 'touch' }}
+      >
+        <div className="space-y-2">
           {registeredUsers.map((user, index) => (
             <div
               key={user.id}
               className="flex items-center gap-3 p-3 rounded-xl border bg-card hover:bg-muted/30 transition-colors"
             >
-              {/* Rank / Index */}
               <span className="text-xs font-bold text-muted-foreground w-5 text-center shrink-0">
                 {index + 1}
               </span>
@@ -207,8 +235,24 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
               </div>
             </div>
           ))}
+
+          {/* Sentinel for infinite scroll */}
+          <div ref={sentinelRef} className="h-4" />
+
+          {loadingMore && (
+            <div className="flex items-center justify-center py-3">
+              <Loader2 className="h-4 w-4 animate-spin text-primary" />
+              <span className="text-xs text-muted-foreground ml-2">Loading more...</span>
+            </div>
+          )}
+
+          {!hasMore && registeredUsers.length > 0 && (
+            <p className="text-center text-xs text-muted-foreground py-2">
+              All {totalCount} referrals loaded
+            </p>
+          )}
         </div>
-      </ScrollArea>
+      </div>
     </div>
   );
 }
