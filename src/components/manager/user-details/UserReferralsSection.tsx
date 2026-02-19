@@ -171,7 +171,7 @@ export default function UserReferralsSection({ userId }: UserReferralsSectionPro
       </div>
 
       {/* User list - infinite scroll */}
-      <div className="max-h-[400px] overflow-y-auto space-y-2 pr-1">
+      <div className="max-h-[60vh] overflow-y-auto space-y-2 pr-1">
           {registeredUsers.map((user, index) => (
             <div
               key={user.id}
