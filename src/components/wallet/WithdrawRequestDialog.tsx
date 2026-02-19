@@ -35,7 +35,7 @@ const checkWorkingHours = (): { isOpen: boolean; message: string; nextOpen: stri
   
   const day = eatTime.getDay(); // 0 = Sunday, 1 = Monday, ..., 6 = Saturday
   const hour = eatTime.getHours();
-  const minutes = eatTime.getMinutes();
+  const _minutes = eatTime.getMinutes();
   
   // Sunday - closed
   if (day === 0) {
@@ -100,6 +100,8 @@ export function WithdrawRequestDialog({
   const [fetchingProfile, setFetchingProfile] = useState(false);
   const [success, setSuccess] = useState(false);
   const [workingHoursStatus, setWorkingHoursStatus] = useState(checkWorkingHours());
+  const [hasWithdrawnToday, setHasWithdrawnToday] = useState(false);
+  const [_checkingDailyLimit, setCheckingDailyLimit] = useState(false);
 
   // Update working hours status when dialog opens
   useEffect(() => {
@@ -107,6 +109,35 @@ export function WithdrawRequestDialog({
       setWorkingHoursStatus(checkWorkingHours());
     }
   }, [open]);
+
+  // Check if user already submitted a withdrawal today
+  useEffect(() => {
+    const checkDailyLimit = async () => {
+      if (!user || !open) return;
+      setCheckingDailyLimit(true);
+      try {
+        const todayEAT = new Date(new Date().toLocaleString('en-US', { timeZone: 'Africa/Nairobi' }));
+        const startOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate()).toISOString();
+        const endOfDay = new Date(todayEAT.getFullYear(), todayEAT.getMonth(), todayEAT.getDate() + 1).toISOString();
+
+        const { data } = await supabase
+          .from('withdrawal_requests')
+          .select('id')
+          .eq('user_id', user.id)
+          .eq('status', 'pending')
+          .gte('created_at', startOfDay)
+          .lt('created_at', endOfDay)
+          .limit(1);
+
+        setHasWithdrawnToday((data?.length ?? 0) > 0);
+      } catch (e) {
+        console.warn('Could not check daily withdrawal limit', e);
+      } finally {
+        setCheckingDailyLimit(false);
+      }
+    };
+    checkDailyLimit();
+  }, [user, open]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -160,6 +191,11 @@ export function WithdrawRequestDialog({
     if (!currentStatus.isOpen) {
       toast.error(currentStatus.message);
       setWorkingHoursStatus(currentStatus);
+      return;
+    }
+
+    if (hasWithdrawnToday) {
+      toast.error('You have already submitted a withdrawal today. Only one withdrawal is allowed per day.');
       return;
     }
 
@@ -256,7 +292,7 @@ export function WithdrawRequestDialog({
 
   const MIN_BALANCE_FOR_WITHDRAWAL = 50000;
   const meetsMinimumBalance = walletBalance >= MIN_BALANCE_FOR_WITHDRAWAL;
-  const isFormValid = meetsMinimumBalance && amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
+  const isFormValid = meetsMinimumBalance && !hasWithdrawnToday && amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -332,7 +368,15 @@ export function WithdrawRequestDialog({
                 </p>
               </div>
 
-              {walletBalance <= 0 ? (
+              {hasWithdrawnToday ? (
+                <div className="flex items-center gap-2 p-4 bg-warning/10 border border-warning/30 rounded-xl text-warning-foreground">
+                  <Clock className="h-5 w-5 flex-shrink-0 text-warning" />
+                  <div>
+                    <p className="font-semibold text-sm">Daily limit reached 🚫</p>
+                    <p className="text-xs mt-0.5">You have already submitted a withdrawal request today. You can withdraw again tomorrow.</p>
+                  </div>
+                </div>
+              ) : walletBalance <= 0 ? (
                 <div className="flex items-center gap-2 p-3 bg-warning/10 rounded-lg text-warning">
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <p className="text-sm">No funds available to withdraw</p>
