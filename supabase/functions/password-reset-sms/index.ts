@@ -111,7 +111,7 @@ Deno.serve(async (req) => {
       }
 
       const otp = generateOTP();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString();
 
       // Store OTP using otp_verifications table with a reset-specific phone key
       const resetKey = `reset_${phoneKey}`;
@@ -132,7 +132,7 @@ Deno.serve(async (req) => {
         });
       }
 
-      const message = `Your Welile password reset code is: ${otp}. It expires in 10 minutes. Do not share this code with anyone.`;
+      const message = `Your Welile password reset code is: ${otp}. It expires in 30 minutes. Do not share this code with anyone.`;
       const sent = await sendSMS(phone, message);
 
       if (!sent) {

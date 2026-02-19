@@ -130,7 +130,7 @@ Deno.serve(async (req) => {
       }
 
       const otp = generateOTP();
-      const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString(); // 10 min expiry
+      const expiresAt = new Date(Date.now() + 30 * 60 * 1000).toISOString(); // 30 min expiry
 
       // Store OTP in database (upsert by phone)
       const { error: upsertError } = await adminClient
@@ -155,7 +155,7 @@ Deno.serve(async (req) => {
       }
 
       // Send SMS
-      const message = `Your Welile verification code is: ${otp}. It expires in 10 minutes. Do not share this code.`;
+      const message = `Your Welile verification code is: ${otp}. It expires in 30 minutes. Do not share this code.`;
       const sent = await sendSMS(phone, message);
 
       if (!sent) {
