@@ -69,7 +69,20 @@ export function PendingRentRequestsWidget() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchRequests(); }, []);
+  useEffect(() => {
+    fetchRequests();
+
+    const channel = supabase
+      .channel('pending-rent-requests-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        () => { fetchRequests(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
+  }, []);
 
   const handleApprove = async (id: string) => {
     setActionLoading(id);
