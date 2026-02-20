@@ -314,6 +314,19 @@ export function useAuthForm() {
     emailCandidates.add(`256${phoneLocal9}@welile.agent`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
 
+    // If the only accounts found are Google/social accounts (real email, no @welile), auto-trigger Google OAuth
+    const hasWelileAccount = profileEmails.some(e => e.includes('@welile.'));
+    const hasRealEmailOnly = profileEmails.length > 0 && !hasWelileAccount;
+    if (hasRealEmailOnly) {
+      toast({
+        title: 'Signing you in with Google...',
+        description: 'Your account uses Google sign-in. Redirecting...',
+      });
+      setIsLoading(false);
+      await handleGoogleSignIn();
+      return;
+    }
+
     // STEP 2: Try sign-in with each candidate until one works
     let loginSuccess = false;
     let lastError: Error | null = null;
