@@ -67,10 +67,21 @@ export function AgentLandlordPayoutDialog({ open, onOpenChange, property, onSucc
 
     setLoading(true);
     try {
-      // landlord_payout_requests table removed - feature not active
-      toast.error('Landlord payouts feature is not currently active');
-    } catch (err) {
-      toast.error('An unexpected error occurred');
+      const paidAmount = parseFloat(amount);
+
+      // Reduce rent balance on the landlord record
+      const { error } = await supabase.rpc('record_rent_payment', {
+        p_landlord_id: property.id,
+        p_amount: paidAmount,
+      });
+
+      if (error) throw error;
+
+      setSuccess(true);
+      toast.success(`Rent balance reduced by ${formatUGX(paidAmount)} for ${property.name}`);
+      onSuccess?.();
+    } catch (err: any) {
+      toast.error(err.message || 'An unexpected error occurred');
     }
     setLoading(false);
   };

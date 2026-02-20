@@ -588,6 +588,9 @@ export type Database = {
           property_address: string
           ready_to_receive: boolean | null
           registered_by: string | null
+          rent_balance_due: number
+          rent_last_paid_amount: number | null
+          rent_last_paid_at: string | null
           tenant_id: string | null
           tin: string | null
           verification_pin_1: string | null
@@ -624,6 +627,9 @@ export type Database = {
           property_address: string
           ready_to_receive?: boolean | null
           registered_by?: string | null
+          rent_balance_due?: number
+          rent_last_paid_amount?: number | null
+          rent_last_paid_at?: string | null
           tenant_id?: string | null
           tin?: string | null
           verification_pin_1?: string | null
@@ -660,6 +666,9 @@ export type Database = {
           property_address?: string
           ready_to_receive?: boolean | null
           registered_by?: string | null
+          rent_balance_due?: number
+          rent_last_paid_amount?: number | null
+          rent_last_paid_at?: string | null
           tenant_id?: string | null
           tin?: string | null
           verification_pin_1?: string | null
@@ -2679,6 +2688,10 @@ export type Database = {
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      record_rent_payment: {
+        Args: { p_amount: number; p_landlord_id: string }
+        Returns: undefined
+      }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       update_user_risk_score: {

@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Building2, MapPin, Phone, Banknote, BedDouble, Home, ExternalLink, ClipboardList } from 'lucide-react';
+import { Building2, MapPin, Phone, Banknote, BedDouble, Home, ExternalLink, ClipboardList, TrendingDown } from 'lucide-react';
 
 interface ManagedProperty {
   id: string;
@@ -18,6 +18,9 @@ interface ManagedProperty {
   number_of_rooms: number | null;
   number_of_houses: number | null;
   monthly_rent: number | null;
+  rent_balance_due: number;
+  rent_last_paid_at: string | null;
+  rent_last_paid_amount: number | null;
   latitude: number | null;
   longitude: number | null;
   tenant_id: string | null;
@@ -44,17 +47,24 @@ export function AgentManagedPropertiesSheet({ open, onOpenChange, onRequestPayou
     setLoading(true);
     const { data } = await supabase
       .from('landlords')
-      .select('id, name, phone, mobile_money_number, property_address, description, number_of_rooms, number_of_houses, monthly_rent, latitude, longitude, tenant_id')
+      .select('id, name, phone, mobile_money_number, property_address, description, number_of_rooms, number_of_houses, monthly_rent, rent_balance_due, rent_last_paid_at, rent_last_paid_amount, latitude, longitude, tenant_id')
       .eq('managed_by_agent_id', user.id)
       .eq('is_agent_managed', true);
 
     const withTenants = await Promise.all(
       (data || []).map(async (p) => {
+        const base: ManagedProperty = {
+          ...p,
+          rent_balance_due: (p as any).rent_balance_due ?? 0,
+          rent_last_paid_at: (p as any).rent_last_paid_at ?? null,
+          rent_last_paid_amount: (p as any).rent_last_paid_amount ?? null,
+          tenant_name: null,
+        };
         if (p.tenant_id) {
           const { data: profile } = await supabase.from('profiles').select('full_name').eq('id', p.tenant_id).maybeSingle();
-          return { ...p, tenant_name: profile?.full_name };
+          return { ...base, tenant_name: profile?.full_name ?? null };
         }
-        return { ...p, tenant_name: null };
+        return base;
       })
     );
 
@@ -130,6 +140,25 @@ export function AgentManagedPropertiesSheet({ open, onOpenChange, onRequestPayou
                   {isOccupied && p.tenant_name && (
                     <p className="text-xs text-muted-foreground">
                       Tenant: <span className="font-medium text-foreground">{p.tenant_name}</span>
+                    </p>
+                  )}
+
+                  {/* Rent Balance */}
+                  {isOccupied && (
+                    <div className={`flex items-center justify-between p-2.5 rounded-lg text-xs ${p.rent_balance_due > 0 ? 'bg-destructive/10 border border-destructive/20' : 'bg-success/10 border border-success/20'}`}>
+                      <div className="flex items-center gap-1.5">
+                        <TrendingDown className={`h-3.5 w-3.5 ${p.rent_balance_due > 0 ? 'text-destructive' : 'text-success'}`} />
+                        <span className="text-muted-foreground">Rent Balance Due:</span>
+                      </div>
+                      <span className={`font-bold ${p.rent_balance_due > 0 ? 'text-destructive' : 'text-success'}`}>
+                        {p.rent_balance_due > 0 ? formatUGX(p.rent_balance_due) : '✓ Paid'}
+                      </span>
+                    </div>
+                  )}
+                  {p.rent_last_paid_at && (
+                    <p className="text-[10px] text-muted-foreground">
+                      Last paid: {new Date(p.rent_last_paid_at).toLocaleDateString()} 
+                      {p.rent_last_paid_amount ? ` • ${formatUGX(p.rent_last_paid_amount)}` : ''}
                     </p>
                   )}
 

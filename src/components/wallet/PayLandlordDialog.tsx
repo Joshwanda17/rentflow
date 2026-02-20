@@ -29,6 +29,7 @@ interface Landlord {
   phone: string;
   property_address: string;
   monthly_rent?: number | null;
+  rent_balance_due?: number;
 }
 
 const formVariants = {
@@ -75,7 +76,7 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
     // Get landlords registered by this tenant
     const { data } = await supabase
       .from('landlords')
-      .select('id, name, phone, property_address, monthly_rent')
+      .select('id, name, phone, property_address, monthly_rent, rent_balance_due')
       .eq('tenant_id', user.id)
       .order('name');
     
@@ -221,6 +222,12 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
         return;
       }
     }
+
+    // Reduce the rent balance on the landlord record
+    await supabase.rpc('record_rent_payment', {
+      p_landlord_id: selectedLandlord,
+      p_amount: finalAmount,
+    });
 
     await refreshWallet();
     setSuccess(true);
@@ -392,6 +399,20 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
                   </p>
                 </motion.div>
 
+                {/* Rent Balance Due */}
+                {selectedLandlord && (() => {
+                  const landlord = landlords.find(l => l.id === selectedLandlord);
+                  const balance = landlord?.rent_balance_due ?? 0;
+                  return (
+                    <motion.div variants={itemVariants} className={`p-3 rounded-xl border text-xs flex items-center justify-between ${balance > 0 ? 'bg-destructive/10 border-destructive/20' : 'bg-success/10 border-success/20'}`}>
+                      <span className="text-muted-foreground">Current Rent Balance Due</span>
+                      <span className={`font-bold text-sm ${balance > 0 ? 'text-destructive' : 'text-success'}`}>
+                        {balance > 0 ? formatCurrency(balance) : '✓ Fully Paid'}
+                      </span>
+                    </motion.div>
+                  );
+                })()}
+
                 {/* Payment Summary */}
                 {amount && parseFloat(amount) > 0 && (
                   <motion.div 
@@ -411,6 +432,12 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
                     <div className="border-t border-border pt-2 flex justify-between font-semibold">
                       <span>You Pay</span>
                       <span className="text-lg">{formatCurrency(getFinalAmount())}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-muted-foreground pt-1">
+                      <span>Balance after payment</span>
+                      <span className={getFinalAmount() >= (landlords.find(l => l.id === selectedLandlord)?.rent_balance_due ?? 0) ? 'text-success font-medium' : 'text-warning font-medium'}>
+                        {formatCurrency(Math.max(0, (landlords.find(l => l.id === selectedLandlord)?.rent_balance_due ?? 0) - getFinalAmount()))}
+                      </span>
                     </div>
                   </motion.div>
                 )}
