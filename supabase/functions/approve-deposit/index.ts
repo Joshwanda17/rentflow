@@ -137,46 +137,34 @@ Deno.serve(async (req) => {
         throw updateError;
       }
 
-      // Credit the user's wallet
+      // Credit the user's wallet atomically using RPC or read-then-update
+      // First ensure wallet exists
+      await supabaseAdmin
+        .from("wallets")
+        .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
+
+      // Read current balance, then add deposit amount
+      const { data: currentWallet, error: readErr } = await supabaseAdmin
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", depositRequest.user_id)
+        .single();
+
+      if (readErr || !currentWallet) {
+        console.error("Wallet read error:", readErr);
+        throw new Error("Could not read wallet balance");
+      }
+
+      const newBalance = (currentWallet.balance || 0) + depositRequest.amount;
       const { error: walletError } = await supabaseAdmin
         .from("wallets")
-        .update({
-          balance: depositRequest.amount,
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", depositRequest.user_id);
+        .update({ balance: newBalance, updated_at: new Date().toISOString() })
+        .eq("user_id", depositRequest.user_id)
+        .eq("balance", currentWallet.balance); // Optimistic lock
 
-      // If no wallet exists, we need to upsert
       if (walletError) {
-        const { error: upsertError } = await supabaseAdmin
-          .from("wallets")
-          .upsert({
-            user_id: depositRequest.user_id,
-            balance: depositRequest.amount,
-            updated_at: new Date().toISOString(),
-          });
-
-        if (upsertError) {
-          console.error("Wallet upsert error:", upsertError);
-          throw upsertError;
-        }
-      } else {
-        // Add to existing balance
-        const { data: wallet } = await supabaseAdmin
-          .from("wallets")
-          .select("balance")
-          .eq("user_id", depositRequest.user_id)
-          .single();
-
-        if (wallet) {
-          await supabaseAdmin
-            .from("wallets")
-            .update({
-              balance: (wallet.balance || 0) + depositRequest.amount,
-              updated_at: new Date().toISOString(),
-            })
-            .eq("user_id", depositRequest.user_id);
-        }
+        console.error("Wallet credit error:", walletError);
+        throw new Error("Failed to credit wallet. Please retry.");
       }
 
       // Create notification for user with manager details
