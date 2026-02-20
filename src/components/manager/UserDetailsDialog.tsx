@@ -42,7 +42,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText, UsersRound, UserPlus
+  FileText, UsersRound, UserPlus, Link2
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -155,12 +155,83 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [subAgentsLoading, setSubAgentsLoading] = useState(false);
   const [addBalanceOpen, setAddBalanceOpen] = useState(false);
   const [referralCount, setReferralCount] = useState<number>(0);
+  const [referrerInfo, setReferrerInfo] = useState<{ name: string; phone: string; id: string; method: string } | null>(null);
+  const [referrerLoading, setReferrerLoading] = useState(false);
+
+  const fetchReferrerInfo = async (userId: string) => {
+    setReferrerLoading(true);
+    setReferrerInfo(null);
+    try {
+      // Get user's referrer_id from profile
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('referrer_id')
+        .eq('id', userId)
+        .single();
+
+      if (profile?.referrer_id) {
+        // Fetch referrer's profile
+        const { data: referrer } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .eq('id', profile.referrer_id)
+          .single();
+
+        // Check if they came via supporter_invites (invite link) or referral link
+        const { data: invite } = await supabase
+          .from('supporter_invites')
+          .select('id, role, created_by')
+          .eq('activated_user_id', userId)
+          .maybeSingle();
+
+        const method = invite ? `Invite (${invite.role})` : 'Referral Link';
+
+        if (referrer) {
+          setReferrerInfo({
+            name: referrer.full_name,
+            phone: referrer.phone,
+            id: referrer.id,
+            method,
+          });
+        }
+      } else {
+        // Check if user came via invite without referrer_id
+        const { data: invite } = await supabase
+          .from('supporter_invites')
+          .select('id, role, created_by')
+          .eq('activated_user_id', userId)
+          .maybeSingle();
+
+        if (invite) {
+          const { data: inviter } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .eq('id', invite.created_by)
+            .single();
+
+          if (inviter) {
+            setReferrerInfo({
+              name: inviter.full_name,
+              phone: inviter.phone,
+              id: inviter.id,
+              method: `Invite (${invite.role})`,
+            });
+          }
+        }
+      }
+    } catch (err) {
+      console.error('Error fetching referrer:', err);
+    } finally {
+      setReferrerLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
       fetchUserRolesWithStatus();
       fetchVerificationStatus();
+      fetchReferrerInfo(user.id);
       // Fetch subagents if user is an agent
       if (user.roles.includes('agent')) {
         fetchSubAgents();
@@ -1009,7 +1080,38 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </CardContent>
                   </Card>
 
-                  {/* Financial Summary */}
+                  {/* Referred By */}
+                  <Card className="border-primary/20">
+                    <CardHeader className="py-3">
+                      <CardTitle className="text-sm flex items-center gap-2">
+                        <Link2 className="h-4 w-4 text-primary" />
+                        Referred By
+                      </CardTitle>
+                    </CardHeader>
+                    <CardContent className="pt-0">
+                      {referrerLoading ? (
+                        <Skeleton className="h-12 w-full" />
+                      ) : referrerInfo ? (
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-10 w-10 border">
+                            <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                              {referrerInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-semibold text-sm truncate">{referrerInfo.name}</p>
+                            <p className="text-xs text-muted-foreground">{referrerInfo.phone}</p>
+                          </div>
+                          <Badge variant="outline" className="shrink-0 text-xs">
+                            {referrerInfo.method}
+                          </Badge>
+                        </div>
+                      ) : (
+                        <p className="text-sm text-muted-foreground">No referrer — signed up directly</p>
+                      )}
+                    </CardContent>
+                  </Card>
+
                   <div className="grid grid-cols-2 gap-3">
                     <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
                       <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1">
@@ -1524,7 +1626,38 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                   </CardContent>
                 </Card>
 
-                {/* Financial Summary */}
+                {/* Referred By */}
+                <Card className="border-primary/20">
+                  <CardHeader className="py-3">
+                    <CardTitle className="text-sm flex items-center gap-2">
+                      <Link2 className="h-4 w-4 text-primary" />
+                      Referred By
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="pt-0">
+                    {referrerLoading ? (
+                      <Skeleton className="h-12 w-full" />
+                    ) : referrerInfo ? (
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-10 w-10 border">
+                          <AvatarFallback className="bg-primary/10 text-primary text-sm font-bold">
+                            {referrerInfo.name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-semibold text-sm truncate">{referrerInfo.name}</p>
+                          <p className="text-xs text-muted-foreground">{referrerInfo.phone}</p>
+                        </div>
+                        <Badge variant="outline" className="shrink-0 text-xs">
+                          {referrerInfo.method}
+                        </Badge>
+                      </div>
+                    ) : (
+                      <p className="text-sm text-muted-foreground">No referrer — signed up directly</p>
+                    )}
+                  </CardContent>
+                </Card>
+
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
                     <div className="flex items-center gap-2 text-muted-foreground text-xs mb-1"><Wallet className="h-3 w-3" />Wallet Balance</div>
