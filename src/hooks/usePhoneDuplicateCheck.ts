@@ -31,7 +31,7 @@ export function usePhoneDuplicateCheck(phone: string, debounceMs: number = 500):
     try {
       // OPTIMIZED: Use exact-match IN query instead of ILIKE full-table scan
       // This uses btree indexes and scales to 7M+ users
-      const phoneFormats = [`0${local9}`, `256${local9}`, `+256${local9}`];
+      const phoneFormats = [local9, `0${local9}`, `256${local9}`, `+256${local9}`];
       
       // Run both checks in parallel for speed
       const [profileResult, inviteResult] = await Promise.all([
