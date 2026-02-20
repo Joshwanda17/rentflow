@@ -43,7 +43,7 @@ interface AgentRentRequestDialogProps {
 }
 
 type IncomeType = 'daily' | 'weekly-monthly';
-type RepaymentPeriod = '7' | '14' | '21' | '120';
+type RepaymentPeriod = '7' | '14' | '21' | '30' | '120';
 
 const HOUSE_CATEGORIES = [
   { value: 'single-room', label: 'Single Room', emoji: '🚪' },
@@ -255,6 +255,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       case '7': return '7 Days (1 Week)';
       case '14': return '14 Days (2 Weeks)';
       case '21': return '21 Days (3 Weeks)';
+      case '30': return '30 Days (1 Month)';
       case '120': return '120 Days (4 Months)';
     }
   };
@@ -488,6 +489,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
                           <SelectItem value="7">7 Days</SelectItem>
                           <SelectItem value="14">14 Days</SelectItem>
                           <SelectItem value="21">21 Days</SelectItem>
+                          <SelectItem value="30">30 Days</SelectItem>
                           <SelectItem value="120">120 Days</SelectItem>
                         </SelectContent>
                       </Select>
