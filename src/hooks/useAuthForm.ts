@@ -248,8 +248,6 @@ export function useAuthForm() {
   };
 
   const handleSignInSubmit = async () => {
-    const cleanedPhone = cleanPhoneNumber(phone);
-
     if (!isValidPhoneNumber(phone)) {
       toast({ title: 'Invalid Phone Number', description: 'Please enter a valid phone number', variant: 'destructive' });
       return;
@@ -260,72 +258,71 @@ export function useAuthForm() {
       return;
     }
 
-    // Build all phone variants to search with (function now matches by last 9 digits)
-    const phoneLocal9 = cleanedPhone.replace(/^0+/, '').slice(-9);
-    const fullPhone = countryCode + phoneLocal9;
-    const phoneFormats = [...new Set([
-      cleanedPhone, phone.replace(/\D/g, ''),
-      phoneLocal9, `0${phoneLocal9}`,
-      `256${phoneLocal9}`, fullPhone,
-    ])];
+    // Normalize phone to last 9 digits (strips country code / leading zeros)
+    const digits = phone.replace(/\D/g, '');
+    const last9 = digits.slice(-9);
 
-    // STEP 1: Look up account email by phone (SECURITY DEFINER bypasses RLS)
-    let profileEmails: string[] = [];
-    let lookupError = false;
+    // Build prioritized email candidates (most common formats first)
+    const emailCandidates = [
+      `0${last9}@welile.user`,
+      `256${last9}@welile.user`,
+      `${last9}@welile.user`,
+      `0${last9}@welile.agent`,
+      `256${last9}@welile.agent`,
+      `${last9}@welile.agent`,
+    ];
 
+    // Also try RPC lookup in parallel to find any real/other email linked to this phone
+    let rpcEmails: string[] = [];
     try {
-      const { data, error } = await Promise.race([
-        supabase.rpc('get_email_by_phone', { phone_variants: phoneFormats }),
-        new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('timeout')), 10000)
-        ),
+      const { data } = await Promise.race([
+        supabase.rpc('get_email_by_phone', { phone_variants: [`0${last9}`, `256${last9}`, last9] }),
+        new Promise<{ data: null }>((resolve) => setTimeout(() => resolve({ data: null }), 5000)),
       ]);
-      if (!error && data?.length) {
-        const emails: string[] = data.map((r: { email: string }) => r.email).filter(Boolean);
-        const userEmails = emails.filter(e => e.includes('@welile.user'));
-        const agentEmails = emails.filter(e => e.includes('@welile.agent'));
-        const realEmails = emails.filter(e => !e.includes('@welile.'));
-        profileEmails = [...userEmails, ...agentEmails, ...realEmails];
+      if (data?.length) {
+        rpcEmails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
+        // Prepend any @welile.user or @welile.agent emails found via RPC (highest priority)
+        const welileFound = rpcEmails.filter(e => e.includes('@welile.'));
+        const otherFound = rpcEmails.filter(e => !e.includes('@welile.'));
+        emailCandidates.unshift(...welileFound);
+        // Real emails (Gmail etc.) — only try with password if explicitly found
+        emailCandidates.push(...otherFound);
       }
     } catch {
-      lookupError = true;
+      // RPC lookup failed — proceed with generated candidates
     }
 
-    // STEP 2: Build email candidates to try (profile matches FIRST, then generated fallbacks)
-    // IMPORTANT: Always try ALL found emails with the password before deciding it's Google-only
-    const emailCandidates = new Set<string>();
-    for (const e of profileEmails) emailCandidates.add(e); // try real emails with password first
-    emailCandidates.add(`${fullPhone}@welile.user`);
-    emailCandidates.add(`${cleanedPhone}@welile.user`);
-    emailCandidates.add(`${phoneLocal9}@welile.user`);
-    emailCandidates.add(`0${phoneLocal9}@welile.user`);
-    emailCandidates.add(`256${phoneLocal9}@welile.user`);
-    emailCandidates.add(`${countryCode}${phoneLocal9}@welile.user`);
-    emailCandidates.add(`${phoneLocal9}@welile.agent`);
-    emailCandidates.add(`0${phoneLocal9}@welile.agent`);
-    emailCandidates.add(`256${phoneLocal9}@welile.agent`);
-    emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
+    // Deduplicate while preserving order
+    const uniqueCandidates = [...new Set(emailCandidates)];
 
-    // STEP 3: Try each email candidate until one works
+    // Try each email candidate with the provided password
     let loginSuccess = false;
     let lastError: Error | null = null;
+    let accountExists = rpcEmails.length > 0;
 
-    for (const emailToTry of emailCandidates) {
+    for (const emailToTry of uniqueCandidates) {
       try {
-        const { error } = await Promise.race([
-          signIn(emailToTry, password),
-          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 12000)),
-        ]);
-        if (!error) { loginSuccess = true; lastError = null; break; }
+        const { error } = await signIn(emailToTry, password);
+        if (!error) {
+          loginSuccess = true;
+          lastError = null;
+          break;
+        }
         lastError = error;
-        if (!error.message.includes('Invalid login credentials')) break;
+        // If credentials wrong (not "user not found"), account exists but password is wrong
+        if (error.message.includes('Invalid login credentials')) {
+          accountExists = true;
+          // Don't break — maybe another email format succeeds
+        } else {
+          // Fatal error (rate limit, network, etc.) — stop trying
+          break;
+        }
       } catch (e: any) {
         lastError = e;
-        if (e?.message?.includes('Network timeout') || e?.message?.includes('Failed to fetch')) break;
+        break;
       }
     }
 
-    // STEP 5: Handle result
     if (loginSuccess) {
       setLoginError(null);
       setFailedAttempts(0);
@@ -333,22 +330,17 @@ export function useAuthForm() {
       return;
     }
 
-    // Login failed — build helpful error message
+    // Build helpful error message
     setFailedAttempts(prev => prev + 1);
     const triedFormats = getTriedPhoneFormats(phone);
-    let errorMessage = 'Sign in failed';
+    let errorMessage = 'Sign in failed. Please try again.';
 
-    if (lookupError || lastError?.message?.includes('fetch') || lastError?.message?.includes('network')) {
+    if (lastError?.message?.includes('fetch') || lastError?.message?.includes('network') || lastError?.message?.includes('timeout')) {
       errorMessage = 'Network error. Please check your connection and try again.';
-    } else if (lastError?.message?.includes('rate')) {
+    } else if (lastError?.message?.includes('rate') || lastError?.message?.includes('too many')) {
       errorMessage = 'Too many login attempts. Please wait a moment and try again.';
-    } else if (lastError?.message?.includes('Invalid login credentials')) {
-      if (profileEmails.length > 0) {
-        // Account found but password wrong
-        errorMessage = 'Incorrect password. Please check your password and try again.';
-      } else {
-        errorMessage = 'No account found with this phone number. Please sign up first.';
-      }
+    } else if (accountExists) {
+      errorMessage = 'Incorrect password. Please check your password and try again.';
     } else {
       errorMessage = 'No account found with this phone number. Please sign up first.';
     }
