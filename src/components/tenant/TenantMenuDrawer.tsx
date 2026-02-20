@@ -78,11 +78,19 @@ export function TenantMenuDrawer({
       title: 'Payments',
       items: [
         { 
+          icon: Calendar, 
+          label: 'My Repayment Schedule', 
+          description: 'Daily plan, progress & share as PDF',
+          onClick: onRepaymentSchedule,
+          color: 'text-primary',
+          badge: 'PDF & WhatsApp'
+        },
+        { 
           icon: Home, 
           label: 'Pay Rent to Landlord', 
           description: 'Direct landlord payment',
           onClick: onPayLandlord,
-          color: 'text-primary'
+          color: 'text-success'
         },
         { 
           icon: CreditCard, 
@@ -90,13 +98,6 @@ export function TenantMenuDrawer({
           description: 'Via Mobile Money',
           onClick: onPayWelile,
           color: 'text-amber-500'
-        },
-        { 
-          icon: Calendar, 
-          label: 'Repayment Schedule', 
-          description: 'View payment history & due dates',
-          onClick: onRepaymentSchedule,
-          color: 'text-blue-500'
         },
       ]
     },
