@@ -2692,6 +2692,10 @@ export type Database = {
         Args: { p_amount: number; p_landlord_id: string }
         Returns: undefined
       }
+      record_rent_request_repayment: {
+        Args: { p_amount: number; p_tenant_id: string }
+        Returns: undefined
+      }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       update_user_risk_score: {
