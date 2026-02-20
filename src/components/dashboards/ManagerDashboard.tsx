@@ -992,6 +992,27 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           Download Fraud Report (PDF)
         </Button>
 
+        {/* Phantom Balance Correction Report */}
+        <Button
+          variant="outline"
+          size="sm"
+          className="w-full gap-2 border-destructive text-destructive hover:bg-destructive/10"
+          onClick={async () => {
+            toast.info('Generating phantom balance report...');
+            try {
+              const { generatePhantomBalancesPDF } = await import('@/lib/phantomBalanceReport');
+              generatePhantomBalancesPDF();
+              toast.success('Phantom balance report downloaded!');
+            } catch (e) {
+              console.error(e);
+              toast.error('Failed to generate report');
+            }
+          }}
+        >
+          <AlertTriangle className="h-4 w-4" />
+          Download Phantom Balance Report (PDF)
+        </Button>
+
         {/* ===== DEPOSITS — Priority section ===== */}
         <CollapsibleAgentSection
           icon={Wallet}
