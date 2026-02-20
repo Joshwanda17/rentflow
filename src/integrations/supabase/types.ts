@@ -514,6 +514,7 @@ export type Database = {
       }
       general_ledger: {
         Row: {
+          account: string | null
           amount: number
           category: string
           created_at: string
@@ -526,9 +527,11 @@ export type Database = {
           source_id: string | null
           source_table: string
           transaction_date: string
+          transaction_group_id: string | null
           user_id: string | null
         }
         Insert: {
+          account?: string | null
           amount: number
           category: string
           created_at?: string
@@ -541,9 +544,11 @@ export type Database = {
           source_id?: string | null
           source_table: string
           transaction_date?: string
+          transaction_group_id?: string | null
           user_id?: string | null
         }
         Update: {
+          account?: string | null
           amount?: number
           category?: string
           created_at?: string
@@ -556,6 +561,7 @@ export type Database = {
           source_id?: string | null
           source_table?: string
           transaction_date?: string
+          transaction_group_id?: string | null
           user_id?: string | null
         }
         Relationships: []
@@ -2608,6 +2614,7 @@ export type Database = {
           email: string
         }[]
       }
+      get_ledger_balance: { Args: { p_user_id: string }; Returns: number }
       get_ledger_summary: {
         Args: {
           p_category?: string
@@ -2688,6 +2695,22 @@ export type Database = {
       }
       process_monthly_referral_rewards: { Args: never; Returns: undefined }
       recalculate_credit_limit: { Args: { p_user_id: string }; Returns: number }
+      record_double_entry: {
+        Args: {
+          p_amount: number
+          p_category: string
+          p_credit_account?: string
+          p_credit_user_id: string
+          p_debit_account?: string
+          p_debit_user_id: string
+          p_description: string
+          p_linked_party?: string
+          p_reference_id?: string
+          p_source_id?: string
+          p_source_table: string
+        }
+        Returns: string
+      }
       record_rent_payment: {
         Args: { p_amount: number; p_landlord_id: string }
         Returns: undefined
