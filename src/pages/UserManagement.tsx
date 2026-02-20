@@ -90,6 +90,8 @@ export default function UserManagement() {
   const [sortBy, setSortBy] = useState<SortOption>('last_active');
   const [totalUserCount, setTotalUserCount] = useState<number>(0);
   const [roleCounts, setRoleCounts] = useState<Record<string, number>>({});
+  const [verifiedUserCount, setVerifiedUserCount] = useState(0);
+  const [inactiveTotalCount, setInactiveTotalCount] = useState(0);
   const [refreshing, setRefreshing] = useState(false);
   const [selectedUserIds, setSelectedUserIds] = useState<Set<string>>(new Set());
   const [bulkNotificationOpen, setBulkNotificationOpen] = useState(false);
@@ -161,13 +163,20 @@ export default function UserManagement() {
 
   const fetchTotalCount = async () => {
     const roleNames = ['tenant', 'agent', 'supporter', 'landlord', 'manager'] as const;
-    const [profileCount, ...roleResults] = await Promise.all([
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const [profileCount, verifiedCount, inactiveCount, ...roleResults] = await Promise.all([
       supabase.from('profiles').select('id', { count: 'exact', head: true }),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).eq('verified', true),
+      supabase.from('profiles').select('id', { count: 'exact', head: true }).lt('last_active_at', thirtyDaysAgo.toISOString()),
       ...roleNames.map(role =>
         supabase.from('user_roles').select('id', { count: 'exact', head: true }).eq('role', role).eq('enabled', true)
       ),
     ]);
     if (profileCount.count !== null) setTotalUserCount(profileCount.count);
+    setVerifiedUserCount(verifiedCount.count || 0);
+    setInactiveTotalCount(inactiveCount.count || 0);
     const counts: Record<string, number> = {};
     roleNames.forEach((role, i) => { counts[role] = roleResults[i].count || 0; });
     setRoleCounts(counts);
@@ -494,8 +503,8 @@ export default function UserManagement() {
         <CompactUserStats
           totalUsers={totalUserCount}
           onlineCount={activeUserCount}
-          verifiedCount={roleCounts['verified'] ?? 0}
-          inactiveCount={inactiveUserCount}
+          verifiedCount={verifiedUserCount}
+          inactiveCount={inactiveTotalCount}
           activeFilter={statFilter}
           onFilterChange={setStatFilter}
         />
