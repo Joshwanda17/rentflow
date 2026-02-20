@@ -1001,7 +1001,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             toast.info('Generating phantom balance report...');
             try {
               const { generatePhantomBalancesPDF } = await import('@/lib/phantomBalanceReport');
-              generatePhantomBalancesPDF();
+              await generatePhantomBalancesPDF();
               toast.success('Phantom balance report downloaded!');
             } catch (e) {
               console.error(e);
