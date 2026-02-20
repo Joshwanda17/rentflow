@@ -286,10 +286,11 @@ export function useAuthForm() {
 
       const { data } = await Promise.race([profilePromise, timeoutPromise]);
       if (data?.length) {
-        // Prefer @welile.user emails first, then @welile.agent
+        // Prefer @welile.user emails first, then @welile.agent, then real emails (Google accounts)
         const userEmails = data.filter(p => p.email?.includes('@welile.user')).map(p => p.email);
         const agentEmails = data.filter(p => p.email?.includes('@welile.agent')).map(p => p.email);
-        profileEmails = [...userEmails, ...agentEmails];
+        const realEmails = data.filter(p => p.email && !p.email.includes('@welile.')).map(p => p.email);
+        profileEmails = [...userEmails, ...agentEmails, ...realEmails];
       }
     } catch (e: any) {
       if (e?.message?.includes('Network timeout')) {
