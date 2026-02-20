@@ -272,24 +272,22 @@ export function useAuthForm() {
     const phoneFormats = [...new Set([cleanedPhone, phoneLocal9, `0${phoneLocal9}`, `256${phoneLocal9}`, `${countryCode}${phoneLocal9}`, fullPhone])];
 
     // STEP 1: Try profile lookup to find the correct auth email
+    // Uses a SECURITY DEFINER function to bypass RLS (safe for unauthenticated sign-in lookup)
     let profileEmails: string[] = [];
 
     try {
-      const profilePromise = supabase
-        .from('profiles')
-        .select('email, phone')
-        .in('phone', phoneFormats);
-      
+      const lookupPromise = supabase.rpc('get_email_by_phone', { phone_variants: phoneFormats });
       const timeoutPromise = new Promise<never>((_, reject) =>
         setTimeout(() => reject(new Error('Network timeout: Unable to reach the server. Please check your connection and try again.')), 10000)
       );
 
-      const { data } = await Promise.race([profilePromise, timeoutPromise]);
+      const { data } = await Promise.race([lookupPromise, timeoutPromise]);
       if (data?.length) {
+        const emails: string[] = data.map((r: { email: string }) => r.email).filter(Boolean);
         // Prefer @welile.user emails first, then @welile.agent, then real emails (Google accounts)
-        const userEmails = data.filter(p => p.email?.includes('@welile.user')).map(p => p.email);
-        const agentEmails = data.filter(p => p.email?.includes('@welile.agent')).map(p => p.email);
-        const realEmails = data.filter(p => p.email && !p.email.includes('@welile.')).map(p => p.email);
+        const userEmails = emails.filter(e => e.includes('@welile.user'));
+        const agentEmails = emails.filter(e => e.includes('@welile.agent'));
+        const realEmails = emails.filter(e => !e.includes('@welile.'));
         profileEmails = [...userEmails, ...agentEmails, ...realEmails];
       }
     } catch (e: any) {

@@ -2593,6 +2593,12 @@ export type Database = {
         Returns: string
       }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_email_by_phone: {
+        Args: { phone_variants: string[] }
+        Returns: {
+          email: string
+        }[]
+      }
       get_ledger_summary: {
         Args: {
           p_category?: string
