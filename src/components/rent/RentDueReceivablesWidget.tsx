@@ -28,6 +28,7 @@ interface ApprovedRequest {
   total_repayment: number;
   daily_repayment: number;
   number_of_payments: number | null;
+  amount_repaid: number;
   tenant: { full_name: string; phone: string } | null;
   agent: { full_name: string } | null;
 }
@@ -52,6 +53,7 @@ interface RentDueReceivablesWidgetProps {
 
 function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
   const [open, setOpen] = useState(false);
+  const remaining = Math.max(0, req.total_repayment - (req.amount_repaid || 0));
 
   const weeklyRepayment = Math.ceil(req.total_repayment / Math.ceil(req.duration_days / 7));
   const monthlyRepayment = Math.ceil(req.total_repayment / Math.ceil(req.duration_days / 30));
@@ -73,7 +75,14 @@ function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
               {req.tenant?.full_name || 'Unknown Tenant'}
             </p>
             <div className="flex items-center gap-1.5 shrink-0">
-              <p className="font-extrabold text-sm text-success">{formatUGX(req.total_repayment)}</p>
+              <div className="text-right">
+                <p className={`font-extrabold text-sm ${remaining > 0 ? 'text-warning' : 'text-success'}`}>
+                  {remaining > 0 ? formatUGX(remaining) : '✓ Paid'}
+                </p>
+                {req.amount_repaid > 0 && remaining > 0 && (
+                  <p className="text-[9px] text-success">+{formatUGX(req.amount_repaid)} paid</p>
+                )}
+              </div>
               {open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
             </div>
           </div>
@@ -163,10 +172,22 @@ function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
                     </div>
                     <span className="text-xs font-bold text-accent-foreground">{formatUGX(req.request_fee || 0)}</span>
                   </div>
-                  {/* Divider */}
-                  <div className="border-t border-success/30 pt-2 flex items-center justify-between">
-                    <span className="text-xs font-extrabold text-success">Total Repayment</span>
-                    <span className="text-sm font-extrabold text-success">{formatUGX(req.total_repayment)}</span>
+                  {/* Collected + Remaining */}
+                  <div className="border-t border-success/30 pt-2 space-y-1">
+                    {req.amount_repaid > 0 && (
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-semibold text-success">✓ Collected</span>
+                        <span className="text-xs font-bold text-success">{formatUGX(req.amount_repaid)}</span>
+                      </div>
+                    )}
+                    <div className="flex items-center justify-between">
+                      <span className={`text-xs font-extrabold ${remaining > 0 ? 'text-warning' : 'text-success'}`}>
+                        {remaining > 0 ? 'Outstanding' : '✓ Fully Repaid'}
+                      </span>
+                      <span className={`text-sm font-extrabold ${remaining > 0 ? 'text-warning' : 'text-success'}`}>
+                        {formatUGX(remaining)}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -221,7 +242,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
 
     let query = supabase
       .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, tenant_id, agent_id')
+      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, amount_repaid, tenant_id, agent_id')
       .eq('status', 'approved')
       .order('approved_at', { ascending: false })
       .limit(50);
@@ -245,14 +266,15 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
 
       const enriched = data.map((r: any) => ({
         ...r,
+        amount_repaid: r.amount_repaid ?? 0,
         tenant: profileMap.get(r.tenant_id) ? { full_name: profileMap.get(r.tenant_id)!.full_name, phone: profileMap.get(r.tenant_id)!.phone } : null,
         agent: r.agent_id && profileMap.get(r.agent_id) ? { full_name: profileMap.get(r.agent_id)!.full_name } : null,
       }));
 
       setRequests(enriched);
 
-      // Notify parent of total receivable
-      const total = enriched.reduce((sum: number, r: any) => sum + (r.total_repayment || 0), 0);
+      // Notify parent of total REMAINING receivable (not yet repaid)
+      const total = enriched.reduce((sum: number, r: any) => sum + Math.max(0, (r.total_repayment || 0) - (r.amount_repaid || 0)), 0);
       onTotalChange?.(total);
     }
     setLoading(false);
@@ -260,8 +282,10 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
-  // Aggregate totals
-  const totalReceivable = requests.reduce((sum, r) => sum + (r.total_repayment || 0), 0);
+  // Aggregate totals — use REMAINING balance (total - repaid)
+  const totalCollected = requests.reduce((sum, r) => sum + (r.amount_repaid || 0), 0);
+  const totalReceivable = requests.reduce((sum, r) => sum + Math.max(0, (r.total_repayment || 0) - (r.amount_repaid || 0)), 0);
+  const totalGross = requests.reduce((sum, r) => sum + (r.total_repayment || 0), 0);
   const totalDaily = requests.reduce((sum, r) => sum + (r.daily_repayment || 0), 0);
   const totalWeekly = requests.reduce((sum, r) => {
     const w = Math.ceil(r.total_repayment / Math.ceil(r.duration_days / 7));
@@ -304,7 +328,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-base text-success">Receivables Statement</h3>
               <p className="text-[10px] text-success/70">
-                {requests.length} approved {requests.length === 1 ? 'request' : 'requests'} · awaiting repayment
+                {requests.length} approved {requests.length === 1 ? 'request' : 'requests'} · {formatUGX(totalCollected)} collected
               </p>
             </div>
           </div>
@@ -339,10 +363,16 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                     </div>
                   </div>
 
-                  {/* Subtotal */}
-                  <div className="flex justify-between font-semibold pt-1.5 border-t border-border/60">
-                    <span className="text-sm">Total Receivable</span>
-                    <span className="font-mono text-success">{formatUGX(totalReceivable)}</span>
+                  {/* Collected vs Remaining */}
+                  <div className="space-y-1 pt-1.5 border-t border-border/60">
+                    <div className="flex justify-between text-sm text-success font-medium">
+                      <span>✓ Collected</span>
+                      <span className="font-mono">{formatUGX(totalCollected)}</span>
+                    </div>
+                    <div className="flex justify-between font-semibold">
+                      <span className="text-sm">Remaining Receivable</span>
+                      <span className={`font-mono ${totalReceivable > 0 ? 'text-warning' : 'text-success'}`}>{formatUGX(totalReceivable)}</span>
+                    </div>
                   </div>
                 </div>
 
@@ -368,9 +398,15 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                 </div>
 
                 {/* ── NET TOTAL ── */}
-                <div className="flex justify-between items-center pt-3 border-t-2 border-success/40">
-                  <span className="text-base font-bold text-success">Net Total Receivable</span>
-                  <span className="font-mono text-lg font-extrabold text-success">{formatUGX(totalReceivable)}</span>
+                <div className="space-y-1 pt-3 border-t-2 border-success/40">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm font-medium text-muted-foreground">Gross Receivable</span>
+                    <span className="font-mono text-sm text-muted-foreground">{formatUGX(totalGross)}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-base font-bold text-success">Outstanding Balance</span>
+                    <span className={`font-mono text-lg font-extrabold ${totalReceivable > 0 ? 'text-warning' : 'text-success'}`}>{formatUGX(totalReceivable)}</span>
+                  </div>
                 </div>
               </div>
 

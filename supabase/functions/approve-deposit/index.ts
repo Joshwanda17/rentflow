@@ -167,6 +167,16 @@ Deno.serve(async (req) => {
         throw new Error("Failed to credit wallet. Please retry.");
       }
 
+      // Reduce the outstanding receivable on the tenant's active rent request
+      const { error: repaymentError } = await supabaseAdmin.rpc(
+        "record_rent_request_repayment",
+        { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
+      );
+      if (repaymentError) {
+        // Non-fatal: log but don't fail the deposit approval
+        console.warn("Repayment tracking error (non-fatal):", repaymentError);
+      }
+
       // Create notification for user with manager details
       await supabaseAdmin.from("notifications").insert({
         user_id: depositRequest.user_id,
