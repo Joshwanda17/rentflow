@@ -115,6 +115,7 @@ export function RecordTenantPaymentDialog({ open, onOpenChange, onSuccess }: Rec
     setSubmitting(true);
 
     try {
+      const paidAmount = Number(amount);
       const { error } = await supabase
         .from('tenant_merchant_payments')
         .insert({
@@ -122,13 +123,29 @@ export function RecordTenantPaymentDialog({ open, onOpenChange, onSuccess }: Rec
           tenant_id: selectedTenant?.id || null,
           tenant_phone: selectedTenant?.phone || manualPhone.trim(),
           transaction_id: transactionId.trim().toUpperCase(),
-          amount: Number(amount),
+          amount: paidAmount,
           merchant_name: merchantName.trim(),
           payment_date: paymentDate,
           notes: notes.trim() || null,
         });
 
       if (error) throw error;
+
+      // Reduce rent balance on the landlord linked to this tenant
+      if (selectedTenant?.id) {
+        const { data: landlordRecord } = await supabase
+          .from('landlords')
+          .select('id')
+          .eq('tenant_id', selectedTenant.id)
+          .maybeSingle();
+
+        if (landlordRecord?.id) {
+          await supabase.rpc('record_rent_payment', {
+            p_landlord_id: landlordRecord.id,
+            p_amount: paidAmount,
+          });
+        }
+      }
 
       toast({ title: '✅ Payment recorded successfully' });
       onOpenChange(false);
