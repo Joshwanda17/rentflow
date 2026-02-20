@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
@@ -26,8 +25,8 @@ import {
   ScrollText,
   BarChart3,
   PiggyBank,
-  ShoppingBag,
   Building2,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -121,6 +120,13 @@ export function AgentMenuDrawer({
           description: 'View & verify your posted requests',
           onClick: onViewMyRentRequests,
           color: 'text-indigo-500'
+        }, {
+          icon: Calendar, 
+          label: 'Tenant Repayment Schedules', 
+          description: 'View, download & share PDF / WhatsApp',
+          onClick: onViewMyRentRequests,
+          color: 'text-primary',
+          badge: 'PDF & WhatsApp'
         }] : []),
         { 
           icon: Handshake, 

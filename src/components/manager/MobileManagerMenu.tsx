@@ -14,7 +14,8 @@ import {
   Award,
   Download,
   CreditCard,
-  ClipboardList
+  ClipboardList,
+  Calendar,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -24,6 +25,13 @@ interface MobileManagerMenuProps {
 }
 
 const menuItems = [
+  { 
+    icon: Calendar, 
+    label: 'Schedules', 
+    path: '/users',
+    color: 'bg-primary',
+    description: 'Repayment schedules'
+  },
   { 
     icon: Users, 
     label: 'Users', 
