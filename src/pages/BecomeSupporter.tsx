@@ -21,7 +21,7 @@ const validateSignUp = (data: { password: string; fullName: string; phone: strin
 };
 
 const validateSignIn = (data: { phone: string; password: string }) => {
-  if (data.phone.replace(/\D/g, '').length < 10) return 'Please enter a valid phone number';
+  if (data.phone.replace(/\D/g, '').length < 9) return 'Please enter a valid phone number';
   if (!data.password) return 'Password is required';
   return null;
 };
