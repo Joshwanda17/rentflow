@@ -496,7 +496,7 @@ Password: ${createdInvite?.password}`;
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               required
-              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate ? 'border-red-500 focus:ring-red-500' : ''}`}
+              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate && selectedType !== 'tenant' ? 'border-red-500 focus:ring-red-500' : isPhoneDuplicate ? 'border-amber-500 focus:ring-amber-500' : ''}`}
               autoComplete="off"
               inputMode="tel"
             />
@@ -508,9 +508,11 @@ Password: ${createdInvite?.password}`;
             )}
           </div>
           {isPhoneDuplicate && phoneDuplicateMessage && (
-            <p className="text-sm text-red-500 flex items-center gap-1.5 animate-in fade-in duration-200">
+            <p className={`text-sm flex items-center gap-1.5 animate-in fade-in duration-200 ${selectedType === 'tenant' ? 'text-amber-500' : 'text-red-500'}`}>
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              {phoneDuplicateMessage}
+              {selectedType === 'tenant' 
+                ? `${phoneDuplicateMessage} — will link existing account`
+                : phoneDuplicateMessage}
             </p>
           )}
         </div>
@@ -652,17 +654,22 @@ Password: ${createdInvite?.password}`;
             ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600' 
             : ''
         }`}
-        disabled={isLoading || isPhoneDuplicate}
+        disabled={isLoading || (isPhoneDuplicate && selectedType !== 'tenant')}
       >
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             Creating...
           </>
-        ) : isPhoneDuplicate ? (
+        ) : isPhoneDuplicate && selectedType !== 'tenant' ? (
           <>
             <AlertCircle className="h-5 w-5 mr-2" />
             Phone Number Already Exists
+          </>
+        ) : isPhoneDuplicate && selectedType === 'tenant' ? (
+          <>
+            <UserPlus className="h-5 w-5 mr-2" />
+            Link Existing Tenant
           </>
         ) : (
           <>
