@@ -120,6 +120,17 @@ export function RentRequestsManager() {
 
   useEffect(() => {
     fetchRequests();
+
+    const channel = supabase
+      .channel('rent-requests-manager-realtime')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'rent_requests' },
+        () => { fetchRequests(); }
+      )
+      .subscribe();
+
+    return () => { supabase.removeChannel(channel); };
   }, []);
 
   const fetchRequests = async () => {
