@@ -26,13 +26,15 @@ import {
   ChevronDown,
   ChevronUp,
   FileDown,
-  Loader2
+  Loader2,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, addDays, isBefore, isToday, startOfDay } from 'date-fns';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { jsPDF } from 'jspdf';
 import { toast } from '@/hooks/use-toast';
+import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
+
+
 
 interface RentRequest {
   id: string;
@@ -145,140 +147,60 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
     }
   };
 
-  const exportScheduleToPdf = (request: RentRequest, schedule: DayStatus[], paidAmount: number) => {
+  const exportScheduleToPdf = async (request: RentRequest, schedule: DayStatus[], paidAmount: number) => {
     setExportingPdf(request.id);
-    
     try {
-      const doc = new jsPDF();
-      const pageWidth = doc.internal.pageSize.getWidth();
-      
-      // Header
-      doc.setFontSize(18);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Repayment Schedule Report', pageWidth / 2, 20, { align: 'center' });
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Generated: ${format(new Date(), 'MMMM d, yyyy HH:mm')}`, pageWidth / 2, 28, { align: 'center' });
-      
-      // Tenant & Property Info
-      let yPos = 40;
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text('Tenant Information', 14, yPos);
-      yPos += 7;
-      
-      doc.setFontSize(10);
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Name: ${tenantName || 'N/A'}`, 14, yPos);
-      yPos += 6;
-      doc.text(`Property: ${request.landlord?.property_address || 'Unknown'}`, 14, yPos);
-      yPos += 6;
-      doc.text(`Landlord: ${request.landlord?.name || 'Unknown'}`, 14, yPos);
-      yPos += 6;
-      
-      if (request.agent) {
-        doc.text(`Agent: ${request.agent.full_name} (${request.agent.phone})`, 14, yPos);
-        yPos += 6;
-      }
-      
-      // Loan Details
-      yPos += 4;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Loan Details', 14, yPos);
-      yPos += 7;
-      
-      doc.setFont('helvetica', 'normal');
-      const details = [
-        ['Rent Amount:', formatUGX(request.rent_amount)],
-        ['Total Repayment:', formatUGX(request.total_repayment)],
-        ['Daily Repayment:', formatUGX(request.daily_repayment)],
-        ['Duration:', `${request.duration_days} days`],
-        ['Status:', request.status || 'Pending'],
-        ['Amount Paid:', formatUGX(paidAmount)],
-        ['Outstanding:', formatUGX(Math.max(0, request.total_repayment - paidAmount))],
-      ];
-      
-      details.forEach(([label, value]) => {
-        doc.text(label, 14, yPos);
-        doc.text(value, 60, yPos);
-        yPos += 5;
+      await downloadRepaymentPdf({
+        tenantName,
+        propertyAddress: request.landlord?.property_address,
+        landlordName: request.landlord?.name,
+        agentName: request.agent?.full_name,
+        agentPhone: request.agent?.phone,
+        rentAmount: request.rent_amount,
+        totalRepayment: request.total_repayment,
+        dailyRepayment: request.daily_repayment,
+        durationDays: request.duration_days,
+        status: request.status || 'pending',
+        paidAmount,
+        startDate: request.disbursed_at || request.funded_at || request.created_at,
+        schedule: schedule.map(d => ({
+          day: d.day,
+          date: d.date,
+          status: d.status,
+          expected: d.expected,
+          paid: d.paid,
+        })),
       });
-      
-      // Progress stats
-      const paidDays = schedule.filter(d => d.status === 'paid').length;
-      const missedDays = schedule.filter(d => d.status === 'missed').length;
-      const upcomingDays = schedule.filter(d => d.status === 'upcoming' || d.status === 'due_today').length;
-      
-      yPos += 4;
-      doc.setFont('helvetica', 'bold');
-      doc.text('Payment Progress', 14, yPos);
-      yPos += 7;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.text(`Paid Days: ${paidDays}`, 14, yPos);
-      doc.text(`Missed Days: ${missedDays}`, 60, yPos);
-      doc.text(`Remaining: ${upcomingDays}`, 110, yPos);
-      yPos += 10;
-      
-      // Schedule Table Header
-      doc.setFont('helvetica', 'bold');
-      doc.text('Day', 14, yPos);
-      doc.text('Date', 35, yPos);
-      doc.text('Status', 70, yPos);
-      doc.text('Expected', 110, yPos);
-      doc.text('Paid', 150, yPos);
-      yPos += 2;
-      
-      doc.setLineWidth(0.5);
-      doc.line(14, yPos, pageWidth - 14, yPos);
-      yPos += 5;
-      
-      doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9);
-      
-      // Schedule rows
-      schedule.forEach((day) => {
-        if (yPos > 270) {
-          doc.addPage();
-          yPos = 20;
-        }
-        
-        const statusText = day.status === 'paid' ? 'Paid' : 
-                          day.status === 'missed' ? 'Missed' : 
-                          day.status === 'due_today' ? 'Due Today' : 'Upcoming';
-        
-        doc.text(String(day.day), 14, yPos);
-        doc.text(format(day.date, 'MMM d, yyyy'), 35, yPos);
-        doc.text(statusText, 70, yPos);
-        doc.text(formatUGX(day.expected), 110, yPos);
-        doc.text(day.paid > 0 ? formatUGX(day.paid) : '-', 150, yPos);
-        yPos += 5;
-      });
-      
-      // Footer
-      doc.setFontSize(8);
-      doc.setTextColor(128);
-      doc.text('This is an automated report generated by Welile Platform', pageWidth / 2, 290, { align: 'center' });
-      
-      // Save PDF
-      const fileName = `repayment-schedule-${tenantName?.replace(/\s+/g, '-') || 'tenant'}-${format(new Date(), 'yyyy-MM-dd')}.pdf`;
-      doc.save(fileName);
-      
-      toast({
-        title: 'PDF Exported',
-        description: 'Repayment schedule has been downloaded.',
-      });
-    } catch (error) {
-      console.error('Error exporting PDF:', error);
-      toast({
-        title: 'Export Failed',
-        description: 'Could not generate PDF. Please try again.',
-        variant: 'destructive',
-      });
+      toast({ title: 'PDF Downloaded', description: 'Repayment schedule saved.' });
+    } catch {
+      toast({ title: 'Export Failed', description: 'Could not generate PDF.', variant: 'destructive' });
     } finally {
       setExportingPdf(null);
     }
+  };
+
+  const shareOnWhatsApp = async (request: RentRequest, schedule: DayStatus[], paidAmount: number) => {
+    await shareRepaymentPdfWhatsApp({
+      tenantName,
+      propertyAddress: request.landlord?.property_address,
+      landlordName: request.landlord?.name,
+      agentName: request.agent?.full_name,
+      agentPhone: request.agent?.phone,
+      rentAmount: request.rent_amount,
+      totalRepayment: request.total_repayment,
+      dailyRepayment: request.daily_repayment,
+      durationDays: request.duration_days,
+      status: request.status || 'pending',
+      paidAmount,
+      startDate: request.disbursed_at || request.funded_at || request.created_at,
+      schedule: schedule.map(d => ({
+        day: d.day,
+        date: d.date,
+        status: d.status,
+        expected: d.expected,
+        paid: d.paid,
+      })),
+    });
   };
 
   const getStatusBadge = (status: string | null) => {
@@ -542,11 +464,22 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
                           {/* Full Schedule Table */}
                           <CollapsibleContent>
                             <div className="mt-3 border rounded-md overflow-hidden">
-                              {/* Export PDF Button */}
-                              <div className="p-2 bg-muted/50 border-b flex justify-end">
-                                <Button 
-                                  variant="outline" 
-                                  size="sm" 
+                              {/* Export + Share Buttons */}
+                              <div className="p-2 bg-muted/50 border-b flex gap-2 justify-end">
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  className="text-xs gap-1 text-green-600 border-green-500/40 hover:bg-green-50"
+                                  onClick={() => shareOnWhatsApp(request, schedule, paidAmount)}
+                                >
+                                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="currentColor">
+                                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                                  </svg>
+                                  WhatsApp
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
                                   className="text-xs gap-1"
                                   onClick={() => exportScheduleToPdf(request, schedule, paidAmount)}
                                   disabled={exportingPdf === request.id}
@@ -559,11 +492,12 @@ export default function UserRentSection({ userId }: UserRentSectionProps) {
                                   ) : (
                                     <>
                                       <FileDown className="h-3 w-3" />
-                                      Export PDF
+                                      Download PDF
                                     </>
                                   )}
                                 </Button>
                               </div>
+
                               <div className="max-h-64 overflow-y-auto">
                                 <Table>
                                   <TableHeader className="sticky top-0 bg-muted">
