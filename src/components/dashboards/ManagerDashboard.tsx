@@ -1048,6 +1048,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             onToggle={() => setWithdrawalSectionOpen(!withdrawalSectionOpen)}
           >
             <WithdrawalRequestsManager />
+            {/* Pending Rent Requests - also shown here for quick manager access */}
+            <div className="mt-4">
+              <PendingRentRequestsWidget />
+            </div>
           </CollapsibleAgentSection>
         </div>
 
@@ -1069,8 +1073,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <PendingInvitesWidget minimal />
         </CollapsibleAgentSection>
 
-        {/* Pending Rent Requests - Incoming from agents/tenants */}
-        <PendingRentRequestsWidget />
 
         {/* Rent Due — Approved requests = receivables, triggered by "Rent Due" quick action */}
         <div ref={rentDueSectionRef} id="rent-due-section">
