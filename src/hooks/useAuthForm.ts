@@ -291,19 +291,10 @@ export function useAuthForm() {
       lookupError = true;
     }
 
-    // STEP 2: If account is Google/OAuth only — auto-trigger Google sign-in
-    const hasWelileAccount = profileEmails.some(e => e.includes('@welile.'));
-    const isGoogleAccount = profileEmails.length > 0 && !hasWelileAccount;
-    if (isGoogleAccount) {
-      toast({ title: 'Signing in with Google...', description: 'Your account uses Google sign-in. Redirecting...' });
-      setIsLoading(false);
-      await handleGoogleSignIn();
-      return;
-    }
-
-    // STEP 3: Build email candidates to try (profile matches first, then generated fallbacks)
+    // STEP 2: Build email candidates to try (profile matches FIRST, then generated fallbacks)
+    // IMPORTANT: Always try ALL found emails with the password before deciding it's Google-only
     const emailCandidates = new Set<string>();
-    for (const e of profileEmails) emailCandidates.add(e);
+    for (const e of profileEmails) emailCandidates.add(e); // try real emails with password first
     emailCandidates.add(`${fullPhone}@welile.user`);
     emailCandidates.add(`${cleanedPhone}@welile.user`);
     emailCandidates.add(`${phoneLocal9}@welile.user`);
@@ -315,7 +306,7 @@ export function useAuthForm() {
     emailCandidates.add(`256${phoneLocal9}@welile.agent`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
 
-    // STEP 4: Try each email candidate until one works
+    // STEP 3: Try each email candidate until one works
     let loginSuccess = false;
     let lastError: Error | null = null;
 
@@ -352,9 +343,8 @@ export function useAuthForm() {
     } else if (lastError?.message?.includes('rate')) {
       errorMessage = 'Too many login attempts. Please wait a moment and try again.';
     } else if (lastError?.message?.includes('Invalid login credentials')) {
-      if (profileEmails.some(e => !e.includes('@welile.'))) {
-        errorMessage = 'This account uses Google sign-in. Please tap "Continue with Google" below.';
-      } else if (profileEmails.length > 0) {
+      if (profileEmails.length > 0) {
+        // Account found but password wrong
         errorMessage = 'Incorrect password. Please check your password and try again.';
       } else {
         errorMessage = 'No account found with this phone number. Please sign up first.';
