@@ -7,7 +7,7 @@ import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { getLocationData } from '@/hooks/useGeolocation';
 import { generatePhoneEmailVariants, cleanPhoneNumber, isValidPhoneNumber, getTriedPhoneFormats } from '@/lib/phoneUtils';
-import { validateSignUp, validateSignIn } from '@/lib/authValidation';
+import { validateSignUp } from '@/lib/authValidation';
 
 export function useAuthForm() {
   const [searchParams] = useSearchParams();
@@ -251,53 +251,59 @@ export function useAuthForm() {
     const cleanedPhone = cleanPhoneNumber(phone);
 
     if (!isValidPhoneNumber(phone)) {
-      toast({
-        title: 'Invalid Phone Number',
-        description: 'Please enter a valid phone number',
-        variant: 'destructive',
-      });
+      toast({ title: 'Invalid Phone Number', description: 'Please enter a valid phone number', variant: 'destructive' });
       return;
     }
 
-    const validationError = validateSignIn({ phone: cleanedPhone, password });
-    if (validationError) {
-      toast({ title: 'Error', description: validationError, variant: 'destructive' });
+    if (!password) {
+      toast({ title: 'Error', description: 'Password is required', variant: 'destructive' });
       return;
     }
 
-    // Build full number with country code
-    const fullPhone = cleanedPhone.startsWith(countryCode) ? cleanedPhone : countryCode + (cleanedPhone.startsWith('0') ? cleanedPhone.slice(1) : cleanedPhone);
+    // Build all phone variants to search with
+    const fullPhone = cleanedPhone.startsWith(countryCode)
+      ? cleanedPhone
+      : countryCode + (cleanedPhone.startsWith('0') ? cleanedPhone.slice(1) : cleanedPhone);
     const phoneLocal9 = cleanedPhone.slice(-9);
-    // Include raw input, with/without leading zero, and with country codes
-    const phoneFormats = [...new Set([cleanedPhone, phoneLocal9, `0${phoneLocal9}`, `256${phoneLocal9}`, `${countryCode}${phoneLocal9}`, fullPhone])];
+    const phoneFormats = [...new Set([
+      cleanedPhone, phoneLocal9,
+      `0${phoneLocal9}`, `256${phoneLocal9}`,
+      `${countryCode}${phoneLocal9}`, fullPhone,
+    ])];
 
-    // STEP 1: Try profile lookup to find the correct auth email
-    // Uses a SECURITY DEFINER function to bypass RLS (safe for unauthenticated sign-in lookup)
+    // STEP 1: Look up account email by phone (SECURITY DEFINER bypasses RLS)
     let profileEmails: string[] = [];
+    let lookupError = false;
 
     try {
-      const lookupPromise = supabase.rpc('get_email_by_phone', { phone_variants: phoneFormats });
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error('Network timeout: Unable to reach the server. Please check your connection and try again.')), 10000)
-      );
-
-      const { data } = await Promise.race([lookupPromise, timeoutPromise]);
-      if (data?.length) {
+      const { data, error } = await Promise.race([
+        supabase.rpc('get_email_by_phone', { phone_variants: phoneFormats }),
+        new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error('timeout')), 10000)
+        ),
+      ]);
+      if (!error && data?.length) {
         const emails: string[] = data.map((r: { email: string }) => r.email).filter(Boolean);
-        // Prefer @welile.user emails first, then @welile.agent, then real emails (Google accounts)
         const userEmails = emails.filter(e => e.includes('@welile.user'));
         const agentEmails = emails.filter(e => e.includes('@welile.agent'));
         const realEmails = emails.filter(e => !e.includes('@welile.'));
         profileEmails = [...userEmails, ...agentEmails, ...realEmails];
       }
-    } catch (e: any) {
-      if (e?.message?.includes('Network timeout')) {
-        toast({ title: 'Connection Error', description: e.message, variant: 'destructive' });
-        return;
-      }
+    } catch {
+      lookupError = true;
     }
 
-    // Build ordered list of emails to try (profile matches first, then generated fallbacks)
+    // STEP 2: If account is Google/OAuth only — auto-trigger Google sign-in
+    const hasWelileAccount = profileEmails.some(e => e.includes('@welile.'));
+    const isGoogleAccount = profileEmails.length > 0 && !hasWelileAccount;
+    if (isGoogleAccount) {
+      toast({ title: 'Signing in with Google...', description: 'Your account uses Google sign-in. Redirecting...' });
+      setIsLoading(false);
+      await handleGoogleSignIn();
+      return;
+    }
+
+    // STEP 3: Build email candidates to try (profile matches first, then generated fallbacks)
     const emailCandidates = new Set<string>();
     for (const e of profileEmails) emailCandidates.add(e);
     emailCandidates.add(`${fullPhone}@welile.user`);
@@ -306,78 +312,57 @@ export function useAuthForm() {
     emailCandidates.add(`0${phoneLocal9}@welile.user`);
     emailCandidates.add(`256${phoneLocal9}@welile.user`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.user`);
-    // Also try agent variants as fallback
     emailCandidates.add(`${phoneLocal9}@welile.agent`);
     emailCandidates.add(`0${phoneLocal9}@welile.agent`);
     emailCandidates.add(`256${phoneLocal9}@welile.agent`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
 
-    // If the only accounts found are Google/social accounts (real email, no @welile), auto-trigger Google OAuth
-    const hasWelileAccount = profileEmails.some(e => e.includes('@welile.'));
-    const hasRealEmailOnly = profileEmails.length > 0 && !hasWelileAccount;
-    if (hasRealEmailOnly) {
-      toast({
-        title: 'Signing you in with Google...',
-        description: 'Your account uses Google sign-in. Redirecting...',
-      });
-      setIsLoading(false);
-      await handleGoogleSignIn();
-      return;
-    }
-
-    // STEP 2: Try sign-in with each candidate until one works
+    // STEP 4: Try each email candidate until one works
     let loginSuccess = false;
     let lastError: Error | null = null;
 
     for (const emailToTry of emailCandidates) {
       try {
-        const signInPromise = signIn(emailToTry, password);
-        const timeoutPromise = new Promise<never>((_, reject) =>
-          setTimeout(() => reject(new Error('Network timeout')), 12000)
-        );
-        const { error } = await Promise.race([signInPromise, timeoutPromise]);
-        if (!error) {
-          loginSuccess = true;
-          lastError = null;
-          break;
-        }
+        const { error } = await Promise.race([
+          signIn(emailToTry, password),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error('Network timeout')), 12000)),
+        ]);
+        if (!error) { loginSuccess = true; lastError = null; break; }
         lastError = error;
-        // Only continue trying if it's a credentials error (wrong email variant)
         if (!error.message.includes('Invalid login credentials')) break;
       } catch (e: any) {
         lastError = e;
-        // Network errors — stop trying
         if (e?.message?.includes('Network timeout') || e?.message?.includes('Failed to fetch')) break;
       }
     }
 
-    // STEP 3: Handle result
+    // STEP 5: Handle result
     if (loginSuccess) {
       setLoginError(null);
       setFailedAttempts(0);
-      // Session is always persistent — no session_only flag needed
       saveLocationInBackground();
       return;
     }
 
-    // Login failed
+    // Login failed — build helpful error message
     setFailedAttempts(prev => prev + 1);
     const triedFormats = getTriedPhoneFormats(phone);
-    let errorMessage = lastError?.message || 'Sign in failed';
+    let errorMessage = 'Sign in failed';
 
-    if (lastError?.message.includes('Invalid login credentials')) {
-      const hasRealEmail = profileEmails.some(e => !e.includes('@welile.'));
-      if (hasRealEmail) {
-        errorMessage = `This phone number is linked to an account that uses email login. Please use "Continue with Google" instead.`;
+    if (lookupError || lastError?.message?.includes('fetch') || lastError?.message?.includes('network')) {
+      errorMessage = 'Network error. Please check your connection and try again.';
+    } else if (lastError?.message?.includes('rate')) {
+      errorMessage = 'Too many login attempts. Please wait a moment and try again.';
+    } else if (lastError?.message?.includes('Invalid login credentials')) {
+      if (profileEmails.some(e => !e.includes('@welile.'))) {
+        errorMessage = 'This account uses Google sign-in. Please tap "Continue with Google" below.';
       } else if (profileEmails.length > 0) {
         errorMessage = 'Incorrect password. Please check your password and try again.';
       } else {
         errorMessage = 'No account found with this phone number. Please sign up first.';
       }
-    } else if (lastError?.message.includes('rate')) {
-      errorMessage = 'Too many login attempts. Please wait a moment and try again.';
-    } else if (lastError?.message.includes('fetch') || lastError?.message.includes('network') || lastError?.message.includes('Failed to fetch')) {
-      errorMessage = 'Network error. Please check your connection and try again.';
+    } else {
+      errorMessage = 'No account found with this phone number. Please sign up first.';
     }
 
     setLoginError({ message: errorMessage, triedFormats });
