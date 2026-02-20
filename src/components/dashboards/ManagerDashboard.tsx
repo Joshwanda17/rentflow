@@ -114,6 +114,7 @@ import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWi
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
+import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 
 interface ManagerDashboardProps {
   user: User;
@@ -1062,6 +1063,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           iconColor="text-primary"
         >
           <ManagerLedgerSummary />
+        </CollapsibleAgentSection>
+
+        {/* Financial Statements — Auto-generated from ledger */}
+        <CollapsibleAgentSection
+          icon={FileText}
+          label="Financial Statements"
+          iconColor="text-chart-2"
+        >
+          <FinancialStatementsPanel />
         </CollapsibleAgentSection>
 
         {/* Pending Invites Widget - Quick view of unactivated users (Collapsible) */}
