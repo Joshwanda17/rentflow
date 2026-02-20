@@ -260,15 +260,13 @@ export function useAuthForm() {
       return;
     }
 
-    // Build all phone variants to search with
-    const fullPhone = cleanedPhone.startsWith(countryCode)
-      ? cleanedPhone
-      : countryCode + (cleanedPhone.startsWith('0') ? cleanedPhone.slice(1) : cleanedPhone);
-    const phoneLocal9 = cleanedPhone.slice(-9);
+    // Build all phone variants to search with (function now matches by last 9 digits)
+    const phoneLocal9 = cleanedPhone.replace(/^0+/, '').slice(-9);
+    const fullPhone = countryCode + phoneLocal9;
     const phoneFormats = [...new Set([
-      cleanedPhone, phoneLocal9,
-      `0${phoneLocal9}`, `256${phoneLocal9}`,
-      `${countryCode}${phoneLocal9}`, fullPhone,
+      cleanedPhone, phone.replace(/\D/g, ''),
+      phoneLocal9, `0${phoneLocal9}`,
+      `256${phoneLocal9}`, fullPhone,
     ])];
 
     // STEP 1: Look up account email by phone (SECURITY DEFINER bypasses RLS)
