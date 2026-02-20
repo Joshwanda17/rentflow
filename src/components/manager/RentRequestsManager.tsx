@@ -28,7 +28,8 @@ import {
   Wallet,
   MapPin,
   CreditCard,
-  IdCard
+  IdCard,
+  Trash2
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
@@ -42,6 +43,16 @@ import {
   DialogFooter,
 } from '@/components/ui/dialog';
 import { Textarea } from '@/components/ui/textarea';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
@@ -104,6 +115,8 @@ export function RentRequestsManager() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [rejectDialog, setRejectDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
+  const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; requestId: string | null; tenantName: string }>({ open: false, requestId: null, tenantName: '' });
+  const [deletingRequest, setDeletingRequest] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [approvalComment, setApprovalComment] = useState('');
   const [showDelinquentOnly, setShowDelinquentOnly] = useState(false);
@@ -245,6 +258,23 @@ export function RentRequestsManager() {
   const openApproveDialog = (requestId: string) => {
     setApproveDialog({ open: true, requestId });
     setApprovalComment('');
+  };
+
+  const handleDeleteRequest = async () => {
+    if (!deleteDialog.requestId) return;
+    setDeletingRequest(true);
+    const { error } = await supabase
+      .from('rent_requests')
+      .delete()
+      .eq('id', deleteDialog.requestId);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Request Deleted', description: 'Rent request has been permanently deleted' });
+      setDeleteDialog({ open: false, requestId: null, tenantName: '' });
+      fetchRequests();
+    }
+    setDeletingRequest(false);
   };
 
   const handleReject = async () => {
@@ -806,6 +836,23 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                           Approve
                         </Button>
                       </div>
+                      {/* Delete Request */}
+                      <div className="flex justify-end mt-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            setDeleteDialog({ open: true, requestId: request.id, tenantName: request.tenant?.full_name || 'Unknown' });
+                          }}
+                          className="text-destructive hover:bg-destructive/10 text-xs h-7 px-2 touch-manipulation"
+                          type="button"
+                        >
+                          <Trash2 className="h-3 w-3 mr-1" />
+                          Delete Request
+                        </Button>
+                      </div>
                     </div>
                   </div>
                 </CardContent>
@@ -1236,6 +1283,28 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Delete Rent Request Confirm Dialog */}
+      <AlertDialog open={deleteDialog.open} onOpenChange={(open) => !open && setDeleteDialog({ open: false, requestId: null, tenantName: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete Rent Request?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete the rent request for <strong>{deleteDialog.tenantName}</strong>. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteRequest}
+              disabled={deletingRequest}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingRequest ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete Request</>}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
