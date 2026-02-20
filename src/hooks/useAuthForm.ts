@@ -268,7 +268,8 @@ export function useAuthForm() {
     // Build full number with country code
     const fullPhone = cleanedPhone.startsWith(countryCode) ? cleanedPhone : countryCode + (cleanedPhone.startsWith('0') ? cleanedPhone.slice(1) : cleanedPhone);
     const phoneLocal9 = cleanedPhone.slice(-9);
-    const phoneFormats = [`0${phoneLocal9}`, `256${phoneLocal9}`, `${countryCode}${phoneLocal9}`, fullPhone];
+    // Include raw input, with/without leading zero, and with country codes
+    const phoneFormats = [...new Set([cleanedPhone, phoneLocal9, `0${phoneLocal9}`, `256${phoneLocal9}`, `${countryCode}${phoneLocal9}`, fullPhone])];
 
     // STEP 1: Try profile lookup to find the correct auth email
     let profileEmails: string[] = [];
@@ -302,10 +303,12 @@ export function useAuthForm() {
     for (const e of profileEmails) emailCandidates.add(e);
     emailCandidates.add(`${fullPhone}@welile.user`);
     emailCandidates.add(`${cleanedPhone}@welile.user`);
+    emailCandidates.add(`${phoneLocal9}@welile.user`);
     emailCandidates.add(`0${phoneLocal9}@welile.user`);
     emailCandidates.add(`256${phoneLocal9}@welile.user`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.user`);
     // Also try agent variants as fallback
+    emailCandidates.add(`${phoneLocal9}@welile.agent`);
     emailCandidates.add(`0${phoneLocal9}@welile.agent`);
     emailCandidates.add(`256${phoneLocal9}@welile.agent`);
     emailCandidates.add(`${countryCode}${phoneLocal9}@welile.agent`);
