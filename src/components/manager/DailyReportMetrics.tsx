@@ -13,13 +13,13 @@ import {
   Wallet, 
   ArrowDownLeft, 
   ArrowUpRight,
-  BadgeDollarSign,
   ChevronDown,
-  ChevronUp,
   RefreshCw,
   HandCoins,
   UserCheck,
   Share2,
+  Download,
+  FileSpreadsheet,
 } from 'lucide-react';
 import { useRef } from 'react';
 import { exportToPDF } from '@/lib/exportUtils';
@@ -137,90 +137,186 @@ export function DailyReportMetrics() {
 
   useEffect(() => { fetchReport(); }, []);
 
-  const handleShareWhatsApp = async () => {
-    if (!reportRef.current) return;
+  const generatePDF = async (): Promise<Blob> => {
+    if (!reportRef.current) throw new Error('No report element');
+
+    // Temporarily expand all sections for the PDF
+    const allButtons = reportRef.current.querySelectorAll('button[data-section-toggle]');
+    const closedSections: HTMLButtonElement[] = [];
+    allButtons.forEach((btn) => {
+      const el = btn as HTMLButtonElement;
+      if (el.getAttribute('data-section-open') === 'false') {
+        closedSections.push(el);
+        el.click();
+      }
+    });
+    await new Promise(r => setTimeout(r, 400));
+
+    const { toPng } = await import('html-to-image');
+    const { jsPDF } = await import('jspdf');
+
+    const dataUrl = await toPng(reportRef.current, {
+      quality: 0.92,
+      pixelRatio: 1.5,
+      backgroundColor: '#ffffff',
+      cacheBust: true,
+      skipFonts: true,
+    });
+
+    const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+    const pageWidth = pdf.internal.pageSize.getWidth();
+    const margin = 10;
+
+    const logoImg = new Image();
+    logoImg.src = welileLogo;
+    await new Promise<void>((resolve) => {
+      logoImg.onload = () => {
+        const logoHeight = 10;
+        const logoWidth = (logoImg.width * logoHeight) / logoImg.height;
+        pdf.addImage(logoImg.src, 'PNG', margin, margin, logoWidth, logoHeight);
+        resolve();
+      };
+      logoImg.onerror = () => resolve();
+    });
+
+    let yPosition = margin + 14;
+    pdf.setFontSize(14);
+    pdf.setFont('helvetica', 'bold');
+    pdf.text('Daily Report', margin, yPosition);
+    yPosition += 6;
+    pdf.setFontSize(8);
+    pdf.setFont('helvetica', 'normal');
+    pdf.setTextColor(100, 100, 100);
+    pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
+    pdf.text('welilereceipts.com', pageWidth - margin - 30, yPosition);
+    yPosition += 6;
+
+    const img = new Image();
+    img.src = dataUrl;
+    await new Promise<void>((resolve, reject) => {
+      img.onload = () => {
+        const imgWidth = pageWidth - margin * 2;
+        const imgHeight = (img.height * imgWidth) / img.width;
+        const pageHeight = pdf.internal.pageSize.getHeight();
+        const available = pageHeight - yPosition - margin;
+        if (imgHeight <= available) {
+          pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth, imgHeight, undefined, 'FAST');
+        } else {
+          const scale = available / imgHeight;
+          pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth * scale, imgHeight * scale, undefined, 'FAST');
+        }
+        resolve();
+      };
+      img.onerror = () => reject(new Error('Failed'));
+    });
+
+    // Collapse sections back
+    closedSections.forEach(btn => btn.click());
+
+    return pdf.output('blob');
+  };
+
+  const handleDownloadPDF = async () => {
     setSharing(true);
     try {
-      // Temporarily expand all sections for the PDF
-      const allButtons = reportRef.current.querySelectorAll('button[data-section-toggle]');
-      const closedSections: HTMLButtonElement[] = [];
-      allButtons.forEach((btn) => {
-        const el = btn as HTMLButtonElement;
-        if (el.getAttribute('data-section-open') === 'false') {
-          closedSections.push(el);
-          el.click();
-        }
-      });
-      // Wait for animations
-      await new Promise(r => setTimeout(r, 400));
+      const pdfBlob = await generatePDF();
+      const fileName = `Welile_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      const { toPng } = await import('html-to-image');
-      const { jsPDF } = await import('jspdf');
+      // Try native share (best for mobile - allows save, print, share)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({ title: 'Welile Daily Report', files: [file] });
+      } else {
+        // Fallback: direct download
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileName;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+      }
+      toast.success('PDF ready!');
+    } catch (err) {
+      console.error('PDF failed:', err);
+      toast.error('Failed to generate PDF');
+    } finally {
+      setSharing(false);
+    }
+  };
 
-      const dataUrl = await toPng(reportRef.current, {
-        quality: 0.92,
-        pixelRatio: 1.5,
-        backgroundColor: '#ffffff',
-        cacheBust: true,
-        skipFonts: true,
-      });
+  const handleDownloadCSV = () => {
+    if (!data) return;
+    const rows = [
+      ['Welile Daily Report', new Date().toLocaleString()],
+      [],
+      ['TENANTS'],
+      ['Active Tenants', data.active_tenants],
+      ['With Rent Balance', data.tenants_with_balance],
+      ['Total Rent Balance', data.total_rent_balance],
+      [],
+      ['LANDLORDS & PROPERTIES'],
+      ['Verified Landlords', data.active_landlords],
+      ['Total Houses', data.total_houses],
+      ['Total Rent Paid Out', data.total_rent_received],
+      [],
+      ['FUNDERS'],
+      ['Active Funders', data.active_supporters],
+      ['Total Invested', data.total_invested],
+      ['Combined Wallet Balance', data.supporter_wallets_total],
+      [],
+      ['AGENTS'],
+      ['Active Agents', data.active_agents],
+      ...data.agent_details.map(a => [`  ${a.full_name}`, `${a.tenant_count} tenants`, a.total_earnings, a.wallet_balance]),
+      [],
+      ['LOCATIONS'],
+      ...data.locations.map(l => [l.city, l.tenant_count]),
+      [],
+      ['PLATFORM CASH FLOW'],
+      ['Total Cash In', data.platform_cash_in],
+      ['Total Cash Out', data.platform_cash_out],
+      ['Net Position', data.platform_cash_in - data.platform_cash_out],
+      [],
+      ['WALLETS'],
+      ['Total Wallet Balance', data.total_wallet_balance],
+      ['Wallets with Balance', data.wallets_with_balance],
+      ['Cash In Today', data.wallets_cash_in_today],
+      ['Cash Out Today', data.wallets_cash_out_today],
+      ["Today's Net", data.wallets_cash_in_today - data.wallets_cash_out_today],
+    ];
 
-      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
-      const pageWidth = pdf.internal.pageSize.getWidth();
-      const margin = 10;
+    const csvContent = rows.map(row => row.map(v => {
+      const s = String(v ?? '');
+      return s.includes(',') || s.includes('"') ? `"${s.replace(/"/g, '""')}"` : s;
+    }).join(',')).join('\n');
 
-      // Add Welile logo
-      const logoImg = new Image();
-      logoImg.src = welileLogo;
-      await new Promise<void>((resolve) => {
-        logoImg.onload = () => {
-          const logoHeight = 10;
-          const logoWidth = (logoImg.width * logoHeight) / logoImg.height;
-          pdf.addImage(logoImg.src, 'PNG', margin, margin, logoWidth, logoHeight);
-          resolve();
-        };
-        logoImg.onerror = () => resolve();
-      });
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const fileName = `Welile_Daily_Report_${new Date().toISOString().split('T')[0]}.csv`;
+    const file = new File([blob], fileName, { type: 'text/csv' });
 
-      let yPosition = margin + 14;
-      pdf.setFontSize(14);
-      pdf.setFont('helvetica', 'bold');
-      pdf.text('Daily Report', margin, yPosition);
-      yPosition += 6;
-      pdf.setFontSize(8);
-      pdf.setFont('helvetica', 'normal');
-      pdf.setTextColor(100, 100, 100);
-      pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
-      pdf.text('welilereceipts.com', pageWidth - margin - 30, yPosition);
-      yPosition += 6;
+    if (navigator.share && navigator.canShare?.({ files: [file] })) {
+      navigator.share({ title: 'Welile Daily Report', files: [file] });
+    } else {
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+    toast.success('CSV ready — open with Google Sheets!');
+  };
 
-      // Add report image
-      const img = new Image();
-      img.src = dataUrl;
-      await new Promise<void>((resolve, reject) => {
-        img.onload = () => {
-          const imgWidth = pageWidth - margin * 2;
-          const imgHeight = (img.height * imgWidth) / img.width;
-          const pageHeight = pdf.internal.pageSize.getHeight();
-          const available = pageHeight - yPosition - margin;
-          if (imgHeight <= available) {
-            pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth, imgHeight, undefined, 'FAST');
-          } else {
-            const scale = available / imgHeight;
-            pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth * scale, imgHeight * scale, undefined, 'FAST');
-          }
-          resolve();
-        };
-        img.onerror = () => reject(new Error('Failed'));
-      });
+  const handleShareWhatsApp = async () => {
+    setSharing(true);
+    try {
+      const pdfBlob = await generatePDF();
+      const fileName = `Welile_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`;
+      const file = new File([pdfBlob], fileName, { type: 'application/pdf' });
 
-      const pdfBlob = pdf.output('blob');
-      const file = new File([pdfBlob], `Welile_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`, { type: 'application/pdf' });
-
-      // Collapse sections back
-      closedSections.forEach(btn => btn.click());
-
-      // Try Web Share API (mobile)
       if (navigator.share && navigator.canShare?.({ files: [file] })) {
         await navigator.share({
           title: 'Welile Daily Report',
@@ -228,11 +324,10 @@ export function DailyReportMetrics() {
           files: [file],
         });
       } else {
-        // Fallback: download PDF and open WhatsApp
         const url = URL.createObjectURL(pdfBlob);
         const link = document.createElement('a');
         link.href = url;
-        link.download = file.name;
+        link.download = fileName;
         document.body.appendChild(link);
         link.click();
         document.body.removeChild(link);
@@ -270,7 +365,22 @@ export function DailyReportMetrics() {
           <h2 className="text-base font-bold">📊 Daily Report</h2>
           <p className="text-[11px] text-muted-foreground">Platform metrics overview</p>
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
+          <button 
+            onClick={handleDownloadPDF}
+            disabled={sharing}
+            className="p-2 rounded-lg bg-primary/10 text-primary hover:bg-primary/20 active:scale-95 transition-all touch-manipulation min-h-[40px] min-w-[40px] flex items-center justify-center"
+            title="Download PDF"
+          >
+            <Download className={cn("h-4 w-4", sharing && "animate-pulse")} />
+          </button>
+          <button 
+            onClick={handleDownloadCSV}
+            className="p-2 rounded-lg bg-chart-2/10 text-chart-2 hover:bg-chart-2/20 active:scale-95 transition-all touch-manipulation min-h-[40px] min-w-[40px] flex items-center justify-center"
+            title="Export to Google Sheets (CSV)"
+          >
+            <FileSpreadsheet className="h-4 w-4" />
+          </button>
           <button 
             onClick={handleShareWhatsApp}
             disabled={sharing}
