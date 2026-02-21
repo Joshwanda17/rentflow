@@ -19,7 +19,12 @@ import {
   RefreshCw,
   HandCoins,
   UserCheck,
+  Share2,
 } from 'lucide-react';
+import { useRef } from 'react';
+import { exportToPDF } from '@/lib/exportUtils';
+import welileLogo from '@/assets/welile-logo.png';
+import { toast } from 'sonner';
 import { motion, AnimatePresence } from 'framer-motion';
 import { cn } from '@/lib/utils';
 
@@ -59,6 +64,8 @@ function MetricSection({
     <Card className="overflow-hidden border-border/40">
       <button 
         onClick={() => setOpen(!open)}
+        data-section-toggle
+        data-section-open={open}
         className="w-full flex items-center gap-3 p-4 text-left active:bg-muted/50 transition-colors touch-manipulation"
       >
         <div className={cn("p-2.5 rounded-xl shrink-0", iconColor)}>
@@ -111,6 +118,8 @@ export function DailyReportMetrics() {
   const [data, setData] = useState<DailyReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+  const [sharing, setSharing] = useState(false);
+  const reportRef = useRef<HTMLDivElement>(null);
 
   const fetchReport = async (isRefresh = false) => {
     if (isRefresh) setRefreshing(true);
@@ -128,6 +137,119 @@ export function DailyReportMetrics() {
 
   useEffect(() => { fetchReport(); }, []);
 
+  const handleShareWhatsApp = async () => {
+    if (!reportRef.current) return;
+    setSharing(true);
+    try {
+      // Temporarily expand all sections for the PDF
+      const allButtons = reportRef.current.querySelectorAll('button[data-section-toggle]');
+      const closedSections: HTMLButtonElement[] = [];
+      allButtons.forEach((btn) => {
+        const el = btn as HTMLButtonElement;
+        if (el.getAttribute('data-section-open') === 'false') {
+          closedSections.push(el);
+          el.click();
+        }
+      });
+      // Wait for animations
+      await new Promise(r => setTimeout(r, 400));
+
+      const { toPng } = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const dataUrl = await toPng(reportRef.current, {
+        quality: 0.92,
+        pixelRatio: 1.5,
+        backgroundColor: '#ffffff',
+        cacheBust: true,
+        skipFonts: true,
+      });
+
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const margin = 10;
+
+      // Add Welile logo
+      const logoImg = new Image();
+      logoImg.src = welileLogo;
+      await new Promise<void>((resolve) => {
+        logoImg.onload = () => {
+          const logoHeight = 10;
+          const logoWidth = (logoImg.width * logoHeight) / logoImg.height;
+          pdf.addImage(logoImg.src, 'PNG', margin, margin, logoWidth, logoHeight);
+          resolve();
+        };
+        logoImg.onerror = () => resolve();
+      });
+
+      let yPosition = margin + 14;
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text('Daily Report', margin, yPosition);
+      yPosition += 6;
+      pdf.setFontSize(8);
+      pdf.setFont('helvetica', 'normal');
+      pdf.setTextColor(100, 100, 100);
+      pdf.text(`Generated: ${new Date().toLocaleString()}`, margin, yPosition);
+      pdf.text('welilereceipts.com', pageWidth - margin - 30, yPosition);
+      yPosition += 6;
+
+      // Add report image
+      const img = new Image();
+      img.src = dataUrl;
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => {
+          const imgWidth = pageWidth - margin * 2;
+          const imgHeight = (img.height * imgWidth) / img.width;
+          const pageHeight = pdf.internal.pageSize.getHeight();
+          const available = pageHeight - yPosition - margin;
+          if (imgHeight <= available) {
+            pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth, imgHeight, undefined, 'FAST');
+          } else {
+            const scale = available / imgHeight;
+            pdf.addImage(dataUrl, 'PNG', margin, yPosition, imgWidth * scale, imgHeight * scale, undefined, 'FAST');
+          }
+          resolve();
+        };
+        img.onerror = () => reject(new Error('Failed'));
+      });
+
+      const pdfBlob = pdf.output('blob');
+      const file = new File([pdfBlob], `Welile_Daily_Report_${new Date().toISOString().split('T')[0]}.pdf`, { type: 'application/pdf' });
+
+      // Collapse sections back
+      closedSections.forEach(btn => btn.click());
+
+      // Try Web Share API (mobile)
+      if (navigator.share && navigator.canShare?.({ files: [file] })) {
+        await navigator.share({
+          title: 'Welile Daily Report',
+          text: '📊 Welile Daily Report - Platform metrics overview',
+          files: [file],
+        });
+      } else {
+        // Fallback: download PDF and open WhatsApp
+        const url = URL.createObjectURL(pdfBlob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = file.name;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
+
+        const waText = encodeURIComponent('📊 Welile Daily Report\nPlatform metrics overview\nGenerated: ' + new Date().toLocaleString() + '\n\nSee attached PDF.');
+        window.open(`https://wa.me/?text=${waText}`, '_blank');
+      }
+      toast.success('Report ready to share!');
+    } catch (err) {
+      console.error('Share failed:', err);
+      toast.error('Failed to generate report PDF');
+    } finally {
+      setSharing(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-3">
@@ -141,20 +263,30 @@ export function DailyReportMetrics() {
   if (!data) return null;
 
   return (
-    <div className="space-y-3">
+    <div className="space-y-3" ref={reportRef}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h2 className="text-lg font-bold">📊 Daily Report</h2>
           <p className="text-xs text-muted-foreground">Platform metrics overview</p>
         </div>
-        <button 
-          onClick={() => fetchReport(true)} 
-          disabled={refreshing}
-          className="p-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 transition-all touch-manipulation"
-        >
-          <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
-        </button>
+        <div className="flex items-center gap-2">
+          <button 
+            onClick={handleShareWhatsApp}
+            disabled={sharing}
+            className="p-2 rounded-xl bg-success/10 text-success hover:bg-success/20 active:scale-95 transition-all touch-manipulation"
+            title="Share on WhatsApp"
+          >
+            <Share2 className={cn("h-4 w-4", sharing && "animate-pulse")} />
+          </button>
+          <button 
+            onClick={() => fetchReport(true)} 
+            disabled={refreshing}
+            className="p-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 transition-all touch-manipulation"
+          >
+            <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
+          </button>
+        </div>
       </div>
 
       {/* Top Summary Cards */}
