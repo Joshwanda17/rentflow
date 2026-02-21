@@ -25,6 +25,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
+import { WalletLedgerStatement } from './WalletLedgerStatement';
 
 interface FullScreenWalletSheetProps {
   open: boolean;
@@ -271,6 +272,9 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
                 <span className="text-xs font-semibold">Withdraw</span>
               </Button>
             </div>
+
+            {/* Ledger-based wallet statement */}
+            <WalletLedgerStatement />
 
             {/* Recent transactions */}
             <Card className="border-border/50 rounded-2xl">
