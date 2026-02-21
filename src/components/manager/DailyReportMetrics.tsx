@@ -66,21 +66,21 @@ function MetricSection({
         onClick={() => setOpen(!open)}
         data-section-toggle
         data-section-open={open}
-        className="w-full flex items-center gap-3 p-4 text-left active:bg-muted/50 transition-colors touch-manipulation"
+        className="w-full flex items-center gap-2.5 p-3 text-left active:bg-muted/50 transition-colors touch-manipulation min-h-[48px]"
       >
-        <div className={cn("p-2.5 rounded-xl shrink-0", iconColor)}>
-          <Icon className="h-5 w-5" />
+        <div className={cn("p-2 rounded-lg shrink-0", iconColor)}>
+          <Icon className="h-4 w-4" />
         </div>
         <div className="flex-1 min-w-0">
-          <h3 className="font-semibold text-sm">{title}</h3>
+          <h3 className="font-semibold text-[13px] leading-tight">{title}</h3>
         </div>
         {badge !== undefined && (
-          <Badge variant="secondary" className="text-xs font-bold shrink-0">
+          <Badge variant="secondary" className="text-[11px] font-bold shrink-0 px-1.5 py-0.5">
             {badge}
           </Badge>
         )}
         <motion.div animate={{ rotate: open ? 180 : 0 }} transition={{ duration: 0.2 }}>
-          <ChevronDown className="h-4 w-4 text-muted-foreground shrink-0" />
+          <ChevronDown className="h-3.5 w-3.5 text-muted-foreground shrink-0" />
         </motion.div>
       </button>
       <AnimatePresence initial={false}>
@@ -92,7 +92,7 @@ function MetricSection({
             transition={{ duration: 0.2 }}
             className="overflow-hidden"
           >
-            <div className="px-4 pb-4 space-y-3">
+            <div className="px-3 pb-3 space-y-2">
               {children}
             </div>
           </motion.div>
@@ -104,11 +104,11 @@ function MetricSection({
 
 function StatRow({ label, value, sub }: { label: string; value: string | number; sub?: string }) {
   return (
-    <div className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-      <span className="text-sm text-muted-foreground">{label}</span>
-      <div className="text-right">
-        <span className="text-sm font-bold">{value}</span>
-        {sub && <p className="text-[10px] text-muted-foreground">{sub}</p>}
+    <div className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0 gap-2">
+      <span className="text-[13px] text-muted-foreground leading-tight">{label}</span>
+      <div className="text-right shrink-0">
+        <span className="text-[13px] font-bold">{value}</span>
+        {sub && <p className="text-[10px] text-muted-foreground leading-tight">{sub}</p>}
       </div>
     </div>
   );
@@ -263,18 +263,18 @@ export function DailyReportMetrics() {
   if (!data) return null;
 
   return (
-    <div className="space-y-3" ref={reportRef}>
+    <div className="space-y-2" ref={reportRef}>
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-lg font-bold">📊 Daily Report</h2>
-          <p className="text-xs text-muted-foreground">Platform metrics overview</p>
+          <h2 className="text-base font-bold">📊 Daily Report</h2>
+          <p className="text-[11px] text-muted-foreground">Platform metrics overview</p>
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           <button 
             onClick={handleShareWhatsApp}
             disabled={sharing}
-            className="p-2 rounded-xl bg-success/10 text-success hover:bg-success/20 active:scale-95 transition-all touch-manipulation"
+            className="p-2 rounded-lg bg-success/10 text-success hover:bg-success/20 active:scale-95 transition-all touch-manipulation min-h-[40px] min-w-[40px] flex items-center justify-center"
             title="Share on WhatsApp"
           >
             <Share2 className={cn("h-4 w-4", sharing && "animate-pulse")} />
@@ -282,7 +282,7 @@ export function DailyReportMetrics() {
           <button 
             onClick={() => fetchReport(true)} 
             disabled={refreshing}
-            className="p-2 rounded-xl bg-muted hover:bg-muted/80 active:scale-95 transition-all touch-manipulation"
+            className="p-2 rounded-lg bg-muted hover:bg-muted/80 active:scale-95 transition-all touch-manipulation min-h-[40px] min-w-[40px] flex items-center justify-center"
           >
             <RefreshCw className={cn("h-4 w-4", refreshing && "animate-spin")} />
           </button>
@@ -290,23 +290,23 @@ export function DailyReportMetrics() {
       </div>
 
       {/* Top Summary Cards */}
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-1.5">
         <Card className="bg-gradient-to-br from-primary/10 to-primary/5 border-primary/20">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <ArrowDownLeft className="h-4 w-4 text-primary" />
-              <span className="text-[10px] font-semibold text-primary uppercase tracking-wider">Cash In Today</span>
+          <CardContent className="p-2.5">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <ArrowDownLeft className="h-3.5 w-3.5 text-primary" />
+              <span className="text-[9px] font-semibold text-primary uppercase tracking-wider">Cash In Today</span>
             </div>
-            <p className="text-lg font-black">{formatUGX(data.wallets_cash_in_today)}</p>
+            <p className="text-base font-black leading-tight">{formatUGX(data.wallets_cash_in_today)}</p>
           </CardContent>
         </Card>
         <Card className="bg-gradient-to-br from-destructive/10 to-destructive/5 border-destructive/20">
-          <CardContent className="p-3">
-            <div className="flex items-center gap-2 mb-1">
-              <ArrowUpRight className="h-4 w-4 text-destructive" />
-              <span className="text-[10px] font-semibold text-destructive uppercase tracking-wider">Cash Out Today</span>
+          <CardContent className="p-2.5">
+            <div className="flex items-center gap-1.5 mb-0.5">
+              <ArrowUpRight className="h-3.5 w-3.5 text-destructive" />
+              <span className="text-[9px] font-semibold text-destructive uppercase tracking-wider">Cash Out Today</span>
             </div>
-            <p className="text-lg font-black">{formatUGX(data.wallets_cash_out_today)}</p>
+            <p className="text-base font-black leading-tight">{formatUGX(data.wallets_cash_out_today)}</p>
           </CardContent>
         </Card>
       </div>
@@ -357,21 +357,21 @@ export function DailyReportMetrics() {
       >
         <StatRow label="Active Agents" value={data.active_agents} />
         {data.agent_details.length > 0 && (
-          <div className="space-y-2 mt-2">
+          <div className="space-y-1.5 mt-1.5">
             <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">Top Agents by Tenants</p>
             {data.agent_details.slice(0, 10).map((agent, i) => (
-              <div key={agent.id} className="flex items-center gap-3 p-2.5 rounded-xl bg-muted/40 border border-border/30">
-                <span className="text-xs font-bold text-muted-foreground w-5 text-center">{i + 1}</span>
+              <div key={agent.id} className="flex items-center gap-2 p-2 rounded-lg bg-muted/40 border border-border/30">
+                <span className="text-[11px] font-bold text-muted-foreground w-4 text-center">{i + 1}</span>
                 <UserAvatar avatarUrl={agent.avatar_url} fullName={agent.full_name} size="sm" />
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium truncate">{agent.full_name}</p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-[13px] font-medium truncate">{agent.full_name}</p>
+                  <p className="text-[10px] text-muted-foreground leading-tight">
                     {agent.tenant_count} tenants · {formatUGX(agent.total_earnings)} earned
                   </p>
                 </div>
                 <div className="text-right shrink-0">
-                  <p className="text-xs font-bold">{formatUGX(agent.wallet_balance)}</p>
-                  <p className="text-[10px] text-muted-foreground">balance</p>
+                  <p className="text-[11px] font-bold">{formatUGX(agent.wallet_balance)}</p>
+                  <p className="text-[9px] text-muted-foreground">balance</p>
                 </div>
               </div>
             ))}
@@ -387,19 +387,19 @@ export function DailyReportMetrics() {
         badge={data.locations.length}
       >
         {data.locations.length > 0 ? (
-          <div className="space-y-1">
+          <div className="space-y-0.5">
             {data.locations.map((loc) => (
-              <div key={loc.city} className="flex items-center justify-between py-2 border-b border-border/30 last:border-0">
-                <div className="flex items-center gap-2">
-                  <MapPin className="h-3.5 w-3.5 text-chart-3" />
-                  <span className="text-sm">{loc.city}</span>
+              <div key={loc.city} className="flex items-center justify-between py-1.5 border-b border-border/30 last:border-0">
+                <div className="flex items-center gap-1.5">
+                  <MapPin className="h-3 w-3 text-chart-3" />
+                  <span className="text-[13px]">{loc.city}</span>
                 </div>
-                <Badge variant="outline" className="text-xs">{loc.tenant_count} tenants</Badge>
+                <Badge variant="outline" className="text-[11px] px-1.5 py-0">{loc.tenant_count}</Badge>
               </div>
             ))}
           </div>
         ) : (
-          <p className="text-sm text-muted-foreground text-center py-3">No location data yet</p>
+          <p className="text-[13px] text-muted-foreground text-center py-2">No location data yet</p>
         )}
       </MetricSection>
 
@@ -412,10 +412,10 @@ export function DailyReportMetrics() {
       >
         <StatRow label="Total Cash In" value={formatUGX(data.platform_cash_in)} sub="All-time inflows" />
         <StatRow label="Total Cash Out" value={formatUGX(data.platform_cash_out)} sub="All-time outflows" />
-        <div className="p-3 rounded-xl bg-success/10 border border-success/20 mt-1">
+        <div className="p-2.5 rounded-lg bg-success/10 border border-success/20 mt-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-success">Net Position</span>
-            <span className="text-lg font-black text-success">
+            <span className="text-[13px] font-medium text-success">Net Position</span>
+            <span className="text-base font-black text-success">
               {formatUGX(data.platform_cash_in - data.platform_cash_out)}
             </span>
           </div>
@@ -433,11 +433,11 @@ export function DailyReportMetrics() {
         <StatRow label="Wallets with Balance" value={data.wallets_with_balance} />
         <StatRow label="Cash In Today" value={formatUGX(data.wallets_cash_in_today)} />
         <StatRow label="Cash Out Today" value={formatUGX(data.wallets_cash_out_today)} />
-        <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 mt-1">
+        <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/20 mt-1">
           <div className="flex items-center justify-between">
-            <span className="text-sm font-medium text-warning">Today's Net</span>
+            <span className="text-[13px] font-medium text-warning">Today's Net</span>
             <span className={cn(
-              "text-lg font-black",
+              "text-base font-black",
               data.wallets_cash_in_today - data.wallets_cash_out_today >= 0 ? "text-success" : "text-destructive"
             )}>
               {formatUGX(data.wallets_cash_in_today - data.wallets_cash_out_today)}
