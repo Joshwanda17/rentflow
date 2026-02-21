@@ -152,16 +152,16 @@ export function DailyReportMetrics() {
     });
     await new Promise(r => setTimeout(r, 400));
 
-    const { toPng } = await import('html-to-image');
+    const html2canvas = (await import('html2canvas')).default;
     const { jsPDF } = await import('jspdf');
 
-    const dataUrl = await toPng(reportRef.current, {
-      quality: 0.92,
-      pixelRatio: 1.5,
+    const canvas = await html2canvas(reportRef.current, {
+      scale: 1.5,
+      useCORS: true,
+      logging: false,
       backgroundColor: '#ffffff',
-      cacheBust: true,
-      skipFonts: true,
     });
+    const dataUrl = canvas.toDataURL('image/png');
 
     const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
     const pageWidth = pdf.internal.pageSize.getWidth();
