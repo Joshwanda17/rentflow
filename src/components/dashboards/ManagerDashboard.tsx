@@ -1001,8 +1001,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </CollapsibleAgentSection>
         </div>
 
-        {/* Wallet Card */}
-        <WalletCard />
+        {/* Personal wallet removed for manager role - accessible via other roles */}
 
         {/* Duplicate Phone Alert */}
         {duplicateCount > 0 && (
