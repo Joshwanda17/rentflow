@@ -1,0 +1,268 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const body = await req.json().catch(() => ({}));
+    const { rent_request_ids, coverage_type, funding_days } = body as {
+      rent_request_ids?: string[];
+      coverage_type?: string;
+      funding_days?: number;
+    };
+
+    if (!rent_request_ids || !Array.isArray(rent_request_ids) || rent_request_ids.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No rent requests selected" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify supporter role
+    const { data: supporterRole } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "supporter")
+      .maybeSingle();
+
+    if (!supporterRole) {
+      return new Response(
+        JSON.stringify({ error: "Only supporters can fund tenants" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get selected rent requests (must be approved/pending funding)
+    const { data: rentRequests, error: fetchErr } = await adminClient
+      .from("rent_requests")
+      .select("*, landlords!rent_requests_landlord_id_fkey(name, phone, mobile_money_number)")
+      .in("id", rent_request_ids)
+      .in("status", ["approved", "pending"]);
+
+    if (fetchErr || !rentRequests || rentRequests.length === 0) {
+      return new Response(
+        JSON.stringify({ error: "No eligible rent requests found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Calculate total funding needed
+    let totalFunding = 0;
+    for (const rr of rentRequests) {
+      const rentAmount = rr.rent_amount || 0;
+      if (coverage_type === "partial") {
+        totalFunding += Math.round(rentAmount * 0.5);
+      } else if (coverage_type === "daily" && funding_days) {
+        totalFunding += Math.round(rentAmount * (funding_days / 30));
+      } else {
+        totalFunding += rentAmount;
+      }
+    }
+
+    // Check supporter wallet balance
+    const { data: supporterWallet } = await adminClient
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+
+    if (!supporterWallet || supporterWallet.balance < totalFunding) {
+      return new Response(
+        JSON.stringify({ 
+          error: "Insufficient wallet balance",
+          required: totalFunding,
+          available: supporterWallet?.balance || 0
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const txGroupId = crypto.randomUUID();
+    const results: Array<{ rent_request_id: string; tenant_id: string; landlord_name: string; amount: number }> = [];
+
+    // Process each rent request
+    for (const rr of rentRequests) {
+      const rentAmount = rr.rent_amount || 0;
+      let fundAmount = rentAmount;
+      if (coverage_type === "partial") fundAmount = Math.round(rentAmount * 0.5);
+      else if (coverage_type === "daily" && funding_days) fundAmount = Math.round(rentAmount * (funding_days / 30));
+
+      // Deduct from supporter wallet (optimistic lock)
+      const { data: freshWallet } = await adminClient
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", user.id)
+        .single();
+
+      if (!freshWallet || freshWallet.balance < fundAmount) {
+        console.error("Insufficient balance mid-transaction");
+        break;
+      }
+
+      const { error: deductErr } = await adminClient
+        .from("wallets")
+        .update({ balance: freshWallet.balance - fundAmount, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("balance", freshWallet.balance);
+
+      if (deductErr) {
+        console.error("Deduct error:", deductErr);
+        continue;
+      }
+
+      // Credit landlord wallet (find or create by landlord's tenant_id mapping)
+      // Find landlord's linked user profile via phone
+      const landlordRecord = rr.landlords as any;
+      const landlordPhone = landlordRecord?.phone;
+
+      let landlordUserId: string | null = null;
+      if (landlordPhone) {
+        const { data: landlordProfile } = await adminClient
+          .from("profiles")
+          .select("id")
+          .eq("phone", landlordPhone)
+          .maybeSingle();
+        landlordUserId = landlordProfile?.id || null;
+      }
+
+      if (landlordUserId) {
+        // Credit landlord wallet
+        const { data: lWallet } = await adminClient
+          .from("wallets")
+          .select("balance")
+          .eq("user_id", landlordUserId)
+          .maybeSingle();
+
+        if (lWallet) {
+          await adminClient
+            .from("wallets")
+            .update({ balance: lWallet.balance + fundAmount, updated_at: new Date().toISOString() })
+            .eq("user_id", landlordUserId);
+        } else {
+          await adminClient
+            .from("wallets")
+            .insert({ user_id: landlordUserId, balance: fundAmount });
+        }
+      }
+
+      // Update rent request status to funded
+      await adminClient
+        .from("rent_requests")
+        .update({
+          status: "funded",
+          funded_at: new Date().toISOString(),
+          supporter_id: user.id,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("id", rr.id);
+
+      // Record ledger entries (double-entry)
+      await adminClient.from("general_ledger").insert([
+        {
+          user_id: user.id,
+          amount: fundAmount,
+          direction: "cash_out",
+          category: "rent facilitation payout",
+          source_table: "rent_requests",
+          source_id: rr.id,
+          transaction_group_id: txGroupId,
+          description: `Funded rent for tenant - ${landlordRecord?.name || "landlord"}`,
+          linked_party: rr.tenant_id,
+        },
+        {
+          user_id: landlordUserId || null,
+          amount: fundAmount,
+          direction: "cash_in",
+          category: "rent facilitation payout",
+          source_table: "rent_requests",
+          source_id: rr.id,
+          transaction_group_id: txGroupId,
+          description: `Rent payment from supporter`,
+          linked_party: user.id,
+        },
+      ]);
+
+      // Notify tenant
+      await adminClient.from("notifications").insert({
+        user_id: rr.tenant_id,
+        title: "Rent Funded! 🏠",
+        message: `Your rent of UGX ${fundAmount.toLocaleString()} has been funded by a supporter.`,
+        type: "success",
+        metadata: { rent_request_id: rr.id, amount: fundAmount },
+      });
+
+      results.push({
+        rent_request_id: rr.id,
+        tenant_id: rr.tenant_id,
+        landlord_name: landlordRecord?.name || "Unknown",
+        amount: fundAmount,
+      });
+    }
+
+    // Notify supporter
+    await adminClient.from("notifications").insert({
+      user_id: user.id,
+      title: "Funding Complete! 💚",
+      message: `You've funded ${results.length} tenant(s) totaling UGX ${totalFunding.toLocaleString()}. Your 15% monthly reward will be credited automatically.`,
+      type: "success",
+      metadata: { total: totalFunding, count: results.length, tx_group: txGroupId },
+    });
+
+    console.log(`[fund-tenants] Supporter ${user.id} funded ${results.length} tenants, total: ${totalFunding}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `Successfully funded ${results.length} tenant(s)`,
+        details: {
+          total_funded: totalFunding,
+          tenants_funded: results.length,
+          expected_roi: Math.round(totalFunding * 0.15),
+          results,
+        },
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[fund-tenants] Error:", msg);
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});
