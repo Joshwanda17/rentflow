@@ -867,7 +867,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <main className="px-3 py-3 space-y-3 animate-fade-in">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
-          <OpportunitySummaryForm />
+          <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />
         ) : (
         <>
         {/* 🔥 Prominent Opportunity Summary Button */}

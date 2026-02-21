@@ -11,7 +11,7 @@ import { useOpportunitySummary } from '@/hooks/useOpportunitySummary';
 import { formatUGX } from '@/lib/rentCalculations';
 import { toast } from 'sonner';
 
-export function OpportunitySummaryForm() {
+export function OpportunitySummaryForm({ onClose }: { onClose?: () => void }) {
   const { user } = useAuth();
   const { summary, loading: loadingSummary } = useOpportunitySummary();
   const [totalRentRequested, setTotalRentRequested] = useState('');
@@ -72,13 +72,25 @@ export function OpportunitySummaryForm() {
   return (
     <Card className="border-primary/20">
       <CardHeader className="pb-3">
-        <CardTitle className="flex items-center gap-2 text-lg">
-          <FileText className="h-5 w-5 text-primary" />
-          Post Opportunity Summary
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">
-          This data will be visible to all supporters on their dashboard
-        </p>
+        <div className="flex items-center gap-2">
+          {onClose && (
+            <button
+              onClick={onClose}
+              className="p-2 -ml-1 rounded-lg hover:bg-muted active:scale-95 transition-all touch-manipulation min-h-[40px] min-w-[40px] flex items-center justify-center"
+            >
+              <ArrowLeft className="h-5 w-5" />
+            </button>
+          )}
+          <div className="flex-1">
+            <CardTitle className="flex items-center gap-2 text-lg">
+              <FileText className="h-5 w-5 text-primary" />
+              Post Opportunity Summary
+            </CardTitle>
+            <p className="text-xs text-muted-foreground">
+              This data will be visible to all supporters on their dashboard
+            </p>
+          </div>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Current live summary preview */}
