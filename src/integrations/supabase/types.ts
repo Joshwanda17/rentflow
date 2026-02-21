@@ -2629,6 +2629,7 @@ export type Database = {
           total_debits: number
         }[]
       }
+      get_manager_daily_report: { Args: never; Returns: Json }
       get_manager_dashboard_stats: { Args: never; Returns: Json }
       get_manager_productivity:
         | {
