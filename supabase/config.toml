@@ -86,3 +86,6 @@ verify_jwt = false
 
 [functions.earning-predictor]
 verify_jwt = false
+
+[functions.fund-tenants]
+verify_jwt = false

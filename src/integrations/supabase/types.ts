@@ -1405,6 +1405,7 @@ export type Database = {
           agent_verified: boolean | null
           agent_verified_at: string | null
           agent_verified_by: string | null
+          amount_repaid: number
           approval_comment: string | null
           approved_at: string | null
           approved_by: string | null
@@ -1447,6 +1448,7 @@ export type Database = {
           agent_verified?: boolean | null
           agent_verified_at?: string | null
           agent_verified_by?: string | null
+          amount_repaid?: number
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1489,6 +1491,7 @@ export type Database = {
           agent_verified?: boolean | null
           agent_verified_at?: string | null
           agent_verified_by?: string | null
+          amount_repaid?: number
           approval_comment?: string | null
           approved_at?: string | null
           approved_by?: string | null
@@ -1595,6 +1598,38 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "user_financial_summaries"
             referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      repayments: {
+        Row: {
+          amount: number
+          created_at: string
+          id: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          id?: string
+          rent_request_id: string
+          tenant_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          id?: string
+          rent_request_id?: string
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "repayments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
           },
         ]
       }
