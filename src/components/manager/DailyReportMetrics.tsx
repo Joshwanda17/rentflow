@@ -421,12 +421,31 @@ export function DailyReportMetrics() {
         </Card>
       </div>
 
-      {/* 1. Tenants */}
+      {/* 1. Platform Cash Flow - PRIMARY */}
+      <MetricSection 
+        title="Platform Cash Flow" 
+        icon={TrendingUp} 
+        iconColor="bg-success/10 text-success"
+        defaultOpen={true}
+        badge={formatUGX(data.platform_cash_in - data.platform_cash_out)}
+      >
+        <StatRow label="Total Cash In" value={formatUGX(data.platform_cash_in)} sub="All-time inflows" />
+        <StatRow label="Total Cash Out" value={formatUGX(data.platform_cash_out)} sub="All-time outflows" />
+        <div className="p-2.5 rounded-lg bg-success/10 border border-success/20 mt-1">
+          <div className="flex items-center justify-between">
+            <span className="text-[13px] font-medium text-success">Net Position</span>
+            <span className="text-base font-black text-success">
+              {formatUGX(data.platform_cash_in - data.platform_cash_out)}
+            </span>
+          </div>
+        </div>
+      </MetricSection>
+
+      {/* 2. Tenants */}
       <MetricSection 
         title="Tenants" 
         icon={Users} 
-        iconColor="bg-primary/10 text-primary" 
-        defaultOpen={true}
+        iconColor="bg-primary/10 text-primary"
         badge={data.active_tenants}
       >
         <StatRow label="Active Tenants" value={data.active_tenants} />
@@ -434,7 +453,7 @@ export function DailyReportMetrics() {
         <StatRow label="Total Rent Balance" value={formatUGX(data.total_rent_balance)} sub="Outstanding receivables" />
       </MetricSection>
 
-      {/* 2. Landlords */}
+      {/* 3. Landlords */}
       <MetricSection 
         title="Landlords & Properties" 
         icon={Building2} 
@@ -446,7 +465,7 @@ export function DailyReportMetrics() {
         <StatRow label="Total Rent Paid Out" value={formatUGX(data.total_rent_received)} sub="All-time rent to landlords" />
       </MetricSection>
 
-      {/* 3. Funders / Supporters */}
+      {/* 4. Funders / Supporters */}
       <MetricSection 
         title="Funders (Supporters)" 
         icon={HandCoins} 
@@ -458,7 +477,7 @@ export function DailyReportMetrics() {
         <StatRow label="Combined Wallet Balance" value={formatUGX(data.supporter_wallets_total)} sub="Current funder balances" />
       </MetricSection>
 
-      {/* 4. Agents */}
+      {/* 5. Agents */}
       <MetricSection 
         title="Agents" 
         icon={UserCheck} 
@@ -489,7 +508,7 @@ export function DailyReportMetrics() {
         )}
       </MetricSection>
 
-      {/* 5. Locations */}
+      {/* 6. Locations */}
       <MetricSection 
         title="Tenant Locations" 
         icon={MapPin} 
@@ -511,25 +530,6 @@ export function DailyReportMetrics() {
         ) : (
           <p className="text-[13px] text-muted-foreground text-center py-2">No location data yet</p>
         )}
-      </MetricSection>
-
-      {/* 6. Platform Cash Flow */}
-      <MetricSection 
-        title="Platform Cash Flow" 
-        icon={TrendingUp} 
-        iconColor="bg-success/10 text-success"
-        badge={formatUGX(data.platform_cash_in - data.platform_cash_out)}
-      >
-        <StatRow label="Total Cash In" value={formatUGX(data.platform_cash_in)} sub="All-time inflows" />
-        <StatRow label="Total Cash Out" value={formatUGX(data.platform_cash_out)} sub="All-time outflows" />
-        <div className="p-2.5 rounded-lg bg-success/10 border border-success/20 mt-1">
-          <div className="flex items-center justify-between">
-            <span className="text-[13px] font-medium text-success">Net Position</span>
-            <span className="text-base font-black text-success">
-              {formatUGX(data.platform_cash_in - data.platform_cash_out)}
-            </span>
-          </div>
-        </div>
       </MetricSection>
 
       {/* 7. Wallets */}
