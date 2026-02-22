@@ -44,7 +44,8 @@ import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWid
 // DailyReportMetrics moved to menu — not part of wallet balance management
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
+// PendingInvestmentRequestsWidget removed — not part of rent management core
+import FundFlowTracker from '@/components/manager/FundFlowTracker';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1021,12 +1022,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             Back to Dashboard
           </motion.button>
 
-          <h2 className="text-xl font-black">🏠 Rent & Investments</h2>
+          <h2 className="text-xl font-black">🏠 Rent Management</h2>
+          <p className="text-xs text-muted-foreground -mt-1">Requests, receivables, fund routing & landlord tracking</p>
 
-          {/* Pending Rent Requests */}
+          {/* Pending Rent Requests — action queue */}
           <PendingRentRequestsWidget />
 
-          {/* Rent Due Receivables */}
+          {/* Rent Due Receivables — what's owed */}
           <div ref={rentDueSectionRef} id="rent-due-section">
             <CollapsibleAgentSection
               icon={Home}
@@ -1039,7 +1041,10 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CollapsibleAgentSection>
           </div>
 
-          {/* Quick nav to rent requests manager */}
+          {/* Fund Flow Tracker — where rent money went */}
+          <FundFlowTracker />
+
+          {/* Quick nav to full rent requests manager */}
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/manager-access')}
@@ -1051,12 +1056,6 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </span>
             <ArrowRight className="h-4 w-4 opacity-70" />
           </motion.button>
-
-          {/* Funder investments */}
-          <PendingInvestmentRequestsWidget />
-
-          {/* Financial Statements */}
-          <FinancialStatementsPanel />
         </>
         ) : activeHub === 'buffer' ? (
         <>
