@@ -972,6 +972,72 @@ export type Database = {
         }
         Relationships: []
       }
+      pending_wallet_operations: {
+        Row: {
+          account: string | null
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          linked_party: string | null
+          metadata: Json | null
+          reference_id: string | null
+          rejection_reason: string | null
+          reviewed_at: string | null
+          reviewed_by: string | null
+          source_id: string | null
+          source_table: string
+          status: string
+          transaction_group_id: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          account?: string | null
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          direction: string
+          id?: string
+          linked_party?: string | null
+          metadata?: Json | null
+          reference_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id?: string | null
+          source_table: string
+          status?: string
+          transaction_group_id?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          account?: string | null
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          linked_party?: string | null
+          metadata?: Json | null
+          reference_id?: string | null
+          rejection_reason?: string | null
+          reviewed_at?: string | null
+          reviewed_by?: string | null
+          source_id?: string | null
+          source_table?: string
+          status?: string
+          transaction_group_id?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_categories: {
         Row: {
           agent_id: string
