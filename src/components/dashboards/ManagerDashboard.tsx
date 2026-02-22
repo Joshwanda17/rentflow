@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -13,110 +13,54 @@ import {
   Banknote, 
   Receipt,
   TrendingUp,
-  TrendingDown,
   ArrowRight,
-  Sparkles,
   ShoppingCart,
   CheckCircle,
   Clock,
   ChartBar,
-  Package,
   Award,
   Wallet,
   Download,
-  UserPlus,
-  UserCheck,
-  CalendarPlus,
-  Crown,
-  Calendar,
-  FileDown,
-  FileSpreadsheet,
-  Minus,
-  Target,
-  Pencil,
-  Check,
-  X,
-  History,
-  ChevronDown,
-  ChevronUp,
-  Trash2,
-  Loader2,
-  Search,
-  ArrowUpDown,
-  ChevronLeft,
-  ChevronRight,
-  Mail,
-  MessageCircle,
-  Save,
-  BookmarkPlus,
   Shield,
   AlertTriangle,
   ArrowDownToLine,
   Home
 } from 'lucide-react';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-  AlertDialogTrigger,
-} from '@/components/ui/alert-dialog';
 import jsPDF from 'jspdf';
 import { toast } from 'sonner';
-import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
-import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
-import { format, startOfMonth, formatDistanceToNow, isToday, isThisWeek } from 'date-fns';
+import { format, startOfMonth, isToday, isThisWeek } from 'date-fns';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+import { hapticTap } from '@/lib/haptics';
 import DashboardHeader from '@/components/DashboardHeader';
-import { WalletCard } from '@/components/wallet/WalletCard';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { useProfile } from '@/hooks/useProfile';
-import { UserAvatar } from '@/components/UserAvatar';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
-import { FoodReceiptPromoCard } from '@/components/FoodReceiptPromoCard';
-import { FoodShoppingLoansSection } from '@/components/loans/FoodShoppingLoansSection';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 import { DailyReportMetrics } from '@/components/manager/DailyReportMetrics';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
-import { SupporterInvitesList } from '@/components/manager/SupporterInvitesList';
-import { PendingInvitesWidget } from '@/components/manager/PendingInvitesWidget';
 import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
-import { PaidAgentsHistory } from '@/components/manager/PaidAgentsHistory';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
-import { MobileQuickActions } from '@/components/manager/MobileQuickActions';
-
-import { UserMinus } from 'lucide-react';
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
-import { ForceRefreshManager } from '@/components/manager/ForceRefreshManager';
 import { usePresence } from '@/hooks/usePresence';
-import { ActiveUsersCard } from '@/components/manager/ActiveUsersCard';
-import { ChromecastButton } from '@/components/manager/ChromecastButton';
 import { useDuplicatePhoneUsers } from '@/hooks/useDuplicatePhoneUsers';
 import { DuplicatePhoneUsersSheet } from '@/components/manager/DuplicatePhoneUsersSheet';
 import { OpportunitySummaryForm } from '@/components/manager/OpportunitySummaryForm';
 import { PendingRentRequestsWidget } from '@/components/manager/PendingRentRequestsWidget';
 import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWidget';
-import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
+import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
 
 interface ManagerDashboardProps {
   user: User;
@@ -137,6 +81,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   const { duplicateUserIds, duplicateCount, duplicateGroups } = useDuplicatePhoneUsers();
   const [duplicatePhoneSheetOpen, setDuplicatePhoneSheetOpen] = useState(false);
   const [showOpportunitySummary, setShowOpportunitySummary] = useState(false);
+  const [activeHub, setActiveHub] = useState<'home' | 'wallets' | 'rent-investments' | 'buffer'>('home');
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
   // Auto-verify if manager already authenticated via /manager-login PIN flow
@@ -869,7 +814,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
           <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />
-        ) : (
+        ) : activeHub === 'home' ? (
         <>
         {/* 🔥 Prominent Opportunity Summary Button */}
         <motion.button
@@ -894,118 +839,19 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </div>
         </motion.button>
 
-        {/* ===== PRIORITY: Daily Report Metrics ===== */}
-        <DailyReportMetrics />
-
-        {/* ===== Pending Wallet Approvals ===== */}
-        <PendingWalletOperationsWidget />
-
-        {/* Quick Deposit/Withdrawal Status */}
-        <div className="grid grid-cols-3 gap-2">
-          <Card 
-            className="border-warning/30 bg-warning/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
-            onClick={() => {
-              setWithdrawalSectionOpen(true);
-              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-            }}
-          >
-            <CardContent className="p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <Clock className="h-4 w-4 text-warning" />
-                <span className="text-[10px] font-medium text-warning">Pending</span>
-              </div>
-              <p className="text-xl font-black text-warning">{withdrawalStats.pending}</p>
-              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.pendingAmount)}</p>
-            </CardContent>
-          </Card>
-          <Card 
-            className="border-success/30 bg-success/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
-            onClick={() => {
-              setWithdrawalSectionOpen(true);
-              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-            }}
-          >
-            <CardContent className="p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <CheckCircle className="h-4 w-4 text-success" />
-                <span className="text-[10px] font-medium text-success">Approved</span>
-              </div>
-              <p className="text-xl font-black text-success">{withdrawalStats.approved}</p>
-              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.approvedAmount)}</p>
-            </CardContent>
-          </Card>
-          <Card 
-            className="border-destructive/30 bg-destructive/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
-            onClick={() => {
-              setWithdrawalSectionOpen(true);
-              setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
-            }}
-          >
-            <CardContent className="p-3 text-center">
-              <div className="flex items-center justify-center gap-1 mb-1">
-                <ArrowDownToLine className="h-4 w-4 text-destructive" />
-                <span className="text-[10px] font-medium text-destructive">Rejected</span>
-              </div>
-              <p className="text-xl font-black text-destructive">{withdrawalStats.rejected}</p>
-              <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.rejectedAmount)}</p>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Deposits — Collapsible */}
-        <CollapsibleAgentSection
-          icon={Wallet}
-          label="Deposits"
-          iconColor="text-primary"
-          isOpen={depositSectionOpen}
-          onToggle={() => setDepositSectionOpen(!depositSectionOpen)}
-        >
-          <div className="space-y-3">
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => navigate('/deposits-management')}
-              className="w-full flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors touch-manipulation"
-            >
-              <span className="flex items-center gap-2">
-                <Wallet className="h-4 w-4" />
-                Open Full Deposits Manager
-              </span>
-              <ArrowRight className="h-4 w-4 opacity-70" />
-            </motion.button>
-            <ManagerDepositsWidget />
-          </div>
-        </CollapsibleAgentSection>
-
-        {/* Withdrawal Requests — Collapsible */}
-        <div ref={withdrawalSectionRef} id="withdrawal-section">
-          <CollapsibleAgentSection
-            icon={Wallet}
-            label="Wallet Withdrawals"
-            iconColor="text-warning"
-            isOpen={withdrawalSectionOpen}
-            onToggle={() => setWithdrawalSectionOpen(!withdrawalSectionOpen)}
-          >
-            <WithdrawalRequestsManager />
-            <div className="mt-4">
-              <PendingRentRequestsWidget />
-            </div>
-          </CollapsibleAgentSection>
-        </div>
-
-        {/* Rent Due Receivables — Collapsible */}
-        <div ref={rentDueSectionRef} id="rent-due-section">
-          <CollapsibleAgentSection
-            icon={Home}
-            label="Rent Due (Receivables)"
-            iconColor="text-emerald-600"
-            isOpen={rentDueSectionOpen}
-            onToggle={() => setRentDueSectionOpen(!rentDueSectionOpen)}
-          >
-            <RentDueReceivablesWidget mode="manager" onTotalChange={setRentDueTotal} />
-          </CollapsibleAgentSection>
-        </div>
-
-        {/* Personal wallet removed for manager role - accessible via other roles */}
+        {/* ===== 3 MAJOR HUB CARDS ===== */}
+        <ManagerHubCards
+          pendingWalletOps={0}
+          pendingWithdrawals={withdrawalStats.pending}
+          withdrawalStats={withdrawalStats}
+          pendingRequests={pendingRequests}
+          totalFacilitated={totalFacilitated}
+          totalUsers={totalUsers}
+          rentDueTotal={rentDueTotal}
+          onOpenWallets={() => { hapticTap(); setActiveHub('wallets'); }}
+          onOpenRentInvestments={() => { hapticTap(); setActiveHub('rent-investments'); }}
+          onOpenBufferAccount={() => { hapticTap(); setActiveHub('buffer'); }}
+        />
 
         {/* Duplicate Phone Alert */}
         {duplicateCount > 0 && (
@@ -1049,7 +895,243 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           }}
         />
         </>
-        )}
+        ) : activeHub === 'wallets' ? (
+        <>
+          {/* Back button */}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { hapticTap(); setActiveHub('home'); }}
+            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
+          >
+            <ArrowRight className="h-4 w-4 rotate-180" />
+            Back to Dashboard
+          </motion.button>
+
+          <h2 className="text-xl font-black">💰 Manage User Wallets</h2>
+
+          {/* Daily Report Metrics */}
+          <DailyReportMetrics />
+
+          {/* Pending Wallet Approvals */}
+          <PendingWalletOperationsWidget />
+
+          {/* Quick Withdrawal Status */}
+          <div className="grid grid-cols-3 gap-2">
+            <Card 
+              className="border-warning/30 bg-warning/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+              onClick={() => {
+                setWithdrawalSectionOpen(true);
+                setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+              }}
+            >
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <Clock className="h-4 w-4 text-warning" />
+                  <span className="text-[10px] font-medium text-warning">Pending</span>
+                </div>
+                <p className="text-xl font-black text-warning">{withdrawalStats.pending}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.pendingAmount)}</p>
+              </CardContent>
+            </Card>
+            <Card 
+              className="border-success/30 bg-success/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+              onClick={() => {
+                setWithdrawalSectionOpen(true);
+                setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+              }}
+            >
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <CheckCircle className="h-4 w-4 text-success" />
+                  <span className="text-[10px] font-medium text-success">Approved</span>
+                </div>
+                <p className="text-xl font-black text-success">{withdrawalStats.approved}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.approvedAmount)}</p>
+              </CardContent>
+            </Card>
+            <Card 
+              className="border-destructive/30 bg-destructive/5 cursor-pointer active:scale-95 transition-transform touch-manipulation"
+              onClick={() => {
+                setWithdrawalSectionOpen(true);
+                setTimeout(() => withdrawalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 100);
+              }}
+            >
+              <CardContent className="p-3 text-center">
+                <div className="flex items-center justify-center gap-1 mb-1">
+                  <ArrowDownToLine className="h-4 w-4 text-destructive" />
+                  <span className="text-[10px] font-medium text-destructive">Rejected</span>
+                </div>
+                <p className="text-xl font-black text-destructive">{withdrawalStats.rejected}</p>
+                <p className="text-[10px] text-muted-foreground font-medium">{formatUGX(withdrawalStats.rejectedAmount)}</p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Deposits */}
+          <CollapsibleAgentSection
+            icon={Wallet}
+            label="Deposits"
+            iconColor="text-primary"
+            isOpen={depositSectionOpen}
+            onToggle={() => setDepositSectionOpen(!depositSectionOpen)}
+          >
+            <div className="space-y-3">
+              <motion.button
+                whileTap={{ scale: 0.97 }}
+                onClick={() => navigate('/deposits-management')}
+                className="w-full flex items-center justify-between rounded-xl border border-primary/30 bg-primary/5 px-4 py-3 text-sm font-semibold text-primary hover:bg-primary/10 transition-colors touch-manipulation"
+              >
+                <span className="flex items-center gap-2">
+                  <Wallet className="h-4 w-4" />
+                  Open Full Deposits Manager
+                </span>
+                <ArrowRight className="h-4 w-4 opacity-70" />
+              </motion.button>
+              <ManagerDepositsWidget />
+            </div>
+          </CollapsibleAgentSection>
+
+          {/* Withdrawal Requests */}
+          <div ref={withdrawalSectionRef} id="withdrawal-section">
+            <CollapsibleAgentSection
+              icon={Wallet}
+              label="Wallet Withdrawals"
+              iconColor="text-warning"
+              isOpen={withdrawalSectionOpen}
+              onToggle={() => setWithdrawalSectionOpen(!withdrawalSectionOpen)}
+            >
+              <WithdrawalRequestsManager />
+            </CollapsibleAgentSection>
+          </div>
+
+          {/* Ledger Summary */}
+          <ManagerLedgerSummary />
+        </>
+        ) : activeHub === 'rent-investments' ? (
+        <>
+          {/* Back button */}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { hapticTap(); setActiveHub('home'); }}
+            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
+          >
+            <ArrowRight className="h-4 w-4 rotate-180" />
+            Back to Dashboard
+          </motion.button>
+
+          <h2 className="text-xl font-black">🏠 Rent & Investments</h2>
+
+          {/* Pending Rent Requests */}
+          <PendingRentRequestsWidget />
+
+          {/* Rent Due Receivables */}
+          <div ref={rentDueSectionRef} id="rent-due-section">
+            <CollapsibleAgentSection
+              icon={Home}
+              label="Rent Due (Receivables)"
+              iconColor="text-emerald-600"
+              isOpen={true}
+              onToggle={() => setRentDueSectionOpen(!rentDueSectionOpen)}
+            >
+              <RentDueReceivablesWidget mode="manager" onTotalChange={setRentDueTotal} />
+            </CollapsibleAgentSection>
+          </div>
+
+          {/* Quick nav to rent requests manager */}
+          <motion.button
+            whileTap={{ scale: 0.97 }}
+            onClick={() => navigate('/manager-access')}
+            className="w-full flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors touch-manipulation"
+          >
+            <span className="flex items-center gap-2">
+              <Home className="h-5 w-5" />
+              Full Rent Requests Manager
+            </span>
+            <ArrowRight className="h-4 w-4 opacity-70" />
+          </motion.button>
+
+          {/* Funder investments */}
+          <PendingInvestmentRequestsWidget />
+
+          {/* Financial Statements */}
+          <FinancialStatementsPanel />
+        </>
+        ) : activeHub === 'buffer' ? (
+        <>
+          {/* Back button */}
+          <motion.button
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => { hapticTap(); setActiveHub('home'); }}
+            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
+          >
+            <ArrowRight className="h-4 w-4 rotate-180" />
+            Back to Dashboard
+          </motion.button>
+
+          <h2 className="text-xl font-black">🛡️ Buffer Account</h2>
+          <p className="text-sm text-muted-foreground -mt-1">Platform solvency monitor — ensures the platform can never go bankrupt</p>
+
+          {/* Buffer Account Summary Card */}
+          <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent shadow-lg">
+            <CardContent className="p-5 space-y-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-2xl bg-amber-500 text-white shadow-lg">
+                  <Shield className="h-7 w-7" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black">Platform Safety Net</h3>
+                  <p className="text-xs text-muted-foreground">Cash In must always exceed Cash Out</p>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-3">
+                <div className="p-3 rounded-xl bg-success/10 border border-success/20">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total Cash In</p>
+                  <p className="text-lg font-black text-success mt-1">{formatUGX(totalFacilitated)}</p>
+                </div>
+                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
+                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total Cash Out</p>
+                  <p className="text-lg font-black text-destructive mt-1">{formatUGX(withdrawalStats.approvedAmount)}</p>
+                </div>
+              </div>
+
+              {/* Net buffer */}
+              <div className="p-4 rounded-xl bg-background border-2 border-amber-500/30">
+                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Net Buffer Balance</p>
+                <p className={cn(
+                  "text-2xl font-black mt-1",
+                  (totalFacilitated - withdrawalStats.approvedAmount) >= 0 ? 'text-success' : 'text-destructive'
+                )}>
+                  {formatUGX(totalFacilitated - withdrawalStats.approvedAmount)}
+                </p>
+                {(totalFacilitated - withdrawalStats.approvedAmount) >= 0 ? (
+                  <div className="flex items-center gap-1 mt-1">
+                    <CheckCircle className="h-3.5 w-3.5 text-success" />
+                    <span className="text-xs text-success font-semibold">Platform is solvent ✅</span>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-1 mt-1">
+                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
+                    <span className="text-xs text-destructive font-semibold">⚠️ Deficit detected — investigate immediately</span>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Ledger for audit */}
+          <ManagerLedgerSummary />
+
+          {/* Financial Statements for deep dive */}
+          <FinancialStatementsPanel />
+        </>
+        ) : null}
       </main>
 
       {/* Floating Deposits Widget */}
