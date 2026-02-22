@@ -42,7 +42,7 @@ import {
   ArrowUpRight, ArrowDownLeft, ShoppingCart, Home, CreditCard,
   Send, Download as DownloadIcon, MessageCircle, CalendarDays, X, Filter,
   Shield, Plus, Trash2, UserCog, Loader2, Pencil, AlertTriangle, ToggleLeft, ToggleRight, ChevronLeft,
-  FileText, UsersRound, UserPlus, Link2
+  FileText, UsersRound, UserPlus, Link2, ShieldAlert, ShieldOff
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, formatDistanceToNow, startOfDay, endOfDay, subDays, subWeeks, subMonths, isWithinInterval } from 'date-fns';
@@ -157,6 +157,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [referralCount, setReferralCount] = useState<number>(0);
   const [referrerInfo, setReferrerInfo] = useState<{ name: string; phone: string; id: string; method: string } | null>(null);
   const [referrerLoading, setReferrerLoading] = useState(false);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [freezingUser, setFreezingUser] = useState(false);
+  const [freezeConfirmOpen, setFreezeConfirmOpen] = useState(false);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
@@ -231,6 +234,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       fetchUserDetails();
       fetchUserRolesWithStatus();
       fetchVerificationStatus();
+      fetchFrozenStatus();
       fetchReferrerInfo(user.id);
       // Fetch subagents if user is an agent
       if (user.roles.includes('agent')) {
@@ -262,6 +266,53 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     
     if (!error && data) {
       setVerificationStatus(data.verified);
+    }
+  };
+
+  const fetchFrozenStatus = async () => {
+    if (!user) return;
+    const { data } = await supabase
+      .from('profiles')
+      .select('is_frozen')
+      .eq('id', user.id)
+      .single();
+    if (data) setIsFrozen(data.is_frozen);
+  };
+
+  const handleToggleFreeze = async () => {
+    if (!user) return;
+    setFreezingUser(true);
+    try {
+      const newFrozen = !isFrozen;
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          is_frozen: newFrozen,
+          frozen_reason: newFrozen ? 'Your account has been frozen for violating platform policies. Contact support on WhatsApp: 0708 257 899' : null,
+          frozen_at: newFrozen ? new Date().toISOString() : null,
+        })
+        .eq('id', user.id);
+      if (error) throw error;
+
+      if (newFrozen) {
+        await supabase.from('notifications').insert({
+          user_id: user.id,
+          title: '🚫 Account Frozen',
+          message: 'Your account has been FROZEN for violating platform policies. All transactions are blocked. Contact support on WhatsApp: 0708 257 899',
+          type: 'warning',
+          metadata: { severity: 'critical', support_action_required: true },
+        });
+      }
+
+      setIsFrozen(newFrozen);
+      setFreezeConfirmOpen(false);
+      toast.success(newFrozen ? `${user.full_name}'s account has been frozen` : `${user.full_name}'s account has been unfrozen`);
+      onUserUpdated?.();
+    } catch (err) {
+      console.error('Error toggling freeze:', err);
+      toast.error('Failed to update account status');
+    } finally {
+      setFreezingUser(false);
     }
   };
 
@@ -1358,10 +1409,34 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                         Danger Zone
                       </CardTitle>
                     </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-sm text-muted-foreground mb-4">
-                        Permanently delete this user and all their data.
-                      </p>
+                    <CardContent className="pt-0 space-y-3">
+                      {/* Freeze/Unfreeze */}
+                      <AlertDialog open={freezeConfirmOpen} onOpenChange={setFreezeConfirmOpen}>
+                        <AlertDialogTrigger asChild>
+                          <Button variant={isFrozen ? 'outline' : 'destructive'} className="w-full h-12">
+                            {isFrozen ? <><ShieldOff className="h-4 w-4 mr-2" />Unfreeze Account</> : <><ShieldAlert className="h-4 w-4 mr-2" />Freeze Account</>}
+                          </Button>
+                        </AlertDialogTrigger>
+                        <AlertDialogContent>
+                          <AlertDialogHeader>
+                            <AlertDialogTitle>{isFrozen ? 'Unfreeze Account?' : '🚫 Freeze Account?'}</AlertDialogTitle>
+                            <AlertDialogDescription>
+                              {isFrozen
+                                ? `This will restore ${user.full_name}'s access to the platform.`
+                                : `This will block ${user.full_name} from all transactions, deposits, and withdrawals. They will see a red warning screen.`}
+                            </AlertDialogDescription>
+                          </AlertDialogHeader>
+                          <AlertDialogFooter>
+                            <AlertDialogCancel>Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleToggleFreeze} disabled={freezingUser} className={isFrozen ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}>
+                              {freezingUser ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}
+                              {isFrozen ? 'Unfreeze' : 'Freeze Account'}
+                            </AlertDialogAction>
+                          </AlertDialogFooter>
+                        </AlertDialogContent>
+                      </AlertDialog>
+                      {isFrozen && <p className="text-xs text-destructive font-medium text-center">⚠️ This account is currently frozen</p>}
+                      {/* Delete */}
                       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                         <AlertDialogTrigger asChild>
                           <Button variant="destructive" className="w-full h-12">
@@ -1378,11 +1453,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                           </AlertDialogHeader>
                           <AlertDialogFooter>
                             <AlertDialogCancel>Cancel</AlertDialogCancel>
-                            <AlertDialogAction
-                              onClick={handleDeleteUser}
-                              disabled={deletingUser}
-                              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                            >
+                            <AlertDialogAction onClick={handleDeleteUser} disabled={deletingUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
                               {deletingUser ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete</>}
                             </AlertDialogAction>
                           </AlertDialogFooter>
@@ -1789,8 +1860,27 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 <Separator />
                 <Card className="border-destructive/50">
                   <CardHeader className="py-3"><CardTitle className="text-sm flex items-center gap-2 text-destructive"><AlertTriangle className="h-4 w-4" />Danger Zone</CardTitle></CardHeader>
-                  <CardContent className="pt-0">
-                    <p className="text-sm text-muted-foreground mb-4">Permanently delete this user and all their data.</p>
+                  <CardContent className="pt-0 space-y-3">
+                    <AlertDialog>
+                      <AlertDialogTrigger asChild>
+                        <Button variant={isFrozen ? 'outline' : 'destructive'} className="w-full">
+                          {isFrozen ? <><ShieldOff className="h-4 w-4 mr-2" />Unfreeze Account</> : <><ShieldAlert className="h-4 w-4 mr-2" />Freeze Account</>}
+                        </Button>
+                      </AlertDialogTrigger>
+                      <AlertDialogContent>
+                        <AlertDialogHeader>
+                          <AlertDialogTitle>{isFrozen ? 'Unfreeze Account?' : '🚫 Freeze Account?'}</AlertDialogTitle>
+                          <AlertDialogDescription>{isFrozen ? `Restore ${user.full_name}'s access.` : `Block ${user.full_name} from all transactions. They will see a red warning.`}</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter>
+                          <AlertDialogCancel>Cancel</AlertDialogCancel>
+                          <AlertDialogAction onClick={handleToggleFreeze} disabled={freezingUser} className={isFrozen ? '' : 'bg-destructive text-destructive-foreground hover:bg-destructive/90'}>
+                            {freezingUser ? <Loader2 className="h-4 w-4 mr-2 animate-spin" /> : null}{isFrozen ? 'Unfreeze' : 'Freeze'}
+                          </AlertDialogAction>
+                        </AlertDialogFooter>
+                      </AlertDialogContent>
+                    </AlertDialog>
+                    {isFrozen && <p className="text-xs text-destructive font-medium text-center">⚠️ This account is currently frozen</p>}
                     <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                       <AlertDialogTrigger asChild><Button variant="destructive" className="w-full"><Trash2 className="h-4 w-4 mr-2" />Delete User</Button></AlertDialogTrigger>
                       <AlertDialogContent>
