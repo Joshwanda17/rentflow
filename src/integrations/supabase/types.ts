@@ -1189,8 +1189,11 @@ export type Database = {
           country_code: string | null
           created_at: string
           email: string
+          frozen_at: string | null
+          frozen_reason: string | null
           full_name: string
           id: string
+          is_frozen: boolean
           last_active_at: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
@@ -1212,8 +1215,11 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           email: string
+          frozen_at?: string | null
+          frozen_reason?: string | null
           full_name: string
           id: string
+          is_frozen?: boolean
           last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -1235,8 +1241,11 @@ export type Database = {
           country_code?: string | null
           created_at?: string
           email?: string
+          frozen_at?: string | null
+          frozen_reason?: string | null
           full_name?: string
           id?: string
+          is_frozen?: boolean
           last_active_at?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
