@@ -74,8 +74,8 @@ export function ManagerHubCards({
     {
       id: 'rent-investments',
       icon: Home,
-      title: '🏠 Rent & Investments',
-      subtitle: 'Requests, funders & landlords',
+      title: '🏠 Rent Management',
+      subtitle: 'Requests, receivables & fund routing',
       gradient: 'from-emerald-500/15 via-emerald-500/8 to-emerald-500/5',
       borderColor: 'border-emerald-500/40',
       iconBg: 'bg-emerald-600',
