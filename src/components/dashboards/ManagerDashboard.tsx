@@ -59,7 +59,8 @@ import { PendingRentRequestsWidget } from '@/components/manager/PendingRentReque
 import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWidget';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
-import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
+// FinancialStatementsPanel moved to menu
+import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
 
@@ -1072,61 +1073,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </motion.button>
 
           <h2 className="text-xl font-black">🛡️ Buffer Account</h2>
-          <p className="text-sm text-muted-foreground -mt-1">Platform solvency monitor — ensures the platform can never go bankrupt</p>
+          <p className="text-xs text-muted-foreground -mt-1">Platform solvency, coverage ratios & safety thresholds</p>
 
-          {/* Buffer Account Summary Card */}
-          <Card className="border-2 border-amber-500/40 bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent shadow-lg">
-            <CardContent className="p-5 space-y-4">
-              <div className="flex items-center gap-3">
-                <div className="p-3 rounded-2xl bg-amber-500 text-white shadow-lg">
-                  <Shield className="h-7 w-7" />
-                </div>
-                <div>
-                  <h3 className="text-lg font-black">Platform Safety Net</h3>
-                  <p className="text-xs text-muted-foreground">Cash In must always exceed Cash Out</p>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div className="p-3 rounded-xl bg-success/10 border border-success/20">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total Cash In</p>
-                  <p className="text-lg font-black text-success mt-1">{formatUGX(totalFacilitated)}</p>
-                </div>
-                <div className="p-3 rounded-xl bg-destructive/10 border border-destructive/20">
-                  <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-medium">Total Cash Out</p>
-                  <p className="text-lg font-black text-destructive mt-1">{formatUGX(withdrawalStats.approvedAmount)}</p>
-                </div>
-              </div>
-
-              {/* Net buffer */}
-              <div className="p-4 rounded-xl bg-background border-2 border-amber-500/30">
-                <p className="text-xs text-muted-foreground uppercase tracking-wide font-medium">Net Buffer Balance</p>
-                <p className={cn(
-                  "text-2xl font-black mt-1",
-                  (totalFacilitated - withdrawalStats.approvedAmount) >= 0 ? 'text-success' : 'text-destructive'
-                )}>
-                  {formatUGX(totalFacilitated - withdrawalStats.approvedAmount)}
-                </p>
-                {(totalFacilitated - withdrawalStats.approvedAmount) >= 0 ? (
-                  <div className="flex items-center gap-1 mt-1">
-                    <CheckCircle className="h-3.5 w-3.5 text-success" />
-                    <span className="text-xs text-success font-semibold">Platform is solvent ✅</span>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-1 mt-1">
-                    <AlertTriangle className="h-3.5 w-3.5 text-destructive" />
-                    <span className="text-xs text-destructive font-semibold">⚠️ Deficit detected — investigate immediately</span>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Ledger for audit */}
-          <ManagerLedgerSummary />
-
-          {/* Financial Statements for deep dive */}
-          <FinancialStatementsPanel />
+          <BufferAccountPanel />
         </>
         ) : null}
       </main>
