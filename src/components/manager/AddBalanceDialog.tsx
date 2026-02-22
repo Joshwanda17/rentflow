@@ -82,32 +82,6 @@ export default function AddBalanceDialog({
         wallet = newWallet;
       }
 
-      const delta = type === 'credit' ? amountNum : -amountNum;
-      const newBalance = Math.max(0, wallet.balance + delta);
-
-      // Optimistic lock update — verify rows were actually changed
-      const { data: updatedRows, error: updateError } = await supabase
-        .from('wallets')
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq('user_id', userId)
-        .eq('balance', wallet.balance)
-        .select();
-
-      if (updateError) throw updateError;
-      if (!updatedRows || updatedRows.length === 0) {
-        // Re-fetch to show current balance
-        const { data: freshWallet } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', userId)
-          .single();
-        const msg = freshWallet
-          ? `Balance changed (now ${formatUGX(freshWallet.balance)}). Please close and try again.`
-          : 'Balance changed while updating. Please close and try again.';
-        toast.error(msg);
-        return;
-      }
-
       // Generate reference ID: WBA + YYMMDD + random 4 digits
       const now = new Date();
       const yy = String(now.getFullYear()).slice(-2);
@@ -116,8 +90,8 @@ export default function AddBalanceDialog({
       const seq = String(Math.floor(1000 + Math.random() * 9000));
       const referenceId = `WBA${yy}${mm}${dd}${seq}`;
 
-      // Record in general ledger for traceability
-      await supabase.from('general_ledger').insert({
+      // Queue for manager approval instead of direct wallet update
+      const { error: queueError } = await supabase.from('pending_wallet_operations').insert({
         user_id: userId,
         amount: amountNum,
         direction: type === 'credit' ? 'cash_in' : 'cash_out',
@@ -127,19 +101,12 @@ export default function AddBalanceDialog({
         description: `Manager adjustment (${type}): ${reason.trim()}`,
         reference_id: referenceId,
         linked_party: user?.email || 'Manager',
-        running_balance: newBalance,
+        status: 'pending',
       });
 
-      // Record in wallet_transactions for wallet history
-      await supabase.from('wallet_transactions').insert({
-        sender_id: type === 'debit' ? userId : (user?.id || userId),
-        recipient_id: type === 'credit' ? userId : (user?.id || userId),
-        amount: amountNum,
-        description: `${type === 'credit' ? 'Credit' : 'Debit'} by Manager: ${reason.trim()} (Ref: ${referenceId})`,
-      });
+      if (queueError) throw queueError;
 
-      const verb = type === 'credit' ? 'Added' : 'Deducted';
-      toast.success(`${verb} ${formatUGX(amountNum)} ${type === 'credit' ? 'to' : 'from'} ${userName}'s wallet`);
+      toast.success(`Balance adjustment queued for approval (${formatUGX(amountNum)} ${type})`);
       setAmount('');
       setReason('');
       setType('credit');

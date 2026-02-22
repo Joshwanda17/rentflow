@@ -215,48 +215,26 @@ export function ManagerBankingLedger() {
         if (nwErr) throw nwErr;
         wallet = nw;
       }
-      const delta  = adjType === 'add' ? amountNum : -amountNum;
-      const newBal = Math.max(0, wallet.balance + delta);
-
-      const { data: updated, error: uErr } = await supabase
-        .from('wallets')
-        .update({ balance: newBal, updated_at: new Date().toISOString() })
-        .eq('user_id', selectedUser.id).eq('balance', wallet.balance).select();
-      if (uErr) throw uErr;
-      if (!updated || updated.length === 0) {
-        toast.error('Balance changed while you were working. Please refresh and try again.');
-        return;
-      }
 
       const now = new Date();
       const ref = `WBA${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}${String(Math.floor(1000+Math.random()*9000))}`;
 
-      await supabase.from('general_ledger').insert({
-        user_id:         selectedUser.id,
-        amount:          amountNum,
-        direction:       adjType === 'add' ? 'cash_in' : 'cash_out',
-        category:        adjType === 'add' ? 'manager_credit' : 'manager_debit',
-        source_table:    'wallets',
-        source_id:       wallet.id,
-        description:     `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()}`,
-        reference_id:    ref,
-        linked_party:    user.email || 'Manager',
-        running_balance: newBal,
-      });
-      await supabase.from('wallet_transactions').insert({
-        sender_id:    adjType === 'remove' ? selectedUser.id : user.id,
-        recipient_id: adjType === 'add'    ? selectedUser.id : user.id,
+      // Queue for manager approval instead of direct wallet update
+      const { error: queueErr } = await supabase.from('pending_wallet_operations').insert({
+        user_id:      selectedUser.id,
         amount:       amountNum,
-        description:  `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()} (Ref: ${ref})`,
+        direction:    adjType === 'add' ? 'cash_in' : 'cash_out',
+        category:     adjType === 'add' ? 'manager_credit' : 'manager_debit',
+        source_table: 'wallets',
+        source_id:    wallet.id,
+        description:  `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()}`,
+        reference_id: ref,
+        linked_party: user.email || 'Manager',
+        status:       'pending',
       });
+      if (queueErr) throw queueErr;
 
-      const verb = adjType === 'add' ? 'Added' : 'Removed';
-      toast.success(`✅ ${verb} ${formatUGX(amountNum)} ${adjType === 'add' ? 'to' : 'from'} ${selectedUser.full_name}'s wallet`);
-
-      const updatedUser = { ...selectedUser, balance: newBal };
-      setSelectedUser(updatedUser);
-      setUsers(prev => prev.map(u => u.id === selectedUser.id ? updatedUser : u));
-      fetchLedger(selectedUser.id);
+      toast.success(`✅ Balance adjustment queued for approval (${formatUGX(amountNum)} ${adjType === 'add' ? 'credit' : 'debit'})`);
       setAdjOpen(false); setAdjAmount(''); setAdjReason(''); setAdjType('add');
     } catch (e) {
       console.error(e);
