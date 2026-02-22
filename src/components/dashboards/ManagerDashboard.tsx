@@ -116,6 +116,7 @@ import AiIdButton from '@/components/ai-id/AiIdButton';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
 import { FinancialStatementsPanel } from '@/components/manager/FinancialStatementsPanel';
+import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 
 interface ManagerDashboardProps {
   user: User;
@@ -895,6 +896,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* ===== PRIORITY: Daily Report Metrics ===== */}
         <DailyReportMetrics />
+
+        {/* ===== Pending Wallet Approvals ===== */}
+        <PendingWalletOperationsWidget />
 
         {/* Quick Deposit/Withdrawal Status */}
         <div className="grid grid-cols-3 gap-2">
