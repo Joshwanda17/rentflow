@@ -190,12 +190,12 @@ function DashboardContent() {
             </p>
           </div>
           <div className="bg-card border rounded-lg p-4 space-y-2">
-            <p className="text-sm font-medium">Need help? Contact Support</p>
-            <a href="tel:+256749327434" className="block text-lg font-bold text-primary underline">
-              📞 0749 327 434
+            <p className="text-sm font-medium">Need help? Contact Support on WhatsApp</p>
+            <a href="https://wa.me/256708257899" target="_blank" rel="noopener noreferrer" className="block text-lg font-bold text-green-600 underline">
+              💬 0708 257 899
             </a>
             <p className="text-xs text-muted-foreground">
-              Available Mon–Sat, 8:00 AM – 6:00 PM EAT
+              WhatsApp only
             </p>
           </div>
           <button
