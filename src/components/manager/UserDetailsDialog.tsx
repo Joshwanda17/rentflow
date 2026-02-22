@@ -55,6 +55,7 @@ import UserInvestmentsSection from './user-details/UserInvestmentsSection';
 import UserTermsSection from './user-details/UserTermsSection';
 import UserReferralsSection from './user-details/UserReferralsSection';
 import UserActivityTimeline from './user-details/UserActivityTimeline';
+import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
@@ -1160,8 +1161,11 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       ) : (
                         <p className="text-sm text-muted-foreground">No referrer — signed up directly</p>
                       )}
-                    </CardContent>
+                  </CardContent>
                   </Card>
+
+                  {/* Tenant Ecosystem */}
+                  <UserEcosystemSection userId={user.id} />
 
                   <div className="grid grid-cols-2 gap-3">
                     <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
@@ -1728,6 +1732,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     )}
                   </CardContent>
                 </Card>
+
+                {/* Tenant Ecosystem */}
+                <UserEcosystemSection userId={user.id} />
 
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                   <Card className="p-3 relative group cursor-pointer hover:border-primary/50 transition-colors" onClick={() => setAddBalanceOpen(true)}>
