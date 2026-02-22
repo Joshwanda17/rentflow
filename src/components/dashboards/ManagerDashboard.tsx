@@ -46,6 +46,7 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 // PendingInvestmentRequestsWidget removed — not part of rent management core
 import FundFlowTracker from '@/components/manager/FundFlowTracker';
+import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
 import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
@@ -1042,8 +1043,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
             </CollapsibleAgentSection>
           </div>
 
-          {/* Fund Flow Tracker — where rent money went */}
+          {/* Fund Flow Tracker — where rent money went & who funded */}
           <FundFlowTracker />
+
+          {/* Supporter ROI Processing — 15% monthly rewards */}
+          <SupporterROITrigger />
 
           {/* Quick nav to full rent requests manager */}
           <motion.button
