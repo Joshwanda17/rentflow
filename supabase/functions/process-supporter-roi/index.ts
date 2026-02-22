@@ -5,19 +5,6 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-interface PaymentProof {
-  id: string;
-  supporter_id: string;
-  amount: number;
-  verified_at: string;
-  next_roi_due_date: string | null;
-  total_roi_paid: number;
-  roi_payments_count: number;
-  supporter?: {
-    full_name: string;
-  };
-}
-
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -32,64 +19,57 @@ Deno.serve(async (req) => {
     const results = {
       processed: 0,
       credited: 0,
+      skipped: 0,
       totalAmount: 0,
       errors: [] as string[],
     };
 
-    // Get all verified payment proofs that are due for ROI payment
-    // Either next_roi_due_date is null (first payment after 30 days from verification)
-    // Or next_roi_due_date has passed
-    const { data: duePayments, error: fetchError } = await supabase
-      .from('landlord_payment_proofs')
-      .select(`
-        id,
-        supporter_id,
-        amount,
-        verified_at,
-        next_roi_due_date,
-        total_roi_paid,
-        roi_payments_count,
-        supporter:profiles!landlord_payment_proofs_supporter_id_fkey(full_name)
-      `)
-      .eq('status', 'verified')
-      .or(`next_roi_due_date.is.null,next_roi_due_date.lte.${now.toISOString()}`);
+    // Get all funded rent requests that have a supporter tagged
+    // and are eligible for ROI (funded_at is set)
+    const { data: fundedRequests, error: fetchError } = await supabase
+      .from('rent_requests')
+      .select('id, rent_amount, supporter_id, funded_at, next_roi_due_date, total_roi_paid, roi_payments_count')
+      .not('supporter_id', 'is', null)
+      .not('funded_at', 'is', null)
+      .in('status', ['funded', 'disbursed', 'completed']);
 
     if (fetchError) {
-      throw new Error(`Failed to fetch due payments: ${fetchError.message}`);
+      throw new Error(`Failed to fetch funded requests: ${fetchError.message}`);
     }
 
-    console.log(`Found ${duePayments?.length || 0} payments to process`);
+    console.log(`[process-supporter-roi] Found ${fundedRequests?.length || 0} funded requests to check`);
 
-    for (const payment of (duePayments as unknown as PaymentProof[]) || []) {
+    for (const rr of fundedRequests || []) {
       try {
-        // Calculate the due date
+        // Determine when the next ROI is due
         let dueDate: Date;
-        if (payment.next_roi_due_date) {
-          dueDate = new Date(payment.next_roi_due_date);
+        if (rr.next_roi_due_date) {
+          dueDate = new Date(rr.next_roi_due_date);
         } else {
-          // First ROI payment: 30 days after verification
-          dueDate = new Date(payment.verified_at);
+          // First ROI: 30 days after funding
+          dueDate = new Date(rr.funded_at);
           dueDate.setDate(dueDate.getDate() + 30);
         }
 
-        // Check if it's actually due
+        // Not yet due
         if (dueDate > now) {
+          results.skipped++;
           continue;
         }
 
         results.processed++;
 
-        // Calculate ROI (15% of rent amount)
-        const roiAmount = Math.round(payment.amount * 0.15);
-        const paymentNumber = (payment.roi_payments_count || 0) + 1;
+        // 15% of the rent amount funded
+        const roiAmount = Math.round(Number(rr.rent_amount) * 0.15);
+        const paymentNumber = (rr.roi_payments_count || 0) + 1;
 
-        // Create ROI payment record
+        // Insert ROI payment record (unique constraint prevents duplicates)
         const { error: roiInsertError } = await supabase
           .from('supporter_roi_payments')
           .insert({
-            payment_proof_id: payment.id,
-            supporter_id: payment.supporter_id,
-            rent_amount: payment.amount,
+            rent_request_id: rr.id,
+            supporter_id: rr.supporter_id,
+            rent_amount: rr.rent_amount,
             roi_amount: roiAmount,
             payment_number: paymentNumber,
             due_date: dueDate.toISOString(),
@@ -98,90 +78,81 @@ Deno.serve(async (req) => {
           });
 
         if (roiInsertError) {
-          // Check if it's a duplicate (already processed)
           if (roiInsertError.code === '23505') {
-            console.log(`Payment ${payment.id} already processed for period ${paymentNumber}`);
+            console.log(`[process-supporter-roi] Already processed: ${rr.id} payment #${paymentNumber}`);
             continue;
           }
           throw roiInsertError;
         }
 
-        // Credit supporter wallet
-        const { data: walletData } = await supabase
-          .from('wallets')
-          .select('balance')
-          .eq('user_id', payment.supporter_id)
-          .single();
+        // Credit supporter wallet via ledger (pending_wallet_operations for manager approval)
+        const txGroupId = crypto.randomUUID();
+        await supabase.from('pending_wallet_operations').insert({
+          user_id: rr.supporter_id,
+          amount: roiAmount,
+          direction: 'cash_in',
+          category: 'supporter_platform_rewards',
+          source_table: 'supporter_roi_payments',
+          source_id: rr.id,
+          transaction_group_id: txGroupId,
+          description: `15% monthly reward (payment #${paymentNumber}) on rent facilitation of UGX ${Number(rr.rent_amount).toLocaleString()}`,
+          linked_party: 'platform',
+          status: 'pending',
+        });
 
-        if (walletData) {
-          const newBalance = (walletData.balance || 0) + roiAmount;
-          await supabase
-            .from('wallets')
-            .update({ balance: newBalance, updated_at: now.toISOString() })
-            .eq('user_id', payment.supporter_id);
-        }
-
-        // Calculate next ROI due date (30 days from current due date)
+        // Update rent request ROI tracking
         const nextDueDate = new Date(dueDate);
         nextDueDate.setDate(nextDueDate.getDate() + 30);
 
-        // Update payment proof with new tracking info
         await supabase
-          .from('landlord_payment_proofs')
+          .from('rent_requests')
           .update({
-            last_roi_payment_at: now.toISOString(),
             next_roi_due_date: nextDueDate.toISOString(),
-            total_roi_paid: (payment.total_roi_paid || 0) + roiAmount,
+            total_roi_paid: (rr.total_roi_paid || 0) + roiAmount,
             roi_payments_count: paymentNumber,
           })
-          .eq('id', payment.id);
+          .eq('id', rr.id);
 
-        // Send notification to supporter
-        const supporterName = payment.supporter?.full_name || 'Supporter';
+        // Notify supporter
         await supabase.from('notifications').insert({
-          user_id: payment.supporter_id,
-          title: '💰 Monthly ROI Credited!',
-          message: `Your monthly ROI of UGX ${roiAmount.toLocaleString()} has been credited to your wallet. This is payment #${paymentNumber} from your rent facilitation of UGX ${payment.amount.toLocaleString()}.`,
+          user_id: rr.supporter_id,
+          title: '💰 Monthly Reward Credited!',
+          message: `Your 15% monthly reward of UGX ${roiAmount.toLocaleString()} (payment #${paymentNumber}) is pending manager approval.`,
           type: 'earning',
           metadata: {
-            payment_proof_id: payment.id,
+            rent_request_id: rr.id,
             roi_amount: roiAmount,
             payment_number: paymentNumber,
-            total_roi_paid: (payment.total_roi_paid || 0) + roiAmount,
           },
         });
 
         results.credited++;
         results.totalAmount += roiAmount;
 
-        console.log(`Credited ${roiAmount} to supporter ${payment.supporter_id} (payment #${paymentNumber})`);
-      } catch (paymentError: any) {
-        console.error(`Error processing payment ${payment.id}:`, paymentError);
-        results.errors.push(`Payment ${payment.id}: ${paymentError.message}`);
+        console.log(`[process-supporter-roi] Queued ${roiAmount} for supporter ${rr.supporter_id} (payment #${paymentNumber})`);
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        console.error(`[process-supporter-roi] Error on ${rr.id}:`, msg);
+        results.errors.push(`${rr.id}: ${msg}`);
       }
     }
 
-    console.log(`Processing complete: ${results.credited} payments credited, total: ${results.totalAmount}`);
+    console.log(`[process-supporter-roi] Done: ${results.credited} credited, total: ${results.totalAmount}`);
 
     return new Response(
       JSON.stringify({
         success: true,
-        message: `Processed ${results.processed} payments, credited ${results.credited}`,
+        message: `Processed ${results.processed}, credited ${results.credited}, skipped ${results.skipped} (not yet due)`,
         results,
       }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 200,
-      }
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
     );
-  } catch (error: any) {
-    console.error('ROI processing error:', error);
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : 'Unknown error';
+    console.error('[process-supporter-roi] Fatal:', msg);
     return new Response(
-      JSON.stringify({ success: false, error: error.message }),
-      {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-        status: 500,
-      }
+      JSON.stringify({ success: false, error: msg }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

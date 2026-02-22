@@ -1500,6 +1500,7 @@ export type Database = {
           manager_verified: boolean | null
           manager_verified_at: string | null
           manager_verified_by: string | null
+          next_roi_due_date: string | null
           number_of_payments: number | null
           rejected_reason: string | null
           rent_amount: number
@@ -1508,6 +1509,7 @@ export type Database = {
           request_fee: number
           request_latitude: number | null
           request_longitude: number | null
+          roi_payments_count: number | null
           schedule_status: string | null
           status: string | null
           supporter_id: string | null
@@ -1515,6 +1517,7 @@ export type Database = {
           tenant_id: string
           tenant_water_meter: string | null
           total_repayment: number
+          total_roi_paid: number | null
           updated_at: string
         }
         Insert: {
@@ -1543,6 +1546,7 @@ export type Database = {
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
+          next_roi_due_date?: string | null
           number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount: number
@@ -1551,6 +1555,7 @@ export type Database = {
           request_fee: number
           request_latitude?: number | null
           request_longitude?: number | null
+          roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
@@ -1558,6 +1563,7 @@ export type Database = {
           tenant_id: string
           tenant_water_meter?: string | null
           total_repayment: number
+          total_roi_paid?: number | null
           updated_at?: string
         }
         Update: {
@@ -1586,6 +1592,7 @@ export type Database = {
           manager_verified?: boolean | null
           manager_verified_at?: string | null
           manager_verified_by?: string | null
+          next_roi_due_date?: string | null
           number_of_payments?: number | null
           rejected_reason?: string | null
           rent_amount?: number
@@ -1594,6 +1601,7 @@ export type Database = {
           request_fee?: number
           request_latitude?: number | null
           request_longitude?: number | null
+          roi_payments_count?: number | null
           schedule_status?: string | null
           status?: string | null
           supporter_id?: string | null
@@ -1601,6 +1609,7 @@ export type Database = {
           tenant_id?: string
           tenant_water_meter?: string | null
           total_repayment?: number
+          total_roi_paid?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -1932,6 +1941,53 @@ export type Database = {
           referrer_id?: string
         }
         Relationships: []
+      }
+      supporter_roi_payments: {
+        Row: {
+          created_at: string
+          due_date: string
+          id: string
+          paid_at: string | null
+          payment_number: number
+          rent_amount: number
+          rent_request_id: string
+          roi_amount: number
+          status: string
+          supporter_id: string
+        }
+        Insert: {
+          created_at?: string
+          due_date: string
+          id?: string
+          paid_at?: string | null
+          payment_number?: number
+          rent_amount: number
+          rent_request_id: string
+          roi_amount: number
+          status?: string
+          supporter_id: string
+        }
+        Update: {
+          created_at?: string
+          due_date?: string
+          id?: string
+          paid_at?: string | null
+          payment_number?: number
+          rent_amount?: number
+          rent_request_id?: string
+          roi_amount?: number
+          status?: string
+          supporter_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "supporter_roi_payments_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       system_events: {
         Row: {
