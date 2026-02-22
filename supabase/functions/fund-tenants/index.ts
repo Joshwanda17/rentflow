@@ -190,8 +190,8 @@ Deno.serve(async (req) => {
         })
         .eq("id", rr.id);
 
-      // Record ledger entries (double-entry)
-      await adminClient.from("general_ledger").insert([
+      // Queue ledger entries for manager approval (double-entry)
+      await adminClient.from("pending_wallet_operations").insert([
         {
           user_id: user.id,
           amount: fundAmount,
@@ -202,6 +202,7 @@ Deno.serve(async (req) => {
           transaction_group_id: txGroupId,
           description: `Funded rent for tenant - ${landlordRecord?.name || "landlord"}`,
           linked_party: rr.tenant_id,
+          status: "pending",
         },
         {
           user_id: landlordUserId || null,
@@ -213,6 +214,7 @@ Deno.serve(async (req) => {
           transaction_group_id: txGroupId,
           description: `Rent payment from supporter`,
           linked_party: user.id,
+          status: "pending",
         },
       ]);
 
