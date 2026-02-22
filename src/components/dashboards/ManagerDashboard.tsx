@@ -41,7 +41,7 @@ import { useProfile } from '@/hooks/useProfile';
 import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
-import { DailyReportMetrics } from '@/components/manager/DailyReportMetrics';
+// DailyReportMetrics moved to menu — not part of wallet balance management
 import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 import { PendingInvestmentRequestsWidget } from '@/components/manager/PendingInvestmentRequestsWidget';
@@ -910,9 +910,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           </motion.button>
 
           <h2 className="text-xl font-black">💰 Manage User Wallets</h2>
-
-          {/* Daily Report Metrics */}
-          <DailyReportMetrics />
+          <p className="text-xs text-muted-foreground -mt-1">Cash in/out approvals, balances & withdrawals</p>
 
           {/* Pending Wallet Approvals */}
           <PendingWalletOperationsWidget />
