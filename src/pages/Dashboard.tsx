@@ -5,7 +5,7 @@ import AddRoleDialog from '@/components/AddRoleDialog';
 // FloatingChatButton removed — chat accessible only via nav
 
 
-import { Loader2, WifiOff, RefreshCw } from 'lucide-react';
+import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
@@ -64,8 +64,27 @@ function DashboardContent() {
   const [cachedRoles, setCachedRoles] = useState<AppRole[]>(preloadedRoles || []);
   const [showCachedUI, setShowCachedUI] = useState(!!preloadedRoles?.length);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [isFrozen, setIsFrozen] = useState(false);
+  const [frozenReason, setFrozenReason] = useState('');
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
+
+  // Check if account is frozen
+  useEffect(() => {
+    if (!user) return;
+    const checkFrozen = async () => {
+      const { data } = await supabase
+        .from('profiles')
+        .select('is_frozen, frozen_reason')
+        .eq('id', user.id)
+        .single();
+      if (data?.is_frozen) {
+        setIsFrozen(true);
+        setFrozenReason(data.frozen_reason || 'Your account has been frozen for violating platform policies.');
+      }
+    };
+    checkFrozen();
+  }, [user]);
   
 
   // Monitor online status
@@ -149,6 +168,46 @@ function DashboardContent() {
   
   const displayRole = role || (showCachedUI && cachedRoles.length > 0 ? getDefaultRole(cachedRoles) : null);
   const displayRoles = roles.length > 0 ? roles : cachedRoles;
+
+  // 🚫 FROZEN ACCOUNT - Block all access
+  if (isFrozen) {
+    return (
+      <div className="min-h-screen bg-background flex flex-col items-center justify-center p-6">
+        <div className="max-w-md w-full space-y-6 text-center">
+          <div className="w-20 h-20 rounded-full bg-destructive/20 flex items-center justify-center mx-auto">
+            <ShieldAlert className="h-10 w-10 text-destructive" />
+          </div>
+          <div className="bg-destructive/10 border-2 border-destructive rounded-xl p-6 space-y-3">
+            <h1 className="text-xl font-bold text-destructive">🚫 Account Frozen</h1>
+            <p className="text-destructive font-medium text-sm leading-relaxed">
+              {frozenReason}
+            </p>
+          </div>
+          <div className="bg-destructive/5 border border-destructive/30 rounded-lg p-4 space-y-2">
+            <p className="text-sm font-semibold text-destructive">⚠️ All transactions are blocked</p>
+            <p className="text-xs text-muted-foreground">
+              Deposits, withdrawals, transfers, and all other operations have been suspended pending investigation.
+            </p>
+          </div>
+          <div className="bg-card border rounded-lg p-4 space-y-2">
+            <p className="text-sm font-medium">Need help? Contact Support</p>
+            <a href="tel:+256749327434" className="block text-lg font-bold text-primary underline">
+              📞 0749 327 434
+            </a>
+            <p className="text-xs text-muted-foreground">
+              Available Mon–Sat, 8:00 AM – 6:00 PM EAT
+            </p>
+          </div>
+          <button
+            onClick={() => signOut()}
+            className="text-xs text-muted-foreground underline hover:text-foreground"
+          >
+            Sign out
+          </button>
+        </div>
+      </div>
+    );
+  }
 
 // Allow dashboards to render with cached data when offline
   // Only show offline fallback if we have no cached roles at all
