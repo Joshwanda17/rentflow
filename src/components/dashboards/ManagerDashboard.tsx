@@ -64,6 +64,7 @@ import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidge
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
+import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
 
 interface ManagerDashboardProps {
   user: User;
@@ -1068,6 +1069,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
           {/* Supporter ROI Processing — 15% monthly rewards */}
           <SupporterROITrigger />
+
+          {/* Auto-Charge Subscription Monitor */}
+          <SubscriptionMonitorWidget />
 
           {/* Quick nav to full rent requests manager */}
           <motion.button

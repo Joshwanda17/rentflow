@@ -1956,6 +1956,124 @@ export type Database = {
           },
         ]
       }
+      subscription_charge_logs: {
+        Row: {
+          amount_deducted: number
+          charge_amount: number
+          charge_date: string
+          created_at: string
+          debt_added: number
+          id: string
+          status: string
+          subscription_id: string
+          tenant_id: string
+          wallet_balance_after: number | null
+          wallet_balance_before: number | null
+        }
+        Insert: {
+          amount_deducted?: number
+          charge_amount: number
+          charge_date?: string
+          created_at?: string
+          debt_added?: number
+          id?: string
+          status: string
+          subscription_id: string
+          tenant_id: string
+          wallet_balance_after?: number | null
+          wallet_balance_before?: number | null
+        }
+        Update: {
+          amount_deducted?: number
+          charge_amount?: number
+          charge_date?: string
+          created_at?: string
+          debt_added?: number
+          id?: string
+          status?: string
+          subscription_id?: string
+          tenant_id?: string
+          wallet_balance_after?: number | null
+          wallet_balance_before?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_charge_logs_subscription_id_fkey"
+            columns: ["subscription_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_charges"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscription_charges: {
+        Row: {
+          accumulated_debt: number
+          charge_amount: number
+          charges_completed: number
+          charges_remaining: number
+          created_at: string
+          end_date: string | null
+          frequency: string
+          id: string
+          next_charge_date: string
+          rent_request_id: string | null
+          service_type: string
+          start_date: string
+          status: string
+          tenant_id: string
+          total_charged: number
+          total_charges_due: number
+          updated_at: string
+        }
+        Insert: {
+          accumulated_debt?: number
+          charge_amount: number
+          charges_completed?: number
+          charges_remaining?: number
+          created_at?: string
+          end_date?: string | null
+          frequency: string
+          id?: string
+          next_charge_date: string
+          rent_request_id?: string | null
+          service_type?: string
+          start_date?: string
+          status?: string
+          tenant_id: string
+          total_charged?: number
+          total_charges_due?: number
+          updated_at?: string
+        }
+        Update: {
+          accumulated_debt?: number
+          charge_amount?: number
+          charges_completed?: number
+          charges_remaining?: number
+          created_at?: string
+          end_date?: string | null
+          frequency?: string
+          id?: string
+          next_charge_date?: string
+          rent_request_id?: string | null
+          service_type?: string
+          start_date?: string
+          status?: string
+          tenant_id?: string
+          total_charged?: number
+          total_charges_due?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscription_charges_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       supporter_agreement_acceptance: {
         Row: {
           accepted_at: string

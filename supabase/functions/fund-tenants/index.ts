@@ -190,6 +190,67 @@ Deno.serve(async (req) => {
         })
         .eq("id", rr.id);
 
+      // Create auto-charge subscription for tenant wallet
+      const totalRepayment = Number(rr.total_repayment) || fundAmount;
+      const durationDays = rr.duration_days || 30;
+      let frequency: string;
+      let chargeAmount: number;
+      let totalCharges: number;
+
+      if (durationDays <= 30 && rr.daily_repayment > 0) {
+        // Daily earner
+        frequency = "daily";
+        chargeAmount = Math.round(Number(rr.daily_repayment));
+        totalCharges = durationDays;
+      } else if (durationDays <= 21) {
+        // Weekly earner
+        frequency = "weekly";
+        totalCharges = Math.ceil(durationDays / 7);
+        chargeAmount = Math.round(totalRepayment / totalCharges);
+      } else {
+        // Monthly earner
+        frequency = "monthly";
+        totalCharges = Math.ceil(durationDays / 30);
+        chargeAmount = Math.round(totalRepayment / totalCharges);
+      }
+
+      const startDate = new Date();
+      const nextChargeDate = new Date(startDate);
+      if (frequency === "daily") nextChargeDate.setDate(nextChargeDate.getDate() + 1);
+      else if (frequency === "weekly") nextChargeDate.setDate(nextChargeDate.getDate() + 7);
+      else nextChargeDate.setMonth(nextChargeDate.getMonth() + 1);
+
+      const endDate = new Date(startDate);
+      endDate.setDate(endDate.getDate() + durationDays);
+
+      await adminClient.from("subscription_charges").insert({
+        tenant_id: rr.tenant_id,
+        rent_request_id: rr.id,
+        service_type: "rent_facilitation",
+        charge_amount: chargeAmount,
+        frequency,
+        next_charge_date: nextChargeDate.toISOString().split("T")[0],
+        start_date: startDate.toISOString().split("T")[0],
+        end_date: endDate.toISOString().split("T")[0],
+        total_charges_due: totalRepayment,
+        charges_remaining: totalCharges,
+        status: "active",
+      });
+
+      // Notify tenant about auto-charge schedule
+      await adminClient.from("notifications").insert({
+        user_id: rr.tenant_id,
+        title: "📅 Repayment Schedule Active",
+        message: `Your wallet will be auto-charged UGX ${chargeAmount.toLocaleString()} ${frequency} starting ${nextChargeDate.toLocaleDateString()}. Total: UGX ${totalRepayment.toLocaleString()} over ${totalCharges} payments.`,
+        type: "info",
+        metadata: {
+          rent_request_id: rr.id,
+          frequency,
+          charge_amount: chargeAmount,
+          total_charges: totalCharges,
+        },
+      });
+
       // Queue ledger entries for manager approval (double-entry)
       await adminClient.from("pending_wallet_operations").insert([
         {
