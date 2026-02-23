@@ -98,6 +98,14 @@ export function AgentMenuDrawer({
     {
       title: 'Agent Actions',
       items: [
+        ...(onViewTenants ? [{ 
+          icon: Users, 
+          label: 'My Tenants', 
+          description: 'Tap a tenant to see repayment schedule',
+          onClick: onViewTenants,
+          color: 'text-primary',
+          badge: 'Priority'
+        } as MenuItem] : []),
         { 
           icon: UserPlus, 
           label: 'Register New User', 
@@ -255,13 +263,6 @@ export function AgentMenuDrawer({
     {
       title: 'Management',
       items: [
-        ...(onViewTenants ? [{ 
-          icon: Users, 
-          label: 'My Tenants', 
-          description: 'View all registered tenants',
-          onClick: onViewTenants,
-          color: 'text-primary'
-        } as MenuItem] : []),
         { 
           icon: BarChart3, 
           label: 'Agent Analytics', 
