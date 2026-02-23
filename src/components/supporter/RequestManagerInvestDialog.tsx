@@ -22,7 +22,11 @@ interface RequestManagerInvestDialogProps {
 
 const MERCHANT_CODES = {
   mtn: { name: 'MTN MoMo', code: '123456', color: 'bg-yellow-500' },
-  airtel: { name: 'Airtel Money', code: '789012', color: 'bg-red-500' }
+  airtel: { name: 'Airtel Money', code: '789012', color: 'bg-red-500' },
+  mpesa: { name: 'M-Pesa', code: '345678', color: 'bg-green-500' },
+  orange: { name: 'Orange Money', code: '456789', color: 'bg-orange-500' },
+  wave: { name: 'Wave', code: '567890', color: 'bg-blue-500' },
+  ecocash: { name: 'EcoCash', code: '678901', color: 'bg-emerald-500' },
 };
 
 export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestManagerInvestDialogProps>(({ 
