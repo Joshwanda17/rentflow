@@ -6,6 +6,7 @@ import { Download, Share2, Copy, CheckCircle2, XCircle, AlertTriangle, RotateCcw
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
 
 interface ReceiptCardProps {
   status: TransactionStatus;
@@ -124,16 +125,39 @@ export default function ReceiptCard({
 
         {/* Success actions */}
         {isSuccess && (
-          <div className="grid grid-cols-2 gap-2 pt-2">
-            <Button onClick={onDownload} variant="outline" className="gap-2">
-              <Download className="w-4 h-4" />
-              Download
+          <>
+            <div className="grid grid-cols-2 gap-2 pt-2">
+              <Button onClick={onDownload} variant="outline" className="gap-2">
+                <Download className="w-4 h-4" />
+                Download
+              </Button>
+              <Button onClick={onShare} variant="outline" className="gap-2">
+                <Share2 className="w-4 h-4" />
+                Share
+              </Button>
+            </div>
+            <Button
+              onClick={() => {
+                const text = buildReceiptText({
+                  type: 'payment',
+                  amount: finalTotal,
+                  currency,
+                  recipientOrSender: recipient,
+                  reference,
+                  date: format(date, 'MMM d, yyyy HH:mm'),
+                  method,
+                  status: 'Successful',
+                });
+                shareViaWhatsApp(text);
+                toast.success('Opening WhatsApp...');
+              }}
+              variant="outline"
+              className="w-full gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+            >
+              <MessageCircle className="w-4 h-4" />
+              Share on WhatsApp
             </Button>
-            <Button onClick={onShare} variant="outline" className="gap-2">
-              <Share2 className="w-4 h-4" />
-              Share
-            </Button>
-          </div>
+          </>
         )}
 
         {/* Failed actions */}

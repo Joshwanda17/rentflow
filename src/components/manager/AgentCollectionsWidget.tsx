@@ -1,11 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Loader2, Receipt, ChevronDown, ChevronUp, Users, Phone } from 'lucide-react';
+
+import { Loader2, Receipt, ChevronDown, ChevronUp, Users, Phone, MessageCircle } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
+import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
 
 const formatUGX = (value: number) =>
   new Intl.NumberFormat('en-UG', { style: 'currency', currency: 'UGX', minimumFractionDigits: 0 }).format(value);
@@ -188,7 +189,30 @@ export function AgentCollectionsWidget() {
                             )}
                           </div>
                         </div>
-                        <p className="font-bold text-sm text-foreground shrink-0 ml-2">{formatUGX(p.amount)}</p>
+                        <div className="flex items-center gap-1 shrink-0 ml-2">
+                          <p className="font-bold text-sm text-foreground">{formatUGX(p.amount)}</p>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              const text = buildReceiptText({
+                                type: 'collection',
+                                amount: p.amount,
+                                agentName: p.agent_name,
+                                tenantPhone: p.tenant_phone,
+                                merchantName: p.merchant_name,
+                                transactionId: p.transaction_id,
+                                date: format(new Date(p.created_at), 'MMM d, yyyy h:mm a'),
+                                description: p.notes || undefined,
+                              });
+                              shareViaWhatsApp(text);
+                              toast.success('Opening WhatsApp...');
+                            }}
+                            className="p-1 rounded-md hover:bg-emerald-500/10 text-emerald-600 transition-colors"
+                            title="Share on WhatsApp"
+                          >
+                            <MessageCircle className="h-3.5 w-3.5" />
+                          </button>
+                        </div>
                       </div>
                     </div>
                   ))}
