@@ -27,6 +27,7 @@ interface DepositRequest {
   created_at: string;
   user_name?: string;
   user_phone?: string;
+  notes?: string;
 }
 
 export function PendingDepositsSection() {
@@ -211,7 +212,7 @@ export function PendingDepositsSection() {
                         </div>
                         <div>
                           <p className="font-medium">{deposit.user_name}</p>
-                          <p className="text-sm text-muted-foreground">{deposit.user_phone}</p>
+                         <p className="text-sm text-muted-foreground">{deposit.user_phone}</p>
                         </div>
                       </div>
                       <div className="text-right">
@@ -223,6 +224,11 @@ export function PendingDepositsSection() {
                         </p>
                       </div>
                     </div>
+                    {deposit.notes && (
+                      <p className="text-xs text-muted-foreground mb-3 bg-muted/50 p-2 rounded italic">
+                        Reason: {deposit.notes}
+                      </p>
+                    )}
                     <div className="flex gap-2">
                       <Button
                         size="sm"

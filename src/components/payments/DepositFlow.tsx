@@ -35,6 +35,7 @@ export default function DepositFlow({
   const [transactionId, setTransactionId] = useState('');
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
+  const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const formatCurrency = (value: number) => {
@@ -60,6 +61,10 @@ export default function DepositFlow({
     }
     if (!transactionTime) {
       toast.error('Please enter the transaction time');
+      return false;
+    }
+    if (!reason.trim()) {
+      toast.error('Please enter the reason for this deposit');
       return false;
     }
 
@@ -124,7 +129,7 @@ export default function DepositFlow({
           provider: provider,
           transaction_id: normalizedTxId,
           transaction_date: txDateTime.toISOString(),
-          notes: `${provider.toUpperCase()} deposit - TX: ${normalizedTxId}`,
+          notes: reason.trim(),
         } as any);
 
       if (depositError) throw depositError;
@@ -177,6 +182,7 @@ export default function DepositFlow({
     setTransactionId('');
     setTransactionDate('');
     setTransactionTime('');
+    setReason('');
     onOpenChange(false);
   };
 
@@ -363,6 +369,22 @@ export default function DepositFlow({
                   onChange={(e) => setTransactionTime(e.target.value)}
                 />
               </div>
+            </div>
+
+            {/* Reason / Narration */}
+            <div className="space-y-2">
+              <Label htmlFor="reason" className="flex items-center gap-2">
+                <AlertCircle className="h-4 w-4" />
+                Reason / Narration *
+              </Label>
+              <Input
+                id="reason"
+                type="text"
+                placeholder="e.g. Rent repayment, Access fee, Wallet top-up"
+                value={reason}
+                onChange={(e) => setReason(e.target.value)}
+                required
+              />
             </div>
 
             {/* Warning */}

@@ -70,6 +70,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const [transactionId, setTransactionId] = useState('');
   const [transactionDate, setTransactionDate] = useState('');
   const [transactionTime, setTransactionTime] = useState('');
+  const [reason, setReason] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
@@ -112,6 +113,10 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     }
     if (!transactionTime) {
       toast.error('Please enter the transaction time');
+      return false;
+    }
+    if (!reason.trim()) {
+      toast.error('Please enter the reason for this deposit');
       return false;
     }
 
@@ -160,9 +165,20 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
         return;
       }
 
-      // manager_recorded_transactions table removed - no auto-verify
+      // Create deposit request
+      const { error: depositError } = await supabase
+        .from('deposit_requests')
+        .insert({
+          user_id: user.id,
+          amount: parseFloat(amount),
+          status: 'pending',
+          provider: provider,
+          transaction_id: normalizedTxId,
+          transaction_date: txDateTime.toISOString(),
+          notes: reason.trim(),
+        } as any);
 
-      // Notification removed - table dropped
+      if (depositError) throw depositError;
 
       toast.success('Deposit request submitted for verification');
 
@@ -182,6 +198,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       setTransactionId('');
       setTransactionDate('');
       setTransactionTime('');
+      setReason('');
       setSuccess(false);
     }
     onOpenChange(value);
@@ -452,6 +469,23 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                       required
                     />
                   </div>
+                </motion.div>
+
+                {/* Reason / Narration */}
+                <motion.div variants={itemVariants} className="space-y-2">
+                  <Label htmlFor="deposit-reason" className="flex items-center gap-2">
+                    <AlertCircle className="h-3.5 w-3.5 text-muted-foreground" />
+                    Reason / Narration *
+                  </Label>
+                  <Input
+                    id="deposit-reason"
+                    type="text"
+                    placeholder="e.g. Rent repayment, Access fee, Wallet top-up"
+                    value={reason}
+                    onChange={(e) => setReason(e.target.value)}
+                    className="bg-background/50 border-border/50 focus:border-primary/50"
+                    required
+                  />
                 </motion.div>
 
                 {/* Warning */}

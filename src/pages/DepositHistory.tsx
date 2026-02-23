@@ -155,6 +155,13 @@ export default function DepositHistory() {
                 </div>
               </CardHeader>
               <CardContent className="space-y-3">
+                {deposit.notes && (
+                  <div className="flex items-start gap-2 text-sm">
+                    <span className="text-muted-foreground">Reason:</span>
+                    <span className="font-medium">{deposit.notes}</span>
+                  </div>
+                )}
+
                 {deposit.transaction_id && (
                   <div className="flex items-center gap-2 text-sm">
                     <Hash className="h-4 w-4 text-muted-foreground" />
