@@ -45,6 +45,7 @@ interface AgentMenuDrawerProps {
   onViewManagedProperties?: () => void;
   onViewMyRentRequests?: () => void;
   onTopUpTenant?: () => void;
+  onViewTenants?: () => void;
 }
 
 interface MenuSection {
@@ -74,6 +75,7 @@ export function AgentMenuDrawer({
   onViewManagedProperties,
   onViewMyRentRequests,
   onTopUpTenant,
+  onViewTenants,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -253,6 +255,13 @@ export function AgentMenuDrawer({
     {
       title: 'Management',
       items: [
+        ...(onViewTenants ? [{ 
+          icon: Users, 
+          label: 'My Tenants', 
+          description: 'View all registered tenants',
+          onClick: onViewTenants,
+          color: 'text-primary'
+        } as MenuItem] : []),
         { 
           icon: BarChart3, 
           label: 'Agent Analytics', 

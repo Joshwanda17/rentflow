@@ -42,6 +42,7 @@ import { AgentLandlordPayoutDialog } from '@/components/agent/AgentLandlordPayou
 import { VerificationOpportunitiesButton } from '@/components/agent/VerificationOpportunitiesButton';
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
+import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -88,6 +89,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
   
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
+  const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -254,6 +256,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
         onTopUpTenant={() => { setMenuOpen(false); setTopUpTenantOpen(true); }}
+        onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -300,6 +303,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       {/* Agent's own rent requests */}
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
       
+      {/* My Tenants */}
+      <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
       
       {/* Top Up Tenant Wallet */}
       <AgentTopUpTenantDialog
