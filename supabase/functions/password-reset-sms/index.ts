@@ -107,6 +107,39 @@ Deno.serve(async (req) => {
     const phoneKey = phone.slice(-9);
     const phoneFormats = [`0${phoneKey}`, `256${phoneKey}`];
 
+    // Admin-only direct password reset (no OTP needed)
+    if (action === "admin_reset") {
+      const userId = (body.user_id as string || "").trim();
+      const newPassword = (body.new_password as string || "").trim();
+      const authHeader = req.headers.get("authorization") || "";
+
+      if (!userId || !newPassword || newPassword.length < 6) {
+        return new Response(JSON.stringify({ error: "user_id and new_password (min 6 chars) required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      // Verify caller is a manager
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: updateError } = await adminClient.auth.admin.updateUserById(userId, { password: newPassword });
+      if (updateError) {
+        console.error("[password-reset-sms] Admin reset error:", updateError);
+        return new Response(JSON.stringify({ error: "Failed to reset password" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`[password-reset-sms] Admin password reset for user ${userId}`);
+      return new Response(JSON.stringify({ success: true, message: "Password reset successfully" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "send") {
       if (!checkRateLimit(phoneKey)) {
         return new Response(JSON.stringify({ error: "Too many reset requests. Please try again later." }), {
