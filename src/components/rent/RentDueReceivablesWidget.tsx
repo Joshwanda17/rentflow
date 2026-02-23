@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
   Clock, Home, MapPin, Loader2, User, Pencil,
   TrendingUp, Calendar, ChevronDown, ChevronUp,
-  CalendarDays
+  CalendarDays, Receipt
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { addDays, format } from 'date-fns';
@@ -236,6 +236,8 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const [loading, setLoading] = useState(true);
   const [editingRequest, setEditingRequest] = useState<ApprovedRequest | null>(null);
   const [editOpen, setEditOpen] = useState(false);
+  const [fieldCollections, setFieldCollections] = useState(0);
+  const [fieldCollectionCount, setFieldCollectionCount] = useState(0);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
@@ -272,6 +274,20 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
       }));
 
       setRequests(enriched);
+
+      // Fetch field collections (tenant_merchant_payments)
+      let fieldQuery = supabase
+        .from('tenant_merchant_payments')
+        .select('amount');
+      
+      if (mode === 'agent') {
+        fieldQuery = fieldQuery.eq('agent_id', user.id);
+      }
+
+      const { data: fieldPayments } = await fieldQuery;
+      const fieldTotal = (fieldPayments || []).reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+      setFieldCollections(fieldTotal);
+      setFieldCollectionCount((fieldPayments || []).length);
 
       // Notify parent of total REMAINING receivable (not yet repaid)
       const total = enriched.reduce((sum: number, r: any) => sum + Math.max(0, (r.total_repayment || 0) - (r.amount_repaid || 0)), 0);
@@ -376,6 +392,29 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                   </div>
                 </div>
 
+                {/* SECTION: Agent Field Collections */}
+                {fieldCollections > 0 && (
+                  <div className="space-y-2">
+                    <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider border-b border-emerald-500/20 pb-1 flex items-center gap-1">
+                      <Receipt className="h-3 w-3" />
+                      Agent Field Collections
+                    </p>
+                    <div className="space-y-1.5 pl-1">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-muted-foreground">Payments Recorded</span>
+                        <span className="font-mono font-medium">{fieldCollectionCount} payments</span>
+                      </div>
+                      <div className="flex justify-between text-sm font-semibold">
+                        <span className="text-emerald-600">Total Field Collections</span>
+                        <span className="font-mono text-emerald-600">{formatUGX(fieldCollections)}</span>
+                      </div>
+                    </div>
+                    <p className="text-[9px] text-muted-foreground italic">
+                      Off-ledger cash collected by agents via "Record Payment" — not yet reconciled with receivables
+                    </p>
+                  </div>
+                )}
+
                 {/* SECTION: Expected Collections */}
                 <div className="space-y-2">
                   <p className="text-[10px] font-semibold text-primary uppercase tracking-wider border-b border-primary/20 pb-1">
@@ -404,8 +443,20 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                     <span className="font-mono text-sm text-muted-foreground">{formatUGX(totalGross)}</span>
                   </div>
                   <div className="flex justify-between items-center">
-                    <span className="text-base font-bold text-success">Outstanding Balance</span>
-                    <span className={`font-mono text-lg font-extrabold ${totalReceivable > 0 ? 'text-warning' : 'text-success'}`}>{formatUGX(totalReceivable)}</span>
+                    <span className="text-sm font-medium text-muted-foreground">Wallet Collections</span>
+                    <span className="font-mono text-sm text-success">-{formatUGX(totalCollected)}</span>
+                  </div>
+                  {fieldCollections > 0 && (
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm font-medium text-muted-foreground">Field Collections (off-ledger)</span>
+                      <span className="font-mono text-sm text-emerald-600">-{formatUGX(fieldCollections)}</span>
+                    </div>
+                  )}
+                  <div className="flex justify-between items-center pt-1 border-t border-success/20">
+                    <span className="text-base font-bold text-success">Net Outstanding</span>
+                    <span className={`font-mono text-lg font-extrabold ${(totalReceivable - fieldCollections) > 0 ? 'text-warning' : 'text-success'}`}>
+                      {formatUGX(Math.max(0, totalReceivable - fieldCollections))}
+                    </span>
                   </div>
                 </div>
               </div>
