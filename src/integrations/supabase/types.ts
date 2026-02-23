@@ -2009,6 +2009,9 @@ export type Database = {
       subscription_charges: {
         Row: {
           accumulated_debt: number
+          agent_charge_count: number
+          agent_charged_amount: number
+          agent_id: string | null
           charge_amount: number
           charges_completed: number
           charges_remaining: number
@@ -2028,6 +2031,9 @@ export type Database = {
         }
         Insert: {
           accumulated_debt?: number
+          agent_charge_count?: number
+          agent_charged_amount?: number
+          agent_id?: string | null
           charge_amount: number
           charges_completed?: number
           charges_remaining?: number
@@ -2047,6 +2053,9 @@ export type Database = {
         }
         Update: {
           accumulated_debt?: number
+          agent_charge_count?: number
+          agent_charged_amount?: number
+          agent_id?: string | null
           charge_amount?: number
           charges_completed?: number
           charges_remaining?: number

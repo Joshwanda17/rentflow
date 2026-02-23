@@ -226,6 +226,7 @@ Deno.serve(async (req) => {
       await adminClient.from("subscription_charges").insert({
         tenant_id: rr.tenant_id,
         rent_request_id: rr.id,
+        agent_id: rr.agent_id || null,
         service_type: "rent_facilitation",
         charge_amount: chargeAmount,
         frequency,

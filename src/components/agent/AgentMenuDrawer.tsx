@@ -27,6 +27,7 @@ import {
   PiggyBank,
   Building2,
   Calendar,
+  Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -43,6 +44,7 @@ interface AgentMenuDrawerProps {
   onManageProperty?: () => void;
   onViewManagedProperties?: () => void;
   onViewMyRentRequests?: () => void;
+  onTopUpTenant?: () => void;
 }
 
 interface MenuSection {
@@ -71,6 +73,7 @@ export function AgentMenuDrawer({
   onManageProperty,
   onViewManagedProperties,
   onViewMyRentRequests,
+  onTopUpTenant,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -107,6 +110,13 @@ export function AgentMenuDrawer({
           onClick: onDeposit,
           color: 'text-success'
         },
+        ...(onTopUpTenant ? [{ 
+          icon: Wallet, 
+          label: 'Top Up Tenant Wallet', 
+          description: 'Help tenant deposit to their wallet',
+          onClick: onTopUpTenant,
+          color: 'text-emerald-500'
+        } as MenuItem] : []),
         { 
           icon: FileText, 
           label: 'Post Rent Request', 
