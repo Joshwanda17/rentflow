@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -6,14 +6,41 @@ import { Button } from '@/components/ui/button';
 import {
   Clock, Home, MapPin, Loader2, User, Pencil,
   TrendingUp, Calendar, ChevronDown, ChevronUp,
-  CalendarDays, Receipt
+  CalendarDays, Receipt, FileDown, MessageCircle
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { addDays, format } from 'date-fns';
+import { addDays, format, subDays, startOfDay, endOfDay, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EditApprovedRentDialog } from './EditApprovedRentDialog';
 import { useAuth } from '@/hooks/useAuth';
+import { exportToPDF } from '@/lib/exportUtils';
+import { shareViaWhatsApp } from '@/lib/shareReceipt';
+import { toast } from 'sonner';
 
+type ReceivablePeriod = 'all' | 'today' | '7days' | '30days' | 'this_week' | 'this_month' | 'this_year';
+
+const PERIOD_OPTIONS: { value: ReceivablePeriod; label: string }[] = [
+  { value: 'all', label: 'All Time' },
+  { value: 'today', label: 'Today' },
+  { value: '7days', label: 'Last 7 Days' },
+  { value: 'this_week', label: 'This Week' },
+  { value: '30days', label: 'Last 30 Days' },
+  { value: 'this_month', label: 'This Month' },
+  { value: 'this_year', label: 'This Year' },
+];
+
+function getPeriodDateRange(period: ReceivablePeriod): { start: Date | null; end: Date } {
+  const now = new Date();
+  switch (period) {
+    case 'today': return { start: startOfDay(now), end: endOfDay(now) };
+    case '7days': return { start: startOfDay(subDays(now, 7)), end: endOfDay(now) };
+    case '30days': return { start: startOfDay(subDays(now, 30)), end: endOfDay(now) };
+    case 'this_week': return { start: startOfWeek(now, { weekStartsOn: 1 }), end: endOfDay(now) };
+    case 'this_month': return { start: startOfMonth(now), end: endOfDay(now) };
+    case 'this_year': return { start: startOfYear(now), end: endOfDay(now) };
+    default: return { start: null, end: endOfDay(now) };
+  }
+}
 interface ApprovedRequest {
   id: string;
   rent_amount: number;
@@ -238,16 +265,25 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const [editOpen, setEditOpen] = useState(false);
   const [fieldCollections, setFieldCollections] = useState(0);
   const [fieldCollectionCount, setFieldCollectionCount] = useState(0);
+  const [period, setPeriod] = useState<ReceivablePeriod>('all');
+  const [exporting, setExporting] = useState(false);
+  const statementRef = useRef<HTMLDivElement>(null);
 
   const fetchRequests = useCallback(async () => {
     if (!user) return;
 
+    const { start } = getPeriodDateRange(period);
+    
     let query = supabase
       .from('rent_requests')
       .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, amount_repaid, tenant_id, agent_id')
       .eq('status', 'approved')
       .order('approved_at', { ascending: false })
       .limit(50);
+
+    if (start) {
+      query = query.gte('approved_at', start.toISOString());
+    }
 
     if (mode === 'agent') {
       query = query.eq('agent_id', user.id);
@@ -294,7 +330,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
       onTotalChange?.(total);
     }
     setLoading(false);
-  }, [user, mode, onTotalChange]);
+  }, [user, mode, onTotalChange, period]);
 
   useEffect(() => { fetchRequests(); }, [fetchRequests]);
 
@@ -326,6 +362,61 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const totalPrincipal = requests.reduce((sum, r) => sum + (r.rent_amount || 0), 0);
   const totalAccessFees = requests.reduce((sum, r) => sum + (r.access_fee || 0), 0);
   const totalPlatformFees = requests.reduce((sum, r) => sum + (r.request_fee || 0), 0);
+  const netOutstanding = Math.max(0, totalReceivable - fieldCollections);
+  const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'All Time';
+
+  const buildWhatsAppText = () => {
+    const lines = [
+      `📊 *Welile Receivables Statement*`,
+      `━━━━━━━━━━━━━━━━`,
+      `📅 *Period:* ${periodLabel}`,
+      `📋 *Requests:* ${requests.length}`,
+      ``,
+      `💰 *Rent Receivables*`,
+      `  Principal: ${formatUGX(totalPrincipal)}`,
+      `  Access Fee: ${formatUGX(totalAccessFees)}`,
+      `  Platform Fee: ${formatUGX(totalPlatformFees)}`,
+      ``,
+      `📥 *Collections*`,
+      `  Wallet Collected: ${formatUGX(totalCollected)}`,
+    ];
+    if (fieldCollections > 0) {
+      lines.push(`  Field Collections: ${formatUGX(fieldCollections)}`);
+    }
+    lines.push(
+      ``,
+      `📊 *Expected Collections*`,
+      `  Daily: ${formatUGX(totalDaily)}`,
+      `  Weekly: ${formatUGX(totalWeekly)}`,
+      `  Monthly: ${formatUGX(totalMonthly)}`,
+      ``,
+      `━━━━━━━━━━━━━━━━`,
+      `💵 *Gross Receivable:* ${formatUGX(totalGross)}`,
+      `✅ *Total Collected:* ${formatUGX(totalCollected + fieldCollections)}`,
+      `⚠️ *Net Outstanding:* ${formatUGX(netOutstanding)}`,
+      `━━━━━━━━━━━━━━━━`,
+      `Generated: ${format(new Date(), 'dd MMM yyyy, HH:mm')}`,
+      `Powered by Welile`,
+    );
+    return lines.join('\n');
+  };
+
+  const handleShareWhatsApp = () => {
+    shareViaWhatsApp(buildWhatsAppText());
+  };
+
+  const handleExportPDF = async () => {
+    if (!statementRef.current) return;
+    setExporting(true);
+    try {
+      await exportToPDF(statementRef.current, 'receivables_statement', `Receivables Statement — ${periodLabel}`);
+      toast.success('PDF exported');
+    } catch {
+      toast.error('PDF export failed');
+    } finally {
+      setExporting(false);
+    }
+  };
 
   return (
     <motion.div
@@ -334,7 +425,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
       transition={{ duration: 0.3 }}
     >
       <Card className="border-2 border-success/60 overflow-hidden shadow-lg shadow-success/10">
-        <CardContent className="p-0">
+        <CardContent className="p-0" ref={statementRef}>
 
           {/* ── Statement Header ── */}
           <div className="flex items-center gap-3 px-4 py-3 bg-success/20 border-b border-success/30">
@@ -344,9 +435,50 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
             <div className="flex-1 min-w-0">
               <h3 className="font-bold text-base text-success">Receivables Statement</h3>
               <p className="text-[10px] text-success/70">
-                {requests.length} approved {requests.length === 1 ? 'request' : 'requests'} · {formatUGX(totalCollected)} collected
+                {periodLabel} · {requests.length} {requests.length === 1 ? 'request' : 'requests'} · {formatUGX(totalCollected)} collected
               </p>
             </div>
+          </div>
+
+          {/* ── Period Filter ── */}
+          <div className="px-4 py-2 bg-muted/30 border-b border-border/40 flex items-center gap-2 overflow-x-auto no-scrollbar">
+            {PERIOD_OPTIONS.map(opt => (
+              <button
+                key={opt.value}
+                onClick={() => setPeriod(opt.value)}
+                className={`whitespace-nowrap px-3 py-1.5 rounded-full text-[11px] font-semibold transition-all ${
+                  period === opt.value
+                    ? 'bg-success text-success-foreground shadow-sm'
+                    : 'bg-background border border-border/60 text-muted-foreground hover:bg-accent/30'
+                }`}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Action Buttons ── */}
+          <div className="px-4 py-2 border-b border-border/40 flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleExportPDF}
+              disabled={exporting || requests.length === 0}
+              className="gap-1.5 text-xs"
+            >
+              <FileDown className="h-3.5 w-3.5" />
+              {exporting ? 'Exporting…' : 'PDF'}
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handleShareWhatsApp}
+              disabled={requests.length === 0}
+              className="gap-1.5 text-xs text-success border-success/40 hover:bg-success/10"
+            >
+              <MessageCircle className="h-3.5 w-3.5" />
+              WhatsApp
+            </Button>
           </div>
 
           {requests.length === 0 ? (
