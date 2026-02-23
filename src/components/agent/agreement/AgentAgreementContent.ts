@@ -91,7 +91,36 @@ Violations may result in:
 • required evidence is submitted
 • platform validation and/or manager approval is completed
 
-6.3 Welile may revise commission rates from time to time based on:
+6.3 Commission Structure on Rent Repayments:
+
+A) Direct Agent Commission (5%)
+If YOU directly onboarded a tenant, you earn 5% commission on every rent repayment that tenant makes. This is your primary income stream — the more tenants you onboard, the more you earn continuously.
+
+B) Sub-Agent Commission (4%)
+If you are a Sub-Agent (recruited by another agent), you earn 4% commission on every rent repayment from tenants YOU onboarded. The remaining 1% goes to your recruiting (Super) Agent.
+
+C) Super Agent Override Commission (1%)
+If you recruit Sub-Agents, you earn 1% override commission on ALL rent repayments made by tenants onboarded by your Sub-Agents. This is PASSIVE INCOME — you earn without doing the field work yourself.
+
+Example: If your Sub-Agent onboards 50 tenants each paying UGX 300,000/month in rent repayments:
+• Your Sub-Agent earns: 4% × 300,000 × 50 = UGX 600,000/month
+• YOU earn as Super Agent: 1% × 300,000 × 50 = UGX 150,000/month (passive!)
+• With 10 Sub-Agents at this level = UGX 1,500,000/month passive income
+
+WHY RECRUIT SUB-AGENTS?
+✅ Earn 1% on every tenant your sub-agents bring — forever
+✅ Build a passive income stream that grows as your team grows
+✅ More sub-agents = more tenants = more recurring commissions
+✅ Team Leaders (2+ sub-agents) unlock cash advances from 300K to 30M UGX
+✅ 50 repaying tenants in your network earns you an Electric Bike
+
+6.4 Additional Onboarding Rewards:
+• UGX 500 per user registration
+• UGX 5,000 for tenant verification
+• UGX 5,000 for rent verification
+• Total onboarding cycle reward: UGX 10,500 per tenant
+
+6.5 Welile may revise commission rates from time to time based on:
 • platform policy updates
 • fraud risk
 • sustainability and market changes
