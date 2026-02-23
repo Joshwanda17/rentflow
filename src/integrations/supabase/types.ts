@@ -739,6 +739,24 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_account_groups: {
+        Row: {
+          description: string
+          group_code: string
+          group_id: string
+        }
+        Insert: {
+          description: string
+          group_code: string
+          group_id?: string
+        }
+        Update: {
+          description?: string
+          group_code?: string
+          group_id?: string
+        }
+        Relationships: []
+      }
       loan_applications: {
         Row: {
           amount: number
