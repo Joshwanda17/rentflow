@@ -253,7 +253,7 @@ export function PendingDepositsSection() {
       </Card>
 
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Deposit Request</AlertDialogTitle>
             <AlertDialogDescription>
@@ -268,9 +268,9 @@ export function PendingDepositsSection() {
               onChange={(e) => setRejectionReason(e.target.value)}
             />
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => setSelectedDeposit(null)}>
-              Cancel
+              ← Back
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}

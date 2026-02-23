@@ -1371,7 +1371,7 @@ export function WithdrawalRequestsManager() {
 
       {/* Rejection Dialog with Quick Reject Options */}
       <AlertDialog open={rejectDialogOpen} onOpenChange={setRejectDialogOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <XCircle className="h-5 w-5 text-destructive" />
@@ -1426,12 +1426,12 @@ export function WithdrawalRequestsManager() {
             </div>
           </div>
           
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => {
               setRejectionReason('');
               setSelectedRequest(null);
             }}>
-              Cancel
+              ← Back
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleReject}
@@ -1451,7 +1451,7 @@ export function WithdrawalRequestsManager() {
 
       {/* Batch Rejection Dialog */}
       <AlertDialog open={batchRejectDialogOpen} onOpenChange={setBatchRejectDialogOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <XCircle className="h-5 w-5 text-destructive" />
@@ -1534,14 +1534,14 @@ export function WithdrawalRequestsManager() {
             )}
           </div>
           
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel 
               onClick={() => {
                 setRejectionReason('');
               }}
               disabled={batchProcessing}
             >
-              Cancel
+              ← Back
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleBatchReject}
@@ -1561,7 +1561,7 @@ export function WithdrawalRequestsManager() {
 
       {/* Approval Dialog with Balance Confirmation + Transaction ID */}
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
-        <AlertDialogContent className="max-w-md">
+        <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success" />
@@ -1658,12 +1658,12 @@ export function WithdrawalRequestsManager() {
               </p>
             </div>
           </div>
-          <AlertDialogFooter>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
             <AlertDialogCancel onClick={() => {
               setTransactionId('');
               setSelectedRequest(null);
             }}>
-              Cancel
+              ← Back
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
