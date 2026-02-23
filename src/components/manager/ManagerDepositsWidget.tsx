@@ -336,7 +336,7 @@ export function ManagerDepositsWidget() {
 
       {/* Reject dialog */}
       <AlertDialog open={rejectDialog.open} onOpenChange={open => setRejectDialog({ open, deposit: open ? rejectDialog.deposit : null })}>
-        <AlertDialogContent>
+        <AlertDialogContent className="max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle>Reject Deposit</AlertDialogTitle>
             <AlertDialogDescription>
@@ -348,8 +348,8 @@ export function ManagerDepositsWidget() {
             value={rejectionReason}
             onChange={e => setRejectionReason(e.target.value)}
           />
-          <AlertDialogFooter>
-            <AlertDialogCancel>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-col-reverse sm:flex-row gap-2">
+            <AlertDialogCancel>← Back</AlertDialogCancel>
             <AlertDialogAction onClick={handleReject} className="bg-destructive hover:bg-destructive/90">
               Reject
             </AlertDialogAction>
