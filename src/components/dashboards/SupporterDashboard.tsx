@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useOffline } from '@/contexts/OfflineContext';
 import { Button } from '@/components/ui/button';
 import { 
-  CreditCard, Calculator, FileText, Menu, ChevronDown
+  CreditCard, Calculator, FileText, Menu, ChevronDown, BadgeCheck
 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
@@ -318,7 +318,20 @@ export default function SupporterDashboard({
               </button>
               <div>
                 <p className="text-sm text-muted-foreground font-medium">Welcome back 👋</p>
-                <h1 className="font-black text-xl leading-tight">{profile?.full_name?.split(' ')[0] || 'Supporter'}</h1>
+                <h1 className="font-black text-xl leading-tight flex items-center gap-1">
+                  {profile?.full_name?.split(' ')[0] || 'Supporter'}
+                  {profile?.verified ? (
+                    <span className="flex items-center gap-0.5">
+                      <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
+                      <span className="text-[9px] text-purple-500 font-medium">Verified</span>
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-0.5">
+                      <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
+                      <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
+                    </span>
+                  )}
+                </h1>
               </div>
             </div>
             <div className="flex items-center gap-2">
