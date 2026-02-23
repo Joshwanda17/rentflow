@@ -1443,9 +1443,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                       {/* Delete */}
                       <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
                         <AlertDialogTrigger asChild>
-                          <Button variant="destructive" className="w-full h-12">
-                            <Trash2 className="h-4 w-4 mr-2" />
-                            Delete User
+                          <Button variant="destructive" className="w-full h-14 text-base font-bold border-2 border-destructive shadow-lg animate-pulse hover:animate-none">
+                            <Trash2 className="h-5 w-5 mr-2" />
+                            🗑️ DELETE FAKE ACCOUNT
                           </Button>
                         </AlertDialogTrigger>
                         <AlertDialogContent>
@@ -1889,7 +1889,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                     </AlertDialog>
                     {isFrozen && <p className="text-xs text-destructive font-medium text-center">⚠️ This account is currently frozen</p>}
                     <AlertDialog open={deleteConfirmOpen} onOpenChange={setDeleteConfirmOpen}>
-                      <AlertDialogTrigger asChild><Button variant="destructive" className="w-full"><Trash2 className="h-4 w-4 mr-2" />Delete User</Button></AlertDialogTrigger>
+                      <AlertDialogTrigger asChild><Button variant="destructive" className="w-full h-14 text-base font-bold border-2 border-destructive shadow-lg animate-pulse hover:animate-none"><Trash2 className="h-5 w-5 mr-2" />🗑️ DELETE FAKE ACCOUNT</Button></AlertDialogTrigger>
                       <AlertDialogContent>
                         <AlertDialogHeader><AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle><AlertDialogDescription>This will permanently delete <strong>{user.full_name}</strong> and all their data. This action cannot be undone.</AlertDialogDescription></AlertDialogHeader>
                         <AlertDialogFooter><AlertDialogCancel>Cancel</AlertDialogCancel><AlertDialogAction onClick={handleDeleteUser} disabled={deletingUser} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">{deletingUser ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete User</>}</AlertDialogAction></AlertDialogFooter>
