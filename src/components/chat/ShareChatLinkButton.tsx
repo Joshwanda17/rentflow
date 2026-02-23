@@ -32,7 +32,7 @@ export default function ShareChatLinkButton({
 
   if (!user) return null;
 
-  const chatInviteUrl = `${window.location.origin}/chat/invite/${user.id}`;
+  const chatInviteUrl = `${window.location.origin}/chat`;
 
   const handleCopy = async () => {
     try {
