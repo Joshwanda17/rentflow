@@ -757,6 +757,47 @@ export type Database = {
         }
         Relationships: []
       }
+      ledger_accounts: {
+        Row: {
+          account_code: string
+          account_id: string
+          allow_negative: boolean | null
+          created_at: string | null
+          currency: string | null
+          group_id: string
+          owner_id: string | null
+          owner_type: string | null
+        }
+        Insert: {
+          account_code: string
+          account_id?: string
+          allow_negative?: boolean | null
+          created_at?: string | null
+          currency?: string | null
+          group_id: string
+          owner_id?: string | null
+          owner_type?: string | null
+        }
+        Update: {
+          account_code?: string
+          account_id?: string
+          allow_negative?: boolean | null
+          created_at?: string | null
+          currency?: string | null
+          group_id?: string
+          owner_id?: string | null
+          owner_type?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_accounts_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_account_groups"
+            referencedColumns: ["group_id"]
+          },
+        ]
+      }
       loan_applications: {
         Row: {
           amount: number
