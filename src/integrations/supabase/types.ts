@@ -1655,6 +1655,7 @@ export type Database = {
           supporter_id: string | null
           tenant_electricity_meter: string | null
           tenant_id: string
+          tenant_no_smartphone: boolean
           tenant_water_meter: string | null
           total_repayment: number
           total_roi_paid: number | null
@@ -1701,6 +1702,7 @@ export type Database = {
           supporter_id?: string | null
           tenant_electricity_meter?: string | null
           tenant_id: string
+          tenant_no_smartphone?: boolean
           tenant_water_meter?: string | null
           total_repayment: number
           total_roi_paid?: number | null
@@ -1747,6 +1749,7 @@ export type Database = {
           supporter_id?: string | null
           tenant_electricity_meter?: string | null
           tenant_id?: string
+          tenant_no_smartphone?: boolean
           tenant_water_meter?: string | null
           total_repayment?: number
           total_roi_paid?: number | null
@@ -2012,6 +2015,7 @@ export type Database = {
           agent_charge_count: number
           agent_charged_amount: number
           agent_id: string | null
+          charge_agent_wallet: boolean
           charge_amount: number
           charges_completed: number
           charges_remaining: number
@@ -2034,6 +2038,7 @@ export type Database = {
           agent_charge_count?: number
           agent_charged_amount?: number
           agent_id?: string | null
+          charge_agent_wallet?: boolean
           charge_amount: number
           charges_completed?: number
           charges_remaining?: number
@@ -2056,6 +2061,7 @@ export type Database = {
           agent_charge_count?: number
           agent_charged_amount?: number
           agent_id?: string | null
+          charge_agent_wallet?: boolean
           charge_amount?: number
           charges_completed?: number
           charges_remaining?: number

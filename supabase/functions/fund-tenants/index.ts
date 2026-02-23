@@ -236,6 +236,7 @@ Deno.serve(async (req) => {
         total_charges_due: totalRepayment,
         charges_remaining: totalCharges,
         status: "active",
+        charge_agent_wallet: rr.tenant_no_smartphone === true,
       });
 
       // Notify tenant about auto-charge schedule
