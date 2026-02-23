@@ -25,6 +25,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
   const [transactionTime, setTransactionTime] = useState(format(new Date(), 'HH:mm'));
   const [screenshot, setScreenshot] = useState<File | null>(null);
   const [screenshotPreview, setScreenshotPreview] = useState<string | null>(null);
+  const [reason, setReason] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
@@ -57,8 +58,8 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    if (!user || !amount || !partner || !transactionId) {
-      toast.error('Please fill in all required fields');
+    if (!user || !amount || !partner || !transactionId || !reason.trim()) {
+      toast.error('Please fill in all required fields including reason');
       return;
     }
 
@@ -107,7 +108,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         transaction_id: transactionId.trim(),
         transaction_date: transactionDateTime.toISOString(),
         provider: partner || null,
-        notes: `Payment confirmation - ${partner}`,
+        notes: reason.trim(),
       };
 
       // Contract-driven pre-submit validation
@@ -144,6 +145,7 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
         setTransactionTime(format(new Date(), 'HH:mm'));
         setScreenshot(null);
         setScreenshotPreview(null);
+        setReason('');
         setSubmitted(false);
         onSuccess?.();
       }, 3000);
@@ -246,6 +248,18 @@ export default function PaymentConfirmationForm({ dashboardType, onSuccess }: Pa
                 required
               />
             </div>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="reason">Reason / Narration *</Label>
+            <Input
+              id="reason"
+              type="text"
+              placeholder="e.g. Rent repayment, Access fee, Wallet top-up"
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              required
+            />
           </div>
 
           <div className="space-y-2">

@@ -16,6 +16,7 @@ interface DepositRequest {
   created_at: string;
   rejection_reason?: string;
   agent_name?: string;
+  notes?: string;
 }
 
 export function UserDepositRequests() {
@@ -166,6 +167,11 @@ export function UserDepositRequests() {
                         <p className="text-xs text-muted-foreground">
                           via {request.agent_name}
                         </p>
+                        {request.notes && (
+                          <p className="text-xs text-muted-foreground italic">
+                            "{request.notes}"
+                          </p>
+                        )}
                       </div>
                     </div>
                     <div className="text-right">
