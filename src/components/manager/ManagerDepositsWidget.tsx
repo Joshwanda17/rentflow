@@ -250,8 +250,8 @@ export function ManagerDepositsWidget() {
                     {/* Transaction ID — top priority */}
                     <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/30">
                       <p className="text-[10px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
-                      <p className="font-mono text-sm font-bold text-foreground break-all">
-                        {deposit.transaction_id || <span className="text-destructive italic font-sans font-medium">No Transaction ID provided</span>}
+                      <p className="font-mono text-xl font-black text-foreground break-all tracking-tight">
+                        {deposit.transaction_id || <span className="text-destructive text-sm italic font-sans font-medium">No Transaction ID provided</span>}
                       </p>
                     </div>
 
