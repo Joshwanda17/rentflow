@@ -67,6 +67,7 @@ import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
 import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
 import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
+import { AgentCollectionsWidget } from '@/components/manager/AgentCollectionsWidget';
 
 interface ManagerDashboardProps {
   user: User;
@@ -1071,6 +1072,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
               <RentDueReceivablesWidget mode="manager" onTotalChange={setRentDueTotal} />
             </CollapsibleAgentSection>
           </div>
+
+          {/* Agent Field Collections — payments recorded by agents */}
+          <AgentCollectionsWidget />
 
           {/* Fund Flow Tracker — where rent money went & who funded */}
           <FundFlowTracker />
