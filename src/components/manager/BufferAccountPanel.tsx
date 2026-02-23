@@ -7,6 +7,8 @@ import { Shield, TrendingUp, AlertTriangle, Activity, PiggyBank, BarChart3 } fro
 import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
+import { BufferTrendChart } from './BufferTrendChart';
+import { ReserveAllocationPanel } from './ReserveAllocationPanel';
 
 interface BufferMetrics {
   totalCashIn: number;
@@ -292,6 +294,20 @@ export function BufferAccountPanel() {
           </Card>
         );
       })}
+
+      {/* Trend & Forecast */}
+      <h3 className="text-sm font-bold flex items-center gap-2 px-1 mt-4">
+        <TrendingUp className="h-4 w-4 text-primary" />
+        Trends & Forecast
+      </h3>
+      <BufferTrendChart />
+
+      {/* Reserve Allocation */}
+      <h3 className="text-sm font-bold flex items-center gap-2 px-1 mt-4">
+        <Shield className="h-4 w-4 text-amber-500" />
+        Reserve Allocation
+      </h3>
+      <ReserveAllocationPanel />
     </div>
   );
 }
