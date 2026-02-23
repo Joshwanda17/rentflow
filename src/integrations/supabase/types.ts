@@ -798,6 +798,87 @@ export type Database = {
           },
         ]
       }
+      ledger_entries: {
+        Row: {
+          account_id: string
+          amount: number
+          created_at: string
+          currency: string | null
+          direction: string
+          entry_id: string
+          transaction_id: string
+        }
+        Insert: {
+          account_id: string
+          amount: number
+          created_at?: string
+          currency?: string | null
+          direction: string
+          entry_id?: string
+          transaction_id: string
+        }
+        Update: {
+          account_id?: string
+          amount?: number
+          created_at?: string
+          currency?: string | null
+          direction?: string
+          entry_id?: string
+          transaction_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "ledger_entries_account_id_fkey"
+            columns: ["account_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_accounts"
+            referencedColumns: ["account_id"]
+          },
+          {
+            foreignKeyName: "ledger_entries_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_transactions"
+            referencedColumns: ["transaction_id"]
+          },
+        ]
+      }
+      ledger_transactions: {
+        Row: {
+          approved_by: string | null
+          category: string
+          created_at: string
+          description: string | null
+          initiated_by: string | null
+          source_id: string | null
+          source_table: string | null
+          transaction_group_id: string | null
+          transaction_id: string
+        }
+        Insert: {
+          approved_by?: string | null
+          category: string
+          created_at?: string
+          description?: string | null
+          initiated_by?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          transaction_group_id?: string | null
+          transaction_id?: string
+        }
+        Update: {
+          approved_by?: string | null
+          category?: string
+          created_at?: string
+          description?: string | null
+          initiated_by?: string | null
+          source_id?: string | null
+          source_table?: string | null
+          transaction_group_id?: string | null
+          transaction_id?: string
+        }
+        Relationships: []
+      }
       loan_applications: {
         Row: {
           amount: number
@@ -2185,6 +2266,38 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      transaction_approvals: {
+        Row: {
+          approval_id: string
+          approval_notes: string | null
+          approved_at: string
+          approved_by: string
+          transaction_id: string | null
+        }
+        Insert: {
+          approval_id?: string
+          approval_notes?: string | null
+          approved_at?: string
+          approved_by: string
+          transaction_id?: string | null
+        }
+        Update: {
+          approval_id?: string
+          approval_notes?: string | null
+          approved_at?: string
+          approved_by?: string
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "transaction_approvals_transaction_id_fkey"
+            columns: ["transaction_id"]
+            isOneToOne: false
+            referencedRelation: "ledger_transactions"
+            referencedColumns: ["transaction_id"]
+          },
+        ]
       }
       user_activity_log: {
         Row: {
