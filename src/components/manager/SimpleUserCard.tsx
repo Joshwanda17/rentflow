@@ -115,9 +115,15 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, isOnline =
           <div className="flex items-center gap-2">
             <p className="font-bold text-base truncate">{user.full_name}</p>
             {user.verified ? (
-              <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20 flex-shrink-0" />
+              <span className="flex items-center gap-0.5 flex-shrink-0">
+                <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
+                <span className="text-[10px] text-purple-500 font-medium">Verified</span>
+              </span>
             ) : (
-              <XCircle className="h-4 w-4 text-warning flex-shrink-0" />
+              <span className="flex items-center gap-0.5 flex-shrink-0">
+                <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
+                <span className="text-[10px] text-muted-foreground font-medium">Unverified</span>
+              </span>
             )}
           </div>
           <p className="text-sm text-muted-foreground truncate">{user.phone}</p>

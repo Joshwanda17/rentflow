@@ -581,7 +581,17 @@ export default function UserManagement() {
                   <div className="flex items-center justify-between gap-2">
                     <h3 className="font-medium text-white truncate flex items-center gap-1">
                       {u.full_name}
-                      {u.verified && <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20 shrink-0" />}
+                      {u.verified ? (
+                        <span className="flex items-center gap-0.5 shrink-0">
+                          <BadgeCheck className="h-3.5 w-3.5 text-purple-500 fill-purple-500/20" />
+                          <span className="text-[9px] text-purple-500 font-medium">Verified</span>
+                        </span>
+                      ) : (
+                        <span className="flex items-center gap-0.5 shrink-0">
+                          <BadgeCheck className="h-3.5 w-3.5 text-[#8696a0]/40" />
+                          <span className="text-[9px] text-[#8696a0] font-medium">Unverified</span>
+                        </span>
+                      )}
                     </h3>
                     <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-[#00a884]" : "text-[#8696a0]")}>{formatLastActive(u.last_active_at)}</span>
                   </div>
