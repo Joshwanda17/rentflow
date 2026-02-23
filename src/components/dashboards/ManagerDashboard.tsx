@@ -65,6 +65,7 @@ import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
 import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
+import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 
 interface ManagerDashboardProps {
   user: User;
@@ -878,6 +879,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         />
 
         {/* Duplicate Phone Alert */}
+        {/* Password Reset Instructions */}
+        <PasswordResetGuide />
+
         {duplicateCount > 0 && (
           <Card 
             className="border-destructive/40 bg-destructive/5 cursor-pointer active:scale-[0.98] transition-transform touch-manipulation"
