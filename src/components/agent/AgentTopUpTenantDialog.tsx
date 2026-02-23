@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { useAuth } from '@/hooks/useAuth';
 import { Loader2, Wallet, Search, User } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -21,7 +22,23 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
   const [searching, setSearching] = useState(false);
   const [tenantInfo, setTenantInfo] = useState<{ id: string; full_name: string; phone: string } | null>(null);
   const [success, setSuccess] = useState(false);
+  const [agentBalance, setAgentBalance] = useState<number | null>(null);
   const { toast } = useToast();
+  const { user } = useAuth();
+
+  // Fetch agent's wallet balance when dialog opens
+  useEffect(() => {
+    if (!open || !user) return;
+    const fetchBalance = async () => {
+      const { data } = await supabase
+        .from('wallets')
+        .select('balance')
+        .eq('user_id', user.id)
+        .maybeSingle();
+      setAgentBalance(data?.balance ?? 0);
+    };
+    fetchBalance();
+  }, [open, user]);
 
   const searchTenant = async () => {
     if (!phone.trim() || phone.trim().length < 10) {
@@ -103,6 +120,14 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
             Top Up Tenant Wallet
           </DialogTitle>
         </DialogHeader>
+
+        {/* Agent's own wallet balance */}
+        <div className="bg-primary/5 border border-primary/20 rounded-xl p-3 flex items-center justify-between">
+          <span className="text-sm text-muted-foreground">Your Wallet Balance</span>
+          <span className="font-mono font-bold text-primary text-lg">
+            {agentBalance !== null ? formatUGX(agentBalance) : '...'}
+          </span>
+        </div>
 
         {success ? (
           <div className="text-center py-6 space-y-4">
