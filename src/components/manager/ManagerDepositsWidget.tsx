@@ -245,9 +245,18 @@ export function ManagerDepositsWidget() {
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, x: -80 }}
-                    className="p-3 rounded-lg border bg-card"
+                    className="p-3 rounded-lg border bg-card space-y-3"
                   >
-                    <div className="flex items-start justify-between mb-2">
+                    {/* Transaction ID — top priority */}
+                    <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/30">
+                      <p className="text-[10px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
+                      <p className="font-mono text-sm font-bold text-foreground break-all">
+                        {deposit.transaction_id || <span className="text-destructive italic font-sans font-medium">No Transaction ID provided</span>}
+                      </p>
+                    </div>
+
+                    {/* User info + amount */}
+                    <div className="flex items-start justify-between">
                       <div className="flex items-center gap-2">
                         <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center shrink-0">
                           <User className="h-4 w-4 text-primary" />
@@ -267,7 +276,9 @@ export function ManagerDepositsWidget() {
                         <p className="text-[10px] text-muted-foreground">{format(new Date(deposit.created_at), 'h:mm a')}</p>
                       </div>
                     </div>
-                    <div className="flex items-center justify-between mb-2">
+
+                    {/* Deposit type & provider */}
+                    <div className="flex items-center justify-between">
                       <Badge variant="outline" className="text-[10px] bg-muted/50">
                         {getDepositType(deposit)}
                       </Badge>
@@ -277,10 +288,17 @@ export function ManagerDepositsWidget() {
                         </Badge>
                       )}
                     </div>
-                    <div className="flex gap-2">
+
+                    {/* Notes if any */}
+                    {deposit.notes && (
+                      <p className="text-[11px] text-muted-foreground italic bg-muted/30 rounded px-2 py-1">"{deposit.notes}"</p>
+                    )}
+
+                    {/* Approve / Reject buttons at bottom */}
+                    <div className="flex gap-2 pt-1 border-t">
                       <Button
                         size="sm"
-                        className="flex-1 h-7 text-xs"
+                        className="flex-1 h-9 text-xs touch-manipulation"
                         onClick={() => handleApprove(deposit)}
                         disabled={processingIds.has(deposit.id)}
                       >
@@ -293,7 +311,7 @@ export function ManagerDepositsWidget() {
                       <Button
                         size="sm"
                         variant="destructive"
-                        className="flex-1 h-7 text-xs"
+                        className="flex-1 h-9 text-xs touch-manipulation"
                         onClick={() => setRejectDialog({ open: true, deposit })}
                         disabled={processingIds.has(deposit.id)}
                       >
