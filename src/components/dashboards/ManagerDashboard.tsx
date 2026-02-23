@@ -66,6 +66,7 @@ import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalle
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
 import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
 import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
+import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
 
 interface ManagerDashboardProps {
   user: User;
@@ -1034,6 +1035,9 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
           {/* Ledger Summary */}
           <ManagerLedgerSummary />
+
+          {/* Agent Earnings Overview */}
+          <AgentEarningsOverview />
         </>
         ) : activeHub === 'rent-investments' ? (
         <>
