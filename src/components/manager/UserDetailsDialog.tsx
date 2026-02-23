@@ -565,33 +565,23 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     setDeletingUser(true);
     
     try {
-      // Delete user roles first
-      await supabase
-        .from('user_roles')
-        .delete()
-        .eq('user_id', user.id);
+      const { data: sessionData } = await supabase.auth.getSession();
+      const token = sessionData?.session?.access_token;
       
-      // Delete wallet
-      await supabase
-        .from('wallets')
-        .delete()
-        .eq('user_id', user.id);
+      const response = await supabase.functions.invoke('delete-user', {
+        body: { user_id: user.id },
+      });
       
-      // Delete profile
-      const { error } = await supabase
-        .from('profiles')
-        .delete()
-        .eq('id', user.id);
+      if (response.error) throw new Error(response.error.message || 'Failed to delete user');
+      if (response.data?.error) throw new Error(response.data.error);
       
-      if (error) throw error;
-      
-      toast.success(`User "${user.full_name}" has been deleted`);
+      toast.success(`User "${user.full_name}" has been permanently deleted from the system`);
       setDeleteConfirmOpen(false);
       onOpenChange(false);
       onUserDeleted?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error deleting user:', error);
-      toast.error('Failed to delete user');
+      toast.error(error.message || 'Failed to delete user');
     } finally {
       setDeletingUser(false);
     }
