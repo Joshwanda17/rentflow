@@ -86,6 +86,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
   const [lc1Phone, setLc1Phone] = useState('');
   const [lc1Village, setLc1Village] = useState('');
   const [houseCategory, setHouseCategory] = useState('');
+  const [noSmartphone, setNoSmartphone] = useState(false);
 
   const resetForm = () => {
     setIncomeType(null);
@@ -101,6 +102,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
     setLc1Phone('');
     setLc1Village('');
     setHouseCategory('');
+    setNoSmartphone(false);
     setSuccess(false);
     setActivationLink(null);
     setStep('type');
@@ -228,6 +230,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           daily_repayment: fees.dailyRepayment,
           status: 'pending',
           house_category: houseCategory,
+          tenant_no_smartphone: noSmartphone,
         });
 
       if (requestError) throw requestError;
@@ -398,10 +401,36 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
             >
               {/* Tenant Section */}
               <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+              <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <User className="h-3 w-3" />
-                  Tenant Details (No App Account)
+                  Tenant Details
                 </h4>
+
+                {/* No Smartphone Toggle */}
+                <button
+                  type="button"
+                  onClick={() => setNoSmartphone(!noSmartphone)}
+                  className={`w-full p-3 rounded-xl border-2 transition-all text-left flex items-center gap-3 ${
+                    noSmartphone 
+                      ? 'border-warning/50 bg-warning/10' 
+                      : 'border-muted hover:border-muted-foreground/30'
+                  }`}
+                >
+                  <div className={`w-5 h-5 rounded-md border-2 flex items-center justify-center transition-colors ${
+                    noSmartphone ? 'bg-warning border-warning' : 'border-muted-foreground/40'
+                  }`}>
+                    {noSmartphone && <CheckCircle2 className="h-3.5 w-3.5 text-warning-foreground" />}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium">Tenant has no smartphone</p>
+                    <p className="text-xs text-muted-foreground">
+                      {noSmartphone 
+                        ? '⚠️ Your wallet will be charged for all repayments' 
+                        : 'Check if tenant cannot manage their own wallet'}
+                    </p>
+                  </div>
+                </button>
+
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1">
                     <Label htmlFor="tenantName" className="text-xs">Full Name *</Label>
