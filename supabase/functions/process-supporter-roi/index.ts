@@ -41,20 +41,30 @@ Deno.serve(async (req) => {
 
     for (const rr of fundedRequests || []) {
       try {
-        // Determine when the next ROI is due
-        let dueDate: Date;
-        if (rr.next_roi_due_date) {
-          dueDate = new Date(rr.next_roi_due_date);
-        } else {
-          // First ROI: 30 days after funding
-          dueDate = new Date(rr.funded_at);
-          dueDate.setDate(dueDate.getDate() + 30);
-        }
+        const fundedDate = new Date(rr.funded_at);
+        const fundedDayOfMonth = fundedDate.getDate();
 
-        // Not yet due
-        if (dueDate > now) {
-          results.skipped++;
-          continue;
+        // ROI is due on the same day-of-month as funded_at
+        // First payment: same day of the next month after funding
+        // Check if today matches the supporter's unique anniversary day
+        if (rr.next_roi_due_date) {
+          const dueDate = new Date(rr.next_roi_due_date);
+          if (dueDate > now) {
+            results.skipped++;
+            continue;
+          }
+        } else {
+          // First ROI: check if at least one full month has passed
+          const firstDue = new Date(fundedDate);
+          firstDue.setMonth(firstDue.getMonth() + 1);
+          // Handle day overflow (e.g. funded Jan 31 -> Feb 28)
+          if (firstDue.getDate() !== fundedDayOfMonth) {
+            firstDue.setDate(0); // last day of previous month
+          }
+          if (firstDue > now) {
+            results.skipped++;
+            continue;
+          }
         }
 
         results.processed++;
@@ -72,7 +82,7 @@ Deno.serve(async (req) => {
             rent_amount: rr.rent_amount,
             roi_amount: roiAmount,
             payment_number: paymentNumber,
-            due_date: dueDate.toISOString(),
+            due_date: now.toISOString(),
             paid_at: now.toISOString(),
             status: 'paid',
           });
@@ -100,9 +110,14 @@ Deno.serve(async (req) => {
           status: 'pending',
         });
 
-        // Update rent request ROI tracking
-        const nextDueDate = new Date(dueDate);
-        nextDueDate.setDate(nextDueDate.getDate() + 30);
+        // Update rent request ROI tracking - next due is same day next month
+        const fundedDay = new Date(rr.funded_at).getDate();
+        const nextDueDate = new Date(now);
+        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
+        // Handle day overflow (e.g. day 31 in a 30-day month)
+        if (nextDueDate.getDate() !== fundedDay) {
+          nextDueDate.setDate(0); // last day of that month
+        }
 
         await supabase
           .from('rent_requests')
