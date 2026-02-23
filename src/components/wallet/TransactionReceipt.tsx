@@ -6,9 +6,10 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Download, Share2, CheckCircle, ArrowUpRight, ArrowDownLeft } from 'lucide-react';
+import { Download, Share2, CheckCircle, ArrowUpRight, ArrowDownLeft, MessageCircle } from 'lucide-react';
 import { toast } from 'sonner';
 import { toPng } from 'html-to-image';
+import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
 
 interface Transaction {
   id: string;
@@ -197,6 +198,26 @@ export function TransactionReceipt({
             Share
           </Button>
         </div>
+        <Button
+          onClick={() => {
+            const text = buildReceiptText({
+              type: isSent ? 'sent' : 'received',
+              amount: transaction.amount,
+              recipientOrSender: isSent ? transaction.recipient_name : transaction.sender_name,
+              reference: formatReceiptId(transaction.id),
+              date: formatDate(transaction.created_at),
+              description: transaction.description || undefined,
+              status: 'Successful',
+            });
+            shareViaWhatsApp(text);
+            toast.success('Opening WhatsApp...');
+          }}
+          variant="outline"
+          className="w-full gap-2 border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+        >
+          <MessageCircle className="h-4 w-4" />
+          Share on WhatsApp
+        </Button>
       </DialogContent>
     </Dialog>
   );
