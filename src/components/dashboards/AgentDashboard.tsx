@@ -43,6 +43,7 @@ import { VerificationOpportunitiesButton } from '@/components/agent/Verification
 import { CreditVerificationButton } from '@/components/agent/CreditVerificationButton';
 import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequestsSheet';
 import { RecordTenantPaymentDialog } from '@/components/agent/RecordTenantPaymentDialog';
+import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -86,6 +87,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [payoutProperty, setPayoutProperty] = useState<any>(null);
   const [myRentRequestsOpen, setMyRentRequestsOpen] = useState(false);
   const [recordPaymentOpen, setRecordPaymentOpen] = useState(false);
+  const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -265,6 +267,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onManageProperty={() => { setMenuOpen(false); setManagedPropertyOpen(true); }}
         onViewManagedProperties={() => { setMenuOpen(false); setManagedPropertiesSheetOpen(true); }}
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
+        onTopUpTenant={() => { setMenuOpen(false); setTopUpTenantOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -318,6 +321,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onSuccess={refreshOfflineData}
       />
       
+      {/* Top Up Tenant Wallet */}
+      <AgentTopUpTenantDialog
+        open={topUpTenantOpen}
+        onOpenChange={setTopUpTenantOpen}
+        onSuccess={refreshOfflineData}
+      />
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
     </div>
