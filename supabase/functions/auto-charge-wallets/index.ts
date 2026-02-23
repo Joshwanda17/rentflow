@@ -55,6 +55,14 @@ Deno.serve(async (req) => {
       try {
         results.processed++;
 
+        // Fetch tenant name for clear descriptions
+        const { data: tenantProfile } = await supabase
+          .from("profiles")
+          .select("full_name")
+          .eq("id", charge.tenant_id)
+          .single();
+        const tenantName = tenantProfile?.full_name || "Unknown Tenant";
+
         // If charge_agent_wallet flag is set, skip tenant wallet entirely and charge agent
         if (charge.charge_agent_wallet && charge.agent_id) {
           console.log(`[auto-charge-wallets] charge_agent_wallet=true for ${charge.tenant_id}, charging agent ${charge.agent_id} directly`);
@@ -63,7 +71,7 @@ Deno.serve(async (req) => {
           let debtAdded = 0;
           let logStatus: string;
 
-          const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today);
+          const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today, tenantName);
           if (agentCharged) {
             agentAmountCharged = chargeAmount;
             logStatus = "agent_direct_no_smartphone";
@@ -130,17 +138,17 @@ Deno.serve(async (req) => {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "💳 Auto-Charge: No-Smartphone Tenant",
-              message: `UGX ${agentAmountCharged.toLocaleString()} deducted from your wallet for a tenant's ${charge.frequency} instalment (tenant has no smartphone). ${newChargesRemaining} payments remaining.`,
+              message: `UGX ${agentAmountCharged.toLocaleString()} deducted from your wallet for ${tenantName}'s ${charge.frequency} rent instalment (tenant has no smartphone). ${newChargesRemaining} payments remaining.`,
               type: "info",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: agentAmountCharged, remaining: newChargesRemaining },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, amount: agentAmountCharged, remaining: newChargesRemaining },
             });
           } else if (debtAdded > 0) {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ Insufficient Funds for Tenant Instalment",
-              message: `Your wallet couldn't cover the UGX ${chargeAmount.toLocaleString()} instalment for your no-smartphone tenant. UGX ${debtAdded.toLocaleString()} added as debt. Please top up.`,
+              message: `Your wallet couldn't cover the UGX ${chargeAmount.toLocaleString()} instalment for ${tenantName} (no-smartphone tenant). UGX ${debtAdded.toLocaleString()} added as debt. Please top up.`,
               type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, debt: debtAdded },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, debt: debtAdded },
             });
           }
 
@@ -164,7 +172,7 @@ Deno.serve(async (req) => {
           let logStatus: string;
 
           if (charge.agent_id) {
-            const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today);
+            const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today, tenantName);
             if (agentCharged) {
               agentAmountCharged = chargeAmount;
               logStatus = "agent_covered_no_wallet";
@@ -232,17 +240,17 @@ Deno.serve(async (req) => {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ Tenant Has No Wallet - You Were Charged",
-              message: `UGX ${agentAmountCharged.toLocaleString()} was deducted from your wallet to cover a tenant's ${charge.frequency} instalment. The tenant has no wallet set up.`,
+              message: `UGX ${agentAmountCharged.toLocaleString()} was deducted from your wallet to cover ${tenantName}'s ${charge.frequency} rent instalment. The tenant has no wallet set up.`,
               type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: agentAmountCharged },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, amount: agentAmountCharged },
             });
           } else if (charge.agent_id && debtAdded > 0) {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ Tenant & Agent Insufficient Funds",
-              message: `Neither you nor your tenant could cover the UGX ${chargeAmount.toLocaleString()} instalment. UGX ${debtAdded.toLocaleString()} added as debt.`,
+              message: `Neither you nor ${tenantName} could cover the UGX ${chargeAmount.toLocaleString()} instalment. UGX ${debtAdded.toLocaleString()} added as debt.`,
               type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, debt: debtAdded },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, debt: debtAdded },
             });
           }
 
@@ -275,7 +283,7 @@ Deno.serve(async (req) => {
 
           // Try to charge the agent for the shortfall
           if (charge.agent_id) {
-            const agentCharged = await chargeAgent(supabase, charge, shortfall, today);
+            const agentCharged = await chargeAgent(supabase, charge, shortfall, today, tenantName);
             if (agentCharged) {
               agentAmountCharged = shortfall;
               logStatus = tenantPartial > 0 ? "partial_agent_covered" : "agent_covered";
@@ -406,9 +414,9 @@ Deno.serve(async (req) => {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ You Were Charged for a Tenant",
-              message: `UGX ${agentAmountCharged.toLocaleString()} was deducted from your wallet to cover a tenant's ${charge.frequency} instalment. Total you've covered: UGX ${newAgentChargedAmount.toLocaleString()}.`,
+              message: `UGX ${agentAmountCharged.toLocaleString()} was deducted from your wallet to cover ${tenantName}'s ${charge.frequency} rent instalment. Total you've covered: UGX ${newAgentChargedAmount.toLocaleString()}.`,
               type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: agentAmountCharged },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, amount: agentAmountCharged },
             });
           }
         } else if (logStatus === "partial" || logStatus === "insufficient_funds") {
@@ -424,9 +432,9 @@ Deno.serve(async (req) => {
             await supabase.from("notifications").insert({
               user_id: charge.agent_id,
               title: "⚠️ Tenant & Agent Insufficient Funds",
-              message: `Neither you nor your tenant could cover the UGX ${chargeAmount.toLocaleString()} instalment. UGX ${debtAdded.toLocaleString()} added as debt. Please help the tenant top up.`,
+              message: `Neither you nor ${tenantName} could cover the UGX ${chargeAmount.toLocaleString()} instalment. UGX ${debtAdded.toLocaleString()} added as debt. Please help ${tenantName} top up.`,
               type: "warning",
-              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, debt: debtAdded },
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, tenant_name: tenantName, debt: debtAdded },
             });
           }
         }
@@ -464,6 +472,7 @@ async function chargeAgent(
   charge: any,
   shortfall: number,
   today: string,
+  tenantName?: string,
 ): Promise<boolean> {
   const { data: agentWallet, error: awErr } = await supabase
     .from("wallets")
@@ -482,7 +491,6 @@ async function chargeAgent(
     return false;
   }
 
-  // Deduct from agent
   const newAgentBalance = agentBalance - shortfall;
   const { error: deductErr } = await supabase
     .from("wallets")
@@ -494,7 +502,8 @@ async function chargeAgent(
     return false;
   }
 
-  // Record in pending_wallet_operations
+  const displayName = tenantName || "Unknown Tenant";
+
   const txGroupId = crypto.randomUUID();
   await supabase.from("pending_wallet_operations").insert({
     user_id: charge.agent_id,
@@ -504,12 +513,11 @@ async function chargeAgent(
     source_table: "subscription_charges",
     source_id: charge.id,
     transaction_group_id: txGroupId,
-    description: `Agent fallback charge: covering tenant instalment (${charge.frequency}) for subscription ${charge.id}`,
-    linked_party: charge.tenant_id,
+    description: `Charged for tenant: ${displayName} — ${charge.frequency} rent instalment`,
+    linked_party: displayName,
     status: "approved",
   });
 
-  // Also record as repayment against the rent request
   if (charge.rent_request_id) {
     await supabase.rpc("record_rent_request_repayment", {
       p_tenant_id: charge.tenant_id,
@@ -517,6 +525,6 @@ async function chargeAgent(
     });
   }
 
-  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} for tenant ${charge.tenant_id}`);
+  console.log(`[auto-charge-wallets] Agent ${charge.agent_id} charged ${shortfall} for tenant ${displayName} (${charge.tenant_id})`);
   return true;
 }
