@@ -7,7 +7,7 @@ import {
   Phone, 
   ChevronRight,
   Star,
-  CheckCircle2,
+  BadgeCheck,
   XCircle
 } from 'lucide-react';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
@@ -115,7 +115,7 @@ export function SimpleUserCard({ user, isSelected, onSelect, onClick, isOnline =
           <div className="flex items-center gap-2">
             <p className="font-bold text-base truncate">{user.full_name}</p>
             {user.verified ? (
-              <CheckCircle2 className="h-4 w-4 text-success flex-shrink-0" />
+              <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20 flex-shrink-0" />
             ) : (
               <XCircle className="h-4 w-4 text-warning flex-shrink-0" />
             )}

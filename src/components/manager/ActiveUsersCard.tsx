@@ -94,7 +94,7 @@ export function ActiveUsersCard({ activeUsers, totalUsers, onUserClick }: Active
                     />
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="font-medium text-sm truncate">{user.full_name}</p>
+                    <p className="font-medium text-sm truncate flex items-center gap-1">{user.full_name}</p>
                     <div className="flex gap-1">
                       {user.roles.slice(0, 2).map((role) => (
                         <span 

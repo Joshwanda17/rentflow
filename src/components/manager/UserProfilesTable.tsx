@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle, BadgeCheck } from 'lucide-react';
 import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
 import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
@@ -953,7 +953,10 @@ export default function UserProfilesTable() {
                       </Avatar>
 
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-bold text-lg truncate pr-10">{user.full_name}</h3>
+                        <h3 className="font-bold text-lg truncate pr-10 flex items-center gap-1.5">
+                          {user.full_name}
+                          {user.verified && <BadgeCheck className="h-5 w-5 text-purple-500 fill-purple-500/20 shrink-0" />}
+                        </h3>
                         <div className="flex items-center gap-2 mt-1">
                           <p className="text-base text-muted-foreground truncate font-medium">{user.phone}</p>
                           <WhatsAppVerificationBadge
