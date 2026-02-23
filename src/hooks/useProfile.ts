@@ -9,6 +9,7 @@ interface Profile {
   email: string;
   phone: string;
   avatar_url: string | null;
+  verified: boolean;
 }
 
 export function useProfile() {
@@ -42,7 +43,7 @@ export function useProfile() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone, avatar_url')
+          .select('id, full_name, email, phone, avatar_url, verified')
           .eq('id', user.id)
           .single();
 
@@ -73,7 +74,7 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url')
+      .select('id, full_name, email, phone, avatar_url, verified')
       .eq('id', user.id)
       .single();
 
