@@ -67,6 +67,9 @@ interface DepositRequest {
   rejected_at: string | null;
   rejection_reason: string | null;
   processed_by: string | null;
+  transaction_id: string | null;
+  provider: string | null;
+  notes: string | null;
   user_name?: string;
   user_phone?: string;
   agent_name?: string;
@@ -772,8 +775,17 @@ export default function DepositsManagement() {
                   <Card className={cn(
                     selectedIds.has(deposit.id) && deposit.status === 'pending' && 'ring-2 ring-primary'
                   )}>
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-start mb-3">
+                    <CardContent className="p-4 space-y-3">
+                      {/* Transaction ID — top priority */}
+                      <div className="p-2.5 rounded-lg bg-warning/10 border border-warning/30">
+                        <p className="text-[10px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
+                        <p className="font-mono text-2xl font-black text-foreground break-all tracking-tight">
+                          {deposit.transaction_id || <span className="text-destructive text-sm italic font-sans font-medium">No Transaction ID provided</span>}
+                        </p>
+                      </div>
+
+                      {/* User info + amount + status */}
+                      <div className="flex justify-between items-start">
                         <div className="flex items-start gap-3 flex-1 min-w-0">
                           {deposit.status === 'pending' && (
                             <Checkbox
@@ -795,34 +807,39 @@ export default function DepositsManagement() {
                             )}
                           </div>
                         </div>
-                        {getStatusBadge(deposit.status)}
-                      </div>
-
-                      <div className="flex items-center justify-between mb-3">
-                        <span className="text-2xl font-bold text-primary">{formatUGX(deposit.amount)}</span>
-                        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-                          <CalendarIcon className="h-3 w-3" />
-                          <span>{format(new Date(deposit.created_at), 'MMM d, yyyy h:mm a')}</span>
+                        <div className="text-right space-y-1">
+                          {getStatusBadge(deposit.status)}
+                          <p className="font-bold text-primary text-sm">{formatUGX(deposit.amount)}</p>
                         </div>
                       </div>
 
-                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground mb-3">
+                      <div className="flex items-center gap-1 text-xs text-muted-foreground">
+                        <CalendarIcon className="h-3 w-3" />
+                        <span>{format(new Date(deposit.created_at), 'MMM d, yyyy h:mm a')}</span>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 text-xs text-muted-foreground">
                         {deposit.agent_name && (
                           <span>Agent: <strong>{deposit.agent_name}</strong></span>
                         )}
                         {deposit.processed_by_name && (
                           <span>• Processed by: <strong>{deposit.processed_by_name}</strong></span>
                         )}
+                        {deposit.provider && (
+                          <Badge variant="outline" className={`text-[10px] ${deposit.provider === 'mtn' ? 'bg-yellow-500/10 text-yellow-600 border-yellow-500/20' : 'bg-red-500/10 text-red-600 border-red-500/20'}`}>
+                            {deposit.provider.toUpperCase()}
+                          </Badge>
+                        )}
                       </div>
 
                       {deposit.rejection_reason && (
-                        <p className="text-xs text-destructive mb-3">
+                        <p className="text-xs text-destructive">
                           Reason: {deposit.rejection_reason}
                         </p>
                       )}
 
                       {deposit.status === 'pending' && !selectedIds.has(deposit.id) && (
-                        <div className="flex gap-2">
+                        <div className="flex gap-2 pt-1 border-t">
                           <Button
                             size="sm"
                             className="flex-1"
