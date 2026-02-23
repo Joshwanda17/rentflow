@@ -4,8 +4,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash } from 'lucide-react';
+import { ArrowLeft, Clock, CheckCircle2, XCircle, Loader2, Phone, Calendar, Hash, Download, MessageCircle } from 'lucide-react';
 import { format } from 'date-fns';
+import { toast } from 'sonner';
+import { downloadDepositReceipt, buildDepositReceiptWhatsApp, type DepositReceiptData } from '@/lib/receiptPdf';
+import { shareViaWhatsApp } from '@/lib/shareReceipt';
 
 interface DepositRequest {
   id: string;
@@ -198,6 +201,55 @@ export default function DepositHistory() {
                     </p>
                   </div>
                 )}
+
+                {/* Receipt Actions */}
+                <div className="flex gap-2 pt-2 border-t border-border/50">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 text-xs"
+                    onClick={() => {
+                      const receiptData: DepositReceiptData = {
+                        amount: deposit.amount,
+                        status: deposit.status,
+                        provider: deposit.provider,
+                        transactionId: deposit.transaction_id,
+                        transactionDate: deposit.transaction_date,
+                        createdAt: deposit.created_at,
+                        approvedAt: deposit.approved_at,
+                        notes: deposit.notes,
+                      };
+                      downloadDepositReceipt(receiptData);
+                      toast.success('Receipt downloaded!');
+                    }}
+                  >
+                    <Download className="h-3.5 w-3.5" />
+                    PDF Receipt
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="flex-1 gap-1.5 text-xs border-emerald-500/30 text-emerald-600 hover:bg-emerald-500/10"
+                    onClick={() => {
+                      const receiptData: DepositReceiptData = {
+                        amount: deposit.amount,
+                        status: deposit.status,
+                        provider: deposit.provider,
+                        transactionId: deposit.transaction_id,
+                        transactionDate: deposit.transaction_date,
+                        createdAt: deposit.created_at,
+                        approvedAt: deposit.approved_at,
+                        notes: deposit.notes,
+                      };
+                      const text = buildDepositReceiptWhatsApp(receiptData);
+                      shareViaWhatsApp(text);
+                      toast.success('Opening WhatsApp...');
+                    }}
+                  >
+                    <MessageCircle className="h-3.5 w-3.5" />
+                    WhatsApp
+                  </Button>
+                </div>
               </CardContent>
             </Card>
           ))

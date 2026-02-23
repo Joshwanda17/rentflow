@@ -5,11 +5,13 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote } from 'lucide-react';
+import { Loader2, Search, User, Phone, Calendar, ChevronDown, ChevronUp, FileDown, MessageCircle, Banknote, Receipt } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, startOfDay } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { downloadRepaymentPdf, shareRepaymentPdfWhatsApp } from '@/lib/repaymentSchedulePdf';
+import { downloadRentStatement, buildRentStatementWhatsApp } from '@/lib/receiptPdf';
+import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { useToast } from '@/hooks/use-toast';
 
 interface Tenant {
@@ -371,24 +373,75 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                                   </div>
 
                                   {/* Actions */}
-                                  <div className="flex gap-2">
+                                  <div className="grid grid-cols-2 gap-2">
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="flex-1 text-xs h-8"
+                                      className="text-xs h-8"
                                       onClick={() => handleDownloadPdf(tenant, req)}
                                     >
                                       <FileDown className="h-3 w-3 mr-1" />
-                                      PDF
+                                      Schedule PDF
                                     </Button>
                                     <Button
                                       size="sm"
                                       variant="outline"
-                                      className="flex-1 text-xs h-8"
+                                      className="text-xs h-8"
                                       onClick={() => handleShareWhatsApp(tenant, req)}
                                     >
                                       <MessageCircle className="h-3 w-3 mr-1" />
                                       WhatsApp
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-8 border-primary/30 text-primary"
+                                      onClick={() => {
+                                        downloadRentStatement({
+                                          tenantName: tenant.full_name,
+                                          tenantPhone: tenant.phone,
+                                          landlordName: req.landlord?.name || 'N/A',
+                                          propertyAddress: req.landlord?.property_address,
+                                          rentAmount: req.rent_amount,
+                                          totalRepayment: req.total_repayment,
+                                          amountRepaid: req.amount_repaid,
+                                          dailyRepayment: req.daily_repayment,
+                                          durationDays: req.duration_days,
+                                          status: req.status || 'approved',
+                                          createdAt: req.created_at,
+                                          requestId: req.id,
+                                        });
+                                        toast({ title: 'Downloaded', description: 'Rent statement saved.' });
+                                      }}
+                                    >
+                                      <Receipt className="h-3 w-3 mr-1" />
+                                      Rent Receipt
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="text-xs h-8 border-emerald-500/30 text-emerald-600"
+                                      onClick={() => {
+                                        const text = buildRentStatementWhatsApp({
+                                          tenantName: tenant.full_name,
+                                          tenantPhone: tenant.phone,
+                                          landlordName: req.landlord?.name || 'N/A',
+                                          propertyAddress: req.landlord?.property_address,
+                                          rentAmount: req.rent_amount,
+                                          totalRepayment: req.total_repayment,
+                                          amountRepaid: req.amount_repaid,
+                                          dailyRepayment: req.daily_repayment,
+                                          durationDays: req.duration_days,
+                                          status: req.status || 'approved',
+                                          createdAt: req.created_at,
+                                          requestId: req.id,
+                                        });
+                                        shareViaWhatsApp(text);
+                                        toast({ title: 'Sharing', description: 'Opening WhatsApp...' });
+                                      }}
+                                    >
+                                      <MessageCircle className="h-3 w-3 mr-1" />
+                                      Receipt WA
                                     </Button>
                                   </div>
                                 </div>
