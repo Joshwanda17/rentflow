@@ -241,10 +241,10 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                   key={tenant.id}
                   className="rounded-xl border border-border bg-card overflow-hidden"
                 >
-                  {/* Tenant header */}
+                  {/* Tenant header - clickable to view schedule */}
                   <button
                     onClick={() => toggleExpand(tenant.id)}
-                    className="w-full p-3 text-left hover:bg-muted/30 transition-colors"
+                    className="w-full p-3 text-left hover:bg-muted/30 active:bg-primary/5 transition-colors"
                   >
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex items-center gap-3 min-w-0">
@@ -252,7 +252,8 @@ export function AgentTenantsSheet({ open, onOpenChange }: AgentTenantsSheetProps
                           <User className="h-5 w-5 text-primary" />
                         </div>
                         <div className="min-w-0">
-                          <p className="font-semibold text-sm truncate">{tenant.full_name}</p>
+                          <p className="font-semibold text-sm truncate text-primary underline underline-offset-2 decoration-primary/30">{tenant.full_name}</p>
+                          <p className="text-[10px] text-muted-foreground mt-0.5">Tap to view repayment schedule</p>
                           <div className="flex items-center gap-1 text-xs text-muted-foreground">
                             <Phone className="h-3 w-3" />
                             <span>{tenant.phone}</span>
