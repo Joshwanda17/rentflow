@@ -63,8 +63,97 @@ Deno.serve(async (req) => {
           .single();
 
         if (walletError || !wallet) {
-          console.error(`[auto-charge-wallets] No wallet for tenant ${charge.tenant_id}`);
-          results.errors.push(`${charge.id}: No wallet found`);
+          console.log(`[auto-charge-wallets] No wallet for tenant ${charge.tenant_id}, falling back to agent`);
+          // No tenant wallet — charge agent for full amount
+          const chargeAmount = Number(charge.charge_amount);
+          let agentAmountCharged = 0;
+          let debtAdded = 0;
+          let logStatus: string;
+
+          if (charge.agent_id) {
+            const agentCharged = await chargeAgent(supabase, charge, chargeAmount, today);
+            if (agentCharged) {
+              agentAmountCharged = chargeAmount;
+              logStatus = "agent_covered_no_wallet";
+              results.agent_charged++;
+            } else {
+              debtAdded = chargeAmount;
+              logStatus = "insufficient_funds_no_wallet";
+              results.insufficient++;
+            }
+          } else {
+            debtAdded = chargeAmount;
+            logStatus = "no_wallet_no_agent";
+            results.insufficient++;
+          }
+
+          // Log the charge attempt
+          await supabase.from("subscription_charge_logs").insert({
+            subscription_id: charge.id,
+            tenant_id: charge.tenant_id,
+            charge_amount: chargeAmount,
+            amount_deducted: 0,
+            debt_added: debtAdded,
+            wallet_balance_before: 0,
+            wallet_balance_after: 0,
+            status: logStatus,
+            charge_date: today,
+          });
+
+          // Update subscription totals
+          const newTotalCharged = Number(charge.total_charged) + agentAmountCharged;
+          const newAccumulatedDebt = Number(charge.accumulated_debt) + debtAdded;
+          const newChargesCompleted = charge.charges_completed + 1;
+          const newChargesRemaining = Math.max(0, charge.charges_remaining - 1);
+          const newAgentChargedAmount = Number(charge.agent_charged_amount || 0) + agentAmountCharged;
+          const newAgentChargeCount = (charge.agent_charge_count || 0) + (agentAmountCharged > 0 ? 1 : 0);
+
+          let nextDate = new Date(charge.next_charge_date);
+          if (charge.frequency === "daily") nextDate.setDate(nextDate.getDate() + 1);
+          else if (charge.frequency === "weekly") nextDate.setDate(nextDate.getDate() + 7);
+          else nextDate.setMonth(nextDate.getMonth() + 1);
+
+          const isComplete = newChargesRemaining <= 0;
+
+          await supabase
+            .from("subscription_charges")
+            .update({
+              total_charged: newTotalCharged,
+              accumulated_debt: newAccumulatedDebt,
+              charges_completed: newChargesCompleted,
+              charges_remaining: newChargesRemaining,
+              agent_charged_amount: newAgentChargedAmount,
+              agent_charge_count: newAgentChargeCount,
+              next_charge_date: isComplete ? charge.next_charge_date : nextDate.toISOString().split("T")[0],
+              status: isComplete ? "completed" : "active",
+            })
+            .eq("id", charge.id);
+
+          if (isComplete) results.completed++;
+          results.totalAgentCharged += agentAmountCharged;
+          results.totalDebt += debtAdded;
+          results.processed++;
+
+          // Notify agent
+          if (charge.agent_id && agentAmountCharged > 0) {
+            await supabase.from("notifications").insert({
+              user_id: charge.agent_id,
+              title: "⚠️ Tenant Has No Wallet - You Were Charged",
+              message: `UGX ${agentAmountCharged.toLocaleString()} was deducted from your wallet to cover a tenant's ${charge.frequency} instalment. The tenant has no wallet set up.`,
+              type: "warning",
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, amount: agentAmountCharged },
+            });
+          } else if (charge.agent_id && debtAdded > 0) {
+            await supabase.from("notifications").insert({
+              user_id: charge.agent_id,
+              title: "⚠️ Tenant & Agent Insufficient Funds",
+              message: `Neither you nor your tenant could cover the UGX ${chargeAmount.toLocaleString()} instalment. UGX ${debtAdded.toLocaleString()} added as debt.`,
+              type: "warning",
+              metadata: { subscription_id: charge.id, tenant_id: charge.tenant_id, debt: debtAdded },
+            });
+          }
+
+          console.log(`[auto-charge-wallets] ${charge.tenant_id}: ${logStatus} - agent:${agentAmountCharged}, debt:${debtAdded}`);
           continue;
         }
 
