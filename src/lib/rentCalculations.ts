@@ -10,17 +10,22 @@ export interface RentCalculation {
   accessFeeRate: number;
 }
 
-// Constants
-const MONTHLY_COMPOUND_RATE = 0.33; // 33% per month
+// Constants - supported access fee rates
+export const ACCESS_FEE_RATES = [
+  { rate: 0.23, label: '23%' },
+  { rate: 0.28, label: '28%' },
+  { rate: 0.33, label: '33%' },
+] as const;
+
+const DEFAULT_MONTHLY_COMPOUND_RATE = 0.33; // 33% per month
 
 /**
- * Calculate access fee based on duration
- * 33% compounding per month, supports any number of days
+ * Calculate access fee based on duration and chosen monthly rate
+ * Compounding per month, supports any number of days
  */
-export function calculateAccessFee(rentAmount: number, durationDays: number): number {
+export function calculateAccessFee(rentAmount: number, durationDays: number, monthlyRate: number = DEFAULT_MONTHLY_COMPOUND_RATE): number {
   const months = durationDays / 30;
-  // Compounding 33% per month, prorated for partial months
-  const rate = Math.pow(1 + MONTHLY_COMPOUND_RATE, months) - 1;
+  const rate = Math.pow(1 + monthlyRate, months) - 1;
   return Math.round(rentAmount * rate);
 }
 
@@ -37,8 +42,8 @@ export function calculateRequestFee(rentAmount: number): number {
  * Calculate all rent repayment details
  * Supports any duration from 7-120 days
  */
-export function calculateRentRepayment(rentAmount: number, durationDays: number): RentCalculation {
-  const accessFee = calculateAccessFee(rentAmount, durationDays);
+export function calculateRentRepayment(rentAmount: number, durationDays: number, monthlyRate: number = 0.33): RentCalculation {
+  const accessFee = calculateAccessFee(rentAmount, durationDays, monthlyRate);
   const requestFee = calculateRequestFee(rentAmount);
   const totalRepayment = rentAmount + accessFee + requestFee;
   const dailyRepayment = Math.ceil(totalRepayment / durationDays);
@@ -53,6 +58,15 @@ export function calculateRentRepayment(rentAmount: number, durationDays: number)
     dailyRepayment,
     accessFeeRate
   };
+}
+
+/**
+ * Calculate instalment amount for a given period
+ */
+export function calculateInstalment(totalRepayment: number, durationDays: number, periodDays: number): { amount: number; count: number } {
+  const count = Math.max(1, Math.ceil(durationDays / periodDays));
+  const amount = Math.ceil(totalRepayment / count);
+  return { amount, count };
 }
 
 /**

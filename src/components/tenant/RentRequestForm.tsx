@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { FileText } from 'lucide-react';
-import { calculateRentRepayment, formatUGX } from '@/lib/rentCalculations';
+import { calculateRentRepayment, formatUGX, ACCESS_FEE_RATES, calculateInstalment } from '@/lib/rentCalculations';
 import { generateRepaymentSchedule, insertRepaymentSchedule } from '@/lib/scheduleUtils';
 import { useToast } from '@/hooks/use-toast';
 
@@ -33,6 +33,7 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const [rentAmount, setRentAmount] = useState('');
   const [duration, setDuration] = useState(30);
   const [numberOfPayments, setNumberOfPayments] = useState(4);
+  const [accessFeeRate, setAccessFeeRate] = useState(0.33);
   // Tenant details
   const [tenantNationalId, setTenantNationalId] = useState('');
   const [tenantFullName, setTenantFullName] = useState('');
@@ -63,8 +64,8 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
   const calc = useMemo(() => {
     const amount = parseInt(rentAmount.replace(/,/g, '')) || 0;
     if (amount <= 0) return null;
-    return calculateRentRepayment(amount, duration);
-  }, [rentAmount, duration]);
+    return calculateRentRepayment(amount, duration, accessFeeRate);
+  }, [rentAmount, duration, accessFeeRate]);
 
   // Adjust numberOfPayments if duration changes
   const handleDurationChange = (days: number) => {
@@ -273,6 +274,25 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
             />
           </div>
 
+          {/* Access Fee Rate Selection */}
+          <div className="space-y-2">
+            <Label>Access Fee Rate (Monthly Compounding)</Label>
+            <div className="flex flex-wrap gap-2">
+              {ACCESS_FEE_RATES.map((opt) => (
+                <Button
+                  key={opt.rate}
+                  type="button"
+                  variant={accessFeeRate === opt.rate ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setAccessFeeRate(opt.rate)}
+                  className="text-xs"
+                >
+                  {opt.label}/month
+                </Button>
+              ))}
+            </div>
+          </div>
+
           {/* Quick Select Buttons */}
           <div className="space-y-2">
             <Label>Payback Period</Label>
@@ -364,6 +384,27 @@ export default function RentRequestForm({ userId, onSuccess, onCancel }: RentReq
                   <p className="text-xs text-muted-foreground mt-1">
                     every {Math.floor(calc.durationDays / numberOfPayments)} days
                   </p>
+                </div>
+                {/* Instalment Breakdown by Period */}
+                <div className="space-y-2 p-3 rounded-lg bg-muted/50 border">
+                  <p className="text-xs font-medium text-muted-foreground">Instalment Breakdown</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { label: 'Daily', days: 1 },
+                      { label: 'Weekly', days: 7 },
+                      { label: 'Bi-Weekly', days: 14 },
+                      { label: 'Monthly', days: 30 },
+                    ].filter(p => p.days <= calc.durationDays).map((period) => {
+                      const inst = calculateInstalment(calc.totalRepayment, calc.durationDays, period.days);
+                      return (
+                        <div key={period.label} className="p-2 rounded bg-background border text-center">
+                          <p className="text-[10px] text-muted-foreground">{period.label}</p>
+                          <p className="text-sm font-bold font-mono">{formatUGX(inst.amount)}</p>
+                          <p className="text-[10px] text-muted-foreground">× {inst.count} payments</p>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
                 {/* Total */}
                 <div className="p-3 rounded-lg bg-primary/10 border border-primary/20 text-center">
