@@ -6,7 +6,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { 
   Users, Search, Star, CheckCircle, X, 
-  ArrowLeft, RefreshCw, MoreVertical, Loader2
+  ArrowLeft, RefreshCw, MoreVertical, Loader2, BadgeCheck
 } from 'lucide-react';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 
@@ -579,13 +579,15 @@ export default function UserManagement() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium text-white truncate">{u.full_name}</h3>
+                    <h3 className="font-medium text-white truncate flex items-center gap-1">
+                      {u.full_name}
+                      {u.verified && <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20 shrink-0" />}
+                    </h3>
                     <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-[#00a884]" : "text-[#8696a0]")}>{formatLastActive(u.last_active_at)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
                     <p className="text-sm text-[#8696a0] truncate">{getStatusText(u)}</p>
                     <div className="flex items-center gap-1 shrink-0">
-                      {u.verified && <CheckCircle className="h-4 w-4 text-[#53bdeb]" />}
                       {u.average_rating && (
                         <span className="text-xs text-[#8696a0] flex items-center gap-0.5">
                           <Star className="h-3 w-3 fill-[#ffc107] text-[#ffc107]" />
