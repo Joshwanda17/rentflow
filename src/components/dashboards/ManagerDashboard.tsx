@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -366,6 +366,25 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     }
   }, [user.id]);
 
+  // Fetch rent due total independently so hub cards show it without opening the section
+  const fetchRentDueTotal = useCallback(async () => {
+    try {
+      const { data, error } = await supabase
+        .from('rent_requests')
+        .select('total_repayment, amount_repaid')
+        .eq('status', 'approved');
+
+      if (!error && data) {
+        const total = data.reduce((sum: number, r: any) => 
+          sum + Math.max(0, (r.total_repayment || 0) - (r.amount_repaid || 0)), 0
+        );
+        setRentDueTotal(total);
+      }
+    } catch (err) {
+      console.error('Error fetching rent due total:', err);
+    }
+  }, []);
+
   // Run ALL initial data fetches in parallel with 8s timeout
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -376,7 +395,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     Promise.all([
       fetchData(),
       fetchMonthlyTarget(),
-      fetchProductivityData()
+      fetchProductivityData(),
+      fetchRentDueTotal()
     ]).catch(console.error).finally(() => clearTimeout(timeout));
   }, []);
 
