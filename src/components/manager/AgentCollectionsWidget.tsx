@@ -3,11 +3,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Loader2, Receipt, ChevronDown, ChevronUp, Users, Phone, MessageCircle, Trash2 } from 'lucide-react';
+import { Loader2, Receipt, ChevronDown, ChevronUp, Users, Phone, MessageCircle, Trash2, FileDown, Share2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { toast } from 'sonner';
 import { buildReceiptText, shareViaWhatsApp } from '@/lib/shareReceipt';
+import { generateAgentReportPdf, buildAgentReportWhatsAppText } from '@/lib/agentReportPdf';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 
 const formatUGX = (value: number) =>
@@ -116,6 +117,57 @@ export function AgentCollectionsWidget() {
     } catch { toast.error('Failed to load user'); }
   };
 
+  const handleDownloadReport = (group: AgentGroup) => {
+    const reportData = {
+      agentName: group.agent_name,
+      totalCollected: group.total,
+      paymentCount: group.count,
+      payments: group.payments.map(p => ({
+        tenant_name: p.tenant_name,
+        tenant_phone: p.tenant_phone || '',
+        amount: p.amount,
+        merchant_name: p.merchant_name,
+        transaction_id: p.transaction_id,
+        created_at: p.created_at,
+        notes: p.notes,
+      })),
+    };
+    const blob = generateAgentReportPdf(reportData);
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `${group.agent_name.replace(/\s+/g, '_')}_report_${new Date().toISOString().split('T')[0]}.pdf`;
+    if (/iPad|iPhone|iPod/.test(navigator.userAgent)) {
+      window.open(url, '_blank');
+    } else {
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    toast.success('PDF report downloaded');
+  };
+
+  const handleShareReport = (group: AgentGroup) => {
+    const reportData = {
+      agentName: group.agent_name,
+      totalCollected: group.total,
+      paymentCount: group.count,
+      payments: group.payments.map(p => ({
+        tenant_name: p.tenant_name,
+        tenant_phone: p.tenant_phone || '',
+        amount: p.amount,
+        merchant_name: p.merchant_name,
+        transaction_id: p.transaction_id,
+        created_at: p.created_at,
+        notes: p.notes,
+      })),
+    };
+    const text = buildAgentReportWhatsAppText(reportData);
+    shareViaWhatsApp(text);
+    toast.success('Opening WhatsApp...');
+  };
+
   const handleDeleteUser = async (userId: string) => {
     setDeletingUserId(userId);
     try {
@@ -207,6 +259,13 @@ export function AgentCollectionsWidget() {
                       )}
                     </div>
                   </button>
+                  {/* Report buttons */}
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-primary hover:bg-primary/10 shrink-0" title="Download PDF Report" onClick={(e) => { e.stopPropagation(); handleDownloadReport(group); }}>
+                    <FileDown className="h-3.5 w-3.5" />
+                  </Button>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 text-emerald-600 hover:bg-emerald-500/10 shrink-0" title="Share on WhatsApp" onClick={(e) => { e.stopPropagation(); handleShareReport(group); }}>
+                    <Share2 className="h-3.5 w-3.5" />
+                  </Button>
                   {/* Delete agent button */}
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
