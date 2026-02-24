@@ -48,6 +48,11 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [caretakerName, setCaretakerName] = useState('');
   const [caretakerPhone, setCaretakerPhone] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
+  
+  // LC1 Chairperson
+  const [lc1Name, setLc1Name] = useState('');
+  const [lc1Phone, setLc1Phone] = useState('');
+  const [lc1Village, setLc1Village] = useState('');
 
   const handleDialogOpen = async (isOpen: boolean) => {
     if (isOpen && !locationCaptured) {
@@ -76,6 +81,9 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     setCaretakerName('');
     setCaretakerPhone('');
     setLocationCaptured(false);
+    setLc1Name('');
+    setLc1Phone('');
+    setLc1Village('');
     setSuccess(false);
     setActivationLink('');
   };
@@ -100,6 +108,16 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
 
     if (!mobileMoneyName.trim()) {
       toast.error('Please enter the Mobile Money registered name');
+      return;
+    }
+
+    if (!lc1Name.trim() || !lc1Phone.trim() || !lc1Village.trim()) {
+      toast.error('Please fill in LC1 Chairperson details');
+      return;
+    }
+
+    if (!locationCaptured || !location) {
+      toast.error('GPS location is required. Please allow location access.');
       return;
     }
 
@@ -152,6 +170,13 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
         setLoading(false);
         return;
       }
+
+      // Register LC1 Chairperson
+      await supabase.from('lc1_chairpersons').insert({
+        name: lc1Name.trim(),
+        phone: lc1Phone.trim(),
+        village: lc1Village.trim(),
+      });
 
       // Create activation invite for the landlord
       const tempPassword = generateTempPassword();
@@ -488,7 +513,59 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
                 </div>
               </div>
 
-              {/* Caretaker Info */}
+              {/* LC1 Chairperson */}
+              <div className="space-y-3 p-3 rounded-lg bg-primary/5 border border-primary/20">
+                <h4 className="text-sm font-medium flex items-center gap-1">
+                  <User className="h-3 w-3 text-primary" />
+                  LC1 Chairperson *
+                </h4>
+                <p className="text-[10px] text-muted-foreground -mt-1">
+                  Local Council 1 chairperson of the area where the property is located
+                </p>
+                
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="space-y-1">
+                    <Label htmlFor="lc1Name" className="text-xs">Name *</Label>
+                    <Input
+                      id="lc1Name"
+                      value={lc1Name}
+                      onChange={(e) => setLc1Name(e.target.value)}
+                      placeholder="LC1 chairperson name"
+                      className="h-9"
+                      required
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <Label htmlFor="lc1Phone" className="text-xs flex items-center gap-1">
+                      <Phone className="h-3 w-3" /> Phone *
+                    </Label>
+                    <Input
+                      id="lc1Phone"
+                      value={lc1Phone}
+                      onChange={(e) => setLc1Phone(e.target.value)}
+                      placeholder="0783..."
+                      className="h-9"
+                      required
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <Label htmlFor="lc1Village" className="text-xs flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Village / Cell *
+                  </Label>
+                  <Input
+                    id="lc1Village"
+                    value={lc1Village}
+                    onChange={(e) => setLc1Village(e.target.value)}
+                    placeholder="Village or cell name"
+                    className="h-9"
+                    required
+                  />
+                </div>
+              </div>
+
+
               <div className="space-y-3">
                 <h4 className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   <User className="h-3 w-3" />
