@@ -137,19 +137,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Use user-provided details if available, fall back to invite data
-    const finalFullName = (typeof userFullName === 'string' && userFullName.trim()) 
-      ? userFullName.trim() 
-      : invite.full_name;
+    // Use user-provided details if available, fall back to invite data (with validation)
+    let finalFullName = invite.full_name;
+    if (typeof userFullName === 'string') {
+      const cleaned = userFullName.trim();
+      if (cleaned.length >= 2 && cleaned.length <= 100 && /^[\p{L}\p{M}\s'.-]+$/u.test(cleaned)) {
+        finalFullName = cleaned;
+      }
+    }
     
-    // Use user-provided email if available, otherwise use invite email
+    // Use user-provided email if available, otherwise use invite email (with validation)
     let finalEmail = invite.email;
-    if (typeof userEmail === 'string' && userEmail.trim() && userEmail.includes('@') && !userEmail.endsWith('@welile.user')) {
-      finalEmail = userEmail.trim().toLowerCase();
+    if (typeof userEmail === 'string') {
+      const cleaned = userEmail.trim().toLowerCase();
+      if (cleaned.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned) && !cleaned.endsWith('@welile.user')) {
+        finalEmail = cleaned;
+      }
     }
 
     // Use user's new password if provided, otherwise use the temp password
-    const finalPassword = (typeof userNewPassword === 'string' && userNewPassword.trim().length >= 6) 
+    const finalPassword = (typeof userNewPassword === 'string' && userNewPassword.trim().length >= 6 && userNewPassword.trim().length <= 128) 
       ? userNewPassword.trim() 
       : password;
 

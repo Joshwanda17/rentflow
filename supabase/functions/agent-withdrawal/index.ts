@@ -1,4 +1,3 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
@@ -6,7 +5,38 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-serve(async (req) => {
+// Input validation helpers
+function validateUUID(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validatePhone(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (cleaned.length < 7 || cleaned.length > 20) return null;
+  if (!/^[0-9+\-\s()]+$/.test(cleaned)) return null;
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return null;
+  return cleaned;
+}
+
+function validateAmount(value: unknown): number | null {
+  if (typeof value === 'string') {
+    const parsed = parseFloat(value);
+    if (isNaN(parsed)) return null;
+    value = parsed;
+  }
+  if (typeof value !== 'number') return null;
+  if (!Number.isFinite(value)) return null;
+  if (value <= 0) return null;
+  if (value > 100000000) return null;
+  return Math.round(value);
+}
+
+Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
@@ -29,7 +59,7 @@ serve(async (req) => {
 
     const { data: { user }, error: userError } = await userClient.auth.getUser();
     if (userError || !user) {
-      console.error('Auth error:', userError);
+      console.error('[agent-withdrawal] Auth error:', userError);
       return new Response(
         JSON.stringify({ error: 'Unauthorized' }),
         { status: 401, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
@@ -37,16 +67,37 @@ serve(async (req) => {
     }
 
     const agentId = user.id;
-    const { user_id, amount, user_phone } = await req.json();
 
-    console.log(`Agent ${agentId} processing withdrawal for user ${user_id || user_phone}, amount: ${amount}`);
-
-    if ((!user_id && !user_phone) || !amount || amount <= 0) {
+    // Parse and validate body
+    let body: unknown;
+    try { body = await req.json(); } catch {
       return new Response(
-        JSON.stringify({ error: 'Invalid request parameters' }),
+        JSON.stringify({ error: 'Invalid request body' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
+
+    const { user_id: rawUserId, amount: rawAmount, user_phone: rawPhone } = body as Record<string, unknown>;
+
+    const userId = rawUserId ? validateUUID(rawUserId) : null;
+    const userPhone = rawPhone ? validatePhone(rawPhone) : null;
+    const amount = validateAmount(rawAmount);
+
+    if (!userId && !userPhone) {
+      return new Response(
+        JSON.stringify({ error: 'Either user_id or user_phone is required' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (amount === null) {
+      return new Response(
+        JSON.stringify({ error: 'Invalid amount. Must be a positive number up to 100,000,000' }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    console.log(`[agent-withdrawal] Agent ${agentId} processing withdrawal, amount: ${amount}`);
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -66,12 +117,12 @@ serve(async (req) => {
     }
 
     // Find user by phone if not provided user_id
-    let targetUserId = user_id;
-    if (!targetUserId && user_phone) {
+    let targetUserId = userId;
+    if (!targetUserId && userPhone) {
       const { data: profile } = await adminClient
         .from('profiles')
         .select('id')
-        .eq('phone', user_phone)
+        .eq('phone', userPhone)
         .maybeSingle();
       
       if (!profile) {
@@ -109,27 +160,26 @@ serve(async (req) => {
       .from('wallets')
       .update({ balance: userWallet.balance - amount, updated_at: new Date().toISOString() })
       .eq('user_id', targetUserId)
-      .eq('balance', userWallet.balance) // Optimistic lock - only update if balance unchanged
+      .eq('balance', userWallet.balance)
       .select();
 
     if (updateError) {
-      console.error('Wallet update error:', updateError);
+      console.error('[agent-withdrawal] Wallet update error:', updateError);
       return new Response(
         JSON.stringify({ error: 'Failed to update wallet' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Check if optimistic lock succeeded (0 rows = balance changed)
     if (!updatedRows || updatedRows.length === 0) {
-      console.error('Optimistic lock failed - balance changed between read and write');
+      console.error('[agent-withdrawal] Optimistic lock failed');
       return new Response(
         JSON.stringify({ error: 'Balance changed during withdrawal. Please try again.' }),
         { status: 409, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    // Record withdrawal with error handling
+    // Record withdrawal
     const { error: withdrawalRecordError } = await adminClient
       .from('wallet_withdrawals')
       .insert({
@@ -139,8 +189,7 @@ serve(async (req) => {
       });
 
     if (withdrawalRecordError) {
-      console.error('Failed to record withdrawal:', withdrawalRecordError);
-      // Don't fail the whole operation - balance was already deducted
+      console.error('[agent-withdrawal] Failed to record withdrawal:', withdrawalRecordError);
     }
 
     // Get user profile for response
@@ -151,7 +200,7 @@ serve(async (req) => {
       .single();
 
     const newBalance = updatedRows[0].balance;
-    console.log(`Withdrawal completed: User ${targetUserId}, Amount: ${amount}, New balance: ${newBalance}`);
+    console.log(`[agent-withdrawal] Completed: Amount: ${amount}, New balance: ${newBalance}`);
 
     return new Response(
       JSON.stringify({
@@ -167,7 +216,7 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Unexpected error:', error);
+    console.error('[agent-withdrawal] Unexpected error:', error);
     return new Response(
       JSON.stringify({ error: 'Internal server error' }),
       { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
