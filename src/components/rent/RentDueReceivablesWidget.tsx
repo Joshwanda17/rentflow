@@ -12,6 +12,7 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { addDays, format, subDays, startOfDay, endOfDay, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
 import { motion, AnimatePresence } from 'framer-motion';
 import { EditApprovedRentDialog } from './EditApprovedRentDialog';
+import { RentRequestDetailDrawer } from './RentRequestDetailDrawer';
 import { useAuth } from '@/hooks/useAuth';
 import { exportToPDF } from '@/lib/exportUtils';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
@@ -91,7 +92,7 @@ interface RentDueReceivablesWidgetProps {
   onTotalChange?: (total: number) => void;
 }
 
-function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
+function RequestBreakdownRow({ req, onViewDetails }: { req: ApprovedRequest; onViewDetails?: (id: string) => void }) {
   const [open, setOpen] = useState(false);
   const remaining = Math.max(0, req.total_repayment - (req.amount_repaid || 0));
 
@@ -284,6 +285,18 @@ function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
                   <span>{req.tenant.phone}</span>
                 </div>
               )}
+
+              {/* View Full Details button */}
+              {onViewDetails && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="w-full text-xs gap-1.5 mt-1"
+                  onClick={() => onViewDetails(req.id)}
+                >
+                  View Full Details
+                </Button>
+              )}
             </div>
           </motion.div>
         )}
@@ -302,6 +315,8 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const [fieldCollectionCount, setFieldCollectionCount] = useState(0);
   const [period, setPeriod] = useState<ReceivablePeriod>('all');
   const [exporting, setExporting] = useState(false);
+  const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
   const statementRef = useRef<HTMLDivElement>(null);
 
   const fetchRequests = useCallback(async () => {
@@ -741,7 +756,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                 <div className="divide-y divide-border/40">
                   {requests.map((req) => (
                     <div key={req.id} className="relative">
-                      <RequestBreakdownRow req={req} />
+                      <RequestBreakdownRow req={req} onViewDetails={(id) => { setDetailRequestId(id); setDetailOpen(true); }} />
                       {mode === 'manager' && (
                         <Button
                           variant="ghost"
@@ -770,6 +785,12 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
         open={editOpen}
         onOpenChange={setEditOpen}
         onSaved={fetchRequests}
+      />
+
+      <RentRequestDetailDrawer
+        requestId={detailRequestId}
+        open={detailOpen}
+        onOpenChange={setDetailOpen}
       />
     </motion.div>
   );
