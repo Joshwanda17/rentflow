@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import { Home, User, Shield, ArrowRight, Wallet, Clock, TrendingUp, HandCoins } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -167,8 +167,7 @@ export default function FundFlowTracker() {
         {flows.length === 0 ? (
           <p className="text-center text-sm text-muted-foreground py-6">No fund flows yet</p>
         ) : (
-          <ScrollArea className="h-[400px]">
-            <div className="divide-y divide-border">
+          <div className="divide-y divide-border max-h-[60vh] overflow-y-auto">
               {flows.map((flow) => {
                 const monthlyReward = Math.round(Number(flow.rent_amount) * 0.15);
                 return (
@@ -180,29 +179,35 @@ export default function FundFlowTracker() {
                         {formatUGX(Number(flow.rent_amount))}
                       </span>
                     </div>
-                    {/* Flow path */}
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground overflow-x-auto">
-                      <span className="shrink-0">Supporter: {flow.supporter_name}</span>
-                      <ArrowRight className="h-3 w-3 shrink-0" />
-                      <span className="shrink-0">Landlord: {flow.landlord_name}</span>
+                    {/* Flow path — stacked vertically for mobile */}
+                    <div className="space-y-1 text-xs text-muted-foreground">
+                      <div className="flex items-center gap-1.5">
+                        <HandCoins className="h-3 w-3 shrink-0 text-primary" />
+                        <span className="truncate">Supporter: {flow.supporter_name}</span>
+                      </div>
+                      <div className="flex items-center gap-1.5 pl-1">
+                        <ArrowRight className="h-3 w-3 shrink-0 opacity-40" />
+                        <Home className="h-3 w-3 shrink-0 text-emerald-500" />
+                        <span className="truncate">Landlord: {flow.landlord_name}</span>
+                      </div>
                       {flow.fund_recipient_type && (
-                        <>
-                          <ArrowRight className="h-3 w-3 shrink-0" />
+                        <div className="flex items-center gap-1.5 pl-1">
+                          <ArrowRight className="h-3 w-3 shrink-0 opacity-40" />
                           <Badge
                             variant="outline"
-                            className={`text-[9px] px-1.5 py-0 shrink-0 ${recipientColor(flow.fund_recipient_type)}`}
+                            className={`text-[9px] px-1.5 py-0 ${recipientColor(flow.fund_recipient_type)}`}
                           >
                             {recipientIcon(flow.fund_recipient_type)}
-                            <span className="ml-1">
+                            <span className="ml-1 truncate max-w-[120px]">
                               {flow.fund_recipient_name} ({flow.fund_recipient_type})
                             </span>
                           </Badge>
-                        </>
+                        </div>
                       )}
                     </div>
                     {/* Funder reward info */}
                     {flow.supporter_id && (
-                      <div className="flex items-center gap-2 text-[10px]">
+                      <div className="flex items-center gap-2 flex-wrap text-[10px]">
                         <Badge variant="outline" className="text-[9px] px-1.5 py-0 bg-emerald-500/10 text-emerald-600 border-emerald-500/30">
                           <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
                           15% = {formatUGX(monthlyReward)}/mo
@@ -240,7 +245,6 @@ export default function FundFlowTracker() {
                 );
               })}
             </div>
-          </ScrollArea>
         )}
       </CardContent>
     </Card>

@@ -10,6 +10,7 @@ import { motion } from 'framer-motion';
 interface SubscriptionCharge {
   id: string;
   tenant_id: string;
+  tenant_name?: string;
   rent_request_id: string | null;
   service_type: string;
   charge_amount: number;
@@ -55,6 +56,18 @@ export function SubscriptionMonitorWidget() {
       if (error) throw error;
 
       const items = (data || []) as SubscriptionCharge[];
+      
+      // Resolve tenant names
+      const tenantIds = [...new Set(items.map(c => c.tenant_id))];
+      if (tenantIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', tenantIds);
+        const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        items.forEach(c => { c.tenant_name = profileMap.get(c.tenant_id) || undefined; });
+      }
+      
       setCharges(items);
 
       const today = new Date().toISOString().split('T')[0];
@@ -179,8 +192,8 @@ export function SubscriptionMonitorWidget() {
                 animate={{ opacity: 1, y: 0 }}
                 className="flex items-center justify-between rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-2"
               >
-                <div className="text-xs">
-                  <p className="font-semibold truncate max-w-[140px]">{charge.tenant_id.slice(0, 8)}...</p>
+              <div className="text-xs min-w-0 flex-1">
+                  <p className="font-semibold truncate">{charge.tenant_name || charge.tenant_id.slice(0, 8)}</p>
                   <p className="text-muted-foreground capitalize">{charge.frequency} • {charge.charges_remaining} left</p>
                 </div>
                 <div className="text-right">
@@ -201,8 +214,8 @@ export function SubscriptionMonitorWidget() {
             <h4 className="text-xs font-semibold text-muted-foreground">Active Schedules</h4>
             {charges.filter(c => c.status === 'active').slice(0, 5).map((charge) => (
               <div key={charge.id} className="flex items-center justify-between rounded-lg border border-border/50 px-3 py-2">
-                <div className="text-xs">
-                  <p className="font-semibold truncate max-w-[140px]">{charge.tenant_id.slice(0, 8)}...</p>
+                <div className="text-xs min-w-0 flex-1">
+                  <p className="font-semibold truncate">{charge.tenant_name || charge.tenant_id.slice(0, 8)}</p>
                   <p className="text-muted-foreground capitalize">
                     {charge.frequency} • Next: {new Date(charge.next_charge_date).toLocaleDateString()}
                   </p>
