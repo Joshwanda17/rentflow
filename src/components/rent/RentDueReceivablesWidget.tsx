@@ -41,6 +41,17 @@ function getPeriodDateRange(period: ReceivablePeriod): { start: Date | null; end
     default: return { start: null, end: endOfDay(now) };
   }
 }
+interface SubscriptionStatus {
+  status: string;
+  total_charged: number;
+  accumulated_debt: number;
+  charges_remaining: number;
+  charges_completed: number;
+  next_charge_date: string;
+  frequency: string;
+  charge_amount: number;
+}
+
 interface ApprovedRequest {
   id: string;
   rent_amount: number;
@@ -56,8 +67,10 @@ interface ApprovedRequest {
   daily_repayment: number;
   number_of_payments: number | null;
   amount_repaid: number;
+  funded_at: string | null;
   tenant: { full_name: string; phone: string } | null;
   agent: { full_name: string } | null;
+  subscription?: SubscriptionStatus | null;
 }
 
 const CATEGORY_LABELS: Record<string, string> = {
@@ -113,7 +126,29 @@ function RequestBreakdownRow({ req }: { req: ApprovedRequest }) {
               {open ? <ChevronUp className="h-3.5 w-3.5 text-muted-foreground" /> : <ChevronDown className="h-3.5 w-3.5 text-muted-foreground" />}
             </div>
           </div>
-          <div className="flex items-center gap-2 flex-wrap mt-1">
+           <div className="flex items-center gap-2 flex-wrap mt-1">
+            {/* Auto-charge status badge */}
+            {req.subscription ? (
+              <Badge 
+                variant={req.subscription.status === 'active' ? 'default' : 'secondary'}
+                className="text-[10px] px-1.5 py-0 gap-0.5"
+              >
+                {req.subscription.status === 'active' ? '⚡ Auto-charging' : '✓ Completed'}
+              </Badge>
+            ) : req.funded_at ? (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 gap-0.5">
+                ⚠ No schedule
+              </Badge>
+            ) : (
+              <Badge variant="outline" className="text-[10px] px-1.5 py-0 gap-0.5">
+                Awaiting funding
+              </Badge>
+            )}
+            {req.subscription?.accumulated_debt && req.subscription.accumulated_debt > 0 ? (
+              <Badge variant="destructive" className="text-[10px] px-1.5 py-0 gap-0.5">
+                Debt: {formatUGX(req.subscription.accumulated_debt)}
+              </Badge>
+            ) : null}
             {req.house_category && (
               <Badge variant="success" className="text-[10px] px-1.5 py-0 gap-0.5">
                 <Home className="h-2.5 w-2.5" />
@@ -276,7 +311,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
     
     let query = supabase
       .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, amount_repaid, tenant_id, agent_id')
+      .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, amount_repaid, tenant_id, agent_id, funded_at')
       .eq('status', 'approved')
       .order('approved_at', { ascending: false })
       .limit(50);
@@ -295,18 +330,28 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
       const tenantIds = [...new Set(data.map((r: any) => r.tenant_id))];
       const agentIds = [...new Set(data.map((r: any) => r.agent_id).filter(Boolean))] as string[];
       const allIds = [...new Set([...tenantIds, ...agentIds])];
+      const requestIds = data.map((r: any) => r.id);
 
-      const { data: profiles } = allIds.length > 0
-        ? await supabase.from('profiles').select('id, full_name, phone').in('id', allIds)
-        : { data: [] };
+      // Fetch profiles and subscription statuses in parallel
+      const [profilesRes, subscriptionsRes] = await Promise.all([
+        allIds.length > 0
+          ? supabase.from('profiles').select('id, full_name, phone').in('id', allIds)
+          : Promise.resolve({ data: [] }),
+        requestIds.length > 0
+          ? supabase.from('subscription_charges').select('rent_request_id, status, total_charged, accumulated_debt, charges_remaining, charges_completed, next_charge_date, frequency, charge_amount').in('rent_request_id', requestIds)
+          : Promise.resolve({ data: [] }),
+      ]);
 
-      const profileMap = new Map((profiles || []).map((p: any) => [p.id, p]));
+      const profileMap = new Map((profilesRes.data || []).map((p: any) => [p.id, p]));
+      const subMap = new Map((subscriptionsRes.data || []).map((s: any) => [s.rent_request_id, s]));
 
       const enriched = data.map((r: any) => ({
         ...r,
         amount_repaid: r.amount_repaid ?? 0,
+        funded_at: r.funded_at,
         tenant: profileMap.get(r.tenant_id) ? { full_name: profileMap.get(r.tenant_id)!.full_name, phone: profileMap.get(r.tenant_id)!.phone } : null,
         agent: r.agent_id && profileMap.get(r.agent_id) ? { full_name: profileMap.get(r.agent_id)!.full_name } : null,
+        subscription: subMap.get(r.id) || null,
       }));
 
       setRequests(enriched);
@@ -365,6 +410,22 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const netOutstanding = Math.max(0, totalReceivable - fieldCollections);
   const periodLabel = PERIOD_OPTIONS.find(p => p.value === period)?.label || 'All Time';
 
+  // ── REVENUE RECOGNITION ──
+  // Revenue = Access Fees + Platform Fees (Welile's earned income)
+  // Principal is pass-through capital (not Welile revenue)
+  const totalWelileRevenue = totalAccessFees + totalPlatformFees;
+  // Collected revenue = proportion of collections that represent fees (not principal)
+  const feeRatio = totalGross > 0 ? totalWelileRevenue / totalGross : 0;
+  const collectedRevenue = Math.round(totalCollected * feeRatio);
+  const uncollectedRevenue = totalWelileRevenue - collectedRevenue;
+
+  // Auto-charge summary
+  const activeSubscriptions = requests.filter(r => r.subscription?.status === 'active').length;
+  const completedSubscriptions = requests.filter(r => r.subscription?.status === 'completed').length;
+  const noSchedule = requests.filter(r => r.funded_at && !r.subscription).length;
+  const totalDebt = requests.reduce((sum, r) => sum + (r.subscription?.accumulated_debt || 0), 0);
+  const fundedRequests = requests.filter(r => r.funded_at).length;
+
   const buildWhatsAppText = () => {
     const lines = [
       `📊 *Welile Receivables Statement*`,
@@ -385,10 +446,21 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
     }
     lines.push(
       ``,
+      `💰 *Welile Revenue*`,
+      `  Access Fee Revenue: ${formatUGX(totalAccessFees)}`,
+      `  Platform Fee Revenue: ${formatUGX(totalPlatformFees)}`,
+      `  *Total Revenue:* ${formatUGX(totalWelileRevenue)}`,
+      `  Revenue Collected: ${formatUGX(collectedRevenue)}`,
+      `  Revenue Uncollected: ${formatUGX(uncollectedRevenue)}`,
+      ``,
       `📊 *Expected Collections*`,
       `  Daily: ${formatUGX(totalDaily)}`,
       `  Weekly: ${formatUGX(totalWeekly)}`,
       `  Monthly: ${formatUGX(totalMonthly)}`,
+      ``,
+      `⚡ *Auto-Charge*`,
+      `  Active: ${activeSubscriptions} | Completed: ${completedSubscriptions}`,
+      totalDebt > 0 ? `  ⚠ Debt: ${formatUGX(totalDebt)}` : '',
       ``,
       `━━━━━━━━━━━━━━━━`,
       `💵 *Gross Receivable:* ${formatUGX(totalGross)}`,
@@ -524,7 +596,73 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                   </div>
                 </div>
 
-                {/* SECTION: Agent Field Collections */}
+                {/* ══ REVENUE RECOGNITION ══ */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-primary uppercase tracking-wider border-b border-primary/20 pb-1 flex items-center gap-1">
+                    💰 Welile Revenue Recognition
+                  </p>
+                  <p className="text-[9px] text-muted-foreground italic">
+                    Revenue = Access Fees + Platform Fees. Principal is pass-through capital, not Welile income.
+                  </p>
+                  <div className="space-y-1.5 pl-1">
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Access Fee Revenue</span>
+                      <span className="font-mono font-medium text-primary">{formatUGX(totalAccessFees)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm">
+                      <span className="text-muted-foreground">Platform Fee Revenue</span>
+                      <span className="font-mono font-medium text-primary">{formatUGX(totalPlatformFees)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-bold border-t border-primary/20 pt-1">
+                      <span className="text-primary">Total Recognized Revenue</span>
+                      <span className="font-mono text-primary">{formatUGX(totalWelileRevenue)}</span>
+                    </div>
+                  </div>
+                  <div className="space-y-1 pt-1.5 border-t border-border/60">
+                    <div className="flex justify-between text-sm text-success font-medium">
+                      <span>✓ Revenue Collected</span>
+                      <span className="font-mono">{formatUGX(collectedRevenue)}</span>
+                    </div>
+                    <div className="flex justify-between text-sm font-semibold">
+                      <span className={uncollectedRevenue > 0 ? 'text-warning' : 'text-success'}>Uncollected Revenue</span>
+                      <span className={`font-mono ${uncollectedRevenue > 0 ? 'text-warning' : 'text-success'}`}>{formatUGX(uncollectedRevenue)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* ══ AUTO-CHARGE STATUS ══ */}
+                <div className="space-y-2">
+                  <p className="text-[10px] font-semibold text-accent-foreground uppercase tracking-wider border-b border-accent/30 pb-1 flex items-center gap-1">
+                    ⚡ Wallet Auto-Charge Status
+                  </p>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="rounded-lg bg-primary/10 p-2.5 text-center">
+                      <p className="text-lg font-extrabold text-primary">{activeSubscriptions}</p>
+                      <p className="text-[9px] text-muted-foreground">Active Charges</p>
+                    </div>
+                    <div className="rounded-lg bg-success/10 p-2.5 text-center">
+                      <p className="text-lg font-extrabold text-success">{completedSubscriptions}</p>
+                      <p className="text-[9px] text-muted-foreground">Completed</p>
+                    </div>
+                    <div className="rounded-lg bg-muted/50 p-2.5 text-center">
+                      <p className="text-lg font-extrabold">{fundedRequests}</p>
+                      <p className="text-[9px] text-muted-foreground">Funded Tenants</p>
+                    </div>
+                    {noSchedule > 0 && (
+                      <div className="rounded-lg bg-destructive/10 p-2.5 text-center">
+                        <p className="text-lg font-extrabold text-destructive">{noSchedule}</p>
+                        <p className="text-[9px] text-muted-foreground">Missing Schedule ⚠</p>
+                      </div>
+                    )}
+                  </div>
+                  {totalDebt > 0 && (
+                    <div className="flex justify-between text-sm font-semibold bg-destructive/10 rounded-lg px-3 py-2">
+                      <span className="text-destructive">⚠ Accumulated Debt</span>
+                      <span className="font-mono text-destructive">{formatUGX(totalDebt)}</span>
+                    </div>
+                  )}
+                </div>
+
                 {fieldCollections > 0 && (
                   <div className="space-y-2">
                     <p className="text-[10px] font-semibold text-emerald-600 uppercase tracking-wider border-b border-emerald-500/20 pb-1 flex items-center gap-1">
