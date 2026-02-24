@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { motion, AnimatePresence, PanInfo } from 'framer-motion';
 import { X, ChevronLeft, ChevronRight, ZoomIn, ZoomOut } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -246,11 +247,10 @@ export function ImageLightbox({
                         : "border-transparent opacity-50 hover:opacity-75"
                     )}
                   >
-                    <img
+                    <StorageImage
                       src={image.image_url}
                       alt={`Thumbnail ${index + 1}`}
                       className="w-full h-full object-cover"
-                      draggable={false}
                     />
                   </button>
                 ))}

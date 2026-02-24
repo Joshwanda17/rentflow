@@ -1,4 +1,5 @@
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -85,7 +86,7 @@ export function ComparisonDrawer() {
                         </Button>
                         <div className="flex flex-col items-center gap-2">
                           {product.image_url ? (
-                            <img 
+                            <StorageImage 
                               src={product.image_url} 
                               alt={product.name}
                               className="w-20 h-20 object-cover rounded-lg"

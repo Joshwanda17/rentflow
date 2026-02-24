@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { ChevronLeft, ChevronRight, Package, Maximize2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
@@ -67,7 +68,7 @@ export function ProductImageGallery({
               zoomScale={2.5}
             />
           ) : (
-            <img
+            <StorageImage
               src={allImages[currentIndex].image_url}
               alt={`${productName} - Image ${currentIndex + 1}`}
               className="w-full h-full object-cover"
@@ -136,7 +137,7 @@ export function ProductImageGallery({
                     : "border-transparent hover:border-muted-foreground/50"
                 )}
               >
-                <img
+                <StorageImage
                   src={image.image_url}
                   alt={`${productName} - Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"

@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Search, TrendingUp, Clock, Package, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { cn } from '@/lib/utils';
@@ -173,7 +174,7 @@ export function SearchSuggestions({
                       className="w-full flex items-center gap-3 px-3 py-2 rounded-md hover:bg-accent transition-colors text-left"
                     >
                       {product.image_url ? (
-                        <img 
+                        <StorageImage 
                           src={product.image_url} 
                           alt={product.name}
                           className="h-10 w-10 rounded-md object-cover bg-muted"

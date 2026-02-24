@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import {
   Sheet,
   SheetContent,
@@ -121,7 +122,7 @@ export function CartDrawer({ children }: CartDrawerProps) {
                     {/* Product Image */}
                     <div className="h-16 w-16 rounded-lg bg-muted overflow-hidden flex-shrink-0">
                       {item.product.image_url ? (
-                        <img
+                        <StorageImage
                           src={item.product.image_url}
                           alt={item.product.name}
                           className="h-full w-full object-cover"
