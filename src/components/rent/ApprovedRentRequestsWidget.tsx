@@ -60,7 +60,7 @@ export function ApprovedRentRequestsWidget({ mode }: ApprovedRentRequestsWidgetP
     let query = supabase
       .from('rent_requests')
       .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, tenant_id, agent_id')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'funded'])
       .order('approved_at', { ascending: false })
       .limit(20);
 

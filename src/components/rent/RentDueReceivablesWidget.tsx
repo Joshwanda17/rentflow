@@ -312,7 +312,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
     let query = supabase
       .from('rent_requests')
       .select('id, rent_amount, duration_days, status, approved_at, created_at, house_category, request_city, access_fee, request_fee, total_repayment, daily_repayment, number_of_payments, amount_repaid, tenant_id, agent_id, funded_at')
-      .eq('status', 'approved')
+      .in('status', ['approved', 'funded'])
       .order('approved_at', { ascending: false })
       .limit(50);
 
