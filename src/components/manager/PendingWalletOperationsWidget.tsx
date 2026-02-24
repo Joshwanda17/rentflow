@@ -19,10 +19,14 @@ interface PendingOperation {
   category: string;
   description: string | null;
   source_table: string;
+  source_id: string | null;
   created_at: string;
   status: string;
   metadata: any;
+  reference_id: string | null;
+  linked_party: string | null;
   user_name?: string;
+  agent_name?: string;
 }
 
 export function PendingWalletOperationsWidget() {
@@ -51,19 +55,39 @@ export function PendingWalletOperationsWidget() {
       }
 
       if (data && data.length > 0) {
-        // Enrich with user names
+        // Enrich with user names + agent names for wallet deposits
         const userIds = [...new Set(data.map(d => d.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name')
-          .in('id', userIds);
-
-        const nameMap = new Map(profiles?.map(p => [p.id, p.full_name]) || []);
         
-        setOperations(data.map(op => ({
-          ...op,
-          user_name: nameMap.get(op.user_id) || 'Unknown',
-        })));
+        // Also fetch agent info from wallet_deposits source
+        const walletDepositIds = data.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
+        
+        const [profilesRes, depositsRes] = await Promise.all([
+          supabase.from('profiles').select('id, full_name').in('id', userIds),
+          walletDepositIds.length > 0
+            ? supabase.from('wallet_deposits').select('id, agent_id').in('id', walletDepositIds)
+            : Promise.resolve({ data: [] }),
+        ]);
+
+        const nameMap = new Map(profilesRes.data?.map(p => [p.id, p.full_name]) || []);
+        
+        // Get agent names
+        const agentIds = [...new Set((depositsRes.data || []).map(d => d.agent_id))];
+        const depositAgentMap = new Map((depositsRes.data || []).map(d => [d.id, d.agent_id]));
+        
+        let agentNameMap = new Map<string, string>();
+        if (agentIds.length > 0) {
+          const { data: agentProfiles } = await supabase.from('profiles').select('id, full_name').in('id', agentIds);
+          agentNameMap = new Map(agentProfiles?.map(p => [p.id, p.full_name]) || []);
+        }
+        
+        setOperations(data.map(op => {
+          const agentId = op.source_id ? depositAgentMap.get(op.source_id) : undefined;
+          return {
+            ...op,
+            user_name: nameMap.get(op.user_id) || 'Unknown',
+            agent_name: agentId ? agentNameMap.get(agentId) : undefined,
+          };
+        }));
       } else {
         setOperations([]);
       }
@@ -239,6 +263,16 @@ export function PendingWalletOperationsWidget() {
                   exit={{ opacity: 0, x: -100 }}
                   className="p-3 rounded-xl border bg-card space-y-2"
                 >
+                  {/* Reference / Source info — top priority */}
+                  <div className="p-2 rounded-lg bg-warning/10 border border-warning/30">
+                    <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">
+                      {op.reference_id ? 'Reference ID — Verify First' : op.agent_name ? 'Agent Cash Deposit — Verify' : 'Source — Verify'}
+                    </p>
+                    <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
+                      {op.reference_id || (op.agent_name ? `Via: ${op.agent_name}` : op.source_table.replace(/_/g, ' '))}
+                    </p>
+                  </div>
+
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-1.5">
