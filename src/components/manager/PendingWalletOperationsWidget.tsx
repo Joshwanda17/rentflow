@@ -261,17 +261,38 @@ export function PendingWalletOperationsWidget() {
                   initial={{ opacity: 0, y: 10 }}
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, x: -100 }}
-                  className="p-3 rounded-xl border bg-card space-y-2"
+                  className={`p-3 rounded-xl border space-y-2 ${
+                    op.agent_name 
+                      ? 'bg-purple-50 dark:bg-purple-950/30 border-purple-300 dark:border-purple-700 ring-2 ring-purple-400/50' 
+                      : 'bg-card'
+                  }`}
                 >
-                  {/* Reference / Source info — top priority */}
-                  <div className="p-2 rounded-lg bg-warning/10 border border-warning/30">
-                    <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">
-                      {op.reference_id ? 'Reference ID — Verify First' : op.agent_name ? 'Agent Cash Deposit — Verify' : 'Source — Verify'}
-                    </p>
-                    <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
-                      {op.reference_id || (op.agent_name ? `Via: ${op.agent_name}` : op.source_table.replace(/_/g, ' '))}
-                    </p>
-                  </div>
+                  {/* Agent deposit banner — highly visible */}
+                  {op.agent_name && (
+                    <div className="p-2.5 rounded-lg bg-purple-500/15 border-2 border-purple-500/40">
+                      <p className="text-[9px] font-bold text-purple-600 dark:text-purple-400 uppercase tracking-widest mb-1">
+                        ⚠️ Agent Wallet Deposit — Verify with Agent
+                      </p>
+                      <p className="text-base font-black text-purple-700 dark:text-purple-300">
+                        Deposited by: {op.agent_name}
+                      </p>
+                      <p className="text-[10px] text-purple-600/70 dark:text-purple-400/70 mt-0.5">
+                        Cash collected by agent and deposited into tenant wallet
+                      </p>
+                    </div>
+                  )}
+
+                  {/* Reference / Source info */}
+                  {!op.agent_name && (
+                    <div className="p-2 rounded-lg bg-warning/10 border border-warning/30">
+                      <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">
+                        {op.reference_id ? 'Reference ID — Verify First' : 'Source — Verify'}
+                      </p>
+                      <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
+                        {op.reference_id || op.source_table.replace(/_/g, ' ')}
+                      </p>
+                    </div>
+                  )}
 
                   <div className="flex items-start justify-between">
                     <div className="flex-1 min-w-0">
