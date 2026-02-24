@@ -116,8 +116,8 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
       return;
     }
 
-    if (!locationCaptured || !location) {
-      toast.error('GPS location is required. Please allow location access.');
+    if (!locationCaptured && !propertyAddress.trim()) {
+      toast.error('Please capture GPS location or enter a manual address');
       return;
     }
 
@@ -289,56 +289,86 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               onSubmit={handleSubmit}
               className="space-y-4"
             >
-              {/* Location Status */}
-              <div className={`flex items-center justify-between p-3 rounded-lg border ${
-                locationCaptured 
-                  ? 'bg-success/10 border-success/30' 
-                  : locationError 
-                    ? 'bg-destructive/10 border-destructive/30'
-                    : 'bg-muted/50 border-muted'
-              }`}>
-                <div className="flex items-center gap-2">
-                  {locationLoading ? (
-                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                  ) : locationCaptured ? (
-                    <CheckCircle2 className="h-4 w-4 text-success" />
-                  ) : locationError ? (
-                    <AlertTriangle className="h-4 w-4 text-destructive" />
-                  ) : (
-                    <Navigation className="h-4 w-4 text-muted-foreground" />
-                  )}
-                  <div>
-                    <p className="text-sm font-medium">
-                      {locationLoading 
-                        ? 'Getting location...' 
-                        : locationCaptured 
-                          ? 'Location captured' 
-                          : locationError 
-                            ? locationError
-                            : 'Location pending'}
-                    </p>
-                    {locationCaptured && location && (
-                      <p className="text-xs text-muted-foreground">
-                        {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                        {location.accuracy && ` (±${Math.round(location.accuracy)}m)`}
-                      </p>
+              {/* GPS Location Capture */}
+              <div className="space-y-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
+                <h4 className="text-sm font-medium flex items-center gap-1">
+                  <Navigation className="h-3 w-3 text-primary" />
+                  Property Location
+                </h4>
+
+                <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                  locationCaptured 
+                    ? 'bg-success/10 border-success/30' 
+                    : locationError 
+                      ? 'bg-destructive/10 border-destructive/30'
+                      : 'bg-muted/50 border-muted'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    {locationLoading ? (
+                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                    ) : locationCaptured ? (
+                      <CheckCircle2 className="h-4 w-4 text-success" />
+                    ) : locationError ? (
+                      <AlertTriangle className="h-4 w-4 text-destructive" />
+                    ) : (
+                      <Navigation className="h-4 w-4 text-muted-foreground" />
                     )}
+                    <div>
+                      <p className="text-sm font-medium">
+                        {locationLoading 
+                          ? 'Capturing GPS...' 
+                          : locationCaptured 
+                            ? 'GPS Location Captured ✓' 
+                            : locationError 
+                              ? locationError
+                              : 'GPS not captured yet'}
+                      </p>
+                      {locationCaptured && location && (
+                        <p className="text-xs text-muted-foreground">
+                          {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
+                          {location.accuracy && ` (±${Math.round(location.accuracy)}m)`}
+                        </p>
+                      )}
+                    </div>
                   </div>
-                </div>
-                {!locationCaptured && !locationLoading && (
                   <Button 
                     type="button" 
-                    variant="outline" 
+                    variant={locationCaptured ? "outline" : "default"}
                     size="sm"
+                    disabled={locationLoading}
                     onClick={async () => {
                       const loc = await captureLocation();
                       if (loc) setLocationCaptured(true);
                     }}
                   >
-                    <Navigation className="h-3 w-3 mr-1" />
-                    Retry
+                    {locationLoading ? (
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                    ) : (
+                      <>
+                        <Navigation className="h-3 w-3 mr-1" />
+                        {locationCaptured ? 'Recapture' : 'Capture GPS'}
+                      </>
+                    )}
                   </Button>
-                )}
+                </div>
+
+                {/* Manual Location Address */}
+                <div className="space-y-1">
+                  <Label htmlFor="propertyAddress" className="text-xs flex items-center gap-1">
+                    <MapPin className="h-3 w-3" /> Manual Location Address *
+                  </Label>
+                  <Input
+                    id="propertyAddress"
+                    value={propertyAddress}
+                    onChange={(e) => setPropertyAddress(e.target.value)}
+                    placeholder="e.g. Plot 12, Makindye, Kampala"
+                    className="h-9"
+                    required
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    Enter the full address even if GPS is captured
+                  </p>
+                </div>
               </div>
 
               {/* Smartphone Toggle */}
@@ -383,20 +413,6 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
                     value={landlordPhone}
                     onChange={(e) => setLandlordPhone(e.target.value)}
                     placeholder="e.g. 256783..."
-                    className="h-9"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="propertyAddress" className="text-xs flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Property Address *
-                  </Label>
-                  <Input
-                    id="propertyAddress"
-                    value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    placeholder="Full property address"
                     className="h-9"
                     required
                   />
