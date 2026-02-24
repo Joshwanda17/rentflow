@@ -9,8 +9,9 @@ import {
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { formatUGX } from '@/lib/rentCalculations';
-import { format, startOfMonth, endOfMonth, subMonths, parseISO } from 'date-fns';
+import { format, parseISO } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { LedgerEntryDetailDrawer } from './LedgerEntryDetailDrawer';
 
 interface LedgerEntry {
   id: string;
@@ -87,6 +88,8 @@ export function WalletLedgerStatement() {
   const [loading, setLoading] = useState(true);
   const [expandedMonths, setExpandedMonths] = useState<Set<string>>(new Set());
   const [expandedCategories, setExpandedCategories] = useState<Set<string>>(new Set());
+  const [selectedEntryId, setSelectedEntryId] = useState<string | null>(null);
+  const [detailOpen, setDetailOpen] = useState(false);
 
   const fetchLedger = useCallback(async () => {
     if (!user) return;
@@ -173,7 +176,10 @@ export function WalletLedgerStatement() {
         <CollapsibleContent>
           <div className="ml-6 mb-2 space-y-1 border-l-2 border-border pl-3">
             {group.entries.slice(0, 10).map(entry => (
-              <div key={entry.id} className="flex items-center justify-between py-1 text-[11px]">
+              <div key={entry.id} 
+                className="flex items-center justify-between py-1 text-[11px] cursor-pointer hover:bg-muted/40 rounded px-1 -mx-1 transition-colors"
+                onClick={() => { setSelectedEntryId(entry.id); setDetailOpen(true); }}
+              >
                 <div className="flex-1 min-w-0">
                   <p className="text-muted-foreground truncate">{entry.description || entry.source_table.replace(/_/g, ' ')}</p>
                   <p className="text-muted-foreground/60 text-[10px]">
@@ -269,6 +275,7 @@ export function WalletLedgerStatement() {
   };
 
   return (
+    <>
     <Card className="border-border/50 rounded-2xl">
       <CardContent className="p-4">
         <h3 className="text-sm font-bold text-muted-foreground uppercase tracking-widest mb-3">
@@ -302,5 +309,12 @@ export function WalletLedgerStatement() {
         )}
       </CardContent>
     </Card>
+
+    <LedgerEntryDetailDrawer
+      entryId={selectedEntryId}
+      open={detailOpen}
+      onOpenChange={setDetailOpen}
+    />
+    </>
   );
 }
