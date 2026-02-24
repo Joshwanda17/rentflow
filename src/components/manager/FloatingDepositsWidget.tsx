@@ -196,6 +196,14 @@ export function FloatingDepositsWidget() {
                           animate={{ opacity: 1, x: 0 }}
                           className="p-3 rounded-lg bg-muted/50 border border-border/50"
                         >
+                          {/* Transaction ID — top priority */}
+                          <div className="p-2 rounded-md bg-warning/10 border border-warning/30 mb-2">
+                            <p className="text-[9px] font-semibold text-warning uppercase tracking-wider mb-0.5">Transaction ID — Verify First</p>
+                            <p className="font-mono text-lg font-black text-foreground break-all leading-tight">
+                              {deposit.transaction_id || <span className="text-destructive text-xs italic font-sans font-medium">No Transaction ID</span>}
+                            </p>
+                          </div>
+
                           <div className="flex items-start justify-between mb-2">
                             <div className="flex items-center gap-2">
                               <User className="h-3 w-3 text-muted-foreground" />
@@ -217,11 +225,6 @@ export function FloatingDepositsWidget() {
                               </Badge>
                             )}
                           </div>
-                          {deposit.transaction_id && (
-                            <p className="text-xs text-muted-foreground mb-2">
-                              Txn: <span className="font-mono font-medium text-foreground">{deposit.transaction_id}</span>
-                            </p>
-                          )}
                           <div className="flex items-center justify-end gap-1">
                               <Button
                                 size="sm"
