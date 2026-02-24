@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -202,7 +203,7 @@ export function OrdersManager() {
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
                       {order.product?.image_url ? (
-                        <img 
+                        <StorageImage 
                           src={order.product.image_url} 
                           alt={order.product.name} 
                           className="h-12 w-12 rounded-lg object-cover"

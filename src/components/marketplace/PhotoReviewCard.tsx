@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Star, CheckCircle2, Camera, ChevronLeft, ChevronRight, X, ThumbsUp, ThumbsDown, MessageCircle, Store, Edit2, Trash2, Send } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
@@ -233,7 +234,7 @@ export function PhotoReviewCard({ review, onImageClick, onVoteChange, isProductO
               onClick={() => onImageClick?.(review.images!, index)}
               className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-border hover:border-primary/50 transition-colors"
             >
-              <img
+              <StorageImage
                 src={image.image_url}
                 alt={`Review photo ${index + 1}`}
                 className="w-full h-full object-cover"
@@ -490,7 +491,7 @@ export function ReviewImageLightbox({ images, initialIndex, open, onClose }: Rev
                     : 'border-transparent opacity-50 hover:opacity-75'
                 }`}
               >
-                <img
+                <StorageImage
                   src={image.image_url}
                   alt={`Thumbnail ${index + 1}`}
                   className="w-full h-full object-cover"

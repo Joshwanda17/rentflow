@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -205,7 +206,7 @@ export function ProductCard({
           {/* Image Container */}
           <div className="aspect-square bg-muted relative overflow-hidden">
             {product.image_url ? (
-              <img 
+              <StorageImage 
                 src={product.image_url} 
                 alt={product.name}
                 className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-500"

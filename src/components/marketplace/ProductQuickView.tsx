@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { 
@@ -153,7 +154,7 @@ export function ProductQuickView({
                 {/* Image */}
                 <div className="w-24 h-24 rounded-lg bg-muted overflow-hidden flex-shrink-0 relative">
                   {product.image_url ? (
-                    <img
+                    <StorageImage
                       src={product.image_url}
                       alt={product.name}
                       className="w-full h-full object-cover"

@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react';
+import { StorageImage } from '@/components/ui/StorageImage';
 import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Upload, X, Loader2, GripVertical } from 'lucide-react';
@@ -165,7 +166,7 @@ export function GalleryImageUploader({
               key={image.id}
               className="relative aspect-square rounded-md overflow-hidden border border-border group"
             >
-              <img
+              <StorageImage
                 src={image.image_url}
                 alt="Gallery"
                 className="w-full h-full object-cover"
