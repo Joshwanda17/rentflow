@@ -607,68 +607,70 @@ export default function ManagerAccess() {
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={handleTabChange} className="space-y-4">
-          <TabsList className="w-full h-auto flex-wrap gap-1 bg-muted/50 p-1">
-            <TabsTrigger value="activities" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <Activity className="h-3.5 w-3.5" />
-              Activities
-            </TabsTrigger>
-            <TabsTrigger value="rent-requests" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <FileText className="h-3.5 w-3.5" />
-              <span className="hidden sm:inline">Rent</span> Requests
-            </TabsTrigger>
-            <TabsTrigger value="loans" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <Banknote className="h-3.5 w-3.5" />
-              Loans
-            </TabsTrigger>
-            <TabsTrigger value="orders" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <ShoppingCart className="h-3.5 w-3.5" />
-              Orders
-            </TabsTrigger>
-            <TabsTrigger value="users" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <Users className="h-3.5 w-3.5" />
-              Users
-            </TabsTrigger>
-            <TabsTrigger value="receipts" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <Receipt className="h-3.5 w-3.5" />
-              Receipts
-            </TabsTrigger>
-            <TabsTrigger value="financials" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <ChartBar className="h-3.5 w-3.5" />
-              Financials
-            </TabsTrigger>
-            <TabsTrigger value="deposits" className="gap-1.5 text-xs flex-1 min-w-[80px]">
-              <Wallet className="h-3.5 w-3.5" />
-              Deposits
-            </TabsTrigger>
-            <TabsTrigger value="investments" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <Wallet className="h-3.5 w-3.5" />
-              Investments
-            </TabsTrigger>
-            <TabsTrigger value="payments" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <CreditCard className="h-3.5 w-3.5" />
-              Payments
-            </TabsTrigger>
-            <TabsTrigger value="proofs" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <BadgeCheck className="h-3.5 w-3.5" />
-              Proofs
-            </TabsTrigger>
-            <TabsTrigger value="welile-homes" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <Home className="h-3.5 w-3.5" />
-              Welile Homes
-            </TabsTrigger>
-            <TabsTrigger value="withdrawals" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <Banknote className="h-3.5 w-3.5" />
-              Withdrawals
-            </TabsTrigger>
-            <TabsTrigger value="locations" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <MapPin className="h-3.5 w-3.5" />
-              Locations
-            </TabsTrigger>
-          <TabsTrigger value="ledger" className="gap-1.5 text-xs flex-1 min-w-[100px]">
-              <Landmark className="h-3.5 w-3.5" />
-              Ledger
-            </TabsTrigger>
-          </TabsList>
+          <div className="overflow-x-auto -mx-4 px-4 pb-1 hide-scrollbar">
+            <TabsList className="inline-flex w-max gap-1 bg-muted/50 p-1 md:flex md:flex-wrap md:w-full">
+              <TabsTrigger value="activities" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Activity className="h-4 w-4" />
+                Activities
+              </TabsTrigger>
+              <TabsTrigger value="rent-requests" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <FileText className="h-4 w-4" />
+                Rent Requests
+              </TabsTrigger>
+              <TabsTrigger value="loans" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Banknote className="h-4 w-4" />
+                Loans
+              </TabsTrigger>
+              <TabsTrigger value="orders" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <ShoppingCart className="h-4 w-4" />
+                Orders
+              </TabsTrigger>
+              <TabsTrigger value="users" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Users className="h-4 w-4" />
+                Users
+              </TabsTrigger>
+              <TabsTrigger value="receipts" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Receipt className="h-4 w-4" />
+                Receipts
+              </TabsTrigger>
+              <TabsTrigger value="financials" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <ChartBar className="h-4 w-4" />
+                Financials
+              </TabsTrigger>
+              <TabsTrigger value="deposits" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Wallet className="h-4 w-4" />
+                Deposits
+              </TabsTrigger>
+              <TabsTrigger value="investments" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Wallet className="h-4 w-4" />
+                Investments
+              </TabsTrigger>
+              <TabsTrigger value="payments" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <CreditCard className="h-4 w-4" />
+                Payments
+              </TabsTrigger>
+              <TabsTrigger value="proofs" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <BadgeCheck className="h-4 w-4" />
+                Proofs
+              </TabsTrigger>
+              <TabsTrigger value="welile-homes" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Home className="h-4 w-4" />
+                Welile Homes
+              </TabsTrigger>
+              <TabsTrigger value="withdrawals" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Banknote className="h-4 w-4" />
+                Withdrawals
+              </TabsTrigger>
+              <TabsTrigger value="locations" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <MapPin className="h-4 w-4" />
+                Locations
+              </TabsTrigger>
+              <TabsTrigger value="ledger" className="gap-1.5 text-xs px-3 py-2.5 min-h-[44px] touch-manipulation whitespace-nowrap">
+                <Landmark className="h-4 w-4" />
+                Ledger
+              </TabsTrigger>
+            </TabsList>
+          </div>
 
           <TabsContent value="activities" className="mt-4">
             <ActivityManager />
