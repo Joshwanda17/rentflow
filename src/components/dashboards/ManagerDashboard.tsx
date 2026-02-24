@@ -60,6 +60,7 @@ import { PendingRentRequestsWidget } from '@/components/manager/PendingRentReque
 import { RentDueReceivablesWidget } from '@/components/rent/RentDueReceivablesWidget';
 import { ManagerLedgerSummary } from '@/components/manager/ManagerLedgerSummary';
 import { ManagerDepositsWidget } from '@/components/manager/ManagerDepositsWidget';
+import { DepositRentAuditWidget } from '@/components/manager/DepositRentAuditWidget';
 // FinancialStatementsPanel moved to menu
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
@@ -1018,6 +1019,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
                 <ArrowRight className="h-4 w-4 opacity-70" />
               </motion.button>
               <ManagerDepositsWidget />
+              <DepositRentAuditWidget />
             </div>
           </CollapsibleAgentSection>
 

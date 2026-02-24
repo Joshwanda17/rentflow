@@ -167,25 +167,83 @@ Deno.serve(async (req) => {
         throw new Error("Failed to credit wallet. Please retry.");
       }
 
-      // Reduce the outstanding receivable on the tenant's active rent request
-      const { error: repaymentError } = await supabaseAdmin.rpc(
-        "record_rent_request_repayment",
-        { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
-      );
-      if (repaymentError) {
-        // Non-fatal: log but don't fail the deposit approval
-        console.warn("Repayment tracking error (non-fatal):", repaymentError);
+      // Check outstanding rent before applying repayment
+      let repaymentApplied = 0;
+      let rentRequestId: string | null = null;
+      let previousBalance = 0;
+      let newOutstanding = 0;
+
+      // Check if tenant has an active rent request
+      const { data: activeRentRequest } = await supabaseAdmin
+        .from("rent_requests")
+        .select("id, total_repayment, amount_repaid, rent_amount, status")
+        .eq("tenant_id", depositRequest.user_id)
+        .in("status", ["funded", "disbursed", "approved"])
+        .order("created_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeRentRequest) {
+        const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
+        previousBalance = outstanding;
+        rentRequestId = activeRentRequest.id;
+
+        // Apply repayment via RPC (handles amount_repaid update + repayments table insert)
+        const { error: repaymentError } = await supabaseAdmin.rpc(
+          "record_rent_request_repayment",
+          { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
+        );
+        if (repaymentError) {
+          console.warn("Repayment tracking error (non-fatal):", repaymentError);
+        } else {
+          repaymentApplied = Math.min(depositRequest.amount, outstanding);
+          newOutstanding = outstanding - repaymentApplied;
+
+          // Record a general_ledger entry for the repayment portion
+          const txGroupId = crypto.randomUUID();
+          await supabaseAdmin.from("general_ledger").insert({
+            user_id: depositRequest.user_id,
+            amount: repaymentApplied,
+            direction: "cash_out",
+            category: "rent_repayment",
+            source_table: "deposit_requests",
+            source_id: deposit_request_id,
+            reference_id: depositRequest.transaction_id || deposit_request_id,
+            transaction_group_id: txGroupId,
+            description: `Rent repayment from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+            linked_party: rentRequestId,
+            transaction_date: new Date().toISOString(),
+          });
+
+          console.log(`Repayment applied: ${repaymentApplied} from deposit ${deposit_request_id}. Outstanding: ${previousBalance} → ${newOutstanding}`);
+        }
+      } else {
+        console.log(`No active rent request for tenant ${depositRequest.user_id}. Deposit goes to wallet only.`);
       }
 
+      // Get tenant name for notification
+      const { data: tenantProfile } = await supabaseAdmin
+        .from("profiles")
+        .select("full_name")
+        .eq("id", depositRequest.user_id)
+        .single();
+      const tenantName = tenantProfile?.full_name || "Tenant";
+
       // Create notification for user with manager details
+      const repaymentNote = repaymentApplied > 0
+        ? ` UGX ${repaymentApplied.toLocaleString()} was applied to your rent balance (remaining: UGX ${newOutstanding.toLocaleString()}).`
+        : "";
       await supabaseAdmin.from("notifications").insert({
         user_id: depositRequest.user_id,
         title: "Deposit Approved! 💰",
-        message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} has been approved by ${processorName} and added to your wallet.`,
+        message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} has been approved by ${processorName} and added to your wallet.${repaymentNote}`,
         type: "success",
         metadata: { 
           deposit_request_id, 
           amount: depositRequest.amount,
+          repayment_applied: repaymentApplied,
+          outstanding_before: previousBalance,
+          outstanding_after: newOutstanding,
           processed_by: user.id,
           processed_by_name: processorName
         },
@@ -199,16 +257,29 @@ Deno.serve(async (req) => {
         performed_by: user.id,
         old_values: { status: "pending" },
         new_values: { status: "approved", approved_at: new Date().toISOString() },
-        metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
+        metadata: { 
+          amount: depositRequest.amount, 
+          user_id: depositRequest.user_id,
+          repayment_applied: repaymentApplied,
+          outstanding_before: previousBalance,
+          outstanding_after: newOutstanding,
+          rent_request_id: rentRequestId,
+        },
       });
 
-      console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}, by: ${processorName}`);
+      console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}, repayment: ${repaymentApplied}, by: ${processorName}`);
 
       return new Response(
         JSON.stringify({
           success: true,
           message: "Deposit approved successfully",
           amount: depositRequest.amount,
+          tenant_name: tenantName,
+          repayment_applied: repaymentApplied,
+          outstanding_before: previousBalance,
+          outstanding_after: newOutstanding,
+          rent_request_id: rentRequestId,
+          to_wallet: depositRequest.amount - repaymentApplied,
         }),
         { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
