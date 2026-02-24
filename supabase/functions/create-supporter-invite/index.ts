@@ -16,6 +16,39 @@ const ugLocal9 = (value: string) => {
   return last9.length === 9 ? last9 : null;
 };
 
+// Input validation helpers
+function validateFullName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (cleaned.length < 2 || cleaned.length > 100) return null;
+  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validateEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim().toLowerCase();
+  if (cleaned.length > 254) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validatePassword(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  if (value.length < 4 || value.length > 128) return null;
+  return value;
+}
+
+function validatePhone(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (cleaned.length < 7 || cleaned.length > 20) return null;
+  if (!/^[0-9+\-\s()]+$/.test(cleaned)) return null;
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return null;
+  return cleaned;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -62,32 +95,43 @@ Deno.serve(async (req) => {
 
     const creatorRole = roleData[0].role;
 
-    const body = await req.json();
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const rawBody = body as Record<string, unknown>;
     console.log("Received request body:", JSON.stringify({ 
-      email: body.email, 
-      fullName: body.fullName, 
-      phone: body.phone?.substring(0, 4) + '***', 
-      role: body.role,
-      isSubAgent: body.isSubAgent 
+      phone: typeof rawBody.phone === 'string' ? rawBody.phone.substring(0, 4) + '***' : undefined, 
+      role: rawBody.role,
+      isSubAgent: rawBody.isSubAgent 
     }));
     
-    const { 
-      phone, 
-      password, 
-      role = 'tenant', 
-      isSubAgent = false,
-      latitude,
-      longitude,
-      locationAccuracy,
-      propertyAddress,
-    } = body;
+    const phone = validatePhone(rawBody.phone);
+    const password = validatePassword(rawBody.password);
+    const role = (typeof rawBody.role === 'string' && validRoles.includes(rawBody.role)) ? rawBody.role : 'tenant';
+    const isSubAgent = rawBody.isSubAgent === true;
+    const latitude = typeof rawBody.latitude === 'number' && Number.isFinite(rawBody.latitude) ? rawBody.latitude : null;
+    const longitude = typeof rawBody.longitude === 'number' && Number.isFinite(rawBody.longitude) ? rawBody.longitude : null;
+    const locationAccuracy = typeof rawBody.locationAccuracy === 'number' && Number.isFinite(rawBody.locationAccuracy) ? rawBody.locationAccuracy : null;
+    const propertyAddress = typeof rawBody.propertyAddress === 'string' ? rawBody.propertyAddress.trim().slice(0, 500) : null;
 
-    // fullName and email are now optional - agent can skip them
-    // They'll be filled in by the user during activation
-    let { email, fullName } = body;
+    // fullName and email are optional - validated if present
+    let email = rawBody.email ? validateEmail(rawBody.email) : null;
+    let fullName = rawBody.fullName ? validateFullName(rawBody.fullName) : null;
 
-    if (!phone || !password) {
-      return new Response(JSON.stringify({ error: "Phone number and password are required" }), {
+    if (!phone) {
+      return new Response(JSON.stringify({ error: "Invalid phone number format" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!password) {
+      return new Response(JSON.stringify({ error: "Password is required (4-128 characters)" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });

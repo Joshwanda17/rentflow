@@ -5,6 +5,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
+// Input validation helpers
+function validateFullName(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (cleaned.length < 2 || cleaned.length > 100) return null;
+  if (!/^[\p{L}\p{M}\s'.-]+$/u.test(cleaned)) return null;
+  return cleaned;
+}
+
+function validatePhone(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim();
+  if (cleaned.length < 7 || cleaned.length > 20) return null;
+  // Allow digits, +, -, spaces, parens
+  if (!/^[0-9+\-\s()]+$/.test(cleaned)) return null;
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return null;
+  return cleaned;
+}
+
+function validateEmail(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  const cleaned = value.trim().toLowerCase();
+  if (cleaned.length > 254) return null;
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleaned)) return null;
+  return cleaned;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
@@ -33,16 +61,33 @@ Deno.serve(async (req) => {
       });
     }
 
-    const { full_name, phone, email } = await req.json();
+    let body: unknown;
+    try { body = await req.json(); } catch {
+      return new Response(JSON.stringify({ error: "Invalid request body" }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
 
-    if (!full_name || !phone) {
-      return new Response(JSON.stringify({ error: "Name and phone are required" }), {
+    const { full_name: rawName, phone: rawPhone, email: rawEmail } = body as Record<string, unknown>;
+
+    const full_name = validateFullName(rawName);
+    const phone = validatePhone(rawPhone);
+
+    if (!full_name) {
+      return new Response(JSON.stringify({ error: "Invalid name. Must be 2-100 characters, letters only." }), {
+        status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!phone) {
+      return new Response(JSON.stringify({ error: "Invalid phone number format." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const cleanPhone = phone.trim();
-    const virtualEmail = email || `${cleanPhone.replace(/[^0-9]/g, '')}@noapp.welile.user`;
+    const digits = cleanPhone.replace(/[^0-9]/g, '');
+    const virtualEmail = (rawEmail ? validateEmail(rawEmail) : null) || `${digits}@noapp.welile.user`;
 
     // Check if a profile with this phone already exists
     const { data: existing } = await supabaseAdmin
@@ -58,7 +103,7 @@ Deno.serve(async (req) => {
     }
 
     // Also check by normalized last 9 digits
-    const last9 = cleanPhone.replace(/[^0-9]/g, '').slice(-9);
+    const last9 = digits.slice(-9);
     const { data: existingByLast9 } = await supabaseAdmin
       .from("profiles")
       .select("id, phone")
@@ -77,12 +122,12 @@ Deno.serve(async (req) => {
       email: virtualEmail,
       password: tempPassword,
       email_confirm: true,
-      user_metadata: { full_name: full_name.trim(), phone: cleanPhone },
+      user_metadata: { full_name, phone: cleanPhone },
     });
 
     if (createErr) {
       console.error("[register-tenant] Auth create error:", createErr);
-      return new Response(JSON.stringify({ error: "Failed to create tenant account: " + createErr.message }), {
+      return new Response(JSON.stringify({ error: "Failed to create tenant account" }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
@@ -92,7 +137,7 @@ Deno.serve(async (req) => {
     // Update profile (trigger should have created it)
     await supabaseAdmin
       .from("profiles")
-      .update({ full_name: full_name.trim(), phone: cleanPhone })
+      .update({ full_name, phone: cleanPhone })
       .eq("id", userId);
 
     // Assign tenant role
@@ -105,7 +150,7 @@ Deno.serve(async (req) => {
     await supabaseAdmin
       .from("supporter_invites")
       .insert({
-        full_name: full_name.trim(),
+        full_name,
         phone: cleanPhone,
         email: virtualEmail,
         temp_password: tempPassword,
@@ -115,7 +160,7 @@ Deno.serve(async (req) => {
         status: "pending",
       });
 
-    console.log(`[register-tenant] Created tenant ${userId} for phone ${cleanPhone}`);
+    console.log(`[register-tenant] Created tenant ${userId}`);
 
     return new Response(JSON.stringify({
       user_id: userId,
