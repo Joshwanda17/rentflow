@@ -1,14 +1,13 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { FileText, MapPin, Clock, CheckCircle, XCircle, Loader2, Home } from 'lucide-react';
+import { FileText, MapPin, Clock, Loader2, Home } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
+import { SwipeableRow, swipeActions } from '@/components/SwipeableRow';
 
 interface PendingRequest {
   id: string;
@@ -48,7 +47,6 @@ export function PendingRentRequestsWidget() {
       .limit(20);
 
     if (!error && data) {
-      // Fetch tenant & agent names in batch
       const tenantIds = [...new Set(data.map(r => r.tenant_id))];
       const agentIds = [...new Set(data.map(r => r.agent_id).filter(Boolean))] as string[];
       const allIds = [...new Set([...tenantIds, ...agentIds])];
@@ -71,16 +69,10 @@ export function PendingRentRequestsWidget() {
 
   useEffect(() => {
     fetchRequests();
-
     const channel = supabase
       .channel('pending-rent-requests-realtime')
-      .on(
-        'postgres_changes',
-        { event: '*', schema: 'public', table: 'rent_requests' },
-        () => { fetchRequests(); }
-      )
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => { fetchRequests(); })
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, []);
 
@@ -90,11 +82,10 @@ export function PendingRentRequestsWidget() {
       .from('rent_requests')
       .update({ status: 'approved', approved_at: new Date().toISOString() })
       .eq('id', id);
-
     if (error) {
       toast.error('Failed to approve: ' + error.message);
     } else {
-      toast.success('Request approved! Now visible to supporters.');
+      toast.success('Request approved!');
       setRequests(prev => prev.filter(r => r.id !== id));
     }
     setActionLoading(null);
@@ -106,7 +97,6 @@ export function PendingRentRequestsWidget() {
       .from('rent_requests')
       .update({ status: 'rejected', rejected_reason: 'Rejected by manager' })
       .eq('id', id);
-
     if (error) {
       toast.error('Failed to reject: ' + error.message);
     } else {
@@ -132,6 +122,11 @@ export function PendingRentRequestsWidget() {
       label={`Incoming Rent Requests${requests.length > 0 ? ` (${requests.length})` : ''}`}
       iconColor="text-primary"
     >
+      {requests.length > 0 && (
+        <p className="text-[10px] text-muted-foreground mb-2 px-1">
+          ← Swipe left to reject · Swipe right to approve →
+        </p>
+      )}
       {requests.length === 0 ? (
         <div className="text-center py-6 text-sm text-muted-foreground">
           No pending rent requests
@@ -145,8 +140,12 @@ export function PendingRentRequestsWidget() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.03 }}
             >
-              <Card className="border border-border/60">
-                <CardContent className="p-3 space-y-2">
+              <SwipeableRow
+                leftActions={[swipeActions.approve(() => handleApprove(req.id))]}
+                rightActions={[swipeActions.reject(() => handleReject(req.id))]}
+                disabled={!!actionLoading}
+              >
+                <div className="p-3 space-y-2">
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
@@ -182,34 +181,8 @@ export function PendingRentRequestsWidget() {
                     <span>•</span>
                     <span>{req.duration_days}d</span>
                   </div>
-
-                  <div className="flex gap-2">
-                    <Button
-                      size="sm"
-                      className="flex-1 h-8 text-xs gap-1"
-                      onClick={() => handleApprove(req.id)}
-                      disabled={!!actionLoading}
-                    >
-                      {actionLoading === req.id ? (
-                        <Loader2 className="h-3 w-3 animate-spin" />
-                      ) : (
-                        <CheckCircle className="h-3 w-3" />
-                      )}
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="h-8 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
-                      onClick={() => handleReject(req.id)}
-                      disabled={!!actionLoading}
-                    >
-                      <XCircle className="h-3 w-3" />
-                      Reject
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
+                </div>
+              </SwipeableRow>
             </motion.div>
           ))}
         </div>
