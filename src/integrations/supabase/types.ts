@@ -585,6 +585,7 @@ export type Database = {
           longitude: number | null
           managed_by_agent_id: string | null
           management_fee_rate: number | null
+          mobile_money_name: string | null
           mobile_money_number: string | null
           monthly_rent: number | null
           name: string
@@ -624,6 +625,7 @@ export type Database = {
           longitude?: number | null
           managed_by_agent_id?: string | null
           management_fee_rate?: number | null
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name: string
@@ -663,6 +665,7 @@ export type Database = {
           longitude?: number | null
           managed_by_agent_id?: string | null
           management_fee_rate?: number | null
+          mobile_money_name?: string | null
           mobile_money_number?: string | null
           monthly_rent?: number | null
           name?: string
