@@ -116,6 +116,20 @@ Deno.serve(async (req) => {
           continue;
         }
 
+        // If this is an agent rent payment for a tenant, update receivables
+        if (op.category === 'rent_payment_for_tenant' && op.direction === 'cash_in' && op.user_id) {
+          // The cash_in direction means tenant wallet was credited — update their rent repayment
+          try {
+            await adminClient.rpc("record_rent_request_repayment", {
+              p_tenant_id: op.user_id,
+              p_amount: op.amount,
+            });
+            console.log(`[approve-wallet-op] Updated receivables for tenant ${op.user_id}, amount: ${op.amount}`);
+          } catch (rpcErr) {
+            console.error(`[approve-wallet-op] Failed to update receivables for ${op.id}:`, rpcErr);
+          }
+        }
+
         // Mark as approved
         await adminClient
           .from("pending_wallet_operations")
