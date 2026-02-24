@@ -3075,6 +3075,13 @@ export type Database = {
     }
     Functions: {
       apply_welile_homes_monthly_interest: { Args: never; Returns: number }
+      check_phone_exists: {
+        Args: { phone_suffix: string }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       cleanup_expired_otps: { Args: never; Returns: undefined }
       cleanup_old_system_events: { Args: never; Returns: undefined }
       create_direct_conversation: {

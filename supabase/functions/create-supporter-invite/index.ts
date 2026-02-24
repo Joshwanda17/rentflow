@@ -174,22 +174,28 @@ Deno.serve(async (req) => {
       fullName = `User ${phone.replace(/\D/g, '').slice(-4)}`;
     }
 
-    // Check if profile already exists with this phone number
-    const { data: allProfiles, error: profilesError } = await adminClient
+    // Check if profile already exists with this phone number using SQL pattern match
+    // This handles all phone format variants (0xx, +256xx, 256xx) by matching last 9 digits
+    const { data: existingProfileByPhone, error: phoneCheckError } = await adminClient
       .from("profiles")
-      .select("id, full_name, phone");
+      .select("id, full_name")
+      .or(`phone.like.%${local9},phone.like.%${local9.replace(/^0/, '')}`)
+      .limit(1)
+      .maybeSingle();
 
-    if (profilesError) {
-      return new Response(JSON.stringify({ error: "Failed to check existing users" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+    if (phoneCheckError) {
+      console.error("Phone check error:", phoneCheckError);
+      // Fallback: try a more targeted query
+      const { data: fallbackCheck } = await adminClient.rpc('check_phone_exists', { phone_suffix: local9 }).maybeSingle();
+      if (fallbackCheck) {
+        return new Response(JSON.stringify({ 
+          error: `This phone number is already registered. They can sign in directly.`,
+        }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
-
-    const existingProfileByPhone = allProfiles?.find(p => {
-      const profileLocal9 = ugLocal9(p.phone || '');
-      return profileLocal9 && profileLocal9 === local9;
-    });
 
     if (existingProfileByPhone) {
       return new Response(JSON.stringify({ 
@@ -200,30 +206,34 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check if email already exists
-    const { data: existingProfileByEmail } = await adminClient
-      .from("profiles")
-      .select("id")
-      .ilike("email", email)
-      .maybeSingle();
+    // Check if email already exists (only for non-auto-generated emails)
+    if (!email.endsWith('@welile.user')) {
+      const { data: existingProfileByEmail } = await adminClient
+        .from("profiles")
+        .select("id")
+        .ilike("email", email)
+        .limit(1)
+        .maybeSingle();
 
-    if (existingProfileByEmail) {
-      return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
-        status: 400,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      if (existingProfileByEmail) {
+        return new Response(JSON.stringify({ error: "A user with this email already exists" }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
     }
 
-    // Check if invite already exists
-    const { data: existingInvite } = await adminClient
+    // Check if a pending invite already exists for this phone (using last 9 digits)
+    const { data: pendingInvites } = await adminClient
       .from("supporter_invites")
       .select("id")
-      .eq("email", email)
       .eq("status", "pending")
+      .like("phone", `%${local9}`)
+      .limit(1)
       .maybeSingle();
 
-    if (existingInvite) {
-      return new Response(JSON.stringify({ error: "An invite for this email already exists" }), {
+    if (pendingInvites) {
+      return new Response(JSON.stringify({ error: "A pending invite for this phone number already exists" }), {
         status: 400,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
