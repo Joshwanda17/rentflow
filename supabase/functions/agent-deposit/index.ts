@@ -122,6 +122,21 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Check agent's wallet balance first
+    const { data: agentWalletCheck } = await adminClient
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', agentId)
+      .maybeSingle();
+
+    const agentBalance = agentWalletCheck?.balance || 0;
+    if (agentBalance < amount) {
+      return new Response(
+        JSON.stringify({ error: `Insufficient wallet balance. You have UGX ${agentBalance.toLocaleString()} but need UGX ${amount.toLocaleString()}` }),
+        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     // Find user by phone if not provided user_id
     let targetUserId = userId;
     if (!targetUserId && userPhone) {
@@ -284,6 +299,35 @@ Deno.serve(async (req) => {
         .from('wallets')
         .update({ balance: userWallet!.balance + depositAmount })
         .eq('user_id', targetUserId);
+    }
+
+    // DEDUCT from agent's wallet (agent is paying from their balance)
+    const { data: freshAgentWallet } = await adminClient
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', agentId)
+      .single();
+
+    if (freshAgentWallet) {
+      const newAgentBalance = freshAgentWallet.balance - amount + commission; // agent keeps commission
+      await adminClient
+        .from('wallets')
+        .update({ balance: newAgentBalance })
+        .eq('user_id', agentId)
+        .eq('balance', freshAgentWallet.balance); // optimistic lock
+
+      // Record in general_ledger for auditability
+      await adminClient
+        .from('general_ledger')
+        .insert({
+          user_id: agentId,
+          amount: amount,
+          direction: 'cash_out',
+          category: 'rent_payment_for_tenant',
+          description: `Paid UGX ${amount.toLocaleString()} rent for tenant (${targetUserId})`,
+          source_table: 'wallet_deposits',
+          linked_party: targetUserId,
+        });
     }
 
     // Record deposit
