@@ -39,13 +39,33 @@ const loadApp = async () => {
     createRoot(root).render(<App />);
   } catch (err) {
     console.error('[Main] App load failed:', err);
-    root.innerHTML = `
-      <div style="min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center">
-        <img src="/welile-logo.png" alt="Welile" width="48" height="48" style="border-radius:12px" />
-        <h2 style="font-size:18px;font-weight:600;color:#1f2937;margin:0">Connection Error</h2>
-        <p style="font-size:14px;color:#6b7280;margin:0;max-width:280px">Check your internet connection and try again.</p>
-        <button onclick="location.reload()" style="padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px">Tap to Retry</button>
-      </div>`;
+    // Use safe DOM manipulation instead of innerHTML to prevent XSS
+    root.textContent = '';
+    const container = document.createElement('div');
+    container.style.cssText = 'min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:16px;padding:24px;text-align:center';
+    
+    const logo = document.createElement('img');
+    logo.src = '/welile-logo.png';
+    logo.alt = 'Welile';
+    logo.width = 48;
+    logo.height = 48;
+    logo.style.borderRadius = '12px';
+    
+    const heading = document.createElement('h2');
+    heading.textContent = 'Connection Error';
+    heading.style.cssText = 'font-size:18px;font-weight:600;color:#1f2937;margin:0';
+    
+    const msg = document.createElement('p');
+    msg.textContent = 'Check your internet connection and try again.';
+    msg.style.cssText = 'font-size:14px;color:#6b7280;margin:0;max-width:280px';
+    
+    const btn = document.createElement('button');
+    btn.textContent = 'Tap to Retry';
+    btn.onclick = () => location.reload();
+    btn.style.cssText = 'padding:12px 24px;background:#7c3aed;color:white;border:none;border-radius:8px;font-size:14px;font-weight:500;cursor:pointer;min-height:44px';
+    
+    container.append(logo, heading, msg, btn);
+    root.appendChild(container);
   }
 };
 

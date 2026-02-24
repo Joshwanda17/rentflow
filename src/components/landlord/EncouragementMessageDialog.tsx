@@ -108,7 +108,7 @@ export default function EncouragementMessageDialog({ tenant, trigger }: Encourag
         try {
           await supabase.functions.invoke('send-push-notification', {
             body: {
-              user_ids: [tenant.tenant_id],
+              userIds: [tenant.tenant_id],
               payload: {
                 title: '💜 Encouragement from your landlord!',
                 body: message.trim().substring(0, 100) + (message.length > 100 ? '...' : ''),
