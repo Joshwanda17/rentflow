@@ -21,6 +21,7 @@ interface MerchantPayment {
   notes: string | null;
   payment_date: string;
   tenant_phone: string;
+  tenant_id: string | null;
   transaction_id: string;
   created_at: string;
   agent_name?: string;
@@ -61,10 +62,12 @@ export function AgentCollectionsWidget() {
       }
 
       const agentIds = [...new Set(payments.map(p => p.agent_id))];
+      const tenantIds = [...new Set(payments.filter(p => p.tenant_id).map(p => p.tenant_id!))];
+      const allUserIds = [...new Set([...agentIds, ...tenantIds])];
       const { data: profiles } = await supabase
         .from('profiles')
         .select('id, full_name')
-        .in('id', agentIds);
+        .in('id', allUserIds);
 
       const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
 
@@ -73,7 +76,7 @@ export function AgentCollectionsWidget() {
       for (const p of payments) {
         total += p.amount;
         const existing = agentMap.get(p.agent_id);
-        const enriched: MerchantPayment = { ...p, agent_name: profileMap.get(p.agent_id) || 'Unknown' };
+        const enriched: MerchantPayment = { ...p, agent_name: profileMap.get(p.agent_id) || 'Unknown', tenant_name: p.tenant_id ? profileMap.get(p.tenant_id) || undefined : undefined };
         if (existing) {
           existing.total += p.amount;
           existing.count++;
@@ -241,7 +244,17 @@ export function AgentCollectionsWidget() {
                           <div className="min-w-0 flex-1">
                             <div className="flex items-center gap-1.5">
                               <Phone className="h-3 w-3 text-muted-foreground shrink-0" />
-                              <span className="text-xs font-medium truncate">{p.tenant_phone}</span>
+                              {p.tenant_id ? (
+                                <span
+                                  role="button"
+                                  onClick={(e) => { e.stopPropagation(); handleViewUser(p.tenant_id!); }}
+                                  className="text-xs font-medium truncate text-primary underline decoration-dotted underline-offset-2 hover:text-primary/80 cursor-pointer"
+                                >
+                                  {p.tenant_name || p.tenant_phone}
+                                </span>
+                              ) : (
+                                <span className="text-xs font-medium truncate">{p.tenant_phone}</span>
+                              )}
                               {p.merchant_name && (
                                 <span className="text-[10px] text-muted-foreground">• {p.merchant_name}</span>
                               )}
