@@ -109,14 +109,18 @@ serve(async (req) => {
     }
 
     if (requestAction === 'approve') {
-      // Update rent request status with approval comment
+      const now = new Date().toISOString();
+      
+      // Update rent request status with approval comment + mark as funded
       const { error: updateError } = await adminClient
         .from('rent_requests')
         .update({
           status: 'approved',
           approved_by: approverId,
-          approved_at: new Date().toISOString(),
+          approved_at: now,
           approval_comment: approval_comment || null,
+          funded_at: now,
+          schedule_status: 'active',
         })
         .eq('id', rent_request_id);
 
@@ -127,8 +131,78 @@ serve(async (req) => {
 
       console.log(`Rent request ${rent_request_id} approved by ${approverId}`);
 
+      // === AUTO-CREATE SUBSCRIPTION CHARGE ===
+      const totalRepayment = Number(rentRequest.total_repayment);
+      const durationDays = Number(rentRequest.duration_days);
+      const dailyRepayment = Number(rentRequest.daily_repayment);
+
+      if (totalRepayment > 0 && durationDays > 0) {
+        let frequency = "daily";
+        let chargeAmount = dailyRepayment > 0 ? dailyRepayment : Math.ceil(totalRepayment / durationDays);
+        let totalCharges = durationDays;
+
+        if (durationDays <= 30 && dailyRepayment > 0) {
+          frequency = "daily";
+          chargeAmount = Math.round(dailyRepayment);
+          totalCharges = durationDays;
+        } else if (durationDays <= 21) {
+          frequency = "weekly";
+          totalCharges = Math.ceil(durationDays / 7);
+          chargeAmount = Math.round(totalRepayment / totalCharges);
+        } else if (durationDays > 30) {
+          // For longer durations, still use daily
+          frequency = "daily";
+          chargeAmount = Math.round(dailyRepayment > 0 ? dailyRepayment : totalRepayment / durationDays);
+          totalCharges = durationDays;
+        }
+
+        const startDate = new Date();
+        const nextChargeDate = new Date(startDate);
+        if (frequency === "daily") nextChargeDate.setDate(nextChargeDate.getDate() + 1);
+        else if (frequency === "weekly") nextChargeDate.setDate(nextChargeDate.getDate() + 7);
+        else nextChargeDate.setMonth(nextChargeDate.getMonth() + 1);
+
+        const endDate = new Date(startDate);
+        endDate.setDate(endDate.getDate() + durationDays);
+
+        const { error: subError } = await adminClient.from("subscription_charges").insert({
+          tenant_id: rentRequest.tenant_id,
+          rent_request_id: rent_request_id,
+          agent_id: rentRequest.agent_id || null,
+          service_type: "rent_facilitation",
+          charge_amount: chargeAmount,
+          frequency,
+          next_charge_date: nextChargeDate.toISOString().split("T")[0],
+          start_date: startDate.toISOString().split("T")[0],
+          end_date: endDate.toISOString().split("T")[0],
+          total_charges_due: totalRepayment,
+          charges_remaining: totalCharges,
+          status: "active",
+          charge_agent_wallet: rentRequest.tenant_no_smartphone === true,
+        });
+
+        if (subError) {
+          console.error(`Error creating subscription charge:`, subError.message);
+        } else {
+          console.log(`Created subscription: ${frequency} @ UGX ${chargeAmount} for ${totalCharges} charges`);
+
+          // Notify tenant about auto-charge schedule
+          await adminClient.from("notifications").insert({
+            user_id: rentRequest.tenant_id,
+            title: "📅 Repayment Schedule Active",
+            message: `Your wallet will be auto-charged UGX ${chargeAmount.toLocaleString()} ${frequency} starting ${nextChargeDate.toLocaleDateString()}. Total: UGX ${totalRepayment.toLocaleString()} over ${totalCharges} payments.`,
+            type: "info",
+            metadata: {
+              rent_request_id,
+              frequency,
+              charge_amount: chargeAmount,
+              total_charges: totalCharges,
+            },
+          });
+        }
+      }
+
       // Pay agent approval bonus if agent exists and approver is a manager
-      // (agents don't get bonus for their own approvals)
       if (rentRequest.agent_id && isManager) {
         // Get or create agent wallet
         let { data: agentWallet } = await adminClient
@@ -199,14 +273,14 @@ serve(async (req) => {
         .insert({
           user_id: rentRequest.tenant_id,
           title: 'Rent Request Approved!',
-          message: `Your rent request for UGX ${rentRequest.rent_amount.toLocaleString()} has been approved by ${approverProfile?.full_name || approverRole}. Awaiting supporter funding.${approval_comment ? ` Note: ${approval_comment}` : ''}`,
+          message: `Your rent request for UGX ${rentRequest.rent_amount.toLocaleString()} has been approved. Auto-deductions will begin shortly.${approval_comment ? ` Note: ${approval_comment}` : ''}`,
           type: 'success',
         });
 
       return new Response(
         JSON.stringify({
           success: true,
-          message: 'Rent request approved successfully',
+          message: 'Rent request approved with auto-charge subscription created',
           agent_bonus_paid: rentRequest.agent_id && isManager ? AGENT_APPROVAL_BONUS : 0,
         }),
         { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
