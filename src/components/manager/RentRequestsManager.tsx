@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
@@ -110,6 +111,11 @@ interface SentReminder {
 
 export function RentRequestsManager() {
   const { toast } = useToast();
+  const [, setSearchParams] = useSearchParams();
+
+  const navigateToUser = (userName: string) => {
+    setSearchParams({ tab: 'users', search: userName });
+  };
   const [requests, setRequests] = useState<RentRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [processing, setProcessing] = useState<string | null>(null);
@@ -614,7 +620,7 @@ Thank you for being part of Welile! 🏠`;
                         </Avatar>
                         <div className="space-y-0.5">
                           <div className="flex items-center gap-2">
-                            <span className="font-semibold">{request.tenant?.full_name || 'Unknown Tenant'}</span>
+                            <button onClick={(e) => { e.stopPropagation(); navigateToUser(request.tenant?.full_name || ''); }} className="font-semibold text-primary hover:underline cursor-pointer">{request.tenant?.full_name || 'Unknown Tenant'}</button>
                             {request.tenant?.verified && (
                               <CheckCircle2 className="h-4 w-4 text-primary" />
                             )}
@@ -882,7 +888,7 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                   <div className="space-y-1 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
                       <User className="h-4 w-4 text-muted-foreground" />
-                      <span className="font-semibold">{request.tenant?.full_name || 'Unknown'}</span>
+                      <button onClick={(e) => { e.stopPropagation(); navigateToUser(request.tenant?.full_name || ''); }} className="font-semibold text-primary hover:underline cursor-pointer">{request.tenant?.full_name || 'Unknown'}</button>
                       {getStatusBadge(request.status)}
                       {request.missedDays && request.missedDays > 0 && (
                         <Badge variant="outline" className="bg-destructive/10 text-destructive border-destructive/30 gap-1">
