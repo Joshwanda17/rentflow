@@ -49,6 +49,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
+import { AgentRentPaymentGuide } from '@/components/agent/AgentRentPaymentGuide';
 
 interface AgentDashboardProps {
   user: User;
@@ -239,6 +240,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             </div>
           </motion.button>
         </div>
+
+        {/* How Rent Payments Work Guide */}
+        <AgentRentPaymentGuide />
 
         {/* Approved Rent Requests posted by this agent */}
         <ApprovedRentRequestsWidget mode="agent" />
