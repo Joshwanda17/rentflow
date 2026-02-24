@@ -271,6 +271,12 @@ Deno.serve(async (req) => {
             amount: repaymentAmount,
           });
 
+        // Update amount_repaid on rent_requests so receivables statement reflects it
+        await adminClient.rpc("record_rent_request_repayment", {
+          p_tenant_id: targetUserId,
+          p_amount: repaymentAmount,
+        });
+
         // Check if fully repaid
         const newTotalRepaid = totalRepaid + repaymentAmount;
         if (newTotalRepaid >= activeRentRequest.total_repayment) {
