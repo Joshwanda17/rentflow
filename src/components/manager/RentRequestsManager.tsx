@@ -30,7 +30,8 @@ import {
   MapPin,
   CreditCard,
   IdCard,
-  Trash2
+  Trash2,
+  Pencil
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
@@ -56,6 +57,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
+import { Input } from '@/components/ui/input';
 import { VerifyTenantButton, VerifyLandlordButton } from '@/components/verification';
 import RentProcessTracker from '@/components/rent/RentProcessTracker';
 
@@ -67,6 +69,7 @@ interface RentRequest {
   request_fee: number;
   duration_days: number;
   daily_repayment: number;
+  amount_repaid: number;
   status: string | null;
   created_at: string;
   disbursed_at: string | null;
@@ -123,6 +126,9 @@ export function RentRequestsManager() {
   const [approveDialog, setApproveDialog] = useState<{ open: boolean; requestId: string | null }>({ open: false, requestId: null });
   const [deleteDialog, setDeleteDialog] = useState<{ open: boolean; requestId: string | null; tenantName: string }>({ open: false, requestId: null, tenantName: '' });
   const [deletingRequest, setDeletingRequest] = useState(false);
+  const [editDialog, setEditDialog] = useState<{ open: boolean; request: RentRequest | null }>({ open: false, request: null });
+  const [editFormData, setEditFormData] = useState({ rent_amount: '', total_repayment: '', amount_repaid: '', daily_repayment: '', duration_days: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
   const [rejectReason, setRejectReason] = useState('');
   const [approvalComment, setApprovalComment] = useState('');
   const [showDelinquentOnly, setShowDelinquentOnly] = useState(false);
@@ -281,6 +287,40 @@ export function RentRequestsManager() {
       fetchRequests();
     }
     setDeletingRequest(false);
+  };
+
+  const openEditDialog = (request: RentRequest) => {
+    setEditFormData({
+      rent_amount: String(request.rent_amount),
+      total_repayment: String(request.total_repayment),
+      amount_repaid: String(request.amount_repaid || 0),
+      daily_repayment: String(request.daily_repayment),
+      duration_days: String(request.duration_days),
+    });
+    setEditDialog({ open: true, request });
+  };
+
+  const handleSaveEdit = async () => {
+    if (!editDialog.request) return;
+    setSavingEdit(true);
+    const { error } = await supabase
+      .from('rent_requests')
+      .update({
+        rent_amount: Number(editFormData.rent_amount) || 0,
+        total_repayment: Number(editFormData.total_repayment) || 0,
+        amount_repaid: Number(editFormData.amount_repaid) || 0,
+        daily_repayment: Number(editFormData.daily_repayment) || 0,
+        duration_days: Number(editFormData.duration_days) || 0,
+      })
+      .eq('id', editDialog.request.id);
+    if (error) {
+      toast({ title: 'Error', description: error.message, variant: 'destructive' });
+    } else {
+      toast({ title: 'Request Updated', description: 'Rent request has been updated successfully' });
+      setEditDialog({ open: false, request: null });
+      fetchRequests();
+    }
+    setSavingEdit(false);
   };
 
   const handleReject = async () => {
@@ -909,18 +949,43 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                     )}
                   </div>
                   
-                  {/* WhatsApp Reminder Button for Delinquent */}
-                  {request.missedDays && request.missedDays > 0 && request.tenant?.phone && (
+                  {/* Action Buttons */}
+                  <div className="flex items-center gap-2 shrink-0">
+                    {/* WhatsApp Reminder Button for Delinquent */}
+                    {request.missedDays && request.missedDays > 0 && request.tenant?.phone && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700"
+                        onClick={() => openWhatsappDialog(request)}
+                      >
+                        <MessageCircle className="h-4 w-4" />
+                        <span className="hidden sm:inline">Remind</span>
+                      </Button>
+                    )}
+                    
+                    {/* Edit Button */}
                     <Button
                       variant="outline"
                       size="sm"
-                      className="gap-1.5 text-green-600 border-green-200 hover:bg-green-50 hover:text-green-700 shrink-0"
-                      onClick={() => openWhatsappDialog(request)}
+                      onClick={() => openEditDialog(request)}
+                      className="gap-1 text-primary border-primary/30 hover:bg-primary/10 min-h-[36px] touch-manipulation"
                     >
-                      <MessageCircle className="h-4 w-4" />
-                      <span className="hidden sm:inline">Remind</span>
+                      <Pencil className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Edit</span>
                     </Button>
-                  )}
+                    
+                    {/* Delete Button */}
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDeleteDialog({ open: true, requestId: request.id, tenantName: request.tenant?.full_name || 'Unknown' })}
+                      className="gap-1 text-destructive border-destructive/30 hover:bg-destructive/10 min-h-[36px] touch-manipulation"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                      <span className="hidden sm:inline">Delete</span>
+                    </Button>
+                  </div>
                 </div>
               </CardContent>
             </Card>
@@ -1311,6 +1376,77 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Edit Rent Request Dialog */}
+      <Dialog open={editDialog.open} onOpenChange={(open) => !open && setEditDialog({ open: false, request: null })}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Rent Request
+            </DialogTitle>
+            <DialogDescription>
+              Modify the receivable for <strong>{editDialog.request?.tenant?.full_name || 'Unknown'}</strong>.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Rent Amount (UGX)</Label>
+              <Input
+                type="number"
+                value={editFormData.rent_amount}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, rent_amount: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Total Repayment (UGX)</Label>
+              <Input
+                type="number"
+                value={editFormData.total_repayment}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, total_repayment: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Amount Repaid (UGX)</Label>
+              <Input
+                type="number"
+                value={editFormData.amount_repaid}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, amount_repaid: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-medium">Daily Repayment (UGX)</Label>
+              <Input
+                type="number"
+                value={editFormData.daily_repayment}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, daily_repayment: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+            <div className="space-y-1.5 col-span-2">
+              <Label className="text-xs font-medium">Duration (Days)</Label>
+              <Input
+                type="number"
+                value={editFormData.duration_days}
+                onChange={(e) => setEditFormData(prev => ({ ...prev, duration_days: e.target.value }))}
+                className="h-11"
+              />
+            </div>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setEditDialog({ open: false, request: null })} className="min-h-[44px]" type="button">
+              Cancel
+            </Button>
+            <Button onClick={handleSaveEdit} disabled={savingEdit} className="min-h-[44px] gap-2" type="button">
+              {savingEdit ? <Loader2 className="h-4 w-4 animate-spin" /> : <CheckCircle className="h-4 w-4" />}
+              Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
