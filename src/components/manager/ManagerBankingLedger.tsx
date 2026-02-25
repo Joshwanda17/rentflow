@@ -1,40 +1,25 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-  DialogDescription,
-} from '@/components/ui/dialog';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import {
   Search,
-  Loader2,
   ArrowLeft,
   RefreshCw,
   ChevronRight,
   TriangleAlert,
   Wallet,
-  PlusCircle,
-  MinusCircle,
   ArrowDownCircle,
   ArrowUpCircle,
   Phone,
   Calendar,
   TrendingUp,
   TrendingDown,
-  BadgeInfo,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
@@ -97,8 +82,6 @@ const QUICK_AMOUNTS = [5_000, 10_000, 50_000, 100_000, 500_000];
 ═══════════════════════════════════════════════════════════════════════════ */
 
 export function ManagerBankingLedger() {
-  const { user } = useAuth();
-
   const [searchQuery, setSearchQuery] = useState('');
   const [users, setUsers]             = useState<UserSummary[]>([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
@@ -108,11 +91,6 @@ export function ManagerBankingLedger() {
   const [loadingLedger, setLoadingLedger] = useState(false);
   const [showOnlyType, setShowOnlyType]  = useState<'all' | 'cash_in' | 'cash_out'>('all');
 
-  const [adjOpen, setAdjOpen]       = useState(false);
-  const [adjType, setAdjType]       = useState<'add' | 'remove'>('add');
-  const [adjAmount, setAdjAmount]   = useState('');
-  const [adjReason, setAdjReason]   = useState('');
-  const [adjLoading, setAdjLoading] = useState(false);
 
   /* ── load user list ── */
   const fetchUsers = useCallback(async (q: string) => {
@@ -195,54 +173,6 @@ export function ManagerBankingLedger() {
 
   const openUser = (u: UserSummary) => { setSelectedUser(u); setShowOnlyType('all'); fetchLedger(u.id); };
   const goBack   = () => { setSelectedUser(null); setLedger([]); fetchUsers(searchQuery); };
-
-  /* ── adjust ── */
-  const handleAdjust = async () => {
-    if (!selectedUser || !user) return;
-    const amountNum = parseFloat(adjAmount);
-    if (isNaN(amountNum) || amountNum <= 0) { toast.error('Enter a valid amount'); return; }
-    if (!adjReason.trim())                   { toast.error('Please explain the reason'); return; }
-    if (adjType === 'remove' && amountNum > selectedUser.balance) {
-      toast.error(`Can't remove more than the current balance (${formatUGX(selectedUser.balance)})`);
-      return;
-    }
-    setAdjLoading(true);
-    try {
-      let { data: wallet, error: wErr } = await supabase.from('wallets').select('id, balance').eq('user_id', selectedUser.id).maybeSingle();
-      if (wErr) throw wErr;
-      if (!wallet) {
-        const { data: nw, error: nwErr } = await supabase.from('wallets').insert({ user_id: selectedUser.id, balance: 0 }).select('id, balance').single();
-        if (nwErr) throw nwErr;
-        wallet = nw;
-      }
-
-      const now = new Date();
-      const ref = `WBA${String(now.getFullYear()).slice(-2)}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}${String(Math.floor(1000+Math.random()*9000))}`;
-
-      // Queue for manager approval instead of direct wallet update
-      const { error: queueErr } = await supabase.from('pending_wallet_operations').insert({
-        user_id:      selectedUser.id,
-        amount:       amountNum,
-        direction:    adjType === 'add' ? 'cash_in' : 'cash_out',
-        category:     adjType === 'add' ? 'manager_credit' : 'manager_debit',
-        source_table: 'wallets',
-        source_id:    wallet.id,
-        description:  `${adjType === 'add' ? 'Added' : 'Removed'} by Manager: ${adjReason.trim()}`,
-        reference_id: ref,
-        linked_party: user.email || 'Manager',
-        status:       'pending',
-      });
-      if (queueErr) throw queueErr;
-
-      toast.success(`✅ Balance adjustment queued for approval (${formatUGX(amountNum)} ${adjType === 'add' ? 'credit' : 'debit'})`);
-      setAdjOpen(false); setAdjAmount(''); setAdjReason(''); setAdjType('add');
-    } catch (e) {
-      console.error(e);
-      toast.error('Something went wrong. Please try again.');
-    } finally {
-      setAdjLoading(false);
-    }
-  };
 
   const filtered = showOnlyType === 'all' ? ledger : ledger.filter(e => e.direction === showOnlyType);
   const totalIn  = ledger.filter(e => e.direction === 'cash_in').reduce((s,e) => s+e.amount, 0);
@@ -405,25 +335,15 @@ export function ManagerBankingLedger() {
         </div>
       </div>
 
-      {/* Action buttons */}
-      <div className="grid grid-cols-2 gap-3">
-        <Button
-          className="h-16 text-base font-bold gap-3 bg-success hover:bg-success/90 text-white rounded-2xl"
-          style={{ touchAction: 'manipulation' }}
-          onClick={() => { setAdjType('add'); setAdjOpen(true); }}
-        >
-          <PlusCircle className="h-6 w-6" />
-          Add Money
-        </Button>
-        <Button
-          variant="outline"
-          className="h-16 text-base font-bold gap-3 border-destructive text-destructive hover:bg-destructive/10 rounded-2xl"
-          style={{ touchAction: 'manipulation' }}
-          onClick={() => { setAdjType('remove'); setAdjOpen(true); }}
-        >
-          <MinusCircle className="h-6 w-6" />
-          Remove Money
-        </Button>
+      {/* Manual adjustments prohibited */}
+      <div className="flex items-start gap-3 p-4 rounded-2xl bg-muted/50 border border-border">
+        <TriangleAlert className="h-5 w-5 text-muted-foreground mt-0.5 shrink-0" />
+        <div>
+          <p className="text-sm font-bold text-muted-foreground">Manual Adjustments Prohibited</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            All balance changes must go through the proper approval workflow (deposits, repayments, commissions).
+          </p>
+        </div>
       </div>
 
       {/* Where money came from — simple breakdown */}
@@ -618,161 +538,6 @@ export function ManagerBankingLedger() {
         </div>
       )}
 
-      {/* ═══ ADJUSTMENT DIALOG ═══════════════════════════════════════════ */}
-      <Dialog open={adjOpen} onOpenChange={setAdjOpen}>
-        <DialogContent className="sm:max-w-md rounded-3xl mx-4">
-          <DialogHeader>
-            <DialogTitle className="text-xl flex items-center gap-2">
-              {adjType === 'add' ? (
-                <><PlusCircle className="h-6 w-6 text-success" /> Add Money to Wallet</>
-              ) : (
-                <><MinusCircle className="h-6 w-6 text-destructive" /> Remove Money from Wallet</>
-              )}
-            </DialogTitle>
-            <DialogDescription className="text-base">
-              <span className="font-semibold">{selectedUser.full_name}</span> — current balance:{' '}
-              <span className="font-bold text-foreground">{formatUGX(selectedUser.balance)}</span>
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-5 py-2">
-
-            {/* Toggle */}
-            <div className="grid grid-cols-2 gap-3">
-              <button
-                type="button"
-                onClick={() => setAdjType('add')}
-                style={{ touchAction: 'manipulation' }}
-                className={`h-16 rounded-2xl text-base font-bold flex items-center justify-center gap-2 border-2 transition-all ${
-                  adjType === 'add'
-                    ? 'bg-success text-white border-success'
-                    : 'bg-card text-muted-foreground border-border'
-                }`}
-              >
-                <PlusCircle className="h-6 w-6" />
-                Add Money
-              </button>
-              <button
-                type="button"
-                onClick={() => setAdjType('remove')}
-                style={{ touchAction: 'manipulation' }}
-                className={`h-16 rounded-2xl text-base font-bold flex items-center justify-center gap-2 border-2 transition-all ${
-                  adjType === 'remove'
-                    ? 'bg-destructive text-white border-destructive'
-                    : 'bg-card text-muted-foreground border-border'
-                }`}
-              >
-                <MinusCircle className="h-6 w-6" />
-                Remove
-              </button>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-2">
-              <Label className="text-base font-bold">How much? (UGX)</Label>
-              <Input
-                type="number"
-                placeholder="e.g. 50000"
-                value={adjAmount}
-                onChange={e => {
-                  const v = e.target.value;
-                  if (v === '' || (Number(v) >= 0 && !isNaN(Number(v)))) setAdjAmount(v);
-                }}
-                min={1}
-                className="h-14 text-2xl font-bold text-center rounded-xl"
-              />
-            </div>
-
-            {/* Quick amounts */}
-            <div className="flex flex-wrap gap-2">
-              {QUICK_AMOUNTS.map(q => (
-                <button
-                  key={q}
-                  type="button"
-                  onClick={() => setAdjAmount(q.toString())}
-                  style={{ touchAction: 'manipulation' }}
-                  className="flex-1 min-w-[80px] h-11 rounded-xl border bg-card hover:bg-muted/50 text-sm font-semibold transition-colors"
-                >
-                  {formatUGX(q)}
-                </button>
-              ))}
-            </div>
-
-            {/* Reason */}
-            <div className="space-y-2">
-              <Label className="text-base font-bold">
-                Why are you doing this? <span className="text-destructive">*</span>
-              </Label>
-              <Textarea
-                placeholder={adjType === 'add'
-                  ? "e.g. Refund for failed withdrawal, Agent bonus payment…"
-                  : "e.g. Recovering incorrect deposit, Penalty deduction…"
-                }
-                value={adjReason}
-                onChange={e => setAdjReason(e.target.value)}
-                rows={3}
-                className="text-base rounded-xl"
-              />
-              <p className="text-xs text-muted-foreground flex items-center gap-1">
-                <BadgeInfo className="h-3 w-3" />
-                This reason is saved permanently for the audit record
-              </p>
-            </div>
-
-            {/* Preview new balance */}
-            {adjAmount && parseFloat(adjAmount) > 0 && (
-              <div className={`p-4 rounded-2xl border-2 text-center ${
-                adjType === 'add'
-                  ? 'bg-success/10 border-success/40'
-                  : 'bg-destructive/10 border-destructive/40'
-              }`}>
-                <p className="text-sm text-muted-foreground font-medium">New balance after this change</p>
-                <p className={`text-3xl font-extrabold font-mono mt-1 ${adjType === 'add' ? 'text-success' : 'text-destructive'}`}>
-                  {formatUGX(
-                    adjType === 'add'
-                      ? selectedUser.balance + parseFloat(adjAmount)
-                      : Math.max(0, selectedUser.balance - parseFloat(adjAmount))
-                  )}
-                </p>
-              </div>
-            )}
-
-            {/* Warning for remove */}
-            {adjType === 'remove' && (
-              <div className="flex items-start gap-3 p-4 rounded-2xl bg-warning/10 border border-warning/30">
-                <TriangleAlert className="h-5 w-5 text-warning mt-0.5 shrink-0" />
-                <div>
-                  <p className="text-sm font-bold text-warning">This cannot be undone</p>
-                  <p className="text-xs text-muted-foreground mt-0.5">
-                    Money removed from a wallet is permanently recorded in the audit log.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
-
-          <DialogFooter className="flex-col gap-2 sm:flex-row">
-            <Button variant="outline" onClick={() => setAdjOpen(false)} className="h-12 rounded-xl text-base">
-              Cancel
-            </Button>
-            <Button
-              onClick={handleAdjust}
-              disabled={adjLoading || !adjAmount || parseFloat(adjAmount) <= 0 || !adjReason.trim()}
-              className={`h-12 rounded-xl text-base font-bold flex-1 gap-2 ${
-                adjType === 'remove' ? 'bg-destructive hover:bg-destructive/90' : ''
-              }`}
-            >
-              {adjLoading ? (
-                <Loader2 className="h-5 w-5 animate-spin" />
-              ) : adjType === 'add' ? (
-                <><PlusCircle className="h-5 w-5" /> Confirm — Add {adjAmount ? formatUGX(parseFloat(adjAmount)) : ''}</>
-              ) : (
-                <><MinusCircle className="h-5 w-5" /> Confirm — Remove {adjAmount ? formatUGX(parseFloat(adjAmount)) : ''}</>
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
     </div>
   );
 }
