@@ -60,6 +60,30 @@ Deno.serve(async (req) => {
       bulk_ids?: string[];
     };
 
+    // Validate action
+    if (action !== "approve" && action !== "reject") {
+      return new Response(
+        JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate rejection_reason length
+    if (rejection_reason && typeof rejection_reason === "string" && rejection_reason.length > 1000) {
+      return new Response(
+        JSON.stringify({ error: "Rejection reason must be under 1000 characters" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Validate bulk_ids size limit
+    if (bulk_ids && Array.isArray(bulk_ids) && bulk_ids.length > 100) {
+      return new Response(
+        JSON.stringify({ error: "Cannot process more than 100 operations at once" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const idsToProcess = bulk_ids || (operation_id ? [operation_id] : []);
 
     if (idsToProcess.length === 0) {
