@@ -177,6 +177,7 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
           name: landlordName.trim(),
           phone: landlordPhone.trim(),
           property_address: propertyAddress.trim(),
+          registered_by: user?.id,
         })
         .select('id')
         .single();
