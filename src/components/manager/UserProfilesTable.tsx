@@ -8,9 +8,19 @@ import { Input } from '@/components/ui/input';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
-import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle, BadgeCheck } from 'lucide-react';
+import { Users, Search, Star, Banknote, CheckCircle, ChevronRight, Filter, UserCheck, RefreshCw, X, ArrowUpDown, ArrowUp, ArrowDown, Download, FileText, Bell, Square, CheckSquare, UserCog, UserMinus, MoreHorizontal, MessageCircle, Phone, MapPin, Globe, XCircle, Loader2, AlertTriangle, BadgeCheck, Trash2 } from 'lucide-react';
 import { QuickRoleEditor } from './QuickRoleEditor';
 import { formatUGX } from '@/lib/rentCalculations';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import WhatsAppPhoneLink, { WhatsAppVerificationBadge } from '@/components/WhatsAppPhoneLink';
 import { getWhatsAppLink } from '@/lib/phoneUtils';
 import UserDetailsDialog from './UserDetailsDialog';
@@ -84,6 +94,8 @@ export default function UserProfilesTable() {
   const [exportingSelected, setExportingSelected] = useState(false);
   const [approvingUserId, setApprovingUserId] = useState<string | null>(null);
   const [createUserInviteOpen, setCreateUserInviteOpen] = useState(false);
+  const [deleteUserDialog, setDeleteUserDialog] = useState<{ open: boolean; userId: string; userName: string }>({ open: false, userId: '', userName: '' });
+  const [deletingUser, setDeletingUser] = useState(false);
   const tableRef = useRef<HTMLDivElement>(null);
   const selectedUsersRef = useRef<HTMLDivElement>(null);
   
@@ -667,6 +679,26 @@ export default function UserProfilesTable() {
     setDialogOpen(true);
   };
 
+  const handleDeleteUserDirect = async () => {
+    if (!deleteUserDialog.userId) return;
+    setDeletingUser(true);
+    try {
+      const response = await supabase.functions.invoke('delete-user', {
+        body: { user_id: deleteUserDialog.userId },
+      });
+      if (response.error) throw new Error(response.error.message || 'Failed to delete user');
+      if (response.data?.error) throw new Error(response.data.error);
+      toast.success(`${deleteUserDialog.userName} has been permanently deleted`);
+      setDeleteUserDialog({ open: false, userId: '', userName: '' });
+      setUsers(prev => prev.filter(u => u.id !== deleteUserDialog.userId));
+    } catch (error: any) {
+      console.error('Error deleting user:', error);
+      toast.error(error.message || 'Failed to delete user');
+    } finally {
+      setDeletingUser(false);
+    }
+  };
+
   const roleFilters: { value: RoleFilter; label: string; count: number }[] = [
     { value: 'all', label: 'All', count: users.length },
     { value: 'tenant', label: 'Tenants', count: users.filter(u => u.roles.includes('tenant')).length },
@@ -1099,6 +1131,20 @@ export default function UserProfilesTable() {
                         <Phone className="h-6 w-6" />
                       </Button>
                       
+                      {/* Delete User Button */}
+                      <Button
+                        variant="outline"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          hapticTap();
+                          setDeleteUserDialog({ open: true, userId: user.id, userName: user.full_name });
+                        }}
+                        className="h-12 w-12 p-0 bg-destructive/10 border-2 border-destructive/30 text-destructive hover:bg-destructive/20 hover:text-destructive shrink-0 rounded-xl touch-manipulation"
+                        title="Delete user"
+                      >
+                        <Trash2 className="h-5 w-5" />
+                      </Button>
+
                       {/* View Details - Bigger */}
                       <Button
                         variant="ghost"
@@ -1249,6 +1295,28 @@ export default function UserProfilesTable() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={deleteUserDialog.open} onOpenChange={(open) => !open && setDeleteUserDialog({ open: false, userId: '', userName: '' })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>🗑️ Delete User Permanently?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This will permanently delete <strong>{deleteUserDialog.userName}</strong> and all their data (wallet, roles, ledger, rent requests). This cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteUserDirect}
+              disabled={deletingUser}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {deletingUser ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" />Deleting...</> : <><Trash2 className="h-4 w-4 mr-2" />Delete User</>}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
