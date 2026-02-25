@@ -198,7 +198,6 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
       if (lc1Error) throw lc1Error;
 
       // Register tenant via edge function (handles both existing and new users)
-      const { data: sessionData } = await supabase.auth.getSession();
       const { data: tenantResult, error: tenantRegError } = await supabase.functions.invoke('register-tenant', {
         body: {
           full_name: tenantName.trim(),
@@ -206,9 +205,25 @@ export default function AgentRentRequestDialog({ open, onOpenChange, onSuccess }
         },
       });
 
-      if (tenantRegError || !tenantResult?.user_id) {
-        console.error('Tenant registration failed:', tenantRegError || tenantResult);
-        toast.error(tenantResult?.error || 'Failed to register tenant');
+      if (tenantRegError) {
+        console.error('Tenant registration error:', tenantRegError);
+        // Try to extract error message from the response
+        let errorMsg = 'Failed to register tenant';
+        try {
+          if (tenantRegError.context?.body) {
+            const text = await new Response(tenantRegError.context.body).text();
+            const parsed = JSON.parse(text);
+            errorMsg = parsed.error || errorMsg;
+          }
+        } catch {}
+        toast.error(errorMsg);
+        setLoading(false);
+        return;
+      }
+
+      if (!tenantResult?.user_id) {
+        console.error('Tenant registration returned no user_id:', tenantResult);
+        toast.error(tenantResult?.error || 'Failed to register tenant - no user ID returned');
         setLoading(false);
         return;
       }
