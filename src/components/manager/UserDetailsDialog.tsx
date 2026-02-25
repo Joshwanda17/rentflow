@@ -552,9 +552,9 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       
       toast.success('Profile updated successfully');
       onUserUpdated?.();
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error updating profile:', error);
-      toast.error('Failed to update profile');
+      toast.error('Failed to update profile: ' + (error?.message || error?.code || 'Unknown error'));
     } finally {
       setSavingProfile(false);
     }

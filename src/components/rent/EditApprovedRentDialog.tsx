@@ -79,7 +79,8 @@ export function EditApprovedRentDialog({ request, open, onOpenChange, onSaved }:
     setSaving(false);
 
     if (error) {
-      toast.error('Failed to update: ' + error.message);
+      console.error('Rent request update error:', error);
+      toast.error('Failed to update: ' + (error.message || error.code || 'Unknown error'));
     } else {
       toast.success('Rent request updated successfully');
       onOpenChange(false);

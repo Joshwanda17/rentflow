@@ -196,7 +196,8 @@ export default function Settings() {
     setSaving(false);
 
     if (error) {
-      toast.error('Failed to update profile');
+      console.error('Settings profile update error:', error);
+      toast.error('Failed to update profile: ' + (error.message || error.code || 'Unknown error'));
       return;
     }
 
