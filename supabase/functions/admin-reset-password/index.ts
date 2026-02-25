@@ -65,8 +65,13 @@ serve(async (req) => {
       throw new Error("user_id and new_password are required");
     }
 
-    if (typeof new_password !== "string" || new_password.length < 6) {
-      throw new Error("Password must be at least 6 characters");
+    // Validate user_id is a valid UUID
+    if (typeof user_id !== "string" || !/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(user_id)) {
+      throw new Error("Invalid user ID format");
+    }
+
+    if (typeof new_password !== "string" || new_password.length < 6 || new_password.length > 128) {
+      throw new Error("Password must be 6-128 characters");
     }
 
     // 4. Reset the password

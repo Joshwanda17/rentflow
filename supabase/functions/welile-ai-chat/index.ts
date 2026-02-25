@@ -358,6 +358,24 @@ serve(async (req) => {
       });
     }
 
+    // Validate message count and content length to prevent abuse
+    if (messages.length > 50) {
+      return new Response(JSON.stringify({ error: "Too many messages. Maximum 50 per request." }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const MAX_MESSAGE_LENGTH = 4000;
+    for (const msg of messages) {
+      if (typeof msg.content === "string" && msg.content.length > MAX_MESSAGE_LENGTH) {
+        return new Response(JSON.stringify({ error: `Message too long. Maximum ${MAX_MESSAGE_LENGTH} characters.` }), {
+          status: 400,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
     // No DB calls — Welile AI operates statelessly from its built-in knowledge
     const userContext = "\n\nUSER CONTEXT:\n- Treat every user as a potential Supporter. Focus on selling the passive income opportunity.\n- If they mention signing up, direct them to the sign-up page.\n";
 
