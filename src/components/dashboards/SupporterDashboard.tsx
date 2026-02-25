@@ -23,6 +23,7 @@ import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkel
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
 import { FloatingShareButton } from '@/components/FloatingShareButton';
+import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -548,6 +549,7 @@ export default function SupporterDashboard({
         onAcceptAndDeposit={() => setShowPaymentPartners(true)}
       />
 
+      <FloatingWalletButton />
       <FloatingShareButton />
       <MobileBottomNav currentRole={currentRole} />
     </div>
