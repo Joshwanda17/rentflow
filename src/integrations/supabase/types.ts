@@ -2852,6 +2852,72 @@ export type Database = {
         }
         Relationships: []
       }
+      voided_ledger_entries: {
+        Row: {
+          account: string | null
+          amount: number
+          category: string
+          created_at: string
+          description: string | null
+          direction: string
+          id: string
+          linked_party: string | null
+          original_ledger_id: string
+          reference_id: string | null
+          running_balance: number | null
+          source_id: string | null
+          source_table: string
+          transaction_date: string
+          transaction_group_id: string | null
+          user_id: string | null
+          void_reason: string
+          voided_at: string
+          voided_by: string
+        }
+        Insert: {
+          account?: string | null
+          amount: number
+          category: string
+          created_at?: string
+          description?: string | null
+          direction: string
+          id?: string
+          linked_party?: string | null
+          original_ledger_id: string
+          reference_id?: string | null
+          running_balance?: number | null
+          source_id?: string | null
+          source_table: string
+          transaction_date: string
+          transaction_group_id?: string | null
+          user_id?: string | null
+          void_reason: string
+          voided_at?: string
+          voided_by: string
+        }
+        Update: {
+          account?: string | null
+          amount?: number
+          category?: string
+          created_at?: string
+          description?: string | null
+          direction?: string
+          id?: string
+          linked_party?: string | null
+          original_ledger_id?: string
+          reference_id?: string | null
+          running_balance?: number | null
+          source_id?: string | null
+          source_table?: string
+          transaction_date?: string
+          transaction_group_id?: string | null
+          user_id?: string | null
+          void_reason?: string
+          voided_at?: string
+          voided_by?: string
+        }
+        Relationships: []
+      }
       wallet_deposits: {
         Row: {
           agent_id: string
@@ -3259,6 +3325,10 @@ export type Database = {
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
+      }
+      void_ledger_entry: {
+        Args: { p_ledger_id: string; p_reason: string }
+        Returns: undefined
       }
     }
     Enums: {
