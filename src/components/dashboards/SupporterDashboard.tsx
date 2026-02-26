@@ -479,7 +479,6 @@ export default function SupporterDashboard({
         onAddInvestment={() => setShowPaymentPartners(true)}
         onOpenCalculator={() => setShowCalculator(true)}
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
-        onViewLoan={() => setShowLoanCard(true)}
       />
 
       <Dialog open={showLoanCard} onOpenChange={setShowLoanCard}>
