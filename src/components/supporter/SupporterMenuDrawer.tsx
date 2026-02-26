@@ -54,6 +54,7 @@ export function SupporterMenuDrawer({
   onAddInvestment,
   onOpenCalculator,
   onViewAgreement,
+  onViewLoan,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
