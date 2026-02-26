@@ -481,16 +481,6 @@ export default function SupporterDashboard({
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
       />
 
-      <Dialog open={showLoanCard} onOpenChange={setShowLoanCard}>
-        <DialogContent className="max-w-md p-4">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              💰 Available Loan
-            </DialogTitle>
-          </DialogHeader>
-          <CreditAccessCard userId={user.id} />
-        </DialogContent>
-      </Dialog>
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
