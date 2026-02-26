@@ -852,7 +852,6 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                     body: { rent_request_id: reqId },
                   });
                   if (error) throw error;
-                  if (error) throw error;
                   toast.success(`${deleteDialog.name}'s rent request and ledger entries deleted`);
                   setDeleteDialog(null);
                   fetchRequests();
