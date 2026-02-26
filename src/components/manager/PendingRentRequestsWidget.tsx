@@ -8,6 +8,7 @@ import { motion } from 'framer-motion';
 import { toast } from 'sonner';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { SwipeableRow, swipeActions } from '@/components/SwipeableRow';
+import { RentRequestDetailDrawer } from '@/components/rent/RentRequestDetailDrawer';
 
 interface PendingRequest {
   id: string;
@@ -37,6 +38,7 @@ export function PendingRentRequestsWidget() {
   const [requests, setRequests] = useState<PendingRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
 
   const fetchRequests = async () => {
     const { data, error } = await supabase
@@ -145,7 +147,7 @@ export function PendingRentRequestsWidget() {
                 rightActions={[swipeActions.reject(() => handleReject(req.id))]}
                 disabled={!!actionLoading}
               >
-                <div className="p-3 space-y-2">
+                <div className="p-3 space-y-2 cursor-pointer active:bg-muted/50" onClick={() => setSelectedRequestId(req.id)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
@@ -187,6 +189,11 @@ export function PendingRentRequestsWidget() {
           ))}
         </div>
       )}
+      <RentRequestDetailDrawer
+        requestId={selectedRequestId}
+        open={!!selectedRequestId}
+        onOpenChange={(open) => { if (!open) setSelectedRequestId(null); }}
+      />
     </CollapsibleAgentSection>
   );
 }
