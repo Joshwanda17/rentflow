@@ -23,6 +23,9 @@ export default function UserCountsSummary({ onViewAll }: UserCountsSummaryProps)
 
   useEffect(() => {
     fetchCounts();
+    const handler = () => fetchCounts();
+    window.addEventListener('user-deleted', handler);
+    return () => window.removeEventListener('user-deleted', handler);
   }, []);
 
   const fetchCounts = async () => {
