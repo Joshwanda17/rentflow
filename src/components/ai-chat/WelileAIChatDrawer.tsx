@@ -9,9 +9,9 @@ import ShareWelileAIBanner from './ShareWelileAIBanner';
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
 const SUGGESTIONS = [
-  { icon: "💰", text: "How do agents earn on Welile?" },
-  { icon: "🏠", text: "How does the Supporter Package work?" },
-  { icon: "📈", text: "How much can I earn?" },
+  { icon: "💰", text: "How do I start earning?" },
+  { icon: "🔥", text: "How much can agents make?" },
+  { icon: "🏠", text: "What's the Supporter thing?" },
   { icon: "🚀", text: "What is Welile?" },
 ];
 
@@ -242,9 +242,9 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                       transition={{ delay: 0.2 }}
                       className="text-center mb-5"
                     >
-                      <h2 className="text-lg font-bold text-foreground mb-1">How can I help you earn?</h2>
+                      <h2 className="text-lg font-bold text-foreground mb-1">Hey! 👋 Ask me anything</h2>
                       <p className="text-sm text-muted-foreground max-w-[240px] leading-relaxed">
-                        Ask about earnings, deposits, referrals, or anything Welile.
+                        Tap a question below or just type 💬
                       </p>
                     </motion.div>
 
