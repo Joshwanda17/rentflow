@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import {
   Clock, Home, MapPin, Loader2, User, Pencil,
   TrendingUp, Calendar, ChevronDown, ChevronUp,
-  CalendarDays, Receipt, FileDown, MessageCircle
+  CalendarDays, Receipt, FileDown, MessageCircle, Trash2
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { addDays, format, subDays, startOfDay, endOfDay, startOfWeek, startOfMonth, startOfYear } from 'date-fns';
@@ -17,6 +17,11 @@ import { useAuth } from '@/hooks/useAuth';
 import { exportToPDF } from '@/lib/exportUtils';
 import { shareViaWhatsApp } from '@/lib/shareReceipt';
 import { toast } from 'sonner';
+import {
+  AlertDialog, AlertDialogAction, AlertDialogCancel,
+  AlertDialogContent, AlertDialogDescription, AlertDialogFooter,
+  AlertDialogHeader, AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ReceivablePeriod = 'all' | 'today' | '7days' | '30days' | 'this_week' | 'this_month' | 'this_year';
 
@@ -55,6 +60,7 @@ interface SubscriptionStatus {
 
 interface ApprovedRequest {
   id: string;
+  tenant_id: string;
   rent_amount: number;
   duration_days: number;
   status: string;
@@ -92,7 +98,12 @@ interface RentDueReceivablesWidgetProps {
   onTotalChange?: (total: number) => void;
 }
 
-function RequestBreakdownRow({ req, onViewDetails }: { req: ApprovedRequest; onViewDetails?: (id: string) => void }) {
+function RequestBreakdownRow({ req, onViewDetails, isManager, onDeleteUser }: { 
+  req: ApprovedRequest; 
+  onViewDetails?: (id: string) => void;
+  isManager?: boolean;
+  onDeleteUser?: (userId: string, name: string) => void;
+}) {
   const [open, setOpen] = useState(false);
   const remaining = Math.max(0, req.total_repayment - (req.amount_repaid || 0));
 
@@ -297,6 +308,19 @@ function RequestBreakdownRow({ req, onViewDetails }: { req: ApprovedRequest; onV
                   View Full Details
                 </Button>
               )}
+
+              {/* Delete User button - Manager only */}
+              {isManager && onDeleteUser && req.tenant_id && (
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  className="w-full text-xs gap-1.5 mt-1 min-h-[44px] touch-manipulation"
+                  onClick={() => onDeleteUser(req.tenant_id, req.tenant?.full_name || 'Unknown')}
+                >
+                  <Trash2 className="h-3.5 w-3.5" />
+                  Delete Tenant Account
+                </Button>
+              )}
             </div>
           </motion.div>
         )}
@@ -317,6 +341,8 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const [exporting, setExporting] = useState(false);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
+  const [deleteDialog, setDeleteDialog] = useState<{ userId: string; name: string } | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const statementRef = useRef<HTMLDivElement>(null);
 
   const fetchRequests = useCallback(async () => {
@@ -756,7 +782,12 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                 <div className="divide-y divide-border/40">
                   {requests.map((req) => (
                     <div key={req.id} className="relative">
-                      <RequestBreakdownRow req={req} onViewDetails={(id) => { setDetailRequestId(id); setDetailOpen(true); }} />
+                      <RequestBreakdownRow 
+                        req={req} 
+                        onViewDetails={(id) => { setDetailRequestId(id); setDetailOpen(true); }}
+                        isManager={mode === 'manager'}
+                        onDeleteUser={mode === 'manager' ? (userId, name) => setDeleteDialog({ userId, name }) : undefined}
+                      />
                       {mode === 'manager' && (
                         <Button
                           variant="ghost"
@@ -792,6 +823,50 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
         open={detailOpen}
         onOpenChange={setDetailOpen}
       />
+
+      {/* Delete User Confirmation Dialog */}
+      <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Permanently Delete User?
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>You are about to permanently delete <strong>{deleteDialog?.name}</strong>'s account.</p>
+              <p className="text-destructive font-semibold">This will remove ALL their data: profile, wallet, roles, ledger entries, rent requests, and authentication. This cannot be undone.</p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90 min-h-[44px] touch-manipulation"
+              disabled={deleting}
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!deleteDialog) return;
+                setDeleting(true);
+                try {
+                  const { error } = await supabase.functions.invoke('delete-user', {
+                    body: { user_id: deleteDialog.userId },
+                  });
+                  if (error) throw error;
+                  toast.success(`${deleteDialog.name}'s account has been permanently deleted`);
+                  setDeleteDialog(null);
+                  fetchRequests();
+                } catch (err: any) {
+                  toast.error('Failed to delete user', { description: err.message });
+                } finally {
+                  setDeleting(false);
+                }
+              }}
+            >
+              {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
+              Delete Permanently
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </motion.div>
   );
 }
