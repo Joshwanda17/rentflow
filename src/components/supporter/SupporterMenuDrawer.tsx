@@ -114,7 +114,7 @@ export function SupporterMenuDrawer({
           icon: Banknote, 
           label: 'Available Loan', 
           description: 'Check your credit limit',
-          path: '/credit-access',
+          onClick: onViewLoan,
           color: 'text-emerald-500'
         },
       ]
