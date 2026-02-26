@@ -403,6 +403,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       fetchProductivityData(),
       fetchRentDueTotal()
     ]).catch(console.error).finally(() => clearTimeout(timeout));
+
+    // Re-fetch rent due total when a rent request is deleted
+    const handler = () => fetchRentDueTotal();
+    window.addEventListener('user-deleted', handler);
+    return () => window.removeEventListener('user-deleted', handler);
   }, []);
 
   // Re-fetch productivity when filter changes (after initial load)
