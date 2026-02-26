@@ -120,9 +120,9 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Check expiration (48h)
+    // Check expiration (30 days)
     const createdAt = new Date(invite.created_at).getTime();
-    if (Date.now() > createdAt + (48 * 60 * 60 * 1000)) {
+    if (Date.now() > createdAt + (30 * 24 * 60 * 60 * 1000)) {
       return new Response(JSON.stringify({ error: "Activation link has expired. Please request a new invite." }), {
         status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
