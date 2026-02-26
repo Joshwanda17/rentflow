@@ -7,21 +7,21 @@ interface Props {
 
 interface State {
   hasError: boolean;
+  isChunkError: boolean;
   isRetrying: boolean;
 }
 
 class ChunkErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
-    this.state = { hasError: false, isRetrying: false };
+    this.state = { hasError: false, isChunkError: false, isRetrying: false };
   }
 
-  static getDerivedStateFromError(error: Error): Partial<State> | null {
-    // Detect chunk/dynamic import failures - expanded detection
+  static getDerivedStateFromError(error: Error): Partial<State> {
     const msg = (error?.message || "").toLowerCase();
     const name = (error?.name || "").toLowerCase();
     
-    if (
+    const isChunkError = 
       msg.includes("failed to fetch dynamically imported module") ||
       msg.includes("error loading dynamically imported module") ||
       msg.includes("loading chunk") ||
@@ -32,21 +32,21 @@ class ChunkErrorBoundary extends Component<Props, State> {
       msg.includes("network error") ||
       msg.includes("timeout") ||
       name.includes("chunkerror") ||
-      name.includes("loaderror")
-    ) {
-      return { hasError: true };
-    }
-    return null;
+      name.includes("loaderror");
+    
+    // Catch ALL errors — chunk errors get auto-retry, others get a friendly fallback
+    return { hasError: true, isChunkError };
   }
 
   componentDidCatch(error: Error) {
     console.error("ChunkErrorBoundary caught:", error);
     
-    // Auto-retry once only — prevent infinite reload loops
+    // Only auto-retry for chunk errors
+    if (!this.state.isChunkError) return;
+    
     const retryCount = parseInt(sessionStorage.getItem("chunk_auto_retry") || "0", 10);
     if (retryCount < 1) {
       sessionStorage.setItem("chunk_auto_retry", String(retryCount + 1));
-      // Clear stale caches before reload
       if ("caches" in window) {
         caches.keys().then(keys =>
           Promise.all(keys.filter(k => k.startsWith("welile-")).map(k => caches.delete(k)))
@@ -54,7 +54,6 @@ class ChunkErrorBoundary extends Component<Props, State> {
       }
       setTimeout(() => window.location.reload(), 2000);
     } else {
-      // Already retried — clear the flag so next fresh visit works
       sessionStorage.removeItem("chunk_auto_retry");
     }
   }
@@ -88,42 +87,62 @@ class ChunkErrorBoundary extends Component<Props, State> {
 
   render() {
     if (this.state.hasError) {
+      // Chunk error — show "Updating" UI
+      if (this.state.isChunkError) {
+        return (
+          <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
+            <div className="flex flex-col items-center gap-6 max-w-sm text-center">
+              <div className="relative">
+                <div className="w-16 h-16 rounded-full border-4 border-muted animate-pulse" />
+                <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
+              </div>
+              <div className="space-y-2">
+                <h1 className="text-xl font-semibold">Updating...</h1>
+                <p className="text-muted-foreground text-sm">
+                  A newer version is available. Please wait while we refresh the app.
+                </p>
+              </div>
+              <button
+                onClick={this.handleRetry}
+                disabled={this.state.isRetrying}
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              >
+                {this.state.isRetrying ? (
+                  <><Loader2 className="w-4 h-4 animate-spin" /> Refreshing...</>
+                ) : (
+                  <><RefreshCw className="w-4 h-4" /> Retry Now</>
+                )}
+              </button>
+              <p className="text-xs text-muted-foreground/60">
+                If this keeps happening, try clearing your browser cache.
+              </p>
+            </div>
+          </div>
+        );
+      }
+
+      // General error — friendly fallback instead of blank screen
       return (
         <div className="fixed inset-0 z-[9999] flex flex-col items-center justify-center bg-background text-foreground p-6">
           <div className="flex flex-col items-center gap-6 max-w-sm text-center">
-            {/* Animated loader */}
-            <div className="relative">
-              <div className="w-16 h-16 rounded-full border-4 border-muted animate-pulse" />
-              <Loader2 className="absolute inset-0 m-auto w-8 h-8 text-primary animate-spin" />
+            <div className="w-16 h-16 rounded-full bg-destructive/20 flex items-center justify-center">
+              <span className="text-2xl">⚠️</span>
             </div>
-
             <div className="space-y-2">
-              <h1 className="text-xl font-semibold">Updating...</h1>
+              <h1 className="text-xl font-semibold">Something went wrong</h1>
               <p className="text-muted-foreground text-sm">
-                A newer version is available. Please wait while we refresh the app.
+                An unexpected error occurred. Please try refreshing the page.
               </p>
             </div>
-
             <button
-              onClick={this.handleRetry}
-              disabled={this.state.isRetrying}
-              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity disabled:opacity-50"
+              onClick={() => window.location.reload()}
+              className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-primary text-primary-foreground font-medium shadow-lg hover:opacity-90 transition-opacity"
             >
-              {this.state.isRetrying ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Refreshing...
-                </>
-              ) : (
-                <>
-                  <RefreshCw className="w-4 h-4" />
-                  Retry Now
-                </>
-              )}
+              <RefreshCw className="w-4 h-4" />
+              Refresh Page
             </button>
-
             <p className="text-xs text-muted-foreground/60">
-              If this keeps happening, try clearing your browser cache.
+              If this keeps happening, try clearing your browser cache or contact support.
             </p>
           </div>
         </div>
