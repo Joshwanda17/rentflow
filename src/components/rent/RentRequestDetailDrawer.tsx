@@ -41,6 +41,7 @@ interface FullRequestDetail {
   request_longitude: number | null;
   tenant_electricity_meter: string | null;
   tenant_water_meter: string | null;
+  tenant_no_smartphone: boolean;
   approval_comment: string | null;
   rejected_reason: string | null;
   schedule_status: string | null;
@@ -185,6 +186,9 @@ export function RentRequestDetailDrawer({ requestId, open, onOpenChange }: RentR
               <DetailRow label="Name" value={tenant?.full_name || 'Unknown'} />
               <DetailRow label="Phone" value={tenant?.phone || '—'} />
               <DetailRow label="Email" value={tenant?.email || '—'} />
+              {request.tenant_no_smartphone !== undefined && (
+                <DetailRow label="Phone Type" value={request.tenant_no_smartphone ? '📱 No Smartphone' : '📱 Smartphone'} />
+              )}
               {request.tenant_electricity_meter && <DetailRow label="Electricity Meter" value={request.tenant_electricity_meter} />}
               {request.tenant_water_meter && <DetailRow label="Water Meter" value={request.tenant_water_meter} />}
             </Section>
@@ -245,7 +249,19 @@ export function RentRequestDetailDrawer({ requestId, open, onOpenChange }: RentR
                   {request.house_category && <DetailRow label="Category" value={request.house_category} />}
                   {request.request_city && <DetailRow label="City" value={request.request_city} />}
                   {request.request_country && <DetailRow label="Country" value={request.request_country} />}
-                  {request.request_latitude && <DetailRow label="GPS" value={`${request.request_latitude}, ${request.request_longitude}`} />}
+                  {request.request_latitude && request.request_longitude && (
+                    <div className="flex justify-between py-0.5">
+                      <span className="text-xs text-muted-foreground">GPS</span>
+                      <a
+                        href={`https://www.google.com/maps?q=${request.request_latitude},${request.request_longitude}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary underline"
+                      >
+                        📍 Open in Maps
+                      </a>
+                    </div>
+                  )}
                 </Section>
                 <Separator />
               </>
