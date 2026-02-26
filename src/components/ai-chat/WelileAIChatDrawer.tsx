@@ -10,10 +10,10 @@ import { DepositDialog } from '@/components/wallet/DepositDialog';
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
 const SUGGESTIONS = [
+  { icon: "💰", text: "How do agents earn on Welile?" },
   { icon: "🏠", text: "How does the Supporter Package work?" },
-  { icon: "💰", text: "How much can I earn as a Supporter?" },
-  { icon: "🔒", text: "Is my capital safe on Welile?" },
-  { icon: "📈", text: "What is auto-compound?" },
+  { icon: "📈", text: "How much can I earn?" },
+  { icon: "🚀", text: "What is Welile?" },
 ];
 
 interface Props {
@@ -267,7 +267,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                       initial={{ opacity: 0, y: 12 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: 0.35 }}
-                      className="grid grid-cols-2 gap-2 w-full max-w-[340px]"
+                      className="grid grid-cols-2 gap-1.5 sm:gap-2 w-full max-w-[340px]"
                     >
                       {SUGGESTIONS.map((s, i) => (
                         <motion.button
@@ -276,10 +276,10 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: 0.4 + i * 0.06 }}
                           onClick={() => sendMessage(s.text)}
-                          className="flex items-start gap-2 p-3 rounded-2xl border border-border/60 bg-card hover:bg-accent/30 hover:border-border active:scale-95 transition-all text-left group min-h-[56px]"
+                          className="flex items-start gap-1.5 sm:gap-2 p-2.5 sm:p-3 rounded-2xl border border-border/60 bg-card hover:bg-accent/30 hover:border-border active:scale-95 transition-all text-left group min-h-[48px] sm:min-h-[56px] touch-manipulation"
                         >
-                          <span className="text-base leading-none mt-0.5 flex-shrink-0">{s.icon}</span>
-                          <span className="text-xs text-foreground/75 group-hover:text-foreground leading-snug font-medium">{s.text}</span>
+                          <span className="text-sm sm:text-base leading-none mt-0.5 flex-shrink-0">{s.icon}</span>
+                          <span className="text-[11px] sm:text-xs text-foreground/75 group-hover:text-foreground leading-snug font-medium">{s.text}</span>
                         </motion.button>
                       ))}
                     </motion.div>
@@ -305,8 +305,8 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                           msg.role === 'user' ? 'flex justify-end' : ''
                         )}>
                           {msg.role === 'user' ? (
-                            <div className="max-w-[82%] px-4 py-3 rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-sm">
-                              <p className="text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
+                            <div className="max-w-[85%] px-3 sm:px-4 py-2.5 sm:py-3 rounded-2xl rounded-br-sm bg-primary text-primary-foreground shadow-sm">
+                              <p className="text-[13px] sm:text-sm leading-relaxed whitespace-pre-wrap">{msg.content}</p>
                             </div>
                           ) : (
                             <div className="flex gap-2.5 max-w-full">
@@ -314,7 +314,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                                 <Bot className="h-3.5 w-3.5 text-primary" />
                               </div>
                               <div className="flex-1 min-w-0 pt-0.5">
-                                <div className="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed
+                                <div className="prose prose-sm dark:prose-invert max-w-none text-[13px] sm:text-sm leading-relaxed
                                   [&>p]:mb-2 [&>p:last-child]:mb-0
                                   [&>ul]:mb-2 [&>ol]:mb-2 [&>ul]:pl-4 [&>ol]:pl-4 [&_li]:mb-0.5
                                   [&>h1]:text-base [&>h2]:text-sm [&>h3]:text-sm
