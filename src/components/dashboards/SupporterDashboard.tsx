@@ -83,7 +83,6 @@ export default function SupporterDashboard({
   const [justAccepted, setJustAccepted] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
-  const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
   const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
