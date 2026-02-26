@@ -102,7 +102,7 @@ function RequestBreakdownRow({ req, onViewDetails, isManager, onDeleteUser }: {
   req: ApprovedRequest; 
   onViewDetails?: (id: string) => void;
   isManager?: boolean;
-  onDeleteUser?: (userId: string, name: string) => void;
+  onDeleteUser?: (userId: string, name: string, requestId?: string) => void;
 }) {
   const [open, setOpen] = useState(false);
   const remaining = Math.max(0, req.total_repayment - (req.amount_repaid || 0));
@@ -315,10 +315,10 @@ function RequestBreakdownRow({ req, onViewDetails, isManager, onDeleteUser }: {
                   variant="destructive"
                   size="sm"
                   className="w-full text-xs gap-1.5 mt-1 min-h-[44px] touch-manipulation"
-                  onClick={() => onDeleteUser(req.tenant_id, req.tenant?.full_name || 'Unknown')}
+                  onClick={() => onDeleteUser(req.tenant_id, req.tenant?.full_name || 'Unknown', req.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
-                  Delete Tenant Account
+                  Delete Rent Request & Ledger
                 </Button>
               )}
             </div>
@@ -341,7 +341,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
   const [exporting, setExporting] = useState(false);
   const [detailRequestId, setDetailRequestId] = useState<string | null>(null);
   const [detailOpen, setDetailOpen] = useState(false);
-  const [deleteDialog, setDeleteDialog] = useState<{ userId: string; name: string } | null>(null);
+  const [deleteDialog, setDeleteDialog] = useState<{ requestId: string; name: string } | null>(null);
   const [deleting, setDeleting] = useState(false);
   const statementRef = useRef<HTMLDivElement>(null);
 
@@ -786,7 +786,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                         req={req} 
                         onViewDetails={(id) => { setDetailRequestId(id); setDetailOpen(true); }}
                         isManager={mode === 'manager'}
-                        onDeleteUser={mode === 'manager' ? (userId, name) => setDeleteDialog({ userId, name }) : undefined}
+                        onDeleteUser={mode === 'manager' ? (_userId, name, requestId) => setDeleteDialog({ requestId: requestId || '', name }) : undefined}
                       />
                       {mode === 'manager' && (
                         <Button
@@ -824,17 +824,17 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
         onOpenChange={setDetailOpen}
       />
 
-      {/* Delete User Confirmation Dialog */}
+      {/* Delete Rent Request & Ledger Entries Dialog */}
       <AlertDialog open={!!deleteDialog} onOpenChange={(open) => !open && setDeleteDialog(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2 text-destructive">
               <Trash2 className="h-5 w-5" />
-              Permanently Delete User?
+              Delete Rent Request & Ledger?
             </AlertDialogTitle>
             <AlertDialogDescription className="space-y-2">
-              <p>You are about to permanently delete <strong>{deleteDialog?.name}</strong>'s account.</p>
-              <p className="text-destructive font-semibold">This will remove ALL their data: profile, wallet, roles, ledger entries, rent requests, and authentication. This cannot be undone.</p>
+              <p>You are about to delete <strong>{deleteDialog?.name}</strong>'s rent request and all associated ledger entries.</p>
+              <p className="text-destructive font-semibold">This removes the rent request, repayments, and ledger entries linked to it. The user account will NOT be deleted. This cannot be undone.</p>
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -844,26 +844,28 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
               disabled={deleting}
               onClick={async (e) => {
                 e.preventDefault();
-                if (!deleteDialog) return;
+                if (!deleteDialog?.requestId) return;
                 setDeleting(true);
                 try {
-                  const { error } = await supabase.functions.invoke('delete-user', {
-                    body: { user_id: deleteDialog.userId },
+                  const reqId = deleteDialog.requestId;
+                  const { error } = await supabase.functions.invoke('delete-rent-request', {
+                    body: { rent_request_id: reqId },
                   });
                   if (error) throw error;
-                  toast.success(`${deleteDialog.name}'s account has been permanently deleted`);
+                  if (error) throw error;
+                  toast.success(`${deleteDialog.name}'s rent request and ledger entries deleted`);
                   setDeleteDialog(null);
                   fetchRequests();
                   window.dispatchEvent(new Event('user-deleted'));
                 } catch (err: any) {
-                  toast.error('Failed to delete user', { description: err.message });
+                  toast.error('Failed to delete', { description: err.message });
                 } finally {
                   setDeleting(false);
                 }
               }}
             >
               {deleting ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : <Trash2 className="h-4 w-4 mr-2" />}
-              Delete Permanently
+              Delete Request & Ledger
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
