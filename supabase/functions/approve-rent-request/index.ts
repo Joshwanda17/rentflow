@@ -202,6 +202,29 @@ serve(async (req) => {
         }
       }
 
+      // === POST TENANT OBLIGATION LEDGER ENTRY ===
+      // Creates audit trail showing the tenant owes this amount
+      if (totalRepayment > 0) {
+        const txGroupId = crypto.randomUUID();
+        const { error: obligationErr } = await adminClient.from("general_ledger").insert({
+          user_id: rentRequest.tenant_id,
+          amount: totalRepayment,
+          direction: "cash_out",
+          category: "rent_obligation",
+          source_table: "rent_requests",
+          source_id: rent_request_id,
+          transaction_group_id: txGroupId,
+          description: `Rent obligation (${durationDays} days repayment)`,
+          linked_party: approverId,
+          reference_id: rent_request_id,
+        });
+        if (obligationErr) {
+          console.error("Failed to post obligation ledger entry:", obligationErr.message);
+        } else {
+          console.log(`Posted rent obligation of ${totalRepayment} for tenant ${rentRequest.tenant_id}`);
+        }
+      }
+
       // Pay agent approval bonus if agent exists and approver is a manager
       if (rentRequest.agent_id && isManager) {
         // Get or create agent wallet

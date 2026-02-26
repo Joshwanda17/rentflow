@@ -281,6 +281,23 @@ Deno.serve(async (req) => {
         },
       ]);
 
+      // === POST TENANT OBLIGATION LEDGER ENTRY ===
+      // This creates the audit trail showing the tenant owes this amount
+      const totalRepaymentForLedger = Number(rr.total_repayment) || fundAmount;
+      await adminClient.from("general_ledger").insert({
+        user_id: rr.tenant_id,
+        amount: totalRepaymentForLedger,
+        direction: "cash_out",
+        category: "rent_obligation",
+        source_table: "rent_requests",
+        source_id: rr.id,
+        transaction_group_id: txGroupId,
+        description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+        linked_party: user.id,
+        reference_id: rr.id,
+      });
+      console.log(`[fund-tenants] Posted rent obligation of ${totalRepaymentForLedger} for tenant ${rr.tenant_id}`);
+
       // Notify tenant
       await adminClient.from("notifications").insert({
         user_id: rr.tenant_id,
