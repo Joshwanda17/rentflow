@@ -55,7 +55,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
 import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { CreditAccessCard } from '@/components/CreditAccessCard';
+
 
 interface SupporterDashboardProps {
   user: User;

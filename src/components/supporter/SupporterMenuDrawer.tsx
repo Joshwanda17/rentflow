@@ -17,8 +17,7 @@ import {
   Wallet,
   FileText,
   HandCoins,
-  ChevronRight,
-  Banknote
+  ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
