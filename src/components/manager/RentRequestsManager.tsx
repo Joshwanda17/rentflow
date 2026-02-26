@@ -994,13 +994,13 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                     {/* Collect Rent Button - only for funded/disbursed with outstanding balance */}
                     {(['funded', 'disbursed', 'approved'].includes(request.status || '')) && (request.total_repayment - (request.amount_repaid || 0)) > 0 && (
                       <Button
-                        variant="outline"
+                        variant="success"
                         size="sm"
                         onClick={() => setCollectDialog({ open: true, request })}
-                        className="gap-1 text-success border-success/30 hover:bg-success/10 min-h-[36px] touch-manipulation"
+                        className="gap-1.5 min-h-[40px] touch-manipulation font-bold shadow-md animate-pulse hover:animate-none px-4"
                       >
-                        <HandCoins className="h-3.5 w-3.5" />
-                        <span className="hidden sm:inline">Collect</span>
+                        <HandCoins className="h-4 w-4" />
+                        Collect
                       </Button>
                     )}
 
