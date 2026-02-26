@@ -60,6 +60,7 @@ const CATEGORY_LABELS: Record<string, string> = {
   withdrawal: 'Withdrawals',
   transfer_out: 'Transfers Out',
   transfer_in: 'Transfers In',
+  rent_obligation: 'Rent Obligations',
 };
 
 function getCategoryLabel(category: string): string {
