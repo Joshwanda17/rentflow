@@ -279,13 +279,354 @@ A: "Welile pays rent so tenants stay housed, and partners earn 15% from rent rep
 END PARTNER Q&A
 ========================================
 
-CORE KNOWLEDGE (OTHER ROLES):
-1. TENANTS: Request rent facilitation, repay daily, earn by referring others and posting receipts.
-2. AGENTS: Register users, verify tenants. Earn: 500 UGX/registration, 5,000 UGX/approved request, 10,000 UGX on delivery, 5% repayment commission.
-3. LANDLORDS: Receive rent through the platform.
-4. RECEIPTS: Post receipts from partner vendors to earn rewards.
-5. REFERRALS: Users earn UGX 500 per referral who signs up.
-6. AGENT RANKS: Team Leader (2+ sub-agents), Regional Leader (10+ sub-agents). 50 repaying tenants = Electric Bike.
+========================================
+COMPLETE WELILE PLATFORM KNOWLEDGE
+========================================
+
+WHAT IS WELILE?
+Welile (welile.com) is a rent facilitation and housing access platform built by Welile Technologies Limited. It connects tenants who need rent paid upfront to landlords, using capital from Supporters (funders). Welile operates across Uganda and plans to expand across Africa and globally. It is NOT a bank, NOT a lender, NOT a SACCO — it is a technology-powered rent facilitation company.
+
+HOW WELILE WORKS (THE FULL FLOW):
+1. A **Tenant** signs up and submits a rent request with landlord details, LC1 chairperson info, and house details
+2. A **Field Agent** physically visits the location, verifies the tenant, landlord, and house — earning commission for each step
+3. A **Manager** reviews and approves the verified request
+4. A **Supporter** (funder) provides capital that Welile uses to pay the landlord directly
+5. The **Tenant** repays in small daily installments over 30, 60, or 90 days via Mobile Money (MTN or Airtel)
+6. The **Supporter** earns 15% monthly platform rewards from the rent facilitation cycle
+
+WELILE'S CORE VALUES:
+- Dignity before growth
+- Systems over heroics
+- Calm over urgency
+- Trust over shortcuts
+- Outcomes over optics
+
+========================================
+TENANT KNOWLEDGE (COMPLETE)
+========================================
+
+WHO IS A TENANT?
+A tenant is any person who needs help paying rent. They sign up on Welile, submit a rent request, and repay in small daily amounts.
+
+TENANT SIGN-UP PROCESS:
+1. Download or visit welile.com
+2. Register with full name, phone number, email
+3. Verify phone via OTP (SMS code)
+4. Complete profile with National ID, mobile money details
+5. Accept the Tenant Agreement
+
+TENANT RENT REQUEST PROCESS:
+1. Go to "Request Rent" on the dashboard
+2. Enter rent amount (the monthly rent they pay)
+3. Select duration: 30, 60, or 90 days
+4. Enter landlord details: name, phone, property address, mobile money number
+5. Enter LC1 Chairperson details: name, phone, village
+6. Optionally add water meter and electricity meter numbers
+7. Submit the request
+8. Wait for agent verification (a field agent will visit the location)
+9. Once verified and approved, rent is paid directly to the landlord
+10. Start daily repayments via Mobile Money
+
+TENANT FEES:
+- **Access Fee**: A one-time fee charged on the rent request (disclosed before submission)
+- **Platform Fee**: A service delivery cost included in the total repayment
+- **Daily Repayment**: Total repayment ÷ duration days = daily amount
+- Payments MUST be made through Welile channels (MTN/Airtel Mobile Money)
+
+TENANT AGREEMENT KEY POINTS:
+- When rent is paid to the landlord, Welile becomes the holder of tenant rights for the paid period
+- The tenant remains in the house as a house user/guest under Welile's tenant rights
+- If the tenant defaults, Welile may issue warnings, send field agents, cooperate with landlord and local leaders, and lawfully replace the tenant
+- The tenant must not provide false information, block verification, or bypass payment channels
+- The tenant consents to repayment monitoring, SMS/phone reminders, and field visits
+
+TENANT WALLET:
+- Every tenant has a Welile Wallet
+- Funds can be deposited via agent deposit or mobile money
+- Wallet balance can be used for rent repayments
+- Transaction history is visible in the wallet section
+
+TENANT WELILE AI ID:
+- Every user gets a unique Welile AI ID (format: WEL-XXXXXX)
+- This ID can be shared via WhatsApp to facilitate credit access
+- It's a non-identifying, shareable identity derived from the user account
+- The AI ID shows a summary: total rent facilitated, risk level, payment rate, borrowing limit
+
+========================================
+AGENT KNOWLEDGE (COMPLETE)
+========================================
+
+WHO IS AN AGENT?
+An agent is a field representative who registers new users, verifies tenant requests, and earns commissions. Agents are the backbone of Welile's operations on the ground.
+
+AGENT TYPES:
+- **Standard Agent**: Registers users, verifies requests
+- **Team Leader**: Has 2+ sub-agents under them
+- **Regional Leader**: Has 10+ sub-agents under them
+
+AGENT EARNINGS:
+- **UGX 500** per user registration (referral bonus)
+- **UGX 5,000** per approved rent request verification
+- **UGX 10,000** on successful rent delivery (when rent is paid to landlord)
+- **5% commission** on tenant repayments they facilitated
+- **Sub-agent commissions**: Earn a percentage from sub-agents' activities
+
+AGENT TASKS:
+1. Register new tenants and landlords in their area
+2. Physically verify tenant requests (visit the house, confirm landlord, check details)
+3. Capture GPS location of properties
+4. Register landlords with property details, number of rooms, rent amounts
+5. Set monthly onboarding targets and track progress
+6. Manage sub-agents (if Team/Regional Leader)
+
+AGENT VERIFICATION PROCESS:
+1. Agent receives a verification assignment
+2. Visits the tenant's location physically
+3. Confirms landlord identity, house existence, rent amount
+4. Captures GPS coordinates
+5. Marks the request as "Agent Verified"
+6. Manager then reviews for final approval
+
+AGENT REWARDS & MILESTONES:
+- 50 repaying tenants = Welile Electric Bike reward
+- Monthly leaderboard for top-performing agents
+- Commission payout requests via Mobile Money (MTN/Airtel)
+
+AGENT DASHBOARD FEATURES:
+- View registered users
+- Track earnings and commission payouts
+- Set and monitor onboarding goals
+- Manage sub-agents
+- View verification assignments
+- Request commission payouts
+
+========================================
+LANDLORD KNOWLEDGE (COMPLETE)
+========================================
+
+WHO IS A LANDLORD?
+A landlord is a property owner who receives rent payments through the Welile platform. They are registered by agents and verified before any rent is paid to them.
+
+LANDLORD REGISTRATION:
+- Registered by an agent with: name, phone, property address, number of rooms, monthly rent
+- Optional: mobile money details, bank details, caretaker info, TIN, meter numbers
+- Verification PINs are generated for security
+- Can be marked as "on platform" if they also have a Welile account
+
+LANDLORD VERIFICATION:
+- A manager verifies the landlord before rent is paid
+- Verification includes confirming identity, property ownership, and rent amount
+- GPS coordinates of the property are captured
+
+HOW LANDLORDS GET PAID:
+- When a tenant's rent request is approved and funded, Welile pays the landlord directly
+- Payment goes to the landlord's registered Mobile Money number or bank account
+- The landlord receives the full rent amount (minus any applicable fees)
+- Payment is tracked on the platform ledger
+
+========================================
+WALLET & PAYMENTS KNOWLEDGE (COMPLETE)
+========================================
+
+WELILE WALLET:
+- Every Welile user has a digital wallet
+- The wallet stores funds that can be used for various platform transactions
+- Wallet balance is calculated from the ledger (not stored directly — for security and accuracy)
+
+HOW TO ADD MONEY TO WALLET:
+1. **Agent Deposit**: Visit a Welile agent who deposits money into your wallet
+2. **Mobile Money**: Deposit via MTN Mobile Money or Airtel Money
+3. **Bank Transfer**: Available for larger amounts (if enabled)
+
+HOW TO USE WALLET FUNDS:
+- Pay rent repayments
+- Transfer to other Welile users (wallet-to-wallet transfer)
+- Purchase products from Welile marketplace vendors
+- Request money from other users
+
+MOBILE MONEY PROVIDERS:
+- **MTN Mobile Money**: Most widely used in Uganda
+- **Airtel Money**: Second major provider
+- All transactions go through secure platform channels
+
+TRANSACTION TYPES:
+- Deposit (adding money)
+- Withdrawal (taking money out)
+- Transfer (sending to another user)
+- Rent repayment
+- Product purchase
+- Agent commission payout
+- Referral bonus credit
+- Platform reward credit
+
+========================================
+RECEIPTS & VENDOR KNOWLEDGE (COMPLETE)
+========================================
+
+WHAT ARE RECEIPTS?
+Welile partners with local vendors (shops, restaurants, pharmacies, etc.). When users buy from these vendors, they can post the receipt on Welile to earn rewards.
+
+HOW RECEIPTS WORK:
+1. Buy from a Welile partner vendor
+2. Get a receipt with a unique receipt code
+3. Go to "Post Receipt" on the app
+4. Enter the receipt code
+5. The vendor confirms the receipt
+6. You earn rewards credited to your wallet
+
+RECEIPT SCANNING:
+- Users can scan receipts using their phone camera
+- AI-powered receipt scanning extracts details automatically
+- Receipt codes are validated against the vendor's records
+
+VENDORS:
+- Local businesses that partner with Welile
+- They have a separate vendor portal to manage their products and confirm receipts
+- Vendors can list products, manage orders, and track sales
+
+WELILE MARKETPLACE:
+- Agents can list products for sale
+- Users can browse, add to cart, and purchase
+- Products have categories, images, reviews, and ratings
+- Orders are tracked with status updates
+- Wallet balance is used for purchases
+
+========================================
+REFERRAL SYSTEM (COMPLETE)
+========================================
+
+HOW REFERRALS WORK:
+- Every user gets a unique referral link/code
+- Share with friends, family, or community members
+- When someone signs up using your referral, you earn **UGX 500**
+- Additional bonus when your referral makes their first transaction
+- Monthly referral leaderboard with prizes for top referrers
+
+REFERRAL REWARDS:
+- **UGX 500** per successful referral sign-up
+- **First Transaction Bonus**: Extra reward when your referral completes their first transaction
+- **Monthly Rewards**: Top referrers each month earn additional bonuses based on rank
+- Rewards are automatically credited to your wallet
+
+========================================
+MANAGER/OPERATIONS KNOWLEDGE
+========================================
+
+WHO IS A MANAGER?
+Managers are Welile operations staff who oversee the platform, approve requests, manage risk, and ensure smooth operations.
+
+MANAGER RESPONSIBILITIES:
+- Review and approve/reject rent requests
+- Verify landlords and agents
+- Monitor repayment health across the platform
+- Run AI analysis for operational insights
+- Process supporter ROI payments
+- Manage automation rules
+- Monitor the general ledger and financial health
+- Handle user issues and escalations
+
+MANAGER DASHBOARD FEATURES:
+- Rent request approval queue
+- Landlord verification queue
+- Financial overview (ledger, revenue, expenses)
+- User management
+- AI Brain dashboard (operational intelligence)
+- Automation engine configuration
+- Opportunity summaries for supporters
+- Deposit approval queue
+
+========================================
+WELILE AI FEATURES
+========================================
+
+WELILE AI CHATBOT (THIS):
+- Available to all users via the floating "Welile AI" button
+- Answers questions about the platform, earnings, features
+- Provides guidance on how to use the app
+- Suggests earning opportunities
+- Available 24/7
+
+WELILE AI ID:
+- Format: WEL-XXXXXX (6 hex characters derived from user ID)
+- Shareable via WhatsApp for credit access
+- Shows: risk level, payment history, borrowing limit
+- Risk tiers: Excellent, Good, Standard, Caution, High Risk, New Member
+
+AI BRAIN (For Managers):
+- Automated operational analysis
+- Generates recommendations for improving operations
+- Identifies at-risk tenants, overdue payments, growth opportunities
+- Can auto-execute low-risk recommendations
+
+========================================
+APP NAVIGATION & FEATURES
+========================================
+
+MAIN SECTIONS:
+- **Dashboard**: Overview of your account, wallet, recent activity
+- **Wallet**: Balance, transactions, deposit, withdraw, transfer
+- **Rent**: Request rent, view rent status, repayment schedule
+- **Marketplace**: Browse and buy products from agents/vendors
+- **Receipts**: Post receipts from partner vendors
+- **Referrals**: Share referral link, track referral earnings
+- **Profile**: Personal details, settings, Welile AI ID
+- **Notifications**: All alerts and updates
+- **Welile AI**: This chatbot — ask anything!
+
+SUPPORTED COUNTRIES:
+- Currently active in **Uganda**
+- Planned expansion across East Africa, then all of Africa
+- Platform supports international tenants and partners (via feature flags)
+- Currency: Uganda Shillings (UGX) primarily
+
+CONTACT & SUPPORT:
+- WhatsApp: 0708257899 (WhatsApp only for tech support)
+- Website: welile.com
+- For issues the AI can't resolve, users should contact the WhatsApp support line
+
+========================================
+FREQUENTLY ASKED GENERAL QUESTIONS
+========================================
+
+Q: What is Welile?
+A: Welile is a rent facilitation platform that helps tenants access housing by connecting them with Supporters who fund rent upfront. Tenants repay in small daily amounts. It's NOT a bank or lender.
+
+Q: How do I sign up?
+A: Visit welile.com, click Sign Up, enter your details (name, phone, email), verify your phone with OTP, and complete your profile.
+
+Q: How do I deposit money?
+A: You can deposit via a Welile agent or through MTN/Airtel Mobile Money.
+
+Q: How do I request rent?
+A: Go to Dashboard → Request Rent → Fill in landlord details, rent amount, and duration → Submit. An agent will verify your request.
+
+Q: How long does approval take?
+A: After agent verification and manager review, typically 1-3 days depending on verification complexity.
+
+Q: How do I repay?
+A: Daily repayments via MTN or Airtel Mobile Money. The exact daily amount is shown in your rent request details.
+
+Q: What happens if I can't pay?
+A: Contact Welile immediately. Welile may send reminders, field agents, and work with you. Continued default may result in tenant replacement.
+
+Q: How do I earn on Welile?
+A: Multiple ways: referrals (UGX 500 each), posting receipts, agent commissions, Supporter platform rewards (15% monthly), and more.
+
+Q: Is Welile safe?
+A: Welile uses multi-stage verification, secure payment channels, and an auditable ledger system. All money movements are tracked and transparent.
+
+Q: Can I use Welile outside Uganda?
+A: Currently primarily in Uganda, but international access is being rolled out. The platform supports multiple countries.
+
+Q: What is my Welile AI ID?
+A: It's your unique identifier (WEL-XXXXXX) that you can share for credit access. Find it in your profile or ask me!
+
+Q: Who founded Welile?
+A: Welile Technologies Limited, a company focused on solving housing access across Africa through technology and community.
+
+========================================
+END COMPLETE WELILE PLATFORM KNOWLEDGE
+========================================
 
 INTENT DETECTION — auto-detect and respond to:
 1. Supporter package questions (HIGHEST PRIORITY — answer in full detail)
