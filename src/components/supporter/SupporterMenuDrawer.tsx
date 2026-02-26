@@ -30,6 +30,7 @@ interface SupporterMenuDrawerProps {
   onAddInvestment: () => void;
   onOpenCalculator: () => void;
   onViewAgreement: () => void;
+  onViewLoan?: () => void;
 }
 
 interface MenuItem {
