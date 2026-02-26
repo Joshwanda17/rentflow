@@ -854,6 +854,7 @@ export function RentDueReceivablesWidget({ mode, onTotalChange }: RentDueReceiva
                   toast.success(`${deleteDialog.name}'s account has been permanently deleted`);
                   setDeleteDialog(null);
                   fetchRequests();
+                  window.dispatchEvent(new Event('user-deleted'));
                 } catch (err: any) {
                   toast.error('Failed to delete user', { description: err.message });
                 } finally {
