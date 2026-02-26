@@ -909,6 +909,59 @@ export type Database = {
         }
         Relationships: []
       }
+      location_requests: {
+        Row: {
+          accuracy: number | null
+          captured_at: string | null
+          created_at: string
+          id: string
+          latitude: number | null
+          longitude: number | null
+          rent_request_id: string
+          requested_by: string
+          status: string
+          target_role: string
+          target_user_id: string
+          token: string
+        }
+        Insert: {
+          accuracy?: number | null
+          captured_at?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          rent_request_id: string
+          requested_by: string
+          status?: string
+          target_role: string
+          target_user_id: string
+          token?: string
+        }
+        Update: {
+          accuracy?: number | null
+          captured_at?: string | null
+          created_at?: string
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          rent_request_id?: string
+          requested_by?: string
+          status?: string
+          target_role?: string
+          target_user_id?: string
+          token?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "location_requests_rent_request_id_fkey"
+            columns: ["rent_request_id"]
+            isOneToOne: false
+            referencedRelation: "rent_requests"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string

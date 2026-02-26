@@ -2,12 +2,14 @@ import { useState, useEffect } from 'react';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { Loader2, User, Phone, MapPin, Home, Calendar, Clock, Receipt, ArrowDownLeft, ArrowUpRight, Copy, Building } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Loader2, User, Phone, MapPin, Home, Calendar, Clock, Receipt, ArrowDownLeft, ArrowUpRight, Copy, Building, Navigation, Share2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format, addDays } from 'date-fns';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 
 interface RentRequestDetailDrawerProps {
   requestId: string | null;
@@ -138,6 +140,48 @@ export function RentRequestDetailDrawer({ requestId, open, onOpenChange }: RentR
     toast.success('Request ID copied');
   };
 
+  const handleRequestLocation = async (targetRole: 'tenant' | 'agent') => {
+    if (!request || !requestId) return;
+    const targetUserId = targetRole === 'tenant' ? request.tenant_id : request.agent_id;
+    if (!targetUserId) { toast.error('No user found for this role'); return; }
+
+    const { data: user } = await supabase.auth.getUser();
+    if (!user?.user?.id) return;
+
+    const { data, error } = await supabase
+      .from('location_requests')
+      .insert({
+        rent_request_id: requestId,
+        target_role: targetRole,
+        target_user_id: targetUserId,
+        requested_by: user.user.id,
+      })
+      .select('token')
+      .single();
+
+    if (error || !data) {
+      toast.error('Failed to create location request');
+      return;
+    }
+
+    const link = `${getPublicOrigin()}/share-location?token=${data.token}`;
+    const targetName = targetRole === 'tenant' ? (tenant?.full_name || 'Tenant') : (agent?.full_name || 'Agent');
+    const shareText = `Hi ${targetName}, please share your live location for rent verification by tapping this link:\n${link}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Share Location', text: shareText });
+        toast.success('Link shared!');
+      } catch {
+        await navigator.clipboard.writeText(shareText);
+        toast.success('Link copied to clipboard');
+      }
+    } else {
+      await navigator.clipboard.writeText(shareText);
+      toast.success('Link copied to clipboard');
+    }
+  };
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
       <SheetContent side="bottom" className="h-[90vh] rounded-t-2xl">
@@ -191,6 +235,15 @@ export function RentRequestDetailDrawer({ requestId, open, onOpenChange }: RentR
               )}
               {request.tenant_electricity_meter && <DetailRow label="Electricity Meter" value={request.tenant_electricity_meter} />}
               {request.tenant_water_meter && <DetailRow label="Water Meter" value={request.tenant_water_meter} />}
+              <Button
+                size="sm"
+                variant="outline"
+                className="w-full mt-2 gap-2 text-xs"
+                onClick={() => handleRequestLocation('tenant')}
+              >
+                <Navigation className="h-3.5 w-3.5" />
+                Request Tenant's Live Location
+              </Button>
             </Section>
 
             <Separator />
@@ -211,7 +264,20 @@ export function RentRequestDetailDrawer({ requestId, open, onOpenChange }: RentR
             {(agent || supporter) && (
               <>
                 <Section title="Participants" icon={<User className="h-3.5 w-3.5" />}>
-                  {agent && <DetailRow label="Agent" value={`${agent.full_name} (${agent.phone})`} />}
+                  {agent && (
+                    <>
+                      <DetailRow label="Agent" value={`${agent.full_name} (${agent.phone})`} />
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="w-full mt-1 gap-2 text-xs"
+                        onClick={() => handleRequestLocation('agent')}
+                      >
+                        <Navigation className="h-3.5 w-3.5" />
+                        Request Agent's Live Location
+                      </Button>
+                    </>
+                  )}
                   {supporter && <DetailRow label="Supporter" value={`${supporter.full_name} (${supporter.phone})`} />}
                 </Section>
                 <Separator />
