@@ -55,7 +55,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
 import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { CreditAccessCard } from '@/components/CreditAccessCard';
+
 
 interface SupporterDashboardProps {
   user: User;
@@ -82,7 +82,6 @@ export default function SupporterDashboard({
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
   const [justAccepted, setJustAccepted] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [showLoanCard, setShowLoanCard] = useState(false);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
@@ -479,19 +478,8 @@ export default function SupporterDashboard({
         onAddInvestment={() => setShowPaymentPartners(true)}
         onOpenCalculator={() => setShowCalculator(true)}
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
-        onViewLoan={() => setShowLoanCard(true)}
       />
 
-      <Dialog open={showLoanCard} onOpenChange={setShowLoanCard}>
-        <DialogContent className="max-w-md p-4">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2 text-lg">
-              💰 Available Loan
-            </DialogTitle>
-          </DialogHeader>
-          <CreditAccessCard userId={user.id} />
-        </DialogContent>
-      </Dialog>
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 
