@@ -1,12 +1,8 @@
-import { useState, useEffect, useRef } from 'react';
-import { motion, PanInfo } from 'framer-motion';
+import { useState } from 'react';
+import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import WelileAIChatDrawer from './WelileAIChatDrawer';
-
-const STORAGE_KEY = 'welile-ai-btn-pos';
-
-interface Position { x: number; y: number; }
 
 const GeminiSparkle = ({ size = 28 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -45,81 +41,34 @@ export function WelileAITrigger() {
   );
 }
 
-// Global floating button — draggable, visible everywhere
+// Global floating button — static, visible everywhere
 export default function WelileAIChatButton() {
   const [open, setOpen] = useState(false);
-  const [position, setPosition] = useState<Position>({ x: 0, y: 0 });
-  const didDragRef = useRef(false);
-  const constraintsRef = useRef<HTMLDivElement>(null);
-
-  // Load saved position
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(STORAGE_KEY);
-      if (saved) setPosition(JSON.parse(saved));
-    } catch {}
-  }, []);
-
-  const handleClick = () => {
-    if (!didDragRef.current) setOpen(true);
-  };
-
-  const handleDragStart = () => {
-    didDragRef.current = false;
-  };
-
-  const handleDragEnd = (_: any, info: PanInfo) => {
-    // Only treat as a drag if pointer moved more than 8px
-    const moved = Math.abs(info.offset.x) + Math.abs(info.offset.y);
-    if (moved > 8) {
-      didDragRef.current = true;
-      const newPos = { x: position.x + info.offset.x, y: position.y + info.offset.y };
-      setPosition(newPos);
-      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(newPos)); } catch {}
-    } else {
-      didDragRef.current = false;
-    }
-  };
 
   return (
     <>
-      {/* Drag constraints */}
-      <div ref={constraintsRef} className="fixed inset-0 pointer-events-none z-[59]" />
 
       <motion.button
-        drag
-        dragConstraints={constraintsRef}
-        dragElastic={0.1}
-        dragMomentum={false}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        initial={{ scale: 0, opacity: 0, x: position.x, y: position.y }}
-        animate={{ scale: 1, opacity: 1, x: position.x, y: position.y }}
-        transition={{ type: "spring", stiffness: 300, damping: 25 }}
-        whileHover={{ scale: 1.08 }}
+        initial={{ scale: 0, opacity: 0 }}
+        animate={{ scale: 1, opacity: 1 }}
+        transition={{ type: "spring", stiffness: 260, damping: 20 }}
         whileTap={{ scale: 0.93 }}
-        whileDrag={{ scale: 1.12, cursor: 'grabbing' }}
-        onClick={handleClick}
+        onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-20 right-4 z-[60]",
-          "h-14 px-4 rounded-full",
-          "bg-gradient-to-r from-primary via-primary to-purple-400",
+          "fixed bottom-20 right-3 z-[60]",
+          "h-12 px-3.5 rounded-full",
+          "bg-gradient-to-r from-primary to-primary/85",
           "text-primary-foreground",
-          "shadow-xl shadow-primary/40",
-          "flex items-center gap-2",
-          "hover:shadow-2xl hover:shadow-primary/50",
+          "shadow-lg shadow-primary/25",
+          "flex items-center gap-1.5",
+          "active:shadow-primary/40",
           "transition-shadow duration-200",
-          "cursor-grab active:cursor-grabbing touch-none",
-          "border-2 border-primary-foreground/20"
+          "border border-primary-foreground/15"
         )}
-        aria-label="Open Welile AI (drag to move)"
+        aria-label="Open Welile AI"
       >
-        <GeminiSparkle size={22} />
-        <span className="font-bold text-sm whitespace-nowrap">Welile AI</span>
-        {/* Pulse ring */}
-        <span className="absolute inset-0 rounded-full animate-ping bg-primary/15 pointer-events-none" style={{ animationDuration: '3s' }} />
-        {/* Glow */}
-        <span className="absolute inset-0 rounded-full bg-primary/20 blur-md -z-10 pointer-events-none" />
+        <GeminiSparkle size={18} />
+        <span className="font-semibold text-xs whitespace-nowrap">Welile AI</span>
       </motion.button>
 
       <WelileAIChatDrawer open={open} onOpenChange={setOpen} />
