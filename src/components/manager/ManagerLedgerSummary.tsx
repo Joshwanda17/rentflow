@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Loader2, ArrowDownToLine, ArrowUpFromLine, Wallet, Printer, Download, RefreshCw, TrendingUp, TrendingDown, Users, Clock, CheckCircle, XCircle, Banknote } from 'lucide-react';
+import { Loader2, ArrowDownToLine, ArrowUpFromLine, Wallet, Printer, Download, RefreshCw, TrendingUp, TrendingDown, Users, Clock, CheckCircle, XCircle, Banknote, ChevronDown, ChevronUp, Eye } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { format, subDays, subMonths, startOfMonth, endOfMonth } from 'date-fns';
 import { toast } from 'sonner';
@@ -57,6 +57,8 @@ export function ManagerLedgerSummary() {
   const [printing, setPrinting] = useState(false);
   const [period, setPeriod] = useState<'7d' | '30d' | 'month' | 'all'>('30d');
   const [statusFilter, setStatusFilter] = useState<'all' | 'approved' | 'rejected' | 'pending'>('all');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
+  const [fundSources, setFundSources] = useState<Record<string, any[]>>({});
 
   const getDateRange = useCallback(() => {
     const now = new Date();
@@ -390,9 +392,12 @@ export function ManagerLedgerSummary() {
             </CardContent>
           </Card>
 
-          {/* Withdrawal Status Cards */}
+          {/* Withdrawal Status Cards — Clickable for drill-down */}
           <div className="grid grid-cols-3 gap-2">
-            <Card className="border-success/20 bg-success/5">
+            <Card 
+              className="border-success/20 bg-success/5 cursor-pointer hover:ring-2 hover:ring-success/40 transition-all active:scale-95"
+              onClick={() => setStatusFilter('approved')}
+            >
               <CardContent className="p-3 text-center">
                 <CheckCircle className="h-5 w-5 text-success mx-auto mb-1" />
                 <p className="text-lg font-bold text-success">{stats.approvedWithdrawals}</p>
@@ -400,7 +405,10 @@ export function ManagerLedgerSummary() {
                 <p className="text-xs font-semibold mt-0.5">{formatUGX(stats.totalApprovedWithdrawalAmount)}</p>
               </CardContent>
             </Card>
-            <Card className="border-destructive/20 bg-destructive/5">
+            <Card 
+              className="border-destructive/20 bg-destructive/5 cursor-pointer hover:ring-2 hover:ring-destructive/40 transition-all active:scale-95"
+              onClick={() => setStatusFilter('rejected')}
+            >
               <CardContent className="p-3 text-center">
                 <XCircle className="h-5 w-5 text-destructive mx-auto mb-1" />
                 <p className="text-lg font-bold text-destructive">{stats.rejectedWithdrawals}</p>
@@ -408,7 +416,10 @@ export function ManagerLedgerSummary() {
                 <p className="text-xs font-semibold mt-0.5">{formatUGX(stats.totalRejectedWithdrawalAmount)}</p>
               </CardContent>
             </Card>
-            <Card className="border-warning/20 bg-warning/5">
+            <Card 
+              className="border-warning/20 bg-warning/5 cursor-pointer hover:ring-2 hover:ring-warning/40 transition-all active:scale-95"
+              onClick={() => setStatusFilter('pending')}
+            >
               <CardContent className="p-3 text-center">
                 <Clock className="h-5 w-5 text-warning mx-auto mb-1" />
                 <p className="text-lg font-bold text-warning">{stats.pendingWithdrawals}</p>
@@ -449,40 +460,139 @@ export function ManagerLedgerSummary() {
           ) : (
             <div className="divide-y divide-border max-h-[500px] overflow-y-auto">
               {filteredWithdrawals.map(w => (
-                <div key={w.id} className="p-3 hover:bg-muted/30 transition-colors">
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 min-w-0">
+                <div key={w.id} className="hover:bg-muted/30 transition-colors">
+                  <div 
+                    className="p-3 cursor-pointer"
+                    onClick={() => {
+                      const newId = expandedId === w.id ? null : w.id;
+                      setExpandedId(newId);
+                      if (newId && !fundSources[w.id]) {
+                        // Load fund sources (ledger credits) for this user
+                        supabase
+                          .from('general_ledger')
+                          .select('amount, category, description, transaction_date')
+                          .eq('user_id', w.user_id)
+                          .eq('direction', 'cash_in')
+                          .order('transaction_date', { ascending: false })
+                          .limit(10)
+                          .then(({ data }) => {
+                            setFundSources(prev => ({ ...prev, [w.id]: data || [] }));
+                          });
+                      }
+                    }}
+                  >
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="font-semibold text-sm truncate">{w.user_name}</p>
+                          <Badge
+                            variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'secondary'}
+                            className="text-[10px] h-5 px-1.5"
+                          >
+                            {w.status === 'approved' ? '✅ Paid' : w.status === 'rejected' ? '❌ No' : '⏳ Wait'}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
+                          <span>{(w.mobile_money_provider || '').toUpperCase()} {w.mobile_money_number || w.user_phone}</span>
+                          {w.mobile_money_name && <span>• {w.mobile_money_name}</span>}
+                          <span>• {format(new Date(w.created_at), 'MMM d, h:mm a')}</span>
+                        </div>
+                        {w.transaction_id && (
+                          <p className="text-[10px] text-muted-foreground mt-0.5">
+                            Txn: <span className="font-mono">{w.transaction_id}</span>
+                          </p>
+                        )}
+                        {w.rejection_reason && (
+                          <p className="text-[10px] text-destructive mt-0.5">
+                            Reason: {w.rejection_reason}
+                          </p>
+                        )}
+                      </div>
                       <div className="flex items-center gap-2">
-                        <p className="font-semibold text-sm truncate">{w.user_name}</p>
-                        <Badge
-                          variant={w.status === 'approved' ? 'default' : w.status === 'rejected' ? 'destructive' : 'secondary'}
-                          className="text-[10px] h-5 px-1.5"
-                        >
-                          {w.status === 'approved' ? '✅ Paid' : w.status === 'rejected' ? '❌ No' : '⏳ Wait'}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center gap-3 text-[11px] text-muted-foreground mt-0.5 flex-wrap">
-                        <span>{(w.mobile_money_provider || '').toUpperCase()} {w.mobile_money_number || w.user_phone}</span>
-                        {w.mobile_money_name && <span>• {w.mobile_money_name}</span>}
-                        <span>• {format(new Date(w.created_at), 'MMM d, h:mm a')}</span>
-                      </div>
-                      {w.transaction_id && (
-                        <p className="text-[10px] text-muted-foreground mt-0.5">
-                          Txn: <span className="font-mono">{w.transaction_id}</span>
+                        <p className={`text-base font-bold whitespace-nowrap ${
+                          w.status === 'approved' ? 'text-success' : w.status === 'rejected' ? 'text-destructive' : 'text-foreground'
+                        }`}>
+                          {formatUGX(w.amount)}
                         </p>
-                      )}
-                      {w.rejection_reason && (
-                        <p className="text-[10px] text-destructive mt-0.5">
-                          Reason: {w.rejection_reason}
-                        </p>
-                      )}
+                        {expandedId === w.id ? (
+                          <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                        ) : (
+                          <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                        )}
+                      </div>
                     </div>
-                    <p className={`text-base font-bold whitespace-nowrap ${
-                      w.status === 'approved' ? 'text-success' : w.status === 'rejected' ? 'text-destructive' : 'text-foreground'
-                    }`}>
-                      {formatUGX(w.amount)}
-                    </p>
                   </div>
+
+                  {/* Expanded Detail Panel */}
+                  {expandedId === w.id && (
+                    <div className="px-3 pb-3 space-y-2 bg-muted/20 border-t border-dashed">
+                      <div className="grid grid-cols-2 gap-2 text-xs pt-2">
+                        <div>
+                          <p className="text-muted-foreground">Phone</p>
+                          <p className="font-medium">{w.user_phone || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">MoMo Name</p>
+                          <p className="font-medium">{w.mobile_money_name || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Provider</p>
+                          <p className="font-medium">{(w.mobile_money_provider || 'N/A').toUpperCase()}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">MoMo Number</p>
+                          <p className="font-medium">{w.mobile_money_number || 'N/A'}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Requested</p>
+                          <p className="font-medium">{format(new Date(w.created_at), 'MMM d, yyyy h:mm a')}</p>
+                        </div>
+                        <div>
+                          <p className="text-muted-foreground">Processed</p>
+                          <p className="font-medium">{w.processed_at ? format(new Date(w.processed_at), 'MMM d, yyyy h:mm a') : 'Not yet'}</p>
+                        </div>
+                        {w.transaction_id && (
+                          <div className="col-span-2">
+                            <p className="text-muted-foreground">Transaction ID</p>
+                            <p className="font-mono font-medium text-sm">{w.transaction_id}</p>
+                          </div>
+                        )}
+                        {w.rejection_reason && (
+                          <div className="col-span-2">
+                            <p className="text-muted-foreground">Rejection Reason</p>
+                            <p className="font-medium text-destructive">{w.rejection_reason}</p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Source of Funds */}
+                      <div className="pt-2 border-t">
+                        <p className="text-xs font-semibold text-muted-foreground mb-1 flex items-center gap-1">
+                          <Eye className="h-3 w-3" /> Source of Funds (Recent Credits)
+                        </p>
+                        {!fundSources[w.id] ? (
+                          <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+                        ) : fundSources[w.id].length === 0 ? (
+                          <p className="text-[10px] text-muted-foreground">No ledger credits found</p>
+                        ) : (
+                          <div className="space-y-1">
+                            {fundSources[w.id].map((src, i) => (
+                              <div key={i} className="flex items-center justify-between text-[11px] bg-background rounded-lg px-2 py-1.5">
+                                <div>
+                                  <p className="font-medium capitalize">{(src.category || '').replace(/_/g, ' ')}</p>
+                                  {src.description && <p className="text-muted-foreground text-[10px]">{src.description}</p>}
+                                </div>
+                                <div className="text-right">
+                                  <p className="font-semibold text-success">{formatUGX(src.amount)}</p>
+                                  <p className="text-muted-foreground text-[9px]">{format(new Date(src.transaction_date), 'MMM d')}</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
