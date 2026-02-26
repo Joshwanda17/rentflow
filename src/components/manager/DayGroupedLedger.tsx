@@ -1,7 +1,8 @@
 import { useState, useMemo } from 'react';
 import { Card } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { ChevronDown, Calendar, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ChevronDown, Calendar, ArrowDownLeft, ArrowUpRight, Trash2 } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow, TableFooter } from '@/components/ui/table';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -31,11 +32,12 @@ interface DayGroup {
 interface DayGroupedLedgerProps {
   entries: LedgerEntry[];
   page: number;
+  onRemoveEntry?: (entry: LedgerEntry) => void;
 }
 
 const PAGE_SIZE = 50;
 
-export function DayGroupedLedger({ entries, page }: DayGroupedLedgerProps) {
+export function DayGroupedLedger({ entries, page, onRemoveEntry }: DayGroupedLedgerProps) {
   const [openDays, setOpenDays] = useState<Set<string>>(new Set());
 
   const dayGroups = useMemo(() => {
@@ -144,6 +146,7 @@ export function DayGroupedLedger({ entries, page }: DayGroupedLedgerProps) {
                         <TableHead className="text-right">Debit</TableHead>
                         <TableHead className="text-right">Credit</TableHead>
                         <TableHead className="text-right">Balance</TableHead>
+                        {onRemoveEntry && <TableHead className="w-10"></TableHead>}
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -167,6 +170,19 @@ export function DayGroupedLedger({ entries, page }: DayGroupedLedgerProps) {
                           <TableCell className={cn("text-right text-xs font-bold", entry.balance >= 0 ? 'text-foreground' : 'text-destructive')}>
                             {formatUGX(entry.balance)}
                           </TableCell>
+                          {onRemoveEntry && (
+                            <TableCell>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-7 w-7 text-destructive/60 hover:text-destructive hover:bg-destructive/10"
+                                onClick={() => onRemoveEntry(entry)}
+                                title="Remove this entry"
+                              >
+                                <Trash2 className="h-3.5 w-3.5" />
+                              </Button>
+                            </TableCell>
+                          )}
                         </TableRow>
                       ))}
                     </TableBody>
