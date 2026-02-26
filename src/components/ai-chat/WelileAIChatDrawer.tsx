@@ -1,11 +1,10 @@
 import { useState, useRef, useEffect, lazy, Suspense, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Send, RotateCcw, Bot, ChevronDown, Smartphone, Sparkles, Square } from 'lucide-react';
+import { X, Send, RotateCcw, Bot, ChevronDown, Sparkles, Square } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useWelileAI } from '@/hooks/useWelileAI';
 import ReactMarkdown from 'react-markdown';
 import ShareWelileAIBanner from './ShareWelileAIBanner';
-import { DepositDialog } from '@/components/wallet/DepositDialog';
 
 const EarningPredictionCard = lazy(() => import('@/components/ai-chat/EarningPredictionCard'));
 
@@ -24,7 +23,6 @@ interface Props {
 export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
   const { messages, isLoading, sendMessage, clearHistory, cancelStream } = useWelileAI();
   const [input, setInput] = useState('');
-  const [depositOpen, setDepositOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -343,33 +341,14 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
                           )}
                         </div>
 
-                        {/* CTA after last AI message */}
+                        {/* Share banner after last AI message */}
                         {msg.role === 'assistant' && msg.id !== 'streaming' && idx === messages.length - 1 && (
                           <motion.div
                             initial={{ opacity: 0, y: 8 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.3 }}
-                            className="px-4 pt-2 pb-2 ml-[38px] flex flex-col gap-2"
+                            className="px-4 pt-2 pb-2 ml-[38px]"
                           >
-                            <button
-                              type="button"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setDepositOpen(true);
-                              }}
-                              onPointerDown={(e) => e.stopPropagation()}
-                              onTouchEnd={(e) => {
-                                e.stopPropagation();
-                                e.preventDefault();
-                                setDepositOpen(true);
-                              }}
-                              className="w-full h-14 px-4 rounded-2xl text-sm font-bold bg-gradient-to-r from-yellow-500 to-orange-500 hover:from-yellow-600 hover:to-orange-600 active:scale-95 text-white flex items-center justify-center gap-2.5 transition-all shadow-md shadow-orange-500/20 touch-manipulation select-none"
-                              style={{ WebkitTapHighlightColor: 'transparent' }}
-                            >
-                              <Smartphone className="h-4 w-4 flex-shrink-0" />
-                              Deposit via MTN / Airtel Money
-                            </button>
                             <ShareWelileAIBanner />
                           </motion.div>
                         )}
@@ -479,10 +458,7 @@ export default function WelileAIChatDrawer({ open, onOpenChange }: Props) {
 
     </AnimatePresence>
 
-    {/* Deposit dialog — rendered outside AnimatePresence at highest z-index */}
-    <div style={{ position: 'relative', zIndex: 9999 }}>
-      <DepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
-    </div>
+
     </>
   );
 }
