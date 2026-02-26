@@ -96,19 +96,43 @@ const isIOSStandalone = (() => {
   return isIOS && isStandalone;
 })();
 
-// Optimized QueryClient with iOS-specific settings
+// Detect slow connection — agents in low-network areas get longer cache times
+const isSlowNetwork = (() => {
+  if (typeof navigator === 'undefined') return false;
+  const conn = (navigator as any).connection;
+  if (conn) {
+    return conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g' || conn.effectiveType === '3g';
+  }
+  return false;
+})();
+
+// Apply save-data class to document for CSS optimizations
+if (isSlowNetwork && typeof document !== 'undefined') {
+  document.documentElement.classList.add('save-data');
+  // Listen for connection changes
+  const conn = (navigator as any).connection;
+  if (conn) {
+    conn.addEventListener('change', () => {
+      const slow = conn.saveData || conn.effectiveType === '2g' || conn.effectiveType === 'slow-2g' || conn.effectiveType === '3g';
+      document.documentElement.classList.toggle('save-data', slow);
+    });
+  }
+}
+
+// Optimized QueryClient — longer caches on slow networks for agents in remote areas
 const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
-      staleTime: isIOSStandalone ? 5 * 60 * 1000 : 10 * 60 * 1000,
-      gcTime: isIOSStandalone ? 30 * 60 * 1000 : 60 * 60 * 1000,
-      retry: 2,
+      staleTime: isSlowNetwork ? 30 * 60 * 1000 : (isIOSStandalone ? 5 * 60 * 1000 : 10 * 60 * 1000),
+      gcTime: isSlowNetwork ? 120 * 60 * 1000 : (isIOSStandalone ? 30 * 60 * 1000 : 60 * 60 * 1000),
+      retry: isSlowNetwork ? 3 : 2,
+      retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, isSlowNetwork ? 30000 : 15000),
       refetchOnWindowFocus: false,
       refetchOnReconnect: true,
       networkMode: 'offlineFirst',
     },
     mutations: {
-      retry: 1,
+      retry: isSlowNetwork ? 3 : 1,
       networkMode: 'offlineFirst',
     },
   },

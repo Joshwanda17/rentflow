@@ -1,10 +1,13 @@
 // Welile Service Worker - Offline-First PWA
-// Optimized for instant offline loading when tapped from home screen
+// Optimized for agents in low-network African locations with small smartphones
 // Auto-updates across all devices when new version is published
-const CACHE_NAME = 'welile-v13';
+const CACHE_NAME = 'welile-v14';
 const OFFLINE_URL = '/offline.html';
-const API_CACHE_NAME = 'welile-api-v5';
-const STATIC_CACHE_NAME = 'welile-static-v5';
+const API_CACHE_NAME = 'welile-api-v6';
+const STATIC_CACHE_NAME = 'welile-static-v6';
+
+// Network timeout — if fetch takes longer, serve from cache
+const NETWORK_TIMEOUT_MS = 8000; // 8s max wait on slow networks
 
 // Core assets to cache immediately on install for INSTANT offline loading
 const PRECACHE_ASSETS = [
@@ -177,47 +180,55 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // For navigation requests (page loads), serve cached app shell for offline
+  // For navigation requests (page loads), race network vs cache with timeout
+  // This ensures agents on 2G/slow networks get instant page loads from cache
   if (request.mode === 'navigate') {
     event.respondWith(
       (async () => {
+        // Race: try network with timeout, fall back to cache instantly
+        const cachedPromise = caches.match(request)
+          .then(r => r || caches.match('/') || caches.match('/index.html'));
+        
         try {
-          // Try network first for fresh content
-          const networkResponse = await fetch(request);
-          if (networkResponse.ok) {
-            // Cache the response for offline use
-            const cache = await caches.open(CACHE_NAME);
-            cache.put(request, networkResponse.clone());
-            return networkResponse;
-          }
-          throw new Error('Network response not ok');
-        } catch (error) {
-          console.log('[SW] Network failed, serving from cache...');
+          const networkPromise = new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('Network timeout')), NETWORK_TIMEOUT_MS);
+            fetch(request).then(response => {
+              clearTimeout(timer);
+              if (response.ok) {
+                const cache_promise = caches.open(CACHE_NAME).then(cache => {
+                  cache.put(request, response.clone());
+                });
+                resolve(response);
+              } else {
+                reject(new Error('Network response not ok'));
+              }
+            }).catch(err => {
+              clearTimeout(timer);
+              reject(err);
+            });
+          });
           
-          // Try to serve from cache
-          const cachedResponse = await caches.match(request);
+          // On slow networks, return whichever resolves first (cache or network)
+          const cached = await cachedPromise;
+          if (cached) {
+            // Have cache — race it against network
+            return Promise.race([networkPromise, Promise.resolve(cached)]);
+          }
+          return await networkPromise;
+        } catch (error) {
+          console.log('[SW] Network failed/timeout, serving from cache...');
+          
+          const cachedResponse = await cachedPromise;
           if (cachedResponse) {
             console.log('[SW] Serving cached page:', request.url);
             return cachedResponse;
           }
           
-          // For SPA routes, return the cached index.html (app shell)
-          const indexResponse = await caches.match('/') || await caches.match('/index.html');
-          if (indexResponse) {
-            console.log('[SW] Serving cached app shell for:', request.url);
-            return indexResponse;
-          }
-          
-          // Last resort: offline page
           const offlineResponse = await caches.match(OFFLINE_URL);
-          if (offlineResponse) {
-            console.log('[SW] Serving offline page');
-            return offlineResponse;
-          }
+          if (offlineResponse) return offlineResponse;
           
-          // Create a basic offline response if nothing is cached
           return new Response(
-            '<html><body><h1>Offline</h1><p>Please check your internet connection.</p><a href="/dashboard">Try Dashboard</a></body></html>',
+            '<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h1>📶 No Connection</h1><p>Check your network and try again.</p><button onclick="location.reload()" style="padding:12px 24px;font-size:16px;background:#7c3aed;color:white;border:none;border-radius:8px;margin-top:16px;min-height:48px">Retry</button></body></html>',
             { headers: { 'Content-Type': 'text/html' } }
           );
         }
@@ -226,20 +237,35 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Scripts should be network-first (Vite chunk hashes change on deploy)
+  // Scripts — race network vs cache with timeout for slow networks
   if (request.destination === 'script') {
     event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response.ok) {
-            const responseClone = response.clone();
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(request, responseClone);
-            });
+      (async () => {
+        const cached = await caches.match(request);
+        try {
+          const networkPromise = new Promise((resolve, reject) => {
+            const timer = setTimeout(() => reject(new Error('timeout')), NETWORK_TIMEOUT_MS);
+            fetch(request).then(response => {
+              clearTimeout(timer);
+              if (response.ok) {
+                caches.open(CACHE_NAME).then(cache => cache.put(request, response.clone()));
+                resolve(response);
+              } else {
+                reject(new Error('not ok'));
+              }
+            }).catch(err => { clearTimeout(timer); reject(err); });
+          });
+          
+          if (cached) {
+            // Have cache — use it immediately, update in background
+            networkPromise.catch(() => {});
+            return cached;
           }
-          return response;
-        })
-        .catch(() => caches.match(request))
+          return await networkPromise;
+        } catch {
+          return cached || new Response('', { status: 503 });
+        }
+      })()
     );
     return;
   }
