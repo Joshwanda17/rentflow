@@ -404,8 +404,7 @@ export default function SupporterDashboard({
             </motion.button>
           </div>
 
-          {/* ═══ CREDIT ACCESS (visible to supporters/funders) ═══ */}
-          <CreditAccessCard userId={user.id} compact />
+          {/* Credit Access moved to menu drawer */}
 
           {/* ═══ RENT CATEGORIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">

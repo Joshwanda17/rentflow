@@ -106,6 +106,18 @@ export function SupporterMenuDrawer({
       ]
     },
     {
+      title: 'Credit & Loans',
+      items: [
+        { 
+          icon: Banknote, 
+          label: 'Available Loan', 
+          description: 'Check your credit limit',
+          path: '/credit-access',
+          color: 'text-emerald-500'
+        },
+      ]
+    },
+    {
       title: 'Financial Activity',
       items: [
         { 
