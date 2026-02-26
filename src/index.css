@@ -780,3 +780,93 @@ input, textarea, select, button {
     font-size: 16px !important;
   }
 }
+
+/* ===== SMALL SCREEN OPTIMIZATIONS (agents with small smartphones) ===== */
+
+/* Screens under 360px (very small phones like Tecno Pop, Itel A14, etc.) */
+@media (max-width: 360px) {
+  /* Increase minimum touch targets to 48px */
+  button, a, [role="button"], .cursor-pointer {
+    min-height: 44px;
+    min-width: 44px;
+  }
+
+  /* Reduce padding to save space */
+  .p-4 { padding: 0.75rem !important; }
+  .p-6 { padding: 1rem !important; }
+  .px-4 { padding-left: 0.75rem !important; padding-right: 0.75rem !important; }
+  .px-6 { padding-left: 1rem !important; padding-right: 1rem !important; }
+  .gap-4 { gap: 0.75rem !important; }
+  .gap-6 { gap: 1rem !important; }
+
+  /* Reduce font sizes slightly for small screens */
+  .text-2xl { font-size: 1.25rem !important; }
+  .text-3xl { font-size: 1.5rem !important; }
+  .text-4xl { font-size: 1.75rem !important; }
+
+  /* Cards take full width */
+  .rounded-2xl { border-radius: 0.75rem !important; }
+
+  /* Stack elements that might overflow */
+  .flex-row { flex-direction: column !important; }
+  
+  /* Ensure text doesn't overflow */
+  h1, h2, h3, h4, p, span, label {
+    overflow-wrap: break-word;
+    word-break: break-word;
+  }
+}
+
+/* Screens under 320px (extremely small phones) */
+@media (max-width: 320px) {
+  .p-4 { padding: 0.5rem !important; }
+  .p-3 { padding: 0.375rem !important; }
+  .text-sm { font-size: 0.8125rem !important; }
+  .text-base { font-size: 0.875rem !important; }
+  
+  /* Hide non-essential decorative elements */
+  .hidden-tiny { display: none !important; }
+}
+
+/* ===== SLOW CONNECTION: reduce motion & hide heavy visuals ===== */
+@media (prefers-reduced-data: reduce) {
+  /* Disable all animations */
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+  
+  /* Hide decorative images */
+  img[aria-hidden="true"],
+  .decorative-image {
+    display: none !important;
+  }
+}
+
+/* Save-data mode: also triggered by slow connections */
+.save-data * {
+  animation-duration: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}
+
+.save-data .bg-gradient-to-r,
+.save-data .bg-gradient-to-br,
+.save-data .bg-gradient-to-b {
+  background: hsl(var(--background)) !important;
+}
+
+/* ===== AGGRESSIVE OFFLINE INDICATOR ===== */
+.offline-indicator {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  z-index: 9999;
+  background: hsl(var(--destructive));
+  color: hsl(var(--destructive-foreground));
+  text-align: center;
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
