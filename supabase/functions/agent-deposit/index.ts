@@ -11,7 +11,6 @@ const AGENT_COMMISSION_RATE = 0.05; // 5% commission
 function validateUUID(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const cleaned = value.trim();
-  // UUID format validation
   if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(cleaned)) return null;
   return cleaned;
 }
@@ -19,8 +18,10 @@ function validateUUID(value: unknown): string | null {
 function validatePhone(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const cleaned = value.trim();
-  // Uganda phone format
-  if (!/^(0[7][0-9]{8}|256[7][0-9]{8})$/.test(cleaned)) return null;
+  if (cleaned.length < 7 || cleaned.length > 20) return null;
+  if (!/^[0-9+\-\s()]+$/.test(cleaned)) return null;
+  const digits = cleaned.replace(/\D/g, '');
+  if (digits.length < 9 || digits.length > 15) return null;
   return cleaned;
 }
 
@@ -33,9 +34,19 @@ function validateAmount(value: unknown): number | null {
   if (typeof value !== 'number') return null;
   if (!Number.isFinite(value)) return null;
   if (value <= 0) return null;
-  if (value > 100000000) return null; // Max 100M UGX per transaction
-  // Round to whole number (no decimals for UGX)
+  if (value > 100000000) return null;
   return Math.round(value);
+}
+
+// Normalize phone to match profiles table format
+function normalizePhone(phone: string): string[] {
+  const digits = phone.replace(/\D/g, '');
+  const last9 = digits.slice(-9);
+  return [
+    `0${last9}`,
+    `+256${last9}`,
+    `256${last9}`,
+  ];
 }
 
 Deno.serve(async (req) => {
@@ -83,12 +94,10 @@ Deno.serve(async (req) => {
 
     const { user_id: rawUserId, amount: rawAmount, user_phone: rawPhone } = body as Record<string, unknown>;
 
-    // Validate inputs
     const userId = rawUserId ? validateUUID(rawUserId) : null;
     const userPhone = rawPhone ? validatePhone(rawPhone) : null;
     const amount = validateAmount(rawAmount);
 
-    // Must have either user_id or user_phone
     if (!userId && !userPhone) {
       return new Response(
         JSON.stringify({ error: 'Either user_id or user_phone is required' }),
@@ -140,11 +149,17 @@ Deno.serve(async (req) => {
     // Find user by phone if not provided user_id
     let targetUserId = userId;
     if (!targetUserId && userPhone) {
-      const { data: profile } = await adminClient
-        .from('profiles')
-        .select('id')
-        .eq('phone', userPhone)
-        .maybeSingle();
+      // Try multiple phone formats to find the profile
+      const phoneVariants = normalizePhone(userPhone);
+      let profile = null;
+      for (const variant of phoneVariants) {
+        const { data } = await adminClient
+          .from('profiles')
+          .select('id')
+          .eq('phone', variant)
+          .maybeSingle();
+        if (data) { profile = data; break; }
+      }
       
       if (!profile) {
         return new Response(
@@ -180,11 +195,14 @@ Deno.serve(async (req) => {
     }
 
     // Check if user has active rent request that needs repayment
+    // FIX: Check multiple valid statuses, not just 'disbursed'
     const { data: activeRentRequest } = await adminClient
       .from('rent_requests')
-      .select('*, repayments:repayments(amount)')
+      .select('*, landlords!rent_requests_landlord_id_fkey(id, name, phone, mobile_money_number), repayments:repayments(amount)')
       .eq('tenant_id', targetUserId)
-      .eq('status', 'disbursed')
+      .in('status', ['disbursed', 'funded', 'approved', 'active'])
+      .order('created_at', { ascending: false })
+      .limit(1)
       .maybeSingle();
 
     let depositAmount = amount;
@@ -208,35 +226,33 @@ Deno.serve(async (req) => {
 
         console.log(`[agent-deposit] Auto-repayment: ${repaymentAmount}, Commission: ${commission}, To landlord: ${landlordPayment}`);
 
-        // Get landlord wallet
-        const landlordId = activeRentRequest.landlord_id;
-        let { data: landlordWallet } = await adminClient
-          .from('wallets')
-          .select('*')
-          .eq('user_id', landlordId)
-          .maybeSingle();
+        // FIX: Resolve landlord's USER ID via their phone number in profiles
+        // landlord_id references the landlords table, not a user profile
+        const landlordRecord = activeRentRequest.landlords as any;
+        const landlordPhone = landlordRecord?.phone;
+        let landlordUserId: string | null = null;
 
-        // Get agent's wallet for commission
-        let { data: agentWallet } = await adminClient
-          .from('wallets')
-          .select('*')
-          .eq('user_id', agentId)
-          .maybeSingle();
-
-        if (!agentWallet) {
-          const { data: newAgentWallet } = await adminClient
-            .from('wallets')
-            .insert({ user_id: agentId, balance: 0 })
-            .select()
-            .single();
-          agentWallet = newAgentWallet;
+        if (landlordPhone) {
+          const landlordPhoneVariants = normalizePhone(landlordPhone);
+          for (const variant of landlordPhoneVariants) {
+            const { data: landlordProfile } = await adminClient
+              .from('profiles')
+              .select('id')
+              .eq('phone', variant)
+              .maybeSingle();
+            if (landlordProfile) {
+              landlordUserId = landlordProfile.id;
+              break;
+            }
+          }
         }
 
-        // Credit agent commission
-        await adminClient
+        // Credit agent commission (deducted from repayment, so net effect handled below)
+        const { data: agentWallet } = await adminClient
           .from('wallets')
-          .update({ balance: (agentWallet?.balance || 0) + commission })
-          .eq('user_id', agentId);
+          .select('balance')
+          .eq('user_id', agentId)
+          .single();
 
         // Record agent earning
         await adminClient
@@ -247,19 +263,27 @@ Deno.serve(async (req) => {
             earning_type: 'commission',
             source_user_id: targetUserId,
             rent_request_id: activeRentRequest.id,
-            description: `5% commission on UGX ${repaymentAmount} repayment`,
+            description: `5% commission on UGX ${repaymentAmount.toLocaleString()} repayment`,
           });
 
-        // Credit landlord
-        if (landlordWallet) {
-          await adminClient
+        // Credit landlord wallet (using resolved user ID)
+        if (landlordUserId) {
+          const { data: landlordWallet } = await adminClient
             .from('wallets')
-            .update({ balance: landlordWallet.balance + landlordPayment })
-            .eq('user_id', landlordId);
-        } else {
-          await adminClient
-            .from('wallets')
-            .insert({ user_id: landlordId, balance: landlordPayment });
+            .select('balance')
+            .eq('user_id', landlordUserId)
+            .maybeSingle();
+
+          if (landlordWallet) {
+            await adminClient
+              .from('wallets')
+              .update({ balance: landlordWallet.balance + landlordPayment, updated_at: new Date().toISOString() })
+              .eq('user_id', landlordUserId);
+          } else {
+            await adminClient
+              .from('wallets')
+              .insert({ user_id: landlordUserId, balance: landlordPayment });
+          }
         }
 
         // Record repayment
@@ -271,7 +295,7 @@ Deno.serve(async (req) => {
             amount: repaymentAmount,
           });
 
-        // Update amount_repaid on rent_requests so receivables statement reflects it
+        // Update amount_repaid on rent_requests
         await adminClient.rpc("record_rent_request_repayment", {
           p_tenant_id: targetUserId,
           p_amount: repaymentAmount,
@@ -282,7 +306,7 @@ Deno.serve(async (req) => {
         if (newTotalRepaid >= activeRentRequest.total_repayment) {
           await adminClient
             .from('rent_requests')
-            .update({ status: 'completed' })
+            .update({ status: 'completed', updated_at: new Date().toISOString() })
             .eq('id', activeRentRequest.id);
         }
 
@@ -291,10 +315,21 @@ Deno.serve(async (req) => {
           .from('notifications')
           .insert({
             user_id: agentId,
-            title: 'Commission Earned!',
-            message: `You earned UGX ${commission.toLocaleString()} from tenant repayment.`,
+            title: 'Commission Earned! 💰',
+            message: `You earned UGX ${commission.toLocaleString()} (5%) from paying rent for tenant.`,
             type: 'earning',
-            metadata: { amount: commission, type: 'commission' },
+            metadata: { amount: commission, type: 'commission', rent_request_id: activeRentRequest.id },
+          });
+
+        // Notify tenant
+        await adminClient
+          .from('notifications')
+          .insert({
+            user_id: targetUserId!,
+            title: 'Rent Payment Received! 🏠',
+            message: `Your agent paid UGX ${repaymentAmount.toLocaleString()} towards your rent. Remaining: UGX ${Math.max(0, remainingBalance - repaymentAmount).toLocaleString()}.`,
+            type: 'success',
+            metadata: { amount: repaymentAmount, agent_id: agentId, rent_request_id: activeRentRequest.id },
           });
       }
     }
@@ -303,7 +338,7 @@ Deno.serve(async (req) => {
     if (depositAmount > 0) {
       await adminClient
         .from('wallets')
-        .update({ balance: userWallet!.balance + depositAmount })
+        .update({ balance: userWallet!.balance + depositAmount, updated_at: new Date().toISOString() })
         .eq('user_id', targetUserId);
     }
 
@@ -318,11 +353,12 @@ Deno.serve(async (req) => {
       const newAgentBalance = freshAgentWallet.balance - amount + commission; // agent keeps commission
       await adminClient
         .from('wallets')
-        .update({ balance: newAgentBalance })
+        .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
         .eq('user_id', agentId)
         .eq('balance', freshAgentWallet.balance); // optimistic lock
 
       // Record in general_ledger for auditability
+      const txGroupId = crypto.randomUUID();
       await adminClient
         .from('general_ledger')
         .insert({
@@ -330,10 +366,28 @@ Deno.serve(async (req) => {
           amount: amount,
           direction: 'cash_out',
           category: 'rent_payment_for_tenant',
-          description: `Paid UGX ${amount.toLocaleString()} rent for tenant (${targetUserId})`,
+          description: `Agent paid UGX ${amount.toLocaleString()} for tenant`,
           source_table: 'wallet_deposits',
           linked_party: targetUserId,
+          transaction_group_id: txGroupId,
         });
+
+      // If repayment happened, also log the rent_repayment ledger entry for the tenant
+      if (repaymentAmount > 0) {
+        await adminClient
+          .from('general_ledger')
+          .insert({
+            user_id: targetUserId,
+            amount: repaymentAmount,
+            direction: 'cash_in',
+            category: 'rent_repayment',
+            description: `Rent repayment via agent (UGX ${repaymentAmount.toLocaleString()})`,
+            source_table: 'repayments',
+            source_id: activeRentRequest?.id,
+            linked_party: agentId,
+            transaction_group_id: txGroupId,
+          });
+      }
     }
 
     // Record deposit
