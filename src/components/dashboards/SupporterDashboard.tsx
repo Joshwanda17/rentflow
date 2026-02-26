@@ -82,6 +82,7 @@ export default function SupporterDashboard({
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
   const [justAccepted, setJustAccepted] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
+  const [showLoanCard, setShowLoanCard] = useState(false);
   const [showRequestDetails, setShowRequestDetails] = useState(false);
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [showPayLandlord, setShowPayLandlord] = useState(false);
@@ -404,8 +405,7 @@ export default function SupporterDashboard({
             </motion.button>
           </div>
 
-          {/* ═══ CREDIT ACCESS (visible to supporters/funders) ═══ */}
-          <CreditAccessCard userId={user.id} compact />
+          {/* Credit Access moved to menu drawer */}
 
           {/* ═══ RENT CATEGORIES ═══ */}
           <div id="opportunities" className="relative scroll-mt-4 space-y-4">
@@ -479,7 +479,19 @@ export default function SupporterDashboard({
         onAddInvestment={() => setShowPaymentPartners(true)}
         onOpenCalculator={() => setShowCalculator(true)}
         onViewAgreement={() => { setViewAgreementTab('summary'); setShowViewAgreementModal(true); }}
+        onViewLoan={() => setShowLoanCard(true)}
       />
+
+      <Dialog open={showLoanCard} onOpenChange={setShowLoanCard}>
+        <DialogContent className="max-w-md p-4">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-lg">
+              💰 Available Loan
+            </DialogTitle>
+          </DialogHeader>
+          <CreditAccessCard userId={user.id} />
+        </DialogContent>
+      </Dialog>
 
       <PaymentPartnersDialog 
         open={showPaymentPartners} 

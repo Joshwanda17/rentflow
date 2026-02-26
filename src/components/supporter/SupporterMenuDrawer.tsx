@@ -17,7 +17,8 @@ import {
   Wallet,
   FileText,
   HandCoins,
-  ChevronRight
+  ChevronRight,
+  Banknote
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -29,6 +30,7 @@ interface SupporterMenuDrawerProps {
   onAddInvestment: () => void;
   onOpenCalculator: () => void;
   onViewAgreement: () => void;
+  onViewLoan?: () => void;
 }
 
 interface MenuItem {
@@ -52,6 +54,7 @@ export function SupporterMenuDrawer({
   onAddInvestment,
   onOpenCalculator,
   onViewAgreement,
+  onViewLoan,
 }: SupporterMenuDrawerProps) {
   const navigate = useNavigate();
 
@@ -101,6 +104,18 @@ export function SupporterMenuDrawer({
           description: 'Project your returns',
           onClick: onOpenCalculator,
           color: 'text-indigo-500'
+        },
+      ]
+    },
+    {
+      title: 'Credit & Loans',
+      items: [
+        { 
+          icon: Banknote, 
+          label: 'Available Loan', 
+          description: 'Check your credit limit',
+          onClick: onViewLoan,
+          color: 'text-emerald-500'
         },
       ]
     },
