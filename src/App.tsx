@@ -86,6 +86,7 @@ const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
+const ShareLocation = lazy(() => import('./pages/ShareLocation'));
 
 // Detect iOS standalone mode for cache settings
 const isIOSStandalone = (() => {
@@ -227,6 +228,7 @@ function AppRoutes() {
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
           <Route path="/privacy" element={<Privacy />} />
+          <Route path="/share-location" element={<ShareLocation />} />
           <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
