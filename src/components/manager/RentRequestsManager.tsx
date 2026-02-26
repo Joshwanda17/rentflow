@@ -31,7 +31,8 @@ import {
   CreditCard,
   IdCard,
   Trash2,
-  Pencil
+  Pencil,
+  HandCoins
 } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { format, addDays, isBefore, startOfDay } from 'date-fns';
@@ -142,6 +143,8 @@ export function RentRequestsManager() {
   const [sentReminders, setSentReminders] = useState<SentReminder[]>([]);
   const [reminderHistoryDialog, setReminderHistoryDialog] = useState(false);
   const [bulkCompleteDialog, setBulkCompleteDialog] = useState<{ open: boolean; count: number; reminders: SentReminder[] }>({ open: false, count: 0, reminders: [] });
+  const [collectDialog, setCollectDialog] = useState<{ open: boolean; request: RentRequest | null }>({ open: false, request: null });
+  const [collecting, setCollecting] = useState(false);
 
   useEffect(() => {
     fetchRequests();
@@ -503,6 +506,30 @@ Thank you for being part of Welile! 🏠`;
     
     setBulkWhatsappDialog(false);
     sendBulkWhatsappReminder(0, []);
+  };
+
+  const handleManualCollect = async () => {
+    if (!collectDialog.request) return;
+    setCollecting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
+        body: { rent_request_id: collectDialog.request.id },
+      });
+      if (error) throw error;
+      if (data?.error) {
+        toast({ title: 'Collection Failed', description: data.error, variant: 'destructive' });
+      } else {
+        const parts: string[] = [];
+        if (data.tenant_deducted > 0) parts.push(`Tenant: ${formatUGX(data.tenant_deducted)}`);
+        if (data.agent_deducted > 0) parts.push(`Agent: ${formatUGX(data.agent_deducted)}`);
+        toast({ title: '✅ Rent Collected', description: `${formatUGX(data.total_collected)} collected. ${parts.join(' · ')}` });
+        setCollectDialog({ open: false, request: null });
+        fetchRequests();
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err.message || 'Failed to collect rent', variant: 'destructive' });
+    }
+    setCollecting(false);
   };
 
   const pendingRequests = requests.filter(r => r.status === 'pending');
@@ -964,6 +991,19 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
                       </Button>
                     )}
                     
+                    {/* Collect Rent Button - only for funded/disbursed with outstanding balance */}
+                    {(['funded', 'disbursed', 'approved'].includes(request.status || '')) && (request.total_repayment - (request.amount_repaid || 0)) > 0 && (
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => setCollectDialog({ open: true, request })}
+                        className="gap-1 text-success border-success/30 hover:bg-success/10 min-h-[36px] touch-manipulation"
+                      >
+                        <HandCoins className="h-3.5 w-3.5" />
+                        <span className="hidden sm:inline">Collect</span>
+                      </Button>
+                    )}
+
                     {/* Edit Button */}
                     <Button
                       variant="outline"
@@ -1447,6 +1487,51 @@ Hi Agent! A tenant needs verification. Please verify them on the Welile app.
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Manual Collect Rent Dialog */}
+      <AlertDialog open={collectDialog.open} onOpenChange={(open) => !open && setCollectDialog({ open: false, request: null })}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-success" />
+              Collect Rent Manually
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3">
+                <p>
+                  Collect one instalment ({formatUGX(collectDialog.request?.daily_repayment || 0)}) from <strong>{collectDialog.request?.tenant?.full_name || 'Unknown'}</strong>.
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="p-2 rounded-lg bg-muted/50">
+                    <p className="text-muted-foreground">Outstanding</p>
+                    <p className="font-bold text-destructive">
+                      {formatUGX((collectDialog.request?.total_repayment || 0) - (collectDialog.request?.amount_repaid || 0))}
+                    </p>
+                  </div>
+                  <div className="p-2 rounded-lg bg-muted/50">
+                    <p className="text-muted-foreground">Tenant Wallet</p>
+                    <p className="font-bold text-success">{formatUGX(collectDialog.request?.tenantWalletBalance || 0)}</p>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground">
+                  Will deduct from tenant's wallet first. If insufficient, the linked agent's wallet will be charged for the shortfall.
+                </p>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={collecting}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); handleManualCollect(); }}
+              disabled={collecting}
+              className="bg-success text-success-foreground hover:bg-success/90 gap-2"
+            >
+              {collecting ? <Loader2 className="h-4 w-4 animate-spin" /> : <HandCoins className="h-4 w-4" />}
+              {collecting ? 'Collecting...' : 'Collect Now'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
