@@ -1066,6 +1066,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <h2 className="text-xl font-black">🏠 Rent Management</h2>
           <p className="text-xs text-muted-foreground -mt-1">Requests, receivables, fund routing & landlord tracking</p>
 
+          {/* Supporter Pool — funds available from supporters */}
+          <SupporterPoolBalanceCard />
+
+          {/* Approved Requests — ready to fund from pool */}
+          <ApprovedRequestsFundingWidget />
+
           {/* Pending Rent Requests — action queue */}
           <PendingRentRequestsWidget />
 
