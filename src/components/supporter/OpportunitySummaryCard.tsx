@@ -22,7 +22,7 @@ export function OpportunitySummaryCard() {
   const [showFundDialog, setShowFundDialog] = useState(false);
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
+  
 
   if (loading) {
     return <div className="h-36 rounded-2xl bg-muted/50 animate-pulse" />;
@@ -45,49 +45,27 @@ export function OpportunitySummaryCard() {
   const handleFundSubmit = async () => {
     if (!user || !isValid) return;
 
-    if (exceedsBalance) {
-      setShowDepositPrompt(true);
-      return;
-    }
-
     setSubmitting(true);
     try {
-      // Generate reference ID: WRF + YYMMDD + random 4 digits
-      const now = new Date();
-      const yy = String(now.getFullYear()).slice(-2);
-      const mm = String(now.getMonth() + 1).padStart(2, '0');
-      const dd = String(now.getDate()).padStart(2, '0');
-      const seq = String(Math.floor(1000 + Math.random() * 9000));
-      const referenceId = `WRF${yy}${mm}${dd}${seq}`;
-
-      // Insert pending operation for manager approval
-      const { error } = await supabase.from('pending_wallet_operations').insert({
-        user_id: user.id,
-        amount: amountNum,
-        direction: 'cash_out',
-        category: 'supporter_rent_fund',
-        source_table: 'opportunity_summaries',
-        source_id: summary.id,
-        description: `Supporter rent funding: ${formatUGX(amountNum)} towards rent requests`,
-        reference_id: referenceId,
-        linked_party: 'Rent Management Pool',
-        status: 'pending',
+      const { data, error } = await supabase.functions.invoke('fund-rent-pool', {
+        body: { amount: amountNum, summary_id: summary.id },
       });
 
       if (error) throw error;
+      if (data?.error) throw new Error(data.error);
 
       toast({
-        title: '✅ Funding request submitted',
-        description: `${formatUGX(amountNum)} pending manager approval. Thank you!`,
+        title: '✅ Funds transferred',
+        description: `${formatUGX(amountNum)} sent to Rent Management Pool. Ref: ${data.reference_id}`,
       });
 
       setAmount('');
       setShowFundDialog(false);
-    } catch (err) {
+    } catch (err: any) {
       console.error('[OpportunitySummaryCard] Fund error:', err);
       toast({
-        title: 'Failed to submit',
-        description: 'Please try again later.',
+        title: 'Transfer failed',
+        description: err?.message || 'Please try again later.',
         variant: 'destructive',
       });
     } finally {
@@ -216,7 +194,7 @@ export function OpportunitySummaryCard() {
             )}
 
             <p className="text-[10px] text-muted-foreground text-center">
-              Funds will be deducted after manager approval
+              Funds are deducted instantly from your wallet
             </p>
           </div>
         </DialogContent>
