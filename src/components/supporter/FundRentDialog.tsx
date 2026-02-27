@@ -60,6 +60,9 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
         referenceId: data.reference_id,
       });
 
+      // Notify dashboard to refresh contribution totals
+      window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
+
       toast({
         title: '🎉 Funds transferred!',
         description: `${formatUGX(amountNum)} sent to Rent Management Pool.`,
