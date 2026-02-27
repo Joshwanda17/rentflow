@@ -89,3 +89,6 @@ verify_jwt = false
 
 [functions.fund-tenants]
 verify_jwt = false
+
+[functions.fund-tenant-from-pool]
+verify_jwt = false
