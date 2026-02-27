@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { AlertTriangle, Shield } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { HandCoins, TrendingUp } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
