@@ -204,7 +204,7 @@ export function TenantMenuDrawer({
           icon: HelpCircle, 
           label: 'Help & Support', 
           description: 'Get assistance',
-          path: '/help',
+          path: '/settings',
           color: 'text-muted-foreground'
         },
       ]

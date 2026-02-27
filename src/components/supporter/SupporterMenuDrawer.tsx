@@ -12,11 +12,9 @@ import {
   Settings,
   HelpCircle,
   ScrollText,
-  BarChart3,
   Store,
   Wallet,
   FileText,
-  HandCoins,
   ChevronRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -89,13 +87,6 @@ export function SupporterMenuDrawer({
           color: 'text-success'
         },
         { 
-          icon: HandCoins, 
-          label: 'Investment Requests', 
-          description: 'Manager-assisted funding',
-          path: '/investment-requests',
-          color: 'text-amber-500'
-        },
-        { 
           icon: Calculator, 
           label: 'ROI Calculator', 
           description: 'Project your returns',
@@ -111,7 +102,7 @@ export function SupporterMenuDrawer({
           icon: Wallet, 
           label: 'My Wallet', 
           description: 'Balance & transactions',
-          path: '/wallet',
+          path: '/transactions',
           color: 'text-success'
         },
         { 
@@ -184,7 +175,7 @@ export function SupporterMenuDrawer({
           icon: HelpCircle, 
           label: 'Help & Support', 
           description: 'Get assistance',
-          path: '/help',
+          path: '/settings',
           color: 'text-muted-foreground'
         },
       ]

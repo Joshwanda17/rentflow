@@ -10,8 +10,7 @@ import {
 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { formatUGX, calculateSupporterReward } from '@/lib/rentCalculations';
-import { playSuccessSound, playFirstFundingFanfare } from '@/lib/notificationSound';
+import { formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -51,9 +50,6 @@ import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCateg
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 
-// Tenant request details and payment dialogs (for funding flow)
-import { TenantRequestDetailsDialog } from '@/components/supporter/TenantRequestDetailsDialog';
-import { PayLandlordDialog } from '@/components/supporter/PayLandlordDialog';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 
 
@@ -82,17 +78,13 @@ export default function SupporterDashboard({
   const [localHasAccepted, setLocalHasAccepted] = useState<boolean | null>(null);
   const [justAccepted, setJustAccepted] = useState(false);
   const [showCalculator, setShowCalculator] = useState(false);
-  const [showRequestDetails, setShowRequestDetails] = useState(false);
-  const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
-  const [showPayLandlord, setShowPayLandlord] = useState(false);
-  const [selectedRequestForPayment, setSelectedRequestForPayment] = useState<any>(null);
   const [menuOpen, setMenuOpen] = useState(false);
   const [selectedHouse, setSelectedHouse] = useState<VirtualHouse | null>(null);
   const [showHouseDetails, setShowHouseDetails] = useState(false);
   const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
   const [showPackageSheet, setShowPackageSheet] = useState(false);
   const { toast } = useToast();
-  const { wallet, refreshWallet } = useWallet();
+  const { wallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
 
@@ -229,40 +221,6 @@ export default function SupporterDashboard({
     setLoading(false);
   };
 
-  const fundRequest = async (requestId: string, rentAmount: number) => {
-    const { error } = await supabase
-      .from('rent_requests')
-      .update({
-        supporter_id: user.id,
-        status: 'funded',
-        funded_at: new Date().toISOString()
-      })
-      .eq('id', requestId)
-      .eq('status', 'approved');
-
-    if (error) {
-      toast({ title: 'Funding Failed', description: error.message, variant: 'destructive' });
-    } else {
-      const isFirstFunding = hasEverFunded === false;
-      if (isFirstFunding) {
-        fireFirstFunding();
-        playFirstFundingFanfare();
-        setHasEverFunded(true);
-        toast({
-          title: '🎊 Congratulations on Your First Investment!',
-          description: `You've funded ${formatUGX(rentAmount)} and started your journey as a Welile Supporter!`
-        });
-      } else {
-        fireSuccess();
-        playSuccessSound();
-        toast({
-          title: '🎉 House Funded!',
-          description: `You've secured ${formatUGX(rentAmount)} for a new virtual house`
-        });
-      }
-      fetchMyHouses();
-    }
-  };
 
   // Portfolio health
   const portfolioHealth = (() => {
@@ -515,26 +473,6 @@ export default function SupporterDashboard({
         </DialogContent>
       </Dialog>
       
-      <TenantRequestDetailsDialog
-        open={showRequestDetails}
-        onOpenChange={setShowRequestDetails}
-        requestId={selectedRequestId}
-        onPayLandlord={(request) => {
-          setSelectedRequestForPayment(request);
-          setShowRequestDetails(false);
-          setShowPayLandlord(true);
-        }}
-      />
-      
-      <PayLandlordDialog
-        open={showPayLandlord}
-        onOpenChange={setShowPayLandlord}
-        request={selectedRequestForPayment}
-        onSuccess={() => {
-          fetchMyHouses();
-          setSelectedRequestForPayment(null);
-        }}
-      />
 
       <VirtualHouseDetailsSheet
         house={selectedHouse}
