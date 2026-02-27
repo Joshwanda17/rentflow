@@ -154,6 +154,33 @@ export default function SupporterDashboard({
     return () => window.removeEventListener('open-deposit', handler);
   }, []);
 
+  // Fetch total contributions from ledger
+  const fetchTotalContributed = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('category', 'supporter_rent_fund');
+      if (!error && data) {
+        const total = data.reduce((sum, r) => sum + Number(r.amount), 0);
+        setTotalRentContributed(total);
+      }
+    } catch (err) {
+      console.error('[SupporterDashboard] Failed to fetch contributions:', err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { fetchTotalContributed(); }, [fetchTotalContributed]);
+
+  // Auto-refresh when supporter contributes via Opportunity card or Categories
+  useEffect(() => {
+    const handler = () => { fetchTotalContributed(); };
+    window.addEventListener('supporter-contribution-changed', handler);
+    return () => window.removeEventListener('supporter-contribution-changed', handler);
+  }, [fetchTotalContributed]);
+
   const HOUSES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   // Fetch funded houses — cache-first, lazy secondary data
