@@ -33,6 +33,17 @@ Deno.serve(async (req) => {
       .not('funded_at', 'is', null)
       .in('status', ['funded', 'disbursed', 'completed']);
 
+    // Get supporters who have pending/approved withdrawal requests (rewards paused)
+    const { data: pausedWithdrawals } = await supabase
+      .from('investment_withdrawal_requests')
+      .select('user_id')
+      .eq('rewards_paused', true)
+      .in('status', ['pending', 'approved']);
+
+    const pausedSupporterIds = new Set(
+      (pausedWithdrawals || []).map((w: any) => w.user_id)
+    );
+
     if (fetchError) {
       throw new Error(`Failed to fetch funded requests: ${fetchError.message}`);
     }
