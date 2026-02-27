@@ -49,6 +49,7 @@ import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDet
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
+import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 
