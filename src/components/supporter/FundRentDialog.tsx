@@ -193,6 +193,9 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
               <div className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 space-y-1">
                 <p className="text-xs font-bold text-primary">💰 15% Monthly Reward</p>
                 <p className="text-xs text-muted-foreground">
+                  ⏳ Funds work for at least <span className="font-bold">30 days</span> before the first payout.
+                </p>
+                <p className="text-xs text-muted-foreground">
                   You'll receive <span className="font-black text-foreground">{formatUGX(Math.round(amountNum * 0.15))}</span> on the{' '}
                   <span className="font-bold">{getOrdinal(payoutDayNum)}</span> of every month for 12 months.
                 </p>
