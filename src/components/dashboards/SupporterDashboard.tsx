@@ -129,7 +129,7 @@ export default function SupporterDashboard({
       try {
         const data = JSON.parse(cached);
         setVirtualHouses(data.houses || []);
-        setTotalRentSecured(data.totalRent || 0);
+        setTotalRentContributed(data.totalRent || 0);
         setHasCachedData(true);
       } catch (e) {
         console.warn('[SupporterDashboard] Cache read failed');
