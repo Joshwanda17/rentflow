@@ -147,6 +147,13 @@ export default function SupporterDashboard({
     }
   }, [location.hash]);
 
+  // Listen for open-deposit event from OpportunitySummaryCard
+  useEffect(() => {
+    const handler = () => setShowPaymentPartners(true);
+    window.addEventListener('open-deposit', handler);
+    return () => window.removeEventListener('open-deposit', handler);
+  }, []);
+
   const HOUSES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
   // Fetch funded houses — cache-first, lazy secondary data
