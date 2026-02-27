@@ -566,6 +566,51 @@ export type Database = {
         }
         Relationships: []
       }
+      investment_withdrawal_requests: {
+        Row: {
+          amount: number
+          created_at: string
+          earliest_process_date: string
+          id: string
+          processed_at: string | null
+          processed_by: string | null
+          reason: string | null
+          rejection_reason: string | null
+          requested_at: string
+          status: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          amount: number
+          created_at?: string
+          earliest_process_date?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          amount?: number
+          created_at?: string
+          earliest_process_date?: string
+          id?: string
+          processed_at?: string | null
+          processed_by?: string | null
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_at?: string
+          status?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       landlords: {
         Row: {
           account_number: string | null

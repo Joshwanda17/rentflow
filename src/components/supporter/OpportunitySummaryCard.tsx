@@ -8,21 +8,17 @@ import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
+import { FundRentDialog } from './FundRentDialog';
+import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 
 export function OpportunitySummaryCard() {
   const { summary, loading } = useOpportunitySummary();
   const { formatAmount } = useCurrency();
-  const { wallet } = useWallet();
-  const { user } = useAuth();
-  const { toast } = useToast();
-
   const [showFundDialog, setShowFundDialog] = useState(false);
-  const [amount, setAmount] = useState('');
-  const [submitting, setSubmitting] = useState(false);
-  
 
   if (loading) {
     return <div className="h-36 rounded-2xl bg-muted/50 animate-pulse" />;
@@ -35,43 +31,6 @@ export function OpportunitySummaryCard() {
       </div>
     );
   }
-
-  const walletBalance = wallet?.balance ?? 0;
-  const amountNum = Number(amount) || 0;
-  const exceedsBalance = amountNum > walletBalance;
-  const exceedsRequested = amountNum > summary.total_rent_requested;
-  const isValid = amountNum > 0 && !exceedsBalance && !exceedsRequested;
-
-  const handleFundSubmit = async () => {
-    if (!user || !isValid) return;
-
-    setSubmitting(true);
-    try {
-      const { data, error } = await supabase.functions.invoke('fund-rent-pool', {
-        body: { amount: amountNum, summary_id: summary.id },
-      });
-
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
-
-      toast({
-        title: '✅ Funds transferred',
-        description: `${formatUGX(amountNum)} sent to Rent Management Pool. Ref: ${data.reference_id}`,
-      });
-
-      setAmount('');
-      setShowFundDialog(false);
-    } catch (err: any) {
-      console.error('[OpportunitySummaryCard] Fund error:', err);
-      toast({
-        title: 'Transfer failed',
-        description: err?.message || 'Please try again later.',
-        variant: 'destructive',
-      });
-    } finally {
-      setSubmitting(false);
-    }
-  };
 
   const stats = [
     { icon: Home, label: 'Requests', value: summary.total_requests },
@@ -124,6 +83,9 @@ export function OpportunitySummaryCard() {
           Fund Rent Requests
         </Button>
 
+        {/* Withdraw investment button */}
+        <InvestmentWithdrawButton />
+
         {/* Notes */}
         {summary.notes && (
           <p className="text-xs text-muted-foreground italic px-1">📝 {summary.notes}</p>
@@ -131,74 +93,11 @@ export function OpportunitySummaryCard() {
       </motion.div>
 
       {/* Fund Dialog */}
-      <Dialog open={showFundDialog} onOpenChange={setShowFundDialog}>
-        <DialogContent className="max-w-sm">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <HandCoins className="h-5 w-5 text-primary" />
-              Fund Rent Requests
-            </DialogTitle>
-          </DialogHeader>
-
-          <div className="space-y-4">
-            {/* Wallet balance */}
-            <div className="px-4 py-3 rounded-xl bg-muted/50">
-              <p className="text-xs text-muted-foreground font-semibold">Your Wallet Balance</p>
-              <p className="text-xl font-black text-foreground">{formatUGX(walletBalance)}</p>
-            </div>
-
-            {/* Amount input */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-bold text-foreground">Amount to Fund (UGX)</label>
-              <Input
-                type="number"
-                inputMode="numeric"
-                placeholder="e.g. 500000"
-                value={amount}
-                onChange={e => setAmount(e.target.value)}
-                className="text-lg font-bold h-12"
-              />
-              {exceedsBalance && amountNum > 0 && (
-                <p className="text-xs text-destructive font-semibold">
-                  Insufficient balance. You need {formatUGX(amountNum - walletBalance)} more.
-                </p>
-              )}
-              {exceedsRequested && amountNum > 0 && (
-                <p className="text-xs text-destructive font-semibold">
-                  Amount exceeds total rent requested ({formatAmount(summary.total_rent_requested)}).
-                </p>
-              )}
-            </div>
-
-            {/* Deposit prompt */}
-            {exceedsBalance && amountNum > 0 ? (
-              <Button
-                variant="outline"
-                className="w-full gap-2 rounded-xl font-bold border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 h-11"
-                onClick={() => {
-                  setShowFundDialog(false);
-                  // Trigger deposit flow — dispatches custom event picked up by the dashboard
-                  window.dispatchEvent(new CustomEvent('open-deposit'));
-                }}
-              >
-                💳 Deposit to Wallet First
-              </Button>
-            ) : (
-              <Button
-                onClick={handleFundSubmit}
-                disabled={!isValid || submitting}
-                className="w-full gap-2 rounded-xl font-bold h-11"
-              >
-                {submitting ? 'Submitting…' : `Fund ${amountNum > 0 ? formatUGX(amountNum) : ''}`}
-              </Button>
-            )}
-
-            <p className="text-[10px] text-muted-foreground text-center">
-              Funds are deducted instantly from your wallet
-            </p>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <FundRentDialog
+        open={showFundDialog}
+        onOpenChange={setShowFundDialog}
+        summary={summary}
+      />
     </>
   );
 }
