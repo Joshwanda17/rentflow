@@ -326,7 +326,7 @@ export default function SupporterDashboard({
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
           <PortfolioSummaryCards
             housesFunded={virtualHouses.length}
-            rentSecured={totalRentSecured}
+            rentSecured={totalRentContributed}
             portfolioHealth={portfolioHealth}
           />
 
