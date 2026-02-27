@@ -33,6 +33,17 @@ Deno.serve(async (req) => {
       .not('funded_at', 'is', null)
       .in('status', ['funded', 'disbursed', 'completed']);
 
+    // Get supporters who have pending/approved withdrawal requests (rewards paused)
+    const { data: pausedWithdrawals } = await supabase
+      .from('investment_withdrawal_requests')
+      .select('user_id')
+      .eq('rewards_paused', true)
+      .in('status', ['pending', 'approved']);
+
+    const pausedSupporterIds = new Set(
+      (pausedWithdrawals || []).map((w: any) => w.user_id)
+    );
+
     if (fetchError) {
       throw new Error(`Failed to fetch funded requests: ${fetchError.message}`);
     }
@@ -41,6 +52,13 @@ Deno.serve(async (req) => {
 
     for (const rr of fundedRequests || []) {
       try {
+        // Skip supporters with active withdrawal requests (rewards paused)
+        if (pausedSupporterIds.has(rr.supporter_id)) {
+          console.log(`[process-supporter-roi] Skipping ${rr.supporter_id} — rewards paused (withdrawal requested)`);
+          results.skipped++;
+          continue;
+        }
+
         const fundedDate = new Date(rr.funded_at);
         const fundedDayOfMonth = fundedDate.getDate();
 
