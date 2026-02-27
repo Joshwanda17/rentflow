@@ -33,7 +33,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
       <div className="relative z-10 space-y-5">
         {/* Main balance - BIGGER */}
         <div>
-          <p className="text-sm opacity-80 uppercase tracking-widest font-bold mb-2">💰 Total Rent Secured</p>
+          <p className="text-sm opacity-80 uppercase tracking-widest font-bold mb-2">💰 Total Rent Contributed</p>
           <p className="text-4xl font-black tracking-tight">{formatAmount(rentSecured)}</p>
         </div>
 

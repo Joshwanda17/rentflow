@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useConfetti } from '@/components/Confetti';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { User } from '@supabase/supabase-js';
@@ -91,7 +91,7 @@ export default function SupporterDashboard({
 
   // Virtual houses data (from funded rent_requests)
   const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
-  const [totalRentSecured, setTotalRentSecured] = useState(0);
+  const [totalRentContributed, setTotalRentContributed] = useState(0);
 
   // Agreement
   const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
@@ -129,7 +129,7 @@ export default function SupporterDashboard({
       try {
         const data = JSON.parse(cached);
         setVirtualHouses(data.houses || []);
-        setTotalRentSecured(data.totalRent || 0);
+        setTotalRentContributed(data.totalRent || 0);
         setHasCachedData(true);
       } catch (e) {
         console.warn('[SupporterDashboard] Cache read failed');
@@ -153,6 +153,33 @@ export default function SupporterDashboard({
     window.addEventListener('open-deposit', handler);
     return () => window.removeEventListener('open-deposit', handler);
   }, []);
+
+  // Fetch total contributions from ledger
+  const fetchTotalContributed = useCallback(async () => {
+    if (!user?.id) return;
+    try {
+      const { data, error } = await supabase
+        .from('general_ledger')
+        .select('amount')
+        .eq('user_id', user.id)
+        .eq('category', 'supporter_rent_fund');
+      if (!error && data) {
+        const total = data.reduce((sum, r) => sum + Number(r.amount), 0);
+        setTotalRentContributed(total);
+      }
+    } catch (err) {
+      console.error('[SupporterDashboard] Failed to fetch contributions:', err);
+    }
+  }, [user?.id]);
+
+  useEffect(() => { fetchTotalContributed(); }, [fetchTotalContributed]);
+
+  // Auto-refresh when supporter contributes via Opportunity card or Categories
+  useEffect(() => {
+    const handler = () => { fetchTotalContributed(); };
+    window.addEventListener('supporter-contribution-changed', handler);
+    return () => window.removeEventListener('supporter-contribution-changed', handler);
+  }, [fetchTotalContributed]);
 
   const HOUSES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
@@ -215,7 +242,7 @@ export default function SupporterDashboard({
 
         const totalRent = houses.reduce((sum, h) => sum + h.rentAmount, 0);
         setVirtualHouses(houses);
-        setTotalRentSecured(totalRent);
+        setTotalRentContributed(prev => prev || totalRent); // fallback, prefer ledger
         setHasEverFunded(houses.length > 0);
 
         localStorage.setItem(`supporter_houses_${user.id}`, JSON.stringify({
@@ -326,7 +353,7 @@ export default function SupporterDashboard({
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
           <PortfolioSummaryCards
             housesFunded={virtualHouses.length}
-            rentSecured={totalRentSecured}
+            rentSecured={totalRentContributed}
             portfolioHealth={portfolioHealth}
           />
 
