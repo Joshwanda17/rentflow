@@ -215,7 +215,7 @@ export default function SupporterDashboard({
 
         const totalRent = houses.reduce((sum, h) => sum + h.rentAmount, 0);
         setVirtualHouses(houses);
-        setTotalRentSecured(totalRent);
+        setTotalRentContributed(prev => prev || totalRent); // fallback, prefer ledger
         setHasEverFunded(houses.length > 0);
 
         localStorage.setItem(`supporter_houses_${user.id}`, JSON.stringify({
