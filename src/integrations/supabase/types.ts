@@ -577,6 +577,7 @@ export type Database = {
           reason: string | null
           rejection_reason: string | null
           requested_at: string
+          rewards_paused: boolean
           status: string
           updated_at: string
           user_id: string
@@ -591,6 +592,7 @@ export type Database = {
           reason?: string | null
           rejection_reason?: string | null
           requested_at?: string
+          rewards_paused?: boolean
           status?: string
           updated_at?: string
           user_id: string
@@ -605,6 +607,7 @@ export type Database = {
           reason?: string | null
           rejection_reason?: string | null
           requested_at?: string
+          rewards_paused?: boolean
           status?: string
           updated_at?: string
           user_id?: string
