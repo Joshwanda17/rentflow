@@ -46,6 +46,8 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 // PendingInvestmentRequestsWidget removed — not part of rent management core
 import FundFlowTracker from '@/components/manager/FundFlowTracker';
+import { SupporterPoolBalanceCard } from '@/components/manager/SupporterPoolBalanceCard';
+import { ApprovedRequestsFundingWidget } from '@/components/manager/ApprovedRequestsFundingWidget';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
