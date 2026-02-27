@@ -194,7 +194,7 @@ export function OpportunitySummaryCard() {
             )}
 
             <p className="text-[10px] text-muted-foreground text-center">
-              Funds will be deducted after manager approval
+              Funds are deducted instantly from your wallet
             </p>
           </div>
         </DialogContent>
