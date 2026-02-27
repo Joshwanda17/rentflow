@@ -67,7 +67,7 @@ export function SupporterPoolBalanceCard() {
       </div>
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl bg-primary/10 px-3 py-2">
-          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Available</p>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Pool Balance</p>
           <p className="text-xl font-black text-primary">{formatUGX(poolBalance)}</p>
         </div>
         <div className="rounded-xl bg-muted/50 px-3 py-2">
@@ -75,6 +75,25 @@ export function SupporterPoolBalanceCard() {
             <TrendingUp className="h-3 w-3" /> Deployed
           </p>
           <p className="text-xl font-black text-foreground">{formatUGX(totalDeployed)}</p>
+        </div>
+      </div>
+      <div className="grid grid-cols-2 gap-2">
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2">
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1">
+            <Shield className="h-3 w-3 text-amber-600" /> 15% Reserve
+          </p>
+          <p className="text-lg font-black text-amber-600 dark:text-amber-400">{formatUGX(monthlyObligation)}</p>
+          <p className="text-[9px] text-muted-foreground">Locked for supporter payouts</p>
+        </div>
+        <div className={`rounded-xl px-3 py-2 ${deployableAmount > 0 ? 'border border-emerald-500/30 bg-emerald-500/10' : 'border border-destructive/30 bg-destructive/10'}`}>
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider flex items-center gap-1">
+            {deployableAmount <= 0 && <AlertTriangle className="h-3 w-3 text-destructive" />}
+            Deployable
+          </p>
+          <p className={`text-lg font-black ${deployableAmount > 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-destructive'}`}>
+            {formatUGX(deployableAmount)}
+          </p>
+          <p className="text-[9px] text-muted-foreground">Safe to fund tenants</p>
         </div>
       </div>
     </div>
