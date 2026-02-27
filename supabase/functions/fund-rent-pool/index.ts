@@ -101,11 +101,19 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WRF${yy}${mm}${dd}${seq}`;
 
-    // Calculate first payout date (next month on their chosen day)
-    const firstPayoutMonth = now.getMonth() + 2; // +2 because getMonth is 0-indexed and we want next month
-    const firstPayoutYear = now.getFullYear() + Math.floor(firstPayoutMonth / 12);
-    const adjustedMonth = firstPayoutMonth % 12;
-    const firstPayoutDate = `${firstPayoutYear}-${String(adjustedMonth + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
+    // Calculate first payout date: funds must work for at least 30 days
+    // Find the next occurrence of payout_day that is at least 30 days from now
+    let candidate = new Date(now.getFullYear(), now.getMonth(), payout_day);
+    // Move to next month if candidate is in the past or today
+    if (candidate <= now) {
+      candidate = new Date(now.getFullYear(), now.getMonth() + 1, payout_day);
+    }
+    // Keep advancing month-by-month until at least 30 days from now
+    const minPayoutDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+    while (candidate < minPayoutDate) {
+      candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, payout_day);
+    }
+    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
 
     // Record in general_ledger
     await adminClient.from("general_ledger").insert({
