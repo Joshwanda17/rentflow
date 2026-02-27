@@ -106,6 +106,35 @@ Deno.serve(async (req) => {
       );
     }
 
+    // PRE-PAYOUT LIQUIDITY GATE
+    // Calculate upcoming 30-day supporter obligations (15% monthly on total active capital)
+    // Active capital = total supporter_rent_fund minus any withdrawn/returned capital
+    const { data: withdrawnData } = await adminClient
+      .from("general_ledger")
+      .select("amount")
+      .eq("category", "supporter_capital_return");
+
+    const totalWithdrawn = (withdrawnData || []).reduce((s, r) => s + Number(r.amount), 0);
+    const activeCapital = totalPoolIn - totalWithdrawn;
+    const monthly15Obligation = Math.round(activeCapital * 0.15);
+
+    // Pool after this deployment
+    const poolAfterDeploy = availablePool - fundAmount;
+
+    if (poolAfterDeploy < monthly15Obligation) {
+      return new Response(
+        JSON.stringify({
+          error: "Funding blocked: remaining pool would not cover upcoming supporter obligations",
+          available: availablePool,
+          required: fundAmount,
+          pool_after_deploy: poolAfterDeploy,
+          upcoming_obligation: monthly15Obligation,
+          active_supporter_capital: activeCapital,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const txGroupId = crypto.randomUUID();
     const landlordRecord = rr.landlords as any;
     const landlordPhone = landlordRecord?.phone;
