@@ -22,7 +22,7 @@ export function OpportunitySummaryCard() {
   const [showFundDialog, setShowFundDialog] = useState(false);
   const [amount, setAmount] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [showDepositPrompt, setShowDepositPrompt] = useState(false);
+  
 
   if (loading) {
     return <div className="h-36 rounded-2xl bg-muted/50 animate-pulse" />;
