@@ -7,14 +7,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 export function SupporterPoolBalanceCard() {
   const [poolBalance, setPoolBalance] = useState(0);
   const [totalDeployed, setTotalDeployed] = useState(0);
+  const [monthlyObligation, setMonthlyObligation] = useState(0);
+  const [deployableAmount, setDeployableAmount] = useState(0);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     fetchPoolBalance();
+    const handler = () => fetchPoolBalance();
+    window.addEventListener('pool-funded', handler);
+    return () => window.removeEventListener('pool-funded', handler);
   }, []);
 
   const fetchPoolBalance = async () => {
-    const [inRes, outRes] = await Promise.all([
+    const [inRes, outRes, withdrawnRes] = await Promise.all([
       supabase
         .from('general_ledger')
         .select('amount')
@@ -23,12 +28,24 @@ export function SupporterPoolBalanceCard() {
         .from('general_ledger')
         .select('amount')
         .eq('category', 'pool_rent_deployment'),
+      supabase
+        .from('general_ledger')
+        .select('amount')
+        .eq('category', 'supporter_capital_return'),
     ]);
 
     const totalIn = (inRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
     const totalOut = (outRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-    setPoolBalance(totalIn - totalOut);
+    const totalWithdrawn = (withdrawnRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
+    const pool = totalIn - totalOut;
+    const activeCapital = totalIn - totalWithdrawn;
+    const obligation = Math.round(activeCapital * 0.15);
+    const deployable = Math.max(0, pool - obligation);
+
+    setPoolBalance(pool);
     setTotalDeployed(totalOut);
+    setMonthlyObligation(obligation);
+    setDeployableAmount(deployable);
     setLoading(false);
   };
 
