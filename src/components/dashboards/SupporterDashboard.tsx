@@ -375,6 +375,9 @@ export default function SupporterDashboard({
               onLockedClick={() => setShowAgreementModal(true)}
             />
 
+            {/* ═══ OPPORTUNITY SUMMARY CARD ═══ */}
+            <OpportunitySummaryCard />
+
             <RentCategoryFeed
               onFundCategory={(cat) => {
                 if (!effectiveHasAccepted) {
