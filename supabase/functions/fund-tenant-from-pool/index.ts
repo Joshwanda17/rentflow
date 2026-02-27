@@ -1,0 +1,306 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: "Missing authorization header" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: "Unauthorized" }),
+        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify manager role
+    const { data: managerRole } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "manager")
+      .maybeSingle();
+
+    if (!managerRole) {
+      return new Response(
+        JSON.stringify({ error: "Only managers can fund tenants from pool" }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const { rent_request_id } = await req.json() as { rent_request_id: string };
+
+    if (!rent_request_id) {
+      return new Response(
+        JSON.stringify({ error: "rent_request_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Get rent request (must be approved)
+    const { data: rr, error: rrErr } = await adminClient
+      .from("rent_requests")
+      .select("*, landlords!rent_requests_landlord_id_fkey(id, name, phone, mobile_money_number)")
+      .eq("id", rent_request_id)
+      .eq("status", "approved")
+      .single();
+
+    if (rrErr || !rr) {
+      return new Response(
+        JSON.stringify({ error: "Rent request not found or not in approved status" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const fundAmount = rr.rent_amount || 0;
+
+    // Calculate available pool balance
+    // Pool IN = supporter_rent_fund (cash_out from supporter wallets into pool)
+    // Pool OUT = pool_rent_deployment (cash_out from pool to landlords)
+    const { data: poolInData } = await adminClient
+      .from("general_ledger")
+      .select("amount")
+      .eq("category", "supporter_rent_fund");
+
+    const { data: poolOutData } = await adminClient
+      .from("general_ledger")
+      .select("amount")
+      .eq("category", "pool_rent_deployment");
+
+    const totalPoolIn = (poolInData || []).reduce((s, r) => s + Number(r.amount), 0);
+    const totalPoolOut = (poolOutData || []).reduce((s, r) => s + Number(r.amount), 0);
+    const availablePool = totalPoolIn - totalPoolOut;
+
+    if (availablePool < fundAmount) {
+      return new Response(
+        JSON.stringify({
+          error: "Insufficient pool funds",
+          available: availablePool,
+          required: fundAmount,
+        }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    const txGroupId = crypto.randomUUID();
+    const landlordRecord = rr.landlords as any;
+    const landlordPhone = landlordRecord?.phone;
+
+    // Find landlord's user profile via phone
+    let landlordUserId: string | null = null;
+    if (landlordPhone) {
+      const { data: landlordProfile } = await adminClient
+        .from("profiles")
+        .select("id")
+        .eq("phone", landlordPhone)
+        .maybeSingle();
+      landlordUserId = landlordProfile?.id || null;
+    }
+
+    // Credit landlord wallet
+    if (landlordUserId) {
+      const { data: lWallet } = await adminClient
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", landlordUserId)
+        .maybeSingle();
+
+      if (lWallet) {
+        await adminClient
+          .from("wallets")
+          .update({
+            balance: lWallet.balance + fundAmount,
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", landlordUserId)
+          .eq("balance", lWallet.balance);
+      } else {
+        await adminClient
+          .from("wallets")
+          .insert({ user_id: landlordUserId, balance: fundAmount });
+      }
+
+      // Notify landlord
+      await adminClient.from("notifications").insert({
+        user_id: landlordUserId,
+        title: "💰 Rent Payment Received!",
+        message: `UGX ${fundAmount.toLocaleString()} has been credited to your wallet as rent payment.`,
+        type: "success",
+        metadata: { rent_request_id: rr.id, amount: fundAmount },
+      });
+    }
+
+    // Record pool deployment in general_ledger
+    const now = new Date();
+    const yy = String(now.getFullYear()).slice(-2);
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const seq = String(Math.floor(1000 + Math.random() * 9000));
+    const referenceId = `WPD${yy}${mm}${dd}${seq}`;
+
+    await adminClient.from("general_ledger").insert({
+      user_id: user.id,
+      amount: fundAmount,
+      direction: "cash_out",
+      category: "pool_rent_deployment",
+      source_table: "rent_requests",
+      source_id: rr.id,
+      transaction_group_id: txGroupId,
+      description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} for tenant rent`,
+      linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
+      reference_id: referenceId,
+    });
+
+    // Record rent obligation for tenant
+    const totalRepayment = Number(rr.total_repayment) || fundAmount;
+    await adminClient.from("general_ledger").insert({
+      user_id: rr.tenant_id,
+      amount: totalRepayment,
+      direction: "cash_out",
+      category: "rent_obligation",
+      source_table: "rent_requests",
+      source_id: rr.id,
+      transaction_group_id: txGroupId,
+      description: `Rent obligation - ${landlordRecord?.name || "landlord"} (${rr.duration_days || 30} days)`,
+      linked_party: landlordUserId,
+      reference_id: rr.id,
+    });
+
+    // Update rent request to funded
+    await adminClient
+      .from("rent_requests")
+      .update({
+        status: "funded",
+        funded_at: now.toISOString(),
+        updated_at: now.toISOString(),
+      })
+      .eq("id", rr.id);
+
+    // Create auto-charge subscription
+    const durationDays = rr.duration_days || 30;
+    let frequency: string;
+    let chargeAmount: number;
+    let totalCharges: number;
+
+    if (durationDays <= 30 && rr.daily_repayment > 0) {
+      frequency = "daily";
+      chargeAmount = Math.round(Number(rr.daily_repayment));
+      totalCharges = durationDays;
+    } else if (durationDays <= 21) {
+      frequency = "weekly";
+      totalCharges = Math.ceil(durationDays / 7);
+      chargeAmount = Math.round(totalRepayment / totalCharges);
+    } else {
+      frequency = "monthly";
+      totalCharges = Math.ceil(durationDays / 30);
+      chargeAmount = Math.round(totalRepayment / totalCharges);
+    }
+
+    const startDate = new Date();
+    const nextChargeDate = new Date(startDate);
+    if (frequency === "daily") nextChargeDate.setDate(nextChargeDate.getDate() + 1);
+    else if (frequency === "weekly") nextChargeDate.setDate(nextChargeDate.getDate() + 7);
+    else nextChargeDate.setMonth(nextChargeDate.getMonth() + 1);
+
+    const endDate = new Date(startDate);
+    endDate.setDate(endDate.getDate() + durationDays);
+
+    await adminClient.from("subscription_charges").insert({
+      tenant_id: rr.tenant_id,
+      rent_request_id: rr.id,
+      agent_id: rr.agent_id || null,
+      service_type: "rent_facilitation",
+      charge_amount: chargeAmount,
+      frequency,
+      next_charge_date: nextChargeDate.toISOString().split("T")[0],
+      start_date: startDate.toISOString().split("T")[0],
+      end_date: endDate.toISOString().split("T")[0],
+      total_charges_due: totalRepayment,
+      charges_remaining: totalCharges,
+      status: "active",
+      charge_agent_wallet: rr.tenant_no_smartphone === true,
+    });
+
+    // Notify tenant
+    await adminClient.from("notifications").insert({
+      user_id: rr.tenant_id,
+      title: "🏠 Rent Funded!",
+      message: `Your rent of UGX ${fundAmount.toLocaleString()} has been funded! Repayment: UGX ${chargeAmount.toLocaleString()} ${frequency} for ${totalCharges} payments.`,
+      type: "success",
+      metadata: { rent_request_id: rr.id, amount: fundAmount },
+    });
+
+    // Pay agent approval bonus (UGX 5,000)
+    if (rr.agent_id) {
+      const { data: agentWallet } = await adminClient
+        .from("wallets")
+        .select("balance")
+        .eq("user_id", rr.agent_id)
+        .maybeSingle();
+
+      if (agentWallet) {
+        await adminClient
+          .from("wallets")
+          .update({
+            balance: agentWallet.balance + 5000,
+            updated_at: now.toISOString(),
+          })
+          .eq("user_id", rr.agent_id)
+          .eq("balance", agentWallet.balance);
+      }
+
+      await adminClient.from("agent_earnings").insert({
+        agent_id: rr.agent_id,
+        amount: 5000,
+        earning_type: "approval_bonus",
+        rent_request_id: rr.id,
+        description: "Agent approval bonus for funded rent request",
+        source_user_id: rr.tenant_id,
+      });
+    }
+
+    console.log(`[fund-tenant-from-pool] Manager ${user.id} funded tenant ${rr.tenant_id} with ${fundAmount} from pool. Ref: ${referenceId}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        reference_id: referenceId,
+        amount: fundAmount,
+        landlord_name: landlordRecord?.name || "Unknown",
+        pool_remaining: availablePool - fundAmount,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  } catch (error: unknown) {
+    const msg = error instanceof Error ? error.message : "Unknown error";
+    console.error("[fund-tenant-from-pool] Error:", msg);
+    return new Response(
+      JSON.stringify({ error: msg }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
+});

@@ -46,6 +46,8 @@ import { FloatingShareButton } from '@/components/FloatingShareButton';
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 // PendingInvestmentRequestsWidget removed — not part of rent management core
 import FundFlowTracker from '@/components/manager/FundFlowTracker';
+import { SupporterPoolBalanceCard } from '@/components/manager/SupporterPoolBalanceCard';
+import { ApprovedRequestsFundingWidget } from '@/components/manager/ApprovedRequestsFundingWidget';
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
@@ -1063,6 +1065,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
           <h2 className="text-xl font-black">🏠 Rent Management</h2>
           <p className="text-xs text-muted-foreground -mt-1">Requests, receivables, fund routing & landlord tracking</p>
+
+          {/* Supporter Pool — funds available from supporters */}
+          <SupporterPoolBalanceCard />
+
+          {/* Approved Requests — ready to fund from pool */}
+          <ApprovedRequestsFundingWidget />
 
           {/* Pending Rent Requests — action queue */}
           <PendingRentRequestsWidget />
