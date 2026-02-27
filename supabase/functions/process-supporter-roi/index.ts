@@ -52,6 +52,13 @@ Deno.serve(async (req) => {
 
     for (const rr of fundedRequests || []) {
       try {
+        // Skip supporters with active withdrawal requests (rewards paused)
+        if (pausedSupporterIds.has(rr.supporter_id)) {
+          console.log(`[process-supporter-roi] Skipping ${rr.supporter_id} — rewards paused (withdrawal requested)`);
+          results.skipped++;
+          continue;
+        }
+
         const fundedDate = new Date(rr.funded_at);
         const fundedDayOfMonth = fundedDate.getDate();
 
