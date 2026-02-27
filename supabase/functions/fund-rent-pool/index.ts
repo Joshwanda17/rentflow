@@ -35,11 +35,22 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { amount, summary_id } = await req.json() as { amount: number; summary_id: string };
+    const { amount, summary_id, payout_day } = await req.json() as {
+      amount: number;
+      summary_id: string;
+      payout_day: number;
+    };
 
     if (!amount || amount <= 0) {
       return new Response(
         JSON.stringify({ error: "Invalid amount" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!payout_day || payout_day < 1 || payout_day > 28) {
+      return new Response(
+        JSON.stringify({ error: "Payout day must be between 1 and 28" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -90,6 +101,12 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WRF${yy}${mm}${dd}${seq}`;
 
+    // Calculate first payout date (next month on their chosen day)
+    const firstPayoutMonth = now.getMonth() + 2; // +2 because getMonth is 0-indexed and we want next month
+    const firstPayoutYear = now.getFullYear() + Math.floor(firstPayoutMonth / 12);
+    const adjustedMonth = firstPayoutMonth % 12;
+    const firstPayoutDate = `${firstPayoutYear}-${String(adjustedMonth + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
+
     // Record in general_ledger
     await adminClient.from("general_ledger").insert({
       user_id: user.id,
@@ -98,24 +115,39 @@ Deno.serve(async (req) => {
       category: "supporter_rent_fund",
       source_table: "opportunity_summaries",
       source_id: summary_id,
-      description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool`,
+      description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}th. First payout: ${firstPayoutDate}`,
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
 
-    // Notify user
+    // Notify user with 15% monthly reward info
+    const monthlyReward = Math.round(amount * 0.15);
     await adminClient.from("notifications").insert({
       user_id: user.id,
-      title: "Rent Pool Funded ✅",
-      message: `UGX ${amount.toLocaleString()} transferred to the Rent Management Pool. Ref: ${referenceId}`,
+      title: "🎉 Rent Pool Funded Successfully!",
+      message: `UGX ${amount.toLocaleString()} transferred to the Rent Management Pool.\n\n💰 You will receive 15% (UGX ${monthlyReward.toLocaleString()}) monthly on the ${payout_day}${getOrdinalSuffix(payout_day)} of every month for 12 months, starting ${firstPayoutDate}.\n\nRef: ${referenceId}\n\n📋 To withdraw your investment, submit a 90-day notice request.`,
       type: "success",
-      metadata: { amount, reference_id: referenceId },
+      metadata: {
+        amount,
+        reference_id: referenceId,
+        payout_day: payout_day,
+        monthly_reward: monthlyReward,
+        first_payout_date: firstPayoutDate,
+        total_reward_12_months: monthlyReward * 12,
+      },
     });
 
-    console.log(`[fund-rent-pool] User ${user.id} funded ${amount} to rent pool. Ref: ${referenceId}`);
+    console.log(`[fund-rent-pool] User ${user.id} funded ${amount} to rent pool. Payout day: ${payout_day}. Ref: ${referenceId}`);
 
     return new Response(
-      JSON.stringify({ success: true, reference_id: referenceId, new_balance: newBalance }),
+      JSON.stringify({
+        success: true,
+        reference_id: referenceId,
+        new_balance: newBalance,
+        payout_day,
+        first_payout_date: firstPayoutDate,
+        monthly_reward: monthlyReward,
+      }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error: unknown) {
@@ -127,3 +159,13 @@ Deno.serve(async (req) => {
     );
   }
 });
+
+function getOrdinalSuffix(day: number): string {
+  if (day >= 11 && day <= 13) return "th";
+  switch (day % 10) {
+    case 1: return "st";
+    case 2: return "nd";
+    case 3: return "rd";
+    default: return "th";
+  }
+}
