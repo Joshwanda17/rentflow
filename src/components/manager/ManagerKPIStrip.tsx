@@ -20,6 +20,7 @@ export function ManagerKPIStrip({
   totalFacilitated,
   pendingActions,
   rentDueTotal,
+  onNavigate,
 }: ManagerKPIStripProps) {
   const kpis = [
     {
@@ -28,6 +29,7 @@ export function ManagerKPIStrip({
       sub: `+${newSignupsThisWeek} this week`,
       icon: Users,
       color: 'text-primary',
+      hub: 'buffer',
     },
     {
       label: 'Facilitated',
@@ -37,6 +39,7 @@ export function ManagerKPIStrip({
       sub: 'Total deployed',
       icon: TrendingUp,
       color: 'text-emerald-600 dark:text-emerald-400',
+      hub: 'rent-investments',
     },
     {
       label: 'Receivables',
@@ -46,6 +49,7 @@ export function ManagerKPIStrip({
       sub: 'Outstanding',
       icon: Wallet,
       color: 'text-amber-600 dark:text-amber-400',
+      hub: 'rent-investments',
     },
     {
       label: 'Actions',
@@ -53,6 +57,7 @@ export function ManagerKPIStrip({
       sub: 'Need attention',
       icon: AlertTriangle,
       color: pendingActions > 0 ? 'text-destructive' : 'text-muted-foreground',
+      hub: 'wallets',
     },
   ];
 
