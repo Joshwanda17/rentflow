@@ -103,7 +103,6 @@ addEventListener('unhandledrejection', e => {
 // Service worker strategy:
 // - Preview: disable + unregister to avoid white screens from stale SW cache
 // - Live: register for offline support
-const isPreviewHost = /(^|\.)id-preview--/.test(window.location.hostname);
 
 if ('serviceWorker' in navigator) {
   if (isPreviewHost) {
