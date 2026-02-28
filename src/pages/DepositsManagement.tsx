@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -81,7 +81,7 @@ interface Agent {
   full_name: string;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export default function DepositsManagement() {
   const { user, role, loading: authLoading } = useAuth();
@@ -106,6 +106,8 @@ export default function DepositsManagement() {
     searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined
   );
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   // Pagination
@@ -157,88 +159,44 @@ export default function DepositsManagement() {
     fetchAgents();
   }, []);
 
-  // Fetch deposits with filters and pagination
+  // Fetch deposits via server-side RPC — handles joins, search, pagination in SQL
   const fetchDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      let query = supabase.from('deposit_requests').select('*', { count: 'exact' });
-
-      // Apply filters
-      if (statusFilter !== 'all') {
-        query = query.eq('status', statusFilter);
-      }
-      if (agentFilter !== 'all') {
-        query = query.eq('agent_id', agentFilter);
-      }
-      if (minAmount) {
-        query = query.gte('amount', Number(minAmount));
-      }
-      if (maxAmount) {
-        query = query.lte('amount', Number(maxAmount));
-      }
-      if (startDate) {
-        query = query.gte('created_at', startOfDay(startDate).toISOString());
-      }
-      if (endDate) {
-        query = query.lte('created_at', endOfDay(endDate).toISOString());
-      }
-
-      // Pagination
-      const from = (page - 1) * PAGE_SIZE;
-      const to = from + PAGE_SIZE - 1;
-      query = query.order('created_at', { ascending: false }).range(from, to);
-
-      const { data, error, count } = await query;
+      const { data: result, error } = await (supabase.rpc as any)('get_deposits_paginated', {
+        p_status: statusFilter,
+        p_agent_id: agentFilter !== 'all' ? agentFilter : null,
+        p_min_amount: minAmount ? Number(minAmount) : null,
+        p_max_amount: maxAmount ? Number(maxAmount) : null,
+        p_start_date: startDate ? startOfDay(startDate).toISOString() : null,
+        p_end_date: endDate ? endOfDay(endDate).toISOString() : null,
+        p_search: debouncedSearch || null,
+        p_page: page,
+        p_page_size: PAGE_SIZE,
+      });
 
       if (error) throw error;
 
-      setTotalCount(count || 0);
-
-      if (data && data.length > 0) {
-        // Get all related user IDs
-        const userIds = [...new Set([
-          ...data.map(d => d.user_id),
-          ...data.filter(d => d.agent_id).map(d => d.agent_id),
-          ...data.filter(d => d.processed_by).map(d => d.processed_by),
-        ])];
-
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-        // Filter by search query if present
-        let enriched: DepositRequest[] = data.map(d => ({
-          ...d,
-          user_name: profileMap.get(d.user_id)?.full_name || 'Unknown',
-          user_phone: profileMap.get(d.user_id)?.phone || '',
-          agent_name: d.agent_id ? profileMap.get(d.agent_id)?.full_name || 'Unknown' : undefined,
-          processed_by_name: d.processed_by ? profileMap.get(d.processed_by)?.full_name || 'Unknown' : undefined,
-        }));
-
-        if (searchQuery) {
-          const q = searchQuery.toLowerCase();
-          enriched = enriched.filter(
-            d =>
-              d.user_name?.toLowerCase().includes(q) ||
-              d.user_phone?.includes(q) ||
-              d.agent_name?.toLowerCase().includes(q)
-          );
-        }
-
-        setDeposits(enriched);
-      } else {
-        setDeposits([]);
-      }
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      setTotalCount(parsed.total || 0);
+      setDeposits((parsed.data || []) as DepositRequest[]);
     } catch (error) {
       console.error('Error fetching deposits:', error);
       toast.error('Failed to load deposits');
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, agentFilter, minAmount, maxAmount, startDate, endDate, page, searchQuery]);
+  }, [statusFilter, agentFilter, minAmount, maxAmount, startDate, endDate, page, debouncedSearch]);
+
+  // Debounce search input — 500ms delay to avoid excessive RPC calls at scale
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 500);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
 
   useEffect(() => {
     fetchDeposits();
@@ -363,46 +321,42 @@ export default function DepositsManagement() {
     }
   };
 
-  // Bulk approve handler
+  // Bulk approve handler — single batch call instead of sequential
   const handleBulkApprove = async () => {
     const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
     if (selectedDeposits.length === 0) return;
 
     setBulkProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          bulk_ids: selectedDeposits.map(d => d.id),
+          action: 'approve',
+        },
+      });
 
-    for (const deposit of selectedDeposits) {
-      try {
-        const { error } = await supabase.functions.invoke('approve-deposit', {
-          body: {
-            deposit_request_id: deposit.id,
-            action: 'approve',
-          },
-        });
+      if (error) throw error;
 
-        if (error) throw error;
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to approve ${deposit.id}:`, error);
-        failCount++;
+      const results = data?.results || [];
+      const successCount = results.filter((r: any) => r.status === 'approved').length;
+      const failCount = results.filter((r: any) => r.status === 'error').length;
+
+      if (successCount > 0) {
+        toast.success(`Approved ${successCount} deposit${successCount > 1 ? 's' : ''}`);
       }
+      if (failCount > 0) {
+        toast.error(`Failed to approve ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Bulk approve failed');
+    } finally {
+      setBulkProcessing(false);
+      setSelectedIds(new Set());
+      fetchDeposits();
     }
-
-    setBulkProcessing(false);
-    setSelectedIds(new Set());
-
-    if (successCount > 0) {
-      toast.success(`Approved ${successCount} deposit${successCount > 1 ? 's' : ''}`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to approve ${failCount} deposit${failCount > 1 ? 's' : ''}`);
-    }
-
-    fetchDeposits();
   };
 
-  // Bulk reject handler
+  // Bulk reject handler — single batch call
   const handleBulkReject = async () => {
     const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
     if (selectedDeposits.length === 0) return;
@@ -410,39 +364,35 @@ export default function DepositsManagement() {
     setBulkProcessing(true);
     setRejectDialog({ open: false, deposit: null, isBulk: false });
 
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          bulk_ids: selectedDeposits.map(d => d.id),
+          action: 'reject',
+          rejection_reason: rejectionReason || 'Bulk rejected by manager',
+        },
+      });
 
-    for (const deposit of selectedDeposits) {
-      try {
-        const { error } = await supabase.functions.invoke('approve-deposit', {
-          body: {
-            deposit_request_id: deposit.id,
-            action: 'reject',
-            rejection_reason: rejectionReason || 'Bulk rejected by manager',
-          },
-        });
+      if (error) throw error;
 
-        if (error) throw error;
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to reject ${deposit.id}:`, error);
-        failCount++;
+      const results = data?.results || [];
+      const successCount = results.filter((r: any) => r.status === 'rejected').length;
+      const failCount = results.filter((r: any) => r.status === 'error').length;
+
+      if (successCount > 0) {
+        toast.success(`Rejected ${successCount} deposit${successCount > 1 ? 's' : ''}`);
       }
+      if (failCount > 0) {
+        toast.error(`Failed to reject ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Bulk reject failed');
+    } finally {
+      setBulkProcessing(false);
+      setSelectedIds(new Set());
+      setRejectionReason('');
+      fetchDeposits();
     }
-
-    setBulkProcessing(false);
-    setSelectedIds(new Set());
-    setRejectionReason('');
-
-    if (successCount > 0) {
-      toast.success(`Rejected ${successCount} deposit${successCount > 1 ? 's' : ''}`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to reject ${failCount} deposit${failCount > 1 ? 's' : ''}`);
-    }
-
-    fetchDeposits();
   };
 
   const handleExport = () => {

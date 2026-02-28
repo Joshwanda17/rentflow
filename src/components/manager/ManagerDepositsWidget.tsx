@@ -73,51 +73,38 @@ export function ManagerDepositsWidget() {
 
   const fetchDeposits = async () => {
     try {
-      // Fetch recent pending + today's approved deposits
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-
-      const { data, error } = await supabase
-        .from('deposit_requests')
-        .select('*')
-        .or(`status.eq.pending,and(status.eq.approved,created_at.gte.${today.toISOString()})`)
-        .order('created_at', { ascending: false })
-        .limit(20);
+      // Use server-side RPC for scale — joins profiles in SQL, no client-side enrichment
+      const { data: result, error } = await (supabase.rpc as any)('get_deposits_paginated', {
+        p_status: 'pending',
+        p_page: 1,
+        p_page_size: 20,
+      });
 
       if (error) throw error;
 
-      // Compute stats separately for pending
-      const pending = (data || []).filter(d => d.status === 'pending');
-      const todayApproved = (data || []).filter(d => d.status === 'approved');
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      const allData = (parsed?.data || []) as DepositEntry[];
+      
+      // Also fetch today's approved for stats
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const { data: approvedResult } = await (supabase.rpc as any)('get_deposits_paginated', {
+        p_status: 'approved',
+        p_start_date: today.toISOString(),
+        p_page: 1,
+        p_page_size: 10,
+      });
+      const approvedParsed = typeof approvedResult === 'string' ? JSON.parse(approvedResult) : approvedResult;
+      const todayApproved = (approvedParsed?.data || []) as DepositEntry[];
+
       setStats({
-        pending: pending.length,
-        pendingAmount: pending.reduce((s, d) => s + Number(d.amount), 0),
-        todayApproved: todayApproved.length,
-        todayAmount: todayApproved.reduce((s, d) => s + Number(d.amount), 0),
+        pending: parsed?.total || 0,
+        pendingAmount: allData.reduce((s: number, d: DepositEntry) => s + Number(d.amount), 0),
+        todayApproved: approvedParsed?.total || 0,
+        todayAmount: todayApproved.reduce((s: number, d: DepositEntry) => s + Number(d.amount), 0),
       });
 
-      if (data && data.length > 0) {
-        const userIds = [...new Set([
-          ...data.map(d => d.user_id),
-          ...data.filter(d => d.agent_id).map(d => d.agent_id!),
-        ])];
-
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', userIds);
-
-        const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-        setDeposits(data.map(d => ({
-          ...d,
-          user_name: profileMap.get(d.user_id)?.full_name || 'Unknown',
-          user_phone: profileMap.get(d.user_id)?.phone || '',
-          agent_name: d.agent_id ? profileMap.get(d.agent_id)?.full_name : undefined,
-        })));
-      } else {
-        setDeposits([]);
-      }
+      setDeposits([...allData, ...todayApproved]);
     } catch (err) {
       console.error('ManagerDepositsWidget fetch error:', err);
     } finally {
