@@ -859,7 +859,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           activeUsers={activeUsers}
           newSignupsThisWeek={newSignupsThisWeek}
           totalFacilitated={totalFacilitated}
-          pendingActions={pendingRequests + pendingWalletOps + withdrawalStats.pending}
+          pendingActions={pendingRequests + withdrawalStats.pending}
           rentDueTotal={rentDueTotal}
         />
 
