@@ -161,7 +161,7 @@ export default function DepositsManagement() {
   const fetchDeposits = useCallback(async () => {
     setLoading(true);
     try {
-      const { data: result, error } = await supabase.rpc('get_deposits_paginated', {
+      const { data: result, error } = await (supabase.rpc as any)('get_deposits_paginated', {
         p_status: statusFilter,
         p_agent_id: agentFilter !== 'all' ? agentFilter : null,
         p_min_amount: minAmount ? Number(minAmount) : null,
