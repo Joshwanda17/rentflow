@@ -188,6 +188,16 @@ export default function DepositsManagement() {
     }
   }, [statusFilter, agentFilter, minAmount, maxAmount, startDate, endDate, page, debouncedSearch]);
 
+  // Debounce search input — 500ms delay to avoid excessive RPC calls at scale
+  useEffect(() => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+    searchTimerRef.current = setTimeout(() => {
+      setDebouncedSearch(searchQuery);
+      setPage(1);
+    }, 500);
+    return () => { if (searchTimerRef.current) clearTimeout(searchTimerRef.current); };
+  }, [searchQuery]);
+
   useEffect(() => {
     fetchDeposits();
   }, [fetchDeposits]);
