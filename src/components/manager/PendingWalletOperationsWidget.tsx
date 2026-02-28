@@ -42,52 +42,46 @@ export function PendingWalletOperationsWidget() {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase
-        .from('pending_wallet_operations')
-        .select('*')
-        .eq('status', 'pending')
-        .order('created_at', { ascending: false })
-        .limit(50);
+      // Use server-side RPC with built-in joins for 40M scale
+      const { data: result, error } = await (supabase.rpc as any)('get_pending_wallet_ops', {
+        p_page: 1,
+        p_page_size: 50,
+      });
 
       if (error) {
         console.error('Error fetching pending operations:', error);
         return;
       }
 
-      if (data && data.length > 0) {
-        // Enrich with user names + agent names for wallet deposits
-        const userIds = [...new Set(data.map(d => d.user_id))];
-        
-        // Also fetch agent info from wallet_deposits source
-        const walletDepositIds = data.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
-        
-        const [profilesRes, depositsRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name').in('id', userIds),
-          walletDepositIds.length > 0
-            ? supabase.from('wallet_deposits').select('id, agent_id').in('id', walletDepositIds)
-            : Promise.resolve({ data: [] }),
-        ]);
+      const parsed = typeof result === 'string' ? JSON.parse(result) : result;
+      const ops = (parsed?.data || []) as PendingOperation[];
 
-        const nameMap = new Map(profilesRes.data?.map(p => [p.id, p.full_name]) || []);
+      if (ops.length > 0) {
+        // Agent name enrichment for wallet_deposits source (lightweight — only for displayed items)
+        const walletDepositIds = ops.filter(d => d.source_table === 'wallet_deposits' && d.source_id).map(d => d.source_id!);
         
-        // Get agent names
-        const agentIds = [...new Set((depositsRes.data || []).map(d => d.agent_id))];
-        const depositAgentMap = new Map((depositsRes.data || []).map(d => [d.id, d.agent_id]));
-        
-        let agentNameMap = new Map<string, string>();
-        if (agentIds.length > 0) {
-          const { data: agentProfiles } = await supabase.from('profiles').select('id, full_name').in('id', agentIds);
-          agentNameMap = new Map(agentProfiles?.map(p => [p.id, p.full_name]) || []);
+        if (walletDepositIds.length > 0) {
+          const { data: depositsData } = await supabase
+            .from('wallet_deposits' as any)
+            .select('id, agent_id')
+            .in('id', walletDepositIds);
+
+          const agentIds = [...new Set((depositsData || []).map((d: any) => d.agent_id).filter(Boolean))];
+          const depositAgentMap = new Map((depositsData || []).map((d: any) => [d.id, d.agent_id]));
+
+          let agentNameMap = new Map<string, string>();
+          if (agentIds.length > 0) {
+            const { data: agentProfiles } = await supabase.from('profiles').select('id, full_name').in('id', agentIds);
+            agentNameMap = new Map(agentProfiles?.map(p => [p.id, p.full_name]) || []);
+          }
+
+          setOperations(ops.map(op => {
+            const agentId = op.source_id ? depositAgentMap.get(op.source_id) : undefined;
+            return { ...op, agent_name: agentId ? agentNameMap.get(agentId) : undefined };
+          }));
+        } else {
+          setOperations(ops);
         }
-        
-        setOperations(data.map(op => {
-          const agentId = op.source_id ? depositAgentMap.get(op.source_id) : undefined;
-          return {
-            ...op,
-            user_name: nameMap.get(op.user_id) || 'Unknown',
-            agent_name: agentId ? agentNameMap.get(agentId) : undefined,
-          };
-        }));
       } else {
         setOperations([]);
       }
