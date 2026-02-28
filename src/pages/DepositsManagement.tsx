@@ -186,7 +186,7 @@ export default function DepositsManagement() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, agentFilter, minAmount, maxAmount, startDate, endDate, page, searchQuery]);
+  }, [statusFilter, agentFilter, minAmount, maxAmount, startDate, endDate, page, debouncedSearch]);
 
   useEffect(() => {
     fetchDeposits();
