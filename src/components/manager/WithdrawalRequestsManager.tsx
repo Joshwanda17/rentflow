@@ -472,13 +472,14 @@ export function WithdrawalRequestsManager() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      // Fetch ALL pending withdrawal requests: exclude ≤500 UGX
+      // Fetch pending withdrawal requests with limit (bounded query for scale)
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('status', 'pending')
         .gt('amount', 500)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
