@@ -81,7 +81,7 @@ interface Agent {
   full_name: string;
 }
 
-const PAGE_SIZE = 10;
+const PAGE_SIZE = 50;
 
 export default function DepositsManagement() {
   const { user, role, loading: authLoading } = useAuth();
