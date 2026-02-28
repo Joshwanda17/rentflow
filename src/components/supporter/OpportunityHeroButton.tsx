@@ -1,7 +1,7 @@
 import { motion } from 'framer-motion';
-import { TrendingUp, ChevronRight, Users, UserCheck, Loader2 } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
+import { TrendingUp, ChevronRight, Shield, Zap, Loader2 } from 'lucide-react';
 import { useOpportunitySummary } from '@/hooks/useOpportunitySummary';
+import { useCurrency } from '@/hooks/useCurrency';
 
 interface OpportunityHeroButtonProps {
   onClick: () => void;
@@ -9,6 +9,7 @@ interface OpportunityHeroButtonProps {
 
 export function OpportunityHeroButton({ onClick }: OpportunityHeroButtonProps) {
   const { summary, loading } = useOpportunitySummary();
+  const { formatAmount } = useCurrency();
 
   return (
     <motion.button
@@ -18,23 +19,20 @@ export function OpportunityHeroButton({ onClick }: OpportunityHeroButtonProps) {
       onClick={onClick}
       className="w-full rounded-2xl bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground p-5 shadow-xl shadow-primary/25 touch-manipulation text-left relative overflow-hidden"
     >
-      {/* Background decoration */}
       <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
       <div className="absolute bottom-0 left-0 w-20 h-20 bg-white/5 rounded-full translate-y-1/2 -translate-x-1/2" />
 
       <div className="relative z-10">
-        {/* Top row */}
         <div className="flex items-center justify-between mb-3">
           <div className="flex items-center gap-2">
             <div className="p-2 rounded-xl bg-white/20">
               <TrendingUp className="h-5 w-5" />
             </div>
-            <span className="font-bold text-base">OPPORTUNITIES</span>
+            <span className="font-bold text-sm uppercase tracking-wide">Capital Opportunity</span>
           </div>
           <ChevronRight className="h-5 w-5 opacity-70" />
         </div>
 
-        {/* Main amount */}
         {loading ? (
           <div className="flex items-center gap-2 mb-2">
             <Loader2 className="h-5 w-5 animate-spin opacity-60" />
@@ -42,34 +40,31 @@ export function OpportunityHeroButton({ onClick }: OpportunityHeroButtonProps) {
           </div>
         ) : summary ? (
           <>
-            <p className="text-sm opacity-80 mb-1">Total Rent Requests</p>
+            <p className="text-xs opacity-70 mb-0.5">Active Rent Demand</p>
             <p className="text-3xl font-black tracking-tight mb-3">
-              {formatUGX(Number(summary.total_rent_requested))}
+              {formatAmount(Number(summary.total_rent_requested))}
             </p>
 
-            {/* Stats row */}
-            <div className="flex items-center gap-4 text-xs opacity-80">
-              <span className="flex items-center gap-1">
+            <div className="flex items-center gap-4 text-[11px] opacity-80">
+              <span className="flex items-center gap-1 font-semibold">
                 <TrendingUp className="h-3 w-3" />
-                {summary.total_requests} requests
+                Up to 15% monthly
               </span>
               <span className="flex items-center gap-1">
-                <Users className="h-3 w-3" />
-                {summary.total_landlords} landlords
+                <Zap className="h-3 w-3" />
+                24–72h deploy
               </span>
               <span className="flex items-center gap-1">
-                <UserCheck className="h-3 w-3" />
-                {summary.total_agents} agents
+                <Shield className="h-3 w-3" />
+                Verified
               </span>
             </div>
           </>
         ) : (
           <>
-            <p className="text-sm opacity-80 mb-1">Total Rent Requests</p>
-            <p className="text-2xl font-black tracking-tight mb-1">
-              View Opportunities
-            </p>
-            <p className="text-xs opacity-60">Tap to explore available opportunities</p>
+            <p className="text-sm opacity-80 mb-1">Deploy Capital for Returns</p>
+            <p className="text-2xl font-black tracking-tight mb-1">View Opportunities</p>
+            <p className="text-xs opacity-60">Tap to explore verified rent requests</p>
           </>
         )}
       </div>

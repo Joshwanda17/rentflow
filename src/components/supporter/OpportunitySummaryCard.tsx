@@ -1,17 +1,10 @@
 import { useState } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, Users, Home, MapPin, HandCoins } from 'lucide-react';
+import { TrendingUp, Shield, Clock, Wallet, ChevronRight, Zap, Users, Home, CheckCircle2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useOpportunitySummary } from '@/hooks/useOpportunitySummary';
-import { useWallet } from '@/hooks/useWallet';
-import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { useToast } from '@/hooks/use-toast';
-import { formatUGX } from '@/lib/rentCalculations';
+import { Badge } from '@/components/ui/badge';
 import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 
@@ -21,78 +14,134 @@ export function OpportunitySummaryCard() {
   const [showFundDialog, setShowFundDialog] = useState(false);
 
   if (loading) {
-    return <div className="h-36 rounded-2xl bg-muted/50 animate-pulse" />;
+    return <div className="h-48 rounded-2xl bg-muted/50 animate-pulse" />;
   }
 
   if (!summary) {
     return (
-      <div className="text-center py-6 text-sm text-muted-foreground rounded-2xl border-2 border-dashed border-border/60 font-medium">
-        No opportunity summary available yet
+      <div className="text-center py-8 text-sm text-muted-foreground rounded-2xl border-2 border-dashed border-border/60 font-medium">
+        No active opportunities at this time
       </div>
     );
   }
 
-  const stats = [
-    { icon: Home, label: 'Requests', value: summary.total_requests },
-    { icon: Users, label: 'Landlords', value: summary.total_landlords },
-    { icon: MapPin, label: 'Agents', value: summary.total_agents },
+  const metrics = [
+    { label: 'Active Requests', value: summary.total_requests, icon: Home },
+    { label: 'Verified Landlords', value: summary.total_landlords, icon: Users },
+    { label: 'Field Agents', value: summary.total_agents, icon: CheckCircle2 },
   ];
 
   return (
     <>
       <motion.div
-        initial={{ opacity: 0, y: 8 }}
+        initial={{ opacity: 0, y: 10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.3 }}
-        className="rounded-2xl border-2 border-primary/30 bg-gradient-to-br from-primary/5 via-card to-primary/10 p-5 shadow-sm space-y-4"
+        transition={{ duration: 0.35 }}
+        className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm"
       >
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="p-2.5 rounded-xl bg-primary/15">
-            <TrendingUp className="h-5 w-5 text-primary" />
+        {/* Header bar */}
+        <div className="px-5 pt-5 pb-3 flex items-center justify-between">
+          <div className="flex items-center gap-2.5">
+            <div className="p-2 rounded-xl bg-primary/10">
+              <TrendingUp className="h-4.5 w-4.5 text-primary" />
+            </div>
+            <div>
+              <h3 className="font-bold text-foreground text-sm tracking-tight">Capital Opportunity</h3>
+              <p className="text-[10px] text-muted-foreground font-medium">Live market demand</p>
+            </div>
           </div>
-          <div className="flex-1">
-            <h3 className="font-black text-foreground text-base">Opportunity Summary</h3>
-            <p className="text-xs text-muted-foreground font-medium">Current market snapshot</p>
-          </div>
+          <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-success/40 text-success bg-success/5 font-bold uppercase tracking-wider">
+            <span className="w-1.5 h-1.5 rounded-full bg-success mr-1 animate-pulse" />
+            Active
+          </Badge>
         </div>
 
-        {/* Total rent */}
-        <div className="px-4 py-3 rounded-xl bg-primary/10">
-          <p className="text-xs text-muted-foreground font-semibold uppercase tracking-wider">Total Rent Requested</p>
-          <p className="text-2xl font-black text-primary">{formatAmount(summary.total_rent_requested)}</p>
+        {/* Main figure */}
+        <div className="px-5 pb-4">
+          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">Total Rent Demand</p>
+          <p className="text-3xl font-black text-foreground tracking-tight leading-none">
+            {formatAmount(summary.total_rent_requested)}
+          </p>
         </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-3 gap-2">
-          {stats.map(({ icon: Icon, label, value }) => (
-            <div key={label} className="flex flex-col items-center gap-1 px-2 py-2.5 rounded-xl bg-muted/40">
-              <Icon className="h-4 w-4 text-muted-foreground" />
+        {/* Key metrics row */}
+        <div className="grid grid-cols-3 gap-px bg-border/50">
+          {metrics.map(({ label, value, icon: Icon }) => (
+            <div key={label} className="bg-card flex flex-col items-center py-3 px-2">
+              <Icon className="h-3.5 w-3.5 text-muted-foreground mb-1" />
               <p className="text-lg font-black text-foreground leading-none">{value}</p>
-              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">{label}</p>
+              <p className="text-[9px] text-muted-foreground font-semibold mt-0.5 text-center">{label}</p>
             </div>
           ))}
         </div>
 
-        {/* Fund button */}
-        <Button
-          onClick={() => setShowFundDialog(true)}
-          className="w-full gap-2 rounded-xl font-bold h-11"
-        >
-          <HandCoins className="h-5 w-5" />
-          Fund Rent Requests
-        </Button>
+        {/* Returns & terms */}
+        <div className="px-5 py-4 space-y-2.5 bg-muted/20">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <TrendingUp className="h-3 w-3 text-success" />
+              <span className="font-medium">Monthly Return</span>
+            </div>
+            <span className="text-sm font-black text-success">Up to 15%</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Zap className="h-3 w-3" />
+              <span className="font-medium">Deployment Speed</span>
+            </div>
+            <span className="text-xs font-bold text-foreground">24–72 hours</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Wallet className="h-3 w-3" />
+              <span className="font-medium">Payouts</span>
+            </div>
+            <span className="text-xs font-bold text-foreground">Monthly to wallet</span>
+          </div>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Shield className="h-3 w-3" />
+              <span className="font-medium">Risk Control</span>
+            </div>
+            <span className="text-xs font-bold text-foreground">Verified & insured</span>
+          </div>
+        </div>
 
-        {/* Withdraw investment button */}
-        <InvestmentWithdrawButton />
+        {/* CTA */}
+        <div className="px-5 pt-3 pb-4 space-y-3">
+          <Button
+            onClick={() => setShowFundDialog(true)}
+            className="w-full gap-2 rounded-xl font-bold h-12 text-sm"
+          >
+            Deploy Capital · Earn Up to 15% Monthly
+            <ChevronRight className="h-4 w-4" />
+          </Button>
+
+          <InvestmentWithdrawButton />
+
+          {/* Micro-copy trust signals */}
+          <div className="flex items-center justify-center gap-3 text-[10px] text-muted-foreground pt-1">
+            <span className="flex items-center gap-1">
+              <Clock className="h-2.5 w-2.5" />
+              Avg. cycle: 30 days
+            </span>
+            <span className="text-border">•</span>
+            <span>Min: {formatAmount(50000)}</span>
+          </div>
+
+          <p className="text-[9px] text-muted-foreground/60 text-center leading-relaxed">
+            Returns are projected based on historical performance. Capital is deployed into verified rent facilitation agreements managed by Welile with reserve protection.
+          </p>
+        </div>
 
         {/* Notes */}
         {summary.notes && (
-          <p className="text-xs text-muted-foreground italic px-1">📝 {summary.notes}</p>
+          <div className="px-5 pb-4">
+            <p className="text-[10px] text-muted-foreground italic">📝 {summary.notes}</p>
+          </div>
         )}
       </motion.div>
 
-      {/* Fund Dialog */}
       <FundRentDialog
         open={showFundDialog}
         onOpenChange={setShowFundDialog}
