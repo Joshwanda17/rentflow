@@ -173,10 +173,12 @@ export function RentRequestsManager() {
   const fetchRequests = async () => {
     setLoading(true);
     
+    // Limit to latest 200 requests instead of ALL rows
     const { data: requestsData, error } = await supabase
       .from('rent_requests')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });

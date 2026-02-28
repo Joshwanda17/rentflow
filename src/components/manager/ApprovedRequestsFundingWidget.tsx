@@ -88,11 +88,19 @@ export function ApprovedRequestsFundingWidget() {
 
   useEffect(() => {
     fetchApproved();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchApproved(), 5000);
+    };
     const channel = supabase
       .channel('approved-rent-requests-funding')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => fetchApproved())
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => debouncedFetch())
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleFundTenant = async (requestId: string) => {
