@@ -1124,7 +1124,11 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       <FloatingDepositsWidget />
       
       <FloatingShareButton />
-      <MobileBottomNav currentRole={currentRole} />
+      <MobileBottomNav 
+        currentRole={currentRole} 
+        onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
+        activeManagerHub={activeHub}
+      />
       
       {/* Floating Action Button */}
       <FloatingActionButton 
