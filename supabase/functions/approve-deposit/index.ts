@@ -15,7 +15,6 @@ Deno.serve(async (req) => {
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
-    // Get the authorization header
     const authHeader = req.headers.get("Authorization");
     if (!authHeader) {
       return new Response(
@@ -24,38 +23,27 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Create client for authenticated user
     const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Get the current user
     const { data: { user }, error: userError } = await supabaseUser.auth.getUser();
     if (userError || !user) {
-      console.error("Auth error:", userError);
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Parse request body (read ONCE)
     const body = await req.json().catch(() => ({}));
-    const { deposit_request_id, action, rejection_reason } = body as {
+    const { deposit_request_id, action, rejection_reason, bulk_ids } = body as {
       deposit_request_id?: string;
       action?: string;
       rejection_reason?: string;
+      bulk_ids?: string[];
     };
 
-    // UUID validation
-    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-    if (!deposit_request_id || typeof deposit_request_id !== 'string' || !UUID_REGEX.test(deposit_request_id)) {
-      return new Response(
-        JSON.stringify({ error: "Invalid or missing deposit_request_id" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
+    // Validate action
     if (!action || !["approve", "reject"].includes(action)) {
       return new Response(
         JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
@@ -63,57 +51,42 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Sanitize rejection_reason
-    const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
+    // Determine IDs to process — single or bulk
+    const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-    // Create admin client
-    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+    let idsToProcess: string[] = [];
+    if (bulk_ids && Array.isArray(bulk_ids)) {
+      if (bulk_ids.length > 100) {
+        return new Response(
+          JSON.stringify({ error: "Cannot process more than 100 deposits at once" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+      idsToProcess = bulk_ids.filter(id => typeof id === 'string' && UUID_REGEX.test(id));
+    } else if (deposit_request_id && typeof deposit_request_id === 'string' && UUID_REGEX.test(deposit_request_id)) {
+      idsToProcess = [deposit_request_id];
+    }
 
-    // Get the deposit request
-    const { data: depositRequest, error: fetchError } = await supabaseAdmin
-      .from("deposit_requests")
-      .select("*")
-      .eq("id", deposit_request_id)
-      .single();
-
-    if (fetchError || !depositRequest) {
-      console.error("Fetch error:", fetchError);
+    if (idsToProcess.length === 0) {
       return new Response(
-        JSON.stringify({ error: "Deposit request not found" }),
-        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "No valid deposit IDs provided" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Verify authorization - allow if manager OR assigned agent
-    const { data: isManagerRole, error: roleError } = await supabaseAdmin
+    const safeRejectionReason = typeof rejection_reason === 'string' ? rejection_reason.trim().slice(0, 1000) : undefined;
+
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify authorization — manager or assigned agent
+    const { data: isManagerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "manager")
       .maybeSingle();
 
-    if (roleError) {
-      console.error("Role check error:", roleError);
-    }
-
-    const isAuthorized = !!isManagerRole || depositRequest.agent_id === user.id;
-
-    if (!isAuthorized) {
-      return new Response(
-        JSON.stringify({ error: "Not authorized to process this request" }),
-        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Check if already processed
-    if (depositRequest.status !== "pending") {
-      return new Response(
-        JSON.stringify({ error: "Deposit request already processed" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    // Get the processor's name for notification
+    // Get processor name once
     const { data: processorProfile } = await supabaseAdmin
       .from("profiles")
       .select("full_name")
@@ -121,222 +94,181 @@ Deno.serve(async (req) => {
       .single();
     const processorName = processorProfile?.full_name || "Manager";
 
-    if (action === "approve") {
-      // Update deposit request status with processor info
-      const { error: updateError } = await supabaseAdmin
-        .from("deposit_requests")
-        .update({
-          status: "approved",
-          approved_at: new Date().toISOString(),
-          processed_by: user.id,
-        })
-        .eq("id", deposit_request_id);
+    // Fetch all deposit requests at once
+    const { data: depositRequests, error: fetchError } = await supabaseAdmin
+      .from("deposit_requests")
+      .select("*")
+      .in("id", idsToProcess)
+      .eq("status", "pending");
 
-      if (updateError) {
-        console.error("Update error:", updateError);
-        throw updateError;
-      }
-
-      // Credit the user's wallet atomically using RPC or read-then-update
-      // First ensure wallet exists
-      await supabaseAdmin
-        .from("wallets")
-        .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
-
-      // Read current balance, then add deposit amount
-      const { data: currentWallet, error: readErr } = await supabaseAdmin
-        .from("wallets")
-        .select("balance")
-        .eq("user_id", depositRequest.user_id)
-        .single();
-
-      if (readErr || !currentWallet) {
-        console.error("Wallet read error:", readErr);
-        throw new Error("Could not read wallet balance");
-      }
-
-      const newBalance = (currentWallet.balance || 0) + depositRequest.amount;
-      const { error: walletError } = await supabaseAdmin
-        .from("wallets")
-        .update({ balance: newBalance, updated_at: new Date().toISOString() })
-        .eq("user_id", depositRequest.user_id)
-        .eq("balance", currentWallet.balance); // Optimistic lock
-
-      if (walletError) {
-        console.error("Wallet credit error:", walletError);
-        throw new Error("Failed to credit wallet. Please retry.");
-      }
-
-      // Check outstanding rent before applying repayment
-      let repaymentApplied = 0;
-      let rentRequestId: string | null = null;
-      let previousBalance = 0;
-      let newOutstanding = 0;
-
-      // Check if tenant has an active rent request
-      const { data: activeRentRequest } = await supabaseAdmin
-        .from("rent_requests")
-        .select("id, total_repayment, amount_repaid, rent_amount, status")
-        .eq("tenant_id", depositRequest.user_id)
-        .in("status", ["funded", "disbursed", "approved"])
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (activeRentRequest) {
-        const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
-        previousBalance = outstanding;
-        rentRequestId = activeRentRequest.id;
-
-        // Apply repayment via RPC (handles amount_repaid update + repayments table insert)
-        const { error: repaymentError } = await supabaseAdmin.rpc(
-          "record_rent_request_repayment",
-          { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
-        );
-        if (repaymentError) {
-          console.warn("Repayment tracking error (non-fatal):", repaymentError);
-        } else {
-          repaymentApplied = Math.min(depositRequest.amount, outstanding);
-          newOutstanding = outstanding - repaymentApplied;
-
-          // Record a general_ledger entry for the repayment portion
-          const txGroupId = crypto.randomUUID();
-          await supabaseAdmin.from("general_ledger").insert({
-            user_id: depositRequest.user_id,
-            amount: repaymentApplied,
-            direction: "cash_out",
-            category: "rent_repayment",
-            source_table: "deposit_requests",
-            source_id: deposit_request_id,
-            reference_id: depositRequest.transaction_id || deposit_request_id,
-            transaction_group_id: txGroupId,
-            description: `Rent repayment from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
-            linked_party: rentRequestId,
-            transaction_date: new Date().toISOString(),
-          });
-
-          console.log(`Repayment applied: ${repaymentApplied} from deposit ${deposit_request_id}. Outstanding: ${previousBalance} → ${newOutstanding}`);
-        }
-      } else {
-        console.log(`No active rent request for tenant ${depositRequest.user_id}. Deposit goes to wallet only.`);
-      }
-
-      // Get tenant name for notification
-      const { data: tenantProfile } = await supabaseAdmin
-        .from("profiles")
-        .select("full_name")
-        .eq("id", depositRequest.user_id)
-        .single();
-      const tenantName = tenantProfile?.full_name || "Tenant";
-
-      // Create notification for user with manager details
-      const repaymentNote = repaymentApplied > 0
-        ? ` UGX ${repaymentApplied.toLocaleString()} was applied to your rent balance (remaining: UGX ${newOutstanding.toLocaleString()}).`
-        : "";
-      await supabaseAdmin.from("notifications").insert({
-        user_id: depositRequest.user_id,
-        title: "Deposit Approved! 💰",
-        message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} has been approved by ${processorName} and added to your wallet.${repaymentNote}`,
-        type: "success",
-        metadata: { 
-          deposit_request_id, 
-          amount: depositRequest.amount,
-          repayment_applied: repaymentApplied,
-          outstanding_before: previousBalance,
-          outstanding_after: newOutstanding,
-          processed_by: user.id,
-          processed_by_name: processorName
-        },
-      });
-
-      // Log audit entry
-      await supabaseAdmin.from("audit_logs").insert({
-        action_type: "approve",
-        table_name: "deposit_requests",
-        record_id: deposit_request_id,
-        performed_by: user.id,
-        old_values: { status: "pending" },
-        new_values: { status: "approved", approved_at: new Date().toISOString() },
-        metadata: { 
-          amount: depositRequest.amount, 
-          user_id: depositRequest.user_id,
-          repayment_applied: repaymentApplied,
-          outstanding_before: previousBalance,
-          outstanding_after: newOutstanding,
-          rent_request_id: rentRequestId,
-        },
-      });
-
-      console.log(`Deposit approved: ${deposit_request_id}, amount: ${depositRequest.amount}, repayment: ${repaymentApplied}, by: ${processorName}`);
-
+    if (fetchError || !depositRequests || depositRequests.length === 0) {
       return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Deposit approved successfully",
-          amount: depositRequest.amount,
-          tenant_name: tenantName,
-          repayment_applied: repaymentApplied,
-          outstanding_before: previousBalance,
-          outstanding_after: newOutstanding,
-          rent_request_id: rentRequestId,
-          to_wallet: depositRequest.amount - repaymentApplied,
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    } else {
-      // Reject the deposit with processor info
-      const { error: updateError } = await supabaseAdmin
-        .from("deposit_requests")
-        .update({
-          status: "rejected",
-          rejected_at: new Date().toISOString(),
-          rejection_reason: safeRejectionReason || "Rejected by manager",
-          processed_by: user.id,
-        })
-        .eq("id", deposit_request_id);
-
-      if (updateError) {
-        console.error("Update error:", updateError);
-        throw updateError;
-      }
-
-      // Create notification for user with manager details
-      await supabaseAdmin.from("notifications").insert({
-        user_id: depositRequest.user_id,
-        title: "Deposit Rejected ❌",
-        message: `Your deposit request of UGX ${depositRequest.amount.toLocaleString()} was rejected by ${processorName}. Reason: ${safeRejectionReason || "No reason provided"}`,
-        type: "warning",
-        metadata: { 
-          deposit_request_id, 
-          amount: depositRequest.amount, 
-          reason: safeRejectionReason,
-          processed_by: user.id,
-          processed_by_name: processorName
-        },
-      });
-
-      // Log audit entry
-      await supabaseAdmin.from("audit_logs").insert({
-        action_type: "reject",
-        table_name: "deposit_requests",
-        record_id: deposit_request_id,
-        performed_by: user.id,
-        old_values: { status: "pending" },
-        new_values: { status: "rejected", rejected_at: new Date().toISOString() },
-        reason: safeRejectionReason || "Rejected by manager",
-        metadata: { amount: depositRequest.amount, user_id: depositRequest.user_id },
-      });
-
-      console.log(`Deposit rejected: ${deposit_request_id}, by: ${processorName}`);
-
-      return new Response(
-        JSON.stringify({
-          success: true,
-          message: "Deposit rejected",
-        }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "No pending deposit requests found" }),
+        { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    // Verify authorization for all requests
+    if (!isManagerRole) {
+      // Non-manager can only process deposits assigned to them as agent
+      const unauthorized = depositRequests.filter(d => d.agent_id !== user.id);
+      if (unauthorized.length > 0) {
+        return new Response(
+          JSON.stringify({ error: "Not authorized to process some requests" }),
+          { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      }
+    }
+
+    const results: Array<{ id: string; status: string; amount: number; user_id: string; repayment_applied?: number }> = [];
+
+    for (const depositRequest of depositRequests) {
+      try {
+        if (action === "approve") {
+          // Update status
+          await supabaseAdmin
+            .from("deposit_requests")
+            .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
+            .eq("id", depositRequest.id);
+
+          // Credit wallet with optimistic locking
+          await supabaseAdmin
+            .from("wallets")
+            .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
+
+          const { data: currentWallet } = await supabaseAdmin
+            .from("wallets")
+            .select("balance")
+            .eq("user_id", depositRequest.user_id)
+            .single();
+
+          if (currentWallet) {
+            const newBalance = (currentWallet.balance || 0) + depositRequest.amount;
+            await supabaseAdmin
+              .from("wallets")
+              .update({ balance: newBalance, updated_at: new Date().toISOString() })
+              .eq("user_id", depositRequest.user_id)
+              .eq("balance", currentWallet.balance);
+          }
+
+          // Check and apply rent repayment
+          let repaymentApplied = 0;
+          let rentRequestId: string | null = null;
+          let previousBalance = 0;
+          let newOutstanding = 0;
+
+          const { data: activeRentRequest } = await supabaseAdmin
+            .from("rent_requests")
+            .select("id, total_repayment, amount_repaid, rent_amount, status")
+            .eq("tenant_id", depositRequest.user_id)
+            .in("status", ["funded", "disbursed", "approved"])
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (activeRentRequest) {
+            const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
+            previousBalance = outstanding;
+            rentRequestId = activeRentRequest.id;
+
+            const { error: repaymentError } = await supabaseAdmin.rpc(
+              "record_rent_request_repayment",
+              { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
+            );
+            if (!repaymentError) {
+              repaymentApplied = Math.min(depositRequest.amount, outstanding);
+              newOutstanding = outstanding - repaymentApplied;
+
+              const txGroupId = crypto.randomUUID();
+              await supabaseAdmin.from("general_ledger").insert({
+                user_id: depositRequest.user_id,
+                amount: repaymentApplied,
+                direction: "cash_out",
+                category: "rent_repayment",
+                source_table: "deposit_requests",
+                source_id: depositRequest.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                transaction_group_id: txGroupId,
+                description: `Rent repayment from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+                linked_party: rentRequestId,
+                transaction_date: new Date().toISOString(),
+              });
+            }
+          }
+
+          // Notification
+          const repaymentNote = repaymentApplied > 0
+            ? ` UGX ${repaymentApplied.toLocaleString()} applied to rent (remaining: UGX ${newOutstanding.toLocaleString()}).`
+            : "";
+          await supabaseAdmin.from("notifications").insert({
+            user_id: depositRequest.user_id,
+            title: "Deposit Approved! 💰",
+            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}`,
+            type: "success",
+            metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, repayment_applied: repaymentApplied },
+          });
+
+          // Audit
+          await supabaseAdmin.from("audit_logs").insert({
+            action_type: "approve",
+            table_name: "deposit_requests",
+            record_id: depositRequest.id,
+            performed_by: user.id,
+            old_values: { status: "pending" },
+            new_values: { status: "approved" },
+            metadata: { amount: depositRequest.amount, repayment_applied: repaymentApplied },
+          });
+
+          results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id, repayment_applied: repaymentApplied });
+        } else {
+          // Reject
+          await supabaseAdmin
+            .from("deposit_requests")
+            .update({
+              status: "rejected",
+              rejected_at: new Date().toISOString(),
+              rejection_reason: safeRejectionReason || "Rejected by manager",
+              processed_by: user.id,
+            })
+            .eq("id", depositRequest.id);
+
+          await supabaseAdmin.from("notifications").insert({
+            user_id: depositRequest.user_id,
+            title: "Deposit Rejected ❌",
+            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} rejected by ${processorName}. Reason: ${safeRejectionReason || "No reason"}`,
+            type: "warning",
+            metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, reason: safeRejectionReason },
+          });
+
+          await supabaseAdmin.from("audit_logs").insert({
+            action_type: "reject",
+            table_name: "deposit_requests",
+            record_id: depositRequest.id,
+            performed_by: user.id,
+            old_values: { status: "pending" },
+            new_values: { status: "rejected" },
+            reason: safeRejectionReason || "Rejected by manager",
+            metadata: { amount: depositRequest.amount },
+          });
+
+          results.push({ id: depositRequest.id, status: "rejected", amount: depositRequest.amount, user_id: depositRequest.user_id });
+        }
+      } catch (innerErr) {
+        console.error(`[approve-deposit] Error processing ${depositRequest.id}:`, innerErr);
+        results.push({ id: depositRequest.id, status: "error", amount: depositRequest.amount, user_id: depositRequest.user_id });
+      }
+    }
+
+    console.log(`[approve-deposit] ${processorName} ${action}d ${results.filter(r => r.status !== 'error').length}/${depositRequests.length} deposits`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        message: `${results.filter(r => r.status !== 'error').length} deposit(s) ${action}d`,
+        results,
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error: unknown) {
     const errorMessage = error instanceof Error ? error.message : "Unknown error";
     console.error("Unexpected error:", errorMessage);
