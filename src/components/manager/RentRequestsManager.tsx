@@ -149,25 +149,36 @@ export function RentRequestsManager() {
   useEffect(() => {
     fetchRequests();
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchRequests(), 5000);
+    };
+
     const channel = supabase
       .channel('rent-requests-manager-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rent_requests' },
-        () => { fetchRequests(); }
+        () => { debouncedFetch(); }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchRequests = async () => {
     setLoading(true);
     
+    // Limit to latest 200 requests instead of ALL rows
     const { data: requestsData, error } = await supabase
       .from('rent_requests')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: false })
+      .limit(200);
 
     if (error) {
       toast({ title: 'Error', description: error.message, variant: 'destructive' });
@@ -175,29 +186,39 @@ export function RentRequestsManager() {
       return;
     }
 
-    // Fetch tenant profiles with full details
+    // Chunk profile lookups to avoid URL length limits at scale
+    const chunkArray = <T,>(arr: T[], size: number): T[][] => {
+      const chunks: T[][] = [];
+      for (let i = 0; i < arr.length; i += size) chunks.push(arr.slice(i, i + size));
+      return chunks;
+    };
+
     const tenantIds = [...new Set((requestsData || []).map(r => r.tenant_id))];
-    const [profilesRes, landlordsRes, repaymentsRes, walletsRes] = await Promise.all([
-      tenantIds.length > 0
-        ? supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, national_id, city, country, created_at, monthly_rent, mobile_money_number, mobile_money_provider').in('id', tenantIds)
-        : Promise.resolve({ data: [] }),
-      // Fetch landlords with verification status
-      (() => {
-        const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
-        return landlordIds.length > 0
-          ? supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', landlordIds)
-          : Promise.resolve({ data: [] });
-      })(),
+    const landlordIds = [...new Set((requestsData || []).map(r => r.landlord_id))];
+
+    // Fetch profiles in chunks of 50
+    const profileChunks = chunkArray(tenantIds, 50);
+    const landlordChunks = chunkArray(landlordIds, 50);
+
+    const [profileResults, landlordResults, repaymentsRes, walletsRes] = await Promise.all([
+      Promise.all(profileChunks.map(chunk =>
+        supabase.from('profiles').select('id, full_name, phone, email, avatar_url, verified, national_id, city, country, created_at, monthly_rent, mobile_money_number, mobile_money_provider').in('id', chunk)
+      )),
+      Promise.all(landlordChunks.map(chunk =>
+        supabase.from('landlords').select('id, name, property_address, verified, ready_to_receive').in('id', chunk)
+      )),
       // repayments table removed - stub
       (() => Promise.resolve({ data: [] }))(),
-      // Fetch wallet balances for tenants
       tenantIds.length > 0
-        ? supabase.from('wallets').select('user_id, balance').in('user_id', tenantIds)
+        ? Promise.all(chunkArray(tenantIds, 50).map(chunk =>
+            supabase.from('wallets').select('user_id, balance').in('user_id', chunk)
+          )).then(results => ({ data: results.flatMap(r => r.data || []) }))
         : Promise.resolve({ data: [] }),
     ]);
 
-    const profiles = profilesRes.data;
-    const landlords = landlordsRes.data;
+    const profiles = profileResults.flatMap(r => r.data || []);
+    const landlords = landlordResults.flatMap(r => r.data || []);
+
     const repayments = repaymentsRes.data;
     const walletsByUser = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance]));
 

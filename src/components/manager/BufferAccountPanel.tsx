@@ -19,11 +19,11 @@ interface BufferMetrics {
   totalOutstanding: number;
   defaultCount: number;
   totalFundedRequests: number;
-  coverageRatio: number; // cashIn / cashOut
-  capitalUtilization: number; // facilitated / cashIn
-  defaultRate: number; // defaults / funded
-  repaymentRate: number; // repaid / facilitated
-  liquidityRatio: number; // netBuffer / outstanding
+  coverageRatio: number;
+  capitalUtilization: number;
+  defaultRate: number;
+  repaymentRate: number;
+  liquidityRatio: number;
 }
 
 const SAFETY_THRESHOLDS = {
@@ -36,12 +36,10 @@ const SAFETY_THRESHOLDS = {
 
 function getHealthColor(value: number, threshold: typeof SAFETY_THRESHOLDS.coverageRatio, inverse = false) {
   if (inverse) {
-    // Lower is better (e.g. default rate)
     if (value <= threshold.safe) return 'text-success';
     if (value <= threshold.warning) return 'text-warning';
     return 'text-destructive';
   }
-  // Higher is better (e.g. coverage ratio)
   if (value >= threshold.safe) return 'text-success';
   if (value >= threshold.warning) return 'text-warning';
   return 'text-destructive';
@@ -69,56 +67,34 @@ export function BufferAccountPanel() {
   const fetchMetrics = async () => {
     setLoading(true);
 
-    const [ledgerRes, rentRes] = await Promise.all([
-      // Ledger aggregates
-      supabase.from('general_ledger').select('direction, amount'),
-      // Rent request aggregates
-      supabase.from('rent_requests').select('status, rent_amount, amount_repaid, funded_at'),
-    ]);
+    // Use server-side RPC instead of fetching all rows
+    const { data, error } = await supabase.rpc('get_buffer_metrics');
 
-    const ledgerEntries = ledgerRes.data || [];
-    const rentRequests = rentRes.data || [];
-
-    // Cash In / Cash Out from ledger
-    let totalCashIn = 0;
-    let totalCashOut = 0;
-    for (const entry of ledgerEntries) {
-      if (entry.direction === 'credit') totalCashIn += Number(entry.amount);
-      else if (entry.direction === 'debit') totalCashOut += Number(entry.amount);
+    if (error || !data) {
+      setLoading(false);
+      return;
     }
 
-    // Rent metrics
-    const fundedRequests = rentRequests.filter(r => r.funded_at || ['funded', 'disbursed', 'completed'].includes(r.status || ''));
-    const totalRentFacilitated = fundedRequests.reduce((sum, r) => sum + Number(r.rent_amount), 0);
-    const totalRepaid = fundedRequests.reduce((sum, r) => sum + Number(r.amount_repaid), 0);
-    const totalOutstanding = totalRentFacilitated - totalRepaid;
-
-    // Default = funded but 0 repayment and status not 'completed'
-    const defaultCount = fundedRequests.filter(r =>
-      Number(r.amount_repaid) === 0 && r.status !== 'completed' && r.status !== 'funded'
-    ).length;
+    const d = data as any;
+    const totalCashIn = Number(d.totalCashIn) || 0;
+    const totalCashOut = Number(d.totalCashOut) || 0;
+    const totalRentFacilitated = Number(d.totalRentFacilitated) || 0;
+    const totalRepaid = Number(d.totalRepaid) || 0;
+    const totalOutstanding = Number(d.totalOutstanding) || 0;
+    const defaultCount = Number(d.defaultCount) || 0;
+    const totalFundedRequests = Number(d.totalFundedRequests) || 0;
 
     const netBuffer = totalCashIn - totalCashOut;
     const coverageRatio = totalCashOut > 0 ? totalCashIn / totalCashOut : totalCashIn > 0 ? 999 : 1;
     const capitalUtilization = totalCashIn > 0 ? totalRentFacilitated / totalCashIn : 0;
-    const defaultRate = fundedRequests.length > 0 ? defaultCount / fundedRequests.length : 0;
+    const defaultRate = totalFundedRequests > 0 ? defaultCount / totalFundedRequests : 0;
     const repaymentRate = totalRentFacilitated > 0 ? totalRepaid / totalRentFacilitated : 0;
     const liquidityRatio = totalOutstanding > 0 ? netBuffer / totalOutstanding : netBuffer > 0 ? 999 : 0;
 
     setMetrics({
-      totalCashIn,
-      totalCashOut,
-      netBuffer,
-      totalRentFacilitated,
-      totalRepaid,
-      totalOutstanding,
-      defaultCount,
-      totalFundedRequests: fundedRequests.length,
-      coverageRatio,
-      capitalUtilization,
-      defaultRate,
-      repaymentRate,
-      liquidityRatio,
+      totalCashIn, totalCashOut, netBuffer, totalRentFacilitated, totalRepaid,
+      totalOutstanding, defaultCount, totalFundedRequests,
+      coverageRatio, capitalUtilization, defaultRate, repaymentRate, liquidityRatio,
     });
     setLoading(false);
   };
@@ -141,49 +117,39 @@ export function BufferAccountPanel() {
 
   const indicators = [
     {
-      label: 'Coverage Ratio',
-      subtitle: 'Cash In ÷ Cash Out',
+      label: 'Coverage Ratio', subtitle: 'Cash In ÷ Cash Out',
       value: metrics.coverageRatio === 999 ? '∞' : `${metrics.coverageRatio.toFixed(2)}x`,
       color: getHealthColor(metrics.coverageRatio, SAFETY_THRESHOLDS.coverageRatio),
       badge: getHealthBadge(metrics.coverageRatio, SAFETY_THRESHOLDS.coverageRatio),
-      icon: Shield,
-      progress: Math.min(metrics.coverageRatio / 2 * 100, 100),
+      icon: Shield, progress: Math.min(metrics.coverageRatio / 2 * 100, 100),
     },
     {
-      label: 'Capital Utilization',
-      subtitle: 'Facilitated ÷ Cash In',
+      label: 'Capital Utilization', subtitle: 'Facilitated ÷ Cash In',
       value: `${(metrics.capitalUtilization * 100).toFixed(1)}%`,
       color: getHealthColor(metrics.capitalUtilization, SAFETY_THRESHOLDS.capitalUtilization, true),
       badge: getHealthBadge(metrics.capitalUtilization, SAFETY_THRESHOLDS.capitalUtilization, true),
-      icon: BarChart3,
-      progress: metrics.capitalUtilization * 100,
+      icon: BarChart3, progress: metrics.capitalUtilization * 100,
     },
     {
-      label: 'Default Rate',
-      subtitle: `${metrics.defaultCount} of ${metrics.totalFundedRequests} funded`,
+      label: 'Default Rate', subtitle: `${metrics.defaultCount} of ${metrics.totalFundedRequests} funded`,
       value: `${(metrics.defaultRate * 100).toFixed(1)}%`,
       color: getHealthColor(metrics.defaultRate, SAFETY_THRESHOLDS.defaultRate, true),
       badge: getHealthBadge(metrics.defaultRate, SAFETY_THRESHOLDS.defaultRate, true),
-      icon: AlertTriangle,
-      progress: Math.min(metrics.defaultRate * 100 * 5, 100), // Scale for visibility
+      icon: AlertTriangle, progress: Math.min(metrics.defaultRate * 100 * 5, 100),
     },
     {
-      label: 'Repayment Rate',
-      subtitle: 'Repaid ÷ Facilitated',
+      label: 'Repayment Rate', subtitle: 'Repaid ÷ Facilitated',
       value: `${(metrics.repaymentRate * 100).toFixed(1)}%`,
       color: getHealthColor(metrics.repaymentRate, SAFETY_THRESHOLDS.repaymentRate),
       badge: getHealthBadge(metrics.repaymentRate, SAFETY_THRESHOLDS.repaymentRate),
-      icon: TrendingUp,
-      progress: metrics.repaymentRate * 100,
+      icon: TrendingUp, progress: metrics.repaymentRate * 100,
     },
     {
-      label: 'Liquidity Buffer',
-      subtitle: 'Buffer ÷ Outstanding',
+      label: 'Liquidity Buffer', subtitle: 'Buffer ÷ Outstanding',
       value: metrics.liquidityRatio === 999 ? '∞' : `${(metrics.liquidityRatio * 100).toFixed(0)}%`,
       color: getHealthColor(metrics.liquidityRatio, SAFETY_THRESHOLDS.liquidityRatio),
       badge: getHealthBadge(metrics.liquidityRatio, SAFETY_THRESHOLDS.liquidityRatio),
-      icon: PiggyBank,
-      progress: Math.min(metrics.liquidityRatio * 100, 100),
+      icon: PiggyBank, progress: Math.min(metrics.liquidityRatio * 100, 100),
     },
   ];
 
@@ -224,7 +190,6 @@ export function BufferAccountPanel() {
             </Badge>
           </div>
 
-          {/* Cash In / Out / Net */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-3 rounded-xl bg-success/10 border border-success/20 text-center">
               <p className="text-[9px] text-muted-foreground uppercase tracking-wide font-medium">Cash In</p>
@@ -234,18 +199,12 @@ export function BufferAccountPanel() {
               <p className="text-[9px] text-muted-foreground uppercase tracking-wide font-medium">Cash Out</p>
               <p className="text-sm font-black text-destructive mt-0.5">{formatUGX(metrics.totalCashOut)}</p>
             </div>
-            <div className={cn(
-              "p-3 rounded-xl border text-center",
-              overallSolvent ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20'
-            )}>
+            <div className={cn("p-3 rounded-xl border text-center", overallSolvent ? 'bg-success/5 border-success/20' : 'bg-destructive/5 border-destructive/20')}>
               <p className="text-[9px] text-muted-foreground uppercase tracking-wide font-medium">Net Buffer</p>
-              <p className={cn("text-sm font-black mt-0.5", overallSolvent ? 'text-success' : 'text-destructive')}>
-                {formatUGX(metrics.netBuffer)}
-              </p>
+              <p className={cn("text-sm font-black mt-0.5", overallSolvent ? 'text-success' : 'text-destructive')}>{formatUGX(metrics.netBuffer)}</p>
             </div>
           </div>
 
-          {/* Rent facilitation summary */}
           <div className="grid grid-cols-3 gap-2">
             <div className="p-2.5 rounded-xl bg-muted/50 border border-border/40 text-center">
               <p className="text-[9px] text-muted-foreground uppercase tracking-wide font-medium">Facilitated</p>
@@ -295,14 +254,12 @@ export function BufferAccountPanel() {
         );
       })}
 
-      {/* Trend & Forecast */}
       <h3 className="text-sm font-bold flex items-center gap-2 px-1 mt-4">
         <TrendingUp className="h-4 w-4 text-primary" />
         Trends & Forecast
       </h3>
       <BufferTrendChart />
 
-      {/* Reserve Allocation */}
       <h3 className="text-sm font-bold flex items-center gap-2 px-1 mt-4">
         <Shield className="h-4 w-4 text-amber-500" />
         Reserve Allocation

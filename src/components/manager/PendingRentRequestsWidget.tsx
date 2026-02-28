@@ -71,11 +71,19 @@ export function PendingRentRequestsWidget() {
 
   useEffect(() => {
     fetchRequests();
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchRequests(), 5000);
+    };
     const channel = supabase
       .channel('pending-rent-requests-realtime')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => { fetchRequests(); })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'rent_requests' }, () => { debouncedFetch(); })
       .subscribe();
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleApprove = async (id: string) => {

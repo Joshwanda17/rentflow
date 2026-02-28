@@ -7,7 +7,6 @@ import { formatUGX } from '@/lib/rentCalculations';
 import { cn } from '@/lib/utils';
 import { Skeleton } from '@/components/ui/skeleton';
 import { AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, Legend } from 'recharts';
-import { format } from 'date-fns';
 
 interface WeeklyData {
   week: string;
@@ -27,49 +26,30 @@ export function BufferTrendChart() {
 
   const fetchTrendData = async () => {
     setLoading(true);
-    const { data: ledger } = await supabase
-      .from('general_ledger')
-      .select('direction, amount, transaction_date')
-      .order('transaction_date', { ascending: true });
 
-    if (!ledger || ledger.length === 0) {
+    // Use server-side RPC instead of fetching all ledger rows
+    const { data: weeklyData, error } = await supabase.rpc('get_buffer_trend_data');
+
+    if (error || !weeklyData || !Array.isArray(weeklyData) || weeklyData.length === 0) {
       setLoading(false);
       return;
     }
 
-    // Group by week
-    const weekMap = new Map<string, { cashIn: number; cashOut: number }>();
-    for (const entry of ledger) {
-      const date = new Date(entry.transaction_date);
-      // Week label: start of the week (Monday)
-      const dayOfWeek = date.getDay();
-      const diff = dayOfWeek === 0 ? 6 : dayOfWeek - 1;
-      const weekStart = new Date(date);
-      weekStart.setDate(date.getDate() - diff);
-      const key = format(weekStart, 'MMM dd');
-
-      if (!weekMap.has(key)) weekMap.set(key, { cashIn: 0, cashOut: 0 });
-      const w = weekMap.get(key)!;
-      if (entry.direction === 'credit') w.cashIn += Number(entry.amount);
-      else if (entry.direction === 'debit') w.cashOut += Number(entry.amount);
-    }
-
     let cumulative = 0;
-    const weeks: WeeklyData[] = [];
-    for (const [week, vals] of weekMap) {
-      const netFlow = vals.cashIn - vals.cashOut;
+    const weeks: WeeklyData[] = (weeklyData as any[]).map(w => {
+      const cashIn = Number(w.cashIn) || 0;
+      const cashOut = Number(w.cashOut) || 0;
+      const netFlow = Number(w.netFlow) || 0;
       cumulative += netFlow;
-      weeks.push({ week, cashIn: vals.cashIn, cashOut: vals.cashOut, netFlow, cumulativeBuffer: cumulative });
-    }
+      return { week: w.week, cashIn, cashOut, netFlow, cumulativeBuffer: cumulative };
+    });
 
-    // Keep last 12 weeks max
     setData(weeks.slice(-12));
     setLoading(false);
   };
 
   const forecast = useMemo(() => {
     if (data.length < 2) return null;
-    // Average weekly net flow from last 4 weeks
     const recent = data.slice(-4);
     const avgNetFlow = recent.reduce((s, d) => s + d.netFlow, 0) / recent.length;
     const currentBuffer = data[data.length - 1].cumulativeBuffer;
@@ -80,9 +60,7 @@ export function BufferTrendChart() {
     return { type: 'declining' as const, weeksUntilDepletion, avgNetFlow };
   }, [data]);
 
-  if (loading) {
-    return <Skeleton className="h-64 w-full rounded-xl" />;
-  }
+  if (loading) return <Skeleton className="h-64 w-full rounded-xl" />;
 
   if (data.length < 2) {
     return (
@@ -110,7 +88,6 @@ export function BufferTrendChart() {
 
   return (
     <div className="space-y-3">
-      {/* Forecast Banner */}
       {forecast && (
         <Card className={cn(
           "border-2",
@@ -145,7 +122,6 @@ export function BufferTrendChart() {
         </Card>
       )}
 
-      {/* Cash Flow Bar Chart */}
       <Card className="border border-border/60">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2">
@@ -168,7 +144,6 @@ export function BufferTrendChart() {
         </CardContent>
       </Card>
 
-      {/* Cumulative Buffer Trend */}
       <Card className="border border-border/60">
         <CardContent className="p-4 space-y-3">
           <div className="flex items-center gap-2">
@@ -188,14 +163,7 @@ export function BufferTrendChart() {
                     <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <Area
-                  type="monotone"
-                  dataKey="cumulativeBuffer"
-                  name="Buffer Balance"
-                  stroke="hsl(var(--primary))"
-                  fill="url(#bufferGrad)"
-                  strokeWidth={2}
-                />
+                <Area type="monotone" dataKey="cumulativeBuffer" name="Buffer Balance" stroke="hsl(var(--primary))" fill="url(#bufferGrad)" strokeWidth={2} />
               </AreaChart>
             </ResponsiveContainer>
           </div>

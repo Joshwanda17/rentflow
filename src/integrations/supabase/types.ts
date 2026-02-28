@@ -3256,6 +3256,8 @@ export type Database = {
         Returns: string
       }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
+      get_buffer_metrics: { Args: never; Returns: Json }
+      get_buffer_trend_data: { Args: never; Returns: Json }
       get_email_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
@@ -3303,6 +3305,8 @@ export type Database = {
         }[]
       }
       get_my_ai_id_summary: { Args: never; Returns: Json }
+      get_rent_requests_summary: { Args: never; Returns: Json }
+      get_supporter_pool_stats: { Args: never; Returns: Json }
       get_user_role: {
         Args: { _user_id: string }
         Returns: Database["public"]["Enums"]["app_role"]

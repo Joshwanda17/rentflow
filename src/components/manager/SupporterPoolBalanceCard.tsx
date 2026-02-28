@@ -20,33 +20,16 @@ export function SupporterPoolBalanceCard() {
   }, []);
 
   const fetchPoolBalance = async () => {
-    const [inRes, outRes, withdrawnRes] = await Promise.all([
-      supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('category', 'supporter_rent_fund'),
-      supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('category', 'pool_rent_deployment'),
-      supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('category', 'supporter_capital_return'),
-    ]);
+    // Use server-side RPC instead of 3 separate queries fetching all rows
+    const { data, error } = await supabase.rpc('get_supporter_pool_stats');
 
-    const totalIn = (inRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-    const totalOut = (outRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-    const totalWithdrawn = (withdrawnRes.data || []).reduce((s, r) => s + Number(r.amount), 0);
-    const pool = totalIn - totalOut;
-    const activeCapital = totalIn - totalWithdrawn;
-    const obligation = Math.round(activeCapital * 0.15);
-    const deployable = Math.max(0, pool - obligation);
-
-    setPoolBalance(pool);
-    setTotalDeployed(totalOut);
-    setMonthlyObligation(obligation);
-    setDeployableAmount(deployable);
+    if (!error && data) {
+      const d = data as any;
+      setPoolBalance(Number(d.poolBalance) || 0);
+      setTotalDeployed(Number(d.totalDeployed) || 0);
+      setMonthlyObligation(Number(d.monthlyObligation) || 0);
+      setDeployableAmount(Number(d.deployableAmount) || 0);
+    }
     setLoading(false);
   };
 
