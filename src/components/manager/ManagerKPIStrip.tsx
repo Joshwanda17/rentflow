@@ -8,8 +8,9 @@ interface ManagerKPIStripProps {
   activeUsers: number;
   newSignupsThisWeek: number;
   totalFacilitated: number;
-  pendingActions: number; // total pending items needing attention
+  pendingActions: number;
   rentDueTotal: number;
+  onNavigate?: (hub: string) => void;
 }
 
 export function ManagerKPIStrip({
