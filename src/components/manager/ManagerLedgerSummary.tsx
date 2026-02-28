@@ -73,94 +73,73 @@ export function ManagerLedgerSummary() {
   const fetchData = useCallback(async () => {
     setLoading(true);
     try {
-      const range = getDateRange();
+      // Server-side aggregation — single RPC call instead of fetching all rows
+      const { data: rpcStats, error: rpcErr } = await supabase.rpc('get_wallet_ops_stats', { p_period: period });
+      if (rpcErr) throw rpcErr;
 
-      // Fetch withdrawal requests
+      if (rpcStats) {
+        setStats(rpcStats as unknown as LedgerStats);
+      }
+
+      // Fetch only paginated withdrawal list for display (not all rows)
       let wQuery = supabase
         .from('withdrawal_requests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(50);
 
+      const range = getDateRange();
       if (range.from) wQuery = wQuery.gte('created_at', range.from.toISOString());
       if (range.to) wQuery = wQuery.lte('created_at', range.to.toISOString());
 
-      // Fetch deposit requests
-      let dQuery = supabase
-        .from('deposit_requests')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (range.from) dQuery = dQuery.gte('created_at', range.from.toISOString());
-      if (range.to) dQuery = dQuery.lte('created_at', range.to.toISOString());
-
-      const [{ data: wData, error: wErr }, { data: dData, error: dErr }] = await Promise.all([
-        wQuery, dQuery
-      ]);
-
+      const { data: wData, error: wErr } = await wQuery;
       if (wErr) throw wErr;
-      if (dErr) throw dErr;
 
       const withdrawalData = wData || [];
-      const depositData = dData || [];
 
-      // Compute stats
-      const approved = withdrawalData.filter(w => w.status === 'approved');
-      const rejected = withdrawalData.filter(w => w.status === 'rejected');
-      const pending = withdrawalData.filter(w => w.status === 'pending');
-      const approvedDeposits = depositData.filter(d => d.status === 'approved');
+      // Enrich withdrawals with user profiles (bounded set)
+      if (withdrawalData.length > 0) {
+        const userIds = [...new Set(withdrawalData.map(w => w.user_id))];
+        // Batch profile lookups in chunks of 50 to avoid URL length limits
+        const profiles: any[] = [];
+        for (let i = 0; i < userIds.length; i += 50) {
+          const chunk = userIds.slice(i, i + 50);
+          const { data } = await supabase
+            .from('profiles')
+            .select('id, full_name, phone')
+            .in('id', chunk);
+          if (data) profiles.push(...data);
+        }
 
-      const totalCashIn = approvedDeposits.reduce((s, d) => s + d.amount, 0);
-      const totalCashOut = approved.reduce((s, w) => s + w.amount, 0);
+        const profileMap = new Map(profiles.map(p => [p.id, p]));
 
-      setStats({
-        totalCashIn,
-        totalCashOut,
-        netBalance: totalCashIn - totalCashOut,
-        depositCount: depositData.length,
-        withdrawalCount: withdrawalData.length,
-        approvedWithdrawals: approved.length,
-        rejectedWithdrawals: rejected.length,
-        pendingWithdrawals: pending.length,
-        approvedDeposits: approvedDeposits.length,
-        totalApprovedWithdrawalAmount: totalCashOut,
-        totalRejectedWithdrawalAmount: rejected.reduce((s, w) => s + w.amount, 0),
-        totalPendingWithdrawalAmount: pending.reduce((s, w) => s + w.amount, 0),
-        totalApprovedDepositAmount: totalCashIn,
-      });
+        const enriched: WithdrawalDetail[] = withdrawalData.map(w => ({
+          id: w.id,
+          user_id: w.user_id,
+          amount: w.amount,
+          status: w.status,
+          mobile_money_number: w.mobile_money_number,
+          mobile_money_provider: w.mobile_money_provider,
+          mobile_money_name: w.mobile_money_name,
+          created_at: w.created_at,
+          processed_at: w.processed_at,
+          transaction_id: w.transaction_id,
+          rejection_reason: w.rejection_reason,
+          user_name: profileMap.get(w.user_id)?.full_name || 'Unknown',
+          user_phone: profileMap.get(w.user_id)?.phone || '',
+        }));
 
-      // Enrich withdrawals with user profiles
-      const userIds = [...new Set(withdrawalData.map(w => w.user_id))];
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', userIds.length > 0 ? userIds : ['00000000-0000-0000-0000-000000000000']);
-
-      const profileMap = new Map((profiles || []).map(p => [p.id, p]));
-
-      const enriched: WithdrawalDetail[] = withdrawalData.map(w => ({
-        id: w.id,
-        user_id: w.user_id,
-        amount: w.amount,
-        status: w.status,
-        mobile_money_number: w.mobile_money_number,
-        mobile_money_provider: w.mobile_money_provider,
-        mobile_money_name: w.mobile_money_name,
-        created_at: w.created_at,
-        processed_at: w.processed_at,
-        transaction_id: w.transaction_id,
-        rejection_reason: w.rejection_reason,
-        user_name: profileMap.get(w.user_id)?.full_name || 'Unknown',
-        user_phone: profileMap.get(w.user_id)?.phone || '',
-      }));
-
-      setWithdrawals(enriched);
+        setWithdrawals(enriched);
+      } else {
+        setWithdrawals([]);
+      }
     } catch (err) {
       console.error('Ledger fetch error:', err);
       toast.error('Failed to load ledger data');
     } finally {
       setLoading(false);
     }
-  }, [getDateRange]);
+  }, [getDateRange, period]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

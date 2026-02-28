@@ -189,11 +189,12 @@ export function WithdrawalRequestsManager() {
   const handleExportCSV = async () => {
     setExporting(true);
     try {
-      // Fetch all withdrawal requests for export (not just pending)
+      // Fetch withdrawal requests for export — bounded to last 1000 for safety
       const { data: exportData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
 
@@ -472,13 +473,14 @@ export function WithdrawalRequestsManager() {
 
   const fetchRequests = useCallback(async () => {
     try {
-      // Fetch ALL pending withdrawal requests: exclude ≤500 UGX
+      // Fetch pending withdrawal requests with limit (bounded query for scale)
       const { data: requestsData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
         .eq('status', 'pending')
         .gt('amount', 500)
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100);
 
       if (error) throw error;
 
@@ -619,9 +621,7 @@ export function WithdrawalRequestsManager() {
 
   useEffect(() => {
     fetchRequests();
-    // Auto-refresh every 60s so pending requests older than 12h disappear automatically
-    const interval = setInterval(fetchRequests, 60_000);
-    return () => clearInterval(interval);
+    // Manual refresh only — no polling. Managers use the Refresh button.
   }, [fetchRequests]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {

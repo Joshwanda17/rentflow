@@ -57,10 +57,10 @@ export function DepositRequestsManager() {
       let query = supabase
         .from('deposit_requests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Bounded query — prevents loading millions of rows
 
       if (statusFilter === 'agent') {
-        // Show all deposits made by agents (agent_id is not null)
         query = query.not('agent_id', 'is', null);
       } else if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
@@ -105,14 +105,20 @@ export function DepositRequestsManager() {
   useEffect(() => {
     fetchDeposits();
 
+    // Debounced realtime — 5s cooldown to prevent refetch storms at scale
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchDeposits, 5000);
+    };
+
     const channel = supabase
       .channel('manager-deposit-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposit_requests' }, () => {
-        fetchDeposits();
-      })
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposit_requests' }, debouncedFetch)
       .subscribe();
 
     return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
       supabase.removeChannel(channel);
     };
   }, [statusFilter]);
