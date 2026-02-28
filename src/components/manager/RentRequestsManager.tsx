@@ -219,8 +219,6 @@ export function RentRequestsManager() {
     const profiles = profileResults.flatMap(r => r.data || []);
     const landlords = landlordResults.flatMap(r => r.data || []);
 
-    const profiles = profilesRes.data;
-    const landlords = landlordsRes.data;
     const repayments = repaymentsRes.data;
     const walletsByUser = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance]));
 
