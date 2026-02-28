@@ -26,8 +26,10 @@ const clearAppCaches = () => {
 
 // Mount app immediately — cache clearing runs in background
 const loadApp = async () => {
-  // Fire and forget — don't await cache clearing
-  if ('requestIdleCallback' in window) {
+  // In preview, clear immediately for self-healing; elsewhere do it idle
+  if (isPreviewHost) {
+    clearAppCaches();
+  } else if ('requestIdleCallback' in window) {
     (window as any).requestIdleCallback(clearAppCaches);
   } else {
     setTimeout(clearAppCaches, 2000);
