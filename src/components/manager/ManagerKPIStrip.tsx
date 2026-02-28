@@ -8,8 +8,9 @@ interface ManagerKPIStripProps {
   activeUsers: number;
   newSignupsThisWeek: number;
   totalFacilitated: number;
-  pendingActions: number; // total pending items needing attention
+  pendingActions: number;
   rentDueTotal: number;
+  onNavigate?: (hub: string) => void;
 }
 
 export function ManagerKPIStrip({
@@ -19,6 +20,7 @@ export function ManagerKPIStrip({
   totalFacilitated,
   pendingActions,
   rentDueTotal,
+  onNavigate,
 }: ManagerKPIStripProps) {
   const kpis = [
     {
@@ -27,6 +29,7 @@ export function ManagerKPIStrip({
       sub: `+${newSignupsThisWeek} this week`,
       icon: Users,
       color: 'text-primary',
+      hub: 'buffer',
     },
     {
       label: 'Facilitated',
@@ -36,6 +39,7 @@ export function ManagerKPIStrip({
       sub: 'Total deployed',
       icon: TrendingUp,
       color: 'text-emerald-600 dark:text-emerald-400',
+      hub: 'rent-investments',
     },
     {
       label: 'Receivables',
@@ -45,6 +49,7 @@ export function ManagerKPIStrip({
       sub: 'Outstanding',
       icon: Wallet,
       color: 'text-amber-600 dark:text-amber-400',
+      hub: 'rent-investments',
     },
     {
       label: 'Actions',
@@ -52,6 +57,7 @@ export function ManagerKPIStrip({
       sub: 'Need attention',
       icon: AlertTriangle,
       color: pendingActions > 0 ? 'text-destructive' : 'text-muted-foreground',
+      hub: 'wallets',
     },
   ];
 
@@ -65,14 +71,16 @@ export function ManagerKPIStrip({
       {kpis.map((kpi, i) => {
         const Icon = kpi.icon;
         return (
-          <div
+          <button
             key={i}
-            className="flex flex-col items-center text-center px-1 py-2.5 rounded-xl bg-card border border-border/40"
+            onClick={() => onNavigate?.(kpi.hub)}
+            className="flex flex-col items-center text-center px-1 py-2.5 rounded-xl bg-card border border-border/40 transition-all active:scale-[0.96] hover:border-primary/30 hover:shadow-sm cursor-pointer touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <Icon className={cn("h-3.5 w-3.5 mb-1", kpi.color)} />
             <p className={cn("text-base font-bold leading-none", kpi.color)}>{kpi.value}</p>
             <p className="text-[9px] text-muted-foreground mt-1 leading-tight font-medium">{kpi.label}</p>
-          </div>
+          </button>
         );
       })}
     </motion.div>

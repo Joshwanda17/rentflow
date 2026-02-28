@@ -861,6 +861,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           totalFacilitated={totalFacilitated}
           pendingActions={pendingRequests + withdrawalStats.pending}
           rentDueTotal={rentDueTotal}
+          onNavigate={(hub) => { hapticTap(); setActiveHub(hub as any); }}
         />
 
         {/* Opportunity Summary Button */}
