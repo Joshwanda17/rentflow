@@ -149,16 +149,25 @@ export function RentRequestsManager() {
   useEffect(() => {
     fetchRequests();
 
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(() => fetchRequests(), 5000);
+    };
+
     const channel = supabase
       .channel('rent-requests-manager-realtime')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'rent_requests' },
-        () => { fetchRequests(); }
+        () => { debouncedFetch(); }
       )
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const fetchRequests = async () => {
