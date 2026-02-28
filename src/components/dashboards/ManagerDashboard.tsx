@@ -883,7 +883,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
 
         {/* 3 Hub Cards */}
         <ManagerHubCards
-          pendingWalletOps={pendingWalletOps}
+          pendingWalletOps={0}
           pendingWithdrawals={withdrawalStats.pending}
           withdrawalStats={withdrawalStats}
           pendingRequests={pendingRequests}
