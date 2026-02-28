@@ -170,7 +170,7 @@ export default function DepositsManagement() {
         p_max_amount: maxAmount ? Number(maxAmount) : null,
         p_start_date: startDate ? startOfDay(startDate).toISOString() : null,
         p_end_date: endDate ? endOfDay(endDate).toISOString() : null,
-        p_search: searchQuery || null,
+        p_search: debouncedSearch || null,
         p_page: page,
         p_page_size: PAGE_SIZE,
       });
