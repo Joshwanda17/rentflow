@@ -45,6 +45,7 @@ export function ApprovedRequestsFundingWidget() {
       .from('rent_requests')
       .select('id, rent_amount, duration_days, created_at, approved_at, house_category, request_city, tenant_id, agent_id, landlord_id')
       .eq('status', 'approved')
+      .is('funded_at', null)
       .order('approved_at', { ascending: false })
       .limit(30);
 
