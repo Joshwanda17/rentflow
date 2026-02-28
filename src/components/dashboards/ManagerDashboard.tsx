@@ -1107,20 +1107,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : activeHub === 'buffer' ? (
         <>
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { hapticTap(); setActiveHub('home'); }}
-            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Back to Dashboard
-          </motion.button>
-
-          <h2 className="text-xl font-black">🛡️ Buffer Account</h2>
-          <p className="text-xs text-muted-foreground -mt-1">Platform solvency, coverage ratios & safety thresholds</p>
+          <ManagerSectionHeader
+            emoji="🛡️"
+            title="Buffer Account"
+            subtitle="Platform solvency, coverage ratios & safety"
+            onBack={() => setActiveHub('home')}
+            accentClass="text-amber-700 dark:text-amber-400"
+          />
 
           <BufferAccountPanel />
         </>
