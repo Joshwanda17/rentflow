@@ -309,43 +309,39 @@ export default function DepositsManagement() {
     }
   };
 
-  // Bulk approve handler
+  // Bulk approve handler — single batch call instead of sequential
   const handleBulkApprove = async () => {
     const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
     if (selectedDeposits.length === 0) return;
 
     setBulkProcessing(true);
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          bulk_ids: selectedDeposits.map(d => d.id),
+          action: 'approve',
+        },
+      });
 
-    for (const deposit of selectedDeposits) {
-      try {
-        const { error } = await supabase.functions.invoke('approve-deposit', {
-          body: {
-            deposit_request_id: deposit.id,
-            action: 'approve',
-          },
-        });
+      if (error) throw error;
 
-        if (error) throw error;
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to approve ${deposit.id}:`, error);
-        failCount++;
+      const results = data?.results || [];
+      const successCount = results.filter((r: any) => r.status === 'approved').length;
+      const failCount = results.filter((r: any) => r.status === 'error').length;
+
+      if (successCount > 0) {
+        toast.success(`Approved ${successCount} deposit${successCount > 1 ? 's' : ''}`);
       }
+      if (failCount > 0) {
+        toast.error(`Failed to approve ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Bulk approve failed');
+    } finally {
+      setBulkProcessing(false);
+      setSelectedIds(new Set());
+      fetchDeposits();
     }
-
-    setBulkProcessing(false);
-    setSelectedIds(new Set());
-
-    if (successCount > 0) {
-      toast.success(`Approved ${successCount} deposit${successCount > 1 ? 's' : ''}`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to approve ${failCount} deposit${failCount > 1 ? 's' : ''}`);
-    }
-
-    fetchDeposits();
   };
 
   // Bulk reject handler
