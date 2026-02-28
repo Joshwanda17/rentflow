@@ -106,6 +106,8 @@ export default function DepositsManagement() {
     searchParams.get('endDate') ? new Date(searchParams.get('endDate')!) : undefined
   );
   const [searchQuery, setSearchQuery] = useState<string>(searchParams.get('q') || '');
+  const [debouncedSearch, setDebouncedSearch] = useState(searchQuery);
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [showFilters, setShowFilters] = useState(false);
 
   // Pagination
