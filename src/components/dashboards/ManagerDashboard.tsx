@@ -1096,7 +1096,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/manager-access')}
-            className="w-full flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors touch-manipulation"
+            className="w-full flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-muted/60 transition-colors touch-manipulation"
           >
             <span className="flex items-center gap-2">
               <Home className="h-5 w-5" />
