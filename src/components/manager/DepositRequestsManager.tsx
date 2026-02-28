@@ -57,10 +57,10 @@ export function DepositRequestsManager() {
       let query = supabase
         .from('deposit_requests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(100); // Bounded query — prevents loading millions of rows
 
       if (statusFilter === 'agent') {
-        // Show all deposits made by agents (agent_id is not null)
         query = query.not('agent_id', 'is', null);
       } else if (statusFilter !== 'all') {
         query = query.eq('status', statusFilter);
