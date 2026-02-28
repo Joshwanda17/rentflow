@@ -13,7 +13,7 @@ interface MobileBottomNavProps {
 
 export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub }: MobileBottomNavProps) {
   const location = useLocation();
-  
+  const currentPath = location.pathname;
   const handleTap = () => {
     hapticTap();
   };
