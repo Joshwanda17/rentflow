@@ -344,7 +344,7 @@ export default function DepositsManagement() {
     }
   };
 
-  // Bulk reject handler
+  // Bulk reject handler — single batch call
   const handleBulkReject = async () => {
     const selectedDeposits = pendingDeposits.filter(d => selectedIds.has(d.id));
     if (selectedDeposits.length === 0) return;
@@ -352,39 +352,35 @@ export default function DepositsManagement() {
     setBulkProcessing(true);
     setRejectDialog({ open: false, deposit: null, isBulk: false });
 
-    let successCount = 0;
-    let failCount = 0;
+    try {
+      const { data, error } = await supabase.functions.invoke('approve-deposit', {
+        body: {
+          bulk_ids: selectedDeposits.map(d => d.id),
+          action: 'reject',
+          rejection_reason: rejectionReason || 'Bulk rejected by manager',
+        },
+      });
 
-    for (const deposit of selectedDeposits) {
-      try {
-        const { error } = await supabase.functions.invoke('approve-deposit', {
-          body: {
-            deposit_request_id: deposit.id,
-            action: 'reject',
-            rejection_reason: rejectionReason || 'Bulk rejected by manager',
-          },
-        });
+      if (error) throw error;
 
-        if (error) throw error;
-        successCount++;
-      } catch (error) {
-        console.error(`Failed to reject ${deposit.id}:`, error);
-        failCount++;
+      const results = data?.results || [];
+      const successCount = results.filter((r: any) => r.status === 'rejected').length;
+      const failCount = results.filter((r: any) => r.status === 'error').length;
+
+      if (successCount > 0) {
+        toast.success(`Rejected ${successCount} deposit${successCount > 1 ? 's' : ''}`);
       }
+      if (failCount > 0) {
+        toast.error(`Failed to reject ${failCount} deposit${failCount > 1 ? 's' : ''}`);
+      }
+    } catch (error: any) {
+      toast.error(error.message || 'Bulk reject failed');
+    } finally {
+      setBulkProcessing(false);
+      setSelectedIds(new Set());
+      setRejectionReason('');
+      fetchDeposits();
     }
-
-    setBulkProcessing(false);
-    setSelectedIds(new Set());
-    setRejectionReason('');
-
-    if (successCount > 0) {
-      toast.success(`Rejected ${successCount} deposit${successCount > 1 ? 's' : ''}`);
-    }
-    if (failCount > 0) {
-      toast.error(`Failed to reject ${failCount} deposit${failCount > 1 ? 's' : ''}`);
-    }
-
-    fetchDeposits();
   };
 
   const handleExport = () => {
