@@ -109,7 +109,14 @@ addEventListener('unhandledrejection', e => {
 if ('serviceWorker' in navigator) {
   if (isPreviewHost) {
     navigator.serviceWorker.getRegistrations()
-      .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+      .then(async (regs) => {
+        await Promise.all(regs.map((r) => r.unregister()));
+        const resetKey = 'preview_sw_reset_done';
+        if (navigator.serviceWorker.controller && !sessionStorage.getItem(resetKey)) {
+          sessionStorage.setItem(resetKey, '1');
+          location.reload();
+        }
+      })
       .catch(() => {});
   } else {
     const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
