@@ -847,38 +847,43 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         menuItems={menuItems}
       />
 
-      <main className="px-3 py-3 space-y-3 animate-fade-in">
+      <main className="px-3 py-3 space-y-3 animate-fade-in max-w-2xl mx-auto">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
           <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />
         ) : activeHub === 'home' ? (
         <>
-        {/* 🔥 Prominent Opportunity Summary Button */}
+        {/* KPI Summary Strip */}
+        <ManagerKPIStrip
+          totalUsers={totalUsers}
+          activeUsers={activeUsers}
+          newSignupsThisWeek={newSignupsThisWeek}
+          totalFacilitated={totalFacilitated}
+          pendingActions={pendingRequests + pendingWalletOps + withdrawalStats.pending}
+          rentDueTotal={rentDueTotal}
+        />
+
+        {/* Opportunity Summary Button */}
         <motion.button
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowOpportunitySummary(true)}
-          className="w-full rounded-2xl bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground p-4 shadow-xl shadow-primary/25 touch-manipulation text-left relative overflow-hidden"
+          className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 shadow-sm touch-manipulation text-left flex items-center justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-white/20">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-base">Post Opportunity Summary</p>
-                <p className="text-xs opacity-80">Update rent totals for supporters</p>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <TrendingUp className="h-4 w-4 opacity-80" />
+            <div>
+              <p className="font-semibold text-sm">Post Opportunity Summary</p>
+              <p className="text-[10px] opacity-70">Update rent totals for supporters</p>
             </div>
-            <ArrowRight className="h-5 w-5 opacity-70" />
           </div>
+          <ArrowRight className="h-4 w-4 opacity-50" />
         </motion.button>
 
-        {/* ===== 3 MAJOR HUB CARDS ===== */}
+        {/* 3 Hub Cards */}
         <ManagerHubCards
-          pendingWalletOps={0}
+          pendingWalletOps={pendingWalletOps}
           pendingWithdrawals={withdrawalStats.pending}
           withdrawalStats={withdrawalStats}
           pendingRequests={pendingRequests}
