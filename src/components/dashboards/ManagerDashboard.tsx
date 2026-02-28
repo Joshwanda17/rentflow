@@ -67,6 +67,8 @@ import { DepositRentAuditWidget } from '@/components/manager/DepositRentAuditWid
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
+import { ManagerKPIStrip } from '@/components/manager/ManagerKPIStrip';
+import { ManagerSectionHeader } from '@/components/manager/ManagerSectionHeader';
 import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
 import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
