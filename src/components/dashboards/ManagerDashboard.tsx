@@ -1050,20 +1050,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : activeHub === 'rent-investments' ? (
         <>
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { hapticTap(); setActiveHub('home'); }}
-            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Back to Dashboard
-          </motion.button>
-
-          <h2 className="text-xl font-black">🏠 Rent Management</h2>
-          <p className="text-xs text-muted-foreground -mt-1">Requests, receivables, fund routing & landlord tracking</p>
+          <ManagerSectionHeader
+            emoji="🏠"
+            title="Rent Management"
+            subtitle="Requests, receivables, fund routing & tracking"
+            onBack={() => setActiveHub('home')}
+            accentClass="text-emerald-700 dark:text-emerald-400"
+          />
 
           {/* Supporter Pool — funds available from supporters */}
           <SupporterPoolBalanceCard />
