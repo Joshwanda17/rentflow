@@ -78,7 +78,7 @@ export function ManagerLedgerSummary() {
       if (rpcErr) throw rpcErr;
 
       if (rpcStats) {
-        setStats(rpcStats as LedgerStats);
+        setStats(rpcStats as unknown as LedgerStats);
       }
 
       // Fetch only paginated withdrawal list for display (not all rows)
