@@ -98,12 +98,22 @@ addEventListener('unhandledrejection', e => {
   }
 });
 
-// Register service worker — fast (1s fallback) for offline support
+// Service worker strategy:
+// - Preview: disable + unregister to avoid white screens from stale SW cache
+// - Live: register for offline support
+const isPreviewHost = /(^|\.)id-preview--/.test(window.location.hostname);
+
 if ('serviceWorker' in navigator) {
-  const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
-  if ('requestIdleCallback' in window) {
-    (window as any).requestIdleCallback(register);
+  if (isPreviewHost) {
+    navigator.serviceWorker.getRegistrations()
+      .then((regs) => Promise.all(regs.map((r) => r.unregister())))
+      .catch(() => {});
   } else {
-    setTimeout(register, 1000);
+    const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
+    if ('requestIdleCallback' in window) {
+      (window as any).requestIdleCallback(register);
+    } else {
+      setTimeout(register, 1000);
+    }
   }
 }
