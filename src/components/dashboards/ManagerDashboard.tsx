@@ -67,6 +67,8 @@ import { DepositRentAuditWidget } from '@/components/manager/DepositRentAuditWid
 import { BufferAccountPanel } from '@/components/manager/BufferAccountPanel';
 import { PendingWalletOperationsWidget } from '@/components/manager/PendingWalletOperationsWidget';
 import { ManagerHubCards } from '@/components/manager/ManagerHubCards';
+import { ManagerKPIStrip } from '@/components/manager/ManagerKPIStrip';
+import { ManagerSectionHeader } from '@/components/manager/ManagerSectionHeader';
 import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMonitorWidget';
 import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
@@ -845,36 +847,41 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         menuItems={menuItems}
       />
 
-      <main className="px-3 py-3 space-y-3 animate-fade-in">
+      <main className="px-3 py-3 space-y-3 animate-fade-in max-w-2xl mx-auto">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
           <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />
         ) : activeHub === 'home' ? (
         <>
-        {/* 🔥 Prominent Opportunity Summary Button */}
+        {/* KPI Summary Strip */}
+        <ManagerKPIStrip
+          totalUsers={totalUsers}
+          activeUsers={activeUsers}
+          newSignupsThisWeek={newSignupsThisWeek}
+          totalFacilitated={totalFacilitated}
+          pendingActions={pendingRequests + withdrawalStats.pending}
+          rentDueTotal={rentDueTotal}
+        />
+
+        {/* Opportunity Summary Button */}
         <motion.button
-          initial={{ opacity: 0, y: -10 }}
+          initial={{ opacity: 0, y: -6 }}
           animate={{ opacity: 1, y: 0 }}
-          whileTap={{ scale: 0.97 }}
+          whileTap={{ scale: 0.98 }}
           onClick={() => setShowOpportunitySummary(true)}
-          className="w-full rounded-2xl bg-gradient-to-r from-primary via-primary/90 to-primary/80 text-primary-foreground p-4 shadow-xl shadow-primary/25 touch-manipulation text-left relative overflow-hidden"
+          className="w-full rounded-xl bg-primary text-primary-foreground px-4 py-3 shadow-sm touch-manipulation text-left flex items-center justify-between"
         >
-          <div className="absolute top-0 right-0 w-32 h-32 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/2" />
-          <div className="relative z-10 flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2.5 rounded-xl bg-white/20">
-                <TrendingUp className="h-5 w-5" />
-              </div>
-              <div>
-                <p className="font-bold text-base">Post Opportunity Summary</p>
-                <p className="text-xs opacity-80">Update rent totals for supporters</p>
-              </div>
+          <div className="flex items-center gap-2.5">
+            <TrendingUp className="h-4 w-4 opacity-80" />
+            <div>
+              <p className="font-semibold text-sm">Post Opportunity Summary</p>
+              <p className="text-[10px] opacity-70">Update rent totals for supporters</p>
             </div>
-            <ArrowRight className="h-5 w-5 opacity-70" />
           </div>
+          <ArrowRight className="h-4 w-4 opacity-50" />
         </motion.button>
 
-        {/* ===== 3 MAJOR HUB CARDS ===== */}
+        {/* 3 Hub Cards */}
         <ManagerHubCards
           pendingWalletOps={0}
           pendingWithdrawals={withdrawalStats.pending}
@@ -935,20 +942,12 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : activeHub === 'wallets' ? (
         <>
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { hapticTap(); setActiveHub('home'); }}
-            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Back to Dashboard
-          </motion.button>
-
-          <h2 className="text-xl font-black">💰 Manage User Wallets</h2>
-          <p className="text-xs text-muted-foreground -mt-1">Cash in/out approvals, balances & withdrawals</p>
+          <ManagerSectionHeader
+            emoji="💰"
+            title="Manage Wallets"
+            subtitle="Deposits, withdrawals & balance approvals"
+            onBack={() => setActiveHub('home')}
+          />
 
           {/* Pending Wallet Approvals */}
           <PendingWalletOperationsWidget />
@@ -1051,20 +1050,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : activeHub === 'rent-investments' ? (
         <>
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { hapticTap(); setActiveHub('home'); }}
-            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Back to Dashboard
-          </motion.button>
-
-          <h2 className="text-xl font-black">🏠 Rent Management</h2>
-          <p className="text-xs text-muted-foreground -mt-1">Requests, receivables, fund routing & landlord tracking</p>
+          <ManagerSectionHeader
+            emoji="🏠"
+            title="Rent Management"
+            subtitle="Requests, receivables, fund routing & tracking"
+            onBack={() => setActiveHub('home')}
+            accentClass="text-emerald-700 dark:text-emerald-400"
+          />
 
           {/* Supporter Pool — funds available from supporters */}
           <SupporterPoolBalanceCard />
@@ -1104,7 +1096,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           <motion.button
             whileTap={{ scale: 0.97 }}
             onClick={() => navigate('/manager-access')}
-            className="w-full flex items-center justify-between rounded-xl border border-emerald-500/30 bg-emerald-500/5 px-4 py-4 text-sm font-semibold text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10 transition-colors touch-manipulation"
+            className="w-full flex items-center justify-between rounded-xl border border-border/60 bg-muted/30 px-4 py-3.5 text-sm font-semibold text-foreground hover:bg-muted/60 transition-colors touch-manipulation"
           >
             <span className="flex items-center gap-2">
               <Home className="h-5 w-5" />
@@ -1115,20 +1107,13 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : activeHub === 'buffer' ? (
         <>
-          {/* Back button */}
-          <motion.button
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => { hapticTap(); setActiveHub('home'); }}
-            className="flex items-center gap-2 text-sm font-semibold text-primary touch-manipulation mb-1"
-          >
-            <ArrowRight className="h-4 w-4 rotate-180" />
-            Back to Dashboard
-          </motion.button>
-
-          <h2 className="text-xl font-black">🛡️ Buffer Account</h2>
-          <p className="text-xs text-muted-foreground -mt-1">Platform solvency, coverage ratios & safety thresholds</p>
+          <ManagerSectionHeader
+            emoji="🛡️"
+            title="Buffer Account"
+            subtitle="Platform solvency, coverage ratios & safety"
+            onBack={() => setActiveHub('home')}
+            accentClass="text-amber-700 dark:text-amber-400"
+          />
 
           <BufferAccountPanel />
         </>
