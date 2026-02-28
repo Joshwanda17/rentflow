@@ -1,6 +1,8 @@
 import { createRoot } from 'react-dom/client';
 
 const root = document.getElementById('root')!;
+const host = window.location.hostname;
+const isPreviewHost = host.includes('id-preview--') || host.endsWith('.lovableproject.com');
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
@@ -13,7 +15,7 @@ const clearAppCaches = () => {
   try {
     if ('caches' in window) {
       caches.keys().then(keys =>
-        Promise.all(keys.filter(k => k.startsWith('welile-')).map(k => caches.delete(k)))
+        Promise.all((isPreviewHost ? keys : keys.filter(k => k.startsWith('welile-'))).map(k => caches.delete(k)))
       ).catch(() => {});
     }
     if ('serviceWorker' in navigator && navigator.serviceWorker.controller) {
