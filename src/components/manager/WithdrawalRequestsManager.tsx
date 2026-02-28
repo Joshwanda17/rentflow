@@ -620,9 +620,7 @@ export function WithdrawalRequestsManager() {
 
   useEffect(() => {
     fetchRequests();
-    // Auto-refresh every 60s so pending requests older than 12h disappear automatically
-    const interval = setInterval(fetchRequests, 60_000);
-    return () => clearInterval(interval);
+    // Manual refresh only — no polling. Managers use the Refresh button.
   }, [fetchRequests]);
 
   const handleApproveClick = async (request: WithdrawalRequest) => {
