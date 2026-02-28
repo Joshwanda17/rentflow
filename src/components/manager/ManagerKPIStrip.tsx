@@ -71,14 +71,16 @@ export function ManagerKPIStrip({
       {kpis.map((kpi, i) => {
         const Icon = kpi.icon;
         return (
-          <div
+          <button
             key={i}
-            className="flex flex-col items-center text-center px-1 py-2.5 rounded-xl bg-card border border-border/40"
+            onClick={() => onNavigate?.(kpi.hub)}
+            className="flex flex-col items-center text-center px-1 py-2.5 rounded-xl bg-card border border-border/40 transition-all active:scale-[0.96] hover:border-primary/30 hover:shadow-sm cursor-pointer touch-manipulation"
+            style={{ WebkitTapHighlightColor: 'transparent' }}
           >
             <Icon className={cn("h-3.5 w-3.5 mb-1", kpi.color)} />
             <p className={cn("text-base font-bold leading-none", kpi.color)}>{kpi.value}</p>
             <p className="text-[9px] text-muted-foreground mt-1 leading-tight font-medium">{kpi.label}</p>
-          </div>
+          </button>
         );
       })}
     </motion.div>
