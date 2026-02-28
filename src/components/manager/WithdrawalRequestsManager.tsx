@@ -189,11 +189,12 @@ export function WithdrawalRequestsManager() {
   const handleExportCSV = async () => {
     setExporting(true);
     try {
-      // Fetch all withdrawal requests for export (not just pending)
+      // Fetch withdrawal requests for export — bounded to last 1000 for safety
       const { data: exportData, error } = await supabase
         .from('withdrawal_requests')
         .select('*')
-        .order('created_at', { ascending: false });
+        .order('created_at', { ascending: false })
+        .limit(1000);
 
       if (error) throw error;
 

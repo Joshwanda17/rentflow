@@ -128,12 +128,22 @@ export function ManagerDepositsWidget() {
   useEffect(() => {
     fetchDeposits();
 
+    // Debounced realtime — batch rapid DB changes into a single refetch
+    let debounceTimer: ReturnType<typeof setTimeout> | null = null;
+    const debouncedFetch = () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(fetchDeposits, 5000); // 5s debounce
+    };
+
     const channel = supabase
       .channel('manager-deposits-widget')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposit_requests' }, fetchDeposits)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'deposit_requests' }, debouncedFetch)
       .subscribe();
 
-    return () => { supabase.removeChannel(channel); };
+    return () => {
+      if (debounceTimer) clearTimeout(debounceTimer);
+      supabase.removeChannel(channel);
+    };
   }, []);
 
   const handleApprove = async (deposit: DepositEntry) => {
