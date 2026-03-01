@@ -25,7 +25,6 @@ Deno.serve(async (req) => {
       Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
     );
 
-    // Verify user from token
     const token = authHeader.replace("Bearer ", "");
     const {
       data: { user },
@@ -51,10 +50,29 @@ Deno.serve(async (req) => {
       .filter((r) => r.enabled)
       .map((r) => r.role);
 
-    // Batch all queries in parallel
+    // ── Batch ALL queries in parallel ──────────────────────────────
     const queries: Record<string, Promise<any>> = {};
 
-    // Referrals — every user can have these
+    // ── Universal data (every user) ───────────────────────────────
+    queries.profile = supabase
+      .from("profiles")
+      .select("id, full_name, phone, email, city, country, avatar_url, mobile_money_number, mobile_money_provider, monthly_rent, verified, national_id, rent_discount_active, is_frozen, country_code, agent_type")
+      .eq("id", userId)
+      .single();
+
+    queries.wallet = supabase
+      .from("wallets")
+      .select("id, user_id, balance, currency, updated_at")
+      .eq("user_id", userId)
+      .single();
+
+    queries.notifications = supabase
+      .from("notifications")
+      .select("id, title, message, type, is_read, created_at, metadata")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
     queries.referrals = supabase
       .from("referrals")
       .select("id, referred_id, bonus_amount, credited, credited_at, created_at, first_transaction_bonus_amount, first_transaction_bonus_credited")
@@ -67,15 +85,13 @@ Deno.serve(async (req) => {
       .select("*", { count: "exact", head: true })
       .eq("referrer_id", userId);
 
-    // Agent-specific data
+    // ── Agent-specific data ───────────────────────────────────────
     if (activeRoles.includes("agent")) {
-      // Sub-agents
       queries.subAgents = supabase
         .from("agent_subagents")
         .select("id, sub_agent_id, created_at, source")
         .eq("parent_agent_id", userId);
 
-      // Pending sub-agent invites
       queries.pendingSubAgentInvites = supabase
         .from("supporter_invites")
         .select("id, full_name, phone, status, created_at")
@@ -83,28 +99,32 @@ Deno.serve(async (req) => {
         .eq("role", "agent")
         .eq("status", "pending");
 
-      // User invites (tenants + landlords registered by agent)
       queries.userInvites = supabase
         .from("supporter_invites")
         .select("id, full_name, phone, role, status, created_at")
         .eq("created_by", userId)
         .in("role", ["tenant", "landlord"]);
 
-      // Link signups (referrals via agent link)
       queries.linkSignups = supabase
         .from("profiles")
         .select("id, full_name, phone, created_at")
         .eq("referrer_id", userId)
         .limit(50);
 
-      // Agent earnings summary
       queries.earningsSummary = supabase
         .from("agent_earnings")
         .select("earning_type, amount")
         .eq("agent_id", userId);
+
+      queries.agentEarnings = supabase
+        .from("agent_earnings")
+        .select("id, amount, earning_type, description, created_at, rent_request_id, source_user_id")
+        .eq("agent_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
     }
 
-    // Tenant-specific data
+    // ── Tenant-specific data ──────────────────────────────────────
     if (activeRoles.includes("tenant")) {
       queries.landlords = supabase
         .from("landlords")
@@ -114,14 +134,21 @@ Deno.serve(async (req) => {
       queries.rentRequests = supabase
         .from("rent_requests")
         .select(
-          "id, rent_amount, total_repayment, daily_repayment, duration_days, status, schedule_status, created_at, number_of_payments"
+          "id, rent_amount, total_repayment, daily_repayment, duration_days, status, schedule_status, created_at, number_of_payments, amount_repaid, access_fee, request_fee"
         )
         .eq("tenant_id", userId)
         .order("created_at", { ascending: false })
         .limit(10);
+
+      queries.repayments = supabase
+        .from("repayments")
+        .select("id, amount, rent_request_id, created_at")
+        .eq("tenant_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(50);
     }
 
-    // Supporter-specific data
+    // ── Supporter-specific data ───────────────────────────────────
     if (activeRoles.includes("supporter")) {
       queries.supporterReferrals = supabase
         .from("supporter_referrals")
@@ -129,9 +156,23 @@ Deno.serve(async (req) => {
         .eq("referrer_id", userId)
         .order("created_at", { ascending: false })
         .limit(50);
+
+      queries.investmentAccount = supabase
+        .from("investment_accounts")
+        .select("id, user_id, total_invested, total_returns, active_investments, updated_at")
+        .eq("user_id", userId)
+        .single();
     }
 
-    // Execute all queries in parallel
+    // ── Recent wallet transactions (all roles) ────────────────────
+    queries.recentTransactions = supabase
+      .from("platform_transactions")
+      .select("id, user_id, type, amount, description, status, created_at")
+      .eq("user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(30);
+
+    // ── Execute all queries in parallel ───────────────────────────
     const results: Record<string, any> = {};
     const entries = Object.entries(queries);
     const settled = await Promise.allSettled(entries.map(([, q]) => q));
@@ -177,11 +218,18 @@ Deno.serve(async (req) => {
       }));
     }
 
-    // Build snapshot
+    // Build expanded snapshot
     const snapshot = {
       userId,
       roles: activeRoles,
       fetchedAt: new Date().toISOString(),
+      version: 2, // Schema version for client-side compatibility
+
+      // Universal
+      profile: results.profile || null,
+      wallet: results.wallet || null,
+      notifications: results.notifications || [],
+      recentTransactions: results.recentTransactions || [],
 
       // Referrals
       referrals: enrichedReferrals,
@@ -193,13 +241,16 @@ Deno.serve(async (req) => {
       userInvites: results.userInvites || [],
       linkSignups: results.linkSignups || [],
       earningsSummary: results.earningsSummary || [],
+      agentEarnings: results.agentEarnings || [],
 
       // Tenant data
       landlords: results.landlords || [],
       rentRequests: results.rentRequests || [],
+      repayments: results.repayments || [],
 
       // Supporter data
       supporterReferrals: results.supporterReferrals || [],
+      investmentAccount: results.investmentAccount || null,
     };
 
     return new Response(JSON.stringify(snapshot), {
