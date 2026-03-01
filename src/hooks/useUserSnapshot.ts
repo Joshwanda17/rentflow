@@ -1,25 +1,52 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
+import {
+  cacheProfile,
+  cacheWallet,
+  cacheNotifications,
+  cacheTransactions,
+  cacheRentRequests,
+  cacheEarnings,
+  cacheUserRoles,
+} from '@/lib/offlineDataStorage';
 
 const SNAPSHOT_DB = 'welile-snapshot';
 const SNAPSHOT_STORE = 'snapshot';
-const SNAPSHOT_DB_VERSION = 1;
+const SNAPSHOT_DB_VERSION = 2; // Bumped for expanded schema
 const CACHE_TTL_MS = 2 * 60 * 1000; // 2 minutes
 
 export interface UserSnapshot {
   userId: string;
   roles: string[];
   fetchedAt: string;
+  version?: number;
+
+  // Universal
+  profile: any | null;
+  wallet: any | null;
+  notifications: any[];
+  recentTransactions: any[];
+
+  // Referrals
   referrals: any[];
   referralCount: number;
+
+  // Agent
   subAgents: any[];
   pendingSubAgentInvites: any[];
   userInvites: any[];
   linkSignups: any[];
   earningsSummary: any[];
+  agentEarnings: any[];
+
+  // Tenant
   landlords: any[];
   rentRequests: any[];
+  repayments: any[];
+
+  // Supporter
   supporterReferrals: any[];
+  investmentAccount: any | null;
 }
 
 let dbInstance: IDBDatabase | null = null;
@@ -60,10 +87,52 @@ async function setCachedSnapshot(userId: string, data: UserSnapshot): Promise<vo
   } catch (e) { console.warn('[Snapshot] cache write failed', e); }
 }
 
+/**
+ * Fan-out snapshot data into the offline data stores so that
+ * individual pages (wallet, profile, notifications, etc.) can
+ * read from IndexedDB without a separate network call.
+ */
+async function hydrateOfflineStores(snapshot: UserSnapshot): Promise<void> {
+  try {
+    const ops: Promise<void>[] = [];
+
+    if (snapshot.profile) {
+      ops.push(cacheProfile(snapshot.profile));
+    }
+    if (snapshot.wallet) {
+      ops.push(cacheWallet(snapshot.wallet));
+    }
+    if (snapshot.notifications?.length) {
+      ops.push(cacheNotifications(snapshot.notifications));
+    }
+    if (snapshot.recentTransactions?.length) {
+      ops.push(cacheTransactions(snapshot.recentTransactions));
+    }
+    if (snapshot.rentRequests?.length) {
+      ops.push(cacheRentRequests(snapshot.rentRequests));
+    }
+    if (snapshot.agentEarnings?.length) {
+      ops.push(cacheEarnings(snapshot.userId, snapshot.agentEarnings));
+    }
+    if (snapshot.roles?.length) {
+      ops.push(cacheUserRoles(snapshot.userId, snapshot.roles));
+    }
+
+    await Promise.allSettled(ops);
+    console.log('[Snapshot] Hydrated offline stores from snapshot');
+  } catch (e) {
+    console.warn('[Snapshot] Offline hydration failed (non-critical):', e);
+  }
+}
+
 const emptySnapshot: UserSnapshot = {
   userId: '',
   roles: [],
   fetchedAt: '',
+  profile: null,
+  wallet: null,
+  notifications: [],
+  recentTransactions: [],
   referrals: [],
   referralCount: 0,
   subAgents: [],
@@ -71,9 +140,12 @@ const emptySnapshot: UserSnapshot = {
   userInvites: [],
   linkSignups: [],
   earningsSummary: [],
+  agentEarnings: [],
   landlords: [],
   rentRequests: [],
+  repayments: [],
   supporterReferrals: [],
+  investmentAccount: null,
 };
 
 export function useUserSnapshot(userId: string | undefined) {
@@ -116,7 +188,6 @@ export function useUserSnapshot(userId: string | undefined) {
 
       if (res.error) {
         console.error('[Snapshot] fetch error:', res.error);
-        // Fall back to stale cache
         const cached = await getCachedSnapshot(userId);
         if (cached) { setSnapshot(cached.data); setLastFetched(cached.cachedAt); }
         setLoading(false);
@@ -126,7 +197,12 @@ export function useUserSnapshot(userId: string | undefined) {
       const data = res.data as UserSnapshot;
       setSnapshot(data);
       setLastFetched(Date.now());
-      await setCachedSnapshot(userId, data);
+
+      // Cache snapshot + fan-out to offline stores in parallel
+      await Promise.allSettled([
+        setCachedSnapshot(userId, data),
+        hydrateOfflineStores(data),
+      ]);
     } catch (err) {
       console.error('[Snapshot] unexpected error:', err);
       const cached = await getCachedSnapshot(userId);

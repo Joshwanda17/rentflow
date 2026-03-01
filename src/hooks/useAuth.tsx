@@ -8,6 +8,7 @@ import {
   getPreloadedSession,
   getPreloadedRoles,
 } from '@/lib/sessionCache';
+import { schedulePredictivePrefetch, clearPrefetchFlag } from '@/lib/predictivePrefetch';
 
 // Re-export types so existing imports keep working
 export type { AppRole } from './auth/types';
@@ -55,6 +56,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           }
 
         if (event === 'SIGNED_IN') {
+            // Trigger predictive prefetch — hydrate all offline stores
+            schedulePredictivePrefetch(session.user.id);
+
             // Defer non-critical profile update — don't block login
             setTimeout(() => {
               supabase
@@ -69,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(null);
           setRoles([]);
           clearSessionCache();
+          clearPrefetchFlag();
         }
       },
     );
