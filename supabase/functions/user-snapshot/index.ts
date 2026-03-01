@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
     queries.wallet = supabase
       .from("wallets")
-      .select("id, user_id, balance, currency, updated_at")
+      .select("id, user_id, balance, updated_at")
       .eq("user_id", userId)
       .single();
 
