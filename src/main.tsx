@@ -24,6 +24,37 @@ const clearAppCaches = () => {
   } catch {}
 };
 
+// Preview-only watchdog: if app mounts into an invisible/empty state, show recovery UI
+const hasVisibleAppContent = () => {
+  try {
+    const elements = Array.from(root.querySelectorAll('*')) as HTMLElement[];
+    return elements.some((el) => {
+      const rect = el.getBoundingClientRect();
+      if (rect.width < 2 || rect.height < 2) return false;
+      const style = window.getComputedStyle(el);
+      return style.display !== 'none' && style.visibility !== 'hidden' && style.opacity !== '0';
+    });
+  } catch {
+    return false;
+  }
+};
+
+const schedulePreviewBlankPageGuard = () => {
+  if (!isPreviewHost) return;
+
+  const check = () => {
+    requestAnimationFrame(() => {
+      if (!hasVisibleAppContent()) {
+        console.error('[Main] Preview blank-page guard triggered');
+        showErrorUI();
+      }
+    });
+  };
+
+  setTimeout(check, 7000);
+  setTimeout(check, 14000);
+};
+
 // Mount app immediately — cache clearing runs in background
 const loadApp = async () => {
   // In preview, clear immediately for self-healing; elsewhere do it idle
