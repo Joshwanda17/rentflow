@@ -8,6 +8,7 @@ import {
   getPreloadedSession,
   getPreloadedRoles,
 } from '@/lib/sessionCache';
+import { schedulePredictivePrefetch, clearPrefetchFlag } from '@/lib/predictivePrefetch';
 
 // Re-export types so existing imports keep working
 export type { AppRole } from './auth/types';
