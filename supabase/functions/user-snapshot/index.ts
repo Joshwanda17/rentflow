@@ -157,11 +157,7 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      queries.investmentAccount = supabase
-        .from("investment_accounts")
-        .select("id, user_id, total_invested, total_returns, active_investments, updated_at")
-        .eq("user_id", userId)
-        .single();
+      // investment_accounts table removed — skip
     }
 
     // ── Recent wallet transactions (all roles) ────────────────────
