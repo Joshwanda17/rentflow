@@ -62,7 +62,7 @@ Deno.serve(async (req) => {
 
     queries.wallet = supabase
       .from("wallets")
-      .select("id, user_id, balance, currency, updated_at")
+      .select("id, user_id, balance, updated_at")
       .eq("user_id", userId)
       .single();
 
@@ -157,17 +157,13 @@ Deno.serve(async (req) => {
         .order("created_at", { ascending: false })
         .limit(50);
 
-      queries.investmentAccount = supabase
-        .from("investment_accounts")
-        .select("id, user_id, total_invested, total_returns, active_investments, updated_at")
-        .eq("user_id", userId)
-        .single();
+      // investment_accounts table removed — skip
     }
 
-    // ── Recent wallet transactions (all roles) ────────────────────
+    // ── Recent wallet transactions (general_ledger) ─────────────
     queries.recentTransactions = supabase
-      .from("platform_transactions")
-      .select("id, user_id, type, amount, description, status, created_at")
+      .from("general_ledger")
+      .select("id, user_id, category, amount, description, direction, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(30);
@@ -250,7 +246,7 @@ Deno.serve(async (req) => {
 
       // Supporter data
       supporterReferrals: results.supporterReferrals || [],
-      investmentAccount: results.investmentAccount || null,
+      investmentAccount: null, // table removed
     };
 
     return new Response(JSON.stringify(snapshot), {
