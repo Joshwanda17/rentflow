@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setRole(null);
           setRoles([]);
           clearSessionCache();
+          clearPrefetchFlag();
         }
       },
     );
