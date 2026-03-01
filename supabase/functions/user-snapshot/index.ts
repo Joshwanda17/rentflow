@@ -160,10 +160,10 @@ Deno.serve(async (req) => {
       // investment_accounts table removed — skip
     }
 
-    // ── Recent wallet transactions (all roles) ────────────────────
+    // ── Recent wallet transactions (general_ledger) ─────────────
     queries.recentTransactions = supabase
-      .from("platform_transactions")
-      .select("id, user_id, type, amount, description, status, created_at")
+      .from("general_ledger")
+      .select("id, user_id, category, amount, description, direction, created_at")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(30);
