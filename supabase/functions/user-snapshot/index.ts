@@ -58,13 +58,13 @@ Deno.serve(async (req) => {
       .from("profiles")
       .select("id, full_name, phone, email, city, country, avatar_url, mobile_money_number, mobile_money_provider, monthly_rent, verified, national_id, rent_discount_active, is_frozen, country_code, agent_type")
       .eq("id", userId)
-      .single();
+      .maybeSingle();
 
     queries.wallet = supabase
       .from("wallets")
       .select("id, user_id, balance, updated_at")
       .eq("user_id", userId)
-      .single();
+      .maybeSingle();
 
     queries.notifications = supabase
       .from("notifications")

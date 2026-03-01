@@ -45,7 +45,7 @@ export function useProfile() {
           .from('profiles')
           .select('id, full_name, email, phone, avatar_url, verified')
           .eq('id', user.id)
-          .single();
+          .maybeSingle();
 
         if (!error && data) {
           setProfile(data);
@@ -76,7 +76,7 @@ export function useProfile() {
       .from('profiles')
       .select('id, full_name, email, phone, avatar_url, verified')
       .eq('id', user.id)
-      .single();
+      .maybeSingle();
 
     if (!error && data) {
       setProfile(data);
