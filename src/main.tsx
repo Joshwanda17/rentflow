@@ -78,6 +78,7 @@ const loadApp = async () => {
     const [, { default: App }] = await Promise.race([importApp, importTimeout]) as [any, { default: any }];
 
     createRoot(root).render(<App />);
+    schedulePreviewBlankPageGuard();
   } catch (err) {
     console.error('[Main] App load failed:', err);
     showErrorUI();
