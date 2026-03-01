@@ -246,7 +246,7 @@ Deno.serve(async (req) => {
 
       // Supporter data
       supporterReferrals: results.supporterReferrals || [],
-      investmentAccount: results.investmentAccount || null,
+      investmentAccount: null, // table removed
     };
 
     return new Response(JSON.stringify(snapshot), {

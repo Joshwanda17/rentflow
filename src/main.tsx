@@ -108,15 +108,9 @@ addEventListener('unhandledrejection', e => {
 
 if ('serviceWorker' in navigator) {
   if (isPreviewHost) {
+    // Silently unregister SWs but NEVER force-reload — prevents blank page loops
     navigator.serviceWorker.getRegistrations()
-      .then(async (regs) => {
-        await Promise.all(regs.map((r) => r.unregister()));
-        const resetKey = 'preview_sw_reset_done';
-        if (navigator.serviceWorker.controller && !sessionStorage.getItem(resetKey)) {
-          sessionStorage.setItem(resetKey, '1');
-          location.reload();
-        }
-      })
+      .then(regs => Promise.all(regs.map(r => r.unregister())))
       .catch(() => {});
   } else {
     const register = () => navigator.serviceWorker.register('/sw.js').catch(() => {});
