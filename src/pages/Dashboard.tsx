@@ -77,7 +77,7 @@ function DashboardContent() {
         .from('profiles')
         .select('is_frozen, frozen_reason')
         .eq('id', user.id)
-        .single();
+        .maybeSingle();
       if (data?.is_frozen) {
         setIsFrozen(true);
         setFrozenReason(data.frozen_reason || 'Your account has been frozen for violating platform policies.');
