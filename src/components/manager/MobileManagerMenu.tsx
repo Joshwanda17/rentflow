@@ -125,11 +125,15 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
 
   return (
     <>
-      {/* Floating Menu Button - Extra large for easy tapping */}
+      {/* Floating Menu Button - Draggable */}
       <motion.button
+        drag
+        dragMomentum={false}
+        dragElastic={0.1}
+        whileDrag={{ scale: 1.1 }}
         onClick={isOpen ? handleClose : handleOpen}
         className={cn(
-          "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background",
+          "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background cursor-grab active:cursor-grabbing",
           isOpen 
             ? "bg-destructive text-destructive-foreground" 
             : "bg-primary text-primary-foreground"
