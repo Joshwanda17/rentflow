@@ -22,6 +22,8 @@ import { hapticTap, hapticSuccess } from '@/lib/haptics';
 
 interface MobileManagerMenuProps {
   onScrollToProductivity?: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 const menuItems = [
@@ -97,56 +99,62 @@ const menuItems = [
   },
 ];
 
-export default function MobileManagerMenu({ onScrollToProductivity }: MobileManagerMenuProps) {
-  const [isOpen, setIsOpen] = useState(false);
+export default function MobileManagerMenu({ onScrollToProductivity, isOpen: externalOpen, onClose }: MobileManagerMenuProps) {
+  const [internalOpen, setInternalOpen] = useState(false);
   const navigate = useNavigate();
+
+  const isControlled = externalOpen !== undefined;
+  const isOpen = isControlled ? externalOpen : internalOpen;
 
   const handleOpen = () => {
     hapticTap();
-    setIsOpen(true);
+    if (isControlled) { /* controlled externally */ } else setInternalOpen(true);
   };
 
   const handleClose = () => {
     hapticTap();
-    setIsOpen(false);
+    if (isControlled && onClose) onClose();
+    else setInternalOpen(false);
   };
 
   const handleItemClick = (path: string) => {
     hapticSuccess();
-    setIsOpen(false);
+    handleClose();
     navigate(path);
   };
 
   const handleProductivity = () => {
     hapticSuccess();
-    setIsOpen(false);
+    handleClose();
     onScrollToProductivity?.();
   };
 
   return (
     <>
-      {/* Floating Menu Button - Draggable */}
-      <motion.button
-        drag
-        dragMomentum={false}
-        dragElastic={0.1}
-        whileDrag={{ scale: 1.1 }}
-        onClick={isOpen ? handleClose : handleOpen}
-        className={cn(
-          "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background cursor-grab active:cursor-grabbing",
-          isOpen 
-            ? "bg-destructive text-destructive-foreground" 
-            : "bg-primary text-primary-foreground"
-        )}
-        whileTap={{ scale: 0.9 }}
-        animate={{ rotate: isOpen ? 90 : 0 }}
-      >
-        {isOpen ? (
-          <X className="h-7 w-7" />
-        ) : (
-          <Menu className="h-7 w-7" />
-        )}
-      </motion.button>
+      {/* Floating Menu Button - only shown when not controlled externally */}
+      {!isControlled && (
+        <motion.button
+          drag
+          dragMomentum={false}
+          dragElastic={0.1}
+          whileDrag={{ scale: 1.1 }}
+          onClick={isOpen ? handleClose : handleOpen}
+          className={cn(
+            "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background cursor-grab active:cursor-grabbing",
+            isOpen 
+              ? "bg-destructive text-destructive-foreground" 
+              : "bg-primary text-primary-foreground"
+          )}
+          whileTap={{ scale: 0.9 }}
+          animate={{ rotate: isOpen ? 90 : 0 }}
+        >
+          {isOpen ? (
+            <X className="h-7 w-7" />
+          ) : (
+            <Menu className="h-7 w-7" />
+          )}
+        </motion.button>
+      )}
 
       {/* Backdrop */}
       <AnimatePresence>

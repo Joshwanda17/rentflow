@@ -1,10 +1,11 @@
 import { useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { Home, MessageCircle, Settings, Store, Users, FileText, Wallet, Shield } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, MessageCircle, Settings, Store, Users, FileText, Wallet, Shield, Menu } from 'lucide-react';
 import { AppRole } from '@/hooks/useAuth';
 import { cn } from '@/lib/utils';
 import { hapticTap } from '@/lib/haptics';
 import WelileAIChatDrawer from '@/components/ai-chat/WelileAIChatDrawer';
+import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
 
 const GeminiSparkle = ({ size = 20 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 28 28" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -19,13 +20,15 @@ interface MobileBottomNavProps {
   currentRole: AppRole;
   onManagerHubChange?: (hub: 'home' | 'wallets' | 'rent-investments' | 'buffer') => void;
   activeManagerHub?: string;
+  onScrollToProductivity?: () => void;
 }
 
-export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub }: MobileBottomNavProps) {
+export default function MobileBottomNav({ currentRole, onManagerHubChange, activeManagerHub, onScrollToProductivity }: MobileBottomNavProps) {
   const location = useLocation();
   const currentPath = location.pathname;
   const currentSearch = location.search;
   const [aiOpen, setAiOpen] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
   
   const handleTap = () => { hapticTap(); };
 
@@ -66,13 +69,18 @@ export default function MobileBottomNav({ currentRole, onManagerHubChange, activ
               <div className="relative p-1 rounded-xl bg-primary/15"><GeminiSparkle size={20} /></div>
               <span className="text-[9px] font-bold tracking-wide text-primary">AI</span>
             </button>
-            <Link to="/settings" onClick={handleTap} className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95 touch-manipulation">
-              <div className="relative p-1 rounded-xl"><Settings className="h-5 w-5" strokeWidth={2} /></div>
+            <button onClick={() => { handleTap(); setMenuOpen(true); }} className="flex flex-col items-center justify-center gap-0.5 py-2 px-3 rounded-2xl transition-all min-w-[56px] min-h-[48px] text-muted-foreground active:text-foreground active:bg-accent/50 active:scale-95 touch-manipulation">
+              <div className="relative p-1.5 rounded-xl">
+                <div className="h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center shadow-md">
+                  <Menu className="h-4 w-4" />
+                </div>
+              </div>
               <span className="text-[9px] font-bold tracking-wide text-muted-foreground">Menu</span>
-            </Link>
+            </button>
           </div>
         </nav>
         <WelileAIChatDrawer open={aiOpen} onOpenChange={setAiOpen} />
+        {menuOpen && <MobileManagerMenu onScrollToProductivity={onScrollToProductivity} isOpen={menuOpen} onClose={() => setMenuOpen(false)} />}
       </>
     );
   }
