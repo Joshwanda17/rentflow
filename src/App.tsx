@@ -83,6 +83,7 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
+const COODashboard = lazy(() => import('./pages/COODashboard'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
@@ -224,6 +225,7 @@ function AppRoutes() {
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
+          <Route path="/coo-dashboard" element={<COODashboard />} />
           <Route path="/share" element={<Index />} />
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
