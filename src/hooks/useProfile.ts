@@ -10,17 +10,30 @@ interface Profile {
   phone: string;
   avatar_url: string | null;
   verified: boolean;
+  is_frozen?: boolean;
+  frozen_reason?: string | null;
 }
+// Module-level cache to deduplicate across component instances
+let profileCache: { data: Profile; userId: string; timestamp: number } | null = null;
+const PROFILE_CACHE_TTL = 60_000; // 1 minute
 
 export function useProfile() {
   const { user } = useAuth();
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [loading, setLoading] = useState(true);
+  const cached = user && profileCache && profileCache.userId === user.id && (Date.now() - profileCache.timestamp < PROFILE_CACHE_TTL)
+    ? profileCache.data : null;
+  const [profile, setProfile] = useState<Profile | null>(cached);
+  const [loading, setLoading] = useState(!cached);
   const [isOfflineData, setIsOfflineData] = useState(false);
 
   const fetchProfile = useCallback(async () => {
     if (!user) {
       setProfile(null);
+      setLoading(false);
+      return;
+    }
+    // Check module-level cache first
+    if (profileCache && profileCache.userId === user.id && (Date.now() - profileCache.timestamp < PROFILE_CACHE_TTL)) {
+      setProfile(profileCache.data);
       setLoading(false);
       return;
     }
@@ -43,14 +56,14 @@ export function useProfile() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, verified')
+          .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason')
           .eq('id', user.id)
           .maybeSingle();
 
         if (!error && data) {
           setProfile(data);
           setIsOfflineData(false);
-          // Cache for offline use
+          profileCache = { data, userId: user.id, timestamp: Date.now() };
           await cacheProfile(data);
         }
       } catch (e) {
@@ -74,13 +87,14 @@ export function useProfile() {
 
     const { data, error } = await supabase
       .from('profiles')
-      .select('id, full_name, email, phone, avatar_url, verified')
+      .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason')
       .eq('id', user.id)
       .maybeSingle();
 
     if (!error && data) {
       setProfile(data);
       setIsOfflineData(false);
+      profileCache = { data, userId: user.id, timestamp: Date.now() };
       await cacheProfile(data);
     }
   }, [user]);

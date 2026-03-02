@@ -42,25 +42,42 @@ export function formatCreditAmount(amountUGX: number, currency: string = 'UGX'):
 
 export const SUPPORTED_DISPLAY_CURRENCIES = Object.keys(EXCHANGE_RATES);
 
+// Module-level cache to prevent duplicate RPC calls across component instances
+const limitCache = new Map<string, { data: CreditAccessLimit; timestamp: number }>();
+const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
+
 export function useCreditAccessLimit(userId: string | undefined) {
-  const [limit, setLimit] = useState<CreditAccessLimit>({
-    totalLimit: MIN_LIMIT,
-    baseLimit: MIN_LIMIT,
-    bonusFromRatings: 0,
-    bonusFromReceipts: 0,
-    bonusFromRentHistory: 0,
-    bonusFromLandlordRent: 0,
-  });
-  const [loading, setLoading] = useState(true);
+  const cached = userId ? limitCache.get(userId) : undefined;
+  const [limit, setLimit] = useState<CreditAccessLimit>(
+    cached && (Date.now() - cached.timestamp < CACHE_TTL)
+      ? cached.data
+      : {
+          totalLimit: MIN_LIMIT,
+          baseLimit: MIN_LIMIT,
+          bonusFromRatings: 0,
+          bonusFromReceipts: 0,
+          bonusFromRentHistory: 0,
+          bonusFromLandlordRent: 0,
+        }
+  );
+  const [loading, setLoading] = useState(!cached || (Date.now() - (cached?.timestamp ?? 0)) >= CACHE_TTL);
 
   const fetchLimit = useCallback(async () => {
     if (!userId) return;
+
+    // Check module-level cache first
+    const existing = limitCache.get(userId);
+    if (existing && (Date.now() - existing.timestamp < CACHE_TTL)) {
+      setLimit(existing.data);
+      setLoading(false);
+      return;
+    }
+
     setLoading(true);
     try {
-      // Try to recalculate (will upsert)
+      // Recalculate and fetch in one go
       await supabase.rpc('recalculate_credit_limit', { p_user_id: userId });
       
-      // Fetch the full record
       const { data } = await supabase
         .from('credit_access_limits')
         .select('*')
@@ -68,14 +85,16 @@ export function useCreditAccessLimit(userId: string | undefined) {
         .maybeSingle();
 
       if (data) {
-        setLimit({
+        const parsed: CreditAccessLimit = {
           totalLimit: Number(data.total_limit) || MIN_LIMIT,
           baseLimit: Number(data.base_limit) || MIN_LIMIT,
           bonusFromRatings: Number(data.bonus_from_ratings) || 0,
           bonusFromReceipts: Number(data.bonus_from_receipts) || 0,
           bonusFromRentHistory: Number(data.bonus_from_rent_history) || 0,
           bonusFromLandlordRent: Number(data.bonus_from_landlord_rent) || 0,
-        });
+        };
+        setLimit(parsed);
+        limitCache.set(userId, { data: parsed, timestamp: Date.now() });
       }
     } catch (err) {
       console.error('[useCreditAccessLimit] Error:', err);
