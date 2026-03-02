@@ -73,18 +73,18 @@ export function RecentBalanceChanges() {
       >
         <div className={`rounded-xl border px-3 py-2 ${
           hasDeductions 
-            ? 'bg-destructive/5 border-destructive/20' 
-            : 'bg-success/5 border-success/20'
+            ? 'bg-primary-foreground/10 border-primary-foreground/20' 
+            : 'bg-primary-foreground/10 border-primary-foreground/20'
         }`}>
           <div className="flex items-center justify-between mb-1.5">
-            <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground">
+            <p className="text-[10px] font-bold uppercase tracking-widest text-primary-foreground/70">
               Last 24h Activity
             </p>
             <button 
               onClick={() => setDismissed(true)}
-              className="p-0.5 rounded-full hover:bg-muted/50 transition-colors"
+              className="p-0.5 rounded-full hover:bg-primary-foreground/20 transition-colors"
             >
-              <X className="h-3 w-3 text-muted-foreground" />
+              <X className="h-3 w-3 text-primary-foreground/60" />
             </button>
           </div>
           <div className="space-y-1">
@@ -93,19 +93,19 @@ export function RecentBalanceChanges() {
               return (
                 <div key={entry.id} className="flex items-center justify-between gap-2">
                   <div className="flex items-center gap-1.5 min-w-0">
-                    <div className={`p-1 rounded-full shrink-0 ${isOut ? 'bg-destructive/15' : 'bg-success/15'}`}>
+                    <div className={`p-1 rounded-full shrink-0 ${isOut ? 'bg-red-400/20' : 'bg-green-400/20'}`}>
                       {isOut ? (
-                        <ArrowDownRight className="h-2.5 w-2.5 text-destructive" />
+                        <ArrowDownRight className="h-2.5 w-2.5 text-red-300" />
                       ) : (
-                        <ArrowUpRight className="h-2.5 w-2.5 text-success" />
+                        <ArrowUpRight className="h-2.5 w-2.5 text-green-300" />
                       )}
                     </div>
-                    <span className="text-[11px] text-muted-foreground truncate">
+                    <span className="text-[11px] text-primary-foreground/80 truncate">
                       {categoryLabel(entry.category)}
                     </span>
                   </div>
                   <span className={`text-[11px] font-bold tabular-nums shrink-0 ${
-                    isOut ? 'text-destructive' : 'text-success'
+                    isOut ? 'text-red-300' : 'text-green-300'
                   }`}>
                     {isOut ? '-' : '+'}{formatUGX(entry.amount)}
                   </span>
