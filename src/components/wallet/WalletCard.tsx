@@ -19,6 +19,7 @@ import { WalletBreakdown } from './WalletBreakdown';
 import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
 import { RecentBalanceChanges } from './RecentBalanceChanges';
+import { RecentAutoCharges } from './RecentAutoCharges';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -156,8 +157,7 @@ export function WalletCard() {
             </div>
           </div>
 
-          {/* Recent balance changes indicator */}
-          <RecentBalanceChanges />
+          {/* Recent balance changes moved to CardContent for visibility */}
 
 
           {/* Quick Stats Row */}
@@ -233,6 +233,9 @@ export function WalletCard() {
               <span className="text-[10px] font-semibold tracking-wide">Withdraw</span>
             </Button>
           </div>
+
+          {/* Recent Auto-Deductions */}
+          <RecentAutoCharges />
 
           {/* My Referrals Count */}
           <MyReferralsCount />
