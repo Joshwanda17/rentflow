@@ -85,15 +85,10 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
               <div className="flex items-center justify-center gap-2">
                 <h1 className="font-bold text-xl flex items-center gap-1.5">
                   {profile?.full_name || 'Property Owner'}
-                  {profile?.verified ? (
+                  {profile?.verified && (
                     <span className="flex items-center gap-0.5">
                       <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
                       <span className="text-[10px] text-purple-500 font-medium">Verified</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-0.5">
-                      <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
-                      <span className="text-[10px] text-muted-foreground font-medium">Unverified</span>
                     </span>
                   )}
                 </h1>

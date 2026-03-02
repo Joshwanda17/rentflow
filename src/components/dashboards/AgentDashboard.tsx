@@ -157,15 +157,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <div>
             <h1 className="font-bold text-2xl flex items-center justify-center gap-1.5">
               {profile?.full_name || 'Agent'}
-              {profile?.verified ? (
+              {profile?.verified && (
                 <span className="flex items-center gap-0.5">
                   <BadgeCheck className="h-5 w-5 text-purple-500 fill-purple-500/20" />
                   <span className="text-[10px] text-purple-500 font-medium">Verified</span>
-                </span>
-              ) : (
-                <span className="flex items-center gap-0.5">
-                  <BadgeCheck className="h-5 w-5 text-muted-foreground/40" />
-                  <span className="text-[10px] text-muted-foreground font-medium">Unverified</span>
                 </span>
               )}
             </h1>
