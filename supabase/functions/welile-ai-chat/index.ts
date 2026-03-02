@@ -112,6 +112,52 @@ Q: "Electric Bike?" → 50 repaying tenants actively making daily payments.
 Q: "Agent AND supporter?" → Yes! Double income — commissions + 15% platform rewards.
 Q: "How do I get paid?" → Commissions tracked in real-time. Request payout from dashboard → Mobile Money (MTN/Airtel) within 24-48hrs.
 
+========================================
+AGENT RESPONSIBILITIES & POLICIES FAQ (30 COMMON QUESTIONS)
+========================================
+
+**RESPONSIBILITIES & ROLE:**
+Q: "What is my responsibility to the tenant after onboarding?" → You're their field contact. Guide them on repayments, answer basic questions, and escalate issues to management. Keep them informed and supported.
+Q: "Am I the tenant's main contact person?" → Yes, you're their primary field contact. For technical or account issues, direct them to WhatsApp support: 0708257899.
+Q: "How often should I check in with tenants?" → At least weekly. A quick WhatsApp message to remind them about repayments and check if they need help. More often for new tenants.
+Q: "Should I provide monthly updates or daily updates?" → Weekly check-ins are ideal. Monthly summaries if needed. Daily only if there's an active issue.
+
+**COMMISSIONS & MONEY:**
+Q: "Can I withdraw my commission immediately after onboarding?" → Registration bonus (UGX 500) is credited immediately. You can withdraw once it's in your wallet. Commissions from repayments come daily as tenants pay.
+Q: "Am I allowed to collect money directly from tenants?" → NO! Never collect cash from tenants. All payments go through the Welile app/wallet. This protects both you and the tenant.
+Q: "Should payments go directly to the company account?" → Yes. All tenant payments go through Welile wallets. Never handle cash on behalf of tenants.
+Q: "What happens if a tenant gives me cash personally?" → Politely refuse. Guide them to pay through the app. If they insist, explain it's for their protection — app payments have receipts and records.
+Q: "Am I financially liable if money goes missing?" → If you collected cash outside the system (which is forbidden), yes. If all transactions are through the app, you are not liable.
+Q: "What proof of payment must I ensure the tenant receives?" → The app auto-generates payment records. Tenants can view their repayment schedule and history in their dashboard.
+
+**COMMUNICATION & INFO SHARING:**
+Q: "What information am I allowed to share with tenants?" → Share how Welile works, repayment schedules, how to use the app, and general support. Don't share internal company data, other tenants' info, or system details.
+Q: "Can I disclose my commission structure to tenants?" → No. Your commission is between you and Welile. Keep it professional — focus on helping the tenant, not your earnings.
+Q: "Am I allowed to disclose the interest/return rate to the tenant?" → No. Welile charges access fees and platform fees — these are shown to the tenant in the app. Don't discuss internal financial structures.
+Q: "What should I do if a tenant asks questions I cannot answer?" → Say "Let me find out for you" and escalate to management or direct them to WhatsApp support: 0708257899. Never guess or make up answers.
+Q: "How do I handle tenants who compare Welile to competitors?" → Focus on Welile's strengths: no collateral needed, daily flexible repayments, agent support, fast processing. Don't badmouth competitors.
+Q: "What is the official communication channel?" → WhatsApp for field communication. The app for payments and tracking. Office visits for escalated issues only.
+Q: "Can I create my own marketing materials without approval?" → No. All marketing materials must be approved by Welile management to ensure accurate messaging and legal compliance.
+Q: "Am I allowed to manage a tenant group chat?" → Not recommended. Keep tenant communications individual for privacy. If needed, get management approval first.
+
+**ESCALATION & ISSUES:**
+Q: "What issues must I escalate to management?" → Payment disputes, tenant defaults, landlord complaints, verification discrepancies, any cash handling situations, and technical issues you can't resolve.
+Q: "Can a tenant bypass me and go directly to the office?" → Yes, tenants can contact support directly via WhatsApp: 0708257899. You remain their field contact but they have the right to reach out directly.
+Q: "How do I deal with a tenant who has failed to meet their obligations?" → First, check in with them to understand the situation. Remind them of their schedule. If they continue defaulting, escalate to management immediately.
+Q: "Am I allowed to share a tenant's location or personal details with Welile management?" → Yes, but ONLY with Welile management for verification purposes. Never share tenant data with other tenants, agents, or third parties.
+
+**TENANT & LANDLORD POLICIES:**
+Q: "Am I allowed to allocate rent for one tenant covering more than three rooms?" → Each rent request covers one rental unit. For multiple rooms, separate requests are needed. Check with management for special cases.
+Q: "Am I allowed to approve a tenant who is not a daily earner but can manage payments?" → Yes, if they can demonstrate ability to repay. The verification process assesses their capacity. Flag any concerns during verification.
+Q: "Am I allowed to request a receipt from the landlord?" → Yes! Always verify landlord details. The verification guide in your dashboard has a full checklist for landlord verification.
+Q: "Does Welile have a landlord verification policy?" → Yes. Agents verify landlord identity, property ownership, bank/MM details, and rent amount. Follow the Verification Guide in your dashboard.
+Q: "Is there a property due diligence checklist?" → Yes! Use the Verification Guide in your Agent menu. It covers meter numbers, MM names, LC1 details, GPS capture, and property inspection.
+Q: "Is landlord onboarding allowed? What if the landlord is not interested?" → Landlord onboarding is encouraged but not required for the tenant's request. The landlord must be verified for payment routing regardless.
+Q: "Is there a compliance sign-off before agreement execution?" → Yes. Agent verifies → Manager reviews → All parties confirmed before any funds are released. Multi-stage verification is mandatory.
+
+**MEETINGS & SUPPORT:**
+Q: "How often do we have agent meetings for clarity and updates?" → Regular updates are shared via WhatsApp. Team meetings are organized by your Team Leader or management. Stay connected for announcements.
+
 AGENT DASHBOARD TOOLS:
 - My Tenants (repayment schedules, PDFs, WhatsApp sharing)
 - Verify Requests, Submit Rent Requests ("No Smartphone" mode)
