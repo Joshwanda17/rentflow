@@ -27,7 +27,7 @@ const OfflineProvider = lazy(() => import("@/contexts/OfflineContext").then(m =>
 const Toaster = lazy(() => import("@/components/ui/toaster").then(m => ({ default: m.Toaster })));
 const Sonner = lazy(() => import("@/components/ui/sonner").then(m => ({ default: m.Toaster })));
 const DeferredExtras = lazy(() => import("@/components/DeferredExtras"));
-const WelileAIChatButton = lazy(() => import("@/components/ai-chat/WelileAIChatButton"));
+const FloatingToolbar = lazy(() => import("@/components/FloatingToolbar"));
 
 // Index is the entry router — must be eager for instant redirect
 import Index from "./pages/Index";
@@ -295,7 +295,7 @@ const App = () => (
                     </DeferredProviders>
                     <Suspense fallback={null}>
                       <DeferredExtras />
-                      <WelileAIChatButton />
+                      <FloatingToolbar />
                       <Toaster />
                       <Sonner />
                     </Suspense>

@@ -21,7 +21,7 @@ import { UserAvatar } from '@/components/UserAvatar';
 import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkeletons';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
-import { FloatingShareButton } from '@/components/FloatingShareButton';
+// FloatingShareButton moved to global FloatingToolbar
 import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
@@ -526,7 +526,7 @@ export default function SupporterDashboard({
       />
 
       <FloatingWalletButton />
-      <FloatingShareButton />
+      
       <MobileBottomNav currentRole={currentRole} />
     </div>
   );
