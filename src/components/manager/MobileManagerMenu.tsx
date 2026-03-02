@@ -129,7 +129,7 @@ export default function MobileManagerMenu({ onScrollToProductivity }: MobileMana
       <motion.button
         onClick={isOpen ? handleClose : handleOpen}
         className={cn(
-          "fixed bottom-24 right-4 z-[60] p-5 rounded-full shadow-2xl transition-colors touch-manipulation",
+          "fixed bottom-28 right-4 z-[60] p-5 rounded-full shadow-[0_4px_20px_rgba(0,0,0,0.3)] transition-colors touch-manipulation ring-2 ring-background",
           isOpen 
             ? "bg-destructive text-destructive-foreground" 
             : "bg-primary text-primary-foreground"
