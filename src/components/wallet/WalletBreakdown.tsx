@@ -204,7 +204,7 @@ export function WalletBreakdown() {
         <Button 
           variant="ghost" 
           size="sm" 
-          className="gap-1.5 text-xs font-semibold text-primary"
+          className="gap-1.5 text-xs font-semibold text-primary-foreground"
         >
           See Breakdown
           <ChevronRight className="h-3.5 w-3.5" />
