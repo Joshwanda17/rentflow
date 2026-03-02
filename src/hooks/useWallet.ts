@@ -28,16 +28,31 @@ interface Wallet {
   created_at: string;
   updated_at: string;
 }
+// Module-level wallet cache to prevent duplicate fetches across component instances
+let walletCache: { data: Wallet | null; userId: string; timestamp: number } | null = null;
+const WALLET_CACHE_TTL = 30_000; // 30 seconds
 
 export function useWallet() {
   const { user } = useAuth();
-  const [wallet, setWallet] = useState<Wallet | null>(null);
+  const [wallet, setWallet] = useState<Wallet | null>(
+    walletCache && walletCache.userId === user?.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)
+      ? walletCache.data
+      : null
+  );
   const [transactions, setTransactions] = useState<WalletTransaction[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!walletCache || walletCache.userId !== user?.id);
   const [isOfflineData, setIsOfflineData] = useState(false);
 
-  const fetchWallet = useCallback(async () => {
+  const fetchWallet = useCallback(async (force = false) => {
     if (!user) return;
+
+    // Check module-level cache first (prevents duplicate fetches from multiple hook instances)
+    if (!force && walletCache && walletCache.userId === user.id && (Date.now() - walletCache.timestamp < WALLET_CACHE_TTL)) {
+      setWallet(walletCache.data);
+      setLoading(false);
+      setIsOfflineData(false);
+      return;
+    }
 
     // Try cached data first
     try {
@@ -77,10 +92,12 @@ export function useWallet() {
         }
         setWallet(newWallet);
         setIsOfflineData(false);
+        walletCache = { data: newWallet, userId: user.id, timestamp: Date.now() };
         await cacheWallet(newWallet);
       } else {
         setWallet(data);
         setIsOfflineData(false);
+        walletCache = { data, userId: user.id, timestamp: Date.now() };
         await cacheWallet(data);
       }
     } catch (e) {
@@ -168,9 +185,11 @@ export function useWallet() {
           { event: 'UPDATE', schema: 'public', table: 'wallets', filter: `user_id=eq.${user.id}` },
           (payload) => {
             if (payload.new) {
-              setWallet(payload.new as Wallet);
+              const updated = payload.new as Wallet;
+              setWallet(updated);
               setIsOfflineData(false);
-              cacheWallet(payload.new as Wallet);
+              walletCache = { data: updated, userId: user.id, timestamp: Date.now() };
+              cacheWallet(updated);
             }
           }
         )
@@ -189,7 +208,7 @@ export function useWallet() {
     isOfflineData,
     sendMoney,
     depositMoney,
-    refreshWallet: fetchWallet,
+    refreshWallet: () => fetchWallet(true),
     refreshTransactions: fetchTransactions,
   };
 }

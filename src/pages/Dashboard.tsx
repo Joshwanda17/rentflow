@@ -1,6 +1,7 @@
 import { useEffect, useState, Suspense, lazy, memo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useAuth, AppRole } from '@/hooks/useAuth';
+import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
 // FloatingChatButton removed — chat accessible only via nav
 
@@ -9,7 +10,6 @@ import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
 import { getCachedUserRoles, cacheUserRoles } from '@/lib/offlineDataStorage';
 import { getPreloadedRoles } from '@/lib/sessionCache';
-import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useConfetti } from '@/components/Confetti';
 import { Button } from '@/components/ui/button';
@@ -56,6 +56,7 @@ const OfflineFallback = ({ cachedRole, onRetry }: { cachedRole?: AppRole | null;
 
 function DashboardContent() {
   const { user, role, roles, loading, signOut, switchRole, addRole } = useAuth();
+  const { profile } = useProfile();
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   
@@ -64,27 +65,12 @@ function DashboardContent() {
   const [cachedRoles, setCachedRoles] = useState<AppRole[]>(preloadedRoles || []);
   const [showCachedUI, setShowCachedUI] = useState(!!preloadedRoles?.length);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
-  const [isFrozen, setIsFrozen] = useState(false);
-  const [frozenReason, setFrozenReason] = useState('');
   const { toast } = useToast();
   const { fireSuccess } = useConfetti();
 
-  // Check if account is frozen
-  useEffect(() => {
-    if (!user) return;
-    const checkFrozen = async () => {
-      const { data } = await supabase
-        .from('profiles')
-        .select('is_frozen, frozen_reason')
-        .eq('id', user.id)
-        .maybeSingle();
-      if (data?.is_frozen) {
-        setIsFrozen(true);
-        setFrozenReason(data.frozen_reason || 'Your account has been frozen for violating platform policies.');
-      }
-    };
-    checkFrozen();
-  }, [user]);
+  // Derive frozen state from profile (no separate DB call)
+  const isFrozen = profile?.is_frozen ?? false;
+  const frozenReason = profile?.frozen_reason || 'Your account has been frozen for violating platform policies.';
   
 
   // Monitor online status
