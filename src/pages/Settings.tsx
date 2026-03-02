@@ -413,6 +413,27 @@ export default function Settings() {
           <WalletCard />
         </motion.div>
 
+        {/* COO Dashboard Quick Link */}
+        {(roles.includes('manager') || roles.includes('agent')) && (
+          <motion.div variants={itemVariants} className="mb-6">
+            <Card 
+              className="glass-card border-border/50 shadow-elevated overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
+              onClick={() => navigate('/coo-dashboard')}
+            >
+              <CardContent className="flex items-center gap-4 p-4">
+                <div className="p-3 rounded-xl bg-primary/10">
+                  <Shield className="h-6 w-6 text-primary" />
+                </div>
+                <div className="flex-1">
+                  <p className="font-bold text-base">COO Dashboard</p>
+                  <p className="text-xs text-muted-foreground">Operations health overview</p>
+                </div>
+                <ArrowLeft className="h-4 w-4 text-muted-foreground rotate-180" />
+              </CardContent>
+            </Card>
+          </motion.div>
+        )}
+
         {/* Roles Card */}
         <motion.div variants={itemVariants}>
           <Card className="mb-6 glass-card border-border/50 shadow-elevated overflow-hidden">
