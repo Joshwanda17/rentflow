@@ -343,7 +343,7 @@ export default function COODashboard() {
   }
 
   return (
-    <div className="min-h-screen bg-background pb-24">
+    <div className="min-h-screen bg-background pb-24 lg:pb-8 lg:max-w-6xl lg:mx-auto">
       {/* Header */}
       <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-lg border-b border-border">
         <div className="flex items-center gap-3 p-4">
@@ -377,7 +377,7 @@ export default function COODashboard() {
       </div>
 
       {/* Metric Tiles Grid */}
-      <div className="px-4 pt-4 grid grid-cols-2 gap-3">
+      <div className="px-4 pt-4 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3 lg:gap-4">
         {metrics.map(tile => (
           <TileCard key={tile.id} tile={tile} />
         ))}
