@@ -73,6 +73,8 @@ import { SubscriptionMonitorWidget } from '@/components/manager/SubscriptionMoni
 import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
 import { AgentCollectionsWidget } from '@/components/manager/AgentCollectionsWidget';
+import { DesktopManagerSidebar } from '@/components/manager/DesktopManagerSidebar';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ManagerDashboardProps {
   user: User;
@@ -88,6 +90,7 @@ const MANAGER_ACCESS_CODE = 'Manager@welile';
 export default function ManagerDashboard({ user, signOut, currentRole, availableRoles, onRoleChange, addRoleComponent }: ManagerDashboardProps) {
   const navigate = useNavigate();
   const { profile } = useProfile();
+  const isMobile = useIsMobile();
   const { isOnline } = useOffline();
   const { onlineUsers, isOnline: isUserOnline } = usePresence();
   const { duplicateUserIds, duplicateCount, duplicateGroups } = useDuplicatePhoneUsers();
@@ -838,7 +841,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
   ];
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-0">
+    <div className="min-h-screen bg-background pb-20 lg:pb-0">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={availableRoles}
@@ -847,7 +850,15 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         menuItems={menuItems}
       />
 
-      <main className="px-3 py-3 space-y-3 animate-fade-in max-w-2xl mx-auto">
+      <div className="flex">
+        {/* Desktop Sidebar */}
+        <DesktopManagerSidebar
+          activeHub={activeHub}
+          onHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
+          onScrollToProductivity={scrollToProductivity}
+        />
+
+        <main className="flex-1 px-3 py-3 space-y-3 animate-fade-in max-w-4xl mx-auto lg:px-6 lg:py-6 lg:space-y-4">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
           <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />
@@ -1120,52 +1131,57 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         </>
         ) : null}
       </main>
+      </div>
 
-      {/* Floating Deposits Widget */}
-      <FloatingDepositsWidget />
+      {/* Floating Deposits Widget - mobile only */}
+      {isMobile && <FloatingDepositsWidget />}
       
+      {/* Mobile Bottom Nav - hidden on desktop */}
+      {isMobile && (
+        <MobileBottomNav 
+          currentRole={currentRole} 
+          onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
+          activeManagerHub={activeHub}
+        />
+      )}
       
-      <MobileBottomNav 
-        currentRole={currentRole} 
-        onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
-        activeManagerHub={activeHub}
-      />
-      
-      {/* Floating Action Button */}
-      <FloatingActionButton 
-        actions={[
-          {
-            icon: ChartBar,
-            label: 'Financial Dashboard',
-            onClick: () => navigate('/manager-access?tab=financials'),
-          },
-          {
-            icon: FileText,
-            label: 'Rent Requests',
-            onClick: () => navigate('/manager-access?tab=rent-requests'),
-          },
-          {
-            icon: Banknote,
-            label: 'Loan Applications',
-            onClick: () => navigate('/manager-access?tab=loans'),
-          },
-          {
-            icon: ShoppingCart,
-            label: 'Orders',
-            onClick: () => navigate('/manager-access?tab=orders'),
-          },
-          {
-            icon: Users,
-            label: 'Users',
-            onClick: () => navigate('/manager-access?tab=users'),
-          },
-          {
-            icon: Receipt,
-            label: 'Receipts',
-            onClick: () => navigate('/manager-access?tab=receipts'),
-          },
-        ]}
-      />
+      {/* Floating Action Button - mobile only */}
+      {isMobile && (
+        <FloatingActionButton 
+          actions={[
+            {
+              icon: ChartBar,
+              label: 'Financial Dashboard',
+              onClick: () => navigate('/manager-access?tab=financials'),
+            },
+            {
+              icon: FileText,
+              label: 'Rent Requests',
+              onClick: () => navigate('/manager-access?tab=rent-requests'),
+            },
+            {
+              icon: Banknote,
+              label: 'Loan Applications',
+              onClick: () => navigate('/manager-access?tab=loans'),
+            },
+            {
+              icon: ShoppingCart,
+              label: 'Orders',
+              onClick: () => navigate('/manager-access?tab=orders'),
+            },
+            {
+              icon: Users,
+              label: 'Users',
+              onClick: () => navigate('/manager-access?tab=users'),
+            },
+            {
+              icon: Receipt,
+              label: 'Receipts',
+              onClick: () => navigate('/manager-access?tab=receipts'),
+            },
+          ]}
+        />
+      )}
       
       <CreateUserInviteDialog 
         open={createUserInviteOpen} 
@@ -1189,8 +1205,8 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         }}
       />
 
-      {/* Mobile Quick Actions Menu - Always visible for easy navigation */}
-      <MobileManagerMenu onScrollToProductivity={scrollToProductivity} />
+      {/* Mobile Quick Actions Menu - hidden on desktop */}
+      {isMobile && <MobileManagerMenu onScrollToProductivity={scrollToProductivity} />}
     </div>
   );
 }
