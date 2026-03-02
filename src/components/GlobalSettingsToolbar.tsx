@@ -27,7 +27,7 @@ export const GlobalSettingsToolbar = () => {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 20 }}
-            className="fixed bottom-48 right-3 z-50 md:bottom-6 md:right-4 flex flex-col gap-2 items-end"
+            className="fixed bottom-48 right-3 z-50 md:bottom-6 md:right-4 hidden md:flex flex-col gap-2 items-end"
           >
             {/* High Contrast Quick Toggle */}
             <HighContrastToggle 
