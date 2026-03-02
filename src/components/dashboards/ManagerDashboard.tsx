@@ -51,7 +51,7 @@ import { ApprovedRequestsFundingWidget } from '@/components/manager/ApprovedRequ
 import { SupporterROITrigger } from '@/components/manager/SupporterROITrigger';
 import UserDetailsDialog from '@/components/manager/UserDetailsDialog';
 import BulkRemoveRoleDialog from '@/components/manager/BulkRemoveRoleDialog';
-import MobileManagerMenu from '@/components/manager/MobileManagerMenu';
+// MobileManagerMenu now integrated into MobileBottomNav
 import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalRequestsManager';
 import { CollapsibleAgentSection } from '@/components/agent/CollapsibleAgentSection';
 import { usePresence } from '@/hooks/usePresence';
@@ -1142,6 +1142,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           currentRole={currentRole} 
           onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
           activeManagerHub={activeHub}
+          onScrollToProductivity={scrollToProductivity}
         />
       )}
       
@@ -1205,8 +1206,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
         }}
       />
 
-      {/* Mobile Quick Actions Menu - hidden on desktop */}
-      {isMobile && <MobileManagerMenu onScrollToProductivity={scrollToProductivity} />}
+      {/* MobileManagerMenu moved into MobileBottomNav footer */}
     </div>
   );
 }
