@@ -50,6 +50,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { AgentRentPaymentGuide } from '@/components/agent/AgentRentPaymentGuide';
+import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 
 interface AgentDashboardProps {
   user: User;
@@ -201,6 +202,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
             <div className="flex-1 text-left">
               <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
               <p className="text-sm text-muted-foreground">Wallet Balance</p>
+              <RecentAutoCharges />
             </div>
           </motion.button>
 
