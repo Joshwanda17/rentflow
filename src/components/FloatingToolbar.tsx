@@ -159,7 +159,7 @@ export default function FloatingToolbar() {
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
         transition={{ delay: 0.5, type: 'spring', stiffness: 200 }}
-        className="fixed bottom-6 right-4 z-[60] hidden md:flex items-center gap-2"
+        className="fixed bottom-6 right-4 z-[60] hidden md:flex flex-col items-center gap-3"
       >
         {/* Share Button */}
         <motion.button
