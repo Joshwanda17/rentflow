@@ -121,7 +121,7 @@ function TileCard({ tile }: { tile: MetricTile }) {
 }
 
 export default function COODashboard() {
-  const { user, role, loading } = useAuth();
+  const { user, role, roles, loading } = useAuth();
   const navigate = useNavigate();
   const [metrics, setMetrics] = useState<MetricTile[]>([]);
   const [guidance, setGuidance] = useState<{ message: string; level: HealthStatus }[]>([]);
@@ -132,8 +132,12 @@ export default function COODashboard() {
       navigate('/auth');
       return;
     }
-    if (user) fetchMetrics();
-  }, [user, loading]);
+    if (!loading && user && !roles.includes('manager')) {
+      navigate('/dashboard');
+      return;
+    }
+    if (user && roles.includes('manager')) fetchMetrics();
+  }, [user, loading, roles]);
 
   async function fetchMetrics() {
     setIsLoading(true);
