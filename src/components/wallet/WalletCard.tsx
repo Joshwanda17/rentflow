@@ -18,6 +18,7 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { WalletBreakdown } from './WalletBreakdown';
 import { WalletStatement } from './WalletStatement';
 import { MyReferralsCount } from './MyReferralsCount';
+import { RecentBalanceChanges } from './RecentBalanceChanges';
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
@@ -154,6 +155,9 @@ export function WalletCard() {
               />
             </div>
           </div>
+
+          {/* Recent balance changes indicator */}
+          <RecentBalanceChanges />
 
 
           {/* Quick Stats Row */}
