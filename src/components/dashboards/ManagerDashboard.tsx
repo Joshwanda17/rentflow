@@ -42,7 +42,7 @@ import { ManagerDashboardSkeleton } from '@/components/skeletons/DashboardSkelet
 import { FloatingActionButton } from '@/components/FloatingActionButton';
 import { FloatingDepositsWidget } from '@/components/manager/FloatingDepositsWidget';
 // DailyReportMetrics moved to menu — not part of wallet balance management
-import { FloatingShareButton } from '@/components/FloatingShareButton';
+// FloatingShareButton moved to global FloatingToolbar
 import { CreateUserInviteDialog } from '@/components/manager/CreateUserInviteDialog';
 // PendingInvestmentRequestsWidget removed — not part of rent management core
 import FundFlowTracker from '@/components/manager/FundFlowTracker';
@@ -1124,7 +1124,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
       {/* Floating Deposits Widget */}
       <FloatingDepositsWidget />
       
-      <FloatingShareButton />
+      
       <MobileBottomNav 
         currentRole={currentRole} 
         onManagerHubChange={(hub) => { hapticTap(); setActiveHub(hub); }}
