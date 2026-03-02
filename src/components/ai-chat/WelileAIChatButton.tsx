@@ -55,8 +55,8 @@ export default function WelileAIChatButton() {
         whileTap={{ scale: 0.93 }}
         onClick={() => setOpen(true)}
         className={cn(
-          "fixed bottom-36 right-3 md:bottom-20 z-[60] hidden md:flex",
-          "h-12 px-3.5 rounded-full",
+          "fixed bottom-6 right-4 z-[60] hidden md:flex",
+          "h-12 md:px-3.5 rounded-full",
           "bg-gradient-to-r from-primary to-primary/85",
           "text-primary-foreground",
           "shadow-lg shadow-primary/25",

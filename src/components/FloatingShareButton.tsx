@@ -15,7 +15,7 @@ export function FloatingShareButton() {
     <motion.button
       type="button"
       onClick={handleClick}
-      className="fixed bottom-40 right-4 md:bottom-20 md:right-6 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-success to-success/80 text-success-foreground shadow-lg hidden md:flex items-center justify-center select-none"
+      className="fixed bottom-6 right-20 z-40 w-12 h-12 rounded-full bg-gradient-to-r from-success to-success/80 text-success-foreground shadow-lg hidden md:flex items-center justify-center select-none"
       style={{ 
         WebkitTapHighlightColor: 'transparent',
         touchAction: 'manipulation',
