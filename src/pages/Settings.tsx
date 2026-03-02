@@ -414,7 +414,7 @@ export default function Settings() {
         </motion.div>
 
         {/* COO Dashboard Quick Link */}
-        {(roles.includes('manager') || roles.includes('agent')) && (
+        {roles.includes('manager') && (
           <motion.div variants={itemVariants} className="mb-6">
             <Card 
               className="glass-card border-border/50 shadow-elevated overflow-hidden cursor-pointer active:scale-[0.98] transition-all"
