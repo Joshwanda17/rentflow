@@ -2,7 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Home, Wallet, Building2, Shield, Users, FileText, Banknote,
-  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity
+  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu
 } from 'lucide-react';
 
 type ManagerHub = 'home' | 'wallets' | 'rent-investments' | 'buffer';
@@ -94,7 +94,7 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
       </div>
 
       {/* Bottom Actions */}
-      <div className="mt-auto space-y-1">
+      <div className="mt-auto space-y-2">
         {onScrollToProductivity && (
           <button
             onClick={onScrollToProductivity}
@@ -111,6 +111,16 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
           <Download className="h-4 w-4" />
           <span>Share App</span>
         </button>
+
+        {/* Floating-style Menu Button */}
+        <div className="flex justify-center pt-3">
+          <button
+            onClick={() => navigate('/manager-access')}
+            className="h-14 w-14 rounded-full bg-primary text-primary-foreground shadow-lg shadow-primary/30 flex items-center justify-center hover:bg-primary/90 hover:shadow-xl transition-all active:scale-95 ring-2 ring-background"
+          >
+            <Menu className="h-6 w-6" />
+          </button>
+        </div>
       </div>
     </aside>
   );
