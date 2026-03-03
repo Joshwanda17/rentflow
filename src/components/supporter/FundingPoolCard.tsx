@@ -105,12 +105,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {liquidityStatus === 'warning' &&
-            <Badge className="text-[9px] px-2 py-0.5 bg-red-500/10 text-red-600 border-red-500/30 font-bold uppercase tracking-wider gap-1">
-                <AlertTriangle className="h-3 w-3" />
-                Low Liquidity
-              </Badge>
-            }
+            
             <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/5 font-bold uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
               Active
