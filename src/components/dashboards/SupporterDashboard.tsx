@@ -333,7 +333,7 @@ export default function SupporterDashboard({
               </div>
             </div>
           </div>
-          <div className="flex items-center gap-2 px-1">
+          <div className="flex items-center justify-center gap-2 px-1">
             <AiIdButton variant="compact" />
             {effectiveHasAccepted ? (
               <AgreementAcceptedBadge 
