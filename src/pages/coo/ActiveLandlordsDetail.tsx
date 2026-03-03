@@ -3,8 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import COODetailLayout, { KPICard, SectionTitle, DataRow } from '@/components/coo/COODetailLayout';
+import COODetailLayout, { KPICard } from '@/components/coo/COODetailLayout';
+import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
+
+interface LandlordRow {
+  name: string;
+  property: string;
+  monthlyRent: number;
+  rooms: number;
+  revenue30d: number;
+  verified: string;
+}
+
+const columns: COOColumn<LandlordRow>[] = [
+  { key: 'name', label: 'Landlord' },
+  { key: 'property', label: 'Property' },
+  { key: 'monthlyRent', label: 'Monthly Rent', align: 'right', render: (r) => formatUGX(r.monthlyRent) },
+  { key: 'rooms', label: 'Rooms', align: 'right' },
+  { key: 'revenue30d', label: 'Revenue (30D)', align: 'right', render: (r) => formatUGX(r.revenue30d) },
+  { key: 'verified', label: 'Status', render: (r) => (
+    <span className={r.verified === 'Yes' ? 'text-emerald-600 font-semibold' : 'text-amber-600 font-semibold'}>{r.verified === 'Yes' ? 'Verified' : 'Pending'}</span>
+  )},
+];
 
 export default function ActiveLandlordsDetail() {
   const { user, roles, loading } = useAuth();
@@ -22,34 +43,43 @@ export default function ActiveLandlordsDetail() {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [landlordRes, activeRentRes, totalLandlordsRes] = await Promise.all([
-        supabase.from('landlords').select('id, name, property_address, monthly_rent, number_of_rooms, verified'),
+      const [landlordRes, activeRentRes] = await Promise.all([
+        supabase.from('landlords').select('id, name, property_address, monthly_rent, number_of_rooms, verified')
+          .order('created_at', { ascending: false }),
         supabase.from('rent_requests').select('landlord_id, rent_amount')
           .in('status', ['funded', 'disbursed']).gte('funded_at', thirtyDaysAgo),
-        supabase.from('landlords').select('id', { count: 'exact', head: true }),
       ]);
 
       const landlords = landlordRes.data || [];
       const rentData = activeRentRes.data || [];
-      const totalLandlords = totalLandlordsRes.count || 0;
 
-      // Revenue per landlord
-      const landlordRevenueMap = new Map<string, number>();
-      rentData.forEach(r => {
-        landlordRevenueMap.set(r.landlord_id, (landlordRevenueMap.get(r.landlord_id) || 0) + (r.rent_amount || 0));
-      });
-      const activeLandlords = landlordRevenueMap.size;
+      const revenueMap = new Map<string, number>();
+      rentData.forEach(r => { revenueMap.set(r.landlord_id, (revenueMap.get(r.landlord_id) || 0) + (r.rent_amount || 0)); });
+
+      const activeLandlordIds = new Set(revenueMap.keys());
       const totalRevenue = rentData.reduce((s, r) => s + (r.rent_amount || 0), 0);
-      const avgRevenue = activeLandlords > 0 ? totalRevenue / activeLandlords : 0;
       const totalRooms = landlords.reduce((s, l) => s + (l.number_of_rooms || 0), 0);
       const verifiedCount = landlords.filter(l => l.verified).length;
 
-      // Top landlords by revenue
-      const sorted = Array.from(landlordRevenueMap.entries()).sort((a, b) => b[1] - a[1]).slice(0, 5);
-      const landlordNameMap = new Map(landlords.map(l => [l.id, l.name]));
-      const topLandlords = sorted.map(([id, amt]) => ({ name: landlordNameMap.get(id) || id.slice(0, 8), amount: amt }));
+      const tableRows: LandlordRow[] = landlords
+        .map(l => ({
+          name: l.name,
+          property: l.property_address,
+          monthlyRent: l.monthly_rent || 0,
+          rooms: l.number_of_rooms || 0,
+          revenue30d: revenueMap.get(l.id) || 0,
+          verified: l.verified ? 'Yes' : 'No',
+        }))
+        .sort((a, b) => b.revenue30d - a.revenue30d);
 
-      setData({ activeLandlords, totalLandlords, totalRevenue, avgRevenue, totalRooms, verifiedCount, topLandlords });
+      setData({
+        activeLandlords: activeLandlordIds.size,
+        totalLandlords: landlords.length,
+        totalRevenue,
+        totalRooms,
+        verifiedCount,
+        tableRows,
+      });
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }
@@ -62,24 +92,19 @@ export default function ActiveLandlordsDetail() {
   return (
     <COODetailLayout title="Active Landlords" subtitle="Landlord Performance (30D)" status={status}>
       <div className="grid grid-cols-2 gap-3">
-        <KPICard label="Active Landlords" value={data.activeLandlords} status={status} />
+        <KPICard label="Active (30D)" value={data.activeLandlords} status={status} />
         <KPICard label="Total Landlords" value={data.totalLandlords} status="green" />
         <KPICard label="Revenue (30D)" value={formatUGX(data.totalRevenue)} status="green" />
-        <KPICard label="Avg / Landlord" value={formatUGX(Math.round(data.avgRevenue))} status="green" />
+        <KPICard label="Verified" value={data.verifiedCount} status="green" sub={`of ${data.totalLandlords}`} />
       </div>
 
-      <SectionTitle>Portfolio Overview</SectionTitle>
-      <div className="space-y-2">
-        <DataRow label="Total Properties" value={data.totalLandlords} />
-        <DataRow label="Total Rooms" value={data.totalRooms} />
-        <DataRow label="Verified Landlords" value={data.verifiedCount} highlight />
-      </div>
-
-      <SectionTitle>Top Landlords by Revenue</SectionTitle>
-      <div className="space-y-2">
-        {data.topLandlords.map((l: any) => <DataRow key={l.name} label={l.name} value={formatUGX(l.amount)} />)}
-        {data.topLandlords.length === 0 && <DataRow label="No data" value="—" />}
-      </div>
+      <COODataTable
+        title="Landlord Directory"
+        columns={columns}
+        data={data.tableRows}
+        pageSize={15}
+        exportFilename="active-landlords"
+      />
     </COODetailLayout>
   );
 }

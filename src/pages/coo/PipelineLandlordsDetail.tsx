@@ -3,9 +3,32 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import COODetailLayout, { KPICard, SectionTitle, DataRow } from '@/components/coo/COODetailLayout';
+import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
+import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
+
+interface PipelineRow {
+  name: string;
+  property: string;
+  monthlyRent: number;
+  desiredRent: number;
+  daysInPipeline: number;
+  stage: string;
+}
+
+const columns: COOColumn<PipelineRow>[] = [
+  { key: 'name', label: 'Landlord' },
+  { key: 'property', label: 'Property' },
+  { key: 'monthlyRent', label: 'Monthly Rent', align: 'right', render: (r) => formatUGX(r.monthlyRent) },
+  { key: 'desiredRent', label: 'Desired from Welile', align: 'right', render: (r) => formatUGX(r.desiredRent) },
+  { key: 'daysInPipeline', label: 'Days', align: 'right' },
+  { key: 'stage', label: 'Stage', render: (r) => (
+    <span className={r.daysInPipeline > 30 ? 'text-red-600 font-bold' : r.daysInPipeline > 7 ? 'text-amber-600 font-semibold' : 'text-emerald-600 font-semibold'}>
+      {r.stage}
+    </span>
+  )},
+];
 
 export default function PipelineLandlordsDetail() {
   const { user, roles, loading } = useAuth();
@@ -22,17 +45,15 @@ export default function PipelineLandlordsDetail() {
     setIsLoading(true);
     try {
       const [unverifiedRes, verifiedRes] = await Promise.all([
-        supabase.from('landlords').select('id, name, property_address, monthly_rent, created_at, verified, desired_rent_from_welile')
+        supabase.from('landlords').select('id, name, property_address, monthly_rent, created_at, desired_rent_from_welile')
           .eq('verified', false).order('created_at', { ascending: false }),
         supabase.from('landlords').select('id', { count: 'exact', head: true }).eq('verified', true),
       ]);
 
       const pipeline = unverifiedRes.data || [];
       const verifiedCount = verifiedRes.count || 0;
-      const totalInPipeline = pipeline.length;
       const estimatedRevenue = pipeline.reduce((s, l) => s + (l.desired_rent_from_welile || l.monthly_rent || 0), 0);
 
-      // Age breakdown
       const now = Date.now();
       let age = { week: 0, month: 0, older: 0 };
       pipeline.forEach(l => {
@@ -48,14 +69,19 @@ export default function PipelineLandlordsDetail() {
         { name: '30+ days', count: age.older },
       ];
 
-      const recentList = pipeline.slice(0, 8).map(l => ({
-        name: l.name,
-        address: l.property_address,
-        rent: l.monthly_rent || 0,
-        daysAgo: Math.floor((now - new Date(l.created_at).getTime()) / (24 * 60 * 60 * 1000)),
-      }));
+      const tableRows: PipelineRow[] = pipeline.map(l => {
+        const days = Math.floor((now - new Date(l.created_at).getTime()) / (24 * 60 * 60 * 1000));
+        return {
+          name: l.name,
+          property: l.property_address,
+          monthlyRent: l.monthly_rent || 0,
+          desiredRent: l.desired_rent_from_welile || 0,
+          daysInPipeline: days,
+          stage: days > 30 ? 'Stuck' : days > 7 ? 'In Progress' : 'New',
+        };
+      });
 
-      setData({ totalInPipeline, verifiedCount, estimatedRevenue, stageData, recentList, bottleneckOlder: age.older });
+      setData({ totalInPipeline: pipeline.length, verifiedCount, estimatedRevenue, stageData, tableRows, bottleneckOlder: age.older });
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }
@@ -73,7 +99,7 @@ export default function PipelineLandlordsDetail() {
       </div>
 
       <SectionTitle>Onboarding Stage Breakdown</SectionTitle>
-      <div className="rounded-2xl border-2 border-border/60 bg-card p-4 h-48">
+      <div className="rounded-2xl border-2 border-border/60 bg-card p-4 h-44">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart data={data.stageData}>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
@@ -85,13 +111,13 @@ export default function PipelineLandlordsDetail() {
         </ResponsiveContainer>
       </div>
 
-      <SectionTitle>Recent Pipeline Entries</SectionTitle>
-      <div className="space-y-2">
-        {data.recentList.map((l: any, i: number) => (
-          <DataRow key={i} label={`${l.name} — ${l.address}`} value={`${l.daysAgo}d ago`} />
-        ))}
-        {data.recentList.length === 0 && <DataRow label="No pipeline entries" value="—" />}
-      </div>
+      <COODataTable
+        title="Pipeline Landlords"
+        columns={columns}
+        data={data.tableRows}
+        pageSize={15}
+        exportFilename="pipeline-landlords"
+      />
     </COODetailLayout>
   );
 }
