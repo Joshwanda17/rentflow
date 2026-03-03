@@ -551,7 +551,7 @@ function CategoryCard({
             <Button
               size="sm"
               disabled
-              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-muted text-muted-foreground cursor-not-allowed"
+              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-purple-500/20 text-purple-600 dark:text-purple-400 cursor-not-allowed border border-purple-500/30"
             >
               <Lock className="h-3.5 w-3.5" />
               Coming Soon
@@ -564,7 +564,7 @@ function CategoryCard({
                 if (isLocked) { onLockedClick?.(); return; }
                 setShowDeposit(true);
               }}
-              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-md shadow-blue-500/20 text-white"
+              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-md shadow-purple-500/20 text-white"
             >
               <HandCoins className="h-3.5 w-3.5" />
               Fund Category
