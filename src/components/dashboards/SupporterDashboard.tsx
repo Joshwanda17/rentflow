@@ -308,29 +308,25 @@ export default function SupporterDashboard({
         <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
           
           {/* ═══ GREETING + QUICK ACTIONS ═══ */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <button onClick={() => navigate('/settings')} className="shrink-0">
-                <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
-              </button>
-              <div>
-                <p className="text-sm text-muted-foreground font-medium">Welcome back 👋</p>
-                <h1 className="font-black text-xl leading-tight flex items-center gap-1">
-                  {profile?.full_name?.split(' ')[0] || 'Supporter'}
-                  {profile?.verified ? (
-                    <span className="flex items-center gap-0.5">
-                      <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
-                      <span className="text-[9px] text-purple-500 font-medium">Verified</span>
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-0.5">
-                      <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
-                      <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
-                    </span>
-                  )}
-                </h1>
-              </div>
-            </div>
+          <div className="flex flex-col items-center text-center">
+            <button onClick={() => navigate('/settings')} className="shrink-0 mb-2">
+              <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
+            </button>
+            <p className="text-sm text-muted-foreground font-medium">Welcome back 👋</p>
+            <h1 className="font-black text-xl leading-tight flex items-center justify-center gap-1">
+              {profile?.full_name?.split(' ')[0] || 'Supporter'}
+              {profile?.verified ? (
+                <span className="flex items-center gap-0.5">
+                  <BadgeCheck className="h-4 w-4 text-purple-500 fill-purple-500/20" />
+                  <span className="text-[9px] text-purple-500 font-medium">Verified</span>
+                </span>
+              ) : (
+                <span className="flex items-center gap-0.5">
+                  <BadgeCheck className="h-4 w-4 text-muted-foreground/40" />
+                  <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
+                </span>
+              )}
+            </h1>
           </div>
           <MerchantCodePills />
           <div className="flex items-center justify-center gap-2 px-1">
