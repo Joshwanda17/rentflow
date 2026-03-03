@@ -123,7 +123,7 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
       {/* Collapsible Header */}
       <button
         onClick={() => setIsOpen(!isOpen)}
-        className="w-full flex items-center gap-3 p-4 text-left touch-manipulation active:bg-muted/30 transition-colors"
+        className="w-full flex flex-wrap items-center gap-3 p-4 text-left touch-manipulation active:bg-muted/30 transition-colors"
         style={{ WebkitTapHighlightColor: 'transparent' }}
       >
         <div className="p-2.5 rounded-xl bg-accent/50">
@@ -136,13 +136,13 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
           </p>
         </div>
 
-        {/* Total Return Badge - always visible */}
-        <div className="shrink-0 text-right px-3 py-1.5 rounded-xl bg-success/10 border border-success/20">
+        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
+
+        {/* Total Return Badge - wraps below on mobile */}
+        <div className="w-full sm:w-auto sm:shrink-0 text-right px-3 py-1.5 rounded-xl bg-success/10 border border-success/20">
           <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Total Return</p>
           <p className="text-sm font-black text-success">+{formatAmount(totalReturn)}</p>
         </div>
-
-        <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
       </button>
 
       {/* Collapsible Content */}
