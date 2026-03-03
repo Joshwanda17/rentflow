@@ -143,6 +143,9 @@ self.addEventListener('fetch', (event) => {
   // Skip non-GET requests
   if (request.method !== 'GET') return;
 
+  // CRITICAL: Never intercept OAuth routes — must always hit the network
+  if (url.pathname.startsWith('/~oauth')) return;
+
   // Skip cross-origin requests except for fonts and CDN assets
   if (url.origin !== location.origin &&
       !url.hostname.includes('fonts.googleapis.com') &&
