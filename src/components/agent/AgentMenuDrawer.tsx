@@ -12,6 +12,7 @@ import {
   Receipt,
   Banknote,
   Users,
+  HandCoins,
   Share2,
   Download,
   Trophy,
@@ -54,6 +55,7 @@ interface AgentMenuDrawerProps {
   onViewMyRentRequests?: () => void;
   onTopUpTenant?: () => void;
   onViewTenants?: () => void;
+  onInvestForPartner?: () => void;
 }
 
 interface MenuSection {
@@ -84,6 +86,7 @@ export function AgentMenuDrawer({
   onViewMyRentRequests,
   onTopUpTenant,
   onViewTenants,
+  onInvestForPartner,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
@@ -108,6 +111,14 @@ export function AgentMenuDrawer({
     {
       title: 'Agent Actions',
       items: [
+        ...(onInvestForPartner ? [{ 
+          icon: HandCoins, 
+          label: 'Invest for Partner', 
+          description: 'Fund rent pool on behalf of a partner',
+          onClick: onInvestForPartner,
+          color: 'text-emerald-600',
+          badge: 'Proxy'
+        } as MenuItem] : []),
         ...(onViewTenants ? [{ 
           icon: Users, 
           label: 'My Tenants', 

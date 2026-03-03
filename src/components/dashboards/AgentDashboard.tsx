@@ -46,6 +46,7 @@ import { AgentMyRentRequestsSheet } from '@/components/agent/AgentMyRentRequests
 import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
+import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -93,6 +94,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
+  const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -271,6 +273,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewMyRentRequests={() => { setMenuOpen(false); setMyRentRequestsOpen(true); }}
         onTopUpTenant={() => { setMenuOpen(false); setTopUpTenantOpen(true); }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
+        onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -326,6 +329,12 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setTopUpTenantOpen}
         onSuccess={refreshOfflineData}
       />
+      <AgentInvestForPartnerDialog
+        open={investForPartnerOpen}
+        onOpenChange={setInvestForPartnerOpen}
+        onSuccess={() => { refreshOfflineData(); refreshWallet(); }}
+      />
+      {/* Fixed footer navigation */}
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
     </div>
