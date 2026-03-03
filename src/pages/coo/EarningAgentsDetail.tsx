@@ -3,9 +3,33 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import COODetailLayout, { KPICard, SectionTitle, DataRow } from '@/components/coo/COODetailLayout';
+import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
+import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 import { formatUGX } from '@/lib/rentCalculations';
+
+interface AgentRow {
+  name: string;
+  email: string;
+  phone: string;
+  totalEarned: number;
+  transactions: number;
+  avgPerTx: number;
+  topType: string;
+}
+
+const columns: COOColumn<AgentRow>[] = [
+  { key: 'name', label: 'Agent' },
+  { key: 'totalEarned', label: 'Total Earned', align: 'right', render: (r) => formatUGX(r.totalEarned) },
+  { key: 'transactions', label: 'Txns', align: 'right' },
+  { key: 'avgPerTx', label: 'Avg / Txn', align: 'right', render: (r) => formatUGX(r.avgPerTx) },
+  { key: 'topType', label: 'Top Type' },
+];
+
+const detailColumns: COOColumn<AgentRow>[] = [
+  { key: 'email', label: 'Email' },
+  { key: 'phone', label: 'Phone' },
+];
 
 export default function EarningAgentsDetail() {
   const { user, roles, loading } = useAuth();
@@ -32,43 +56,53 @@ export default function EarningAgentsDetail() {
       const totalAgents = allAgentsRes.count || 0;
 
       // Aggregate by agent
-      const agentMap = new Map<string, number>();
+      const agentMap = new Map<string, { total: number; count: number; types: Map<string, number> }>();
       let totalRevenue = 0;
       earnings.forEach(e => {
-        agentMap.set(e.agent_id, (agentMap.get(e.agent_id) || 0) + e.amount);
+        const existing = agentMap.get(e.agent_id) || { total: 0, count: 0, types: new Map() };
+        existing.total += e.amount;
+        existing.count += 1;
+        existing.types.set(e.earning_type, (existing.types.get(e.earning_type) || 0) + e.amount);
+        agentMap.set(e.agent_id, existing);
         totalRevenue += e.amount;
       });
 
       const earningAgents = agentMap.size;
       const avgPerAgent = earningAgents > 0 ? totalRevenue / earningAgents : 0;
 
-      // Top & underperforming
-      const sorted = Array.from(agentMap.entries()).sort((a, b) => b[1] - a[1]);
-      const topAgentIds = sorted.slice(0, 5).map(s => s[0]);
-      const bottomAgentIds = sorted.slice(-3).map(s => s[0]);
-      const allIds = [...new Set([...topAgentIds, ...bottomAgentIds])];
-
-      let nameMap = new Map<string, string>();
+      // Get names
+      const allIds = Array.from(agentMap.keys());
+      let profileMap = new Map<string, { name: string; email: string; phone: string }>();
       if (allIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', allIds);
-        nameMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name, email, phone').in('id', allIds.slice(0, 50));
+        profileMap = new Map((profiles || []).map(p => [p.id, { name: p.full_name, email: p.email, phone: p.phone }]));
       }
 
-      const topAgents = sorted.slice(0, 5).map(([id, amt]) => ({
-        name: nameMap.get(id) || id.slice(0, 8),
-        amount: amt,
-      }));
-      const bottomAgents = sorted.slice(-3).map(([id, amt]) => ({
-        name: nameMap.get(id) || id.slice(0, 8),
-        amount: amt,
-      }));
+      const tableRows: AgentRow[] = Array.from(agentMap.entries())
+        .map(([id, agg]) => {
+          const prof = profileMap.get(id);
+          const topType = Array.from(agg.types.entries()).sort((a, b) => b[1] - a[1])[0];
+          return {
+            name: prof?.name || id.slice(0, 8),
+            email: prof?.email || '—',
+            phone: prof?.phone || '—',
+            totalEarned: agg.total,
+            transactions: agg.count,
+            avgPerTx: agg.count > 0 ? Math.round(agg.total / agg.count) : 0,
+            topType: topType ? topType[0] : '—',
+          };
+        })
+        .sort((a, b) => b.totalEarned - a.totalEarned);
 
-      // Earning type breakdown
+      // Top 5 for chart
+      const chartData = tableRows.slice(0, 5).map(a => ({ name: a.name.split(' ')[0], amount: a.totalEarned }));
+
+      // Type breakdown
       const typeMap = new Map<string, number>();
       earnings.forEach(e => { typeMap.set(e.earning_type, (typeMap.get(e.earning_type) || 0) + e.amount); });
       const typeBreakdown = Array.from(typeMap.entries()).sort((a, b) => b[1] - a[1]);
 
-      setData({ earningAgents, totalAgents, totalRevenue, avgPerAgent, topAgents, bottomAgents, typeBreakdown });
+      setData({ earningAgents, totalAgents, totalRevenue, avgPerAgent, chartData, typeBreakdown, tableRows });
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }
@@ -87,33 +121,31 @@ export default function EarningAgentsDetail() {
         <KPICard label="Avg / Agent" value={formatUGX(Math.round(data.avgPerAgent))} status="green" />
       </div>
 
-      <SectionTitle>Top Performing Agents</SectionTitle>
-      <div className="rounded-2xl border-2 border-border/60 bg-card p-4 h-52">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={data.topAgents}>
-            <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
-            <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
-            <Tooltip formatter={(v: number) => formatUGX(v)} />
-            <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      {data.chartData.length > 0 && (
+        <>
+          <SectionTitle>Top Performers</SectionTitle>
+          <div className="rounded-2xl border-2 border-border/60 bg-card p-4 h-48">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={data.chartData}>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="name" tick={{ fontSize: 9 }} stroke="hsl(var(--muted-foreground))" />
+                <YAxis tick={{ fontSize: 10 }} stroke="hsl(var(--muted-foreground))" />
+                <Tooltip formatter={(v: number) => formatUGX(v)} />
+                <Bar dataKey="amount" fill="hsl(var(--primary))" radius={[6, 6, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+        </>
+      )}
 
-      <SectionTitle>Revenue by Type</SectionTitle>
-      <div className="space-y-2">
-        {data.typeBreakdown.map(([type, amt]: [string, number]) => (
-          <DataRow key={type} label={type} value={formatUGX(amt)} />
-        ))}
-      </div>
-
-      <SectionTitle>Underperforming Agents</SectionTitle>
-      <div className="space-y-2">
-        {data.bottomAgents.map((a: any) => (
-          <DataRow key={a.name} label={a.name} value={formatUGX(a.amount)} />
-        ))}
-        {data.bottomAgents.length === 0 && <DataRow label="No data" value="—" />}
-      </div>
+      <COODataTable
+        title="Agent Earnings"
+        columns={columns}
+        detailColumns={detailColumns}
+        data={data.tableRows}
+        pageSize={15}
+        exportFilename="earning-agents"
+      />
     </COODetailLayout>
   );
 }
