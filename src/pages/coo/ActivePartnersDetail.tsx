@@ -3,8 +3,29 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import { Loader2 } from 'lucide-react';
-import COODetailLayout, { KPICard, SectionTitle, DataRow } from '@/components/coo/COODetailLayout';
+import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
+import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
+
+interface PartnerRow {
+  name: string;
+  funded: number;
+  activeDeals: number;
+  avgDeal: number;
+  status: string;
+}
+
+const columns: COOColumn<PartnerRow>[] = [
+  { key: 'name', label: 'Partner' },
+  { key: 'funded', label: 'Total Funded', align: 'right', render: (r) => formatUGX(r.funded) },
+  { key: 'activeDeals', label: 'Active Deals', align: 'right' },
+  { key: 'avgDeal', label: 'Avg Deal', align: 'right', render: (r) => formatUGX(r.avgDeal) },
+  { key: 'status', label: 'Status', render: (r) => (
+    <span className={r.activeDeals > 2 ? 'text-emerald-600 font-semibold' : r.activeDeals > 0 ? 'text-amber-600 font-semibold' : 'text-muted-foreground'}>
+      {r.activeDeals > 2 ? 'Active' : r.activeDeals > 0 ? 'Low' : 'Inactive'}
+    </span>
+  )},
+];
 
 export default function ActivePartnersDetail() {
   const { user, roles, loading } = useAuth();
@@ -22,35 +43,44 @@ export default function ActivePartnersDetail() {
     try {
       const thirtyDaysAgo = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
 
-      const [activeRes, totalSupportersRes, fundedRes] = await Promise.all([
-        supabase.from('rent_requests').select('supporter_id, rent_amount, funded_at')
+      const [activeRes, totalSupportersRes] = await Promise.all([
+        supabase.from('rent_requests').select('supporter_id, rent_amount, funded_at, status')
           .not('supporter_id', 'is', null).in('status', ['funded', 'approved']),
         supabase.from('user_roles').select('user_id', { count: 'exact', head: true }).eq('role', 'supporter'),
-        supabase.from('rent_requests').select('supporter_id, rent_amount')
-          .not('supporter_id', 'is', null).eq('status', 'funded').gte('funded_at', thirtyDaysAgo),
       ]);
 
       const activeData = activeRes.data || [];
-      const partnerMap = new Map<string, number>();
+      const partnerMap = new Map<string, { funded: number; deals: number }>();
       activeData.forEach(r => {
-        if (r.supporter_id) partnerMap.set(r.supporter_id, (partnerMap.get(r.supporter_id) || 0) + (r.rent_amount || 0));
+        if (!r.supporter_id) return;
+        const existing = partnerMap.get(r.supporter_id) || { funded: 0, deals: 0 };
+        existing.funded += (r.rent_amount || 0);
+        existing.deals += 1;
+        partnerMap.set(r.supporter_id, existing);
       });
 
       const activePartners = partnerMap.size;
       const totalSupporters = totalSupportersRes.count || 0;
       const totalFunded = activeData.reduce((s, r) => s + (r.rent_amount || 0), 0);
-      const recentFunded = (fundedRes.data || []).reduce((s, r) => s + (r.rent_amount || 0), 0);
 
-      const sorted = Array.from(partnerMap.entries()).sort((a, b) => b[1] - a[1]);
-      const topIds = sorted.slice(0, 5).map(s => s[0]);
+      const allIds = Array.from(partnerMap.keys());
       let nameMap = new Map<string, string>();
-      if (topIds.length > 0) {
-        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', topIds);
+      if (allIds.length > 0) {
+        const { data: profiles } = await supabase.from('profiles').select('id, full_name').in('id', allIds.slice(0, 50));
         nameMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
       }
-      const topPartners = sorted.slice(0, 5).map(([id, amt]) => ({ name: nameMap.get(id) || id.slice(0, 8), amount: amt }));
 
-      setData({ activePartners, totalSupporters, totalFunded, recentFunded, topPartners });
+      const tableRows: PartnerRow[] = Array.from(partnerMap.entries())
+        .map(([id, agg]) => ({
+          name: nameMap.get(id) || id.slice(0, 8),
+          funded: agg.funded,
+          activeDeals: agg.deals,
+          avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
+          status: '',
+        }))
+        .sort((a, b) => b.funded - a.funded);
+
+      setData({ activePartners, totalSupporters, totalFunded, tableRows });
     } catch (e) { console.error(e); }
     finally { setIsLoading(false); }
   }
@@ -66,20 +96,16 @@ export default function ActivePartnersDetail() {
         <KPICard label="Active Partners" value={data.activePartners} status={status} />
         <KPICard label="Total Supporters" value={data.totalSupporters} status="green" />
         <KPICard label="Total Funded" value={formatUGX(data.totalFunded)} status="green" />
-        <KPICard label="Recent (30D)" value={formatUGX(data.recentFunded)} status="green" />
+        <KPICard label="Avg / Partner" value={data.activePartners > 0 ? formatUGX(Math.round(data.totalFunded / data.activePartners)) : 'N/A'} status="green" />
       </div>
 
-      <SectionTitle>Top Partners by Contribution</SectionTitle>
-      <div className="space-y-2">
-        {data.topPartners.map((p: any) => <DataRow key={p.name} label={p.name} value={formatUGX(p.amount)} />)}
-        {data.topPartners.length === 0 && <DataRow label="No partner data" value="—" />}
-      </div>
-
-      <SectionTitle>Health Status</SectionTitle>
-      <div className="space-y-2">
-        <DataRow label="Partner Utilization" value={data.totalSupporters > 0 ? `${((data.activePartners / data.totalSupporters) * 100).toFixed(0)}%` : 'N/A'} />
-        <DataRow label="Avg Funded / Partner" value={data.activePartners > 0 ? formatUGX(Math.round(data.totalFunded / data.activePartners)) : 'N/A'} />
-      </div>
+      <COODataTable
+        title="Partner Performance"
+        columns={columns}
+        data={data.tableRows}
+        pageSize={15}
+        exportFilename="active-partners"
+      />
     </COODetailLayout>
   );
 }
