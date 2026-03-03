@@ -51,6 +51,7 @@ import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCateg
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
 import { FundingPoolCard } from '@/components/supporter/FundingPoolCard';
+import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
 
@@ -411,6 +412,9 @@ export default function SupporterDashboard({
               isLocked={!effectiveHasAccepted}
               onLockedClick={() => setShowAgreementModal(true)}
             />
+
+            {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
+            <OpportunitySummaryCard />
 
             {/* ═══ FUNDING POOL CARD ═══ */}
             <FundingPoolCard fundedAmount={totalRentContributed} />
