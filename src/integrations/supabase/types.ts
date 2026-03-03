@@ -14,6 +14,212 @@ export type Database = {
   }
   public: {
     Tables: {
+      agent_advance_ledger: {
+        Row: {
+          advance_id: string
+          amount_deducted: number
+          closing_balance: number
+          created_at: string
+          date: string
+          deduction_status: string
+          id: string
+          interest_accrued: number
+          opening_balance: number
+        }
+        Insert: {
+          advance_id: string
+          amount_deducted?: number
+          closing_balance?: number
+          created_at?: string
+          date: string
+          deduction_status?: string
+          id?: string
+          interest_accrued?: number
+          opening_balance?: number
+        }
+        Update: {
+          advance_id?: string
+          amount_deducted?: number
+          closing_balance?: number
+          created_at?: string
+          date?: string
+          deduction_status?: string
+          id?: string
+          interest_accrued?: number
+          opening_balance?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advance_ledger_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      agent_advance_topups: {
+        Row: {
+          advance_id: string
+          amount: number
+          created_at: string
+          id: string
+          topped_up_by: string
+        }
+        Insert: {
+          advance_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          topped_up_by: string
+        }
+        Update: {
+          advance_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          topped_up_by?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advance_topups_advance_id_fkey"
+            columns: ["advance_id"]
+            isOneToOne: false
+            referencedRelation: "agent_advances"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advance_topups_topped_up_by_fkey"
+            columns: ["topped_up_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      agent_advances: {
+        Row: {
+          agent_id: string
+          created_at: string
+          cycle_days: number
+          daily_rate: number
+          expires_at: string
+          id: string
+          issued_at: string
+          issued_by: string
+          outstanding_balance: number
+          principal: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          created_at?: string
+          cycle_days?: number
+          daily_rate?: number
+          expires_at?: string
+          id?: string
+          issued_at?: string
+          issued_by: string
+          outstanding_balance?: number
+          principal?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          created_at?: string
+          cycle_days?: number
+          daily_rate?: number
+          expires_at?: string
+          id?: string
+          issued_at?: string
+          issued_by?: string
+          outstanding_balance?: number
+          principal?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_advances_issued_by_fkey"
+            columns: ["issued_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_commission_payouts: {
         Row: {
           agent_id: string

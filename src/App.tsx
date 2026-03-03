@@ -84,6 +84,8 @@ const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 const COODashboard = lazy(() => import('./pages/COODashboard'));
+const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
+const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
 const EarningAgentsDetail = lazy(() => import('./pages/coo/EarningAgentsDetail'));
 const TenantsBalancesDetail = lazy(() => import('./pages/coo/TenantsBalancesDetail'));
@@ -235,6 +237,8 @@ function AppRoutes() {
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/coo-dashboard" element={<COODashboard />} />
+          <Route path="/agent-advances" element={<AgentAdvances />} />
+          <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
           <Route path="/coo/earning-agents" element={<EarningAgentsDetail />} />
           <Route path="/coo/tenants-balances" element={<TenantsBalancesDetail />} />

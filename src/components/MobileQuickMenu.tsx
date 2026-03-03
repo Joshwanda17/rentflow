@@ -54,6 +54,7 @@ const menuConfigs: Record<AppRole, MenuItem[]> = {
     { icon: Receipt, label: 'Receipts', path: '/manager-access?tab=receipts', color: 'bg-teal-500', description: 'User receipts' },
     { icon: ChartBar, label: 'Finance', path: '/manager-access?tab=financials', color: 'bg-emerald-500', description: 'Financial overview' },
     { icon: MapPin, label: 'Locations', path: '/manager-access?tab=locations', color: 'bg-red-500', description: 'User locations' },
+    { icon: Banknote, label: 'Advances', path: '/agent-advances', color: 'bg-cyan-500', description: 'Agent advances' },
   ],
   tenant: [
     { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
