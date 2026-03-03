@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Download, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown, ChevronsUpDown, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle
@@ -12,6 +12,8 @@ export interface COOColumn<T = any> {
   align?: 'left' | 'right' | 'center';
   /** If true, this column is only shown in the detail drawer, not in the main table */
   detailOnly?: boolean;
+  /** Disable sorting for this column */
+  sortable?: boolean;
 }
 
 interface COODataTableProps<T = any> {
@@ -20,7 +22,6 @@ interface COODataTableProps<T = any> {
   title: string;
   pageSize?: number;
   exportFilename?: string;
-  /** Additional columns shown only in the row detail drawer */
   detailColumns?: COOColumn<T>[];
 }
 
@@ -44,58 +45,145 @@ function exportToCSV<T>(columns: COOColumn<T>[], data: T[], filename: string) {
   URL.revokeObjectURL(url);
 }
 
+type SortDir = 'asc' | 'desc' | null;
+
 export default function COODataTable<T>({ columns, data, title, pageSize = 15, exportFilename, detailColumns }: COODataTableProps<T>) {
   const [page, setPage] = useState(0);
   const [selectedRow, setSelectedRow] = useState<T | null>(null);
-  const totalPages = Math.max(1, Math.ceil(data.length / pageSize));
-  const paged = data.slice(page * pageSize, (page + 1) * pageSize);
+  const [sortKey, setSortKey] = useState<string | null>(null);
+  const [sortDir, setSortDir] = useState<SortDir>(null);
+  const [search, setSearch] = useState('');
 
   const tableCols = columns.filter(c => !c.detailOnly);
   const allDetailCols = [...columns, ...(detailColumns || [])];
 
+  // Filter
+  const filtered = useMemo(() => {
+    if (!search.trim()) return data;
+    const q = search.toLowerCase();
+    return data.filter(row =>
+      tableCols.some(col => {
+        const val = (row as any)[col.key];
+        return val != null && String(val).toLowerCase().includes(q);
+      })
+    );
+  }, [data, search, tableCols]);
+
+  // Sort
+  const sorted = useMemo(() => {
+    if (!sortKey || !sortDir) return filtered;
+    return [...filtered].sort((a, b) => {
+      const av = (a as any)[sortKey];
+      const bv = (b as any)[sortKey];
+      if (av == null && bv == null) return 0;
+      if (av == null) return 1;
+      if (bv == null) return -1;
+      if (typeof av === 'number' && typeof bv === 'number') {
+        return sortDir === 'asc' ? av - bv : bv - av;
+      }
+      const sa = String(av).toLowerCase();
+      const sb = String(bv).toLowerCase();
+      return sortDir === 'asc' ? sa.localeCompare(sb) : sb.localeCompare(sa);
+    });
+  }, [filtered, sortKey, sortDir]);
+
+  const totalPages = Math.max(1, Math.ceil(sorted.length / pageSize));
+  const safePage = Math.min(page, totalPages - 1);
+  const paged = sorted.slice(safePage * pageSize, (safePage + 1) * pageSize);
+
+  function handleSort(key: string) {
+    if (sortKey === key) {
+      if (sortDir === 'asc') setSortDir('desc');
+      else if (sortDir === 'desc') { setSortKey(null); setSortDir(null); }
+    } else {
+      setSortKey(key);
+      setSortDir('asc');
+    }
+    setPage(0);
+  }
+
+  function handleSearch(val: string) {
+    setSearch(val);
+    setPage(0);
+  }
+
+  function SortIcon({ colKey }: { colKey: string }) {
+    if (sortKey !== colKey) return <ChevronsUpDown className="h-2.5 w-2.5 opacity-30" />;
+    if (sortDir === 'asc') return <ChevronUp className="h-2.5 w-2.5 text-primary" />;
+    return <ChevronDown className="h-2.5 w-2.5 text-primary" />;
+  }
+
   return (
     <>
-      <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground">{title}</h3>
-          <button
-            onClick={() => exportToCSV(columns, data, exportFilename || title.toLowerCase().replace(/\s+/g, '-'))}
-            className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 active:scale-95"
-          >
-            <Download className="h-3.5 w-3.5" />
-            Export CSV
-          </button>
+      <div className="space-y-2">
+        {/* Header bar */}
+        <div className="flex items-center justify-between gap-2">
+          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground shrink-0">{title}</h3>
+          <div className="flex items-center gap-2">
+            {/* Search */}
+            <div className="relative">
+              <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
+              <input
+                type="text"
+                value={search}
+                onChange={e => handleSearch(e.target.value)}
+                placeholder="Search…"
+                className="h-7 w-36 rounded-md border border-border/60 bg-muted/30 pl-6 pr-6 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
+              />
+              {search && (
+                <button onClick={() => handleSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
+                  <X className="h-2.5 w-2.5 text-muted-foreground" />
+                </button>
+              )}
+            </div>
+            <button
+              onClick={() => exportToCSV(columns, data, exportFilename || title.toLowerCase().replace(/\s+/g, '-'))}
+              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 active:scale-95 shrink-0"
+            >
+              <Download className="h-3.5 w-3.5" />
+              Export
+            </button>
+          </div>
         </div>
 
-      <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-sm">
+        {/* Table */}
+        <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-[13px] font-mono">
+            <table className="w-full text-[13px]">
               <thead>
                 <tr className="border-b-2 border-border bg-muted/50">
                   <th className="px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-center w-10">#</th>
-                  {tableCols.map(col => (
-                    <th
-                      key={col.key}
-                      className={cn(
-                        'px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground whitespace-nowrap border-l border-border/40',
-                        col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                      )}
-                    >
-                      {col.label}
-                    </th>
-                  ))}
+                  {tableCols.map(col => {
+                    const isSortable = col.sortable !== false;
+                    return (
+                      <th
+                        key={col.key}
+                        onClick={() => isSortable && handleSort(col.key)}
+                        className={cn(
+                          'px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground whitespace-nowrap border-l border-border/40 select-none',
+                          col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
+                          isSortable && 'cursor-pointer hover:text-foreground hover:bg-muted/60 transition-colors'
+                        )}
+                      >
+                        <span className="inline-flex items-center gap-1">
+                          {col.label}
+                          {isSortable && <SortIcon colKey={col.key} />}
+                        </span>
+                      </th>
+                    );
+                  })}
                 </tr>
               </thead>
               <tbody className="divide-y divide-border/30">
                 {paged.length === 0 ? (
                   <tr>
                     <td colSpan={tableCols.length + 1} className="px-3 py-10 text-center text-xs text-muted-foreground italic">
-                      No records found
+                      {search ? 'No matching records' : 'No records found'}
                     </td>
                   </tr>
                 ) : (
                   paged.map((row, i) => {
-                    const rowIndex = page * pageSize + i + 1;
+                    const rowIndex = safePage * pageSize + i + 1;
                     return (
                       <tr
                         key={i}
@@ -128,7 +216,10 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
                 <tfoot>
                   <tr className="border-t-2 border-border bg-muted/40">
                     <td className="px-3 py-1.5 text-[9px] font-black text-muted-foreground" colSpan={tableCols.length + 1}>
-                      {data.length} RECORD{data.length !== 1 ? 'S' : ''} TOTAL
+                      {filtered.length === data.length
+                        ? `${data.length} RECORD${data.length !== 1 ? 'S' : ''} TOTAL`
+                        : `${filtered.length} OF ${data.length} RECORDS (FILTERED)`
+                      }
                     </td>
                   </tr>
                 </tfoot>
@@ -139,22 +230,22 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
           {totalPages > 1 && (
             <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/60 bg-muted/30">
               <span className="text-[10px] font-bold text-muted-foreground tabular-nums tracking-wide">
-                SHOWING {page * pageSize + 1}–{Math.min((page + 1) * pageSize, data.length)} OF {data.length}
+                SHOWING {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, sorted.length)} OF {sorted.length}
               </span>
               <div className="flex items-center gap-0.5">
                 <button
                   onClick={() => setPage(p => Math.max(0, p - 1))}
-                  disabled={page === 0}
+                  disabled={safePage === 0}
                   className="p-1 rounded hover:bg-muted disabled:opacity-20 active:scale-95 transition-colors"
                 >
                   <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
                 <span className="text-[10px] font-bold tabular-nums text-muted-foreground px-1.5">
-                  {page + 1}/{totalPages}
+                  {safePage + 1}/{totalPages}
                 </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
-                  disabled={page >= totalPages - 1}
+                  disabled={safePage >= totalPages - 1}
                   className="p-1 rounded hover:bg-muted disabled:opacity-20 active:scale-95 transition-colors"
                 >
                   <ChevronRight className="h-3.5 w-3.5" />
