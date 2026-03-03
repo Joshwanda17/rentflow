@@ -332,26 +332,26 @@ export default function SupporterDashboard({
                 <MerchantCodePills />
               </div>
             </div>
-            <div className="flex items-center gap-2">
-              <AiIdButton variant="compact" />
-              {effectiveHasAccepted ? (
-                <AgreementAcceptedBadge 
-                  acceptedAt={acceptance?.accepted_at}
-                  showCelebration={justAccepted}
-                  variant="compact"
-                />
-              ) : (
-                <Button
-                  variant="outline"
-                  size="default"
-                  onClick={() => setShowAgreementModal(true)}
-                  className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold"
-                >
-                  <FileText className="h-4 w-4" />
-                  Accept Terms
-                </Button>
-              )}
-            </div>
+          </div>
+          <div className="flex items-center gap-2 px-1">
+            <AiIdButton variant="compact" />
+            {effectiveHasAccepted ? (
+              <AgreementAcceptedBadge 
+                acceptedAt={acceptance?.accepted_at}
+                showCelebration={justAccepted}
+                variant="compact"
+              />
+            ) : (
+              <Button
+                variant="outline"
+                size="default"
+                onClick={() => setShowAgreementModal(true)}
+                className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold"
+              >
+                <FileText className="h-4 w-4" />
+                Accept Terms
+              </Button>
+            )}
           </div>
 
           {/* ═══ PORTFOLIO HERO CARD ═══ */}
