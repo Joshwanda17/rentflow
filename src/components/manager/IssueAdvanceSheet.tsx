@@ -8,6 +8,10 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from '@/components/ui/command';
+import { Check, ChevronsUpDown } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 import {
   calculateAccessFee,
@@ -33,14 +37,32 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const [amount, setAmount] = useState('');
   const [cycleDays, setCycleDays] = useState<number>(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [agentSearch, setAgentSearch] = useState('');
+  const [agentPopoverOpen, setAgentPopoverOpen] = useState(false);
 
+  // Fetch agents: join user_roles with profiles via a single query approach
   const { data: agents = [] } = useQuery({
-    queryKey: ['agents-for-advance'],
+    queryKey: ['agents-for-advance', agentSearch],
     queryFn: async () => {
-      const { data, error } = await supabase
+      // First get agent user_ids
+      const { data: roleData, error: roleError } = await supabase
+        .from('user_roles')
+        .select('user_id')
+        .eq('role', 'agent');
+      if (roleError) throw roleError;
+      const agentIds = roleData?.map((r: any) => r.user_id) || [];
+      if (agentIds.length === 0) return [];
+
+      let query = supabase
         .from('profiles')
         .select('id, full_name, phone')
-        .in('id', (await supabase.from('user_roles').select('user_id').eq('role', 'agent')).data?.map((r: any) => r.user_id) || []);
+        .in('id', agentIds);
+
+      if (agentSearch.trim().length >= 2) {
+        query = query.or(`full_name.ilike.%${agentSearch.trim()}%,phone.ilike.%${agentSearch.trim()}%`);
+      }
+
+      const { data, error } = await query.limit(50).order('full_name');
       if (error) throw error;
       return data || [];
     },
@@ -63,6 +85,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
 
   const parsedAmount = Number(amount) || 0;
   const isTopUp = !!existingAdvance;
+  const selectedAgent = agents.find((a: any) => a.id === agentId);
 
   const regFee = useMemo(() => calculateRegistrationFee(parsedAmount), [parsedAmount]);
   const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
@@ -116,6 +139,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
       setAmount('');
       setCycleDays(30);
       setAgentId(preselectedAgentId || '');
+      setAgentSearch('');
       onOpenChange(false);
       onSuccess();
     } catch (error: any) {
@@ -133,17 +157,57 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
         </SheetHeader>
 
         <div className="space-y-5 mt-6">
+          {/* Agent Selector with Search */}
           {!preselectedAgentId && (
             <div className="space-y-2">
               <Label>Select Agent</Label>
-              <Select value={agentId} onValueChange={setAgentId}>
-                <SelectTrigger><SelectValue placeholder="Choose an agent..." /></SelectTrigger>
-                <SelectContent>
-                  {agents.map((a: any) => (
-                    <SelectItem key={a.id} value={a.id}>{a.full_name} ({a.phone})</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={agentPopoverOpen} onOpenChange={setAgentPopoverOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={agentPopoverOpen}
+                    className="w-full justify-between font-normal"
+                  >
+                    {selectedAgent
+                      ? `${selectedAgent.full_name} (${selectedAgent.phone})`
+                      : 'Search agent by name or phone...'}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-full p-0" align="start">
+                  <Command shouldFilter={false}>
+                    <CommandInput
+                      placeholder="Type name or phone..."
+                      value={agentSearch}
+                      onValueChange={setAgentSearch}
+                    />
+                    <CommandList>
+                      <CommandEmpty>
+                        {agentSearch.length < 2 ? 'Type at least 2 characters to search...' : 'No agents found.'}
+                      </CommandEmpty>
+                      <CommandGroup>
+                        {agents.map((a: any) => (
+                          <CommandItem
+                            key={a.id}
+                            value={a.id}
+                            onSelect={() => {
+                              setAgentId(a.id);
+                              setAgentPopoverOpen(false);
+                            }}
+                          >
+                            <Check className={cn("mr-2 h-4 w-4", agentId === a.id ? "opacity-100" : "opacity-0")} />
+                            <div>
+                              <p className="font-medium">{a.full_name}</p>
+                              <p className="text-xs text-muted-foreground">{a.phone}</p>
+                            </div>
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
             </div>
           )}
 
