@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
-import { FileText, MapPin, Clock, Loader2, Home } from 'lucide-react';
+import { FileText, MapPin, Clock, Loader2, Home, SmartphoneNfc, User, UserCheck } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 import { motion } from 'framer-motion';
@@ -14,10 +14,17 @@ interface PendingRequest {
   id: string;
   rent_amount: number;
   duration_days: number;
+  daily_repayment: number;
+  total_repayment: number;
+  access_fee: number;
+  request_fee: number;
   status: string;
   created_at: string;
   house_category: string | null;
   request_city: string | null;
+  tenant_no_smartphone: boolean;
+  tenant_id: string;
+  agent_id: string | null;
   tenant: { full_name: string; phone: string } | null;
   agent: { full_name: string } | null;
 }
@@ -43,7 +50,7 @@ export function PendingRentRequestsWidget() {
   const fetchRequests = async () => {
     const { data, error } = await supabase
       .from('rent_requests')
-      .select('id, rent_amount, duration_days, status, created_at, house_category, request_city, tenant_id, agent_id')
+      .select('id, rent_amount, duration_days, daily_repayment, total_repayment, access_fee, request_fee, status, created_at, house_category, request_city, tenant_id, agent_id, tenant_no_smartphone')
       .eq('status', 'pending')
       .order('created_at', { ascending: false })
       .limit(20);
@@ -155,15 +162,34 @@ export function PendingRentRequestsWidget() {
                 rightActions={[swipeActions.reject(() => handleReject(req.id))]}
                 disabled={!!actionLoading}
               >
-                <div className="p-3 space-y-2 cursor-pointer active:bg-muted/50" onClick={() => setSelectedRequestId(req.id)}>
+              <div className="p-3 space-y-2 cursor-pointer active:bg-muted/50" onClick={() => setSelectedRequestId(req.id)}>
                   <div className="flex items-start justify-between gap-2">
                     <div className="min-w-0">
                       <p className="font-bold text-sm truncate">
                         {req.tenant?.full_name || 'Unknown Tenant'}
                       </p>
-                      <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      <div className="flex items-center gap-1.5 flex-wrap mt-1">
+                        {/* Who posted indicator */}
+                        {req.agent_id && req.agent_id !== req.tenant_id ? (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 border-amber-500/40 text-amber-600 bg-amber-500/8">
+                            <UserCheck className="h-2.5 w-2.5" />
+                            Agent Posted
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/8">
+                            <User className="h-2.5 w-2.5" />
+                            Self Posted
+                          </Badge>
+                        )}
+                        {/* No Smartphone badge */}
+                        {req.tenant_no_smartphone && (
+                          <Badge variant="outline" className="text-[9px] px-1.5 py-0 gap-0.5 border-red-500/40 text-red-600 bg-red-500/8">
+                            <SmartphoneNfc className="h-2.5 w-2.5" />
+                            No Phone
+                          </Badge>
+                        )}
                         {req.house_category && (
-                          <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+                          <Badge variant="secondary" className="text-[9px] px-1.5 py-0 gap-0.5">
                             <Home className="h-2.5 w-2.5" />
                             {CATEGORY_LABELS[req.house_category] || req.house_category}
                           </Badge>
@@ -176,16 +202,35 @@ export function PendingRentRequestsWidget() {
                         )}
                       </div>
                     </div>
-                    <p className="font-bold text-sm shrink-0">{formatUGX(req.rent_amount)}</p>
+                    <div className="text-right shrink-0">
+                      <p className="font-bold text-sm">{formatUGX(req.rent_amount)}</p>
+                      <p className="text-[9px] text-muted-foreground">Rent</p>
+                    </div>
                   </div>
 
-                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                    <Clock className="h-2.5 w-2.5" />
-                    {formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}
+                  {/* Amounts breakdown */}
+                  <div className="grid grid-cols-3 gap-1 bg-muted/30 rounded-lg px-2 py-1.5">
+                    <div className="text-center">
+                      <p className="text-[9px] text-muted-foreground">Daily</p>
+                      <p className="text-[10px] font-bold">{formatUGX(req.daily_repayment)}</p>
+                    </div>
+                    <div className="text-center border-x border-border/50">
+                      <p className="text-[9px] text-muted-foreground">Total Due</p>
+                      <p className="text-[10px] font-bold">{formatUGX(req.total_repayment)}</p>
+                    </div>
+                    <div className="text-center">
+                      <p className="text-[9px] text-muted-foreground">Fees</p>
+                      <p className="text-[10px] font-bold">{formatUGX(req.access_fee + req.request_fee)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 text-[10px] text-muted-foreground flex-wrap">
+                    <Clock className="h-2.5 w-2.5 shrink-0" />
+                    <span>{formatDistanceToNow(new Date(req.created_at), { addSuffix: true })}</span>
                     {req.agent?.full_name && (
                       <>
                         <span>•</span>
-                        <span>by {req.agent.full_name}</span>
+                        <span className="truncate">by {req.agent.full_name}</span>
                       </>
                     )}
                     <span>•</span>

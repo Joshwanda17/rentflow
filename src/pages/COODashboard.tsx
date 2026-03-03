@@ -5,10 +5,12 @@ import { supabase } from '@/integrations/supabase/client';
 import { 
   Users, TrendingUp, Home, Banknote, ShieldCheck, UserPlus, 
   Building2, Clock, AlertTriangle, CheckCircle, ArrowLeft,
-  Activity, Handshake, Loader2
+  Activity, Handshake, Loader2, SmartphoneNfc, UserCheck, User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { formatUGX } from '@/lib/rentCalculations';
+import { formatDistanceToNow } from 'date-fns';
 import {
   Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger
 } from '@/components/ui/drawer';
@@ -154,6 +156,7 @@ export default function COODashboard() {
         tenantsWithBalancesRes,
         newRentRequestsRes,
         newRentRequestsWeekRes,
+        recentRentDetailsRes,
         activeSupportersRes,
         newSupporterReqRes,
         activeLandlordsRes,
@@ -175,6 +178,12 @@ export default function COODashboard() {
         // 4b. New rent requests this week
         supabase.from('rent_requests').select('id', { count: 'exact', head: true })
           .gte('created_at', sevenDaysAgo),
+        // 4c. Recent rent request details for drilldown
+        supabase.from('rent_requests')
+          .select('id, rent_amount, duration_days, daily_repayment, total_repayment, access_fee, request_fee, created_at, tenant_id, agent_id, tenant_no_smartphone, status')
+          .in('status', ['pending', 'approved'])
+          .order('created_at', { ascending: false })
+          .limit(20),
         // 5. Active supporters (have funded rent requests)
         supabase.from('rent_requests').select('supporter_id', { count: 'exact', head: true })
           .not('supporter_id', 'is', null)
@@ -205,6 +214,39 @@ export default function COODashboard() {
       const activeLandlords = activeLandlordsRes.count || 0;
       const pipelineLandlords = pipelineLandlordsRes.count || 0;
 
+      // Resolve profile names for recent rent requests
+      const recentRequests = recentRentDetailsRes.data || [];
+      const allProfileIds = [...new Set(recentRequests.flatMap(r => [r.tenant_id, r.agent_id].filter(Boolean)))] as string[];
+      let profileMap = new Map<string, string>();
+      if (allProfileIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', allProfileIds);
+        profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
+      }
+
+      // Build rent request drilldown items
+      const totalPendingAmount = recentRequests.filter(r => r.status === 'pending').reduce((s, r) => s + (r.rent_amount || 0), 0);
+      const rentDrilldown: { label: string; value: string | number }[] = [
+        { label: 'Today', value: newRentToday },
+        { label: 'This week', value: newRentWeek },
+        { label: 'Total Pending Amount', value: formatUGX(totalPendingAmount) },
+        { label: '───── Recent Requests ─────', value: '' },
+        ...recentRequests.slice(0, 10).map(r => {
+          const tenantName = profileMap.get(r.tenant_id) || 'Unknown';
+          const agentName = r.agent_id ? profileMap.get(r.agent_id) : null;
+          const postedBy = r.agent_id && r.agent_id !== r.tenant_id
+            ? `👤 Agent: ${agentName || 'Unknown'}`
+            : '📱 Self-posted';
+          const noPhone = r.tenant_no_smartphone ? ' 🚫📱' : '';
+          return {
+            label: `${tenantName}${noPhone} — ${postedBy}`,
+            value: formatUGX(r.rent_amount),
+          };
+        }),
+      ];
+
       // Calculate coverage
       const repaymentData = expectedRepaymentsRes.data || [];
       const totalExpected = repaymentData.reduce((sum, r) => sum + ((r.total_repayment || 0) - (r.amount_repaid || 0)), 0);
@@ -213,7 +255,6 @@ export default function COODashboard() {
       let coverageStatus: HealthStatus = 'green';
       let coverageLabel = 'Safe';
       if (totalExpected > 0) {
-        // Simple heuristic: if more than 50% of requests are active relative to capacity
         if (tenantsWithBalances > 100) { coverageStatus = 'yellow'; coverageLabel = 'Tight'; }
         if (tenantsWithBalances > 500) { coverageStatus = 'red'; coverageLabel = 'Dangerous'; }
       }
@@ -250,11 +291,8 @@ export default function COODashboard() {
           value: `${newRentToday} / ${newRentWeek}`,
           icon: Banknote,
           status: newRentWeek > 0 ? 'green' : 'yellow',
-          detail: `${newRentToday} today, ${newRentWeek} this week`,
-          drilldownData: [
-            { label: 'Today', value: newRentToday },
-            { label: 'This week', value: newRentWeek },
-          ],
+          detail: `${newRentToday} today, ${newRentWeek} this week. Total pending: ${formatUGX(totalPendingAmount)}`,
+          drilldownData: rentDrilldown,
         },
         {
           id: 'active-partners',
