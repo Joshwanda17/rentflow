@@ -38,7 +38,7 @@ function MerchantPill({ label, code, dotColor, borderColor }: MerchantPillProps)
 
 export function MerchantCodePills() {
   return (
-    <div className="flex flex-wrap justify-center gap-1.5 mt-1">
+    <div className="flex flex-wrap justify-center gap-1.5 my-2">
       <MerchantPill label="MTN" code="090777" dotColor="bg-yellow-500" borderColor="border-yellow-500/30" />
       <MerchantPill label="Airtel" code="4380664" dotColor="bg-red-500" borderColor="border-red-500/30" />
     </div>
