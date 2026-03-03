@@ -15,26 +15,26 @@ const badgeVariants = cva(
         warning: "border-warning/20 bg-warning/10 text-warning",
         outline: "text-foreground border-border/60 bg-transparent",
         primary: "border-primary/20 bg-primary/10 text-primary",
-        muted: "border-transparent bg-muted text-muted-foreground",
+        muted: "border-transparent bg-muted text-muted-foreground"
       },
       size: {
         sm: "px-2 py-0 text-[10px] rounded-md",
         default: "px-2.5 py-0.5 text-xs",
-        lg: "px-3 py-1 text-sm rounded-xl",
-      },
+        lg: "px-3 py-1 text-sm rounded-xl"
+      }
     },
     defaultVariants: {
       variant: "default",
-      size: "default",
-    },
-  },
+      size: "default"
+    }
+  }
 );
 
 export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement>, VariantProps<typeof badgeVariants> {}
 
 const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
   ({ className, variant, size, ...props }, ref) => {
-    return <div ref={ref} className={cn(badgeVariants({ variant, size }), className)} {...props} />;
+    return;
   }
 );
 Badge.displayName = "Badge";
