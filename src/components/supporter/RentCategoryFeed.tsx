@@ -297,9 +297,9 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     return (
       <div className="space-y-4">
         <div className="h-6 w-48 rounded-lg bg-muted/50 animate-pulse" />
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+        <div className="space-y-3">
           {[1, 2, 3].map(i => (
-            <div key={i} className="h-52 rounded-2xl bg-muted/30 animate-pulse" />
+            <div key={i} className="h-44 rounded-2xl bg-muted/30 animate-pulse" />
           ))}
         </div>
       </div>
@@ -307,10 +307,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
   }
 
   const activeCategories = categories.filter(c => c.totalHouses > 0);
-  const totalHouses = categories.reduce((s, c) => s + c.totalHouses, 0);
+  const totalHouses = activeCategories.reduce((s, c) => s + c.totalHouses, 0);
   const hasCategories = activeCategories.length > 0;
-  const visibleCategories = showAll ? categories : categories.slice(0, VISIBLE_LIMIT);
-  const hasMore = categories.length > VISIBLE_LIMIT;
+  const visibleCategories = showAll ? activeCategories : activeCategories.slice(0, VISIBLE_LIMIT);
+  const hasMore = activeCategories.length > VISIBLE_LIMIT;
 
   return (
     <div className="space-y-4">
@@ -345,19 +345,18 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
         <EmptyState onAdd={() => setShowAddModal(true)} />
       ) : (
         <>
-          {/* Card grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {/* Card list */}
+          <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {visibleCategories.map((cat, i) => {
                 const tier = WELILE_TIERS.find(t => t.label === cat.category);
-                const isEmpty = cat.totalHouses === 0;
                 return (
                   <CategoryCard
                     key={cat.category}
                     cat={cat}
                     index={i}
                     tier={tier}
-                    isEmpty={isEmpty}
+                    isEmpty={false}
                     isLocked={isLocked}
                     onFund={() => onFundCategory(cat)}
                     onLockedClick={onLockedClick}
@@ -384,7 +383,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                 {showAll ? (
                   <>Show Less <ChevronUp className="h-3.5 w-3.5" /></>
                 ) : (
-                  <>View All {categories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
+                  <>View All {activeCategories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
                 )}
               </Button>
             </motion.div>
