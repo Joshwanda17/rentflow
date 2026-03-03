@@ -59,7 +59,7 @@ export function OpportunitySummaryCard() {
         {/* Main figure */}
         <div className="px-5 pb-4">
           <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-1">Total Rent Demand</p>
-          <p className="text-3xl font-black text-foreground tracking-tight leading-none">
+          <p className="text-xl sm:text-3xl font-black text-foreground tracking-tight leading-none truncate">
             {formatAmount(summary.total_rent_requested)}
           </p>
         </div>
