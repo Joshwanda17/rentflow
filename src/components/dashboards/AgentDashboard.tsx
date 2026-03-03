@@ -167,7 +167,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               )}
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
-            <MerchantCodePills />
+            <MerchantCodePills onDeposit={handleDeposit} />
           </div>
           <AiIdButton variant="compact" />
           
