@@ -259,7 +259,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
           <Button
             onClick={() => setShowFundDialog(true)}
             disabled={liquidityStatus === 'warning'}
-            className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/25 text-white">
+            className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-500/25 text-white">
             
             Support Tenant
             <ChevronRight className="h-4 w-4" />
