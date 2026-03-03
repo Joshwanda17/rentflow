@@ -235,13 +235,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">Welile Tenant</p>
-              <button
-                onClick={() => setDepositOpen(true)}
-                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-success/10 border border-success/30 active:scale-95 transition-transform touch-manipulation hover:bg-success/20 mt-2"
-              >
-                <ArrowDownCircle className="h-3.5 w-3.5 text-success shrink-0" />
-                <span className="text-[11px] font-bold text-success">Deposit Funds</span>
-              </button>
+              <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
             </div>
             <AiIdButton variant="compact" />
           </div>
