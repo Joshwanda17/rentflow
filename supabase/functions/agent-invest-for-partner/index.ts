@@ -214,17 +214,60 @@ Deno.serve(async (req) => {
       },
     });
 
+    // --- Agent 2% commission from the pool ---
+    const commissionRate = 0.02;
+    const commission = Math.round(amount * commissionRate);
+
+    // Credit agent wallet
+    const { data: agentWallet } = await adminClient
+      .from("wallets")
+      .select("id, balance")
+      .eq("user_id", agent.id)
+      .single();
+
+    if (agentWallet) {
+      await adminClient
+        .from("wallets")
+        .update({ balance: agentWallet.balance + commission, updated_at: new Date().toISOString() })
+        .eq("user_id", agent.id)
+        .eq("balance", agentWallet.balance);
+    }
+
+    // Record agent earning
+    const commRefId = `WAC${yy}${mm}${dd}${String(Math.floor(1000 + Math.random() * 9000))}`;
+    await adminClient.from("agent_earnings").insert({
+      agent_id: agent.id,
+      amount: commission,
+      earning_type: "proxy_investment_commission",
+      description: `2% commission (UGX ${commission.toLocaleString()}) for facilitating ${partnerName}'s UGX ${amount.toLocaleString()} investment`,
+      source_user_id: partner_id,
+    });
+
+    // Record commission in general_ledger (pool expense)
+    await adminClient.from("general_ledger").insert({
+      user_id: agent.id,
+      amount: commission,
+      direction: "cash_in",
+      category: "proxy_investment_commission",
+      source_table: "agent_earnings",
+      description: `2% proxy investment commission from pool for ${partnerName}'s UGX ${amount.toLocaleString()} investment`,
+      reference_id: commRefId,
+      linked_party: "Rent Management Pool",
+    });
+
     // Notify the agent
     await adminClient.from("notifications").insert({
       user_id: agent.id,
       title: "✅ Partner Investment Completed",
-      message: `You invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into the Rent Management Pool.\n\nRef: ${referenceId}`,
+      message: `You invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into the Rent Management Pool.\n\n💰 You earned UGX ${commission.toLocaleString()} (2% commission) from the pool.\n\nRef: ${referenceId}`,
       type: "info",
       metadata: {
         amount,
         reference_id: referenceId,
         partner_id,
         partner_name: partnerName,
+        commission,
+        commission_ref: commRefId,
       },
     });
 
