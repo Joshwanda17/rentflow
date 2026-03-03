@@ -127,7 +127,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
         </div>
 
         {/* ═══ POOL METRICS GRID ═══ */}
-        <div className="mx-5 mb-4 grid grid-cols-3 gap-2">
+        <div className="mx-5 mb-4 grid grid-cols-1 sm:grid-cols-3 gap-2">
           <div className="rounded-xl bg-blue-500/8 dark:bg-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 p-3 text-center">
             <Droplets className="h-3.5 w-3.5 text-blue-500 mx-auto mb-1" />
             <p className="text-sm font-black text-foreground leading-none">{formatAmount(poolAvailable)}</p>
