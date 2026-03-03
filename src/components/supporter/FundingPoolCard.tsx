@@ -115,7 +115,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
 
         {/* ═══ POOL BALANCE HERO ═══ */}
         <div className="px-5 pb-4">
-          <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-widest mb-1">RENT NEEDED</p>
+          <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-widest mb-1">RENT NEEDED NOW</p>
           <p className="text-3xl font-black text-foreground tracking-tight leading-none">
             <AnimatedCounter value={POOL_TOTAL} />
           </p>
