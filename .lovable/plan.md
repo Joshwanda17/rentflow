@@ -1,43 +1,33 @@
 
+# Plan: Add "Invest for Partner" Menu Item to Agent Dashboard
 
-## Plan: Dynamic Capital Opportunity Reduction on Supporter Investment
+## What
+Add a new menu item called **"Invest for Partner"** as the first item in the "Agent Actions" section of `AgentMenuDrawer`, above "My Tenants". When tapped, it opens a new dialog where the agent selects a partner (supporter) and submits an investment into the rent pool on their behalf.
 
-### What happens today
-- The "RENT NEEDED NOW" amount in `FundingPoolCard` is **hardcoded** as `POOL_TOTAL = 758,300,000`.
-- When a supporter taps "Support Tenant" and funds via `FundRentDialog`, the `fund-rent-pool` edge function deducts from their wallet and records in the ledger — but the displayed opportunity amount never changes.
-- The manager's `SupporterPoolBalanceCard` already reads pool funds from the ledger via an RPC.
+## Changes
 
-### What needs to change
+### 1. Create `AgentInvestForPartnerDialog.tsx`
+New dialog component at `src/components/agent/AgentInvestForPartnerDialog.tsx`:
+- Fetches list of supporters (profiles with `supporter` role from `user_roles` table) to populate a searchable select dropdown
+- Shows selected partner's wallet balance
+- Agent enters investment amount and payout day (1-28), mirroring the existing `FundRentDialog` logic
+- Calls the existing `fund-rent-pool` edge function with the partner's user ID context (or a new edge function `agent-invest-for-partner` if the existing one is user-scoped)
+- Shows success confirmation with monthly reward estimate
+- Validation: amount > 0, amount <= partner wallet balance, amount <= total_rent_requested, payout day 1-28
 
-**1. Edge Function Update (`fund-rent-pool/index.ts`)**
-After deducting from the wallet and recording in the ledger, the function will also **reduce** `total_rent_requested` in the `opportunity_summaries` table by the funded amount. This ensures the "RENT NEEDED NOW" figure decreases with each investment.
+### 2. Update `AgentMenuDrawer.tsx`
+- Add new prop `onInvestForPartner: () => void`
+- Insert new menu item at position 0 in "Agent Actions" section:
+  - Icon: `HandCoins` (from lucide-react)
+  - Label: "Invest for Partner"
+  - Description: "Fund rent pool on behalf of a partner"
+  - Color: `text-emerald-600`
+  - Badge: "Proxy"
 
-**2. FundingPoolCard Update (`FundingPoolCard.tsx`)**
-- Remove the hardcoded `POOL_TOTAL = 758,300,000`.
-- Use `summary.total_rent_requested` as the dynamic "RENT NEEDED NOW" value.
-- All derived metrics (available, utilized, utilization %) will recalculate from this live value.
-- The existing realtime subscription in `useOpportunitySummary` will automatically refresh the card when the summary row is updated.
+### 3. Update `AgentDashboard.tsx`
+- Add state: `investForPartnerOpen`
+- Wire `onInvestForPartner` prop to open the dialog
+- Render `AgentInvestForPartnerDialog`
 
-**3. FundRentDialog Cap Validation**
-Already in place — the dialog prevents funding more than `summary.total_rent_requested` and caps at wallet balance. After the edge function reduces the summary, subsequent supporters will see the reduced opportunity.
-
-### Data flow after changes
-
-```text
-Supporter taps "Support Tenant"
-  → FundRentDialog opens (shows wallet balance, remaining opportunity)
-  → Submits amount
-  → fund-rent-pool edge function:
-      1. Deducts from wallet (optimistic lock) ✅ exists
-      2. Records ledger entry (supporter_rent_fund) ✅ exists
-      3. Reduces opportunity_summaries.total_rent_requested ← NEW
-      4. Sends notification ✅ exists
-  → Realtime triggers useOpportunitySummary refresh
-  → FundingPoolCard shows reduced "RENT NEEDED NOW"
-  → Manager's SupporterPoolBalanceCard shows increased pool balance ✅ already works
-```
-
-### Files to modify
-- `supabase/functions/fund-rent-pool/index.ts` — add `UPDATE opportunity_summaries SET total_rent_requested = total_rent_requested - amount`
-- `src/components/supporter/FundingPoolCard.tsx` — replace hardcoded `POOL_TOTAL` with `summary.total_rent_requested`
-
+### 4. Edge Function Consideration
+- The existing `fund-rent-pool` function likely uses `auth.uid()` to identify the investor. A new edge function `agent-invest-for-partner` may be needed that accepts a `partner_id` parameter and validates the calling user is an agent. This will be determined during implementation by inspecting the existing edge function code.
