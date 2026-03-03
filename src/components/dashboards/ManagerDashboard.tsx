@@ -837,6 +837,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
     { icon: Wallet, label: 'Investment Accounts', onClick: () => navigate('/manager-access?tab=investments') },
     { icon: Receipt, label: 'My Receipts', onClick: () => navigate('/my-receipts'), separator: true },
     { icon: Banknote, label: 'My Loans', onClick: () => navigate('/my-loans') },
+    { icon: Banknote, label: 'Agent Advance', onClick: () => navigate('/agent-advances') },
     { icon: Download, label: 'Share App', onClick: () => navigate('/install') },
   ];
 
