@@ -92,3 +92,6 @@ verify_jwt = false
 
 [functions.fund-tenant-from-pool]
 verify_jwt = false
+
+[functions.agent-invest-for-partner]
+verify_jwt = false
