@@ -858,7 +858,7 @@ export default function ManagerDashboard({ user, signOut, currentRole, available
           onScrollToProductivity={scrollToProductivity}
         />
 
-        <main className="flex-1 px-3 py-3 space-y-3 animate-fade-in max-w-4xl mx-auto lg:px-6 lg:py-6 lg:space-y-4">
+        <main className="flex-1 px-3 py-3 space-y-3 animate-fade-in max-w-4xl mx-auto lg:px-6 lg:py-6 lg:space-y-4 min-w-0 overflow-hidden">
         {/* Opportunity Summary Form - Full page when open */}
         {showOpportunitySummary ? (
           <OpportunitySummaryForm onClose={() => setShowOpportunitySummary(false)} />

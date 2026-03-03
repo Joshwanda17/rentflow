@@ -162,14 +162,14 @@ export function ManagerHubCards({
               </div>
 
               {/* Metrics */}
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-2 gap-2 min-w-0">
                 {card.metrics.map((metric, mi) => {
                   const MetricIcon = metric.icon;
                   return (
                     <div 
                       key={mi} 
                       className={cn(
-                        "flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50",
+                        "flex items-center gap-2 px-3 py-2 rounded-lg bg-muted/50 min-w-0 overflow-hidden",
                         (metric as any).urgent && "bg-destructive/8 dark:bg-destructive/15"
                       )}
                     >
