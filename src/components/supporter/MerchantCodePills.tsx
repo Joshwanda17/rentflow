@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Copy, CheckCircle2 } from 'lucide-react';
+import { Copy, CheckCircle2, ArrowDownCircle } from 'lucide-react';
 import { toast } from 'sonner';
 
 interface MerchantPillProps {
@@ -36,11 +36,26 @@ function MerchantPill({ label, code, dotColor, borderColor }: MerchantPillProps)
   );
 }
 
-export function MerchantCodePills() {
+interface MerchantCodePillsProps {
+  onDeposit?: () => void;
+}
+
+export function MerchantCodePills({ onDeposit }: MerchantCodePillsProps) {
   return (
-    <div className="flex flex-wrap justify-center gap-1.5 my-2">
-      <MerchantPill label="MTN" code="090777" dotColor="bg-yellow-500" borderColor="border-yellow-500/30" />
-      <MerchantPill label="Airtel" code="4380664" dotColor="bg-red-500" borderColor="border-red-500/30" />
+    <div className="flex flex-col items-center gap-1.5 my-2">
+      <div className="flex flex-wrap justify-center gap-1.5">
+        <MerchantPill label="MTN" code="090777" dotColor="bg-yellow-500" borderColor="border-yellow-500/30" />
+        <MerchantPill label="Airtel" code="4380664" dotColor="bg-red-500" borderColor="border-red-500/30" />
+      </div>
+      {onDeposit && (
+        <button
+          onClick={onDeposit}
+          className="inline-flex items-center gap-1.5 h-7 px-3 rounded-full bg-success/10 border border-success/30 active:scale-95 transition-transform touch-manipulation hover:bg-success/20"
+        >
+          <ArrowDownCircle className="h-3.5 w-3.5 text-success shrink-0" />
+          <span className="text-[11px] font-bold text-success">Deposit Funds</span>
+        </button>
+      )}
     </div>
   );
 }
