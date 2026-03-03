@@ -440,6 +440,7 @@ function CategoryCard({
   onFund,
   onLockedClick,
   formatAmount,
+  comingSoon,
 }: {
   cat: RentCategory;
   index: number;
@@ -448,6 +449,7 @@ function CategoryCard({
   onFund: () => void;
   onLockedClick?: () => void;
   formatAmount: (v: number) => string;
+  comingSoon?: boolean;
 }) {
   const [showDeposit, setShowDeposit] = useState(false);
   const [showDetails, setShowDetails] = useState(false);
@@ -545,18 +547,29 @@ function CategoryCard({
 
         {/* CTA */}
         <div className="px-4 pb-4">
-          <Button
-            size="sm"
-            onClick={() => {
-              hapticTap();
-              if (isLocked) { onLockedClick?.(); return; }
-              setShowDeposit(true);
-            }}
-            className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-md shadow-blue-500/20 text-white"
-          >
-            <HandCoins className="h-3.5 w-3.5" />
-            Fund Category
-          </Button>
+          {comingSoon ? (
+            <Button
+              size="sm"
+              disabled
+              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-muted text-muted-foreground cursor-not-allowed"
+            >
+              <Lock className="h-3.5 w-3.5" />
+              Coming Soon
+            </Button>
+          ) : (
+            <Button
+              size="sm"
+              onClick={() => {
+                hapticTap();
+                if (isLocked) { onLockedClick?.(); return; }
+                setShowDeposit(true);
+              }}
+              className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-md shadow-blue-500/20 text-white"
+            >
+              <HandCoins className="h-3.5 w-3.5" />
+              Fund Category
+            </Button>
+          )}
         </div>
       </motion.div>
 
@@ -713,6 +726,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <AnimatePresence mode="popLayout">
               {visibleCategories.map((cat, i) => {
                 const tier = WELILE_TIERS.find(t => t.label === cat.category);
+                const isComingSoon = cat.category !== 'Welile Double Room';
                 return (
                   <CategoryCard
                     key={cat.category}
@@ -723,6 +737,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                     onFund={() => onFundCategory(cat)}
                     onLockedClick={onLockedClick}
                     formatAmount={formatAmount}
+                    comingSoon={isComingSoon}
                   />
                 );
               })}
