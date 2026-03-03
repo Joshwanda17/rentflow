@@ -41,7 +41,8 @@ import RepaymentSection from '@/components/tenant/RepaymentSection';
 import RentProcessTracker from '@/components/rent/RentProcessTracker';
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { TenantMenuDrawer } from '@/components/tenant/TenantMenuDrawer';
-
+import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
+import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
 
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -98,6 +99,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
   const [showCalculator, setShowCalculator] = useState(false);
   const [showRequestForm, setShowRequestForm] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [depositOpen, setDepositOpen] = useState(false);
 
   const handleAcceptAgreement = async () => {
     setIsAcceptingAgreement(true);
@@ -232,6 +234,7 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 )}
               </h1>
               <p className="text-sm text-muted-foreground">Welile Tenant</p>
+              <MerchantCodePills onDeposit={() => setDepositOpen(true)} />
             </div>
             <AiIdButton variant="compact" />
           </div>
@@ -368,7 +371,8 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
         onAccept={handleAcceptAgreement}
         isAccepting={isAcceptingAgreement}
       />
-      
+      <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
+
       {/* Fixed footer navigation */}
       <MobileBottomNav currentRole={currentRole} />
     </div>
