@@ -130,6 +130,7 @@ export type Database = {
           issued_by: string
           outstanding_balance: number
           principal: number
+          registration_fee: number | null
           status: string
           updated_at: string
         }
@@ -144,6 +145,7 @@ export type Database = {
           issued_by: string
           outstanding_balance?: number
           principal?: number
+          registration_fee?: number | null
           status?: string
           updated_at?: string
         }
@@ -158,6 +160,7 @@ export type Database = {
           issued_by?: string
           outstanding_balance?: number
           principal?: number
+          registration_fee?: number | null
           status?: string
           updated_at?: string
         }

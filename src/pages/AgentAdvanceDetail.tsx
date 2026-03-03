@@ -5,7 +5,7 @@ import { ArrowLeft, TrendingUp, AlertTriangle, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { formatUGX, getRiskLevel, calculateCompoundProjection } from '@/lib/agentAdvanceCalculations';
+import { formatUGX, getRiskLevel, calculateCompoundProjection, calculateRegistrationFee, calculateAccessFee, calculateTotalPayable, calculateDailyPayment } from '@/lib/agentAdvanceCalculations';
 import { ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip, CartesianGrid } from 'recharts';
 import { useState } from 'react';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
@@ -61,7 +61,11 @@ export default function AgentAdvanceDetail() {
   if (!advance) return <div className="min-h-screen bg-background flex items-center justify-center text-muted-foreground">Advance not found</div>;
 
   const risk = getRiskLevel(advance);
-  const projection = calculateCompoundProjection(Number(advance.principal), Number(advance.daily_rate), advance.cycle_days);
+  const projection = calculateCompoundProjection(Number(advance.principal), advance.cycle_days);
+  const regFee = Number(advance.registration_fee) || calculateRegistrationFee(Number(advance.principal));
+  const accessFee = calculateAccessFee(Number(advance.principal), advance.cycle_days);
+  const totalPayable = calculateTotalPayable(Number(advance.principal), advance.cycle_days);
+  const dailyPmt = calculateDailyPayment(Number(advance.principal), advance.cycle_days);
 
   // Chart data from ledger or projection
   const chartData = ledger.length > 0
@@ -94,22 +98,30 @@ export default function AgentAdvanceDetail() {
 
       <div className="max-w-5xl mx-auto p-4 space-y-6">
         {/* Summary Cards */}
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
           <Card><CardContent className="p-4">
             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Principal</p>
             <p className="text-xl font-black">{formatUGX(advance.principal)}</p>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Access Fee</p>
+            <p className="text-xl font-black text-amber-600">{formatUGX(accessFee)}</p>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Reg. Fee</p>
+            <p className="text-xl font-black text-purple-600">{formatUGX(regFee)}</p>
+          </CardContent></Card>
+          <Card><CardContent className="p-4">
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Total Payable</p>
+            <p className="text-xl font-black text-red-600">{formatUGX(totalPayable)}</p>
           </CardContent></Card>
           <Card><CardContent className="p-4">
             <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Outstanding</p>
             <p className="text-xl font-black text-amber-600">{formatUGX(advance.outstanding_balance)}</p>
           </CardContent></Card>
           <Card><CardContent className="p-4">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Interest Accrued</p>
-            <p className="text-xl font-black text-purple-600">{formatUGX(Math.max(0, Number(advance.outstanding_balance) - Number(advance.principal)))}</p>
-          </CardContent></Card>
-          <Card><CardContent className="p-4">
-            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Daily Rate</p>
-            <p className="text-xl font-black">{(Number(advance.daily_rate) * 100).toFixed(0)}%</p>
+            <p className="text-[10px] uppercase font-bold text-muted-foreground tracking-wider mb-1">Daily Payment</p>
+            <p className="text-xl font-black text-green-600">{formatUGX(dailyPmt)}</p>
           </CardContent></Card>
         </div>
 
@@ -204,7 +216,7 @@ export default function AgentAdvanceDetail() {
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <AlertTriangle className="h-4 w-4 text-amber-500" />
-              30-Day Compound Projection (from principal)
+              {advance.cycle_days}-Day Compound Projection (33%/month)
             </CardTitle>
           </CardHeader>
           <CardContent>

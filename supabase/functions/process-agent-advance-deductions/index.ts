@@ -5,6 +5,9 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Monthly rate 33%, daily equivalent: (1.33^(1/30) - 1)
+const DAILY_INTEREST_RATE = Math.pow(1.33, 1 / 30) - 1;
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -15,7 +18,6 @@ Deno.serve(async (req) => {
     const serviceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
     const supabase = createClient(supabaseUrl, serviceKey);
 
-    // Get all active advances
     const { data: advances, error: fetchError } = await supabase
       .from('agent_advances')
       .select('*')
@@ -33,14 +35,12 @@ Deno.serve(async (req) => {
 
     for (const advance of advances) {
       const openingBalance = Number(advance.outstanding_balance);
-      const dailyRate = Number(advance.daily_rate);
-      const interestAccrued = Math.round(openingBalance * dailyRate);
+      const interestAccrued = Math.round(openingBalance * DAILY_INTEREST_RATE);
       const balanceAfterInterest = openingBalance + interestAccrued;
 
-      // Check if past expiry
       const isOverdue = new Date() > new Date(advance.expires_at);
 
-      // Get agent wallet balance (from general_ledger)
+      // Get agent wallet balance
       const { data: walletEntries } = await supabase
         .from('general_ledger')
         .select('amount, direction')
@@ -54,7 +54,6 @@ Deno.serve(async (req) => {
         }, 0);
       }
 
-      // Determine deduction
       const maxDeduction = Math.min(walletBalance, balanceAfterInterest);
       const amountDeducted = Math.max(0, maxDeduction);
       const closingBalance = balanceAfterInterest - amountDeducted;
@@ -68,7 +67,6 @@ Deno.serve(async (req) => {
         deductionStatus = 'none';
       }
 
-      // Insert ledger entry
       await supabase.from('agent_advance_ledger').insert({
         advance_id: advance.id,
         date: today,
@@ -79,14 +77,12 @@ Deno.serve(async (req) => {
         deduction_status: deductionStatus,
       });
 
-      // Update advance balance
       const newStatus = closingBalance <= 0 ? 'completed' : (isOverdue ? 'overdue' : 'active');
       await supabase.from('agent_advances').update({
         outstanding_balance: Math.max(0, closingBalance),
         status: newStatus,
       }).eq('id', advance.id);
 
-      // If deduction made, record in general_ledger
       if (amountDeducted > 0) {
         await supabase.from('general_ledger').insert({
           user_id: advance.agent_id,
@@ -95,7 +91,7 @@ Deno.serve(async (req) => {
           category: 'advance_repayment',
           source_table: 'agent_advances',
           source_id: advance.id,
-          description: `Agent advance daily deduction - Day interest: ${interestAccrued}`,
+          description: `Agent advance daily deduction - Interest: ${interestAccrued}`,
           transaction_date: today,
         });
       }
