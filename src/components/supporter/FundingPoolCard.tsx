@@ -136,7 +136,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
           <div className="rounded-xl bg-blue-500/8 dark:bg-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 p-3 text-center">
             <ArrowUpRight className="h-3.5 w-3.5 text-blue-600 mx-auto mb-1" />
             <p className="text-sm font-black text-foreground leading-none">{formatAmount(poolUtilized)}</p>
-            <p className="text-[9px] text-muted-foreground font-semibold mt-1">Deployed</p>
+            <p className="text-[9px] text-muted-foreground font-semibold mt-1">Rent Needed</p>
           </div>
           <div className="rounded-xl bg-blue-500/8 dark:bg-blue-500/10 border border-blue-200/50 dark:border-blue-800/50 p-3 text-center">
             <BarChart3 className="h-3.5 w-3.5 text-blue-500 mx-auto mb-1" />
