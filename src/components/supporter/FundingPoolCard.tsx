@@ -29,7 +29,6 @@ function AnimatedCounter({ value, className = '' }: {value: number;className?: s
 }
 
 // ─── Constants ───
-const POOL_TOTAL = 758_300_000;
 const MONTHLY_RETURN_RATE = 0.15;
 const DAILY_RETURN_RATE = MONTHLY_RETURN_RATE / 30;
 const LIQUIDITY_WARNING_THRESHOLD = 0.15;
@@ -59,15 +58,17 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
   // Next payout = last day of current month
   const nextPayoutDate = new Date(now.getFullYear(), now.getMonth() + 1, 0);
 
-  // ─── Pool metrics ───
-  const poolUtilized = useMemo(() => {
-    // Sum of all funded capital (use summary total_rent_requested as proxy for deployed)
-    return summary ? Number(summary.total_rent_requested) : 0;
-  }, [summary]);
+  // ─── Pool metrics (dynamic from opportunity summary) ───
+  const poolTotal = summary ? Number(summary.total_rent_requested) : 0;
 
-  const poolAvailable = Math.max(POOL_TOTAL - poolUtilized, 0);
-  const utilizationPct = POOL_TOTAL > 0 ? poolUtilized / POOL_TOTAL * 100 : 0;
-  const liquidityPct = POOL_TOTAL > 0 ? poolAvailable / POOL_TOTAL : 1;
+  const poolUtilized = useMemo(() => {
+    // funded amount represents capital already deployed from this user
+    return fundedAmount;
+  }, [fundedAmount]);
+
+  const poolAvailable = Math.max(poolTotal - poolUtilized, 0);
+  const utilizationPct = poolTotal > 0 ? poolUtilized / poolTotal * 100 : 0;
+  const liquidityPct = poolTotal > 0 ? poolAvailable / poolTotal : 1;
 
   const liquidityStatus: 'healthy' | 'caution' | 'warning' =
   liquidityPct < LIQUIDITY_WARNING_THRESHOLD ? 'warning' :
@@ -117,7 +118,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
         <div className="px-5 pb-4">
           <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-widest mb-1">RENT NEEDED NOW</p>
           <p className="text-3xl font-black text-foreground tracking-tight leading-none">
-            <AnimatedCounter value={POOL_TOTAL} />
+            <AnimatedCounter value={poolTotal} />
           </p>
         </div>
 

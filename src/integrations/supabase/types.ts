@@ -3255,6 +3255,10 @@ export type Database = {
         Args: { other_user_id: string }
         Returns: string
       }
+      decrement_rent_requested: {
+        Args: { p_amount: number; p_summary_id: string }
+        Returns: undefined
+      }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
