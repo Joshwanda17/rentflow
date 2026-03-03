@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { formatUGX, getRiskLevel, calculateTotalProjected } from '@/lib/agentAdvanceCalculations';
+import { formatUGX, getRiskLevel } from '@/lib/agentAdvanceCalculations';
 import IssueAdvanceSheet from '@/components/manager/IssueAdvanceSheet';
 import { differenceInDays } from 'date-fns';
 
@@ -57,7 +57,7 @@ export default function AgentAdvances() {
           </Button>
           <div className="flex-1">
             <h1 className="text-lg font-bold">Agent Advance Control</h1>
-            <p className="text-xs text-muted-foreground">33% daily compound · 30-day cycles</p>
+            <p className="text-xs text-muted-foreground">33% monthly compound · Variable periods</p>
           </div>
           <Button onClick={() => setIssueOpen(true)} size="sm" className="gap-1">
             <Plus className="h-4 w-4" /> Issue Advance

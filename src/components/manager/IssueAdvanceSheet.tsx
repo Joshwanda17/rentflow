@@ -9,7 +9,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
-import { calculateCompoundProjection, calculateTotalProjected, calculateEstimatedDailyDeduction, formatUGX } from '@/lib/agentAdvanceCalculations';
+import {
+  calculateAccessFee,
+  calculateRegistrationFee,
+  calculateTotalPayable,
+  calculateDailyPayment,
+  calculateCompoundProjection,
+  formatUGX,
+  REPAYMENT_PERIODS,
+} from '@/lib/agentAdvanceCalculations';
 import { useAuth } from '@/hooks/useAuth';
 
 interface IssueAdvanceSheetProps {
@@ -23,9 +31,9 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const { user } = useAuth();
   const [agentId, setAgentId] = useState(preselectedAgentId || '');
   const [amount, setAmount] = useState('');
+  const [cycleDays, setCycleDays] = useState<number>(30);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch agents
   const { data: agents = [] } = useQuery({
     queryKey: ['agents-for-advance'],
     queryFn: async () => {
@@ -39,7 +47,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
     enabled: open,
   });
 
-  // Check existing active advance
   const { data: existingAdvance } = useQuery({
     queryKey: ['existing-advance', agentId],
     queryFn: async () => {
@@ -57,9 +64,11 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const parsedAmount = Number(amount) || 0;
   const isTopUp = !!existingAdvance;
 
-  const projectedTotal = useMemo(() => calculateTotalProjected(parsedAmount), [parsedAmount]);
-  const dailyDeduction = useMemo(() => calculateEstimatedDailyDeduction(parsedAmount), [parsedAmount]);
-  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount).slice(0, 5) : [], [parsedAmount]);
+  const regFee = useMemo(() => calculateRegistrationFee(parsedAmount), [parsedAmount]);
+  const accessFee = useMemo(() => calculateAccessFee(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
+  const totalPayable = useMemo(() => calculateTotalPayable(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
+  const dailyPayment = useMemo(() => calculateDailyPayment(parsedAmount, cycleDays), [parsedAmount, cycleDays]);
+  const projection = useMemo(() => parsedAmount > 0 ? calculateCompoundProjection(parsedAmount, cycleDays).slice(0, 5) : [], [parsedAmount, cycleDays]);
 
   const handleSubmit = async () => {
     if (!agentId || parsedAmount <= 0 || !user) {
@@ -70,7 +79,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
     setIsSubmitting(true);
     try {
       if (isTopUp && existingAdvance) {
-        // Top-up: add to existing advance
         const { error: topupError } = await supabase.from('agent_advance_topups').insert({
           advance_id: existingAdvance.id,
           amount: parsedAmount,
@@ -83,21 +91,22 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
           .update({
             principal: Number(existingAdvance.principal) + parsedAmount,
             outstanding_balance: Number(existingAdvance.outstanding_balance) + parsedAmount,
+            registration_fee: Number(existingAdvance.registration_fee || 0) + regFee,
           })
           .eq('id', existingAdvance.id);
         if (updateError) throw updateError;
 
         toast.success(`Top-up of ${formatUGX(parsedAmount)} added successfully`);
       } else {
-        // New advance
         const { error } = await supabase.from('agent_advances').insert({
           agent_id: agentId,
           principal: parsedAmount,
           outstanding_balance: parsedAmount,
           daily_rate: 0.33,
-          cycle_days: 30,
+          cycle_days: cycleDays,
+          registration_fee: regFee,
           issued_by: user.id,
-          expires_at: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
+          expires_at: new Date(Date.now() + cycleDays * 24 * 60 * 60 * 1000).toISOString(),
         });
         if (error) throw error;
 
@@ -105,6 +114,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
       }
 
       setAmount('');
+      setCycleDays(30);
       setAgentId(preselectedAgentId || '');
       onOpenChange(false);
       onSuccess();
@@ -123,7 +133,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
         </SheetHeader>
 
         <div className="space-y-5 mt-6">
-          {/* Agent Selector */}
           {!preselectedAgentId && (
             <div className="space-y-2">
               <Label>Select Agent</Label>
@@ -138,7 +147,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
             </div>
           )}
 
-          {/* Existing Advance Warning */}
           {isTopUp && existingAdvance && (
             <Card className="border-amber-500/30 bg-amber-500/5">
               <CardContent className="p-3">
@@ -153,7 +161,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
             </Card>
           )}
 
-          {/* Amount */}
           <div className="space-y-2">
             <Label>Advance Amount (UGX)</Label>
             <Input
@@ -165,33 +172,47 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
             />
           </div>
 
-          {/* Projection Preview */}
+          <div className="space-y-2">
+            <Label>Repayment Period</Label>
+            <Select value={String(cycleDays)} onValueChange={(v) => setCycleDays(Number(v))}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {REPAYMENT_PERIODS.map((d) => (
+                  <SelectItem key={d} value={String(d)}>{d} days</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
           {parsedAmount > 0 && (
             <Card className="border-blue-500/30 bg-blue-500/5">
               <CardContent className="p-4 space-y-3">
-                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">30-Day Compound Projection</p>
+                <p className="text-xs font-bold uppercase tracking-wider text-blue-600">{cycleDays}-Day Advance Breakdown</p>
                 <div className="grid grid-cols-2 gap-3">
                   <div>
                     <p className="text-[10px] text-muted-foreground uppercase">Principal</p>
                     <p className="font-bold">{formatUGX(parsedAmount)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">30-Day Total</p>
-                    <p className="font-bold text-red-600">{formatUGX(projectedTotal)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Access Fee (33%/mo)</p>
+                    <p className="font-bold text-amber-600">{formatUGX(accessFee)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Daily Interest (33%)</p>
-                    <p className="font-bold text-amber-600">{formatUGX(Math.round(parsedAmount * 0.33))}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Registration Fee</p>
+                    <p className="font-bold text-purple-600">{formatUGX(regFee)}</p>
                   </div>
                   <div>
-                    <p className="text-[10px] text-muted-foreground uppercase">Est. Daily Deduction</p>
-                    <p className="font-bold text-green-600">{formatUGX(dailyDeduction)}</p>
+                    <p className="text-[10px] text-muted-foreground uppercase">Total Payable</p>
+                    <p className="font-bold text-red-600">{formatUGX(totalPayable)}</p>
+                  </div>
+                  <div className="col-span-2">
+                    <p className="text-[10px] text-muted-foreground uppercase">Daily Payment</p>
+                    <p className="font-bold text-green-600 text-lg">{formatUGX(dailyPayment)}</p>
                   </div>
                 </div>
 
-                {/* Mini projection table */}
                 <div className="mt-2">
-                  <p className="text-[10px] text-muted-foreground mb-1">First 5 days preview:</p>
+                  <p className="text-[10px] text-muted-foreground mb-1">First 5 days compounding preview:</p>
                   <div className="space-y-1">
                     {projection.map((p) => (
                       <div key={p.day} className="flex justify-between text-xs">
@@ -206,7 +227,6 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
             </Card>
           )}
 
-          {/* Submit */}
           <Button
             onClick={handleSubmit}
             disabled={!agentId || parsedAmount <= 0 || isSubmitting}

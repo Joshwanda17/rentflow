@@ -1,36 +1,67 @@
 /**
- * Agent Advance Compound Interest Calculations
- * 33% daily compound interest over 30-day cycles
+ * Agent Advance Calculations
+ * 33% monthly compound interest with variable repayment periods
  */
+
+export const MONTHLY_RATE = 0.33;
+export const REPAYMENT_PERIODS = [7, 14, 30, 60, 90] as const;
+export type RepaymentPeriod = (typeof REPAYMENT_PERIODS)[number];
 
 export interface DayProjection {
   day: number;
   openingBalance: number;
   interestAccrued: number;
-  estimatedDeduction: number;
   closingBalance: number;
 }
 
+/**
+ * Registration fee: UGX 10,000 if principal ≤ 200,000; UGX 20,000 if > 200,000
+ */
+export function calculateRegistrationFee(principal: number): number {
+  return principal <= 200000 ? 10000 : 20000;
+}
+
+/**
+ * Access fee: principal × (1.33^(days/30) - 1)
+ */
+export function calculateAccessFee(principal: number, days: number): number {
+  return Math.round(principal * (Math.pow(1 + MONTHLY_RATE, days / 30) - 1));
+}
+
+/**
+ * Total payable = principal + access fee + registration fee
+ */
+export function calculateTotalPayable(principal: number, days: number): number {
+  return principal + calculateAccessFee(principal, days) + calculateRegistrationFee(principal);
+}
+
+/**
+ * Daily payment = total ÷ period days
+ */
+export function calculateDailyPayment(principal: number, days: number): number {
+  return Math.ceil(calculateTotalPayable(principal, days) / days);
+}
+
+/**
+ * Day-by-day projection showing monthly compounding growth
+ * Daily interest rate derived from monthly: (1.33^(1/30) - 1)
+ */
 export function calculateCompoundProjection(
   principal: number,
-  dailyRate: number = 0.33,
   days: number = 30
 ): DayProjection[] {
+  const dailyRate = Math.pow(1 + MONTHLY_RATE, 1 / 30) - 1;
   const projections: DayProjection[] = [];
   let balance = principal;
 
   for (let day = 1; day <= days; day++) {
     const interest = Math.round(balance * dailyRate);
     const newBalance = balance + interest;
-    // Estimated even daily deduction to clear in remaining days
-    const remaining = days - day + 1;
-    const estimatedDeduction = remaining > 0 ? Math.round(newBalance / remaining) : newBalance;
 
     projections.push({
       day,
       openingBalance: balance,
       interestAccrued: interest,
-      estimatedDeduction,
       closingBalance: newBalance,
     });
 
@@ -38,19 +69,6 @@ export function calculateCompoundProjection(
   }
 
   return projections;
-}
-
-export function calculateTotalProjected(principal: number, dailyRate: number = 0.33, days: number = 30): number {
-  let balance = principal;
-  for (let i = 0; i < days; i++) {
-    balance += Math.round(balance * dailyRate);
-  }
-  return balance;
-}
-
-export function calculateEstimatedDailyDeduction(principal: number, dailyRate: number = 0.33, days: number = 30): number {
-  const total = calculateTotalProjected(principal, dailyRate, days);
-  return Math.round(total / days);
 }
 
 export function getRiskLevel(advance: {
