@@ -115,6 +115,18 @@ Deno.serve(async (req) => {
     }
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
 
+    // Reduce the opportunity summary so "RENT NEEDED NOW" decreases
+    if (summary_id) {
+      const { error: summaryErr } = await adminClient.rpc('decrement_rent_requested', {
+        p_summary_id: summary_id,
+        p_amount: amount,
+      });
+      if (summaryErr) {
+        console.error("[fund-rent-pool] Failed to decrement opportunity summary:", summaryErr.message);
+        // Non-blocking: funding still succeeds even if summary update fails
+      }
+    }
+
     // Record in general_ledger
     await adminClient.from("general_ledger").insert({
       user_id: user.id,
