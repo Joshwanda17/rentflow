@@ -33,6 +33,10 @@ const tenantColumns: COOColumn<TenantRow>[] = [
   )},
 ];
 
+const detailCols: COOColumn<TenantRow>[] = [
+  { key: 'fundedDate', label: 'Funded Date' },
+];
+
 export default function TenantsBalancesDetail() {
   const { user, roles, loading } = useAuth();
   const navigate = useNavigate();
@@ -143,6 +147,7 @@ export default function TenantsBalancesDetail() {
       <COODataTable
         title="Tenant Balances"
         columns={tenantColumns}
+        detailColumns={detailCols}
         data={data.tableRows}
         pageSize={15}
         exportFilename="tenants-with-balances"
