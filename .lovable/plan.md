@@ -1,33 +1,15 @@
 
-# Plan: Add "Invest for Partner" Menu Item to Agent Dashboard
+
+# Plan: Restore Capital Opportunity Card on Supporter Dashboard
 
 ## What
-Add a new menu item called **"Invest for Partner"** as the first item in the "Agent Actions" section of `AgentMenuDrawer`, above "My Tenants". When tapped, it opens a new dialog where the agent selects a partner (supporter) and submits an investment into the rent pool on their behalf.
+Re-add the `OpportunitySummaryCard` component to the Supporter Dashboard. This card (showing Total Rent Demand, Active Requests, Verified Landlords, Field Agents, returns info, and the "Deploy Capital" CTA) was previously removed in favor of `FundingPoolCard`. Both serve different purposes, so we restore the Opportunity card above the Funding Pool card.
 
 ## Changes
 
-### 1. Create `AgentInvestForPartnerDialog.tsx`
-New dialog component at `src/components/agent/AgentInvestForPartnerDialog.tsx`:
-- Fetches list of supporters (profiles with `supporter` role from `user_roles` table) to populate a searchable select dropdown
-- Shows selected partner's wallet balance
-- Agent enters investment amount and payout day (1-28), mirroring the existing `FundRentDialog` logic
-- Calls the existing `fund-rent-pool` edge function with the partner's user ID context (or a new edge function `agent-invest-for-partner` if the existing one is user-scoped)
-- Shows success confirmation with monthly reward estimate
-- Validation: amount > 0, amount <= partner wallet balance, amount <= total_rent_requested, payout day 1-28
+### 1. Edit `src/components/dashboards/SupporterDashboard.tsx`
+- Add import for `OpportunitySummaryCard` from `@/components/supporter/OpportunitySummaryCard`
+- Insert `<OpportunitySummaryCard />` in the opportunities section, just before `<FundingPoolCard />` (around line 416)
 
-### 2. Update `AgentMenuDrawer.tsx`
-- Add new prop `onInvestForPartner: () => void`
-- Insert new menu item at position 0 in "Agent Actions" section:
-  - Icon: `HandCoins` (from lucide-react)
-  - Label: "Invest for Partner"
-  - Description: "Fund rent pool on behalf of a partner"
-  - Color: `text-emerald-600`
-  - Badge: "Proxy"
+This is a single-import, single-render restoration — no new files or logic changes needed. The component already fetches its own data from `opportunity_summaries` via the `useOpportunitySummary` hook.
 
-### 3. Update `AgentDashboard.tsx`
-- Add state: `investForPartnerOpen`
-- Wire `onInvestForPartner` prop to open the dialog
-- Render `AgentInvestForPartnerDialog`
-
-### 4. Edge Function Consideration
-- The existing `fund-rent-pool` function likely uses `auth.uid()` to identify the investor. A new edge function `agent-invest-for-partner` may be needed that accepts a `partner_id` parameter and validates the calling user is an agent. This will be determined during implementation by inspecting the existing edge function code.
