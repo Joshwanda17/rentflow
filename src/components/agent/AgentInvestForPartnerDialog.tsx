@@ -67,22 +67,25 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
       const supporterIds = roles.map(r => r.user_id);
 
-      // Get profiles
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', supporterIds);
+      // Batch IDs in chunks of 40 to avoid URL length limits
+      const BATCH_SIZE = 40;
+      const allProfiles: { id: string; full_name: string; phone: string }[] = [];
+      const allWallets: { user_id: string; balance: number }[] = [];
 
-      // Get wallets
-      const { data: wallets } = await supabase
-        .from('wallets')
-        .select('user_id, balance')
-        .in('user_id', supporterIds);
+      for (let i = 0; i < supporterIds.length; i += BATCH_SIZE) {
+        const batch = supporterIds.slice(i, i + BATCH_SIZE);
+        const [profileRes, walletRes] = await Promise.all([
+          supabase.from('profiles').select('id, full_name, phone').in('id', batch),
+          supabase.from('wallets').select('user_id, balance').in('user_id', batch),
+        ]);
+        if (profileRes.data) allProfiles.push(...profileRes.data);
+        if (walletRes.data) allWallets.push(...walletRes.data);
+      }
 
-      const walletMap = new Map(wallets?.map(w => [w.user_id, w.balance]) || []);
+      const walletMap = new Map(allWallets.map(w => [w.user_id, w.balance]));
 
       setPartners(
-        (profiles || []).map(p => ({
+        allProfiles.map(p => ({
           id: p.id,
           full_name: p.full_name,
           phone: p.phone,
