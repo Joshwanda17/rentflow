@@ -3,8 +3,11 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
-  Building2, HandCoins, TrendingUp, MoreVertical, ChevronDown,
-  ChevronUp, PlusCircle, BarChart3, Home, Activity
+  Building2, HandCoins, MoreVertical, ChevronDown,
+  ChevronUp, PlusCircle, BarChart3, Home, Activity,
+  Lock, CheckCircle2, Shield, Users, Landmark,
+  TrendingUp, Calendar, FileText, Share2, Eye,
+  ArrowRight, RefreshCw, Layers, CircleDollarSign
 } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { calculateSupporterReward } from '@/lib/rentCalculations';
@@ -66,6 +69,339 @@ const getTierForRent = (amount: number): CategoryTier => {
   return WELILE_TIERS.find(t => amount >= t.rentRange[0] && amount <= t.rentRange[1]) || WELILE_TIERS[0];
 };
 
+// ─── Deposit Instructions Dialog (Fund Category) ───
+function DepositInstructionsDialog({
+  open,
+  onOpenChange,
+  cat,
+  onProceed,
+  formatAmount,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  cat: RentCategory;
+  onProceed: () => void;
+  formatAmount: (v: number) => string;
+}) {
+  const monthlyReward = Math.round(cat.totalRent * 0.15);
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md rounded-2xl" stable>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base font-black">
+            <HandCoins className="h-5 w-5 text-primary" />
+            Fund — {cat.category}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-1">
+          {/* 90-Day Capital Lock Policy */}
+          <div className="rounded-xl border border-amber-200/60 dark:border-amber-800/40 bg-gradient-to-br from-amber-50/50 to-transparent dark:from-amber-950/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Lock className="h-4 w-4 text-amber-600" />
+              <h4 className="text-sm font-black text-foreground">90-Day Capital Lock Policy</h4>
+            </div>
+            <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span>Your capital is <strong className="text-foreground">locked for 90 days</strong> — Welile pays rent upfront for tenants, and agents need this window to collect repayments</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span>During the 90-day lock period, <strong className="text-foreground">your capital is not accessible</strong> for withdrawal</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-emerald-700 dark:text-emerald-400 font-medium">Reward payouts continue monthly throughout the lock-in period</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span>Early withdrawal is <strong className="text-foreground">not permitted</strong> during the 90-day period</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Supporter Options */}
+          <div className="rounded-xl border border-blue-200/50 dark:border-blue-800/40 bg-gradient-to-br from-blue-50/30 to-transparent dark:from-blue-950/20 p-4 space-y-2.5">
+            <div className="flex items-center gap-2">
+              <Shield className="h-4 w-4 text-blue-600" />
+              <h4 className="text-sm font-black text-foreground">Supporter Options</h4>
+            </div>
+            <ul className="space-y-2 text-xs text-muted-foreground leading-relaxed">
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span><strong className="text-foreground">Renew Contract</strong> — After 90 days, renew for another cycle to keep earning</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span><strong className="text-foreground">Top Up</strong> — Add more funds to an existing package anytime</span>
+              </li>
+              <li className="flex items-start gap-2">
+                <span className="mt-1 w-1 h-1 rounded-full bg-muted-foreground/60 shrink-0" />
+                <span><strong className="text-foreground">Multiple Accounts</strong> — Create up to <strong>12 different investment accounts</strong> across categories</span>
+              </li>
+            </ul>
+          </div>
+
+          {/* Verification notice */}
+          <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex items-start gap-2.5">
+            <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your portfolio is activated. You'll be notified once approved.
+            </p>
+          </div>
+
+          {/* PDF actions */}
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 rounded-xl text-xs font-bold h-9">
+              <FileText className="h-3.5 w-3.5" />
+              PDF
+            </Button>
+            <Button variant="outline" size="sm" className="flex-1 gap-1.5 rounded-xl text-xs font-bold h-9 border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10">
+              <Share2 className="h-3.5 w-3.5" />
+              Share PDF
+            </Button>
+          </div>
+
+          {/* Accept CTA */}
+          <Button
+            onClick={() => { hapticTap(); onProceed(); onOpenChange(false); }}
+            className="w-full gap-2 rounded-xl font-black h-12 text-sm bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-500/25 text-white"
+          >
+            <CheckCircle2 className="h-4 w-4" />
+            Accept & Proceed to Deposit
+            <ArrowRight className="h-4 w-4" />
+          </Button>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── View Details Dialog ───
+function ViewDetailsDialog({
+  open,
+  onOpenChange,
+  cat,
+  formatAmount,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  cat: RentCategory;
+  formatAmount: (v: number) => string;
+}) {
+  const monthlyReward = Math.round(cat.totalRent * 0.15);
+  const yearlyReward = monthlyReward * 12;
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md rounded-2xl" stable>
+        {/* Hero header */}
+        <div className="rounded-xl bg-gradient-to-br from-blue-600 to-blue-700 p-5 -mx-1 text-white space-y-3">
+          <div className="flex items-center gap-2">
+            <BarChart3 className="h-5 w-5" />
+            <div>
+              <h3 className="text-base font-black">{cat.category}</h3>
+              <p className="text-[11px] text-blue-200 font-medium">Welile Supporters Program</p>
+            </div>
+          </div>
+          <div>
+            <p className="text-[10px] text-blue-200 uppercase font-semibold tracking-wider">Facilitation Amount</p>
+            <p className="text-2xl font-black tracking-tight">{formatAmount(cat.totalRent)}</p>
+          </div>
+          <Badge className="bg-emerald-500/20 text-emerald-200 border-emerald-400/30 text-[10px] font-bold">
+            15% Monthly Reward
+          </Badge>
+        </div>
+
+        <div className="space-y-4 mt-2">
+          {/* Stats row */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Users className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Tenants</span>
+              </div>
+              <p className="text-xl font-black text-foreground">{cat.totalHouses}</p>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Landmark className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Landlords</span>
+              </div>
+              <p className="text-xl font-black text-foreground">~{Math.max(1, Math.ceil(cat.totalHouses * 0.7))}</p>
+            </div>
+          </div>
+
+          {/* Reward cards */}
+          <div className="grid grid-cols-2 gap-3">
+            <div className="rounded-xl bg-emerald-500/10 border border-emerald-500/20 p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <CircleDollarSign className="h-3 w-3 text-emerald-600" />
+                <span className="text-[9px] text-emerald-600 font-semibold uppercase tracking-wider">Monthly Reward</span>
+              </div>
+              <p className="text-sm font-black text-emerald-600">{formatAmount(monthlyReward)}</p>
+            </div>
+            <div className="rounded-xl border border-border/40 bg-muted/20 p-3">
+              <div className="flex items-center gap-1.5 mb-1">
+                <Calendar className="h-3 w-3 text-muted-foreground" />
+                <span className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">12-Mo Rewards</span>
+              </div>
+              <p className="text-sm font-black text-foreground">{formatAmount(yearlyReward)}</p>
+            </div>
+          </div>
+
+          {/* How Welile Guarantees */}
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-4 space-y-2.5">
+            <h4 className="text-sm font-black text-foreground flex items-center gap-2">
+              <Shield className="h-4 w-4 text-blue-500" />
+              How Welile Guarantees Your Rewards
+            </h4>
+            <div className="space-y-2">
+              {[
+                'Welile pays rent upfront for tenants — never in arrears. Your funds are deployed immediately.',
+                'Welile Agents hold tenant placement rights — if a tenant defaults, the agent replaces them with a paying tenant.',
+                'Defaults do not affect supporters. Welile\'s operational model absorbs and mitigates all default risk.',
+                'Your 15% monthly reward is a platform service reward — not an investment return.',
+              ].map((text, i) => (
+                <div key={i} className="flex items-start gap-2">
+                  <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500 mt-0.5 shrink-0" />
+                  <p className="text-xs text-muted-foreground leading-relaxed">{text}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Auto-Compound */}
+          <div className="rounded-xl border border-border/40 bg-muted/10 p-3 flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <RefreshCw className="h-4 w-4 text-muted-foreground" />
+              <div>
+                <p className="text-xs font-bold text-foreground">Auto-Compound Rewards</p>
+                <p className="text-[10px] text-muted-foreground">Reinvest rewards — tenants supported grow each month</p>
+              </div>
+            </div>
+            <div className="w-10 h-5 rounded-full bg-emerald-500 relative">
+              <div className="absolute right-0.5 top-0.5 w-4 h-4 rounded-full bg-white shadow-sm" />
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Analytics Dialog (12-Month Reward Schedule) ───
+function AnalyticsDialog({
+  open,
+  onOpenChange,
+  cat,
+  formatAmount,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  cat: RentCategory;
+  formatAmount: (v: number) => string;
+}) {
+  const monthlyReward = Math.round(cat.totalRent * 0.15);
+  const totalRewards = monthlyReward * 12;
+  const now = new Date();
+
+  const months = Array.from({ length: 12 }, (_, i) => {
+    const d = new Date(now.getFullYear(), now.getMonth() + i + 1, 1);
+    return {
+      month: i + 1,
+      date: d.toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }),
+      reward: monthlyReward,
+    };
+  });
+
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-md rounded-2xl" stable>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base font-black">
+            <TrendingUp className="h-5 w-5 text-blue-500" />
+            12-Month Reward Schedule
+          </DialogTitle>
+          <p className="text-xs text-muted-foreground font-medium">{cat.category}</p>
+        </DialogHeader>
+
+        <div className="space-y-4 mt-1">
+          {/* Schedule table */}
+          <div className="rounded-xl border border-border/40 overflow-hidden">
+            {/* Header */}
+            <div className="grid grid-cols-3 gap-2 px-4 py-2.5 bg-muted/30 border-b border-border/30">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Month</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider">Date</span>
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-wider text-right">Reward</span>
+            </div>
+            {/* Rows */}
+            <div className="max-h-[320px] overflow-y-auto">
+              {months.map((m, i) => (
+                <div
+                  key={i}
+                  className={`grid grid-cols-3 gap-2 px-4 py-2.5 text-xs ${
+                    i % 2 === 0 ? 'bg-transparent' : 'bg-muted/10'
+                  } ${i < months.length - 1 ? 'border-b border-border/20' : ''}`}
+                >
+                  <span className="font-medium text-foreground">Month {m.month}</span>
+                  <span className="text-muted-foreground font-medium">{m.date}</span>
+                  <span className="text-right font-bold text-emerald-600">+{formatAmount(m.reward)}</span>
+                </div>
+              ))}
+            </div>
+            {/* Total row */}
+            <div className="grid grid-cols-3 gap-2 px-4 py-3 bg-muted/30 border-t border-border/40">
+              <span className="text-xs font-black text-foreground col-span-2">Total Rewards</span>
+              <span className="text-right text-sm font-black text-emerald-600">{formatAmount(totalRewards)}</span>
+            </div>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
+// ─── Share Dialog ───
+function ShareDialog({
+  open,
+  onOpenChange,
+  cat,
+}: {
+  open: boolean;
+  onOpenChange: (v: boolean) => void;
+  cat: RentCategory;
+}) {
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent className="max-w-sm rounded-2xl" stable>
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base font-black">
+            <Share2 className="h-5 w-5 text-blue-500" />
+            Share — {cat.category}
+          </DialogTitle>
+        </DialogHeader>
+
+        <div className="space-y-3 mt-2">
+          <Button variant="outline" className="w-full gap-2 rounded-xl font-bold h-11 text-sm">
+            <FileText className="h-4 w-4" />
+            Download PDF Report
+          </Button>
+          <Button className="w-full gap-2 rounded-xl font-bold h-11 text-sm border-emerald-500/40 text-emerald-600 hover:bg-emerald-500/10 bg-emerald-500/5" variant="outline">
+            <Share2 className="h-4 w-4" />
+            Share PDF via Link
+          </Button>
+          <p className="text-[10px] text-muted-foreground text-center">
+            Share your investment category details securely with partners.
+          </p>
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 // ─── Empty State ───
 function EmptyState({ onAdd }: { onAdd: () => void }) {
   return (
@@ -100,7 +436,6 @@ function CategoryCard({
   cat,
   index,
   tier,
-  isEmpty,
   isLocked,
   onFund,
   onLockedClick,
@@ -109,47 +444,41 @@ function CategoryCard({
   cat: RentCategory;
   index: number;
   tier: CategoryTier | undefined;
-  isEmpty: boolean;
   isLocked?: boolean;
   onFund: () => void;
   onLockedClick?: () => void;
   formatAmount: (v: number) => string;
 }) {
-  const utilization = cat.totalHouses > 0 ? Math.min((cat.totalHouses / 20) * 100, 100) : 0;
+  const [showDeposit, setShowDeposit] = useState(false);
+  const [showDetails, setShowDetails] = useState(false);
+  const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+
+  const utilization = Math.min((cat.totalHouses / 20) * 100, 100);
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      exit={{ opacity: 0, y: -8 }}
-      transition={{ delay: index * 0.05, duration: 0.3 }}
-      className={`group relative rounded-2xl border overflow-hidden transition-all duration-300 ${
-        isEmpty
-          ? 'border-border/30 bg-muted/20 opacity-60'
-          : 'border-blue-200/40 dark:border-blue-900/30 bg-gradient-to-br from-white via-blue-50/20 to-blue-100/10 dark:from-card dark:via-blue-950/10 dark:to-blue-900/5 shadow-sm hover:shadow-md hover:shadow-blue-500/8 hover:border-blue-300/60 dark:hover:border-blue-700/50'
-      }`}
-    >
-      {/* Card header */}
-      <div className="p-4 pb-3 flex items-start justify-between">
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 ${
-            isEmpty ? 'bg-muted/50' : 'bg-blue-500/10 dark:bg-blue-500/15'
-          }`}>
-            {tier?.emoji || '🏠'}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="font-bold text-sm text-foreground leading-tight truncate">{cat.category}</p>
-            {isEmpty ? (
-              <Badge variant="secondary" className="text-[10px] mt-1 font-semibold px-2 py-0">Coming Soon</Badge>
-            ) : (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 12 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -8 }}
+        transition={{ delay: index * 0.05, duration: 0.3 }}
+        className="group relative rounded-2xl border overflow-hidden transition-all duration-300 border-blue-200/40 dark:border-blue-900/30 bg-gradient-to-br from-white via-blue-50/20 to-blue-100/10 dark:from-card dark:via-blue-950/10 dark:to-blue-900/5 shadow-sm hover:shadow-md hover:shadow-blue-500/8 hover:border-blue-300/60 dark:hover:border-blue-700/50"
+      >
+        {/* Card header */}
+        <div className="p-4 pb-3 flex items-start justify-between">
+          <div className="flex items-center gap-3 min-w-0 flex-1">
+            <div className="w-11 h-11 rounded-xl flex items-center justify-center text-xl shrink-0 bg-blue-500/10 dark:bg-blue-500/15">
+              {tier?.emoji || '🏠'}
+            </div>
+            <div className="min-w-0 flex-1">
+              <p className="font-bold text-sm text-foreground leading-tight truncate">{cat.category}</p>
               <p className="text-[11px] text-muted-foreground font-medium mt-0.5">
                 {cat.totalHouses} {cat.totalHouses === 1 ? 'house' : 'houses'} available
               </p>
-            )}
+            </div>
           </div>
-        </div>
 
-        {!isEmpty && (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <button
@@ -159,19 +488,34 @@ function CategoryCard({
                 <MoreVertical className="h-4 w-4 text-muted-foreground" />
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-40">
-              <DropdownMenuItem className="text-xs font-medium">View Details</DropdownMenuItem>
-              <DropdownMenuItem className="text-xs font-medium">Analytics</DropdownMenuItem>
-              <DropdownMenuItem className="text-xs font-medium">Share</DropdownMenuItem>
+            <DropdownMenuContent align="end" className="w-44">
+              <DropdownMenuItem
+                className="text-xs font-medium gap-2"
+                onClick={() => setShowDetails(true)}
+              >
+                <Eye className="h-3.5 w-3.5" />
+                View Details
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs font-medium gap-2"
+                onClick={() => setShowAnalytics(true)}
+              >
+                <TrendingUp className="h-3.5 w-3.5" />
+                Analytics
+              </DropdownMenuItem>
+              <DropdownMenuItem
+                className="text-xs font-medium gap-2"
+                onClick={() => setShowShare(true)}
+              >
+                <Share2 className="h-3.5 w-3.5" />
+                Share
+              </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        )}
-      </div>
+        </div>
 
-      {/* Metrics */}
-      {!isEmpty && (
+        {/* Metrics */}
         <div className="px-4 pb-3 space-y-3">
-          {/* Progress indicator */}
           <div className="space-y-1.5">
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Utilization</span>
@@ -187,7 +531,6 @@ function CategoryCard({
             </div>
           </div>
 
-          {/* Financial metrics */}
           <div className="grid grid-cols-2 gap-2">
             <div className="rounded-lg bg-blue-500/5 dark:bg-blue-500/8 p-2">
               <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Avg. Rent</p>
@@ -199,17 +542,15 @@ function CategoryCard({
             </div>
           </div>
         </div>
-      )}
 
-      {/* CTA */}
-      {!isEmpty && (
+        {/* CTA */}
         <div className="px-4 pb-4">
           <Button
             size="sm"
             onClick={() => {
               hapticTap();
               if (isLocked) { onLockedClick?.(); return; }
-              onFund();
+              setShowDeposit(true);
             }}
             className="w-full gap-1.5 rounded-xl font-bold text-xs h-9 bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-md shadow-blue-500/20 text-white"
           >
@@ -217,8 +558,34 @@ function CategoryCard({
             Fund Category
           </Button>
         </div>
-      )}
-    </motion.div>
+      </motion.div>
+
+      {/* Dialogs */}
+      <DepositInstructionsDialog
+        open={showDeposit}
+        onOpenChange={setShowDeposit}
+        cat={cat}
+        onProceed={() => onFund()}
+        formatAmount={formatAmount}
+      />
+      <ViewDetailsDialog
+        open={showDetails}
+        onOpenChange={setShowDetails}
+        cat={cat}
+        formatAmount={formatAmount}
+      />
+      <AnalyticsDialog
+        open={showAnalytics}
+        onOpenChange={setShowAnalytics}
+        cat={cat}
+        formatAmount={formatAmount}
+      />
+      <ShareDialog
+        open={showShare}
+        onOpenChange={setShowShare}
+        cat={cat}
+      />
+    </>
   );
 }
 
@@ -331,12 +698,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
           </div>
         </div>
         {hasCategories && (
-          <div className="flex items-center gap-1.5">
-            <Badge className="text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold uppercase tracking-wider gap-1">
-              <Activity className="h-2.5 w-2.5" />
-              {activeCategories.length} Active
-            </Badge>
-          </div>
+          <Badge className="text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold uppercase tracking-wider gap-1">
+            <Activity className="h-2.5 w-2.5" />
+            {activeCategories.length} Active
+          </Badge>
         )}
       </div>
 
@@ -345,7 +710,6 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
         <EmptyState onAdd={() => setShowAddModal(true)} />
       ) : (
         <>
-          {/* Card list */}
           <div className="space-y-3">
             <AnimatePresence mode="popLayout">
               {visibleCategories.map((cat, i) => {
@@ -356,7 +720,6 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                     cat={cat}
                     index={i}
                     tier={tier}
-                    isEmpty={false}
                     isLocked={isLocked}
                     onFund={() => onFundCategory(cat)}
                     onLockedClick={onLockedClick}
@@ -367,7 +730,6 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             </AnimatePresence>
           </div>
 
-          {/* Show more / less */}
           {hasMore && (
             <motion.div
               initial={{ opacity: 0 }}
@@ -391,7 +753,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
         </>
       )}
 
-      {/* Add Category Modal (UI shell only) */}
+      {/* Add Category Modal */}
       <Dialog open={showAddModal} onOpenChange={setShowAddModal}>
         <DialogContent className="sm:max-w-md rounded-2xl border-blue-200/40 dark:border-blue-900/30 bg-gradient-to-br from-white via-blue-50/20 to-white dark:from-card dark:via-blue-950/10 dark:to-card">
           <DialogHeader>
