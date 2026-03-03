@@ -3588,6 +3588,13 @@ export type Database = {
       }
       refresh_financial_summaries: { Args: never; Returns: undefined }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
+      search_agents: {
+        Args: { result_limit?: number; search_term?: string }
+        Returns: {
+          full_name: string
+          id: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       update_user_risk_score: {

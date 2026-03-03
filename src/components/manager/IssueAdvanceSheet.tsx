@@ -44,25 +44,10 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
   const { data: agents = [] } = useQuery({
     queryKey: ['agents-for-advance', agentSearch],
     queryFn: async () => {
-      // First get agent user_ids
-      const { data: roleData, error: roleError } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'agent');
-      if (roleError) throw roleError;
-      const agentIds = roleData?.map((r: any) => r.user_id) || [];
-      if (agentIds.length === 0) return [];
-
-      let query = supabase
-        .from('profiles')
-        .select('id, full_name, phone')
-        .in('id', agentIds);
-
-      if (agentSearch.trim().length >= 2) {
-        query = query.or(`full_name.ilike.%${agentSearch.trim()}%,phone.ilike.%${agentSearch.trim()}%`);
-      }
-
-      const { data, error } = await query.limit(50).order('full_name');
+      const { data, error } = await supabase.rpc('search_agents', {
+        search_term: agentSearch.trim(),
+        result_limit: 50,
+      });
       if (error) throw error;
       return data || [];
     },
@@ -170,15 +155,15 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
                     className="w-full justify-between font-normal"
                   >
                     {selectedAgent
-                      ? `${selectedAgent.full_name} (${selectedAgent.phone})`
-                      : 'Search agent by name or phone...'}
+                      ? selectedAgent.full_name
+                      : 'Search agent by name...'}
                     <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                   </Button>
                 </PopoverTrigger>
                 <PopoverContent className="w-full p-0" align="start">
                   <Command shouldFilter={false}>
                     <CommandInput
-                      placeholder="Type name or phone..."
+                      placeholder="Type agent name..."
                       value={agentSearch}
                       onValueChange={setAgentSearch}
                     />
@@ -197,10 +182,7 @@ export default function IssueAdvanceSheet({ open, onOpenChange, onSuccess, prese
                             }}
                           >
                             <Check className={cn("mr-2 h-4 w-4", agentId === a.id ? "opacity-100" : "opacity-0")} />
-                            <div>
-                              <p className="font-medium">{a.full_name}</p>
-                              <p className="text-xs text-muted-foreground">{a.phone}</p>
-                            </div>
+                            <span className="font-medium">{a.full_name}</span>
                           </CommandItem>
                         ))}
                       </CommandGroup>
