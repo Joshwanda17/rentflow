@@ -16,6 +16,7 @@ import {
   CreditCard,
   ClipboardList,
   Calendar,
+  BarChart3,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -96,6 +97,13 @@ const menuItems = [
     path: '/audit-log',
     color: 'bg-slate-600',
     description: 'System audit log'
+  },
+  { 
+    icon: BarChart3, 
+    label: 'COO', 
+    path: '/coo-dashboard',
+    color: 'bg-rose-600',
+    description: 'COO Dashboard'
   },
 ];
 
