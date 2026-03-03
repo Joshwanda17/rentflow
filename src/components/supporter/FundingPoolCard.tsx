@@ -261,7 +261,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
             disabled={liquidityStatus === 'warning'}
             className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/25 text-white">
             
-            Deploy Capital · Earn 15% Monthly
+            Support Tenant
             <ChevronRight className="h-4 w-4" />
           </Button>
 
