@@ -72,6 +72,13 @@ export default function SupporterDashboard({
   const { isOnline } = useOffline();
   const [loading, setLoading] = useState(true);
   const [hasCachedData, setHasCachedData] = useState(false);
+  
+  // Safety timeout: never show skeleton for more than 5s
+  useEffect(() => {
+    if (!loading) return;
+    const t = setTimeout(() => setLoading(false), 5000);
+    return () => clearTimeout(t);
+  }, [loading]);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
@@ -154,7 +161,7 @@ export default function SupporterDashboard({
     return () => window.removeEventListener('open-deposit', handler);
   }, []);
 
-  // Fetch total contributions from ledger
+  // Fetch total contributions from ledger (bounded query)
   const fetchTotalContributed = useCallback(async () => {
     if (!user?.id) return;
     try {
@@ -162,7 +169,8 @@ export default function SupporterDashboard({
         .from('general_ledger')
         .select('amount')
         .eq('user_id', user.id)
-        .eq('category', 'supporter_rent_fund');
+        .eq('category', 'supporter_rent_fund')
+        .limit(500);
       if (!error && data) {
         const total = data.reduce((sum, r) => sum + Number(r.amount), 0);
         setTotalRentContributed(total);
