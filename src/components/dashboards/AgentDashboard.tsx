@@ -18,6 +18,7 @@ import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import MobileBottomNav from '@/components/MobileBottomNav';
+import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
@@ -166,6 +167,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               )}
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
+            <MerchantCodePills />
           </div>
           <AiIdButton variant="compact" />
           
