@@ -113,7 +113,7 @@ export function OpportunitySummaryCard() {
             onClick={() => setShowFundDialog(true)}
             className="w-full gap-2 rounded-xl font-bold h-12 text-sm"
           >
-            Deploy Capital · Earn Up to 15% Monthly
+            Support a Tenant
             <ChevronRight className="h-4 w-4" />
           </Button>
 
