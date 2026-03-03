@@ -227,8 +227,23 @@ self.addEventListener('fetch', (event) => {
           const offlineResponse = await caches.match(OFFLINE_URL);
           if (offlineResponse) return offlineResponse;
           
+          const debugUrl = request.url;
+          const debugTime = new Date().toISOString();
+          const debugMode = request.mode;
           return new Response(
-            '<html><body style="font-family:sans-serif;text-align:center;padding:40px"><h1>📶 No Connection</h1><p>Check your network and try again.</p><button onclick="location.reload()" style="padding:12px 24px;font-size:16px;background:#7c3aed;color:white;border:none;border-radius:8px;margin-top:16px;min-height:48px">Retry</button></body></html>',
+            `<html><head><meta name="viewport" content="width=device-width,initial-scale=1"></head><body style="font-family:sans-serif;padding:24px;max-width:600px;margin:0 auto">
+<h1 style="font-size:20px">⚠️ Connection Failed</h1>
+<p style="color:#666">The app couldn't load because the network request failed and no cached version is available.</p>
+<div style="background:#f5f5f5;border-radius:8px;padding:16px;margin:16px 0;font-size:13px;word-break:break-all">
+<p style="margin:0 0 8px"><strong>URL:</strong> ${debugUrl}</p>
+<p style="margin:0 0 8px"><strong>Mode:</strong> ${debugMode}</p>
+<p style="margin:0 0 8px"><strong>Time:</strong> ${debugTime}</p>
+<p style="margin:0 0 8px"><strong>Online:</strong> ${self.navigator?.onLine ?? 'unknown'}</p>
+<p style="margin:0"><strong>SW Version:</strong> v3-debug</p>
+</div>
+<button onclick="location.reload()" style="padding:12px 24px;font-size:16px;background:#7c3aed;color:white;border:none;border-radius:8px;min-height:48px;cursor:pointer">Retry</button>
+<p style="color:#999;font-size:11px;margin-top:24px">If you see this while online, the server may be down or the URL may be incorrect. Try clearing your browser cache or opening in a new tab.</p>
+</body></html>`,
             { headers: { 'Content-Type': 'text/html' } }
           );
         }
