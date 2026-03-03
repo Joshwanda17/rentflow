@@ -11,9 +11,6 @@ import { cn } from '@/lib/utils';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
-import {
-  Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerTrigger
-} from '@/components/ui/drawer';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
@@ -25,6 +22,7 @@ interface MetricTile {
   status: HealthStatus;
   detail?: string;
   drilldownData?: { label: string; value: string | number }[];
+  route?: string;
 }
 
 function getStatusColor(status: HealthStatus) {
@@ -72,53 +70,27 @@ function StatusDot({ status }: { status: HealthStatus }) {
 }
 
 function TileCard({ tile }: { tile: MetricTile }) {
+  const navigate = useNavigate();
   return (
-    <Drawer>
-      <DrawerTrigger asChild>
-        <button className={cn(
-          'w-full text-left rounded-2xl border-2 p-4 transition-all active:scale-[0.97] hover:shadow-md',
-          getStatusColor(tile.status)
-        )}>
-          <div className="flex items-start justify-between mb-3">
-            <div className={cn('p-2 rounded-xl bg-background/60', getStatusIconColor(tile.status))}>
-              <tile.icon className="h-5 w-5" />
-            </div>
-            <StatusDot status={tile.status} />
-          </div>
-          <p className="text-2xl font-black tracking-tight tabular-nums">{tile.value}</p>
-          <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-1">{tile.label}</p>
-          {tile.status === 'red' && (
-            <div className="mt-2">{getStatusBadge(tile.status)}</div>
-          )}
-        </button>
-      </DrawerTrigger>
-      <DrawerContent>
-        <DrawerHeader>
-          <DrawerTitle className="flex items-center gap-2">
-            <tile.icon className={cn('h-5 w-5', getStatusIconColor(tile.status))} />
-            {tile.label}
-          </DrawerTitle>
-        </DrawerHeader>
-        <div className="p-4 pb-8 space-y-3">
-          <div className="flex items-center gap-2">
-            <StatusDot status={tile.status} />
-            {getStatusBadge(tile.status)}
-          </div>
-          <p className="text-3xl font-black">{tile.value}</p>
-          {tile.detail && <p className="text-sm text-muted-foreground">{tile.detail}</p>}
-          {tile.drilldownData && tile.drilldownData.length > 0 && (
-            <div className="space-y-2 mt-4">
-              {tile.drilldownData.map((d) => (
-                <div key={d.label} className="flex items-center justify-between py-2 px-3 rounded-xl bg-muted/50">
-                  <span className="text-sm text-muted-foreground">{d.label}</span>
-                  <span className="text-sm font-bold">{d.value}</span>
-                </div>
-              ))}
-            </div>
-          )}
+    <button
+      onClick={() => tile.route && navigate(tile.route)}
+      className={cn(
+        'w-full text-left rounded-2xl border-2 p-4 transition-all active:scale-[0.97] hover:shadow-md',
+        getStatusColor(tile.status)
+      )}
+    >
+      <div className="flex items-start justify-between mb-3">
+        <div className={cn('p-2 rounded-xl bg-background/60', getStatusIconColor(tile.status))}>
+          <tile.icon className="h-5 w-5" />
         </div>
-      </DrawerContent>
-    </Drawer>
+        <StatusDot status={tile.status} />
+      </div>
+      <p className="text-2xl font-black tracking-tight tabular-nums">{tile.value}</p>
+      <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest mt-1">{tile.label}</p>
+      {tile.status === 'red' && (
+        <div className="mt-2">{getStatusBadge(tile.status)}</div>
+      )}
+    </button>
   );
 }
 
@@ -267,7 +239,7 @@ export default function COODashboard() {
           icon: Users,
           status: activeUsers > 10 ? 'green' : activeUsers > 0 ? 'yellow' : 'red',
           detail: `${activeUsers} users active in the last 7 days`,
-          drilldownData: [{ label: 'Last 7 days', value: activeUsers }],
+          route: '/coo/active-users',
         },
         {
           id: 'earning-agents',
@@ -276,6 +248,7 @@ export default function COODashboard() {
           icon: TrendingUp,
           status: activeAgents > 5 ? 'green' : activeAgents > 0 ? 'yellow' : 'red',
           detail: `${activeAgents} agents earned in the last 7 days`,
+          route: '/coo/earning-agents',
         },
         {
           id: 'active-tenants',
@@ -284,6 +257,7 @@ export default function COODashboard() {
           icon: Home,
           status: tenantsWithBalances > 0 ? 'green' : 'yellow',
           detail: `${tenantsWithBalances} active rent obligations`,
+          route: '/coo/tenants-balances',
         },
         {
           id: 'new-rent',
@@ -293,6 +267,7 @@ export default function COODashboard() {
           status: newRentWeek > 0 ? 'green' : 'yellow',
           detail: `${newRentToday} today, ${newRentWeek} this week. Total pending: ${formatUGX(totalPendingAmount)}`,
           drilldownData: rentDrilldown,
+          route: '/coo/rent-requests',
         },
         {
           id: 'active-partners',
@@ -301,6 +276,7 @@ export default function COODashboard() {
           icon: Handshake,
           status: activeSupporters > 3 ? 'green' : activeSupporters > 0 ? 'yellow' : 'red',
           detail: `${activeSupporters} partners with active funding`,
+          route: '/coo/active-partners',
         },
         {
           id: 'new-partner-requests',
@@ -309,6 +285,7 @@ export default function COODashboard() {
           icon: UserPlus,
           status: newSupporterReq > 0 ? 'green' : 'yellow',
           detail: `${newSupporterReq} new partner signups this week`,
+          route: '/coo/partner-requests',
         },
         {
           id: 'active-landlords',
@@ -317,6 +294,7 @@ export default function COODashboard() {
           icon: Building2,
           status: activeLandlords > 3 ? 'green' : activeLandlords > 0 ? 'yellow' : 'red',
           detail: `${activeLandlords} landlords received payments in last 30 days`,
+          route: '/coo/active-landlords',
         },
         {
           id: 'pipeline-landlords',
@@ -325,6 +303,7 @@ export default function COODashboard() {
           icon: Clock,
           status: pipelineLandlords > 0 ? 'green' : 'yellow',
           detail: `${pipelineLandlords} landlords pending verification`,
+          route: '/coo/pipeline-landlords',
         },
         {
           id: 'rent-coverage',
@@ -337,10 +316,7 @@ export default function COODashboard() {
             : coverageStatus === 'yellow'
               ? 'Growth pressure detected. Monitor closely.'
               : 'Pause new rent approvals. Fix cash flow.',
-          drilldownData: [
-            { label: 'Outstanding repayments', value: `UGX ${totalExpected.toLocaleString()}` },
-            { label: 'Active obligations', value: tenantsWithBalances },
-          ],
+          route: '/coo/rent-coverage',
         },
       ];
 
