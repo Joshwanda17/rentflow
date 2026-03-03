@@ -38,6 +38,7 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 
 // Menu drawer
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
+import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { hapticTap } from '@/lib/haptics';
 import { motion } from 'framer-motion';
 
@@ -327,6 +328,7 @@ export default function SupporterDashboard({
                     </span>
                   )}
                 </h1>
+                <MerchantCodePills />
               </div>
             </div>
             <div className="flex items-center gap-2">
