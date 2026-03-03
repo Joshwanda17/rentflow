@@ -673,11 +673,10 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
     );
   }
 
-  const activeCategories = categories.filter(c => c.totalHouses > 0);
-  const totalHouses = activeCategories.reduce((s, c) => s + c.totalHouses, 0);
-  const hasCategories = activeCategories.length > 0;
-  const visibleCategories = showAll ? activeCategories : activeCategories.slice(0, VISIBLE_LIMIT);
-  const hasMore = activeCategories.length > VISIBLE_LIMIT;
+  const totalHouses = categories.reduce((s, c) => s + c.totalHouses, 0);
+  const hasCategories = categories.length > 0;
+  const visibleCategories = showAll ? categories : categories.slice(0, VISIBLE_LIMIT);
+  const hasMore = categories.length > VISIBLE_LIMIT;
 
   return (
     <div className="space-y-4">
@@ -691,7 +690,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <h3 className="font-black text-foreground text-base tracking-tight">Investment Categories</h3>
             <p className="text-[11px] text-muted-foreground font-medium">
               {hasCategories
-                ? `${totalHouses} houses across ${activeCategories.length} active tiers`
+                ? `${totalHouses} houses across ${categories.length} tiers`
                 : 'No categories configured yet'
               }
             </p>
@@ -700,7 +699,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
         {hasCategories && (
           <Badge className="text-[9px] px-2 py-0.5 bg-emerald-500/10 text-emerald-600 border-emerald-500/30 font-bold uppercase tracking-wider gap-1">
             <Activity className="h-2.5 w-2.5" />
-            {activeCategories.length} Active
+            {categories.length} Tiers
           </Badge>
         )}
       </div>
@@ -745,7 +744,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
                 {showAll ? (
                   <>Show Less <ChevronUp className="h-3.5 w-3.5" /></>
                 ) : (
-                  <>View All {activeCategories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
+                  <>View All {categories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
                 )}
               </Button>
             </motion.div>
