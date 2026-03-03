@@ -6,7 +6,7 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, ArrowDownCircle, Smartphone, AlertCircle } from 'lucide-react';
+import { Loader2, ArrowDownCircle, Smartphone, AlertCircle, Calendar, Clock, Info } from 'lucide-react';
 
 interface AgentDepositDialogProps {
   open: boolean;
@@ -19,6 +19,9 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
   const [amount, setAmount] = useState('');
   const [provider, setProvider] = useState<'mtn' | 'airtel'>('mtn');
   const [transactionId, setTransactionId] = useState('');
+  const [transactionDate, setTransactionDate] = useState('');
+  const [transactionTime, setTransactionTime] = useState('');
+  const [narration, setNarration] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<{
     success: boolean;
@@ -75,6 +78,11 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
       return;
     }
 
+    if (!narration.trim()) {
+      toast({ title: 'Reason / Narration is required', variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
     setResult(null);
 
@@ -109,6 +117,9 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
     setAmount('');
     setProvider('mtn');
     setTransactionId('');
+    setTransactionDate('');
+    setTransactionTime('');
+    setNarration('');
     setResult(null);
     onOpenChange(false);
   };
@@ -255,6 +266,68 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
               <p className="text-xs text-muted-foreground flex items-start gap-1.5">
                 <AlertCircle className="h-3.5 w-3.5 mt-0.5 shrink-0" />
                 Enter the transaction ID from the customer's {provider.toUpperCase()} payment confirmation SMS
+              </p>
+            </div>
+
+            <p className="text-xs text-muted-foreground">
+              Find this in your SMS confirmation from {provider.toUpperCase()}
+            </p>
+
+            {/* Date & Time */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="txnDate" className="flex items-center gap-1.5 text-sm">
+                  <Calendar className="h-3.5 w-3.5" />
+                  Date
+                </Label>
+                <Input
+                  id="txnDate"
+                  type="date"
+                  value={transactionDate}
+                  onChange={(e) => setTransactionDate(e.target.value)}
+                  disabled={loading}
+                  className="h-12"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="txnTime" className="flex items-center gap-1.5 text-sm">
+                  <Clock className="h-3.5 w-3.5" />
+                  Time
+                </Label>
+                <Input
+                  id="txnTime"
+                  type="time"
+                  value={transactionTime}
+                  onChange={(e) => setTransactionTime(e.target.value)}
+                  disabled={loading}
+                  className="h-12"
+                />
+              </div>
+            </div>
+
+            {/* Reason / Narration */}
+            <div className="space-y-2">
+              <Label htmlFor="narration" className="flex items-center gap-1.5 text-sm">
+                <Info className="h-3.5 w-3.5" />
+                Reason / Narration <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="narration"
+                type="text"
+                placeholder="e.g. Rent repayment, Access fee, Wallet top-up"
+                value={narration}
+                onChange={(e) => setNarration(e.target.value)}
+                disabled={loading}
+                className="h-12"
+                maxLength={200}
+              />
+            </div>
+
+            {/* Warning */}
+            <div className="rounded-xl bg-warning/10 border border-warning/30 p-3 flex items-start gap-2.5">
+              <AlertCircle className="h-4 w-4 text-warning shrink-0 mt-0.5" />
+              <p className="text-xs text-muted-foreground">
+                Please ensure all details match your mobile money SMS. Incorrect information may delay verification.
               </p>
             </div>
 
