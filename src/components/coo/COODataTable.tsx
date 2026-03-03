@@ -67,16 +67,17 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
           </button>
         </div>
 
-        <div className="rounded-2xl border-2 border-border/60 bg-card overflow-hidden">
+      <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-sm">
           <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+            <table className="w-full text-[13px] font-mono">
               <thead>
-                <tr className="border-b border-border/60 bg-muted/30">
+                <tr className="border-b-2 border-border bg-muted/50">
+                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-center w-10">#</th>
                   {tableCols.map(col => (
                     <th
                       key={col.key}
                       className={cn(
-                        'px-3 py-2.5 text-[10px] font-bold uppercase tracking-widest text-muted-foreground whitespace-nowrap',
+                        'px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground whitespace-nowrap border-l border-border/40',
                         col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
                       )}
                     >
@@ -85,57 +86,78 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
                   ))}
                 </tr>
               </thead>
-              <tbody>
+              <tbody className="divide-y divide-border/30">
                 {paged.length === 0 ? (
                   <tr>
-                    <td colSpan={tableCols.length} className="px-3 py-6 text-center text-xs text-muted-foreground">
-                      No data available
+                    <td colSpan={tableCols.length + 1} className="px-3 py-10 text-center text-xs text-muted-foreground italic">
+                      No records found
                     </td>
                   </tr>
                 ) : (
-                  paged.map((row, i) => (
-                    <tr
-                      key={i}
-                      onClick={() => setSelectedRow(row)}
-                      className="border-b border-border/30 last:border-0 hover:bg-primary/5 transition-colors cursor-pointer active:bg-primary/10"
-                    >
-                      {tableCols.map(col => (
-                        <td
-                          key={col.key}
-                          className={cn(
-                            'px-3 py-2.5 tabular-nums',
-                            col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left'
-                          )}
-                        >
-                          {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
-                        </td>
-                      ))}
-                    </tr>
-                  ))
+                  paged.map((row, i) => {
+                    const rowIndex = page * pageSize + i + 1;
+                    return (
+                      <tr
+                        key={i}
+                        onClick={() => setSelectedRow(row)}
+                        className={cn(
+                          'transition-colors cursor-pointer active:bg-primary/10',
+                          i % 2 === 0 ? 'bg-card' : 'bg-muted/20',
+                          'hover:bg-primary/[0.07]'
+                        )}
+                      >
+                        <td className="px-3 py-2 text-[10px] font-bold text-muted-foreground/60 text-center tabular-nums">{rowIndex}</td>
+                        {tableCols.map(col => (
+                          <td
+                            key={col.key}
+                            className={cn(
+                              'px-3 py-2 tabular-nums border-l border-border/20',
+                              col.align === 'right' ? 'text-right font-semibold' : col.align === 'center' ? 'text-center' : 'text-left',
+                              col.align === 'right' && 'tracking-tight'
+                            )}
+                          >
+                            {col.render ? col.render(row) : String((row as any)[col.key] ?? '—')}
+                          </td>
+                        ))}
+                      </tr>
+                    );
+                  })
                 )}
               </tbody>
+              {paged.length > 0 && (
+                <tfoot>
+                  <tr className="border-t-2 border-border bg-muted/40">
+                    <td className="px-3 py-1.5 text-[9px] font-black text-muted-foreground" colSpan={tableCols.length + 1}>
+                      {data.length} RECORD{data.length !== 1 ? 'S' : ''} TOTAL
+                    </td>
+                  </tr>
+                </tfoot>
+              )}
             </table>
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-3 py-2 border-t border-border/40 bg-muted/20">
-              <span className="text-[10px] font-semibold text-muted-foreground uppercase tracking-widest">
-                {page * pageSize + 1}–{Math.min((page + 1) * pageSize, data.length)} of {data.length}
+            <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/60 bg-muted/30">
+              <span className="text-[10px] font-bold text-muted-foreground tabular-nums tracking-wide">
+                SHOWING {page * pageSize + 1}–{Math.min((page + 1) * pageSize, data.length)} OF {data.length}
               </span>
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-0.5">
                 <button
                   onClick={() => setPage(p => Math.max(0, p - 1))}
                   disabled={page === 0}
-                  className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 active:scale-95"
+                  className="p-1 rounded hover:bg-muted disabled:opacity-20 active:scale-95 transition-colors"
                 >
-                  <ChevronLeft className="h-4 w-4" />
+                  <ChevronLeft className="h-3.5 w-3.5" />
                 </button>
+                <span className="text-[10px] font-bold tabular-nums text-muted-foreground px-1.5">
+                  {page + 1}/{totalPages}
+                </span>
                 <button
                   onClick={() => setPage(p => Math.min(totalPages - 1, p + 1))}
                   disabled={page >= totalPages - 1}
-                  className="p-1 rounded-lg hover:bg-muted disabled:opacity-30 active:scale-95"
+                  className="p-1 rounded hover:bg-muted disabled:opacity-20 active:scale-95 transition-colors"
                 >
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 </button>
               </div>
             </div>
