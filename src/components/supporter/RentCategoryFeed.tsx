@@ -73,7 +73,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
       .from('rent_requests')
       .select('id, rent_amount, request_city, duration_days, house_category')
       .eq('status', 'approved')
-      .limit(500);
+      .limit(200);
 
     const tierMap = new Map<string, { tier: CategoryTier; count: number; totalRent: number; totalReward: number }>();
     WELILE_TIERS.forEach(t => tierMap.set(t.name, { tier: t, count: 0, totalRent: 0, totalReward: 0 }));
