@@ -366,8 +366,10 @@ export function useAuthForm() {
       } else {
         await handleSignInSubmit();
       }
-    } catch {
-      toast({ title: 'Error', description: 'An unexpected error occurred', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[AuthForm] Unexpected error:', err);
+      toast({ title: 'Error', description: `Unexpected error: ${msg}`, variant: 'destructive' });
     } finally {
       clearTimeout(safetyTimer);
       setIsLoading(false);
@@ -381,8 +383,10 @@ export function useAuthForm() {
       if (error) {
         toast({ title: 'Google Sign In Failed', description: error.message, variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to sign in with Google', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[GoogleSignIn] Unexpected error:', err);
+      toast({ title: 'Google Sign In Failed', description: `Unexpected error: ${msg}`, variant: 'destructive' });
     } finally {
       setIsGoogleLoading(false);
     }
@@ -395,8 +399,10 @@ export function useAuthForm() {
       if (error) {
         toast({ title: 'Apple Sign In Failed', description: error.message, variant: 'destructive' });
       }
-    } catch {
-      toast({ title: 'Error', description: 'Failed to sign in with Apple', variant: 'destructive' });
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error('[AppleSignIn] Unexpected error:', err);
+      toast({ title: 'Apple Sign In Failed', description: `Unexpected error: ${msg}`, variant: 'destructive' });
     } finally {
       setIsAppleLoading(false);
     }
