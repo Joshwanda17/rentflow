@@ -416,9 +416,6 @@ export default function SupporterDashboard({
             {/* ═══ CAPITAL OPPORTUNITY CARD ═══ */}
             <OpportunitySummaryCard />
 
-            {/* ═══ FUNDING POOL CARD ═══ */}
-            <FundingPoolCard fundedAmount={totalRentContributed} />
-
             <RentCategoryFeed
               onFundCategory={(cat) => {
                 if (!effectiveHasAccepted) {
