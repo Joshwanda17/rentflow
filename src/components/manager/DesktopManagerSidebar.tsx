@@ -29,7 +29,6 @@ const quickLinks = [
   { icon: Receipt, label: 'Receipts', path: '/manager-access?tab=receipts' },
   { icon: ChartBar, label: 'Finance', path: '/manager-access?tab=financials' },
   { icon: ClipboardList, label: 'Audit Log', path: '/audit-log' },
-  { icon: Banknote, label: 'Agent Advance', path: '/agent-advances' },
 ];
 
 export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProductivity }: DesktopManagerSidebarProps) {

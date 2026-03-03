@@ -105,13 +105,6 @@ const menuItems = [
     color: 'bg-rose-600',
     description: 'COO Dashboard'
   },
-  { 
-    icon: Banknote, 
-    label: 'Advances', 
-    path: '/agent-advances',
-    color: 'bg-cyan-600',
-    description: 'Agent advances'
-  },
 ];
 
 export default function MobileManagerMenu({ onScrollToProductivity, isOpen: externalOpen, onClose }: MobileManagerMenuProps) {
