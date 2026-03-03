@@ -70,15 +70,8 @@ export default function SupporterDashboard({
   const location = useLocation();
   const { profile } = useProfile();
   const { isOnline } = useOffline();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [hasCachedData, setHasCachedData] = useState(false);
-  
-  // Safety timeout: never show skeleton for more than 5s
-  useEffect(() => {
-    if (!loading) return;
-    const t = setTimeout(() => setLoading(false), 5000);
-    return () => clearTimeout(t);
-  }, [loading]);
   const [showPaymentPartners, setShowPaymentPartners] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [showViewAgreementModal, setShowViewAgreementModal] = useState(false);
@@ -282,7 +275,7 @@ export default function SupporterDashboard({
     }
   };
 
-  if (loading && isOnline && !hasCachedData) {
+  if (loading && isOnline && !hasCachedData && false) {
     return <SupporterDashboardSkeleton />;
   }
 
