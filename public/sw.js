@@ -144,7 +144,8 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
 
   // CRITICAL: Never intercept OAuth routes — must always hit the network
-  if (url.pathname.startsWith('/~oauth')) return;
+  // Include both direct and nested oauth paths for safety
+  if (url.pathname.startsWith('/~oauth') || url.pathname.includes('/~oauth/')) return;
 
   // Skip cross-origin requests except for fonts and CDN assets
   if (url.origin !== location.origin &&
@@ -197,13 +198,16 @@ self.addEventListener('fetch', (event) => {
             const timer = setTimeout(() => reject(new Error('Network timeout')), NETWORK_TIMEOUT_MS);
             fetch(request).then(response => {
               clearTimeout(timer);
-              if (response.ok) {
+              // OAuth can return redirect/opaque responses (status 0) during auth handoff.
+              // Treat these as valid network responses instead of forcing offline fallback.
+              const isRedirectLike = response.type === 'opaqueredirect' || response.type === 'opaque' || response.status === 0;
+              if (response.ok || isRedirectLike) {
                 const cache_promise = caches.open(CACHE_NAME).then(cache => {
                   cache.put(request, response.clone());
                 });
                 resolve(response);
               } else {
-                reject(new Error('Network response not ok'));
+                reject(new Error(`Network response not ok: ${response.status}`));
               }
             }).catch(err => {
               clearTimeout(timer);
@@ -242,7 +246,7 @@ self.addEventListener('fetch', (event) => {
 <p style="margin:0 0 8px"><strong>Mode:</strong> ${debugMode}</p>
 <p style="margin:0 0 8px"><strong>Time:</strong> ${debugTime}</p>
 <p style="margin:0 0 8px"><strong>Online:</strong> ${self.navigator?.onLine ?? 'unknown'}</p>
-<p style="margin:0"><strong>SW Version:</strong> v3-debug</p>
+<p style="margin:0"><strong>SW Version:</strong> ${CACHE_NAME}</p>
 </div>
 <button onclick="location.reload()" style="padding:12px 24px;font-size:16px;background:#7c3aed;color:white;border:none;border-radius:8px;min-height:48px;cursor:pointer">Retry</button>
 <p style="color:#999;font-size:11px;margin-top:24px">If you see this while online, the server may be down or the URL may be incorrect. Try clearing your browser cache or opening in a new tab.</p>
