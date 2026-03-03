@@ -149,10 +149,10 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
         <div className="mx-5 mb-4">
           <div className="flex items-center justify-between mb-1.5">
             <span className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Liquidity Health</span>
-            <span className={`text-[10px] font-bold flex items-center gap-1 ${liq.color}`}>
-              <span className={`w-1.5 h-1.5 rounded-full ${liq.dot} animate-pulse`} />
-              {liq.label} · {(liquidityPct * 100).toFixed(1)}%
-            </span>
+            
+
+
+            
           </div>
           <div className="h-2 rounded-full bg-muted/40 overflow-hidden">
             <motion.div
