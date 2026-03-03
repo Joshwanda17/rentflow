@@ -139,8 +139,8 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
         <ChevronDown className={`h-4 w-4 text-muted-foreground shrink-0 transition-transform duration-200 ${isOpen ? 'rotate-180' : ''}`} />
 
         {/* Total Return Badge - wraps below on mobile */}
-        <div className="w-full flex justify-start sm:w-auto sm:shrink-0">
-          <div className="text-center px-5 py-1.5 rounded-xl bg-success/10 border border-success/20">
+        <div className="w-full sm:w-auto sm:shrink-0">
+          <div className="flex items-center justify-between px-4 py-2 rounded-xl bg-success/10 border border-success/20">
             <p className="text-[9px] text-muted-foreground font-semibold uppercase tracking-wider">Total Return</p>
             <p className="text-sm font-black text-success">+{formatAmount(totalReturn)}</p>
           </div>
