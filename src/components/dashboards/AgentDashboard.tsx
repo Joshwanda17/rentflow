@@ -196,13 +196,13 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           <motion.button
             whileTap={{ scale: 0.98 }}
             onClick={handleViewWallet}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation"
+            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation overflow-hidden"
           >
-            <div className="p-3 rounded-xl bg-success/20">
+            <div className="p-3 rounded-xl bg-success/20 shrink-0">
               <Wallet className="h-7 w-7 text-success" />
             </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-xl text-success">{formatUGX(wallet?.balance ?? 0)}</p>
+            <div className="flex-1 text-left min-w-0">
+              <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
               <p className="text-sm text-muted-foreground">Wallet Balance</p>
               <RecentAutoCharges />
             </div>
