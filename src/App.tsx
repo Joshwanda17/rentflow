@@ -84,6 +84,15 @@ const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 const COODashboard = lazy(() => import('./pages/COODashboard'));
+const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
+const EarningAgentsDetail = lazy(() => import('./pages/coo/EarningAgentsDetail'));
+const TenantsBalancesDetail = lazy(() => import('./pages/coo/TenantsBalancesDetail'));
+const NewRentRequestsDetail = lazy(() => import('./pages/coo/NewRentRequestsDetail'));
+const ActivePartnersDetail = lazy(() => import('./pages/coo/ActivePartnersDetail'));
+const NewPartnerRequestsDetail = lazy(() => import('./pages/coo/NewPartnerRequestsDetail'));
+const ActiveLandlordsDetail = lazy(() => import('./pages/coo/ActiveLandlordsDetail'));
+const PipelineLandlordsDetail = lazy(() => import('./pages/coo/PipelineLandlordsDetail'));
+const RentCoverageDetail = lazy(() => import('./pages/coo/RentCoverageDetail'));
 const WelileAIPage = lazy(() => import('./components/ai-chat/WelileAIChatButton').then(m => ({ default: m.WelileAIPage })));
 const Terms = lazy(() => import('./pages/Terms'));
 const Privacy = lazy(() => import('./pages/Privacy'));
@@ -226,6 +235,15 @@ function AppRoutes() {
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/coo-dashboard" element={<COODashboard />} />
+          <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
+          <Route path="/coo/earning-agents" element={<EarningAgentsDetail />} />
+          <Route path="/coo/tenants-balances" element={<TenantsBalancesDetail />} />
+          <Route path="/coo/rent-requests" element={<NewRentRequestsDetail />} />
+          <Route path="/coo/active-partners" element={<ActivePartnersDetail />} />
+          <Route path="/coo/partner-requests" element={<NewPartnerRequestsDetail />} />
+          <Route path="/coo/active-landlords" element={<ActiveLandlordsDetail />} />
+          <Route path="/coo/pipeline-landlords" element={<PipelineLandlordsDetail />} />
+          <Route path="/coo/rent-coverage" element={<RentCoverageDetail />} />
           <Route path="/share" element={<Index />} />
           <Route path="/ai" element={<WelileAIPage />} />
           <Route path="/terms" element={<Terms />} />
