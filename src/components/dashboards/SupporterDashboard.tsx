@@ -329,10 +329,10 @@ export default function SupporterDashboard({
                     </span>
                   )}
                 </h1>
-                <MerchantCodePills />
               </div>
             </div>
           </div>
+          <MerchantCodePills />
           <div className="flex items-center justify-center gap-2 px-1">
             <AiIdButton variant="compact" />
             {effectiveHasAccepted ? (
