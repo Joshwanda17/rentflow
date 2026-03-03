@@ -3,8 +3,8 @@ import { motion, useSpring } from 'framer-motion';
 import {
   TrendingUp, Shield, Wallet, ChevronRight, Zap, Clock,
   AlertTriangle, CheckCircle2, BarChart3, PiggyBank, Activity,
-  ArrowDownRight, ArrowUpRight, Droplets
-} from 'lucide-react';
+  ArrowDownRight, ArrowUpRight, Droplets } from
+'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useOpportunitySummary } from '@/hooks/useOpportunitySummary';
 import { Button } from '@/components/ui/button';
@@ -14,11 +14,11 @@ import { FundRentDialog } from './FundRentDialog';
 import { InvestmentWithdrawButton } from './InvestmentWithdrawButton';
 
 // ─── Animated counter ───
-function AnimatedCounter({ value, className = '' }: { value: number; className?: string }) {
+function AnimatedCounter({ value, className = '' }: {value: number;className?: string;}) {
   const [display, setDisplay] = useState(value);
   const spring = useSpring(value, { stiffness: 80, damping: 28 });
 
-  useEffect(() => { spring.set(value); }, [value, spring]);
+  useEffect(() => {spring.set(value);}, [value, spring]);
   useEffect(() => {
     const unsub = spring.on('change', (v) => setDisplay(Math.round(v)));
     return unsub;
@@ -48,7 +48,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
   const now = new Date();
   const cycleDay = now.getDate();
   const cycleDaysTotal = 30;
-  const cycleProgress = Math.min((cycleDay / cycleDaysTotal) * 100, 100);
+  const cycleProgress = Math.min(cycleDay / cycleDaysTotal * 100, 100);
   const payoutReady = cycleProgress >= 100;
 
   // ─── Financial calculations ───
@@ -66,17 +66,17 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
   }, [summary]);
 
   const poolAvailable = Math.max(POOL_TOTAL - poolUtilized, 0);
-  const utilizationPct = POOL_TOTAL > 0 ? (poolUtilized / POOL_TOTAL) * 100 : 0;
-  const liquidityPct = POOL_TOTAL > 0 ? (poolAvailable / POOL_TOTAL) : 1;
+  const utilizationPct = POOL_TOTAL > 0 ? poolUtilized / POOL_TOTAL * 100 : 0;
+  const liquidityPct = POOL_TOTAL > 0 ? poolAvailable / POOL_TOTAL : 1;
 
-  const liquidityStatus: 'healthy' | 'caution' | 'warning' = 
-    liquidityPct < LIQUIDITY_WARNING_THRESHOLD ? 'warning' :
-    liquidityPct < LIQUIDITY_CAUTION_THRESHOLD ? 'caution' : 'healthy';
+  const liquidityStatus: 'healthy' | 'caution' | 'warning' =
+  liquidityPct < LIQUIDITY_WARNING_THRESHOLD ? 'warning' :
+  liquidityPct < LIQUIDITY_CAUTION_THRESHOLD ? 'caution' : 'healthy';
 
   const liquidityConfig = {
     healthy: { label: 'Healthy', color: 'text-emerald-500', bg: 'bg-emerald-500/10', border: 'border-emerald-500/30', dot: 'bg-emerald-500' },
     caution: { label: 'Moderate', color: 'text-amber-500', bg: 'bg-amber-500/10', border: 'border-amber-500/30', dot: 'bg-amber-500' },
-    warning: { label: 'Low Liquidity', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30', dot: 'bg-red-500' },
+    warning: { label: 'Low Liquidity', color: 'text-red-500', bg: 'bg-red-500/10', border: 'border-red-500/30', dot: 'bg-red-500' }
   };
 
   const liq = liquidityConfig[liquidityStatus];
@@ -91,8 +91,8 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
         initial={{ opacity: 0, y: 12 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4 }}
-        className="rounded-2xl overflow-hidden shadow-lg border border-blue-200/40 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 dark:from-card dark:via-blue-950/20 dark:to-blue-900/10"
-      >
+        className="rounded-2xl overflow-hidden shadow-lg border border-blue-200/40 dark:border-blue-900/40 bg-gradient-to-br from-white via-blue-50/30 to-blue-100/20 dark:from-card dark:via-blue-950/20 dark:to-blue-900/10">
+        
         {/* ═══ HEADER ═══ */}
         <div className="px-5 pt-5 pb-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
@@ -100,17 +100,17 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
               <PiggyBank className="h-5 w-5 text-white" />
             </div>
             <div>
-              <h3 className="font-black text-foreground text-base tracking-tight">Funding Pool</h3>
+              <h3 className="font-black text-foreground text-base tracking-tight">TOTAL RENT </h3>
               <p className="text-[11px] text-muted-foreground font-medium">Capital deployment & returns</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
-            {liquidityStatus === 'warning' && (
-              <Badge className="text-[9px] px-2 py-0.5 bg-red-500/10 text-red-600 border-red-500/30 font-bold uppercase tracking-wider gap-1">
+            {liquidityStatus === 'warning' &&
+            <Badge className="text-[9px] px-2 py-0.5 bg-red-500/10 text-red-600 border-red-500/30 font-bold uppercase tracking-wider gap-1">
                 <AlertTriangle className="h-3 w-3" />
                 Low Liquidity
               </Badge>
-            )}
+            }
             <Badge variant="outline" className="text-[9px] px-2 py-0.5 border-emerald-500/40 text-emerald-600 bg-emerald-500/5 font-bold uppercase tracking-wider">
               <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 mr-1 animate-pulse" />
               Active
@@ -120,7 +120,7 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
 
         {/* ═══ POOL BALANCE HERO ═══ */}
         <div className="px-5 pb-4">
-          <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-widest mb-1">Pool Total Capital</p>
+          <p className="text-[10px] text-blue-600/70 dark:text-blue-400/70 font-bold uppercase tracking-widest mb-1">RENT NEEDED</p>
           <p className="text-3xl font-black text-foreground tracking-tight leading-none">
             <AnimatedCounter value={POOL_TOTAL} />
           </p>
@@ -160,11 +160,11 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
               animate={{ width: `${Math.min(liquidityPct * 100, 100)}%` }}
               transition={{ duration: 1, ease: 'easeOut' }}
               className={`h-full rounded-full ${
-                liquidityStatus === 'healthy' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
-                liquidityStatus === 'caution' ? 'bg-gradient-to-r from-amber-400 to-amber-500' :
-                'bg-gradient-to-r from-red-400 to-red-500'
-              }`}
-            />
+              liquidityStatus === 'healthy' ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' :
+              liquidityStatus === 'caution' ? 'bg-gradient-to-r from-amber-400 to-amber-500' :
+              'bg-gradient-to-r from-red-400 to-red-500'}`
+              } />
+            
           </div>
         </div>
 
@@ -175,16 +175,16 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
               <Activity className="h-4 w-4 text-blue-500" />
               <span className="text-xs font-bold text-foreground">Payout Cycle</span>
             </div>
-            {payoutReady ? (
-              <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] font-bold gap-1">
+            {payoutReady ?
+            <Badge className="bg-emerald-500/15 text-emerald-600 border-emerald-500/30 text-[10px] font-bold gap-1">
                 <CheckCircle2 className="h-3 w-3" />
                 Payout Ready
-              </Badge>
-            ) : (
-              <span className="text-[10px] text-muted-foreground font-semibold">
+              </Badge> :
+
+            <span className="text-[10px] text-muted-foreground font-semibold">
                 Day {cycleDay} of {cycleDaysTotal}
               </span>
-            )}
+            }
           </div>
 
           {/* Progress bar */}
@@ -195,13 +195,13 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
                 animate={{ width: `${cycleProgress}%` }}
                 transition={{ duration: 1.2, ease: 'easeOut' }}
                 className={`h-full rounded-full ${
-                  payoutReady 
-                    ? 'bg-gradient-to-r from-emerald-400 to-emerald-500' 
-                    : cycleProgress > 80 
-                      ? 'bg-gradient-to-r from-blue-400 via-blue-500 to-amber-400'
-                      : 'bg-gradient-to-r from-blue-400 to-blue-500'
-                }`}
-              />
+                payoutReady ?
+                'bg-gradient-to-r from-emerald-400 to-emerald-500' :
+                cycleProgress > 80 ?
+                'bg-gradient-to-r from-blue-400 via-blue-500 to-amber-400' :
+                'bg-gradient-to-r from-blue-400 to-blue-500'}`
+                } />
+              
             </div>
             <div className="flex items-center justify-between">
               <span className="text-[10px] text-muted-foreground font-semibold">
@@ -214,12 +214,12 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
           </div>
 
           {/* Next payout date */}
-          {!payoutReady && (
-            <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
+          {!payoutReady &&
+          <div className="flex items-center gap-1.5 text-[10px] text-muted-foreground">
               <Clock className="h-3 w-3" />
               <span>Next payout: <strong className="text-foreground">{nextPayoutDate.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</strong></span>
             </div>
-          )}
+          }
         </div>
 
         {/* ═══ RETURNS & TERMS ═══ */}
@@ -259,8 +259,8 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
           <Button
             onClick={() => setShowFundDialog(true)}
             disabled={liquidityStatus === 'warning'}
-            className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-purple-600 to-purple-500 hover:from-purple-700 hover:to-purple-600 shadow-lg shadow-purple-500/25 text-white"
-          >
+            className="w-full gap-2 rounded-xl font-bold h-12 text-sm bg-gradient-to-r from-blue-600 to-blue-500 hover:from-blue-700 hover:to-blue-600 shadow-lg shadow-blue-500/25 text-white">
+            
             Deploy Capital · Earn 15% Monthly
             <ChevronRight className="h-4 w-4" />
           </Button>
@@ -283,13 +283,13 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
       </motion.div>
 
       {/* ═══ EARNINGS BREAKDOWN ═══ */}
-      {fundedAmount > 0 && (
-        <motion.div
-          initial={{ opacity: 0, y: 8 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.35, delay: 0.15 }}
-          className="rounded-2xl border border-blue-200/40 dark:border-blue-900/40 bg-gradient-to-br from-white to-blue-50/30 dark:from-card dark:to-blue-950/10 p-5 space-y-3 mt-4 shadow-sm"
-        >
+      {fundedAmount > 0 &&
+      <motion.div
+        initial={{ opacity: 0, y: 8 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.35, delay: 0.15 }}
+        className="rounded-2xl border border-blue-200/40 dark:border-blue-900/40 bg-gradient-to-br from-white to-blue-50/30 dark:from-card dark:to-blue-950/10 p-5 space-y-3 mt-4 shadow-sm">
+        
           <div className="flex items-center gap-2 mb-1">
             <BarChart3 className="h-4 w-4 text-blue-500" />
             <h4 className="text-sm font-black text-foreground">Earnings Breakdown</h4>
@@ -329,15 +329,15 @@ export function FundingPoolCard({ fundedAmount }: FundingPoolCardProps) {
             </div>
           </div>
         </motion.div>
-      )}
+      }
 
-      {summary && (
-        <FundRentDialog
-          open={showFundDialog}
-          onOpenChange={setShowFundDialog}
-          summary={summary}
-        />
-      )}
-    </>
-  );
+      {summary &&
+      <FundRentDialog
+        open={showFundDialog}
+        onOpenChange={setShowFundDialog}
+        summary={summary} />
+
+      }
+    </>);
+
 }
