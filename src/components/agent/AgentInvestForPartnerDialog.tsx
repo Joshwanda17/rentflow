@@ -241,12 +241,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                       )}
                     >
                       <p className="font-medium truncate">{p.full_name}</p>
-                      <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center text-xs text-muted-foreground">
                         <span>{p.phone}</span>
-                        <span className="flex items-center gap-1">
-                          <Wallet className="h-3 w-3" />
-                          {formatUGX(p.balance)}
-                        </span>
                       </div>
                     </button>
                   ))
@@ -256,14 +252,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           </div>
 
           {/* Selected Partner Balance */}
-          {selectedPartner && (
-            <div className="flex items-center gap-2 p-3 rounded-lg bg-muted/50 border">
-              <Wallet className="h-4 w-4 text-success" />
-              <span className="text-sm">Partner Balance:</span>
-              <span className="font-bold text-success ml-auto">{formatUGX(selectedPartner.balance)}</span>
-            </div>
-          )}
-
           {/* Amount */}
           <div className="space-y-2">
             <Label>Investment Amount (UGX)</Label>
