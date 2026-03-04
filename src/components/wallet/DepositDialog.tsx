@@ -83,8 +83,12 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     }).format(value);
   };
 
-  const today = new Date().toISOString().split('T')[0];
-  const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString().split('T')[0];
+  // Use LOCAL date to avoid UTC offset issues (e.g. Uganda UTC+3)
+  const pad = (n: number) => n.toString().padStart(2, '0');
+  const nowLocal = new Date();
+  const today = `${nowLocal.getFullYear()}-${pad(nowLocal.getMonth() + 1)}-${pad(nowLocal.getDate())}`;
+  const sevenAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+  const sevenDaysAgo = `${sevenAgo.getFullYear()}-${pad(sevenAgo.getMonth() + 1)}-${pad(sevenAgo.getDate())}`;
 
   const copyMerchantCode = async () => {
     try {
@@ -120,16 +124,16 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       return false;
     }
 
-    // Validate date is not in the future and within last 7 days
-    const txDate = new Date(`${transactionDate}T${transactionTime}`);
-    const now = new Date();
-    const sevenDaysAgoDate = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+    // Validate date is not in the future and within last 7 days (local time)
+    const txDateOnly = new Date(transactionDate + 'T00:00:00');
+    const todayDateOnly = new Date(today + 'T00:00:00');
+    const sevenDaysAgoDate = new Date(sevenDaysAgo + 'T00:00:00');
 
-    if (txDate > now) {
+    if (txDateOnly > todayDateOnly) {
       toast.error('Transaction date cannot be in the future');
       return false;
     }
-    if (txDate < sevenDaysAgoDate) {
+    if (txDateOnly < sevenDaysAgoDate) {
       toast.error('Transaction must be within the last 7 days');
       return false;
     }
@@ -150,16 +154,19 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     setLoading(true);
 
     try {
-      const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
       const normalizedTxId = transactionId.trim().toUpperCase();
 
       // Check for duplicate transaction ID
-      const { data: existingDeposits } = await supabase
+      const { data: existingDeposits, error: dupError } = await supabase
         .from('deposit_requests')
         .select('id')
-        .filter('transaction_id', 'eq', normalizedTxId);
+        .eq('transaction_id', normalizedTxId)
+        .limit(1);
 
-      if (existingDeposits && existingDeposits.length > 0) {
+      if (dupError) {
+        console.error('Duplicate check error:', dupError);
+        // Don't block submission on duplicate check failure
+      } else if (existingDeposits && existingDeposits.length > 0) {
         toast.error('This transaction ID has already been used');
         setLoading(false);
         return;
@@ -174,7 +181,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
           status: 'pending',
           provider: provider,
           transaction_id: normalizedTxId,
-          transaction_date: txDateTime.toISOString(),
+          transaction_date: `${transactionDate}T${transactionTime}:00`,
           notes: reason.trim(),
         } as any);
 
