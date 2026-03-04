@@ -525,7 +525,7 @@ export default function SupporterDashboard({
         onAcceptAndDeposit={() => setShowPaymentPartners(true)}
       />
 
-      <FloatingWalletButton />
+      
       
       <MobileBottomNav currentRole={currentRole} />
     </div>
