@@ -5,7 +5,7 @@ import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   ArrowLeft, BarChart3, Shield, Banknote, ClipboardList, 
-  BookOpen, AlertTriangle, TrendingUp, Loader2, Scale
+  BookOpen, AlertTriangle, TrendingUp, Loader2, Scale, ArrowDownToLine
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,6 +19,7 @@ import { WithdrawalRequestsManager } from '@/components/manager/WithdrawalReques
 import { GeneralLedger } from '@/components/manager/GeneralLedger';
 import { FinancialOverview } from '@/components/manager/FinancialOverview';
 import CFOReconciliationPanel from '@/components/cfo/CFOReconciliationPanel';
+import { CFOWithdrawalApprovals } from '@/components/cfo/CFOWithdrawalApprovals';
 
 export default function CFODashboard() {
   const { user, loading: authLoading } = useAuth();
@@ -130,8 +131,15 @@ export default function CFODashboard() {
             </div>
             <div className="space-y-4">
               <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
+                <ArrowDownToLine className="h-4 w-4 text-primary" />
+                Withdrawal Approvals (Manager → CFO)
+              </h3>
+              <CFOWithdrawalApprovals />
+            </div>
+            <div className="space-y-4">
+              <h3 className="text-sm font-bold uppercase tracking-wider text-muted-foreground flex items-center gap-2">
                 <Banknote className="h-4 w-4 text-primary" />
-                Withdrawal Requests
+                All Withdrawal Requests
               </h3>
               <WithdrawalRequestsManager />
             </div>
