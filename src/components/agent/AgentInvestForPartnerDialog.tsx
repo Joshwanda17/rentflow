@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link } from 'lucide-react';
+import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AgentInvestForPartnerDialogProps {
@@ -218,6 +218,12 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
   }, [success, buildShareMessage]);
 
+  const handleSMS = useCallback(() => {
+    if (!success) return;
+    const msg = buildShareMessage(success);
+    window.open(`sms:?body=${encodeURIComponent(msg)}`, '_self');
+  }, [success, buildShareMessage]);
+
   const handleNativeShare = useCallback(async () => {
     if (!success) return;
     const msg = buildShareMessage(success);
@@ -268,7 +274,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 </div>
               )}
 
-              <div className="grid grid-cols-3 gap-2">
+              <div className="grid grid-cols-4 gap-2">
                 <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex-col h-auto py-2.5 gap-1">
                   <Copy className="h-4 w-4" />
                   <span className="text-[10px]">Copy</span>
@@ -276,6 +282,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                 <Button variant="outline" size="sm" onClick={handleWhatsApp} className="flex-col h-auto py-2.5 gap-1 text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50">
                   <MessageCircle className="h-4 w-4" />
                   <span className="text-[10px]">WhatsApp</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleSMS} className="flex-col h-auto py-2.5 gap-1 text-blue-600 hover:text-blue-700 border-blue-200 hover:bg-blue-50">
+                  <Smartphone className="h-4 w-4" />
+                  <span className="text-[10px]">SMS</span>
                 </Button>
                 <Button variant="outline" size="sm" onClick={handleNativeShare} className="flex-col h-auto py-2.5 gap-1">
                   <Share2 className="h-4 w-4" />
