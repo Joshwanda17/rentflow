@@ -2409,6 +2409,7 @@ export type Database = {
           service_type: string
           start_date: string
           status: string
+          tenant_failed_at: string | null
           tenant_id: string
           total_charged: number
           total_charges_due: number
@@ -2432,6 +2433,7 @@ export type Database = {
           service_type?: string
           start_date?: string
           status?: string
+          tenant_failed_at?: string | null
           tenant_id: string
           total_charged?: number
           total_charges_due?: number
@@ -2455,6 +2457,7 @@ export type Database = {
           service_type?: string
           start_date?: string
           status?: string
+          tenant_failed_at?: string | null
           tenant_id?: string
           total_charged?: number
           total_charges_due?: number
