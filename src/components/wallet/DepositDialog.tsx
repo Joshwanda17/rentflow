@@ -181,12 +181,6 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
 
     setLoading(true);
 
-    // Safety-net: force-clear loading after 20s no matter what
-    const safetyTimer = setTimeout(() => {
-      setLoading(false);
-      toast.error('Request timed out. Please try again.');
-    }, 20000);
-
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
 
@@ -205,7 +199,6 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
         });
 
       if (depositError) {
-        // Unique constraint violation → duplicate transaction ID
         if (
           depositError.code === '23505' ||
           depositError.message?.toLowerCase().includes('duplicate') ||
@@ -225,7 +218,6 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       console.error('[DepositDialog] Deposit error:', error);
       toast.error(error.message || 'Failed to submit deposit request');
     } finally {
-      clearTimeout(safetyTimer);
       setLoading(false);
     }
   };
