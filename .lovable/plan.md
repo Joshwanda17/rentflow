@@ -1,31 +1,41 @@
 
 
-## Adding Test Funds to Your Agent Wallet
+## Generate Shareable Activation Link After Proxy Investment
 
-### Important Context
-This is a **production system** with real users and real money flows. Directly editing wallet balances would bypass the double-entry ledger and break audit integrity. Test funds must go through the proper approval workflow.
+### What Changes
 
-### Recommended Approach — Use the Existing Deposit Flow
+**1. Edge Function (`agent-invest-for-partner/index.ts`)**
+- After the investment succeeds, look up the partner's `supporter_invites` record (where `activated_user_id = partner_id` or `created_by = agent.id` and matching phone/email)
+- If a pending invite exists, return the `activation_token` in the response
+- If no pending invite exists (partner already fully activated), return a flag indicating "already activated"
 
-1. **Submit a deposit request** from your agent dashboard (the deposit button should already exist)
-2. **Switch to the Manager dashboard** and approve the deposit via the Deposits Management page
-3. Your agent wallet will be credited through the proper ledger flow
+**2. Success Screen (`AgentInvestForPartnerDialog.tsx`)**
+- Expand the success state to include `activation_token` (optional)
+- After "Investment Successful!", add a **"Share Activation Link"** section with:
+  - A generated link using `getPublicOrigin() + '/join?t=' + activation_token`
+  - **Copy Link** button
+  - **Share via WhatsApp** button (pre-filled message with investment summary + activation link)
+  - **Native Share** button (using `navigator.share` API with fallback)
+- The share message includes: partner name, investment amount, monthly reward, payout date, and the activation link
+- If partner is already activated (no token), show a simpler "Share Investment Confirmation" with just the reference ID
 
-This ensures the test funds are fully tracked and can be cleanly reversed later.
+### Share Message Template
+```
+🎉 Your Welile Investment is Ready!
 
-### Alternative — Create a "Seed Test Funds" Edge Function
+Hi {partnerName}, {agentName} has invested UGX {amount} on your behalf into the Rent Management Pool.
 
-If you'd prefer a one-click solution for testing, I can build a **test-only edge function** that:
+💰 Monthly Reward: UGX {monthlyReward} (15%)
+📅 Payout Day: {payoutDay}th of each month
+🗓️ First Payout: {firstPayoutDate}
 
-- Accepts a user ID and amount
-- Creates a proper `pending_wallet_operations` entry with category `test_funds_cleanup`
-- Auto-approves it through the ledger (service-role only)
-- Tags it clearly as test data for easy cleanup later
+👉 Activate your account to start receiving rewards:
+{activationLink}
 
-This keeps the audit trail intact while making testing faster.
+Ref: {referenceId}
+```
 
-### What I Need From You
-Which approach do you prefer?
-1. **Use the existing deposit flow** — no code changes needed, just submit a deposit request and approve it as manager
-2. **Build a test-seed function** — I'll create an edge function for quick test fund injection with proper ledger entries
+### Files to Modify
+- `supabase/functions/agent-invest-for-partner/index.ts` — add activation token lookup to response
+- `src/components/agent/AgentInvestForPartnerDialog.tsx` — add share buttons to success screen
 
