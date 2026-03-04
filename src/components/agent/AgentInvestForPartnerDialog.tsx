@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -29,6 +30,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [payoutDay, setPayoutDay] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [showConfirm, setShowConfirm] = useState(false);
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [totalRentRequested, setTotalRentRequested] = useState(0);
   const [agentBalance, setAgentBalance] = useState(0);
@@ -47,6 +49,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setPayoutDay('');
       setSuccess(null);
       setSearchQuery('');
+      setShowConfirm(false);
     }
   }, [open]);
 
@@ -114,28 +117,31 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     );
   }, [partners, searchQuery]);
 
-  const handleSubmit = async () => {
+  const selectedPartnerName = partners.find(p => p.id === selectedPartnerId)?.full_name || '';
+
+  const handleConfirmOpen = () => {
     if (!selectedPartnerId || parsedAmount < 50000 || !payoutDay) {
       toast.error('Please fill all fields correctly');
       return;
     }
-
     const day = Number(payoutDay);
     if (day < 1 || day > 28) {
       toast.error('Payout day must be between 1 and 28');
       return;
     }
-
     if (parsedAmount > agentBalance) {
       toast.error('Amount exceeds your wallet balance');
       return;
     }
-
     if (totalRentRequested > 0 && parsedAmount > totalRentRequested) {
       toast.error('Amount exceeds current rent demand');
       return;
     }
+    setShowConfirm(true);
+  };
 
+  const handleSubmit = async () => {
+    setShowConfirm(false);
     setSubmitting(true);
     try {
       const { data, error } = await supabase.functions.invoke('agent-invest-for-partner', {
@@ -143,7 +149,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           partner_id: selectedPartnerId,
           amount: parsedAmount,
           summary_id: summaryId,
-          payout_day: day,
+          payout_day: Number(payoutDay),
         },
       });
 
@@ -195,7 +201,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <HandCoins className="h-5 w-5 text-emerald-600" />
+            <HandCoins className="h-5 w-5 text-primary" />
             Invest for Partner
           </DialogTitle>
           <DialogDescription>
@@ -306,7 +312,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           )}
 
           <Button
-            onClick={handleSubmit}
+            onClick={handleConfirmOpen}
             disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || !payoutDay || parsedAmount > agentBalance}
             className="w-full"
           >
@@ -324,6 +330,62 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           </Button>
         </div>
       </DialogContent>
+
+      {/* Confirmation Dialog */}
+      <AlertDialog open={showConfirm} onOpenChange={setShowConfirm}>
+        <AlertDialogContent className="max-w-sm">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <HandCoins className="h-5 w-5 text-primary" />
+              Confirm Investment
+            </AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-3 pt-2">
+                <p className="text-sm text-muted-foreground">Please review the details before proceeding:</p>
+                <div className="rounded-lg border bg-muted/30 p-3 space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Partner</span>
+                    <span className="font-medium text-foreground">{selectedPartnerName}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Amount</span>
+                    <span className="font-bold text-foreground">{formatUGX(parsedAmount)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Commission (2%)</span>
+                    <span className="font-medium text-success">{formatUGX(Math.round(parsedAmount * 0.02))}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Net deduction</span>
+                    <span className="font-medium text-foreground">{formatUGX(parsedAmount - Math.round(parsedAmount * 0.02))}</span>
+                  </div>
+                  <hr className="border-border" />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Monthly reward (15%)</span>
+                    <span className="font-medium text-success">{formatUGX(monthlyReward)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Payout day</span>
+                    <span className="font-medium text-foreground">{payoutDay}th of each month</span>
+                  </div>
+                  <hr className="border-border" />
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Your balance after</span>
+                    <span className="font-bold text-foreground">{formatUGX(agentBalance - parsedAmount + Math.round(parsedAmount * 0.02))}</span>
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={handleSubmit} className="gap-2">
+              <HandCoins className="h-4 w-4" />
+              Confirm & Invest
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }
