@@ -181,61 +181,40 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
 
     setLoading(true);
 
+    // Safety-net: force-clear loading after 20s no matter what
+    const safetyTimer = setTimeout(() => {
+      setLoading(false);
+      toast.error('Request timed out. Please try again.');
+    }, 20000);
+
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
-      const depositPayload = {
-        user_id: user.id,
-        amount: parseFloat(amount),
-        status: 'pending',
-        provider: provider,
-        transaction_id: normalizedTxId,
-        transaction_date: `${transactionDate}T${transactionTime}:00`,
-        notes: reason.trim(),
-      };
 
       console.log('[DepositDialog] Inserting deposit request for txn:', normalizedTxId);
 
-      // Use direct fetch to bypass any Supabase client / service-worker caching issues
-      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
-      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
-      const { data: sessionData } = await supabase.auth.getSession();
-      const accessToken = sessionData?.session?.access_token;
+      const { error: depositError } = await supabase
+        .from('deposit_requests')
+        .insert({
+          user_id: user.id,
+          amount: parseFloat(amount),
+          status: 'pending' as string,
+          provider: provider,
+          transaction_id: normalizedTxId,
+          transaction_date: `${transactionDate}T${transactionTime}:00`,
+          notes: reason.trim(),
+        });
 
-      if (!accessToken) {
-        toast.error('Session expired. Please log in again.');
-        setLoading(false);
-        return;
-      }
-
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), 15000);
-
-      const response = await fetch(`${supabaseUrl}/rest/v1/deposit_requests`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'apikey': supabaseKey,
-          'Authorization': `Bearer ${accessToken}`,
-          'Prefer': 'return=minimal',
-        },
-        body: JSON.stringify(depositPayload),
-        signal: controller.signal,
-      });
-
-      clearTimeout(timeoutId);
-
-      if (!response.ok) {
-        const errorBody = await response.text().catch(() => '');
-        console.error('[DepositDialog] Insert failed:', response.status, errorBody);
-
-        // Unique constraint violation (duplicate txn ID)
-        if (response.status === 409 || errorBody.includes('duplicate') || errorBody.includes('unique')) {
+      if (depositError) {
+        // Unique constraint violation → duplicate transaction ID
+        if (
+          depositError.code === '23505' ||
+          depositError.message?.toLowerCase().includes('duplicate') ||
+          depositError.message?.toLowerCase().includes('unique')
+        ) {
           toast.error('This transaction ID has already been submitted');
-          setLoading(false);
           return;
         }
-
-        throw new Error(errorBody || `Server error (${response.status})`);
+        throw depositError;
       }
 
       console.log('[DepositDialog] Deposit request submitted successfully');
@@ -246,6 +225,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       console.error('[DepositDialog] Deposit error:', error);
       toast.error(error.message || 'Failed to submit deposit request');
     } finally {
+      clearTimeout(safetyTimer);
       setLoading(false);
     }
   };
