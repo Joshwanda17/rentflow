@@ -1,60 +1,32 @@
 
 
-# Plan: Update Agent Advance Financial Model
+## Plan: Change Agent Proxy Investment to Deduct from Agent's Wallet
 
-## What's Changing
+### Current Behavior (Problem)
+The `agent-invest-for-partner` edge function currently deducts funds from the **partner's (supporter's)** wallet. The user wants the **agent's own balance** to be deducted instead, with the investment credited to the partner's pool.
 
-The current system uses **33% daily compound interest** (wildly explosive). The user wants to change to **33% monthly compounding** with variable repayment periods and a registration fee.
+### Changes Required
 
-### New Financial Formula
+#### 1. Edge Function: `supabase/functions/agent-invest-for-partner/index.ts`
+- **Remove** the partner wallet balance check and deduction (lines 101-133)
+- **Add** agent wallet balance check and deduction instead — fetch agent's wallet, verify sufficient balance, deduct with optimistic locking
+- Update the ledger entry to reflect the agent funded the investment (direction: `cash_out` on agent, not partner)
+- Keep the `decrement_rent_requested` RPC call (already working — reduces the Capital Opportunity card's "total rent demand")
+- Keep agent 2% commission logic as-is
+- Update notification messages to reflect the agent's balance was used
+- Return the agent's new balance in the response
 
-| Component | Calculation |
-|---|---|
-| Registration fee | UGX 10,000 if principal ≤ 200,000; UGX 20,000 if > 200,000 |
-| Access fee (33% monthly compounding) | `principal × (1.33^(days/30) - 1)` |
-| Total payable | Principal + Access fee + Registration fee |
-| Daily payment | Total ÷ Period days |
+#### 2. Frontend: `src/components/agent/AgentInvestForPartnerDialog.tsx`
+- **Remove** partner balance fetching/display — no longer relevant since agent pays
+- **Add** agent wallet balance display so the agent sees their own available funds
+- Validate amount against the agent's balance (not partner's)
+- Show the agent's new balance after successful investment
+- Keep partner selection (still needed to assign the investment to a partner)
 
-### Repayment periods
-Selectable: **7, 14, 30, 60, or 90 days** (replacing the fixed 30-day cycle).
-
-### Examples (UGX 500,000 principal)
-- 7 days: 500k × 1.33^(7/30) = ~538k + 10k reg = ~548k → ~78k/day
-- 30 days: 500k × 1.33 = 665k + 20k reg = 685k → ~22.8k/day  
-- 90 days: 500k × 1.33³ = ~1,177k + 20k reg = ~1,197k → ~13.3k/day
-
----
-
-## Database Migration
-
-Add `registration_fee` column to `agent_advances` table (default 0). The `cycle_days` column already exists and will store the selected period. Change `daily_rate` default to 0.33 (monthly rate now, not daily).
-
----
-
-## Files to Edit
-
-### 1. `src/lib/agentAdvanceCalculations.ts`
-- Rename/refactor: rate is now **monthly**, not daily
-- `calculateAccessFee(principal, days)` → `principal × (1.33^(days/30) - 1)`
-- `calculateRegistrationFee(principal)` → 10,000 or 20,000
-- `calculateTotal(principal, days)` → principal + accessFee + regFee
-- `calculateDailyPayment(principal, days)` → total ÷ days
-- Update projection to show monthly compounding growth, not daily 33%
-
-### 2. `src/components/manager/IssueAdvanceSheet.tsx`
-- Add repayment period selector (7, 14, 30, 60, 90 days)
-- Show registration fee in preview
-- Update projection to use new formula
-- Pass `cycle_days` and `registration_fee` when inserting advance
-
-### 3. `src/pages/AgentAdvances.tsx`
-- Update subtitle from "33% daily compound" to "33% monthly compound"
-- Update daily deduction calculation in table to use new formula
-
-### 4. `src/pages/AgentAdvanceDetail.tsx`
-- Update projection table to use monthly compounding
-- Show registration fee in summary cards
-
-### 5. `supabase/functions/process-agent-advance-deductions/index.ts`
-- Change daily interest calculation from `balance × 0.33` to monthly equivalent: `balance × (1.33^(1/30) - 1)` per day
+### Summary of Money Flow After Change
+```text
+Agent Wallet  →  deduct amount  →  Partner's Rent Pool
+                                →  Opportunity card "total rent demand" decremented
+Agent Wallet  ←  2% commission  ←  Pool (already exists)
+```
 
