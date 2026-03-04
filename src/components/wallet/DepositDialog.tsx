@@ -59,25 +59,30 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const [txIdStatus, setTxIdStatus] = useState<'idle' | 'checking' | 'valid' | 'duplicate'>('idle');
   const txIdCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Debounced duplicate check on transaction ID
+  // Debounced duplicate check — only matches first 5 chars of transaction_id
   const checkTransactionId = useCallback(async (txId: string) => {
     const normalized = txId.trim().toUpperCase();
-    if (normalized.length < 8) {
+    if (normalized.length < 5) {
       setTxIdStatus('idle');
       return;
     }
     setTxIdStatus('checking');
     try {
+      const prefix = normalized.substring(0, 5);
       const { data, error } = await supabase
         .from('deposit_requests')
-        .select('id')
-        .eq('transaction_id', normalized)
-        .limit(1);
+        .select('transaction_id')
+        .ilike('transaction_id', `${prefix}%`)
+        .limit(10);
       if (error) {
         setTxIdStatus('idle');
         return;
       }
-      setTxIdStatus(data && data.length > 0 ? 'duplicate' : 'valid');
+      // Check if any existing transaction_id shares the same first 5 chars
+      const isDuplicate = data?.some(row => 
+        row.transaction_id?.toUpperCase().startsWith(prefix)
+      );
+      setTxIdStatus(isDuplicate ? 'duplicate' : 'valid');
     } catch {
       setTxIdStatus('idle');
     }
@@ -88,7 +93,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     setTransactionId(upper);
     setTxIdStatus('idle');
     if (txIdCheckRef.current) clearTimeout(txIdCheckRef.current);
-    if (upper.trim().length >= 8) {
+    if (upper.trim().length >= 5) {
       txIdCheckRef.current = setTimeout(() => checkTransactionId(upper), 600);
     }
   };
@@ -125,54 +130,6 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     }
   };
 
-  const validateForm = () => {
-    const amountNum = parseFloat(amount);
-    if (isNaN(amountNum) || amountNum <= 0) {
-      toast.error('Please enter a valid amount');
-      return false;
-    }
-    if (!transactionId.trim()) {
-      toast.error('Please enter the transaction ID from your SMS');
-      return false;
-    }
-    if (!transactionDate) {
-      toast.error('Please select the transaction date');
-      return false;
-    }
-    if (!transactionTime) {
-      toast.error('Please enter the transaction time');
-      return false;
-    }
-    if (!reason.trim()) {
-      toast.error('Please enter the reason for this deposit');
-      return false;
-    }
-
-    if (txIdStatus === 'duplicate') {
-      toast.error('This transaction ID has already been submitted');
-      return false;
-    }
-    if (txIdStatus !== 'valid') {
-      toast.error('Please wait for transaction ID verification');
-      return false;
-    }
-
-    // Validate date is not in the future and within last 7 days (local time)
-    const txDateOnly = new Date(transactionDate + 'T00:00:00');
-    const todayDateOnly = new Date(today + 'T00:00:00');
-    const sevenDaysAgoDate = new Date(sevenDaysAgo + 'T00:00:00');
-
-    if (txDateOnly > todayDateOnly) {
-      toast.error('Transaction date cannot be in the future');
-      return false;
-    }
-    if (txDateOnly < sevenDaysAgoDate) {
-      toast.error('Transaction must be within the last 7 days');
-      return false;
-    }
-
-    return true;
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -182,30 +139,33 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       return;
     }
 
-    if (!validateForm()) return;
+    // Quick local validation only — no re-checking DB
+    const amountNum = parseFloat(amount);
+    if (isNaN(amountNum) || amountNum <= 0) { toast.error('Please enter a valid amount'); return; }
+    if (!transactionId.trim()) { toast.error('Please enter the transaction ID'); return; }
+    if (!transactionDate) { toast.error('Please select the date'); return; }
+    if (!transactionTime) { toast.error('Please enter the time'); return; }
+    if (!reason.trim()) { toast.error('Please enter the reason'); return; }
+    if (txIdStatus === 'duplicate') { toast.error('This transaction ID already exists'); return; }
 
     setLoading(true);
 
     try {
-      const normalizedTxId = transactionId.trim().toUpperCase();
-
       const { error: depositError } = await supabase
         .from('deposit_requests')
         .insert({
           user_id: user.id,
-          amount: parseFloat(amount),
+          amount: amountNum,
           status: 'pending' as string,
           provider: provider,
-          transaction_id: normalizedTxId,
+          transaction_id: transactionId.trim().toUpperCase(),
           transaction_date: `${transactionDate}T${transactionTime}:00`,
           notes: reason.trim(),
         });
 
-      if (depositError) {
-        throw depositError;
-      }
+      if (depositError) throw depositError;
 
-      toast.success('Deposit request submitted for verification');
+      toast.success('Deposit request submitted!');
       setSuccess(true);
     } catch (error: any) {
       if (error?.code === '23505') {
