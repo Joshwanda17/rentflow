@@ -246,6 +246,20 @@ Deno.serve(async (req) => {
       parentAgentId = user.id;
     }
 
+    // Extract investor-specific fields
+    const nationalId = typeof rawBody.national_id === 'string' ? rawBody.national_id.trim().slice(0, 50) : null;
+    const invCountry = typeof rawBody.country === 'string' ? rawBody.country.trim().slice(0, 100) : null;
+    const districtCity = typeof rawBody.district_city === 'string' ? rawBody.district_city.trim().slice(0, 200) : null;
+    const nextOfKinName = typeof rawBody.next_of_kin_name === 'string' ? rawBody.next_of_kin_name.trim().slice(0, 200) : null;
+    const nextOfKinRelationship = typeof rawBody.next_of_kin_relationship === 'string' ? rawBody.next_of_kin_relationship.trim().slice(0, 100) : null;
+    const nextOfKinPhone = typeof rawBody.next_of_kin_phone === 'string' ? rawBody.next_of_kin_phone.trim().slice(0, 20) : null;
+    const invPaymentMethod = typeof rawBody.payment_method === 'string' && ['mobile_money', 'bank'].includes(rawBody.payment_method) ? rawBody.payment_method : null;
+    const invMobileNetwork = typeof rawBody.mobile_network === 'string' && ['mtn', 'airtel'].includes(rawBody.mobile_network) ? rawBody.mobile_network : null;
+    const invMobileMoneyNumber = typeof rawBody.mobile_money_number === 'string' ? rawBody.mobile_money_number.trim().slice(0, 20) : null;
+    const invBankName = typeof rawBody.bank_name === 'string' ? rawBody.bank_name.trim().slice(0, 100) : null;
+    const invAccountName = typeof rawBody.account_name === 'string' ? rawBody.account_name.trim().slice(0, 200) : null;
+    const invAccountNumber = typeof rawBody.account_number === 'string' ? rawBody.account_number.trim().slice(0, 50) : null;
+
     const { data: invite, error: inviteError } = await adminClient
       .from("supporter_invites")
       .insert({
@@ -260,6 +274,18 @@ Deno.serve(async (req) => {
         longitude: longitude || null,
         location_accuracy: locationAccuracy || null,
         property_address: propertyAddress || null,
+        national_id: nationalId,
+        country: invCountry,
+        district_city: districtCity,
+        next_of_kin_name: nextOfKinName,
+        next_of_kin_relationship: nextOfKinRelationship,
+        next_of_kin_phone: nextOfKinPhone,
+        payment_method: invPaymentMethod,
+        mobile_network: invMobileNetwork,
+        mobile_money_number: invMobileMoneyNumber,
+        bank_name: invBankName,
+        account_name: invAccountName,
+        account_number: invAccountNumber,
       })
       .select()
       .single();

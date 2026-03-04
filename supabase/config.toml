@@ -98,3 +98,6 @@ verify_jwt = false
 
 [functions.seed-test-funds]
 verify_jwt = false
+
+[functions.create-investor-portfolio]
+verify_jwt = false
