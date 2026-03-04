@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
 import {
@@ -24,10 +24,14 @@ import {
   Calendar,
   Landmark,
   Coins,
-  ArrowUpDown
+  ArrowUpDown,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { format } from 'date-fns';
+import jsPDF from 'jspdf';
+import { toast } from 'sonner';
 
 interface LedgerEntry {
   id: string;
@@ -52,6 +56,7 @@ const CATEGORY_META: Record<string, { label: string; Icon: React.ElementType; co
   wallet_withdrawal:     { label: 'Withdrawal',               Icon: ArrowDownToLine,colorClass: 'text-destructive bg-destructive/10' },
   supporter_reward:      { label: 'Supporter Reward',         Icon: Coins,          colorClass: 'text-success bg-success/10' },
   rent_repayment:        { label: 'Rent Repayment',           Icon: Banknote,       colorClass: 'text-primary bg-primary/10' },
+  tenant_default_charge: { label: 'Tenant Default Charge',    Icon: ArrowDownToLine,colorClass: 'text-destructive bg-destructive/10' },
 };
 
 function getCategoryMeta(category: string, direction: string) {
@@ -61,13 +66,19 @@ function getCategoryMeta(category: string, direction: string) {
   return { label: category.replace(/_/g, ' '), Icon: Banknote, colorClass: 'text-muted-foreground bg-muted' };
 }
 
+function formatAmount(amount: number): string {
+  return `UGX ${amount.toLocaleString()}`;
+}
+
 export function WalletStatement() {
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [exporting, setExporting] = useState(false);
   const [entries, setEntries] = useState<LedgerEntry[]>([]);
   const [totals, setTotals] = useState({ totalIn: 0, totalOut: 0 });
   const [breakdown, setBreakdown] = useState<Record<string, number>>({});
+  const [userName, setUserName] = useState('');
 
   useEffect(() => {
     if (open && user) {
@@ -80,15 +91,23 @@ export function WalletStatement() {
     setLoading(true);
 
     try {
-      // Fetch ALL ledger entries for this user — unified source of truth
-      const { data: ledger, error } = await supabase
-        .from('general_ledger')
-        .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
-        .eq('user_id', user.id)
-        .order('transaction_date', { ascending: true })
-        .limit(200);
+      const [{ data: ledger, error }, { data: profile }, { data: referralEarnings }] = await Promise.all([
+        supabase
+          .from('general_ledger')
+          .select('id, transaction_date, amount, direction, category, description, reference_id, linked_party')
+          .eq('user_id', user.id)
+          .order('transaction_date', { ascending: true })
+          .limit(200),
+        supabase.from('profiles').select('full_name').eq('id', user.id).single(),
+        supabase
+          .from('agent_earnings')
+          .select('id, created_at, amount, earning_type, description')
+          .eq('agent_id', user.id)
+          .eq('earning_type', 'referral_bonus'),
+      ]);
 
       if (error) throw error;
+      setUserName(profile?.full_name || user.email || '');
 
       const allEntries: LedgerEntry[] = (ledger || []).map(row => ({
         id: row.id,
@@ -100,14 +119,6 @@ export function WalletStatement() {
         reference_id: row.reference_id,
         linked_party: row.linked_party,
       }));
-
-      // Also fetch referral_bonus earnings from agent_earnings that may NOT yet be in ledger
-      // (for entries before the backfill migration, or any gaps)
-      const { data: referralEarnings } = await supabase
-        .from('agent_earnings')
-        .select('id, created_at, amount, earning_type, description')
-        .eq('agent_id', user.id)
-        .eq('earning_type', 'referral_bonus');
 
       for (const re of referralEarnings || []) {
         const alreadyIn = allEntries.some(e => e.category === 'referral_bonus' &&
@@ -125,28 +136,19 @@ export function WalletStatement() {
         }
       }
 
-      // Sort chronologically
       allEntries.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
 
-      // Running balance
       let runningBalance = 0;
       for (const entry of allEntries) {
-        if (entry.type === 'credit') {
-          runningBalance += entry.amount;
-        } else {
-          runningBalance -= entry.amount;
-        }
+        if (entry.type === 'credit') runningBalance += entry.amount;
+        else runningBalance -= entry.amount;
         entry.balance_after = Math.max(0, runningBalance);
       }
 
-      // Reverse for display (newest first)
       const displayEntries = [...allEntries].reverse();
-
-      // Totals
       const totalIn = allEntries.filter(e => e.type === 'credit').reduce((s, e) => s + e.amount, 0);
       const totalOut = allEntries.filter(e => e.type === 'debit').reduce((s, e) => s + e.amount, 0);
 
-      // Income breakdown by category
       const bk: Record<string, number> = {};
       for (const e of allEntries.filter(e => e.type === 'credit')) {
         bk[e.category] = (bk[e.category] || 0) + e.amount;
@@ -161,6 +163,188 @@ export function WalletStatement() {
       setLoading(false);
     }
   };
+
+  const exportToPDF = useCallback(() => {
+    if (entries.length === 0) {
+      toast.error('No transactions to export');
+      return;
+    }
+
+    setExporting(true);
+
+    try {
+      const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+      const pageWidth = doc.internal.pageSize.getWidth();
+      const pageHeight = doc.internal.pageSize.getHeight();
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      let y = margin;
+
+      const addNewPageIfNeeded = (needed: number) => {
+        if (y + needed > pageHeight - 20) {
+          doc.addPage();
+          y = margin;
+          return true;
+        }
+        return false;
+      };
+
+      // ── Header ──
+      doc.setFillColor(88, 28, 135); // purple
+      doc.rect(0, 0, pageWidth, 38, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(18);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Welile Wallet Statement', margin, 16);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(userName, margin, 24);
+      doc.text(`Generated: ${format(new Date(), 'PPP p')}`, margin, 30);
+      y = 46;
+
+      // ── Summary ──
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Summary', margin, y);
+      y += 8;
+
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+
+      // Total In
+      doc.setFillColor(220, 252, 231);
+      doc.roundedRect(margin, y, contentWidth / 2 - 3, 16, 2, 2, 'F');
+      doc.setTextColor(22, 163, 74);
+      doc.text('Total In', margin + 4, y + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`+${formatAmount(totals.totalIn)}`, margin + 4, y + 12);
+
+      // Total Out
+      doc.setFillColor(254, 226, 226);
+      doc.roundedRect(margin + contentWidth / 2 + 3, y, contentWidth / 2 - 3, 16, 2, 2, 'F');
+      doc.setTextColor(220, 38, 38);
+      doc.text('Total Out', margin + contentWidth / 2 + 7, y + 6);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`-${formatAmount(totals.totalOut)}`, margin + contentWidth / 2 + 7, y + 12);
+
+      y += 22;
+
+      // Net Balance
+      const netBalance = Math.max(0, totals.totalIn - totals.totalOut);
+      doc.setFillColor(240, 240, 240);
+      doc.roundedRect(margin, y, contentWidth, 12, 2, 2, 'F');
+      doc.setTextColor(0, 0, 0);
+      doc.setFont('helvetica', 'bold');
+      doc.setFontSize(10);
+      doc.text('Net Balance:', margin + 4, y + 8);
+      doc.setTextColor(netBalance >= 0 ? 22 : 220, netBalance >= 0 ? 163 : 38, netBalance >= 0 ? 74 : 38);
+      doc.text(formatAmount(netBalance), pageWidth - margin - 4, y + 8, { align: 'right' });
+      y += 18;
+
+      // ── Transaction Table ──
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Transaction History', margin, y);
+      y += 6;
+
+      // Table header
+      const colWidths = [28, 62, 22, 32, 32];
+      const headers = ['Date', 'Description', 'Type', 'Amount', 'Balance'];
+
+      doc.setFillColor(88, 28, 135);
+      doc.rect(margin, y, contentWidth, 8, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(8);
+      doc.setFont('helvetica', 'bold');
+
+      let xPos = margin + 2;
+      headers.forEach((h, i) => {
+        doc.text(h, xPos, y + 5.5);
+        xPos += colWidths[i];
+      });
+      y += 8;
+
+      // Table rows
+      doc.setFontSize(7.5);
+      const sortedEntries = [...entries]; // already newest-first
+
+      for (let i = 0; i < sortedEntries.length; i++) {
+        const entry = sortedEntries[i];
+        const rowHeight = entry.linked_party && entry.linked_party !== 'platform' ? 10 : 7;
+        addNewPageIfNeeded(rowHeight);
+
+        // Alternating row color
+        if (i % 2 === 0) {
+          doc.setFillColor(248, 248, 248);
+          doc.rect(margin, y, contentWidth, rowHeight, 'F');
+        }
+
+        doc.setTextColor(80, 80, 80);
+        doc.setFont('helvetica', 'normal');
+
+        xPos = margin + 2;
+
+        // Date
+        doc.text(format(new Date(entry.date), 'dd/MM/yy'), xPos, y + 4.5);
+        xPos += colWidths[0];
+
+        // Description (truncated) + linked party
+        const desc = entry.description.length > 38
+          ? entry.description.substring(0, 35) + '...'
+          : entry.description;
+        doc.text(desc, xPos, y + 4.5);
+        if (entry.linked_party && entry.linked_party !== 'platform') {
+          doc.setFontSize(6);
+          doc.setTextColor(160, 120, 0);
+          doc.text(`→ ${entry.linked_party}`, xPos, y + 8);
+          doc.setFontSize(7.5);
+        }
+        xPos += colWidths[1];
+
+        // Type
+        const isCredit = entry.type === 'credit';
+        doc.setTextColor(isCredit ? 22 : 220, isCredit ? 163 : 38, isCredit ? 74 : 38);
+        doc.setFont('helvetica', 'bold');
+        doc.text(isCredit ? 'IN' : 'OUT', xPos, y + 4.5);
+        xPos += colWidths[2];
+
+        // Amount
+        doc.text(`${isCredit ? '+' : '-'}${formatAmount(entry.amount)}`, xPos, y + 4.5);
+        xPos += colWidths[3];
+
+        // Balance
+        doc.setTextColor(80, 80, 80);
+        doc.setFont('helvetica', 'normal');
+        doc.text(formatAmount(entry.balance_after || 0), xPos, y + 4.5);
+
+        y += rowHeight;
+      }
+
+      // ── Footer ──
+      y += 6;
+      addNewPageIfNeeded(20);
+      doc.setDrawColor(200, 200, 200);
+      doc.line(margin, y, pageWidth - margin, y);
+      y += 6;
+      doc.setFontSize(7);
+      doc.setTextColor(150, 150, 150);
+      doc.setFont('helvetica', 'normal');
+      doc.text('This is an auto-generated statement from Welile Technologies Limited.', margin, y);
+      doc.text(`Total entries: ${entries.length}  ·  ${format(new Date(), 'PPPp')}`, margin, y + 4);
+
+      // Save
+      const filename = `Welile_Wallet_Statement_${format(new Date(), 'yyyy-MM-dd')}.pdf`;
+      doc.save(filename);
+      toast.success('PDF downloaded successfully');
+    } catch (err) {
+      console.error('[WalletStatement] PDF export error:', err);
+      toast.error('Failed to export PDF');
+    } finally {
+      setExporting(false);
+    }
+  }, [entries, totals, userName]);
 
   // Group by date
   const groupedEntries = entries.reduce((groups, entry) => {
@@ -183,11 +367,25 @@ export function WalletStatement() {
 
       <SheetContent side="bottom" className="h-[92vh] rounded-t-3xl p-0 flex flex-col">
         <SheetHeader className="px-5 pt-5 pb-4 border-b shrink-0">
-          <SheetTitle className="text-xl font-bold flex items-center gap-2">
-            <ArrowUpDown className="h-5 w-5 text-primary" />
-            Wallet Statement
-          </SheetTitle>
-          <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
+          <div className="flex items-center justify-between">
+            <div>
+              <SheetTitle className="text-xl font-bold flex items-center gap-2">
+                <ArrowUpDown className="h-5 w-5 text-primary" />
+                Wallet Statement
+              </SheetTitle>
+              <p className="text-xs text-muted-foreground">All money in & out of your wallet</p>
+            </div>
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={exportToPDF}
+              disabled={exporting || loading || entries.length === 0}
+              className="gap-1.5 text-xs font-semibold border-primary/30 text-primary hover:bg-primary/10"
+            >
+              {exporting ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Download className="h-3.5 w-3.5" />}
+              Export PDF
+            </Button>
+          </div>
         </SheetHeader>
 
         {loading ? (
@@ -259,7 +457,10 @@ export function WalletStatement() {
             {/* ── Transaction Timeline ── */}
             {Object.keys(groupedEntries).length > 0 ? (
               <div className="space-y-6">
-                <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
+                <div className="flex items-center justify-between">
+                  <p className="text-[11px] font-bold uppercase tracking-wider text-muted-foreground">Transaction History</p>
+                  <span className="text-[10px] text-muted-foreground">{entries.length} entries</span>
+                </div>
                 {Object.entries(groupedEntries).map(([dateKey, dayEntries]) => (
                   <div key={dateKey}>
                     {/* Date header */}
@@ -318,7 +519,7 @@ export function WalletStatement() {
                                       </Badge>
                                     </div>
                                     {entry.linked_party && entry.category === 'tenant_default_charge' && (
-                                      <p className="text-[10px] font-semibold text-amber-500 mt-0.5">
+                                      <p className="text-[10px] font-semibold text-warning mt-0.5">
                                         🏠 Tenant: {entry.linked_party}
                                       </p>
                                     )}
