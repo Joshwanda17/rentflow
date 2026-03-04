@@ -268,6 +268,20 @@ Deno.serve(async (req) => {
       },
     });
 
+    // Look up activation token for this partner
+    let activationToken: string | null = null;
+    const { data: invite } = await adminClient
+      .from("supporter_invites")
+      .select("activation_token, status")
+      .eq("activated_user_id", partner_id)
+      .order("created_at", { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (invite && invite.status !== "activated") {
+      activationToken = invite.activation_token;
+    }
+
     console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} (from own wallet) on behalf of partner ${partner_id}. Ref: ${referenceId}`);
 
     return new Response(
@@ -279,6 +293,8 @@ Deno.serve(async (req) => {
         first_payout_date: firstPayoutDate,
         monthly_reward: monthlyReward,
         partner_name: partnerName,
+        activation_token: activationToken,
+        agent_name: agentName,
       }),
       { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
