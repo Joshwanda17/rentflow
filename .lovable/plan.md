@@ -1,32 +1,31 @@
 
 
-## Plan: Change Agent Proxy Investment to Deduct from Agent's Wallet
+## Adding Test Funds to Your Agent Wallet
 
-### Current Behavior (Problem)
-The `agent-invest-for-partner` edge function currently deducts funds from the **partner's (supporter's)** wallet. The user wants the **agent's own balance** to be deducted instead, with the investment credited to the partner's pool.
+### Important Context
+This is a **production system** with real users and real money flows. Directly editing wallet balances would bypass the double-entry ledger and break audit integrity. Test funds must go through the proper approval workflow.
 
-### Changes Required
+### Recommended Approach — Use the Existing Deposit Flow
 
-#### 1. Edge Function: `supabase/functions/agent-invest-for-partner/index.ts`
-- **Remove** the partner wallet balance check and deduction (lines 101-133)
-- **Add** agent wallet balance check and deduction instead — fetch agent's wallet, verify sufficient balance, deduct with optimistic locking
-- Update the ledger entry to reflect the agent funded the investment (direction: `cash_out` on agent, not partner)
-- Keep the `decrement_rent_requested` RPC call (already working — reduces the Capital Opportunity card's "total rent demand")
-- Keep agent 2% commission logic as-is
-- Update notification messages to reflect the agent's balance was used
-- Return the agent's new balance in the response
+1. **Submit a deposit request** from your agent dashboard (the deposit button should already exist)
+2. **Switch to the Manager dashboard** and approve the deposit via the Deposits Management page
+3. Your agent wallet will be credited through the proper ledger flow
 
-#### 2. Frontend: `src/components/agent/AgentInvestForPartnerDialog.tsx`
-- **Remove** partner balance fetching/display — no longer relevant since agent pays
-- **Add** agent wallet balance display so the agent sees their own available funds
-- Validate amount against the agent's balance (not partner's)
-- Show the agent's new balance after successful investment
-- Keep partner selection (still needed to assign the investment to a partner)
+This ensures the test funds are fully tracked and can be cleanly reversed later.
 
-### Summary of Money Flow After Change
-```text
-Agent Wallet  →  deduct amount  →  Partner's Rent Pool
-                                →  Opportunity card "total rent demand" decremented
-Agent Wallet  ←  2% commission  ←  Pool (already exists)
-```
+### Alternative — Create a "Seed Test Funds" Edge Function
+
+If you'd prefer a one-click solution for testing, I can build a **test-only edge function** that:
+
+- Accepts a user ID and amount
+- Creates a proper `pending_wallet_operations` entry with category `test_funds_cleanup`
+- Auto-approves it through the ledger (service-role only)
+- Tags it clearly as test data for easy cleanup later
+
+This keeps the audit trail intact while making testing faster.
+
+### What I Need From You
+Which approach do you prefer?
+1. **Use the existing deposit flow** — no code changes needed, just submit a deposit request and approve it as manager
+2. **Build a test-seed function** — I'll create an edge function for quick test fund injection with proper ledger entries
 
