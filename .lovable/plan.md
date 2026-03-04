@@ -1,41 +1,35 @@
 
 
-## Investigation Summary
+## Refactor Deposit Dialog for Speed
 
-I traced the full submit flow in `src/components/wallet/DepositDialog.tsx` (lines 144-198):
+### Problem
+The deposit submission is slow due to heavy framer-motion animations, and the form does unnecessary work. The network logs also show excessive polling of `deposit_requests`, `withdrawal_requests`, and `money_requests` HEAD requests happening repeatedly on the wallet page, competing with the deposit insert.
 
-1. `handleSubmit` sets `setLoading(true)` on line 154
-2. Runs a duplicate check query against `deposit_requests`
-3. Inserts into `deposit_requests`
-4. `finally` block calls `setLoading(false)` on line 197
+### Plan
 
-**Root cause candidates** (confirmed from investigation):
+#### 1. Strip heavy animations from DepositDialog
+- Remove `framer-motion` imports and all `motion.div` wrappers, `variants`, `formVariants`, `itemVariants`
+- Replace with plain `div` elements -- the dialog already has open/close transitions from Radix
+- Remove the `timeoutSignal` helper (unused after previous changes)
+- This eliminates JS overhead during render and interaction
 
-- **No network timeout**: If the supabase POST request hangs (network instability, service worker interference, or database lock), the `await` never resolves and `finally` never runs. The button spins forever.
-- **Silent failure path**: The `as any` cast on the insert (line 186) hides potential type issues. If the request fails in a way that doesn't trigger the catch (e.g., the promise never settles), loading stays true.
-- **No POST requests visible in network logs**: Confirms either the request hangs or the form isn't submitting at all.
+#### 2. Simplify the submit handler
+- The current flow: validate -> insert -> wait for response -> show success
+- Keep it exactly as-is but remove the `console.log` diagnostic lines for production cleanliness
+- The insert is already a single Supabase call with no timeout -- this is correct
 
-The database schema, RLS policies, and triggers (`notify_managers_new_deposit`, `log_deposit_to_ledger`) all look correct. Both trigger functions are `SECURITY DEFINER`. 14 managers exist, which is fine for the notification loop.
+#### 3. Reduce competing network requests on the wallet page
+- Identify where the repeated HEAD requests to `deposit_requests?status=eq.pending`, `withdrawal_requests?status=eq.pending`, `money_requests?status=eq.pending` originate (likely polling or multiple re-renders)
+- These fire ~20+ times in the network log snapshot, competing for bandwidth on 2G/3G connections
+- Find the wallet page component and ensure these queries use proper React Query `staleTime` (10min per architecture) so they don't re-fire on every render
 
-## Plan
+#### Files to modify
+- `src/components/wallet/DepositDialog.tsx` -- remove framer-motion, simplify to plain HTML/Radix
+- Wallet page component (need to identify) -- fix excessive polling of pending counts
 
-### 1. Add request timeout to prevent infinite spinning
-**File**: `src/components/wallet/DepositDialog.tsx`
-
-Wrap both supabase calls (duplicate check + insert) with a `Promise.race` timeout of 15 seconds. If the request exceeds this, reject with a "Request timed out" error that gets caught by the existing try/catch, ensuring `setLoading(false)` always runs.
-
-### 2. Remove `as any` cast and fix types
-**File**: `src/components/wallet/DepositDialog.tsx`
-
-Remove the `as any` on line 186. The insert fields already match the `deposit_requests` Insert type exactly, so the cast is unnecessary and hides potential issues.
-
-### 3. Add diagnostic logging
-**File**: `src/components/wallet/DepositDialog.tsx`
-
-Add `console.log` statements at key points: before duplicate check, before insert, on success, and on error. This will make future debugging visible in console logs automatically.
-
-### 4. Add safety-net loading timeout
-**File**: `src/components/wallet/DepositDialog.tsx`
-
-Add a `useEffect` that watches the `loading` state. If it stays `true` for more than 20 seconds, force `setLoading(false)` and show an error toast. This is a last-resort safety net.
+### Technical Details
+- The framer-motion `AnimatePresence`, `motion.div`, staggered children, and spring transitions add significant JS overhead on low-end devices (Tecno, Itel)
+- The success state can use a simple conditional render instead of `AnimatePresence mode="wait"`
+- The provider cards, quick amounts, and form fields don't need individual animation variants
+- Keeping the transaction ID live-check (debounced 600ms) as-is since it's already efficient
 
