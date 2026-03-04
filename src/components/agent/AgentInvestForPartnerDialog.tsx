@@ -3,7 +3,6 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -20,7 +19,6 @@ interface PartnerOption {
   id: string;
   full_name: string;
   phone: string;
-  balance: number;
 }
 
 export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: AgentInvestForPartnerDialogProps) {
@@ -33,9 +31,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [searchQuery, setSearchQuery] = useState('');
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [totalRentRequested, setTotalRentRequested] = useState(0);
-  const [success, setSuccess] = useState<{ reference_id: string; partner_name: string; monthly_reward: number; first_payout_date: string } | null>(null);
+  const [agentBalance, setAgentBalance] = useState(0);
+  const [success, setSuccess] = useState<{ reference_id: string; partner_name: string; monthly_reward: number; first_payout_date: string; new_balance: number } | null>(null);
 
-  const selectedPartner = useMemo(() => partners.find(p => p.id === selectedPartnerId), [partners, selectedPartnerId]);
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
 
@@ -43,6 +41,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     if (open) {
       fetchPartners();
       fetchOpportunitySummary();
+      fetchAgentBalance();
       setSelectedPartnerId('');
       setAmount('');
       setPayoutDay('');
@@ -51,10 +50,20 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   }, [open]);
 
+  const fetchAgentBalance = async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const { data } = await supabase
+      .from('wallets')
+      .select('balance')
+      .eq('user_id', user.id)
+      .single();
+    if (data) setAgentBalance(data.balance);
+  };
+
   const fetchPartners = async () => {
     setLoadingPartners(true);
     try {
-      // Get supporter user_ids
       const { data: roles } = await supabase
         .from('user_roles')
         .select('user_id')
@@ -66,32 +75,16 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       }
 
       const supporterIds = roles.map(r => r.user_id);
-
-      // Batch IDs in chunks of 40 to avoid URL length limits
       const BATCH_SIZE = 40;
       const allProfiles: { id: string; full_name: string; phone: string }[] = [];
-      const allWallets: { user_id: string; balance: number }[] = [];
 
       for (let i = 0; i < supporterIds.length; i += BATCH_SIZE) {
         const batch = supporterIds.slice(i, i + BATCH_SIZE);
-        const [profileRes, walletRes] = await Promise.all([
-          supabase.from('profiles').select('id, full_name, phone').in('id', batch),
-          supabase.from('wallets').select('user_id, balance').in('user_id', batch),
-        ]);
-        if (profileRes.data) allProfiles.push(...profileRes.data);
-        if (walletRes.data) allWallets.push(...walletRes.data);
+        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', batch);
+        if (data) allProfiles.push(...data);
       }
 
-      const walletMap = new Map(allWallets.map(w => [w.user_id, w.balance]));
-
-      setPartners(
-        allProfiles.map(p => ({
-          id: p.id,
-          full_name: p.full_name,
-          phone: p.phone,
-          balance: walletMap.get(p.id) ?? 0,
-        }))
-      );
+      setPartners(allProfiles.map(p => ({ id: p.id, full_name: p.full_name, phone: p.phone })));
     } catch {
       toast.error('Failed to load partners');
     } finally {
@@ -133,8 +126,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       return;
     }
 
-    if (selectedPartner && parsedAmount > selectedPartner.balance) {
-      toast.error('Amount exceeds partner wallet balance');
+    if (parsedAmount > agentBalance) {
+      toast.error('Amount exceeds your wallet balance');
       return;
     }
 
@@ -162,7 +155,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         partner_name: data.partner_name,
         monthly_reward: data.monthly_reward,
         first_payout_date: data.first_payout_date,
+        new_balance: data.new_balance,
       });
+      setAgentBalance(data.new_balance);
       toast.success('Investment completed successfully!');
       onSuccess?.();
     } catch (err: any) {
@@ -185,6 +180,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
               <p>Monthly reward: <strong className="text-success">{formatUGX(success.monthly_reward)}</strong></p>
               <p>First payout: <strong className="text-foreground">{success.first_payout_date}</strong></p>
+              <p>Your new balance: <strong className="text-foreground">{formatUGX(success.new_balance)}</strong></p>
               <p className="font-mono text-xs">Ref: {success.reference_id}</p>
             </div>
             <Button onClick={() => onOpenChange(false)} className="w-full">Done</Button>
@@ -203,11 +199,20 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             Invest for Partner
           </DialogTitle>
           <DialogDescription>
-            Fund the rent pool on behalf of a partner/supporter.
+            Fund the rent pool on behalf of a partner using your wallet balance.
           </DialogDescription>
         </DialogHeader>
 
         <div className="space-y-4 pt-2">
+          {/* Agent Balance */}
+          <div className="p-3 rounded-lg bg-muted/50 border flex items-center gap-3">
+            <Wallet className="h-5 w-5 text-primary" />
+            <div>
+              <p className="text-xs text-muted-foreground">Your Balance</p>
+              <p className="font-bold text-foreground">{formatUGX(agentBalance)}</p>
+            </div>
+          </div>
+
           {/* Partner Selection */}
           <div className="space-y-2">
             <Label>Select Partner</Label>
@@ -251,7 +256,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             )}
           </div>
 
-          {/* Selected Partner Balance */}
           {/* Amount */}
           <div className="space-y-2">
             <Label>Investment Amount (UGX)</Label>
@@ -262,6 +266,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               onChange={(e) => setAmount(e.target.value)}
               min={50000}
             />
+            {parsedAmount > agentBalance && (
+              <p className="text-xs text-destructive">Exceeds your wallet balance</p>
+            )}
             {totalRentRequested > 0 && (
               <p className="text-xs text-muted-foreground">
                 Rent demand available: {formatUGX(totalRentRequested)}
@@ -300,7 +307,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
           <Button
             onClick={handleSubmit}
-            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || !payoutDay}
+            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || !payoutDay || parsedAmount > agentBalance}
             className="w-full"
           >
             {submitting ? (
