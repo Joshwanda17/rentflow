@@ -24,8 +24,8 @@ import { PullToRefresh } from '@/components/PullToRefresh';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { supabase } from '@/integrations/supabase/client';
 import { SkeletonWallet } from '@/components/ui/skeleton';
+import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
 
 export function WalletCard() {
   const navigate = useNavigate();
@@ -43,14 +43,8 @@ export function WalletCard() {
 
   const fetchPendingCount = useCallback(async () => {
     if (!user) return;
-    
-    const { count } = await supabase
-      .from('money_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
-      .eq('status', 'pending');
-    
-    setPendingCount(count || 0);
+    const counts = await fetchPendingCounts(user.id);
+    setPendingCount(counts.moneyRequests);
   }, [user]);
 
   useEffect(() => {
@@ -77,6 +71,7 @@ export function WalletCard() {
   const handlePendingClose = (open: boolean) => {
     setPendingOpen(open);
     if (!open) {
+      invalidatePendingCountsCache();
       fetchPendingCount();
       refreshWallet();
       refreshTransactions();
