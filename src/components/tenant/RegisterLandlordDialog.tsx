@@ -18,7 +18,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Progress } from '@/components/ui/progress';
 import {
   Home, User, Phone, MapPin, Banknote, CheckCircle2, Sparkles,
-  Navigation, Loader2, AlertTriangle, Droplets, Zap, Building2, Star
+  Navigation, Loader2, AlertTriangle, Droplets, Zap, Building2, Star, Share2, Copy
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 
@@ -43,6 +43,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [locationCaptured, setLocationCaptured] = useState(false);
+  const [activationLink, setActivationLink] = useState('');
 
   // Landlord info
   const [landlordName, setLandlordName] = useState('');
@@ -73,6 +74,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     setElectricityMeterNumber('');
     setSuccess(false);
     setLocationCaptured(false);
+    setActivationLink('');
   };
 
   // Calculate qualification score (0-100)
@@ -176,19 +178,38 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
 
       if (error) throw error;
 
+      // Generate activation link via supporter_invites
+      const tempPassword = generateTempPassword();
+      const placeholderEmail = `${landlordPhone.trim().replace(/[^0-9]/g, '')}@welile.user`;
+
+      const { data: invite } = await supabase
+        .from('supporter_invites')
+        .insert({
+          created_by: user.id,
+          full_name: landlordName.trim(),
+          phone: landlordPhone.trim(),
+          email: placeholderEmail,
+          temp_password: tempPassword,
+          role: 'landlord',
+          property_address: propertyAddress.trim(),
+          latitude: location?.latitude || null,
+          longitude: location?.longitude || null,
+          location_accuracy: location?.accuracy || null,
+        })
+        .select('activation_token')
+        .single();
+
+      if (invite) {
+        const link = `${window.location.origin}/join?t=${invite.activation_token}`;
+        setActivationLink(link);
+      }
+
       setSuccess(true);
       toast({
         title: 'Landlord Registered!',
-        description: qualificationScore >= 80
-          ? 'Excellent details! You qualify for faster rent approval.'
-          : 'Add more details later to improve your approval chances.',
+        description: 'Share the activation link so they can activate with one tap.',
       });
-
-      setTimeout(() => {
-        onOpenChange(false);
-        resetForm();
-        onSuccess?.();
-      }, 2500);
+      onSuccess?.();
     } catch (error: any) {
       toast({
         title: 'Registration Failed',
@@ -197,6 +218,30 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
       });
     } finally {
       setLoading(false);
+    }
+  };
+
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    return result;
+  };
+
+  const shareViaWhatsApp = () => {
+    const message = `Hello ${landlordName}, you have been registered on Welile. Tap this link to activate your account:\n\n${activationLink}\n\nJust tap and your account is activated!`;
+    const whatsappUrl = `https://wa.me/${landlordPhone.trim().replace(/[^0-9]/g, '')}?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const copyLink = async () => {
+    try {
+      await navigator.clipboard.writeText(activationLink);
+      toast({ title: 'Link Copied!' });
+    } catch {
+      toast({ title: 'Copy failed', variant: 'destructive' });
     }
   };
 
@@ -221,20 +266,48 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               key="success"
               initial={{ opacity: 0, scale: 0.8 }}
               animate={{ opacity: 1, scale: 1 }}
-              className="py-8 text-center"
+              className="py-6 text-center space-y-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
                 transition={{ type: 'spring', delay: 0.2 }}
-                className="w-20 h-20 mx-auto mb-4 rounded-full bg-success/20 flex items-center justify-center"
+                className="w-16 h-16 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center"
               >
-                <CheckCircle2 className="h-10 w-10 text-success" />
+                <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
-              <h3 className="text-lg font-semibold mb-2">Registration Complete!</h3>
+              <h3 className="text-lg font-semibold">Registration Complete!</h3>
               <p className="text-muted-foreground text-sm">
+                Share the link with <strong>{landlordName}</strong> — they just tap to activate!
+              </p>
+              <p className="text-muted-foreground text-xs">
                 Qualification Score: <span className={`font-bold ${getScoreColor()}`}>{qualificationScore}%</span>
               </p>
+
+              {activationLink && (
+                <div className="space-y-3">
+                  <div className="p-3 rounded-lg bg-muted/50 border text-xs break-all text-left text-muted-foreground">
+                    {activationLink}
+                  </div>
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={shareViaWhatsApp}
+                      className="flex-1 bg-green-600 hover:bg-green-700 text-white"
+                    >
+                      <Share2 className="h-4 w-4 mr-2" />
+                      WhatsApp
+                    </Button>
+                    <Button variant="outline" onClick={copyLink} className="gap-2">
+                      <Copy className="h-4 w-4" />
+                      Copy
+                    </Button>
+                  </div>
+                </div>
+              )}
+
+              <Button variant="outline" onClick={() => handleDialogOpen(false)} className="w-full">
+                Done
+              </Button>
             </motion.div>
           ) : (
             <motion.form
