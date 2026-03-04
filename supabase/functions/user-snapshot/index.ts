@@ -29,13 +29,10 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    // Use getClaims for resilient token verification (doesn't require active session)
-    const token = authHeader.replace("Bearer ", "");
-    const { data: claimsData, error: claimsError } =
-      await userClient.auth.getClaims(token);
+    const { data: { user }, error: userError } = await userClient.auth.getUser();
 
-    if (claimsError || !claimsData?.claims?.sub) {
-      console.error("[user-snapshot] Token verification failed:", claimsError?.message);
+    if (userError || !user) {
+      console.error("[user-snapshot] Token verification failed:", userError?.message);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -45,7 +42,7 @@ Deno.serve(async (req) => {
     // Service-role client for data queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const userId = claimsData.claims.sub as string;
+    const userId = user.id;
 
     // Fetch user roles first to determine what data to fetch
     const { data: roles } = await supabase
