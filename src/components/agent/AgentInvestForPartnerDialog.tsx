@@ -8,8 +8,9 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone } from 'lucide-react';
+import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { CreateUserInviteDialog } from './CreateUserInviteDialog';
 
 interface AgentInvestForPartnerDialogProps {
   open: boolean;
@@ -48,6 +49,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [totalRentRequested, setTotalRentRequested] = useState(0);
   const [agentBalance, setAgentBalance] = useState(0);
   const [success, setSuccess] = useState<SuccessData | null>(null);
+  const [showRegister, setShowRegister] = useState(false);
 
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
@@ -292,6 +294,16 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                   <span className="text-[10px]">Share</span>
                 </Button>
               </div>
+
+              {/* Non-smartphone note */}
+              {hasToken && (
+                <div className="flex gap-2 p-3 rounded-lg bg-muted/50 border text-left">
+                  <Info className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                  <p className="text-xs text-muted-foreground">
+                    If your partner doesn't have a smartphone, you can open the activation link on any device and enter the temporary password on their behalf.
+                  </p>
+                </div>
+              )}
             </div>
 
             <Button onClick={() => onOpenChange(false)} className="w-full">Done</Button>
@@ -302,6 +314,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   }
 
   return (
+    <>
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
         <DialogHeader>
@@ -343,7 +356,21 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             ) : (
               <div className="max-h-40 overflow-y-auto space-y-1 border rounded-lg p-1">
                 {filteredPartners.length === 0 ? (
-                  <p className="text-xs text-muted-foreground text-center py-3">No partners found</p>
+                  <div className="text-center py-4 space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      {searchQuery.trim() ? 'No partners match your search' : 'No partners found'}
+                    </p>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5"
+                      onClick={() => setShowRegister(true)}
+                    >
+                      <UserPlus className="h-3.5 w-3.5" />
+                      Register New Partner
+                    </Button>
+                  </div>
                 ) : (
                   filteredPartners.map(p => (
                     <button
@@ -492,6 +519,18 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         </AlertDialogContent>
       </AlertDialog>
     </Dialog>
+
+      <CreateUserInviteDialog
+        open={showRegister}
+        onOpenChange={setShowRegister}
+        defaultRole="supporter"
+        lockRole
+        onSuccess={() => {
+          setShowRegister(false);
+          fetchPartners();
+        }}
+      />
+    </>
   );
 }
 

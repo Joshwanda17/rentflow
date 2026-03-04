@@ -15,9 +15,11 @@ interface CreateUserInviteDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
+  defaultRole?: UserRole;
+  lockRole?: boolean;
 }
 
-type UserRole = 'tenant' | 'landlord' | 'agent';
+type UserRole = 'tenant' | 'landlord' | 'agent' | 'supporter';
 
 const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; description: string; color: string; bgColor: string; emoji: string }> = {
   tenant: {
@@ -44,15 +46,23 @@ const roleConfig: Record<UserRole, { label: string; icon: React.ElementType; des
     bgColor: 'bg-orange-500/10 border-orange-500/30',
     emoji: '👥',
   },
+  supporter: {
+    label: 'Partner',
+    icon: Building2,
+    description: 'Investor who funds the rent pool for returns',
+    color: 'text-purple-500',
+    bgColor: 'bg-purple-500/10 border-purple-500/30',
+    emoji: '💰',
+  },
 };
 
-export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: CreateUserInviteDialogProps) {
+export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultRole, lockRole }: CreateUserInviteDialogProps) {
   const { toast } = useToast();
   const isMobile = useIsMobile();
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [copied, setCopied] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<UserRole>('tenant');
+  const [selectedRole, setSelectedRole] = useState<UserRole>(defaultRole || 'tenant');
   const [formData, setFormData] = useState({
     email: '',
     fullName: '',
@@ -75,12 +85,13 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess }: Create
     setFormData(prev => ({ ...prev, password }));
   };
 
-  // Auto-generate password when dialog opens
+  // Auto-generate password and reset role when dialog opens
   useEffect(() => {
-    if (open && !formData.password) {
-      generatePassword();
+    if (open) {
+      if (!formData.password) generatePassword();
+      if (defaultRole) setSelectedRole(defaultRole);
     }
-  }, [open]);
+  }, [open, defaultRole]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -171,7 +182,7 @@ Password: ${createdInvite?.password}`;
     setFormData({ email: '', fullName: '', phone: '', password: '' });
     setCreatedInvite(null);
     setCopied(false);
-    setSelectedRole('tenant');
+    setSelectedRole(defaultRole || 'tenant');
     onOpenChange(false);
   };
 
@@ -180,6 +191,7 @@ Password: ${createdInvite?.password}`;
   const formContent = (
     <form onSubmit={handleSubmit} className="space-y-5">
       {/* Role Selection - Large touch-friendly cards */}
+      {!lockRole && (
       <div className="space-y-3">
         <Label className="text-base font-medium">Who are you registering?</Label>
         <div className="grid grid-cols-2 gap-3">
@@ -209,6 +221,7 @@ Password: ${createdInvite?.password}`;
         </div>
         <p className="text-sm text-muted-foreground text-center px-2">{roleConfig[selectedRole].description}</p>
       </div>
+      )}
 
       {/* Form fields with larger inputs for easy mobile use */}
       <div className="space-y-4">
