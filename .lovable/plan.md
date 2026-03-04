@@ -1,62 +1,72 @@
 
 
-## Inline Partner Registration from Invest-for-Partner Dialog
+## Plan: Multi-Stage Withdrawal Approval Flow with Step Tracker
 
-### Problem
-When an agent tries to invest for a partner who isn't in the system, they hit a dead end ("No partners found"). The agent must leave the investment flow, go to a separate registration page, register the partner, then come back — poor UX, especially on mobile.
+### Current State
+- `withdrawal_requests` table has statuses: `pending`, `approved`, `rejected`
+- Manager currently approves/rejects directly, setting status to `approved` (which triggers wallet deduction + payout)
+- Users see withdrawal status in `UserWithdrawalRequests` component (shown in wallet cards across all dashboards)
+- No multi-stage approval exists — it's a single Manager approval
 
-Additionally, partners without smartphones cannot self-activate. The system must handle this gracefully.
+### What Changes
 
-### Solution
+**1. Database Migration — Add approval stage columns to `withdrawal_requests`**
 
-**1. Add "Register New Partner" button in the empty state of partner search**
+Add three new columns to track each approval gate:
+- `manager_approved_at` (timestamptz, nullable)
+- `manager_approved_by` (uuid, nullable)  
+- `cfo_approved_at` (timestamptz, nullable)
+- `cfo_approved_by` (uuid, nullable)
+- `coo_approved_at` (timestamptz, nullable)
+- `coo_approved_by` (uuid, nullable)
 
-In `AgentInvestForPartnerDialog.tsx`, when `filteredPartners.length === 0` and there's a search query, replace the static "No partners found" message with:
-- A prompt: "Partner not found? Register them now"
-- A "Register Partner" button that opens the existing `CreateUserInviteDialog` but pre-configured for the "supporter" role
+Update `status` to support new stages: `pending` → `manager_approved` → `cfo_approved` → `approved` (COO final)
 
-**2. Add "supporter" role to `CreateUserInviteDialog`**
+**2. New Component — `WithdrawalStepTracker.tsx`**
 
-The existing `CreateUserInviteDialog` supports tenant, landlord, and agent roles. Add a `supporter` (Partner/Investor) role option so agents can register supporters directly. Also add an optional `defaultRole` and `lockRole` prop so the invest dialog can open it pre-set to supporter with no role switching.
+A reusable stepper component showing 4 steps:
+1. **Requested** — User submitted (always completed once submitted)
+2. **Manager Review** — Pending/Completed with timestamp
+3. **CFO Review** — Pending/Completed with timestamp  
+4. **COO Approval & Payment** — Pending/Completed with timestamp
 
-**3. Auto-refresh partner list after registration**
+Each step shows: icon, label, status (waiting/in-progress/completed), and timestamp when completed. Uses a vertical stepper layout with connecting lines (mobile-friendly). Completed steps get a green checkmark and strikethrough line.
 
-After the `CreateUserInviteDialog` succeeds (via `onSuccess` callback), re-fetch the partners list in the invest dialog so the newly registered partner appears immediately and the agent can continue the investment without leaving the flow.
+**3. Update `UserWithdrawalRequests.tsx`**
 
-**4. Handle partners without smartphones**
+- Import and render `WithdrawalStepTracker` inside each withdrawal request card
+- Pass the approval stage data to determine which steps are completed
+- Show the tracker when a request is expanded/tapped
 
-For partners without smartphones who cannot click activation links:
-- After investment, the share message already contains the activation link and temporary password
-- Add a clear note on the success screen: "If your partner doesn't have a smartphone, you can activate their account on their behalf using the activation link on any device"
-- The agent can open the `/join?t=...` link themselves on their own phone, enter the temp password, and complete activation while the partner is present — this is already supported by the existing activation flow
+**4. Update `WithdrawRequestDialog.tsx` success screen**
 
-### Files to Modify
+- After submission, show the step tracker with Step 1 completed, indicating the request is now with the Manager
 
-1. **`src/components/agent/AgentInvestForPartnerDialog.tsx`**
-   - Import `CreateUserInviteDialog`
-   - Add state for `showRegister` dialog
-   - In the empty partners list state, show a "Register Partner" button
-   - On registration success, re-fetch partners list
-   - Add a helper note on the success screen about non-smartphone partners
+**5. Update `WithdrawFlow.tsx` (supporter payment flow) receipt screen**
 
-2. **`src/components/agent/CreateUserInviteDialog.tsx`**
-   - Add `supporter` to the `UserRole` type and `roleConfig`
-   - Add optional `defaultRole` and `lockRole` props
-   - When `lockRole` is true, skip role selection step
+- Same step tracker on the receipt/success screen
 
-### Flow After Changes
+**6. Update Manager `WithdrawalRequestsManager.tsx`**
 
-```text
-Agent opens "Invest for Partner"
-  → Searches for partner
-  → Partner not found
-  → Taps "Register Partner"
-  → CreateUserInviteDialog opens (locked to supporter role)
-  → Agent enters name, phone, temp password
-  → Registration succeeds → dialog closes
-  → Partner list auto-refreshes with new partner
-  → Agent selects them, enters amount, payout day
-  → Confirms investment
-  → Success screen with share buttons + note for non-smartphone users
-```
+- Manager approval now sets `status = 'manager_approved'` instead of `'approved'`
+- Sets `manager_approved_at` and `manager_approved_by`
+- No wallet deduction yet — that happens at COO stage
+
+**7. Update CFO Dashboard — Payouts tab**
+
+- Add a "Withdrawal Approvals" section showing requests with `status = 'manager_approved'`
+- CFO can approve → sets `status = 'cfo_approved'`, records `cfo_approved_at/by`
+
+**8. Update COO Dashboard**
+
+- Add a "Final Withdrawal Approvals" section showing `status = 'cfo_approved'`
+- COO approves → sets `status = 'approved'`, records `coo_approved_at/by`, triggers wallet deduction and payment
+
+**9. Excluded from changes**
+- Admin/Manager/CFO/COO dashboards do NOT show the user-facing step tracker — they see their own approval queues instead
+
+### Technical Notes
+- The existing database trigger for wallet deduction on `approved` status continues to work — it only fires when status becomes `approved` (now only set by COO)
+- RLS policies remain unchanged — the new columns are nullable and don't affect existing access patterns
+- The step tracker component is pure UI reading existing row data — no new queries needed
 
