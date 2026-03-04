@@ -1,5 +1,6 @@
 import { supabase } from '@/integrations/supabase/client';
 import { lovable } from '@/integrations/lovable';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import type { AppRole } from './types';
 
 export async function signUp(email: string, password: string, fullName: string, phone: string, role: AppRole) {
@@ -33,19 +34,60 @@ export async function signIn(email: string, password: string) {
   return { error: error as Error | null };
 }
 
-export async function signInWithGoogle() {
-  const result = await lovable.auth.signInWithOAuth('google', {
-    redirect_uri: `${window.location.origin}/auth`,
+async function attemptOAuth(provider: 'google' | 'apple', redirectUri: string) {
+  console.log(`[OAuth] Attempting ${provider} with redirect_uri:`, redirectUri);
+  const result = await lovable.auth.signInWithOAuth(provider, {
+    redirect_uri: redirectUri,
   });
+  console.log(`[OAuth] ${provider} result:`, { redirected: result.redirected, error: result.error?.message });
+  return result;
+}
+
+export async function signInWithGoogle() {
+  // Primary: use canonical public origin (custom domain)
+  const publicOrigin = getPublicOrigin();
+  const primaryUri = publicOrigin;
+
+  console.log('[OAuth:Google] domain:', window.location.hostname, '| publicOrigin:', publicOrigin);
+
+  const result = await attemptOAuth('google', primaryUri);
   if (result.redirected) return { error: null };
+
+  // If provider not supported error, retry with current origin as fallback
+  const errMsg = result.error?.message || '';
+  if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
+    console.warn('[OAuth:Google] Primary redirect failed, retrying with current origin...');
+    const fallbackUri = window.location.origin;
+    if (fallbackUri !== primaryUri) {
+      const retry = await attemptOAuth('google', fallbackUri);
+      if (retry.redirected) return { error: null };
+      return { error: retry.error ?? null };
+    }
+  }
+
   return { error: result.error ?? null };
 }
 
 export async function signInWithApple() {
-  const result = await lovable.auth.signInWithOAuth('apple', {
-    redirect_uri: `${window.location.origin}/auth`,
-  });
+  const publicOrigin = getPublicOrigin();
+  const primaryUri = publicOrigin;
+
+  console.log('[OAuth:Apple] domain:', window.location.hostname, '| publicOrigin:', publicOrigin);
+
+  const result = await attemptOAuth('apple', primaryUri);
   if (result.redirected) return { error: null };
+
+  const errMsg = result.error?.message || '';
+  if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
+    console.warn('[OAuth:Apple] Primary redirect failed, retrying with current origin...');
+    const fallbackUri = window.location.origin;
+    if (fallbackUri !== primaryUri) {
+      const retry = await attemptOAuth('apple', fallbackUri);
+      if (retry.redirected) return { error: null };
+      return { error: retry.error ?? null };
+    }
+  }
+
   return { error: result.error ?? null };
 }
 

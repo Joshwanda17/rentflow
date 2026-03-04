@@ -381,12 +381,27 @@ export function useAuthForm() {
     try {
       const { error } = await signInWithGoogle();
       if (error) {
-        toast({ title: 'Google Sign In Failed', description: error.message, variant: 'destructive' });
+        const isProviderError = error.message?.toLowerCase().includes('not supported') || error.message?.toLowerCase().includes('provider');
+        toast({
+          title: 'Google Sign In Failed',
+          description: isProviderError
+            ? 'Google sign-in is temporarily unavailable. Please try again in a few seconds or use phone/password.'
+            : error.message,
+          variant: 'destructive',
+        });
       }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
       console.error('[GoogleSignIn] Unexpected error:', err);
-      toast({ title: 'Google Sign In Failed', description: `Unexpected error: ${msg}`, variant: 'destructive' });
+      // Friendlier message for provider config issues
+      const isProviderError = msg.toLowerCase().includes('not supported') || msg.toLowerCase().includes('provider');
+      toast({
+        title: 'Google Sign In Failed',
+        description: isProviderError
+          ? 'Google sign-in is temporarily unavailable. Please try again in a few seconds or use phone/password.'
+          : `Unexpected error: ${msg}`,
+        variant: 'destructive',
+      });
     } finally {
       setIsGoogleLoading(false);
     }

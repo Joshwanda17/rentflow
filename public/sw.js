@@ -1,7 +1,7 @@
-// Welile Service Worker — Fintech Safe Version
+// Welile Service Worker — Fintech Safe Version v2
 
-const CACHE_NAME = "welile-core-v1";
-const STATIC_CACHE = "welile-static-v1";
+const CACHE_NAME = "welile-core-v2";
+const STATIC_CACHE = "welile-static-v2";
 const OFFLINE_URL = "/offline.html";
 
 const PRECACHE_ASSETS = ["/", "/index.html", "/offline.html", "/manifest.json", "/favicon.png", "/welile-logo.png"];
@@ -37,12 +37,14 @@ self.addEventListener("fetch", (event) => {
   // 1️⃣ BYPASS AUTH & OAUTH COMPLETELY
   // ===================================================
   if (
+    url.pathname.startsWith("/~oauth") ||
     url.searchParams.has("code") ||
     url.searchParams.has("state") ||
     url.pathname.includes("/auth") ||
-    url.hostname.includes("supabase.co")
+    url.hostname.includes("supabase.co") ||
+    url.hostname.includes("oauth.lovable.app")
   ) {
-    return; // Let browser handle normally
+    return; // Let browser handle normally — NEVER cache OAuth flows
   }
 
   // ===================================================
