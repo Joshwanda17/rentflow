@@ -3437,8 +3437,14 @@ export type Database = {
       withdrawal_requests: {
         Row: {
           amount: number
+          cfo_approved_at: string | null
+          cfo_approved_by: string | null
+          coo_approved_at: string | null
+          coo_approved_by: string | null
           created_at: string
           id: string
+          manager_approved_at: string | null
+          manager_approved_by: string | null
           mobile_money_name: string | null
           mobile_money_number: string | null
           mobile_money_provider: string | null
@@ -3452,8 +3458,14 @@ export type Database = {
         }
         Insert: {
           amount: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
           created_at?: string
           id?: string
+          manager_approved_at?: string | null
+          manager_approved_by?: string | null
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null
@@ -3467,8 +3479,14 @@ export type Database = {
         }
         Update: {
           amount?: number
+          cfo_approved_at?: string | null
+          cfo_approved_by?: string | null
+          coo_approved_at?: string | null
+          coo_approved_by?: string | null
           created_at?: string
           id?: string
+          manager_approved_at?: string | null
+          manager_approved_by?: string | null
           mobile_money_name?: string | null
           mobile_money_number?: string | null
           mobile_money_provider?: string | null

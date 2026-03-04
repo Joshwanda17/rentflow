@@ -635,34 +635,22 @@ export function WithdrawalRequestsManager() {
   const handleApprove = async () => {
     if (!user || !selectedRequest) return;
 
-    if (!transactionId.trim()) {
-      toast.error('Please enter the transaction ID');
-      return;
-    }
-
     setProcessing(selectedRequest.id);
     try {
-      // Balance deduction is handled automatically by the database trigger
-      // when the status changes to 'approved' (with optimistic locking)
-
-      // Update request status — this triggers the balance deduction automatically
+      // Manager approval now moves to 'manager_approved' — not final 'approved'
+      // No wallet deduction yet; that happens at COO stage
       const { error: requestError } = await supabase
         .from('withdrawal_requests')
         .update({
-          status: 'approved',
-          processed_by: user.id,
-          processed_at: new Date().toISOString(),
-          transaction_id: transactionId.trim()
-        })
+          status: 'manager_approved',
+          manager_approved_at: new Date().toISOString(),
+          manager_approved_by: user.id,
+        } as any)
         .eq('id', selectedRequest.id);
 
       if (requestError) throw requestError;
 
-      if (requestError) throw requestError;
-
-      // Notification removed - table dropped
-
-      toast.success('Withdrawal approved successfully!');
+      toast.success('Withdrawal forwarded to CFO for review!');
       setApproveDialogOpen(false);
       setTransactionId('');
       setSelectedRequest(null);
@@ -1559,16 +1547,16 @@ export function WithdrawalRequestsManager() {
         </AlertDialogContent>
       </AlertDialog>
 
-      {/* Approval Dialog with Balance Confirmation + Transaction ID */}
+      {/* Approval Dialog — Manager forwards to CFO */}
       <AlertDialog open={approveDialogOpen} onOpenChange={setApproveDialogOpen}>
         <AlertDialogContent className="max-w-md max-h-[90vh] overflow-y-auto">
           <AlertDialogHeader>
             <AlertDialogTitle className="flex items-center gap-2">
               <CheckCircle className="h-5 w-5 text-success" />
-              Confirm Withdrawal Approval
+              Forward to CFO
             </AlertDialogTitle>
             <AlertDialogDescription>
-              Review the details below before approving this withdrawal.
+              Approve and forward this withdrawal to the CFO for the next stage of review.
             </AlertDialogDescription>
           </AlertDialogHeader>
           
@@ -1586,44 +1574,26 @@ export function WithdrawalRequestsManager() {
               </div>
             </div>
 
-            {/* Balance Comparison Card */}
+            {/* Amount */}
             <div className="border rounded-xl overflow-hidden">
               <div className="bg-muted/30 px-4 py-2 border-b">
-                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Balance Summary</p>
+                <p className="text-xs font-medium text-muted-foreground uppercase tracking-wide">Withdrawal Details</p>
               </div>
               <div className="p-4 space-y-3">
                 <div className="flex items-center justify-between">
-                  <span className="text-sm text-muted-foreground">Current Balance</span>
+                  <span className="text-sm text-muted-foreground">Amount</span>
                   <span className="font-mono font-bold text-lg">
+                    {formatCurrency(selectedRequest?.amount || 0)}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-sm text-muted-foreground">Wallet Balance</span>
+                  <span className="font-mono font-bold">
                     {formatCurrency(selectedRequest?.wallet_balance || 0)}
-                  </span>
-                </div>
-                <div className="flex items-center justify-between text-destructive">
-                  <span className="text-sm">Withdrawal Amount</span>
-                  <span className="font-mono font-bold text-lg">
-                    - {formatCurrency(selectedRequest?.amount || 0)}
-                  </span>
-                </div>
-                <div className="border-t pt-3 flex items-center justify-between">
-                  <span className="text-sm font-medium">Balance After</span>
-                  <span className={`font-mono font-bold text-lg ${
-                    ((selectedRequest?.wallet_balance || 0) - (selectedRequest?.amount || 0)) >= 0 
-                      ? 'text-success' 
-                      : 'text-destructive'
-                  }`}>
-                    {formatCurrency((selectedRequest?.wallet_balance || 0) - (selectedRequest?.amount || 0))}
                   </span>
                 </div>
               </div>
             </div>
-
-            {/* Insufficient Balance Warning */}
-            {selectedRequest && (selectedRequest.wallet_balance || 0) < selectedRequest.amount && (
-              <div className="flex items-center gap-2 p-3 bg-destructive/10 border border-destructive/30 rounded-lg text-destructive text-sm">
-                <AlertCircle className="h-4 w-4 flex-shrink-0" />
-                <span className="font-medium">Warning: Insufficient balance! This will result in a negative balance.</span>
-              </div>
-            )}
 
             {/* Mobile Money Details */}
             {selectedRequest?.mobile_money_number && (
@@ -1642,19 +1612,9 @@ export function WithdrawalRequestsManager() {
               </div>
             )}
 
-            {/* Transaction ID Input */}
-            <div className="space-y-2">
-              <label className="text-sm font-medium">
-                Transaction ID <span className="text-destructive">*</span>
-              </label>
-              <Input
-                placeholder="Enter MoMo transaction ID..."
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value)}
-                className="h-12 text-base font-mono"
-              />
-              <p className="text-xs text-muted-foreground">
-                Enter the mobile money transaction reference for tracking
+            <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+              <p className="text-xs text-blue-700 dark:text-blue-400 font-medium">
+                ℹ️ This will forward the request to the CFO → COO approval chain. No funds will be deducted yet.
               </p>
             </div>
           </div>
@@ -1667,15 +1627,15 @@ export function WithdrawalRequestsManager() {
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleApprove}
-              disabled={!transactionId.trim() || processing === selectedRequest?.id}
-              className="bg-success text-success-foreground hover:bg-success/90"
+              disabled={processing === selectedRequest?.id}
+              className="bg-primary text-primary-foreground hover:bg-primary/90"
             >
               {processing === selectedRequest?.id ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : (
                 <CheckCircle className="h-4 w-4 mr-2" />
               )}
-              Confirm Payout
+              Approve → CFO
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

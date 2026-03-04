@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { WithdrawalStepTracker } from './WithdrawalStepTracker';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -308,16 +309,27 @@ export function WithdrawRequestDialog({
         </DialogHeader>
 
         {success ? (
-          <div className="py-8 text-center space-y-4">
-            <div className="mx-auto w-16 h-16 rounded-full bg-success/20 flex items-center justify-center">
-              <CheckCircle className="h-8 w-8 text-success" />
-            </div>
-            <div>
+          <div className="py-6 space-y-4">
+            <div className="text-center space-y-2">
+              <div className="mx-auto w-16 h-16 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                <CheckCircle className="h-8 w-8 text-emerald-500" />
+              </div>
               <h3 className="text-lg font-semibold">Request Submitted! 🎉</h3>
-              <p className="text-muted-foreground mt-1">
-                Your withdrawal of {formatCurrency(amount)} to {provider.toUpperCase()} ({mobileNumber}) is pending approval.
+              <p className="text-sm text-muted-foreground">
+                Your withdrawal of {formatCurrency(amount)} to {provider.toUpperCase()} ({mobileNumber}) is now being reviewed.
               </p>
             </div>
+            
+            <div className="p-3 rounded-xl border border-border bg-muted/30">
+              <p className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider mb-2">
+                Approval Progress
+              </p>
+              <WithdrawalStepTracker
+                status="pending"
+                createdAt={new Date().toISOString()}
+              />
+            </div>
+
             <Button onClick={handleClose} className="w-full h-12 text-base">
               Done
             </Button>

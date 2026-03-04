@@ -11,6 +11,7 @@ import { cn } from '@/lib/utils';
 import MobileBottomNav from '@/components/MobileBottomNav';
 import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
+import { COOWithdrawalApprovals } from '@/components/coo/COOWithdrawalApprovals';
 
 type HealthStatus = 'green' | 'yellow' | 'red';
 
@@ -395,6 +396,11 @@ export default function COODashboard() {
         {metrics.map(tile => (
           <TileCard key={tile.id} tile={tile} />
         ))}
+      </div>
+
+      {/* COO Withdrawal Approvals */}
+      <div className="px-4 pt-4">
+        <COOWithdrawalApprovals />
       </div>
 
       {role && <MobileBottomNav currentRole={role} />}
