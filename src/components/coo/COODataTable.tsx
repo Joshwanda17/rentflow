@@ -117,9 +117,9 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
     <>
       <div className="space-y-2">
         {/* Header bar */}
-        <div className="flex items-center justify-between gap-2">
-          <h3 className="text-sm font-bold uppercase tracking-widest text-muted-foreground shrink-0">{title}</h3>
-          <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h3 className="text-xs sm:text-sm font-bold uppercase tracking-widest text-muted-foreground shrink-0">{title}</h3>
+          <div className="flex items-center gap-1.5 sm:gap-2">
             {/* Search */}
             <div className="relative">
               <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-3 w-3 text-muted-foreground" />
@@ -128,7 +128,7 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
                 value={search}
                 onChange={e => handleSearch(e.target.value)}
                 placeholder="Search…"
-                className="h-7 w-36 rounded-md border border-border/60 bg-muted/30 pl-6 pr-6 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
+                className="h-7 w-24 sm:w-36 rounded-md border border-border/60 bg-muted/30 pl-6 pr-6 text-xs placeholder:text-muted-foreground/50 focus:outline-none focus:ring-1 focus:ring-primary/40 transition-colors"
               />
               {search && (
                 <button onClick={() => handleSearch('')} className="absolute right-1.5 top-1/2 -translate-y-1/2 p-0.5 rounded hover:bg-muted">
@@ -138,9 +138,9 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
             </div>
             <button
               onClick={() => exportToCSV(columns, data, exportFilename || title.toLowerCase().replace(/\s+/g, '-'))}
-              className="flex items-center gap-1.5 text-xs font-semibold text-primary hover:text-primary/80 transition-colors px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 active:scale-95 shrink-0"
+              className="flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs font-semibold text-primary hover:text-primary/80 transition-colors px-2 sm:px-3 py-1.5 rounded-lg bg-primary/10 hover:bg-primary/15 active:scale-95 shrink-0"
             >
-              <Download className="h-3.5 w-3.5" />
+              <Download className="h-3 w-3 sm:h-3.5 sm:w-3.5" />
               Export
             </button>
           </div>
@@ -148,11 +148,11 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
 
         {/* Table */}
         <div className="rounded-xl border border-border/80 bg-card overflow-hidden shadow-sm">
-          <div className="overflow-x-auto">
-            <table className="w-full text-[13px]">
+          <div className="overflow-x-auto -webkit-overflow-scrolling-touch">
+            <table className="w-full text-[11px] sm:text-[13px] min-w-[480px]">
               <thead>
                 <tr className="border-b-2 border-border bg-muted/50">
-                  <th className="px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-center w-10">#</th>
+                  <th className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground text-center w-8 sm:w-10">#</th>
                   {tableCols.map(col => {
                     const isSortable = col.sortable !== false;
                     return (
@@ -160,7 +160,7 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
                         key={col.key}
                         onClick={() => isSortable && handleSort(col.key)}
                         className={cn(
-                          'px-3 py-2 text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground whitespace-nowrap border-l border-border/40 select-none',
+                          'px-1.5 sm:px-3 py-1.5 sm:py-2 text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] text-muted-foreground whitespace-nowrap border-l border-border/40 select-none',
                           col.align === 'right' ? 'text-right' : col.align === 'center' ? 'text-center' : 'text-left',
                           isSortable && 'cursor-pointer hover:text-foreground hover:bg-muted/60 transition-colors'
                         )}
@@ -194,12 +194,12 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
                           'hover:bg-primary/[0.07]'
                         )}
                       >
-                        <td className="px-3 py-2 text-[10px] font-bold text-muted-foreground/60 text-center tabular-nums">{rowIndex}</td>
+                        <td className="px-1.5 sm:px-3 py-1.5 sm:py-2 text-[9px] sm:text-[10px] font-bold text-muted-foreground/60 text-center tabular-nums">{rowIndex}</td>
                         {tableCols.map(col => (
                           <td
                             key={col.key}
                             className={cn(
-                              'px-3 py-2 tabular-nums border-l border-border/20',
+                              'px-1.5 sm:px-3 py-1.5 sm:py-2 tabular-nums border-l border-border/20 max-w-[120px] sm:max-w-none truncate',
                               col.align === 'right' ? 'text-right font-semibold' : col.align === 'center' ? 'text-center' : 'text-left',
                               col.align === 'right' && 'tracking-tight'
                             )}
@@ -215,7 +215,7 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
               {paged.length > 0 && (
                 <tfoot>
                   <tr className="border-t-2 border-border bg-muted/40">
-                    <td className="px-3 py-1.5 text-[9px] font-black text-muted-foreground" colSpan={tableCols.length + 1}>
+                    <td className="px-1.5 sm:px-3 py-1 sm:py-1.5 text-[8px] sm:text-[9px] font-black text-muted-foreground" colSpan={tableCols.length + 1}>
                       {filtered.length === data.length
                         ? `${data.length} RECORD${data.length !== 1 ? 'S' : ''} TOTAL`
                         : `${filtered.length} OF ${data.length} RECORDS (FILTERED)`
@@ -228,9 +228,9 @@ export default function COODataTable<T>({ columns, data, title, pageSize = 15, e
           </div>
 
           {totalPages > 1 && (
-            <div className="flex items-center justify-between px-3 py-1.5 border-t border-border/60 bg-muted/30">
-              <span className="text-[10px] font-bold text-muted-foreground tabular-nums tracking-wide">
-                SHOWING {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, sorted.length)} OF {sorted.length}
+            <div className="flex items-center justify-between px-1.5 sm:px-3 py-1 sm:py-1.5 border-t border-border/60 bg-muted/30">
+              <span className="text-[9px] sm:text-[10px] font-bold text-muted-foreground tabular-nums tracking-wide">
+                {safePage * pageSize + 1}–{Math.min((safePage + 1) * pageSize, sorted.length)} OF {sorted.length}
               </span>
               <div className="flex items-center gap-0.5">
                 <button
