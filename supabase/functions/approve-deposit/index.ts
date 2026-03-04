@@ -151,7 +151,7 @@ Deno.serve(async (req) => {
               .eq("balance", currentWallet.balance);
           }
 
-          // Check and apply rent repayment
+          // Check and auto-deduct rent repayment
           let repaymentApplied = 0;
           let rentRequestId: string | null = null;
           let previousBalance = 0;
@@ -171,38 +171,70 @@ Deno.serve(async (req) => {
             previousBalance = outstanding;
             rentRequestId = activeRentRequest.id;
 
-            const { error: repaymentError } = await supabaseAdmin.rpc(
-              "record_rent_request_repayment",
-              { p_tenant_id: depositRequest.user_id, p_amount: depositRequest.amount }
-            );
-            if (!repaymentError) {
+            if (outstanding > 0) {
               repaymentApplied = Math.min(depositRequest.amount, outstanding);
               newOutstanding = outstanding - repaymentApplied;
 
-              const txGroupId = crypto.randomUUID();
-              await supabaseAdmin.from("general_ledger").insert({
-                user_id: depositRequest.user_id,
-                amount: repaymentApplied,
-                direction: "cash_out",
-                category: "rent_repayment",
-                source_table: "deposit_requests",
-                source_id: depositRequest.id,
-                reference_id: depositRequest.transaction_id || depositRequest.id,
-                transaction_group_id: txGroupId,
-                description: `Rent repayment from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
-                linked_party: rentRequestId,
-                transaction_date: new Date().toISOString(),
-              });
+              // 1. Deduct repayment amount from tenant wallet
+              const { data: walletNow } = await supabaseAdmin
+                .from("wallets")
+                .select("balance")
+                .eq("user_id", depositRequest.user_id)
+                .single();
+
+              if (walletNow && walletNow.balance >= repaymentApplied) {
+                await supabaseAdmin
+                  .from("wallets")
+                  .update({ balance: walletNow.balance - repaymentApplied, updated_at: new Date().toISOString() })
+                  .eq("user_id", depositRequest.user_id)
+                  .eq("balance", walletNow.balance);
+
+                // 2. Record repayment via RPC (updates rent_requests.amount_repaid, landlords.rent_balance_due, inserts repayment + ledger)
+                const { error: repaymentError } = await supabaseAdmin.rpc(
+                  "record_rent_request_repayment",
+                  { p_tenant_id: depositRequest.user_id, p_amount: repaymentApplied }
+                );
+
+                if (repaymentError) {
+                  console.error(`[approve-deposit] Repayment RPC failed for ${depositRequest.id}:`, repaymentError.message);
+                  // Rollback wallet deduction on RPC failure
+                  await supabaseAdmin
+                    .from("wallets")
+                    .update({ balance: walletNow.balance, updated_at: new Date().toISOString() })
+                    .eq("user_id", depositRequest.user_id);
+                  repaymentApplied = 0;
+                  newOutstanding = previousBalance;
+                } else {
+                  // 3. Record cash_out ledger entry for the wallet deduction
+                  const txGroupId = crypto.randomUUID();
+                  await supabaseAdmin.from("general_ledger").insert({
+                    user_id: depositRequest.user_id,
+                    amount: repaymentApplied,
+                    direction: "cash_out",
+                    category: "rent_repayment",
+                    source_table: "deposit_requests",
+                    source_id: depositRequest.id,
+                    reference_id: depositRequest.transaction_id || depositRequest.id,
+                    transaction_group_id: txGroupId,
+                    description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+                    linked_party: rentRequestId,
+                    transaction_date: new Date().toISOString(),
+                  });
+                }
+              } else {
+                console.warn(`[approve-deposit] Wallet balance insufficient for auto-deduction, skipping rent repayment for ${depositRequest.id}`);
+                repaymentApplied = 0;
+              }
             }
           }
 
           // Notification
           const repaymentNote = repaymentApplied > 0
-            ? ` UGX ${repaymentApplied.toLocaleString()} applied to rent (remaining: UGX ${newOutstanding.toLocaleString()}).`
+            ? ` UGX ${repaymentApplied.toLocaleString()} auto-deducted for rent (remaining: UGX ${newOutstanding.toLocaleString()}).`
             : "";
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
-            title: "Deposit Approved! 💰",
+            title: repaymentApplied > 0 ? "Deposit Approved & Rent Deducted! 💰" : "Deposit Approved! 💰",
             message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}`,
             type: "success",
             metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, repayment_applied: repaymentApplied },
