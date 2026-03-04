@@ -1,41 +1,62 @@
 
 
-## Generate Shareable Activation Link After Proxy Investment
+## Inline Partner Registration from Invest-for-Partner Dialog
 
-### What Changes
+### Problem
+When an agent tries to invest for a partner who isn't in the system, they hit a dead end ("No partners found"). The agent must leave the investment flow, go to a separate registration page, register the partner, then come back — poor UX, especially on mobile.
 
-**1. Edge Function (`agent-invest-for-partner/index.ts`)**
-- After the investment succeeds, look up the partner's `supporter_invites` record (where `activated_user_id = partner_id` or `created_by = agent.id` and matching phone/email)
-- If a pending invite exists, return the `activation_token` in the response
-- If no pending invite exists (partner already fully activated), return a flag indicating "already activated"
+Additionally, partners without smartphones cannot self-activate. The system must handle this gracefully.
 
-**2. Success Screen (`AgentInvestForPartnerDialog.tsx`)**
-- Expand the success state to include `activation_token` (optional)
-- After "Investment Successful!", add a **"Share Activation Link"** section with:
-  - A generated link using `getPublicOrigin() + '/join?t=' + activation_token`
-  - **Copy Link** button
-  - **Share via WhatsApp** button (pre-filled message with investment summary + activation link)
-  - **Native Share** button (using `navigator.share` API with fallback)
-- The share message includes: partner name, investment amount, monthly reward, payout date, and the activation link
-- If partner is already activated (no token), show a simpler "Share Investment Confirmation" with just the reference ID
+### Solution
 
-### Share Message Template
-```
-🎉 Your Welile Investment is Ready!
+**1. Add "Register New Partner" button in the empty state of partner search**
 
-Hi {partnerName}, {agentName} has invested UGX {amount} on your behalf into the Rent Management Pool.
+In `AgentInvestForPartnerDialog.tsx`, when `filteredPartners.length === 0` and there's a search query, replace the static "No partners found" message with:
+- A prompt: "Partner not found? Register them now"
+- A "Register Partner" button that opens the existing `CreateUserInviteDialog` but pre-configured for the "supporter" role
 
-💰 Monthly Reward: UGX {monthlyReward} (15%)
-📅 Payout Day: {payoutDay}th of each month
-🗓️ First Payout: {firstPayoutDate}
+**2. Add "supporter" role to `CreateUserInviteDialog`**
 
-👉 Activate your account to start receiving rewards:
-{activationLink}
+The existing `CreateUserInviteDialog` supports tenant, landlord, and agent roles. Add a `supporter` (Partner/Investor) role option so agents can register supporters directly. Also add an optional `defaultRole` and `lockRole` prop so the invest dialog can open it pre-set to supporter with no role switching.
 
-Ref: {referenceId}
-```
+**3. Auto-refresh partner list after registration**
+
+After the `CreateUserInviteDialog` succeeds (via `onSuccess` callback), re-fetch the partners list in the invest dialog so the newly registered partner appears immediately and the agent can continue the investment without leaving the flow.
+
+**4. Handle partners without smartphones**
+
+For partners without smartphones who cannot click activation links:
+- After investment, the share message already contains the activation link and temporary password
+- Add a clear note on the success screen: "If your partner doesn't have a smartphone, you can activate their account on their behalf using the activation link on any device"
+- The agent can open the `/join?t=...` link themselves on their own phone, enter the temp password, and complete activation while the partner is present — this is already supported by the existing activation flow
 
 ### Files to Modify
-- `supabase/functions/agent-invest-for-partner/index.ts` — add activation token lookup to response
-- `src/components/agent/AgentInvestForPartnerDialog.tsx` — add share buttons to success screen
+
+1. **`src/components/agent/AgentInvestForPartnerDialog.tsx`**
+   - Import `CreateUserInviteDialog`
+   - Add state for `showRegister` dialog
+   - In the empty partners list state, show a "Register Partner" button
+   - On registration success, re-fetch partners list
+   - Add a helper note on the success screen about non-smartphone partners
+
+2. **`src/components/agent/CreateUserInviteDialog.tsx`**
+   - Add `supporter` to the `UserRole` type and `roleConfig`
+   - Add optional `defaultRole` and `lockRole` props
+   - When `lockRole` is true, skip role selection step
+
+### Flow After Changes
+
+```text
+Agent opens "Invest for Partner"
+  → Searches for partner
+  → Partner not found
+  → Taps "Register Partner"
+  → CreateUserInviteDialog opens (locked to supporter role)
+  → Agent enters name, phone, temp password
+  → Registration succeeds → dialog closes
+  → Partner list auto-refreshes with new partner
+  → Agent selects them, enters amount, payout day
+  → Confirms investment
+  → Success screen with share buttons + note for non-smartphone users
+```
 
