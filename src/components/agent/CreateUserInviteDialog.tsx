@@ -629,12 +629,12 @@ Just click the link and enter your password to get started!`;
 
       {isSupporterRole ? supporterFormSections : standardFormFields}
 
-      <Button type="submit" className="w-full h-14 text-base font-semibold rounded-xl" disabled={isLoading}>
+      <Button type="submit" className="w-full h-14 text-sm sm:text-base font-semibold rounded-xl" disabled={isLoading}>
         {isLoading ? (
-          <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> Creating Account...</>
+          <><Loader2 className="h-5 w-5 mr-2 animate-spin" /> <span className="truncate">Creating Account...</span></>
         ) : (
-          <><RoleIcon className={`h-5 w-5 mr-2 ${roleConfig[selectedRole].color}`} />
-            {isSupporterRole ? 'Register Tenant Supporter Investment' : `Register ${roleConfig[selectedRole].label}`}</>
+          <><RoleIcon className={`h-5 w-5 mr-2 shrink-0 ${roleConfig[selectedRole].color}`} />
+            <span className="truncate">{isSupporterRole ? 'Register Supporter Investment' : `Register ${roleConfig[selectedRole].label}`}</span></>
         )}
       </Button>
     </form>
