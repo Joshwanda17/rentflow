@@ -8,6 +8,7 @@ import {
   ArrowDownCircle,
   TrendingUp,
   Store,
+  Search,
   History,
   Receipt,
   Banknote,
@@ -58,6 +59,7 @@ interface AgentMenuDrawerProps {
   onInvestForPartner?: () => void;
   onIssueReceipt?: () => void;
   onViewLandlordMap?: () => void;
+  onFindRentals?: () => void;
 }
 
 interface MenuSection {
@@ -91,6 +93,7 @@ export function AgentMenuDrawer({
   onInvestForPartner,
   onIssueReceipt,
   onViewLandlordMap,
+  onFindRentals,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
@@ -210,6 +213,14 @@ export function AgentMenuDrawer({
           onClick: onViewLandlordMap,
           color: 'text-emerald-500',
           badge: 'GPS'
+        } as MenuItem] : []),
+        ...(onFindRentals ? [{ 
+          icon: Search, 
+          label: 'Find Rentals', 
+          description: 'Browse all registered rentals by location',
+          onClick: onFindRentals,
+          color: 'text-violet-500',
+          badge: 'Directory'
         } as MenuItem] : []),
       ]
     },
