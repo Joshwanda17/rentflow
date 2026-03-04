@@ -38,6 +38,7 @@ import {
   Droplets,
   Phone,
   CheckCircle2,
+  ClipboardList,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { hapticTap, hapticSuccess } from '@/lib/haptics';
@@ -128,6 +129,13 @@ export function AgentMenuDrawer({
           color: 'text-emerald-600',
           badge: 'Proxy'
         } as MenuItem] : []),
+        { 
+          icon: ClipboardList, 
+          label: 'My Registrations', 
+          description: 'View invite status & share links',
+          path: '/agent-registrations',
+          color: 'text-blue-600',
+        },
         ...(onViewProxyHistory ? [{ 
           icon: History, 
           label: 'Proxy Investment History', 
