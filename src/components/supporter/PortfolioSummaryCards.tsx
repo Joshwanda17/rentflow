@@ -43,7 +43,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
               onClick={() => { hapticTap(); setShowWallet(true); }}
               className="flex items-center gap-2 group cursor-pointer"
             >
-              <Wallet className="h-5 w-5 opacity-70 group-hover:opacity-100 transition-opacity" />
+              <Wallet className="h-7 w-7 opacity-70 group-hover:opacity-100 transition-opacity" />
               <p className="text-4xl font-black tracking-tight">{formatAmount(rentSecured)}</p>
             </button>
           </div>
