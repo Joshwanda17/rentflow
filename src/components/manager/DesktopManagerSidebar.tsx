@@ -61,7 +61,7 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
             </button>
           ))}
         </nav>
-        {/* COO Dashboard link under hub items */}
+        {/* COO Dashboard link */}
         <button
           onClick={() => navigate('/coo-dashboard')}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mt-1"
@@ -70,6 +70,17 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
           <div className="min-w-0">
             <p className="text-sm truncate">COO Dashboard</p>
             <p className="text-[10px] text-muted-foreground truncate">Operations health</p>
+          </div>
+        </button>
+        {/* CFO Dashboard link */}
+        <button
+          onClick={() => navigate('/cfo-dashboard')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-muted-foreground hover:bg-muted hover:text-foreground transition-colors mt-1"
+        >
+          <ChartBar className="h-4 w-4 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm truncate">CFO Dashboard</p>
+            <p className="text-[10px] text-muted-foreground truncate">Financial governance</p>
           </div>
         </button>
       </div>
