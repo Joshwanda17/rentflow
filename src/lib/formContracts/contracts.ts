@@ -152,3 +152,23 @@ export const MONEY_REQUEST_CONTRACT: FormContract = {
   amount: { type: 'numeric', required: true, label: 'Amount', min: 100, max: 50000000 },
   description: { type: 'text', required: false, label: 'Description', maxLength: 500 },
 };
+
+// ═══════════════════════════════════════════
+// INVESTOR PORTFOLIO
+// ═══════════════════════════════════════════
+export const INVESTOR_PORTFOLIO_CONTRACT: FormContract = {
+  investor_id: { type: 'uuid', required: false, label: 'Investor ID' },
+  agent_id: { type: 'uuid', required: true, label: 'Agent ID' },
+  invite_id: { type: 'uuid', required: false, label: 'Invite ID' },
+  investment_amount: { type: 'numeric', required: true, label: 'Investment Amount', min: 50000, max: 50000000 },
+  duration_months: { type: 'integer', required: true, label: 'Duration (months)', allowedValues: [3, 6, 12] },
+  roi_percentage: { type: 'numeric', required: true, label: 'Monthly ROI %', min: 1, max: 100 },
+  roi_mode: { type: 'text', required: true, label: 'ROI Mode', allowedValues: ['monthly_payout', 'monthly_compounding'] },
+  payment_method: { type: 'text', required: false, label: 'Payment Method', allowedValues: ['mobile_money', 'bank'] },
+  mobile_network: { type: 'text', required: false, label: 'Mobile Network', allowedValues: ['mtn', 'airtel'] },
+  mobile_money_number: { type: 'text', required: false, label: 'Mobile Money Number', maxLength: 20 },
+  bank_name: { type: 'text', required: false, label: 'Bank Name', maxLength: 100 },
+  account_name: { type: 'text', required: false, label: 'Account Name', maxLength: 200 },
+  account_number: { type: 'text', required: false, label: 'Account Number', maxLength: 50 },
+  portfolio_pin: { type: 'text', required: true, label: 'Portfolio PIN', minLength: 4, maxLength: 4 },
+};

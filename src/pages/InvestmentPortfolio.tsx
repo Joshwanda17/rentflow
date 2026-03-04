@@ -84,6 +84,10 @@ interface InvestmentAccount {
   linked_fundings: LinkedFunding[];
   interest_payments: InterestPayment[];
   total_roi_earned: number;
+  portfolio_code?: string;
+  duration_months?: number;
+  roi_percentage?: number;
+  roi_mode?: string;
 }
 
 export default function InvestmentPortfolio() {
@@ -99,7 +103,6 @@ export default function InvestmentPortfolio() {
   useEffect(() => {
     if (user) {
       fetchPortfolioData();
-      // Realtime removed — investment_accounts not in realtime whitelist (table removed)
     }
   }, [user]);
 
@@ -108,9 +111,36 @@ export default function InvestmentPortfolio() {
     setLoading(true);
 
     try {
-      // investment_accounts table removed - use empty array
-      const enrichedAccounts: any[] = [];
-      setAccounts(enrichedAccounts as any);
+      const { data: portfolios, error } = await supabase
+        .from('investor_portfolios')
+        .select('*')
+        .or(`investor_id.eq.${user.id},agent_id.eq.${user.id}`)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching portfolios:', error);
+        setAccounts([]);
+        return;
+      }
+
+      const colors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#8b5cf6'];
+      const enrichedAccounts: InvestmentAccount[] = (portfolios || []).map((p: any, i: number) => ({
+        id: p.id,
+        name: p.portfolio_code || `Portfolio ${i + 1}`,
+        balance: p.investment_amount || 0,
+        color: colors[i % colors.length],
+        status: p.status === 'active' ? 'approved' : p.status,
+        created_at: p.created_at,
+        updated_at: p.created_at,
+        linked_fundings: [],
+        interest_payments: [],
+        total_roi_earned: p.total_roi_earned || 0,
+        portfolio_code: p.portfolio_code,
+        duration_months: p.duration_months,
+        roi_percentage: p.roi_percentage,
+        roi_mode: p.roi_mode,
+      }));
+      setAccounts(enrichedAccounts);
     } catch (error) {
       console.error('Error fetching portfolio data:', error);
     } finally {

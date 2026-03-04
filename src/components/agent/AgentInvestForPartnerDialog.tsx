@@ -370,7 +370,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                       onClick={() => setShowRegister(true)}
                     >
                       <UserPlus className="h-3.5 w-3.5" />
-                      Register New Partner
+                      Register Tenant Supporter Investment
                     </Button>
                   </div>
                 ) : (

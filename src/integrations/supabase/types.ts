@@ -891,6 +891,145 @@ export type Database = {
         }
         Relationships: []
       }
+      investor_portfolios: {
+        Row: {
+          account_name: string | null
+          account_number: string | null
+          activation_token: string
+          agent_id: string
+          bank_name: string | null
+          created_at: string
+          duration_months: number
+          id: string
+          investment_amount: number
+          investor_id: string | null
+          invite_id: string | null
+          maturity_date: string | null
+          mobile_money_number: string | null
+          mobile_network: string | null
+          next_roi_date: string | null
+          payment_method: string | null
+          portfolio_code: string
+          portfolio_pin: string
+          roi_mode: string
+          roi_percentage: number
+          status: string
+          total_roi_earned: number
+        }
+        Insert: {
+          account_name?: string | null
+          account_number?: string | null
+          activation_token?: string
+          agent_id: string
+          bank_name?: string | null
+          created_at?: string
+          duration_months: number
+          id?: string
+          investment_amount: number
+          investor_id?: string | null
+          invite_id?: string | null
+          maturity_date?: string | null
+          mobile_money_number?: string | null
+          mobile_network?: string | null
+          next_roi_date?: string | null
+          payment_method?: string | null
+          portfolio_code: string
+          portfolio_pin: string
+          roi_mode?: string
+          roi_percentage?: number
+          status?: string
+          total_roi_earned?: number
+        }
+        Update: {
+          account_name?: string | null
+          account_number?: string | null
+          activation_token?: string
+          agent_id?: string
+          bank_name?: string | null
+          created_at?: string
+          duration_months?: number
+          id?: string
+          investment_amount?: number
+          investor_id?: string | null
+          invite_id?: string | null
+          maturity_date?: string | null
+          mobile_money_number?: string | null
+          mobile_network?: string | null
+          next_roi_date?: string | null
+          payment_method?: string | null
+          portfolio_code?: string
+          portfolio_pin?: string
+          roi_mode?: string
+          roi_percentage?: number
+          status?: string
+          total_roi_earned?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_investor_id_fkey"
+            columns: ["investor_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "investor_portfolios_invite_id_fkey"
+            columns: ["invite_id"]
+            isOneToOne: false
+            referencedRelation: "supporter_invites"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       landlords: {
         Row: {
           account_number: string | null
@@ -2538,18 +2677,30 @@ export type Database = {
       }
       supporter_invites: {
         Row: {
+          account_name: string | null
+          account_number: string | null
           activated_at: string | null
           activated_user_id: string | null
           activation_token: string
+          bank_name: string | null
+          country: string | null
           created_at: string
           created_by: string
+          district_city: string | null
           email: string
           full_name: string
           id: string
           latitude: number | null
           location_accuracy: number | null
           longitude: number | null
+          mobile_money_number: string | null
+          mobile_network: string | null
+          national_id: string | null
+          next_of_kin_name: string | null
+          next_of_kin_phone: string | null
+          next_of_kin_relationship: string | null
           parent_agent_id: string | null
+          payment_method: string | null
           phone: string
           property_address: string | null
           role: string
@@ -2557,18 +2708,30 @@ export type Database = {
           temp_password: string | null
         }
         Insert: {
+          account_name?: string | null
+          account_number?: string | null
           activated_at?: string | null
           activated_user_id?: string | null
           activation_token?: string
+          bank_name?: string | null
+          country?: string | null
           created_at?: string
           created_by: string
+          district_city?: string | null
           email: string
           full_name: string
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
           longitude?: number | null
+          mobile_money_number?: string | null
+          mobile_network?: string | null
+          national_id?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          next_of_kin_relationship?: string | null
           parent_agent_id?: string | null
+          payment_method?: string | null
           phone: string
           property_address?: string | null
           role?: string
@@ -2576,18 +2739,30 @@ export type Database = {
           temp_password?: string | null
         }
         Update: {
+          account_name?: string | null
+          account_number?: string | null
           activated_at?: string | null
           activated_user_id?: string | null
           activation_token?: string
+          bank_name?: string | null
+          country?: string | null
           created_at?: string
           created_by?: string
+          district_city?: string | null
           email?: string
           full_name?: string
           id?: string
           latitude?: number | null
           location_accuracy?: number | null
           longitude?: number | null
+          mobile_money_number?: string | null
+          mobile_network?: string | null
+          national_id?: string | null
+          next_of_kin_name?: string | null
+          next_of_kin_phone?: string | null
+          next_of_kin_relationship?: string | null
           parent_agent_id?: string | null
+          payment_method?: string | null
           phone?: string
           property_address?: string | null
           role?: string
@@ -3587,6 +3762,7 @@ export type Database = {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
       }
+      generate_portfolio_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
