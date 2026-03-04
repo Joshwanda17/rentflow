@@ -62,14 +62,14 @@ const itemVariants = {
   },
 };
 
-// Helper: race a promise against a timeout
-function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
-  return Promise.race([
-    Promise.resolve(promise),
-    new Promise<never>((_, reject) =>
-      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
-    ),
-  ]);
+// Helper: create an AbortSignal that times out after ms
+function timeoutSignal(ms: number): AbortSignal {
+  if ('timeout' in AbortSignal) {
+    return AbortSignal.timeout(ms);
+  }
+  const controller = new AbortController();
+  setTimeout(() => controller.abort(), ms);
+  return controller.signal;
 }
 
 export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
@@ -184,19 +184,16 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
 
-      // Check for duplicate transaction ID (non-blocking — don't prevent submission on failure)
+      // Check for duplicate transaction ID (non-blocking)
       console.log('[DepositDialog] Starting duplicate check for txn:', normalizedTxId);
       try {
-        const { data: existingDeposits, error: dupError } = await withTimeout(
-          supabase
-            .from('deposit_requests')
-            .select('id')
-            .eq('transaction_id', normalizedTxId)
-            .eq('user_id', user.id)
-            .limit(1),
-          8000,
-          'Duplicate check'
-        );
+        const { data: existingDeposits, error: dupError } = await supabase
+          .from('deposit_requests')
+          .select('id')
+          .eq('transaction_id', normalizedTxId)
+          .eq('user_id', user.id)
+          .limit(1)
+          .abortSignal(timeoutSignal(8000));
 
         if (dupError) {
           console.warn('[DepositDialog] Duplicate check error (non-blocking):', dupError);
@@ -205,27 +202,24 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
           setLoading(false);
           return;
         }
-      } catch (dupCheckErr) {
-        console.warn('[DepositDialog] Duplicate check failed (non-blocking), proceeding with insert:', dupCheckErr);
+      } catch (dupCheckErr: any) {
+        console.warn('[DepositDialog] Duplicate check failed (non-blocking):', dupCheckErr?.message);
       }
 
       // Create deposit request
       console.log('[DepositDialog] Inserting deposit request...');
-      const { error: depositError } = await withTimeout(
-        supabase
-          .from('deposit_requests')
-          .insert({
-            user_id: user.id,
-            amount: parseFloat(amount),
-            status: 'pending',
-            provider: provider,
-            transaction_id: normalizedTxId,
-            transaction_date: `${transactionDate}T${transactionTime}:00`,
-            notes: reason.trim(),
-          }),
-        15000,
-        'Deposit insert'
-      );
+      const { error: depositError } = await supabase
+        .from('deposit_requests')
+        .insert({
+          user_id: user.id,
+          amount: parseFloat(amount),
+          status: 'pending',
+          provider: provider,
+          transaction_id: normalizedTxId,
+          transaction_date: `${transactionDate}T${transactionTime}:00`,
+          notes: reason.trim(),
+        })
+        .abortSignal(timeoutSignal(15000));
 
       if (depositError) throw depositError;
 
