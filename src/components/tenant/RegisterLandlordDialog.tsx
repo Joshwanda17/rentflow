@@ -14,27 +14,17 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Progress } from '@/components/ui/progress';
 import {
-  Home, User, Phone, MapPin, Banknote, CheckCircle2, Sparkles,
-  Navigation, Loader2, AlertTriangle, Droplets, Zap, Building2, Star, Share2, Copy
+  Home, User, Phone, MapPin, CheckCircle2,
+  Navigation, Loader2, AlertTriangle, Building2, Share2, Copy,
+  Eye, EyeOff, RefreshCw
 } from 'lucide-react';
-import { formatUGX } from '@/lib/rentCalculations';
 
 interface RegisterLandlordDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onSuccess?: () => void;
 }
-
-const HOUSE_CATEGORIES = [
-  { value: 'single_room', label: 'Single Room' },
-  { value: 'double_room', label: 'Double Room' },
-  { value: 'self_contained', label: 'Self Contained' },
-  { value: 'apartment', label: 'Apartment' },
-  { value: 'commercial', label: 'Commercial' },
-];
 
 export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }: RegisterLandlordDialogProps) {
   const { user } = useAuth();
@@ -45,100 +35,40 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
   const [locationCaptured, setLocationCaptured] = useState(false);
   const [activationLink, setActivationLink] = useState('');
 
-  // Landlord info
+  // Core fields
   const [landlordName, setLandlordName] = useState('');
   const [landlordPhone, setLandlordPhone] = useState('');
   const [propertyAddress, setPropertyAddress] = useState('');
-  const [monthlyRent, setMonthlyRent] = useState('');
-  const [numberOfRentals, setNumberOfRentals] = useState('1');
-  const [houseCategory, setHouseCategory] = useState('single_room');
+  const [tempPassword, setTempPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
 
-  // Mobile Money — must match landlord name
-  const [mobileMoneyNumber, setMobileMoneyNumber] = useState('');
-  const [mobileMoneyName, setMobileMoneyName] = useState('');
-
-  // Utility meters — must be in landlord's name
-  const [waterMeterNumber, setWaterMeterNumber] = useState('');
-  const [electricityMeterNumber, setElectricityMeterNumber] = useState('');
+  const generateTempPassword = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+    let result = '';
+    for (let i = 0; i < 8; i++) {
+      result += chars.charAt(Math.floor(Math.random() * chars.length));
+    }
+    setTempPassword(result);
+  };
 
   const resetForm = () => {
     setLandlordName('');
     setLandlordPhone('');
     setPropertyAddress('');
-    setMonthlyRent('');
-    setNumberOfRentals('1');
-    setHouseCategory('single_room');
-    setMobileMoneyNumber('');
-    setMobileMoneyName('');
-    setWaterMeterNumber('');
-    setElectricityMeterNumber('');
+    setTempPassword('');
+    setShowPassword(false);
     setSuccess(false);
-    setLocationCaptured(false);
     setActivationLink('');
-  };
-
-  // Calculate qualification score (0-100)
-  const getQualificationScore = () => {
-    let score = 0;
-    const maxScore = 100;
-
-    // Required fields (40 points)
-    if (landlordName.trim()) score += 10;
-    if (landlordPhone.trim()) score += 10;
-    if (propertyAddress.trim()) score += 10;
-    if (monthlyRent) score += 10;
-
-    // GPS location (15 points)
-    if (locationCaptured) score += 15;
-
-    // Mobile Money name matching landlord name (15 points)
-    if (mobileMoneyName.trim()) {
-      score += 5;
-      if (mobileMoneyName.trim().toLowerCase().includes(landlordName.trim().toLowerCase().split(' ')[0]?.toLowerCase() || '___')) {
-        score += 10; // Name match bonus
-      }
-    }
-
-    // NWSC Water Meter (10 points)
-    if (waterMeterNumber.trim()) score += 10;
-
-    // UEDCL Electricity Meter (10 points)
-    if (electricityMeterNumber.trim()) score += 10;
-
-    // Number of rentals (5 points)
-    if (parseInt(numberOfRentals) > 0) score += 5;
-
-    // Category (5 points)
-    if (houseCategory) score += 5;
-
-    return Math.min(score, maxScore);
-  };
-
-  const qualificationScore = getQualificationScore();
-
-  const getScoreColor = () => {
-    if (qualificationScore >= 80) return 'text-success';
-    if (qualificationScore >= 50) return 'text-amber-500';
-    return 'text-destructive';
-  };
-
-  const getScoreLabel = () => {
-    if (qualificationScore >= 80) return 'High Approval Chance';
-    if (qualificationScore >= 50) return 'Moderate Chance';
-    return 'Low — Add More Details';
-  };
-
-  // Check if MoMo name matches landlord name
-  const momoNameMatches = () => {
-    if (!mobileMoneyName.trim() || !landlordName.trim()) return null;
-    const first = landlordName.trim().toLowerCase().split(' ')[0];
-    return mobileMoneyName.trim().toLowerCase().includes(first || '');
+    setLocationCaptured(false);
   };
 
   const handleDialogOpen = async (isOpen: boolean) => {
-    if (isOpen && !locationCaptured) {
-      const loc = await captureLocation();
-      if (loc) setLocationCaptured(true);
+    if (isOpen) {
+      generateTempPassword();
+      if (!locationCaptured) {
+        const loc = await captureLocation();
+        if (loc) setLocationCaptured(true);
+      }
     }
     if (!isOpen) resetForm();
     onOpenChange(isOpen);
@@ -153,23 +83,20 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
       return;
     }
 
+    if (!tempPassword) {
+      toast({ title: 'Missing Password', description: 'Please generate a temporary password.', variant: 'destructive' });
+      return;
+    }
+
     setLoading(true);
 
     try {
-      const rentAmount = parseInt(monthlyRent.replace(/,/g, '')) || 0;
-
+      // Register landlord
       const { error } = await supabase.from('landlords').insert({
         tenant_id: user.id,
         name: landlordName.trim(),
         phone: landlordPhone.trim(),
         property_address: propertyAddress.trim(),
-        monthly_rent: rentAmount || null,
-        mobile_money_number: mobileMoneyNumber.trim() || null,
-        mobile_money_name: mobileMoneyName.trim() || null,
-        water_meter_number: waterMeterNumber.trim() || null,
-        electricity_meter_number: electricityMeterNumber.trim() || null,
-        number_of_houses: parseInt(numberOfRentals) || 1,
-        house_category: houseCategory,
         latitude: location?.latitude || null,
         longitude: location?.longitude || null,
         location_captured_at: location ? new Date().toISOString() : null,
@@ -178,8 +105,7 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
 
       if (error) throw error;
 
-      // Generate activation link via supporter_invites
-      const tempPassword = generateTempPassword();
+      // Create activation invite
       const placeholderEmail = `${landlordPhone.trim().replace(/[^0-9]/g, '')}@welile.user`;
 
       const { data: invite } = await supabase
@@ -205,29 +131,13 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
       }
 
       setSuccess(true);
-      toast({
-        title: 'Landlord Registered!',
-        description: 'Share the activation link so they can activate with one tap.',
-      });
+      toast({ title: 'Landlord Registered!', description: 'Share the activation link so they can activate with one tap.' });
       onSuccess?.();
     } catch (error: any) {
-      toast({
-        title: 'Registration Failed',
-        description: error.message,
-        variant: 'destructive',
-      });
+      toast({ title: 'Registration Failed', description: error.message, variant: 'destructive' });
     } finally {
       setLoading(false);
     }
-  };
-
-  const generateTempPassword = () => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
-    let result = '';
-    for (let i = 0; i < 8; i++) {
-      result += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    return result;
   };
 
   const shareViaWhatsApp = () => {
@@ -245,18 +155,16 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
     }
   };
 
-  const rentAmount = parseInt(monthlyRent.replace(/,/g, '')) || 0;
-
   return (
     <Dialog open={open} onOpenChange={handleDialogOpen}>
-      <DialogContent className="sm:max-w-md max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <Home className="h-5 w-5 text-primary" />
-            Register Your Landlord
+            <Building2 className="h-5 w-5 text-primary" />
+            Register Landlord
           </DialogTitle>
           <DialogDescription>
-            The more accurate info you provide, the higher your rent qualification
+            Create a new landlord account
           </DialogDescription>
         </DialogHeader>
 
@@ -264,24 +172,21 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
           {success ? (
             <motion.div
               key="success"
-              initial={{ opacity: 0, scale: 0.8 }}
+              initial={{ opacity: 0, scale: 0.9 }}
               animate={{ opacity: 1, scale: 1 }}
               className="py-6 text-center space-y-4"
             >
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: 'spring', delay: 0.2 }}
+                transition={{ type: 'spring', stiffness: 300, damping: 20, delay: 0.1 }}
                 className="w-16 h-16 mx-auto mb-2 rounded-full bg-success/20 flex items-center justify-center"
               >
                 <CheckCircle2 className="h-8 w-8 text-success" />
               </motion.div>
-              <h3 className="text-lg font-semibold">Registration Complete!</h3>
+              <h3 className="text-lg font-semibold">Landlord Registered!</h3>
               <p className="text-muted-foreground text-sm">
-                Share the link with <strong>{landlordName}</strong> — they just tap to activate!
-              </p>
-              <p className="text-muted-foreground text-xs">
-                Qualification Score: <span className={`font-bold ${getScoreColor()}`}>{qualificationScore}%</span>
+                Share the link with <strong>{landlordName}</strong> — they just tap to activate.
               </p>
 
               {activationLink && (
@@ -317,261 +222,166 @@ export default function RegisterLandlordDialog({ open, onOpenChange, onSuccess }
               onSubmit={handleSubmit}
               className="space-y-4"
             >
-              {/* Qualification Score Bar */}
-              <div className="p-3 rounded-lg border bg-muted/30 space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-xs font-medium flex items-center gap-1">
-                    <Star className="h-3 w-3 text-primary" />
-                    Qualification Score
-                  </span>
-                  <span className={`text-sm font-bold ${getScoreColor()}`}>
-                    {qualificationScore}%
-                  </span>
+              {/* Role badge */}
+              <div className="flex items-center gap-3 p-3 rounded-lg bg-primary/10 border border-primary/20">
+                <div className="p-2 rounded-lg bg-primary/20">
+                  <Building2 className="h-5 w-5 text-primary" />
                 </div>
-                <Progress value={qualificationScore} className="h-2" />
-                <p className={`text-[10px] font-medium ${getScoreColor()}`}>
-                  {getScoreLabel()}
-                </p>
+                <div>
+                  <p className="font-semibold text-sm text-primary">Register Landlord</p>
+                  <p className="text-xs text-muted-foreground">Property owner</p>
+                </div>
               </div>
 
-              {/* GPS Location */}
-              <div className="space-y-3 p-3 rounded-lg border border-primary/20 bg-primary/5">
-                <h4 className="text-sm font-medium flex items-center gap-1">
-                  <Navigation className="h-3 w-3 text-primary" />
-                  Property Location
-                </h4>
+              {/* Landlord Name */}
+              <div className="space-y-1.5">
+                <Label htmlFor="landlordName" className="text-sm font-semibold flex items-center gap-1.5">
+                  <User className="h-3.5 w-3.5" />
+                  Landlord Name
+                </Label>
+                <Input
+                  id="landlordName"
+                  value={landlordName}
+                  onChange={(e) => setLandlordName(e.target.value)}
+                  placeholder="Full name as on National ID"
+                  className="h-11"
+                  required
+                />
+              </div>
 
-                <div className={`flex items-center justify-between p-3 rounded-lg border ${
-                  locationCaptured
-                    ? 'bg-success/10 border-success/30'
-                    : locationError
-                      ? 'bg-destructive/10 border-destructive/30'
-                      : 'bg-muted/50 border-muted'
-                }`}>
-                  <div className="flex items-center gap-2">
-                    {locationLoading ? (
-                      <Loader2 className="h-4 w-4 animate-spin text-primary" />
-                    ) : locationCaptured ? (
-                      <CheckCircle2 className="h-4 w-4 text-success" />
-                    ) : locationError ? (
-                      <AlertTriangle className="h-4 w-4 text-destructive" />
-                    ) : (
-                      <Navigation className="h-4 w-4 text-muted-foreground" />
-                    )}
-                    <div>
-                      <p className="text-xs font-medium">
-                        {locationLoading ? 'Capturing GPS...' : locationCaptured ? 'GPS Captured ✓' : locationError || 'Tap to capture GPS'}
+              {/* Phone Number */}
+              <div className="space-y-1.5">
+                <Label htmlFor="landlordPhone" className="text-sm font-semibold flex items-center gap-1.5">
+                  <Phone className="h-3.5 w-3.5" />
+                  Phone Number
+                </Label>
+                <Input
+                  id="landlordPhone"
+                  value={landlordPhone}
+                  onChange={(e) => setLandlordPhone(e.target.value)}
+                  placeholder="0700000000"
+                  className="h-11"
+                  required
+                />
+              </div>
+
+              {/* Property Address */}
+              <div className="space-y-1.5">
+                <Label htmlFor="propertyAddress" className="text-sm font-semibold flex items-center gap-1.5">
+                  <MapPin className="h-3.5 w-3.5" />
+                  Property Address
+                </Label>
+                <Input
+                  id="propertyAddress"
+                  value={propertyAddress}
+                  onChange={(e) => setPropertyAddress(e.target.value)}
+                  placeholder="e.g., Kabalagala, Block 5, Plot 12"
+                  className="h-11"
+                  required
+                />
+              </div>
+
+              {/* GPS Location Status */}
+              <div className={`flex items-center justify-between p-3 rounded-lg border ${
+                locationCaptured
+                  ? 'bg-success/10 border-success/30'
+                  : locationError
+                    ? 'bg-destructive/10 border-destructive/30'
+                    : 'bg-muted/50 border-muted'
+              }`}>
+                <div className="flex items-center gap-2">
+                  {locationLoading ? (
+                    <Loader2 className="h-4 w-4 animate-spin text-primary" />
+                  ) : locationCaptured ? (
+                    <CheckCircle2 className="h-4 w-4 text-success" />
+                  ) : locationError ? (
+                    <AlertTriangle className="h-4 w-4 text-destructive" />
+                  ) : (
+                    <Navigation className="h-4 w-4 text-muted-foreground" />
+                  )}
+                  <div>
+                    <p className={`text-sm font-medium ${locationCaptured ? 'text-success' : ''}`}>
+                      {locationLoading
+                        ? 'Capturing GPS...'
+                        : locationCaptured
+                          ? 'Location captured!'
+                          : locationError || 'GPS not captured'}
+                    </p>
+                    {locationCaptured && location && (
+                      <p className="text-[10px] text-muted-foreground">
+                        {location.latitude.toFixed(6)}, {location.longitude.toFixed(6)}
+                        {location.accuracy && ` (±${Math.round(location.accuracy)}m)`}
                       </p>
-                      {locationCaptured && location && (
-                        <p className="text-[10px] text-muted-foreground">
-                          {location.latitude.toFixed(5)}, {location.longitude.toFixed(5)}
-                        </p>
-                      )}
-                    </div>
+                    )}
                   </div>
+                </div>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  disabled={locationLoading}
+                  onClick={async () => {
+                    const loc = await captureLocation();
+                    if (loc) setLocationCaptured(true);
+                  }}
+                  className="gap-1.5 text-xs"
+                >
+                  <RefreshCw className={`h-3 w-3 ${locationLoading ? 'animate-spin' : ''}`} />
+                  {locationCaptured ? 'Refresh' : 'Capture'}
+                </Button>
+              </div>
+
+              {/* Temporary Password */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <Label htmlFor="tempPassword" className="text-sm font-semibold">
+                    Temporary Password
+                  </Label>
                   <Button
                     type="button"
-                    variant={locationCaptured ? 'outline' : 'default'}
+                    variant="ghost"
                     size="sm"
-                    disabled={locationLoading}
-                    onClick={async () => {
-                      const loc = await captureLocation();
-                      if (loc) setLocationCaptured(true);
-                    }}
+                    onClick={generateTempPassword}
+                    className="gap-1.5 text-xs h-7 text-primary"
                   >
-                    {locationLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : (
-                      <><Navigation className="h-3 w-3 mr-1" />{locationCaptured ? 'Redo' : 'Capture'}</>
-                    )}
+                    <RefreshCw className="h-3 w-3" />
+                    Generate
                   </Button>
                 </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="propertyAddress" className="text-xs flex items-center gap-1">
-                    <MapPin className="h-3 w-3" /> Manual Address *
-                  </Label>
+                <div className="relative">
                   <Input
-                    id="propertyAddress"
-                    placeholder="e.g. Plot 12, Makindye, Kampala"
-                    value={propertyAddress}
-                    onChange={(e) => setPropertyAddress(e.target.value)}
-                    className="h-9"
-                    required
+                    id="tempPassword"
+                    type={showPassword ? 'text' : 'password'}
+                    value={tempPassword}
+                    placeholder="Auto-generated"
+                    className="h-11 pr-10"
+                    readOnly
                   />
-                  <p className="text-[10px] text-muted-foreground">
-                    Must match your GPS pin location for faster approval
-                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="icon"
+                    className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                    onClick={() => setShowPassword(!showPassword)}
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
                 </div>
               </div>
 
-              {/* Landlord Info */}
-              <div className="space-y-3">
-                <h4 className="text-sm font-medium text-muted-foreground">Landlord Details</h4>
-
-                <div className="space-y-1">
-                  <Label htmlFor="landlordName" className="text-xs flex items-center gap-1">
-                    <User className="h-3 w-3" /> Landlord's Full Name *
-                  </Label>
-                  <Input
-                    id="landlordName"
-                    placeholder="Full name as on National ID"
-                    value={landlordName}
-                    onChange={(e) => setLandlordName(e.target.value)}
-                    className="h-9"
-                    required
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="landlordPhone" className="text-xs flex items-center gap-1">
-                    <Phone className="h-3 w-3" /> Phone Number *
-                  </Label>
-                  <Input
-                    id="landlordPhone"
-                    placeholder="e.g. 0700123456"
-                    value={landlordPhone}
-                    onChange={(e) => setLandlordPhone(e.target.value)}
-                    className="h-9"
-                    required
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1">
-                    <Label htmlFor="numberOfRentals" className="text-xs flex items-center gap-1">
-                      <Building2 className="h-3 w-3" /> Number of Rentals
-                    </Label>
-                    <Input
-                      id="numberOfRentals"
-                      type="number"
-                      min="1"
-                      placeholder="1"
-                      value={numberOfRentals}
-                      onChange={(e) => setNumberOfRentals(e.target.value)}
-                      className="h-9"
-                    />
-                  </div>
-                  <div className="space-y-1">
-                    <Label htmlFor="houseCategory" className="text-xs">Category</Label>
-                    <Select value={houseCategory} onValueChange={setHouseCategory}>
-                      <SelectTrigger className="h-9">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent>
-                        {HOUSE_CATEGORIES.map(c => (
-                          <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="monthlyRent" className="text-xs flex items-center gap-1">
-                    <Banknote className="h-3 w-3" /> Monthly Rent (UGX)
-                  </Label>
-                  <Input
-                    id="monthlyRent"
-                    placeholder="e.g. 500000"
-                    value={monthlyRent}
-                    onChange={(e) => setMonthlyRent(e.target.value.replace(/[^0-9]/g, ''))}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
-              {/* Mobile Money — name must match landlord */}
-              <div className="space-y-3 p-3 rounded-lg border bg-muted/30">
-                <h4 className="text-sm font-medium flex items-center gap-1">
-                  <Phone className="h-3 w-3" /> Mobile Money
-                </h4>
-
-                <div className="space-y-1">
-                  <Label htmlFor="mobileMoneyName" className="text-xs font-semibold text-primary">
-                    MoMo Registered Name (Must match Landlord Name)
-                  </Label>
-                  <Input
-                    id="mobileMoneyName"
-                    placeholder="Name as shown on MoMo"
-                    value={mobileMoneyName}
-                    onChange={(e) => setMobileMoneyName(e.target.value)}
-                    className={`h-9 ${momoNameMatches() === false ? 'border-destructive' : momoNameMatches() === true ? 'border-success' : ''}`}
-                  />
-                  {momoNameMatches() === false && (
-                    <p className="text-[10px] text-destructive flex items-center gap-1">
-                      <AlertTriangle className="h-3 w-3" /> Name doesn't match landlord name — approval may be delayed
-                    </p>
-                  )}
-                  {momoNameMatches() === true && (
-                    <p className="text-[10px] text-success flex items-center gap-1">
-                      <CheckCircle2 className="h-3 w-3" /> Name matches ✓
-                    </p>
-                  )}
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="mobileMoneyNumber" className="text-xs">MoMo Number</Label>
-                  <Input
-                    id="mobileMoneyNumber"
-                    placeholder="e.g. 0700123456"
-                    value={mobileMoneyNumber}
-                    onChange={(e) => setMobileMoneyNumber(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
-              {/* Utility Meters — in landlord's name */}
-              <div className="space-y-3 p-3 rounded-lg bg-muted/50 border">
-                <p className="text-xs text-muted-foreground font-medium">
-                  Utility Meters (Must be in Landlord's Name)
-                </p>
-
-                <div className="space-y-1">
-                  <Label htmlFor="waterMeterNumber" className="text-xs flex items-center gap-1">
-                    <Droplets className="h-3 w-3 text-blue-500" />
-                    NWSC Water Meter — in <strong className="text-primary">{landlordName || "Landlord's"}</strong> name
-                  </Label>
-                  <Input
-                    id="waterMeterNumber"
-                    placeholder="NWSC Meter Number"
-                    value={waterMeterNumber}
-                    onChange={(e) => setWaterMeterNumber(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-
-                <div className="space-y-1">
-                  <Label htmlFor="electricityMeterNumber" className="text-xs flex items-center gap-1">
-                    <Zap className="h-3 w-3 text-amber-500" />
-                    UEDCL Electricity Meter — in <strong className="text-primary">{landlordName || "Landlord's"}</strong> name
-                  </Label>
-                  <Input
-                    id="electricityMeterNumber"
-                    placeholder="UEDCL/UMEME Meter Number"
-                    value={electricityMeterNumber}
-                    onChange={(e) => setElectricityMeterNumber(e.target.value)}
-                    className="h-9"
-                  />
-                </div>
-              </div>
-
-              {/* Savings Preview */}
-              {rentAmount > 0 && (
-                <div className="p-3 rounded-lg bg-gradient-to-r from-primary/10 to-accent/10 border border-primary/20">
-                  <div className="flex items-start gap-3">
-                    <Sparkles className="h-5 w-5 text-primary mt-0.5" />
-                    <div>
-                      <p className="font-medium text-sm">Potential Savings</p>
-                      <p className="text-xs text-muted-foreground mt-1">
-                        Up to <span className="font-bold text-primary">{formatUGX(rentAmount * 0.7)}</span>/month (70% of rent)
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              <Button type="submit" className="w-full" disabled={loading}>
-                {loading ? 'Registering...' : 'Register Landlord'}
+              {/* Submit */}
+              <Button type="submit" className="w-full h-12 text-base gap-2" disabled={loading}>
+                {loading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Registering...
+                  </>
+                ) : (
+                  <>
+                    <Building2 className="h-4 w-4" />
+                    Register Landlord
+                  </>
+                )}
               </Button>
             </motion.form>
           )}
