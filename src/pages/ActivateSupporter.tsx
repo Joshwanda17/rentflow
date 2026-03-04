@@ -149,7 +149,21 @@ export default function ActivateSupporter() {
         },
       });
 
-      if (response.error) throw new Error(response.error.message || 'Activation failed');
+      if (response.error) {
+        // Extract human-readable error from edge function
+        let errorMsg = 'Activation failed';
+        try {
+          const ctx = (response.error as any)?.context;
+          if (ctx && typeof ctx.json === 'function') {
+            const body = await ctx.json();
+            if (body?.error) errorMsg = body.error;
+          } else if (ctx?.body) {
+            const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+            if (body?.error) errorMsg = body.error;
+          }
+        } catch { /* fall through */ }
+        throw new Error(errorMsg);
+      }
       if (response.data?.error) throw new Error(response.data.error);
 
       const finalEmail = response.data.email;
