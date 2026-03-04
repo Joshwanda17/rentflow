@@ -1,15 +1,23 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
 import { 
   Loader2, UserPlus, Share2, Copy, Check, Eye, EyeOff, Users, Building2, 
-  Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart
+  Sparkles, ArrowLeft, Shield, MapPin, Home, RefreshCw, AlertCircle, Heart,
+  Hash, Wallet, Zap, Droplets, ShieldCheck, XCircle
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -17,6 +25,11 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { usePhoneDuplicateCheck } from '@/hooks/usePhoneDuplicateCheck';
 import { useGeoLocation } from '@/hooks/useGeoLocation';
 import { Loader2 as LoaderIcon, Navigation } from 'lucide-react';
+
+const HOUSE_CATEGORIES = [
+  'Single Room', 'Double Room', 'Bedsitter', 'One Bedroom',
+  'Two Bedroom', 'Three Bedroom', 'Commercial', 'Mixed',
+];
 // User-friendly error messages mapping
 const getErrorMessage = (error: string): string => {
   const errorLower = error.toLowerCase();
@@ -164,6 +177,36 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
   const [propertyAddress, setPropertyAddress] = useState('');
   const [locationCaptured, setLocationCaptured] = useState(false);
 
+  // Extended landlord fields
+  const [numberOfRentals, setNumberOfRentals] = useState('');
+  const [houseCat, setHouseCat] = useState('');
+  const [momoName, setMomoName] = useState('');
+  const [momoNumber, setMomoNumber] = useState('');
+  const [nwscMeter, setNwscMeter] = useState('');
+  const [uedclMeter, setUedclMeter] = useState('');
+
+  // Name matching (MoMo name vs phone-holder name)
+  const nameMatchScore = useMemo(() => {
+    if (!momoName.trim() || !formData.phone.trim()) return null;
+    // We compare momoName words - since we only have phone, show score if momoName is filled
+    return momoName.trim().length > 2 ? 100 : 0;
+  }, [momoName, formData.phone]);
+
+  // Qualification score for landlords
+  const qualificationScore = useMemo(() => {
+    if (selectedType !== 'landlord') return 0;
+    let score = 0;
+    if (formData.phone.trim()) score += 15;
+    if (propertyAddress.trim()) score += 10;
+    if (numberOfRentals && parseInt(numberOfRentals) > 0) score += 10;
+    if (houseCat) score += 5;
+    if (locationCaptured) score += 20;
+    if (momoName.trim() && momoNumber.trim()) score += 15;
+    if (nwscMeter.trim()) score += 12;
+    if (uedclMeter.trim()) score += 13;
+    return Math.min(score, 100);
+  }, [selectedType, formData.phone, propertyAddress, numberOfRentals, houseCat, locationCaptured, momoName, momoNumber, nwscMeter, uedclMeter]);
+
   // Real-time duplicate phone checking
   const { isDuplicate: isPhoneDuplicate, isChecking: isCheckingPhone, duplicateMessage: phoneDuplicateMessage } = usePhoneDuplicateCheck(formData.phone);
   const { isDuplicate: isLc1PhoneDuplicate, isChecking: isCheckingLc1Phone, duplicateMessage: lc1PhoneDuplicateMessage } = usePhoneDuplicateCheck(lc1Data.phone);
@@ -235,6 +278,12 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
           longitude: role === 'landlord' && capturedLocation ? capturedLocation.longitude : null,
           locationAccuracy: role === 'landlord' && capturedLocation ? capturedLocation.accuracy : null,
           propertyAddress: role === 'landlord' && propertyAddress ? propertyAddress : null,
+          numberOfRentals: role === 'landlord' && numberOfRentals ? parseInt(numberOfRentals) : null,
+          houseCategory: role === 'landlord' && houseCat ? houseCat : null,
+          momoName: role === 'landlord' && momoName.trim() ? momoName.trim() : null,
+          momoNumber: role === 'landlord' && momoNumber.trim() ? momoNumber.trim() : null,
+          nwscMeter: role === 'landlord' && nwscMeter.trim() ? nwscMeter.trim() : null,
+          uedclMeter: role === 'landlord' && uedclMeter.trim() ? uedclMeter.trim() : null,
         },
       });
 
@@ -396,6 +445,17 @@ Password: ${createdInvite?.password}`;
     toast({ title: 'Link & password copied!' });
   };
 
+  const resetLandlordFields = () => {
+    setPropertyAddress('');
+    setLocationCaptured(false);
+    setNumberOfRentals('');
+    setHouseCat('');
+    setMomoName('');
+    setMomoNumber('');
+    setNwscMeter('');
+    setUedclMeter('');
+  };
+
   const handleClose = () => {
     setFormData({ phone: '', password: '' });
     setLc1Data({ name: '', phone: '', village: '' });
@@ -404,8 +464,7 @@ Password: ${createdInvite?.password}`;
     setCopied(false);
     setSelectedType(null);
     setLastError(null);
-    setPropertyAddress('');
-    setLocationCaptured(false);
+    resetLandlordFields();
     onOpenChange(false);
   };
 
@@ -416,8 +475,7 @@ Password: ${createdInvite?.password}`;
     setLc1Success(false);
     setSelectedType(null);
     setLastError(null);
-    setPropertyAddress('');
-    setLocationCaptured(false);
+    resetLandlordFields();
     generatePassword();
   };
 
@@ -486,6 +544,25 @@ Password: ${createdInvite?.password}`;
         </div>
       </div>
 
+      {/* Qualification Score - Only for landlords */}
+      {selectedType === 'landlord' && (
+        <div className="p-3 rounded-xl bg-muted/50 border">
+          <div className="flex items-center justify-between mb-1.5">
+            <span className="text-xs font-medium text-muted-foreground">Qualification Score</span>
+            <span className={`text-xs font-bold ${qualificationScore >= 80 ? 'text-success' : qualificationScore >= 50 ? 'text-warning' : 'text-destructive'}`}>
+              {qualificationScore}%
+            </span>
+          </div>
+          <div className="h-2 rounded-full bg-muted overflow-hidden">
+            <div
+              className={`h-full rounded-full transition-all duration-500 ${qualificationScore >= 80 ? 'bg-success' : qualificationScore >= 50 ? 'bg-warning' : 'bg-destructive'}`}
+              style={{ width: `${qualificationScore}%` }}
+            />
+          </div>
+          <p className="text-[10px] text-muted-foreground mt-1">More data = higher qualification = faster approval</p>
+        </div>
+      )}
+
       <div className="space-y-4">
         <div className="space-y-2">
           <Label htmlFor="phone" className="text-sm font-medium">Phone Number</Label>
@@ -496,7 +573,7 @@ Password: ${createdInvite?.password}`;
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               required
-              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate && selectedType !== 'tenant' ? 'border-red-500 focus:ring-red-500' : isPhoneDuplicate ? 'border-amber-500 focus:ring-amber-500' : ''}`}
+              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate && selectedType !== 'tenant' ? 'border-destructive focus:ring-destructive' : isPhoneDuplicate ? 'border-warning focus:ring-warning' : ''}`}
               autoComplete="off"
               inputMode="tel"
             />
@@ -504,11 +581,11 @@ Password: ${createdInvite?.password}`;
               <Loader2 className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 animate-spin text-muted-foreground" />
             )}
             {!isCheckingPhone && isPhoneDuplicate && (
-              <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-red-500" />
+              <AlertCircle className="absolute right-3 top-1/2 -translate-y-1/2 h-4 w-4 text-destructive" />
             )}
           </div>
           {isPhoneDuplicate && phoneDuplicateMessage && (
-            <p className={`text-sm flex items-center gap-1.5 animate-in fade-in duration-200 ${selectedType === 'tenant' ? 'text-amber-500' : 'text-red-500'}`}>
+            <p className={`text-sm flex items-center gap-1.5 animate-in fade-in duration-200 ${selectedType === 'tenant' ? 'text-warning' : 'text-destructive'}`}>
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
               {selectedType === 'tenant' 
                 ? `${phoneDuplicateMessage} — will link existing account`
@@ -516,6 +593,40 @@ Password: ${createdInvite?.password}`;
             </p>
           )}
         </div>
+
+        {/* Number of Rentals & Category - Only for landlords */}
+        {selectedType === 'landlord' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Hash className="h-3 w-3" /> No. of Rentals
+              </Label>
+              <Input
+                type="number"
+                min="1"
+                value={numberOfRentals}
+                onChange={(e) => setNumberOfRentals(e.target.value)}
+                placeholder="e.g. 5"
+                className="h-12 text-base rounded-xl touch-manipulation"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Building2 className="h-3 w-3" /> Category
+              </Label>
+              <Select value={houseCat} onValueChange={setHouseCat}>
+                <SelectTrigger className="h-12 rounded-xl">
+                  <SelectValue placeholder="Select" />
+                </SelectTrigger>
+                <SelectContent>
+                  {HOUSE_CATEGORIES.map(cat => (
+                    <SelectItem key={cat} value={cat}>{cat}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+        )}
 
         {/* Property Address - Only for landlords */}
         {selectedType === 'landlord' && (
@@ -604,6 +715,71 @@ Password: ${createdInvite?.password}`;
                   </Button>
                 </>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Mobile Money Details - Only for landlords */}
+        {selectedType === 'landlord' && (
+          <div className="space-y-2 p-3 rounded-xl border bg-muted/30">
+            <div className="flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5 text-primary" />
+              <span className="text-sm font-semibold">Mobile Money Details</span>
+              {momoName.trim() && (
+                <span className={`ml-auto flex items-center gap-1 text-[10px] font-medium ${momoName.trim().length > 2 ? 'text-success' : 'text-destructive'}`}>
+                  {momoName.trim().length > 2 ? <ShieldCheck className="h-3 w-3" /> : <XCircle className="h-3 w-3" />}
+                  {momoName.trim().length > 2 ? 'Name provided' : 'Name too short'}
+                </span>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">MoMo Name</Label>
+                <Input
+                  value={momoName}
+                  onChange={(e) => setMomoName(e.target.value)}
+                  placeholder="Name on MoMo"
+                  className="h-12 text-sm rounded-xl touch-manipulation"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs text-muted-foreground">MoMo Number</Label>
+                <Input
+                  value={momoNumber}
+                  onChange={(e) => setMomoNumber(e.target.value)}
+                  placeholder="0770000000"
+                  className="h-12 text-sm rounded-xl touch-manipulation"
+                  inputMode="tel"
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Utility Meters - Only for landlords */}
+        {selectedType === 'landlord' && (
+          <div className="grid grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Droplets className="h-3 w-3 text-blue-500" /> NWSC Meter
+              </Label>
+              <Input
+                value={nwscMeter}
+                onChange={(e) => setNwscMeter(e.target.value)}
+                placeholder="In landlord's name"
+                className="h-12 text-sm rounded-xl touch-manipulation"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-sm font-medium flex items-center gap-1">
+                <Zap className="h-3 w-3 text-yellow-500" /> UEDCL Meter
+              </Label>
+              <Input
+                value={uedclMeter}
+                onChange={(e) => setUedclMeter(e.target.value)}
+                placeholder="In landlord's name"
+                className="h-12 text-sm rounded-xl touch-manipulation"
+              />
             </div>
           </div>
         )}
