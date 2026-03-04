@@ -1,0 +1,48 @@
+/**
+ * Extract a human-readable error message from a Supabase edge function response.
+ *
+ * When `supabase.functions.invoke()` receives a non-2xx status the SDK wraps
+ * the response in a `FunctionsHttpError` whose `.context` carries the raw
+ * Response object.  The actual JSON body (with our `{ error: "..." }` shape)
+ * must be read from that context.
+ */
+export async function extractEdgeFunctionError(
+  response: { error: any; data: any },
+  fallback = 'Something went wrong. Please try again.',
+): Promise<string> {
+  // 1. SDK-level error (non-2xx)
+  if (response.error) {
+    try {
+      // FunctionsHttpError stores the Response in `.context`
+      const ctx = (response.error as any)?.context;
+
+      // ctx is a Response – read JSON body
+      if (ctx && typeof ctx.json === 'function') {
+        const body = await ctx.json();
+        if (body?.error) return body.error;
+      }
+
+      // Some SDK versions expose `.context.body` as a string
+      if (ctx?.body) {
+        const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+        if (body?.error) return body.error;
+      }
+    } catch {
+      // parsing failed – fall through
+    }
+
+    // Last resort: use the error message itself
+    if (response.error.message && response.error.message !== 'Edge Function returned a non-2xx status code') {
+      return response.error.message;
+    }
+
+    return fallback;
+  }
+
+  // 2. 2xx but the body itself contains an error field
+  if (response.data?.error) {
+    return response.data.error;
+  }
+
+  return fallback;
+}

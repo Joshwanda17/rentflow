@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
@@ -107,12 +108,9 @@ export function CreateUserInviteDialog({ open, onOpenChange }: CreateUserInviteD
         body: { ...formData, role: selectedRole },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message || 'Failed to create invite');
-      }
-
-      if (response.data.error) {
-        throw new Error(response.data.error);
+      if (response.error || response.data?.error) {
+        const errorMsg = await extractEdgeFunctionError(response, 'Failed to create invite. Please try again.');
+        throw new Error(errorMsg);
       }
 
       setCreatedInvite({
