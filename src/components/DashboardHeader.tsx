@@ -188,7 +188,7 @@ const DashboardHeader = memo(function DashboardHeader({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent 
                   align="end" 
-                  className="w-56 bg-background/98 backdrop-blur-xl border shadow-2xl rounded-2xl p-1"
+                  className="w-56 max-h-[70vh] overflow-y-auto bg-background/98 backdrop-blur-xl border shadow-2xl rounded-2xl p-1"
                 >
                   {showInstallButton && (
                     <DropdownMenuItem
