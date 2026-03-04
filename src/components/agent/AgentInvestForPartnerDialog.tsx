@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [partners, setPartners] = useState<PartnerOption[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
+  const [selectedPartner, setSelectedPartner] = useState<PartnerOption | null>(null);
   const [amount, setAmount] = useState('');
   const [payoutDay, setPayoutDay] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -54,17 +55,63 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
 
+  // Debounced search for partners
+  useEffect(() => {
+    if (!searchQuery.trim() || searchQuery.trim().length < 2) {
+      setPartners([]);
+      return;
+    }
+
+    setLoadingPartners(true);
+    const timeout = setTimeout(async () => {
+      try {
+        const q = searchQuery.trim();
+        // Get supporter role user_ids first
+        const { data: roles } = await supabase
+          .from('user_roles')
+          .select('user_id')
+          .eq('role', 'supporter');
+
+        if (!roles || roles.length === 0) {
+          setPartners([]);
+          setLoadingPartners(false);
+          return;
+        }
+
+        const supporterIds = roles.map(r => r.user_id);
+
+        // Search profiles matching query AND in supporter list
+        const { data } = await supabase
+          .from('profiles')
+          .select('id, full_name, phone')
+          .in('id', supporterIds)
+          .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`)
+          .limit(20);
+
+        setPartners(data?.map(p => ({ id: p.id, full_name: p.full_name, phone: p.phone })) || []);
+      } catch {
+        toast.error('Failed to search partners');
+        setPartners([]);
+      } finally {
+        setLoadingPartners(false);
+      }
+    }, 400);
+
+    return () => clearTimeout(timeout);
+  }, [searchQuery]);
+
   useEffect(() => {
     if (open) {
-      fetchPartners();
       fetchOpportunitySummary();
       fetchAgentBalance();
       setSelectedPartnerId('');
+      setSelectedPartner(null);
       setAmount('');
       setPayoutDay('');
       setSuccess(null);
       setSearchQuery('');
       setShowConfirm(false);
+      setPartners([]);
     }
   }, [open]);
 
@@ -77,37 +124,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       .eq('user_id', user.id)
       .single();
     if (data) setAgentBalance(data.balance);
-  };
-
-  const fetchPartners = async () => {
-    setLoadingPartners(true);
-    try {
-      const { data: roles } = await supabase
-        .from('user_roles')
-        .select('user_id')
-        .eq('role', 'supporter');
-
-      if (!roles || roles.length === 0) {
-        setPartners([]);
-        return;
-      }
-
-      const supporterIds = roles.map(r => r.user_id);
-      const BATCH_SIZE = 40;
-      const allProfiles: { id: string; full_name: string; phone: string }[] = [];
-
-      for (let i = 0; i < supporterIds.length; i += BATCH_SIZE) {
-        const batch = supporterIds.slice(i, i + BATCH_SIZE);
-        const { data } = await supabase.from('profiles').select('id, full_name, phone').in('id', batch);
-        if (data) allProfiles.push(...data);
-      }
-
-      setPartners(allProfiles.map(p => ({ id: p.id, full_name: p.full_name, phone: p.phone })));
-    } catch {
-      toast.error('Failed to load partners');
-    } finally {
-      setLoadingPartners(false);
-    }
   };
 
   const fetchOpportunitySummary = async () => {
@@ -124,15 +140,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   };
 
-  const filteredPartners = useMemo(() => {
-    if (!searchQuery.trim()) return partners;
-    const q = searchQuery.toLowerCase();
-    return partners.filter(p =>
-      p.full_name.toLowerCase().includes(q) || p.phone.includes(q)
-    );
-  }, [partners, searchQuery]);
-
-  const selectedPartnerName = partners.find(p => p.id === selectedPartnerId)?.full_name || '';
+  const selectedPartnerName = selectedPartner?.full_name || '';
 
   const handleConfirmOpen = () => {
     if (!selectedPartnerId || parsedAmount < 50000 || !payoutDay) {
@@ -353,12 +361,22 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               <div className="flex items-center justify-center py-4">
                 <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
               </div>
+            ) : searchQuery.trim().length < 2 ? (
+              <div className="text-center py-4">
+                <p className="text-xs text-muted-foreground">
+                  {selectedPartner ? (
+                    <span>Selected: <strong className="text-foreground">{selectedPartner.full_name}</strong></span>
+                  ) : (
+                    'Type at least 2 characters to search'
+                  )}
+                </p>
+              </div>
             ) : (
               <div className="max-h-40 overflow-y-auto space-y-1 border rounded-lg p-1">
-                {filteredPartners.length === 0 ? (
+                {partners.length === 0 ? (
                   <div className="text-center py-4 space-y-2">
                     <p className="text-xs text-muted-foreground">
-                      {searchQuery.trim() ? 'No partners match your search' : 'No partners found'}
+                      No partners match your search
                     </p>
                     <Button
                       type="button"
@@ -372,10 +390,13 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                     </Button>
                   </div>
                 ) : (
-                  filteredPartners.map(p => (
+                  partners.map(p => (
                     <button
                       key={p.id}
-                      onClick={() => setSelectedPartnerId(p.id)}
+                      onClick={() => {
+                        setSelectedPartnerId(p.id);
+                        setSelectedPartner(p);
+                      }}
                       className={cn(
                         "w-full text-left p-2.5 rounded-lg transition-colors text-sm",
                         selectedPartnerId === p.id
@@ -527,7 +548,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         lockRole
         onSuccess={() => {
           setShowRegister(false);
-          fetchPartners();
+          // New partner will appear when agent searches for them
         }}
       />
     </>
