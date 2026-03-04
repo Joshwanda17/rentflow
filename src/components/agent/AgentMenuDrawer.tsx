@@ -57,6 +57,7 @@ interface AgentMenuDrawerProps {
   onViewTenants?: () => void;
   onInvestForPartner?: () => void;
   onIssueReceipt?: () => void;
+  onViewLandlordMap?: () => void;
 }
 
 interface MenuSection {
@@ -89,6 +90,7 @@ export function AgentMenuDrawer({
   onViewTenants,
   onInvestForPartner,
   onIssueReceipt,
+  onViewLandlordMap,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
@@ -201,6 +203,14 @@ export function AgentMenuDrawer({
           onClick: onViewManagedProperties,
           color: 'text-teal-500'
         }] : []),
+        ...(onViewLandlordMap ? [{ 
+          icon: MapPin, 
+          label: 'My Landlords Map', 
+          description: 'View & navigate to landlord locations',
+          onClick: onViewLandlordMap,
+          color: 'text-emerald-500',
+          badge: 'GPS'
+        } as MenuItem] : []),
       ]
     },
     {

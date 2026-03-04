@@ -48,6 +48,7 @@ import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
 import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
+import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
@@ -97,6 +98,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
+  const [landlordMapOpen, setLandlordMapOpen] = useState(false);
 
   // Realtime referrals channel REMOVED — 'referrals' table is not in the
   // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
@@ -277,6 +279,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
+        onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
       />
 
       {/* Dialogs */}
@@ -340,6 +343,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <AgentReceiptDialog
         open={receiptOpen}
         onOpenChange={setReceiptOpen}
+      />
+      <AgentLandlordMapSheet
+        open={landlordMapOpen}
+        onOpenChange={setLandlordMapOpen}
       />
       {/* Fixed footer navigation */}
       {/* Fixed footer navigation */}
