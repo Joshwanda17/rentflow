@@ -1,4 +1,3 @@
-import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -20,106 +19,113 @@ export default function CFOReconciliationPanel() {
   const { data, isLoading, refetch, isFetching } = useQuery({
     queryKey: ['cfo-reconciliation'],
     queryFn: async () => {
-      // Fetch wallet balances from profiles (stored balance)
-      const { data: profiles, error: pErr } = await supabase
-        .from('profiles')
-        .select('id, full_name');
+      // Step 1: Get wallet balances (stored/cached balances)
+      const { data: wallets, error: wErr } = await supabase
+        .from('wallets')
+        .select('user_id, balance')
+        .gt('balance', 0);
 
-      if (pErr) throw pErr;
+      if (wErr) throw wErr;
 
-      // Fetch ledger account balances (computed)
-      const { data: accounts, error: aErr } = await supabase
-        .from('ledger_accounts')
-        .select('account_id, account_code, owner_id, group_id')
-        .eq('group_id', (await supabase.from('ledger_account_groups').select('group_id').eq('group_code', 'USER_OWNED').single()).data?.group_id || '');
-
-      // Fetch ledger entries to compute balances
-      const accountIds = accounts?.map(a => a.account_id) || [];
-      
-      if (accountIds.length === 0) {
-        return { rows: [] as ReconciliationRow[], totalDiscrepancy: 0, matchCount: 0, mismatchCount: 0 };
-      }
-
-      const { data: entries } = await supabase
-        .from('ledger_entries')
-        .select('account_id, amount, direction')
-        .in('account_id', accountIds);
-
-      // Compute ledger balances per account
-      const ledgerBalances = new Map<string, number>();
-      for (const entry of entries || []) {
-        const current = ledgerBalances.get(entry.account_id) || 0;
-        ledgerBalances.set(
-          entry.account_id,
-          entry.direction === 'credit'
-            ? current + entry.amount
-            : current - entry.amount
-        );
-      }
-
-      // Map owner_id to ledger balance
-      const ownerLedgerBalance = new Map<string, number>();
-      for (const acc of accounts || []) {
-        if (acc.owner_id) {
-          ownerLedgerBalance.set(acc.owner_id, ledgerBalances.get(acc.account_id) || 0);
-        }
-      }
-
-      // Fetch wallet balances from general_ledger (legacy running balances)
-      const { data: walletData } = await supabase
+      // Step 2: Get computed balances from general_ledger
+      // For each user, sum cash_in - cash_out to get the computed balance
+      const { data: ledgerIn, error: lInErr } = await supabase
         .from('general_ledger')
-        .select('user_id, running_balance')
+        .select('user_id, amount')
         .not('user_id', 'is', null)
-        .order('created_at', { ascending: false });
+        .eq('direction', 'cash_in');
 
-      // Get latest running_balance per user
-      const walletBalances = new Map<string, number>();
-      for (const w of walletData || []) {
-        if (w.user_id && !walletBalances.has(w.user_id)) {
-          walletBalances.set(w.user_id, w.running_balance || 0);
+      const { data: ledgerOut, error: lOutErr } = await supabase
+        .from('general_ledger')
+        .select('user_id, amount')
+        .not('user_id', 'is', null)
+        .eq('direction', 'cash_out');
+
+      if (lInErr || lOutErr) throw lInErr || lOutErr;
+
+      // Compute ledger balance per user: sum(cash_in) - sum(cash_out)
+      const ledgerBalances = new Map<string, number>();
+      for (const entry of ledgerIn || []) {
+        if (entry.user_id) {
+          ledgerBalances.set(entry.user_id, (ledgerBalances.get(entry.user_id) || 0) + entry.amount);
+        }
+      }
+      for (const entry of ledgerOut || []) {
+        if (entry.user_id) {
+          ledgerBalances.set(entry.user_id, (ledgerBalances.get(entry.user_id) || 0) - entry.amount);
         }
       }
 
-      // Build reconciliation rows - only for users with either balance
+      // Wallet balance map
+      const walletBalances = new Map<string, number>();
+      for (const w of wallets || []) {
+        walletBalances.set(w.user_id, w.balance);
+      }
+
+      // Collect all user IDs that have either a wallet or ledger balance
+      const allUserIds = new Set([...walletBalances.keys(), ...ledgerBalances.keys()]);
+
+      // Step 3: Fetch profile names only for users we need
+      const userIdsArray = Array.from(allUserIds);
+      const profileMap = new Map<string, string>();
+
+      // Batch fetch profiles in chunks of 200 to avoid URL length limits
+      for (let i = 0; i < userIdsArray.length; i += 200) {
+        const chunk = userIdsArray.slice(i, i + 200);
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', chunk);
+
+        for (const p of profiles || []) {
+          profileMap.set(p.id, p.full_name);
+        }
+      }
+
+      // Step 4: Build reconciliation rows
       const rows: ReconciliationRow[] = [];
-      const allUserIds = new Set([...ownerLedgerBalance.keys(), ...walletBalances.keys()]);
-      
-      const profileMap = new Map((profiles || []).map(p => [p.id, p.full_name]));
 
       for (const userId of allUserIds) {
-        const ledgerBal = ownerLedgerBalance.get(userId) || 0;
         const walletBal = walletBalances.get(userId) || 0;
-        const disc = Math.abs(ledgerBal - walletBal);
-        
-        if (disc > 0 || ledgerBal > 0 || walletBal > 0) {
+        const ledgerBal = ledgerBalances.get(userId) || 0;
+        const disc = ledgerBal - walletBal;
+
+        // Only include rows where there's something to show
+        if (walletBal > 0 || ledgerBal > 0 || Math.abs(disc) > 0) {
           rows.push({
             userId,
             userName: profileMap.get(userId) || 'Unknown',
             walletBalance: walletBal,
             ledgerBalance: ledgerBal,
-            discrepancy: ledgerBal - walletBal,
+            discrepancy: disc,
           });
         }
       }
 
-      // Sort by discrepancy magnitude
+      // Sort by discrepancy magnitude (biggest mismatches first)
       rows.sort((a, b) => Math.abs(b.discrepancy) - Math.abs(a.discrepancy));
 
       const mismatchCount = rows.filter(r => Math.abs(r.discrepancy) > 1).length;
       const matchCount = rows.length - mismatchCount;
       const totalDiscrepancy = rows.reduce((sum, r) => sum + Math.abs(r.discrepancy), 0);
 
-      return { rows: rows.slice(0, 50), totalDiscrepancy, matchCount, mismatchCount };
+      return { rows: rows.slice(0, 100), totalDiscrepancy, matchCount, mismatchCount, totalRows: rows.length };
     },
     staleTime: 60_000,
   });
 
-  const stats = data || { rows: [], totalDiscrepancy: 0, matchCount: 0, mismatchCount: 0 };
+  const stats = data || { rows: [], totalDiscrepancy: 0, matchCount: 0, mismatchCount: 0, totalRows: 0 };
 
   return (
     <div className="space-y-4">
       {/* Summary Cards */}
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <Card className="border-2">
+          <CardContent className="p-4 text-center">
+            <p className="text-xs text-muted-foreground uppercase tracking-wider">Total Users</p>
+            <p className="text-2xl font-bold">{stats.totalRows}</p>
+          </CardContent>
+        </Card>
         <Card className="border-2">
           <CardContent className="p-4 text-center">
             <p className="text-xs text-muted-foreground uppercase tracking-wider">Matched</p>
@@ -148,12 +154,15 @@ export default function CFOReconciliationPanel() {
           <div className="flex items-center justify-between">
             <CardTitle className="text-base flex items-center gap-2">
               <Scale className="h-4 w-4 text-primary" />
-              Ledger vs Wallet Reconciliation
+              Wallet vs Ledger Reconciliation
             </CardTitle>
             <Button variant="outline" size="sm" onClick={() => refetch()} disabled={isFetching}>
               {isFetching ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
             </Button>
           </div>
+          <p className="text-xs text-muted-foreground">
+            Compares stored wallet balances against computed general ledger totals (cash_in − cash_out). Top 100 shown.
+          </p>
         </CardHeader>
         <CardContent>
           {isLoading ? (
@@ -164,7 +173,7 @@ export default function CFOReconciliationPanel() {
             <div className="text-center py-12 text-muted-foreground">
               <CheckCircle2 className="h-12 w-12 mx-auto mb-3 text-success" />
               <p className="font-semibold">All Balanced</p>
-              <p className="text-sm">No discrepancies found between ledger and wallet balances.</p>
+              <p className="text-sm">No discrepancies found between wallet and ledger balances.</p>
             </div>
           ) : (
             <div className="overflow-x-auto -mx-4 sm:mx-0">
