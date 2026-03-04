@@ -183,34 +183,59 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
 
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
+      const depositPayload = {
+        user_id: user.id,
+        amount: parseFloat(amount),
+        status: 'pending',
+        provider: provider,
+        transaction_id: normalizedTxId,
+        transaction_date: `${transactionDate}T${transactionTime}:00`,
+        notes: reason.trim(),
+      };
 
-      // Insert deposit request directly — the unique constraint on
-      // transaction_id will reject duplicates at the DB level.
       console.log('[DepositDialog] Inserting deposit request for txn:', normalizedTxId);
-      const { error: depositError } = await supabase
-        .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          status: 'pending',
-          provider: provider,
-          transaction_id: normalizedTxId,
-          transaction_date: `${transactionDate}T${transactionTime}:00`,
-          notes: reason.trim(),
-        });
 
-      if (depositError) {
-        // Unique constraint violation → duplicate transaction ID
-        if (
-          depositError.code === '23505' ||
-          depositError.message?.toLowerCase().includes('duplicate') ||
-          depositError.message?.toLowerCase().includes('unique')
-        ) {
+      // Use direct fetch to bypass any Supabase client / service-worker caching issues
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const supabaseKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
+      const { data: sessionData } = await supabase.auth.getSession();
+      const accessToken = sessionData?.session?.access_token;
+
+      if (!accessToken) {
+        toast.error('Session expired. Please log in again.');
+        setLoading(false);
+        return;
+      }
+
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 15000);
+
+      const response = await fetch(`${supabaseUrl}/rest/v1/deposit_requests`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'apikey': supabaseKey,
+          'Authorization': `Bearer ${accessToken}`,
+          'Prefer': 'return=minimal',
+        },
+        body: JSON.stringify(depositPayload),
+        signal: controller.signal,
+      });
+
+      clearTimeout(timeoutId);
+
+      if (!response.ok) {
+        const errorBody = await response.text().catch(() => '');
+        console.error('[DepositDialog] Insert failed:', response.status, errorBody);
+
+        // Unique constraint violation (duplicate txn ID)
+        if (response.status === 409 || errorBody.includes('duplicate') || errorBody.includes('unique')) {
           toast.error('This transaction ID has already been submitted');
           setLoading(false);
           return;
         }
-        throw depositError;
+
+        throw new Error(errorBody || `Server error (${response.status})`);
       }
 
       console.log('[DepositDialog] Deposit request submitted successfully');
