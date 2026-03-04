@@ -47,6 +47,7 @@ import { AgentTenantsSheet } from '@/components/agent/AgentTenantsSheet';
 
 import { AgentTopUpTenantDialog } from '@/components/agent/AgentTopUpTenantDialog';
 import { AgentInvestForPartnerDialog } from '@/components/agent/AgentInvestForPartnerDialog';
+import { ProxyInvestmentHistorySheet } from '@/components/agent/ProxyInvestmentHistorySheet';
 import { AgentReceiptDialog } from '@/components/agent/AgentReceiptDialog';
 import { AgentLandlordMapSheet } from '@/components/agent/AgentLandlordMapSheet';
 import { RentalFinderSheet } from '@/components/agent/RentalFinderSheet';
@@ -98,6 +99,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [topUpTenantOpen, setTopUpTenantOpen] = useState(false);
   const [tenantsSheetOpen, setTenantsSheetOpen] = useState(false);
   const [investForPartnerOpen, setInvestForPartnerOpen] = useState(false);
+  const [proxyHistoryOpen, setProxyHistoryOpen] = useState(false);
   const [receiptOpen, setReceiptOpen] = useState(false);
   const [landlordMapOpen, setLandlordMapOpen] = useState(false);
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
@@ -280,6 +282,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onTopUpTenant={() => { setMenuOpen(false); setTopUpTenantOpen(true); }}
         onViewTenants={() => { setMenuOpen(false); setTenantsSheetOpen(true); }}
         onInvestForPartner={() => { setMenuOpen(false); setInvestForPartnerOpen(true); }}
+        onViewProxyHistory={() => { setMenuOpen(false); setProxyHistoryOpen(true); }}
         onIssueReceipt={() => { setMenuOpen(false); setReceiptOpen(true); }}
         onViewLandlordMap={() => { setMenuOpen(false); setLandlordMapOpen(true); }}
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
@@ -342,6 +345,10 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         open={investForPartnerOpen}
         onOpenChange={setInvestForPartnerOpen}
         onSuccess={() => { refreshOfflineData(); refreshWallet(); }}
+      />
+      <ProxyInvestmentHistorySheet
+        open={proxyHistoryOpen}
+        onOpenChange={setProxyHistoryOpen}
       />
       <AgentReceiptDialog
         open={receiptOpen}
