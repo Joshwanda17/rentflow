@@ -184,30 +184,9 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
 
-      // Check for duplicate transaction ID (non-blocking)
-      console.log('[DepositDialog] Starting duplicate check for txn:', normalizedTxId);
-      try {
-        const { data: existingDeposits, error: dupError } = await supabase
-          .from('deposit_requests')
-          .select('id')
-          .eq('transaction_id', normalizedTxId)
-          .eq('user_id', user.id)
-          .limit(1)
-          .abortSignal(timeoutSignal(8000));
-
-        if (dupError) {
-          console.warn('[DepositDialog] Duplicate check error (non-blocking):', dupError);
-        } else if (existingDeposits && existingDeposits.length > 0) {
-          toast.error('This transaction ID has already been used');
-          setLoading(false);
-          return;
-        }
-      } catch (dupCheckErr: any) {
-        console.warn('[DepositDialog] Duplicate check failed (non-blocking):', dupCheckErr?.message);
-      }
-
-      // Create deposit request
-      console.log('[DepositDialog] Inserting deposit request...');
+      // Insert deposit request directly — the unique constraint on
+      // transaction_id will reject duplicates at the DB level.
+      console.log('[DepositDialog] Inserting deposit request for txn:', normalizedTxId);
       const { error: depositError } = await supabase
         .from('deposit_requests')
         .insert({
@@ -218,10 +197,21 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
           transaction_id: normalizedTxId,
           transaction_date: `${transactionDate}T${transactionTime}:00`,
           notes: reason.trim(),
-        })
-        .abortSignal(timeoutSignal(15000));
+        });
 
-      if (depositError) throw depositError;
+      if (depositError) {
+        // Unique constraint violation → duplicate transaction ID
+        if (
+          depositError.code === '23505' ||
+          depositError.message?.toLowerCase().includes('duplicate') ||
+          depositError.message?.toLowerCase().includes('unique')
+        ) {
+          toast.error('This transaction ID has already been submitted');
+          setLoading(false);
+          return;
+        }
+        throw depositError;
+      }
 
       console.log('[DepositDialog] Deposit request submitted successfully');
       toast.success('Deposit request submitted for verification');
