@@ -337,6 +337,74 @@ export type Database = {
         }
         Relationships: []
       }
+      agent_receipts: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          id: string
+          notes: string | null
+          payer_name: string
+          payer_phone: string
+          payment_method: string
+          receipt_image_url: string | null
+          transaction_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payer_name: string
+          payer_phone: string
+          payment_method?: string
+          receipt_image_url?: string | null
+          transaction_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          id?: string
+          notes?: string | null
+          payer_name?: string
+          payer_phone?: string
+          payment_method?: string
+          receipt_image_url?: string | null
+          transaction_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_receipts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       agent_subagents: {
         Row: {
           created_at: string

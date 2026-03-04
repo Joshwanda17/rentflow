@@ -56,6 +56,7 @@ interface AgentMenuDrawerProps {
   onTopUpTenant?: () => void;
   onViewTenants?: () => void;
   onInvestForPartner?: () => void;
+  onIssueReceipt?: () => void;
 }
 
 interface MenuSection {
@@ -87,6 +88,7 @@ export function AgentMenuDrawer({
   onTopUpTenant,
   onViewTenants,
   onInvestForPartner,
+  onIssueReceipt,
 }: AgentMenuDrawerProps) {
   const navigate = useNavigate();
   const [tenantGuideOpen, setTenantGuideOpen] = useState(false);
@@ -141,6 +143,14 @@ export function AgentMenuDrawer({
           onClick: onDeposit,
           color: 'text-success'
         },
+        ...(onIssueReceipt ? [{ 
+          icon: Receipt, 
+          label: 'Issue Cash Receipt', 
+          description: 'Record & share payment receipt',
+          onClick: onIssueReceipt,
+          color: 'text-amber-600',
+          badge: 'New'
+        } as MenuItem] : []),
         ...(onTopUpTenant ? [{ 
           icon: Wallet, 
           label: 'Top Up Tenant Wallet', 
