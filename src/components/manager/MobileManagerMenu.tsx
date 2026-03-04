@@ -105,6 +105,13 @@ const menuItems = [
     color: 'bg-rose-600',
     description: 'COO Dashboard'
   },
+  { 
+    icon: ChartBar, 
+    label: 'CFO', 
+    path: '/cfo-dashboard',
+    color: 'bg-cyan-600',
+    description: 'CFO Dashboard'
+  },
 ];
 
 export default function MobileManagerMenu({ onScrollToProductivity, isOpen: externalOpen, onClose }: MobileManagerMenuProps) {

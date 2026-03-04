@@ -84,6 +84,7 @@ const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
 const COODashboard = lazy(() => import('./pages/COODashboard'));
+const CFODashboard = lazy(() => import('./pages/CFODashboard'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
@@ -237,6 +238,7 @@ function AppRoutes() {
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
           <Route path="/coo-dashboard" element={<COODashboard />} />
+          <Route path="/cfo-dashboard" element={<CFODashboard />} />
           <Route path="/agent-advances" element={<AgentAdvances />} />
           <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />
