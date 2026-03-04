@@ -68,6 +68,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
     fullName: '',
     phone: '',
     password: '',
+    address: '',
   });
   const [createdInvite, setCreatedInvite] = useState<{
     token: string;
@@ -105,7 +106,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
       }
 
       const response = await supabase.functions.invoke('create-supporter-invite', {
-        body: { ...formData, role: selectedRole, isSubAgent: selectedRole === 'agent' },
+        body: { ...formData, address: formData.address, role: selectedRole, isSubAgent: selectedRole === 'agent' },
       });
 
       if (response.error) {
@@ -179,7 +180,7 @@ Password: ${createdInvite?.password}`;
   };
 
   const handleClose = () => {
-    setFormData({ email: '', fullName: '', phone: '', password: '' });
+    setFormData({ email: '', fullName: '', phone: '', password: '', address: '' });
     setCreatedInvite(null);
     setCopied(false);
     setSelectedRole(defaultRole || 'tenant');
@@ -239,17 +240,28 @@ Password: ${createdInvite?.password}`;
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="email" className="text-sm font-medium">Email</Label>
+          <Label htmlFor="email" className="text-sm font-medium">Email <span className="text-muted-foreground font-normal">(optional)</span></Label>
           <Input
             id="email"
             type="email"
             placeholder="user@example.com"
             value={formData.email}
             onChange={(e) => setFormData(prev => ({ ...prev, email: e.target.value }))}
-            required
             className="h-12 text-base rounded-xl"
             autoComplete="off"
             inputMode="email"
+          />
+        </div>
+
+        <div className="space-y-2">
+          <Label htmlFor="address" className="text-sm font-medium">Address</Label>
+          <Input
+            id="address"
+            placeholder="e.g. Kampala, Ntinda"
+            value={formData.address}
+            onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
+            className="h-12 text-base rounded-xl"
+            autoComplete="off"
           />
         </div>
 

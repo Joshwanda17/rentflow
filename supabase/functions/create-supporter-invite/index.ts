@@ -117,7 +117,8 @@ Deno.serve(async (req) => {
     const latitude = typeof rawBody.latitude === 'number' && Number.isFinite(rawBody.latitude) ? rawBody.latitude : null;
     const longitude = typeof rawBody.longitude === 'number' && Number.isFinite(rawBody.longitude) ? rawBody.longitude : null;
     const locationAccuracy = typeof rawBody.locationAccuracy === 'number' && Number.isFinite(rawBody.locationAccuracy) ? rawBody.locationAccuracy : null;
-    const propertyAddress = typeof rawBody.propertyAddress === 'string' ? rawBody.propertyAddress.trim().slice(0, 500) : null;
+    const propertyAddress = typeof rawBody.propertyAddress === 'string' ? rawBody.propertyAddress.trim().slice(0, 500) : 
+                           typeof rawBody.address === 'string' ? rawBody.address.trim().slice(0, 500) : null;
 
     // fullName and email are optional - validated if present
     let email = rawBody.email ? validateEmail(rawBody.email) : null;
@@ -254,10 +255,10 @@ Deno.serve(async (req) => {
         role,
         created_by: user.id,
         parent_agent_id: parentAgentId,
-        latitude: role === 'landlord' && latitude ? latitude : null,
-        longitude: role === 'landlord' && longitude ? longitude : null,
-        location_accuracy: role === 'landlord' && locationAccuracy ? locationAccuracy : null,
-        property_address: role === 'landlord' && propertyAddress ? propertyAddress : null,
+        latitude: latitude || null,
+        longitude: longitude || null,
+        location_accuracy: locationAccuracy || null,
+        property_address: propertyAddress || null,
       })
       .select()
       .single();
