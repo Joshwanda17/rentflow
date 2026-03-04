@@ -3,10 +3,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Wallet, Bell } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/hooks/useAuth';
-import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
 import { FullScreenWalletSheet } from './FullScreenWalletSheet';
 import { Badge } from '@/components/ui/badge';
+import { fetchPendingCounts } from '@/lib/pendingCountsCache';
 
 export function FloatingWalletButton() {
   const { user } = useAuth();
@@ -14,17 +14,10 @@ export function FloatingWalletButton() {
   const [showWallet, setShowWallet] = useState(false);
   const [pendingCount, setPendingCount] = useState(0);
 
-  // Fetch pending money requests count
   const fetchPendingCount = useCallback(async () => {
     if (!user) return;
-    
-    const { count } = await supabase
-      .from('money_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
-      .eq('status', 'pending');
-    
-    setPendingCount(count || 0);
+    const counts = await fetchPendingCounts(user.id);
+    setPendingCount(counts.moneyRequests);
   }, [user]);
 
   useEffect(() => {
