@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -62,6 +62,16 @@ const itemVariants = {
   },
 };
 
+// Helper: race a promise against a timeout
+function withTimeout<T>(promise: PromiseLike<T>, ms: number, label: string): Promise<T> {
+  return Promise.race([
+    Promise.resolve(promise),
+    new Promise<never>((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms / 1000}s`)), ms)
+    ),
+  ]);
+}
+
 export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -74,6 +84,24 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
+  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Safety-net: force loading=false after 20s
+  useEffect(() => {
+    if (loading) {
+      loadingTimerRef.current = setTimeout(() => {
+        console.error('[DepositDialog] Safety-net: forcing loading=false after 20s');
+        setLoading(false);
+        toast.error('Request timed out. Please try again.');
+      }, 20000);
+    } else if (loadingTimerRef.current) {
+      clearTimeout(loadingTimerRef.current);
+      loadingTimerRef.current = null;
+    }
+    return () => {
+      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+    };
+  }, [loading]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -157,14 +185,19 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       const normalizedTxId = transactionId.trim().toUpperCase();
 
       // Check for duplicate transaction ID
-      const { data: existingDeposits, error: dupError } = await supabase
-        .from('deposit_requests')
-        .select('id')
-        .eq('transaction_id', normalizedTxId)
-        .limit(1);
+      console.log('[DepositDialog] Starting duplicate check for txn:', normalizedTxId);
+      const { data: existingDeposits, error: dupError } = await withTimeout(
+        supabase
+          .from('deposit_requests')
+          .select('id')
+          .eq('transaction_id', normalizedTxId)
+          .limit(1),
+        15000,
+        'Duplicate check'
+      );
 
       if (dupError) {
-        console.error('Duplicate check error:', dupError);
+        console.error('[DepositDialog] Duplicate check error:', dupError);
         // Don't block submission on duplicate check failure
       } else if (existingDeposits && existingDeposits.length > 0) {
         toast.error('This transaction ID has already been used');
@@ -173,25 +206,31 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       }
 
       // Create deposit request
-      const { error: depositError } = await supabase
-        .from('deposit_requests')
-        .insert({
-          user_id: user.id,
-          amount: parseFloat(amount),
-          status: 'pending',
-          provider: provider,
-          transaction_id: normalizedTxId,
-          transaction_date: `${transactionDate}T${transactionTime}:00`,
-          notes: reason.trim(),
-        } as any);
+      console.log('[DepositDialog] Inserting deposit request...');
+      const { error: depositError } = await withTimeout(
+        supabase
+          .from('deposit_requests')
+          .insert({
+            user_id: user.id,
+            amount: parseFloat(amount),
+            status: 'pending',
+            provider: provider,
+            transaction_id: normalizedTxId,
+            transaction_date: `${transactionDate}T${transactionTime}:00`,
+            notes: reason.trim(),
+          }),
+        15000,
+        'Deposit insert'
+      );
 
       if (depositError) throw depositError;
 
+      console.log('[DepositDialog] Deposit request submitted successfully');
       toast.success('Deposit request submitted for verification');
 
       setSuccess(true);
     } catch (error: any) {
-      console.error('Deposit error:', error);
+      console.error('[DepositDialog] Deposit error:', error);
       toast.error(error.message || 'Failed to submit deposit request');
     } finally {
       setLoading(false);
