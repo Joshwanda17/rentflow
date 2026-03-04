@@ -57,6 +57,7 @@ interface AgentMenuDrawerProps {
   onTopUpTenant?: () => void;
   onViewTenants?: () => void;
   onInvestForPartner?: () => void;
+  onViewProxyHistory?: () => void;
   onIssueReceipt?: () => void;
   onViewLandlordMap?: () => void;
   onFindRentals?: () => void;
@@ -91,6 +92,7 @@ export function AgentMenuDrawer({
   onTopUpTenant,
   onViewTenants,
   onInvestForPartner,
+  onViewProxyHistory,
   onIssueReceipt,
   onViewLandlordMap,
   onFindRentals,
@@ -125,6 +127,13 @@ export function AgentMenuDrawer({
           onClick: onInvestForPartner,
           color: 'text-emerald-600',
           badge: 'Proxy'
+        } as MenuItem] : []),
+        ...(onViewProxyHistory ? [{ 
+          icon: History, 
+          label: 'Proxy Investment History', 
+          description: 'View all investments made for partners',
+          onClick: onViewProxyHistory,
+          color: 'text-emerald-500',
         } as MenuItem] : []),
         ...(onViewTenants ? [{ 
           icon: Users, 
