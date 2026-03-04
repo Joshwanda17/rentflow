@@ -197,11 +197,14 @@ Deno.serve(async (req) => {
 
                 if (repaymentError) {
                   console.error(`[approve-deposit] Repayment RPC failed for ${depositRequest.id}:`, repaymentError.message);
-                  // Rollback wallet deduction on RPC failure
+                  // Rollback: restore wallet to pre-deduction balance (walletNow.balance)
+                  // Use optimistic lock to prevent overwriting concurrent changes
+                  const deductedBalance = walletNow.balance - repaymentApplied;
                   await supabaseAdmin
                     .from("wallets")
                     .update({ balance: walletNow.balance, updated_at: new Date().toISOString() })
-                    .eq("user_id", depositRequest.user_id);
+                    .eq("user_id", depositRequest.user_id)
+                    .eq("balance", deductedBalance);
                   repaymentApplied = 0;
                   newOutstanding = previousBalance;
                 } else {
