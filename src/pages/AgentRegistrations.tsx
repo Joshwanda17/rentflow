@@ -236,21 +236,21 @@ Just click the link and enter your password to get started!`;
       <Tabs defaultValue="users" className="w-full">
         {/* Header */}
         <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b">
-          <div className="flex items-center justify-between p-4">
-            <div className="flex items-center gap-3">
-              <Button variant="ghost" size="icon" onClick={() => navigate('/dashboard')}>
+          <div className="flex items-center justify-between p-4 gap-2 min-w-0">
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <Button variant="ghost" size="icon-sm" className="shrink-0" onClick={() => navigate('/dashboard')}>
                 <ArrowLeft className="h-5 w-5" />
               </Button>
-              <div>
-                <h1 className="font-bold text-lg">My Registrations</h1>
+              <div className="min-w-0">
+                <h1 className="font-bold text-lg truncate">My Registrations</h1>
                 <p className="text-xs text-muted-foreground">{invites.length} total users</p>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 shrink-0">
               {/* Export Menu */}
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="ghost" size="icon" disabled={exporting || filteredInvites.length === 0}>
+                  <Button variant="ghost" size="icon-sm" disabled={exporting || filteredInvites.length === 0}>
                     <Download className="h-4 w-4" />
                   </Button>
                 </DropdownMenuTrigger>
@@ -265,7 +265,7 @@ Just click the link and enter your password to get started!`;
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button variant="ghost" size="icon" onClick={fetchInvites}>
+              <Button variant="ghost" size="icon-sm" onClick={fetchInvites}>
                 <RefreshCw className="h-4 w-4" />
               </Button>
               <Button size="sm" onClick={() => setRegisterOpen(true)}>
