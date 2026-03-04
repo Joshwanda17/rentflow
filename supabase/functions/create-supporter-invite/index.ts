@@ -181,6 +181,7 @@ Deno.serve(async (req) => {
       .from("profiles")
       .select("id, full_name")
       .or(`phone.like.%${local9},phone.like.%${local9.replace(/^0/, '')}`)
+      .neq("id", user.id)
       .limit(1)
       .maybeSingle();
 
