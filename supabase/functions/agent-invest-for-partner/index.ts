@@ -98,34 +98,34 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Check partner's wallet balance with optimistic locking
-    const { data: wallet, error: walletErr } = await adminClient
+    // Check AGENT's wallet balance (agent pays, not partner)
+    const { data: agentWallet, error: walletErr } = await adminClient
       .from("wallets")
       .select("id, balance")
-      .eq("user_id", partner_id)
+      .eq("user_id", agent.id)
       .single();
 
-    if (walletErr || !wallet) {
+    if (walletErr || !agentWallet) {
       return new Response(
-        JSON.stringify({ error: "Partner wallet not found" }),
+        JSON.stringify({ error: "Agent wallet not found" }),
         { status: 404, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    if (wallet.balance < amount) {
+    if (agentWallet.balance < amount) {
       return new Response(
-        JSON.stringify({ error: "Insufficient partner balance" }),
+        JSON.stringify({ error: "Insufficient agent balance" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
-    // Optimistic lock: deduct only if balance matches
-    const newBalance = wallet.balance - amount;
+    // Optimistic lock: deduct from AGENT's wallet
+    const newAgentBalance = agentWallet.balance - amount;
     const { error: deductErr, count } = await adminClient
       .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", partner_id)
-      .eq("balance", wallet.balance);
+      .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
+      .eq("user_id", agent.id)
+      .eq("balance", agentWallet.balance);
 
     if (deductErr || count === 0) {
       return new Response(
@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
     }
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
 
-    // Decrement opportunity summary
+    // Decrement opportunity summary (total rent demand)
     if (summary_id) {
       const { error: summaryErr } = await adminClient.rpc('decrement_rent_requested', {
         p_summary_id: summary_id,
@@ -164,33 +164,24 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Get partner profile name for ledger
-    const { data: partnerProfile } = await adminClient
-      .from("profiles")
-      .select("full_name")
-      .eq("id", partner_id)
-      .single();
+    // Get profile names
+    const [partnerProfileRes, agentProfileRes] = await Promise.all([
+      adminClient.from("profiles").select("full_name").eq("id", partner_id).single(),
+      adminClient.from("profiles").select("full_name").eq("id", agent.id).single(),
+    ]);
 
-    const partnerName = partnerProfile?.full_name || "Partner";
+    const partnerName = partnerProfileRes.data?.full_name || "Partner";
+    const agentName = agentProfileRes.data?.full_name || "Agent";
 
-    // Get agent profile name
-    const { data: agentProfile } = await adminClient
-      .from("profiles")
-      .select("full_name")
-      .eq("id", agent.id)
-      .single();
-
-    const agentName = agentProfile?.full_name || "Agent";
-
-    // Record in general_ledger (under the partner's user_id)
+    // Record in general_ledger — agent cash_out (agent funded the investment)
     await adminClient.from("general_ledger").insert({
-      user_id: partner_id,
+      user_id: agent.id,
       amount,
       direction: "cash_out",
-      category: "supporter_rent_fund",
+      category: "agent_proxy_investment",
       source_table: "opportunity_summaries",
       source_id: summary_id || null,
-      description: `Proxy rent funding by Agent ${agentName}: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
+      description: `Agent proxy investment: UGX ${amount.toLocaleString()} to Rent Management Pool on behalf of ${partnerName}. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
@@ -200,7 +191,7 @@ Deno.serve(async (req) => {
     await adminClient.from("notifications").insert({
       user_id: partner_id,
       title: "🎉 Rent Pool Funded on Your Behalf!",
-      message: `Agent ${agentName} invested UGX ${amount.toLocaleString()} into the Rent Management Pool on your behalf.\n\n⏳ Your funds will work for at least 30 days before the first payout.\n\n💰 You will receive 15% (UGX ${monthlyReward.toLocaleString()}) monthly on the ${payout_day}${getOrdinalSuffix(payout_day)} of every month for 12 months, starting ${firstPayoutDate}.\n\nRef: ${referenceId}`,
+      message: `Agent ${agentName} invested UGX ${amount.toLocaleString()} from their own funds into the Rent Management Pool on your behalf.\n\n⏳ Your funds will work for at least 30 days before the first payout.\n\n💰 You will receive 15% (UGX ${monthlyReward.toLocaleString()}) monthly on the ${payout_day}${getOrdinalSuffix(payout_day)} of every month for 12 months, starting ${firstPayoutDate}.\n\nRef: ${referenceId}`,
       type: "success",
       metadata: {
         amount,
@@ -218,19 +209,24 @@ Deno.serve(async (req) => {
     const commissionRate = 0.02;
     const commission = Math.round(amount * commissionRate);
 
-    // Credit agent wallet
-    const { data: agentWallet } = await adminClient
+    // Credit agent wallet (re-fetch for optimistic lock after deduction)
+    const { data: freshAgentWallet } = await adminClient
       .from("wallets")
       .select("id, balance")
       .eq("user_id", agent.id)
       .single();
 
-    if (agentWallet) {
-      await adminClient
+    let finalAgentBalance = newAgentBalance;
+    if (freshAgentWallet) {
+      const balanceAfterCommission = freshAgentWallet.balance + commission;
+      const { error: commErr } = await adminClient
         .from("wallets")
-        .update({ balance: agentWallet.balance + commission, updated_at: new Date().toISOString() })
+        .update({ balance: balanceAfterCommission, updated_at: new Date().toISOString() })
         .eq("user_id", agent.id)
-        .eq("balance", agentWallet.balance);
+        .eq("balance", freshAgentWallet.balance);
+      if (!commErr) {
+        finalAgentBalance = balanceAfterCommission;
+      }
     }
 
     // Record agent earning
@@ -259,7 +255,7 @@ Deno.serve(async (req) => {
     await adminClient.from("notifications").insert({
       user_id: agent.id,
       title: "✅ Partner Investment Completed",
-      message: `You invested UGX ${amount.toLocaleString()} on behalf of ${partnerName} into the Rent Management Pool.\n\n💰 You earned UGX ${commission.toLocaleString()} (2% commission) from the pool.\n\nRef: ${referenceId}`,
+      message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName} into the Rent Management Pool.\n\n💰 You earned UGX ${commission.toLocaleString()} (2% commission) from the pool.\n\nRef: ${referenceId}`,
       type: "info",
       metadata: {
         amount,
@@ -268,16 +264,17 @@ Deno.serve(async (req) => {
         partner_name: partnerName,
         commission,
         commission_ref: commRefId,
+        new_balance: finalAgentBalance,
       },
     });
 
-    console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} on behalf of partner ${partner_id}. Ref: ${referenceId}`);
+    console.log(`[agent-invest-for-partner] Agent ${agent.id} invested ${amount} (from own wallet) on behalf of partner ${partner_id}. Ref: ${referenceId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         reference_id: referenceId,
-        new_balance: newBalance,
+        new_balance: finalAgentBalance,
         payout_day,
         first_payout_date: firstPayoutDate,
         monthly_reward: monthlyReward,
