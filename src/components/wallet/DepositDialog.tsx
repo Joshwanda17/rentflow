@@ -184,25 +184,29 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     try {
       const normalizedTxId = transactionId.trim().toUpperCase();
 
-      // Check for duplicate transaction ID
+      // Check for duplicate transaction ID (non-blocking — don't prevent submission on failure)
       console.log('[DepositDialog] Starting duplicate check for txn:', normalizedTxId);
-      const { data: existingDeposits, error: dupError } = await withTimeout(
-        supabase
-          .from('deposit_requests')
-          .select('id')
-          .eq('transaction_id', normalizedTxId)
-          .limit(1),
-        15000,
-        'Duplicate check'
-      );
+      try {
+        const { data: existingDeposits, error: dupError } = await withTimeout(
+          supabase
+            .from('deposit_requests')
+            .select('id')
+            .eq('transaction_id', normalizedTxId)
+            .eq('user_id', user.id)
+            .limit(1),
+          8000,
+          'Duplicate check'
+        );
 
-      if (dupError) {
-        console.error('[DepositDialog] Duplicate check error:', dupError);
-        // Don't block submission on duplicate check failure
-      } else if (existingDeposits && existingDeposits.length > 0) {
-        toast.error('This transaction ID has already been used');
-        setLoading(false);
-        return;
+        if (dupError) {
+          console.warn('[DepositDialog] Duplicate check error (non-blocking):', dupError);
+        } else if (existingDeposits && existingDeposits.length > 0) {
+          toast.error('This transaction ID has already been used');
+          setLoading(false);
+          return;
+        }
+      } catch (dupCheckErr) {
+        console.warn('[DepositDialog] Duplicate check failed (non-blocking), proceeding with insert:', dupCheckErr);
       }
 
       // Create deposit request
