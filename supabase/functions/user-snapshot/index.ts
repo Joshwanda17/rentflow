@@ -20,16 +20,19 @@ Deno.serve(async (req) => {
       });
     }
 
-    const supabase = createClient(
-      Deno.env.get("SUPABASE_URL")!,
-      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    const token = authHeader.replace("Bearer ", "");
+    // Use anon client with user's auth header to verify ES256 signing-keys tokens
+    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } },
+    });
+
     const {
       data: { user },
       error: authError,
-    } = await supabase.auth.getUser(token);
+    } = await userClient.auth.getUser();
 
     if (authError || !user) {
       return new Response(JSON.stringify({ error: "Invalid token" }), {
@@ -37,6 +40,9 @@ Deno.serve(async (req) => {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
+
+    // Service-role client for data queries (bypasses RLS)
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
     const userId = user.id;
 
