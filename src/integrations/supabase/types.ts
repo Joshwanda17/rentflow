@@ -906,6 +906,7 @@ export type Database = {
           district: string | null
           electricity_meter_number: string | null
           has_smartphone: boolean | null
+          house_category: string | null
           house_number: string | null
           id: string
           is_agent_managed: boolean | null
@@ -955,6 +956,7 @@ export type Database = {
           district?: string | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
+          house_category?: string | null
           house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
@@ -1004,6 +1006,7 @@ export type Database = {
           district?: string | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
+          house_category?: string | null
           house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
