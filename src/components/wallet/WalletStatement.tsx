@@ -317,6 +317,16 @@ export function WalletStatement() {
                                         {isCredit ? 'IN' : 'OUT'}
                                       </Badge>
                                     </div>
+                                    {entry.linked_party && entry.category === 'tenant_default_charge' && (
+                                      <p className="text-[10px] font-semibold text-amber-500 mt-0.5">
+                                        🏠 Tenant: {entry.linked_party}
+                                      </p>
+                                    )}
+                                    {entry.linked_party && entry.category !== 'tenant_default_charge' && entry.linked_party !== 'platform' && (
+                                      <p className="text-[10px] text-muted-foreground/80 mt-0.5">
+                                        → {entry.linked_party}
+                                      </p>
+                                    )}
                                     <p className="text-[10px] text-muted-foreground mt-0.5">
                                       {format(new Date(entry.date), 'h:mm a')}
                                       {entry.reference_id ? ` · Ref: ${entry.reference_id.slice(0, 10)}` : ''}
