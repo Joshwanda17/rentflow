@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
@@ -27,7 +27,8 @@ import {
   Calendar,
   AlertCircle,
   History,
-  Copy
+  Copy,
+  XCircle
 } from 'lucide-react';
 
 interface DepositDialogProps {
@@ -84,24 +85,49 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [copiedCode, setCopiedCode] = useState(false);
-  const loadingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [txIdStatus, setTxIdStatus] = useState<'idle' | 'checking' | 'valid' | 'duplicate'>('idle');
+  const txIdCheckRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Safety-net: force loading=false after 20s
-  useEffect(() => {
-    if (loading) {
-      loadingTimerRef.current = setTimeout(() => {
-        console.error('[DepositDialog] Safety-net: forcing loading=false after 20s');
-        setLoading(false);
-        toast.error('Request timed out. Please try again.');
-      }, 20000);
-    } else if (loadingTimerRef.current) {
-      clearTimeout(loadingTimerRef.current);
-      loadingTimerRef.current = null;
+  // Debounced duplicate check on transaction ID
+  const checkTransactionId = useCallback(async (txId: string) => {
+    const normalized = txId.trim().toUpperCase();
+    if (normalized.length < 8) {
+      setTxIdStatus('idle');
+      return;
     }
+    setTxIdStatus('checking');
+    try {
+      const { data, error } = await supabase
+        .from('deposit_requests')
+        .select('id')
+        .eq('transaction_id', normalized)
+        .limit(1);
+      if (error) {
+        console.error('[DepositDialog] txId check error:', error);
+        setTxIdStatus('idle');
+        return;
+      }
+      setTxIdStatus(data && data.length > 0 ? 'duplicate' : 'valid');
+    } catch {
+      setTxIdStatus('idle');
+    }
+  }, []);
+
+  const handleTransactionIdChange = (value: string) => {
+    const upper = value.toUpperCase();
+    setTransactionId(upper);
+    setTxIdStatus('idle');
+    if (txIdCheckRef.current) clearTimeout(txIdCheckRef.current);
+    if (upper.trim().length >= 8) {
+      txIdCheckRef.current = setTimeout(() => checkTransactionId(upper), 600);
+    }
+  };
+
+  useEffect(() => {
     return () => {
-      if (loadingTimerRef.current) clearTimeout(loadingTimerRef.current);
+      if (txIdCheckRef.current) clearTimeout(txIdCheckRef.current);
     };
-  }, [loading]);
+  }, []);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -152,6 +178,15 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       return false;
     }
 
+    if (txIdStatus === 'duplicate') {
+      toast.error('This transaction ID has already been submitted');
+      return false;
+    }
+    if (txIdStatus !== 'valid') {
+      toast.error('Please wait for transaction ID verification');
+      return false;
+    }
+
     // Validate date is not in the future and within last 7 days (local time)
     const txDateOnly = new Date(transactionDate + 'T00:00:00');
     const todayDateOnly = new Date(today + 'T00:00:00');
@@ -199,14 +234,6 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
         });
 
       if (depositError) {
-        if (
-          depositError.code === '23505' ||
-          depositError.message?.toLowerCase().includes('duplicate') ||
-          depositError.message?.toLowerCase().includes('unique')
-        ) {
-          toast.error('This transaction ID has already been submitted');
-          return;
-        }
         throw depositError;
       }
 
@@ -231,6 +258,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
       setTransactionTime('');
       setReason('');
       setSuccess(false);
+      setTxIdStatus('idle');
     }
     onOpenChange(value);
   };
@@ -459,13 +487,39 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                     type="text"
                     placeholder="e.g. MP123456789"
                     value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
-                    className="bg-background/50 border-border/50 focus:border-primary/50 font-mono uppercase"
+                    onChange={(e) => handleTransactionIdChange(e.target.value)}
+                    className={`bg-background/50 font-mono uppercase transition-all ${
+                      txIdStatus === 'valid' 
+                        ? 'border-success focus:border-success' 
+                        : txIdStatus === 'duplicate' 
+                          ? 'border-destructive focus:border-destructive' 
+                          : 'border-border/50 focus:border-primary/50'
+                    }`}
                     required
                   />
-                  <p className="text-xs text-muted-foreground">
-                    Find this in your SMS confirmation from {provider.toUpperCase()}
-                  </p>
+                  {txIdStatus === 'checking' && (
+                    <p className="text-xs text-muted-foreground flex items-center gap-1.5">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Checking transaction ID...
+                    </p>
+                  )}
+                  {txIdStatus === 'valid' && (
+                    <p className="text-xs text-success flex items-center gap-1.5 font-medium">
+                      <CheckCircle2 className="h-3.5 w-3.5" />
+                      Transaction ID is valid
+                    </p>
+                  )}
+                  {txIdStatus === 'duplicate' && (
+                    <p className="text-xs text-destructive flex items-center gap-1.5 font-medium">
+                      <XCircle className="h-3.5 w-3.5" />
+                      This transaction ID has already been submitted
+                    </p>
+                  )}
+                  {txIdStatus === 'idle' && (
+                    <p className="text-xs text-muted-foreground">
+                      Find this in your SMS confirmation from {provider.toUpperCase()}
+                    </p>
+                  )}
                 </motion.div>
 
                 {/* Date and Time */}
@@ -533,7 +587,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                 <motion.div variants={itemVariants}>
                   <Button 
                     type="submit" 
-                    disabled={loading} 
+                    disabled={loading || txIdStatus === 'duplicate' || txIdStatus === 'checking'} 
                     className="w-full gap-2"
                     size="lg"
                   >
