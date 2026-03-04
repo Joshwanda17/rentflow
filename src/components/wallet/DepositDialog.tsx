@@ -131,8 +131,11 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   };
 
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    // Prevent duplicate submissions
+    if (loading) return;
     
     if (!user) {
       toast.error('Please log in first');
@@ -177,7 +180,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, user, amount, transactionId, transactionDate, transactionTime, reason, txIdStatus, provider]);
 
   const handleClose = (value: boolean) => {
     if (!value) {

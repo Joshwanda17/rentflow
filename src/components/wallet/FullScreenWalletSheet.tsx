@@ -23,8 +23,8 @@ import { AnimatedBalance } from './AnimatedBalance';
 import { useAuth } from '@/hooks/useAuth';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
-import { supabase } from '@/integrations/supabase/client';
 import { hapticTap } from '@/lib/haptics';
+import { fetchPendingCounts, invalidatePendingCountsCache } from '@/lib/pendingCountsCache';
 import { WalletLedgerStatement } from './WalletLedgerStatement';
 
 interface FullScreenWalletSheetProps {
@@ -48,46 +48,21 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const [selectedTransaction, setSelectedTransaction] = useState<typeof transactions[0] | null>(null);
   const [receiptOpen, setReceiptOpen] = useState(false);
 
-  const fetchPendingCount = useCallback(async () => {
+  const fetchAllPendingCounts = useCallback(async () => {
     if (!user) return;
-    
-    const { count } = await supabase
-      .from('money_requests')
-      .select('*', { count: 'exact', head: true })
-      .eq('recipient_id', user.id)
-      .eq('status', 'pending');
-    
-    setPendingCount(count || 0);
-  }, [user]);
-
-  const fetchPendingRequests = useCallback(async () => {
-    if (!user) return;
-    
-    const [depositRes, withdrawRes] = await Promise.all([
-      supabase
-        .from('deposit_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'pending'),
-      supabase
-        .from('withdrawal_requests')
-        .select('*', { count: 'exact', head: true })
-        .eq('user_id', user.id)
-        .eq('status', 'pending')
-    ]);
-    
-    setPendingDeposits(depositRes.count || 0);
-    setPendingWithdrawals(withdrawRes.count || 0);
+    const counts = await fetchPendingCounts(user.id);
+    setPendingCount(counts.moneyRequests);
+    setPendingDeposits(counts.deposits);
+    setPendingWithdrawals(counts.withdrawals);
   }, [user]);
 
   useEffect(() => {
     if (open) {
-      fetchPendingCount();
-      fetchPendingRequests();
+      fetchAllPendingCounts();
       refreshWallet();
       refreshTransactions();
     }
-  }, [open, fetchPendingCount, fetchPendingRequests, refreshWallet, refreshTransactions]);
+  }, [open, fetchAllPendingCounts, refreshWallet, refreshTransactions]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat('en-UG', {
@@ -100,7 +75,8 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
   const handlePendingClose = (isOpen: boolean) => {
     setPendingOpen(isOpen);
     if (!isOpen) {
-      fetchPendingCount();
+      invalidatePendingCountsCache();
+      fetchAllPendingCounts();
       refreshWallet();
       refreshTransactions();
     }
@@ -359,7 +335,7 @@ export function FullScreenWalletSheet({ open, onOpenChange }: FullScreenWalletSh
       <RequestMoneyDialog 
         open={requestOpen} 
         onOpenChange={setRequestOpen} 
-        onSuccess={fetchPendingCount}
+        onSuccess={fetchAllPendingCounts}
       />
       <PendingRequestsDialog open={pendingOpen} onOpenChange={handlePendingClose} />
       <WithdrawRequestDialog 
