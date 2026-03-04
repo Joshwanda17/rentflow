@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from '@/components/ui/dialog';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
@@ -7,7 +7,8 @@ import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2 } from 'lucide-react';
+import { getPublicOrigin } from '@/lib/getPublicOrigin';
+import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface AgentInvestForPartnerDialogProps {
@@ -22,6 +23,18 @@ interface PartnerOption {
   phone: string;
 }
 
+interface SuccessData {
+  reference_id: string;
+  partner_name: string;
+  monthly_reward: number;
+  first_payout_date: string;
+  new_balance: number;
+  payout_day: number;
+  amount: number;
+  activation_token: string | null;
+  agent_name: string;
+}
+
 export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: AgentInvestForPartnerDialogProps) {
   const [partners, setPartners] = useState<PartnerOption[]>([]);
   const [loadingPartners, setLoadingPartners] = useState(false);
@@ -34,7 +47,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [summaryId, setSummaryId] = useState<string | null>(null);
   const [totalRentRequested, setTotalRentRequested] = useState(0);
   const [agentBalance, setAgentBalance] = useState(0);
-  const [success, setSuccess] = useState<{ reference_id: string; partner_name: string; monthly_reward: number; first_payout_date: string; new_balance: number } | null>(null);
+  const [success, setSuccess] = useState<SuccessData | null>(null);
 
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
@@ -162,6 +175,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         monthly_reward: data.monthly_reward,
         first_payout_date: data.first_payout_date,
         new_balance: data.new_balance,
+        payout_day: data.payout_day,
+        amount: parsedAmount,
+        activation_token: data.activation_token || null,
+        agent_name: data.agent_name || 'Agent',
       });
       setAgentBalance(data.new_balance);
       toast.success('Investment completed successfully!');
@@ -173,10 +190,58 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     }
   };
 
+  const buildShareMessage = useCallback((s: SuccessData) => {
+    const activationLink = s.activation_token
+      ? `${getPublicOrigin()}/join?t=${s.activation_token}`
+      : null;
+
+    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Day: ${s.payout_day}${getOrdinal(s.payout_day)} of each month\n🗓️ First Payout: ${s.first_payout_date}`;
+
+    if (activationLink) {
+      msg += `\n\n👉 Activate your account to start receiving rewards:\n${activationLink}`;
+    }
+
+    msg += `\n\nRef: ${s.reference_id}`;
+    return msg;
+  }, []);
+
+  const handleCopyLink = useCallback(async () => {
+    if (!success) return;
+    const msg = buildShareMessage(success);
+    await navigator.clipboard.writeText(msg);
+    toast.success('Copied to clipboard!');
+  }, [success, buildShareMessage]);
+
+  const handleWhatsApp = useCallback(() => {
+    if (!success) return;
+    const msg = buildShareMessage(success);
+    window.open(`https://wa.me/?text=${encodeURIComponent(msg)}`, '_blank');
+  }, [success, buildShareMessage]);
+
+  const handleNativeShare = useCallback(async () => {
+    if (!success) return;
+    const msg = buildShareMessage(success);
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: 'Welile Investment', text: msg });
+      } catch {
+        // user cancelled
+      }
+    } else {
+      await navigator.clipboard.writeText(msg);
+      toast.success('Copied to clipboard!');
+    }
+  }, [success, buildShareMessage]);
+
   if (success) {
+    const hasToken = !!success.activation_token;
+    const activationLink = hasToken
+      ? `${getPublicOrigin()}/join?t=${success.activation_token}`
+      : null;
+
     return (
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-sm">
+        <DialogContent className="max-w-sm max-h-[90vh] overflow-y-auto">
           <div className="text-center space-y-4 py-4">
             <div className="mx-auto w-14 h-14 rounded-full bg-success/20 flex items-center justify-center">
               <CheckCircle2 className="h-8 w-8 text-success" />
@@ -189,6 +254,36 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
               <p>Your new balance: <strong className="text-foreground">{formatUGX(success.new_balance)}</strong></p>
               <p className="font-mono text-xs">Ref: {success.reference_id}</p>
             </div>
+
+            {/* Share Section */}
+            <div className="border-t pt-4 space-y-3">
+              <div className="flex items-center justify-center gap-2 text-sm font-medium text-foreground">
+                <Link className="h-4 w-4 text-primary" />
+                {hasToken ? 'Share Activation Link' : 'Share Confirmation'}
+              </div>
+
+              {activationLink && (
+                <div className="bg-muted/50 rounded-lg p-2 text-xs font-mono break-all text-muted-foreground">
+                  {activationLink}
+                </div>
+              )}
+
+              <div className="grid grid-cols-3 gap-2">
+                <Button variant="outline" size="sm" onClick={handleCopyLink} className="flex-col h-auto py-2.5 gap-1">
+                  <Copy className="h-4 w-4" />
+                  <span className="text-[10px]">Copy</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleWhatsApp} className="flex-col h-auto py-2.5 gap-1 text-green-600 hover:text-green-700 border-green-200 hover:bg-green-50">
+                  <MessageCircle className="h-4 w-4" />
+                  <span className="text-[10px]">WhatsApp</span>
+                </Button>
+                <Button variant="outline" size="sm" onClick={handleNativeShare} className="flex-col h-auto py-2.5 gap-1">
+                  <Share2 className="h-4 w-4" />
+                  <span className="text-[10px]">Share</span>
+                </Button>
+              </div>
+            </div>
+
             <Button onClick={() => onOpenChange(false)} className="w-full">Done</Button>
           </div>
         </DialogContent>
@@ -388,4 +483,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       </AlertDialog>
     </Dialog>
   );
+}
+
+function getOrdinal(day: number): string {
+  if (day >= 11 && day <= 13) return 'th';
+  switch (day % 10) {
+    case 1: return 'st';
+    case 2: return 'nd';
+    case 3: return 'rd';
+    default: return 'th';
+  }
 }
