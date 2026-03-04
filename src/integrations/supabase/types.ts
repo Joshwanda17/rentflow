@@ -897,11 +897,16 @@ export type Database = {
           bank_name: string | null
           caretaker_name: string | null
           caretaker_phone: string | null
+          cell: string | null
+          country: string | null
+          county: string | null
           created_at: string
           description: string | null
           desired_rent_from_welile: number | null
+          district: string | null
           electricity_meter_number: string | null
           has_smartphone: boolean | null
+          house_number: string | null
           id: string
           is_agent_managed: boolean | null
           latitude: number | null
@@ -919,17 +924,21 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive: boolean | null
+          region: string | null
           registered_by: string | null
           rent_balance_due: number
           rent_last_paid_amount: number | null
           rent_last_paid_at: string | null
+          sub_county: string | null
           tenant_id: string | null
           tin: string | null
+          town_council: string | null
           verification_pin_1: string | null
           verification_pin_2: string | null
           verified: boolean | null
           verified_at: string | null
           verified_by: string | null
+          village: string | null
           water_meter_number: string | null
         }
         Insert: {
@@ -937,11 +946,16 @@ export type Database = {
           bank_name?: string | null
           caretaker_name?: string | null
           caretaker_phone?: string | null
+          cell?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
           description?: string | null
           desired_rent_from_welile?: number | null
+          district?: string | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
+          house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
           latitude?: number | null
@@ -959,17 +973,21 @@ export type Database = {
           phone: string
           property_address: string
           ready_to_receive?: boolean | null
+          region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
+          town_council?: string | null
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          village?: string | null
           water_meter_number?: string | null
         }
         Update: {
@@ -977,11 +995,16 @@ export type Database = {
           bank_name?: string | null
           caretaker_name?: string | null
           caretaker_phone?: string | null
+          cell?: string | null
+          country?: string | null
+          county?: string | null
           created_at?: string
           description?: string | null
           desired_rent_from_welile?: number | null
+          district?: string | null
           electricity_meter_number?: string | null
           has_smartphone?: boolean | null
+          house_number?: string | null
           id?: string
           is_agent_managed?: boolean | null
           latitude?: number | null
@@ -999,17 +1022,21 @@ export type Database = {
           phone?: string
           property_address?: string
           ready_to_receive?: boolean | null
+          region?: string | null
           registered_by?: string | null
           rent_balance_due?: number
           rent_last_paid_amount?: number | null
           rent_last_paid_at?: string | null
+          sub_county?: string | null
           tenant_id?: string | null
           tin?: string | null
+          town_council?: string | null
           verification_pin_1?: string | null
           verification_pin_2?: string | null
           verified?: boolean | null
           verified_at?: string | null
           verified_by?: string | null
+          village?: string | null
           water_meter_number?: string | null
         }
         Relationships: [
