@@ -55,7 +55,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const parsedAmount = Number(amount) || 0;
   const monthlyReward = Math.round(parsedAmount * 0.15);
 
-  // Debounced search for partners
+  // Debounced search for partners using server-side function
   useEffect(() => {
     if (!searchQuery.trim() || searchQuery.trim().length < 2) {
       setPartners([]);
@@ -65,30 +65,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
     setLoadingPartners(true);
     const timeout = setTimeout(async () => {
       try {
-        const q = searchQuery.trim();
-        // Get supporter role user_ids first
-        const { data: roles } = await supabase
-          .from('user_roles')
-          .select('user_id')
-          .eq('role', 'supporter');
+        const { data, error } = await supabase
+          .rpc('search_supporters', {
+            search_term: searchQuery.trim(),
+            result_limit: 20,
+          });
 
-        if (!roles || roles.length === 0) {
-          setPartners([]);
-          setLoadingPartners(false);
-          return;
-        }
-
-        const supporterIds = roles.map(r => r.user_id);
-
-        // Search profiles matching query AND in supporter list
-        const { data } = await supabase
-          .from('profiles')
-          .select('id, full_name, phone')
-          .in('id', supporterIds)
-          .or(`full_name.ilike.%${q}%,phone.ilike.%${q}%`)
-          .limit(20);
-
-        setPartners(data?.map(p => ({ id: p.id, full_name: p.full_name, phone: p.phone })) || []);
+        if (error) throw error;
+        setPartners(data?.map((p: any) => ({ id: p.id, full_name: p.full_name, phone: p.phone })) || []);
       } catch {
         toast.error('Failed to search partners');
         setPartners([]);

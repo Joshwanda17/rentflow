@@ -3714,6 +3714,14 @@ export type Database = {
           id: string
         }[]
       }
+      search_supporters: {
+        Args: { result_limit?: number; search_term: string }
+        Returns: {
+          full_name: string
+          id: string
+          phone: string
+        }[]
+      }
       show_limit: { Args: never; Returns: number }
       show_trgm: { Args: { "": string }; Returns: string[] }
       update_user_risk_score: {
