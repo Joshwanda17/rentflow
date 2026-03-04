@@ -113,7 +113,7 @@ export function OpportunitySummaryCard() {
             onClick={() => setShowFundDialog(true)}
             className="w-full gap-2 rounded-xl font-bold h-12 text-sm"
           >
-            Fund a Tenant
+            SUPPORT TENANT
             <ChevronRight className="h-4 w-4" />
           </Button>
 
