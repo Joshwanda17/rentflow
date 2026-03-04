@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -55,24 +56,9 @@ export function CreateSupporterDialog({ open, onOpenChange }: CreateSupporterDia
         body: { ...formData, role: 'supporter' },
       });
 
-      if (response.error) {
-        let errorMsg = 'Failed to create invite';
-        try {
-          const ctx = (response.error as any)?.context;
-          if (ctx?.body) {
-            const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-            errorMsg = body?.error || errorMsg;
-          } else {
-            errorMsg = response.error.message || errorMsg;
-          }
-        } catch {
-          errorMsg = response.error.message || errorMsg;
-        }
+      if (response.error || response.data?.error) {
+        const errorMsg = await extractEdgeFunctionError(response, 'Failed to create supporter invite. Please try again.');
         throw new Error(errorMsg);
-      }
-
-      if (response.data.error) {
-        throw new Error(response.data.error);
       }
 
       setCreatedInvite({

@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetDescription } from '@/components/ui/sheet';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '@/components/ui/dialog';
@@ -287,28 +288,9 @@ export function UnifiedRegistrationDialog({ open, onOpenChange, onSuccess }: Uni
         },
       });
 
-      if (response.error) {
-        // Extract the actual error message from the edge function response
-        let errorMsg = 'Failed to create invite';
-        try {
-          // The error context contains the response body as a string
-          const ctx = (response.error as any)?.context;
-          if (ctx?.body) {
-            const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-            errorMsg = body?.error || errorMsg;
-          } else if (ctx?.json) {
-            errorMsg = ctx.json?.error || errorMsg;
-          } else {
-            errorMsg = response.error.message || errorMsg;
-          }
-        } catch {
-          errorMsg = response.error.message || errorMsg;
-        }
+      if (response.error || response.data?.error) {
+        const errorMsg = await extractEdgeFunctionError(response, 'Failed to register user. Please try again.');
         throw new Error(errorMsg);
-      }
-
-      if (!response.data || response.data.error) {
-        throw new Error(response.data?.error || 'Failed to create invite');
       }
 
       setCreatedInvite({
