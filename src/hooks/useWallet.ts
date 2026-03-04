@@ -201,6 +201,8 @@ export function useWallet() {
     }
   }, [user, fetchWallet, fetchTransactions]);
 
+  const refreshWallet = useCallback(() => fetchWallet(true), [fetchWallet]);
+
   return {
     wallet,
     transactions,
@@ -208,7 +210,7 @@ export function useWallet() {
     isOfflineData,
     sendMoney,
     depositMoney,
-    refreshWallet: () => fetchWallet(true),
+    refreshWallet,
     refreshTransactions: fetchTransactions,
   };
 }
