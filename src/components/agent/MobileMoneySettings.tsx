@@ -125,16 +125,36 @@ export function MobileMoneySettings() {
               <RadioGroup
                 value={provider}
                 onValueChange={(v) => setProvider(v as 'MTN' | 'Airtel')}
-                className="flex gap-4"
+                className="grid grid-cols-2 gap-3"
               >
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="MTN" id="mtn" />
-                  <Label htmlFor="mtn" className="font-medium text-yellow-600">MTN</Label>
-                </div>
-                <div className="flex items-center space-x-2">
-                  <RadioGroupItem value="Airtel" id="airtel" />
-                  <Label htmlFor="airtel" className="font-medium text-red-600">Airtel</Label>
-                </div>
+                <Label
+                  htmlFor="mtn"
+                  className={`flex items-center gap-2.5 rounded-xl border-2 p-3 cursor-pointer transition-all touch-manipulation ${
+                    provider === 'MTN'
+                      ? 'border-yellow-500 bg-yellow-500/15 shadow-sm'
+                      : 'border-border bg-muted/30'
+                  }`}
+                >
+                  <RadioGroupItem value="MTN" id="mtn" className="shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-sm font-bold text-yellow-600">MTN</span>
+                    <span className="block text-[11px] text-muted-foreground">MTN MoMo</span>
+                  </div>
+                </Label>
+                <Label
+                  htmlFor="airtel"
+                  className={`flex items-center gap-2.5 rounded-xl border-2 p-3 cursor-pointer transition-all touch-manipulation ${
+                    provider === 'Airtel'
+                      ? 'border-red-500 bg-red-500/15 shadow-sm'
+                      : 'border-border bg-muted/30'
+                  }`}
+                >
+                  <RadioGroupItem value="Airtel" id="airtel" className="shrink-0" />
+                  <div className="min-w-0">
+                    <span className="block text-sm font-bold text-red-600">Airtel</span>
+                    <span className="block text-[11px] text-muted-foreground">Airtel Money</span>
+                  </div>
+                </Label>
               </RadioGroup>
             </div>
 
