@@ -24,17 +24,18 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Use anon client with user's auth header to verify ES256 signing-keys tokens
+    // Use anon client with user's auth header to verify token
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const {
-      data: { user },
-      error: authError,
-    } = await userClient.auth.getUser();
+    // Use getClaims for resilient token verification (doesn't require active session)
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } =
+      await userClient.auth.getClaims(token);
 
-    if (authError || !user) {
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error("[user-snapshot] Token verification failed:", claimsError?.message);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -44,7 +45,7 @@ Deno.serve(async (req) => {
     // Service-role client for data queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const userId = user.id;
+    const userId = claimsData.claims.sub as string;
 
     // Fetch user roles first to determine what data to fetch
     const { data: roles } = await supabase
