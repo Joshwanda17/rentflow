@@ -335,10 +335,12 @@ export default function DepositFlow({
                   <Input
                     id="txId"
                     type="text"
-                    placeholder="e.g. MP123456789"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="e.g. 123456789"
                     value={transactionId}
-                    onChange={(e) => setTransactionId(e.target.value.toUpperCase().replace(/^TID/i, ''))}
-                    className="font-mono uppercase border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
+                    onChange={(e) => setTransactionId(e.target.value.replace(/\D/g, ''))}
+                    className="font-mono border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
                   />
                 </div>
               <p className="text-xs text-muted-foreground">
