@@ -1,35 +1,29 @@
 
 
-## Refactor Deposit Dialog for Speed
+# Add "TID" Prefix to Transaction ID Field
 
-### Problem
-The deposit submission is slow due to heavy framer-motion animations, and the form does unnecessary work. The network logs also show excessive polling of `deposit_requests`, `withdrawal_requests`, and `money_requests` HEAD requests happening repeatedly on the wallet page, competing with the deposit insert.
+## What Changes
 
-### Plan
+**File: `src/components/wallet/DepositDialog.tsx`**
 
-#### 1. Strip heavy animations from DepositDialog
-- Remove `framer-motion` imports and all `motion.div` wrappers, `variants`, `formVariants`, `itemVariants`
-- Replace with plain `div` elements -- the dialog already has open/close transitions from Radix
-- Remove the `timeoutSignal` helper (unused after previous changes)
-- This eliminates JS overhead during render and interaction
+1. **Add a fixed "TID" prefix** to the Transaction ID input field using an inline prefix label (styled inside the input container), so the field always displays `TID` followed by the user's input.
 
-#### 2. Simplify the submit handler
-- The current flow: validate -> insert -> wait for response -> show success
-- Keep it exactly as-is but remove the `console.log` diagnostic lines for production cleanliness
-- The insert is already a single Supabase call with no timeout -- this is correct
+2. **Update `handleTransactionIdChange`** to strip any "TID" prefix the user might paste, storing only the raw value in state (e.g., user types `12345ABCD`, state holds `12345ABCD`, display shows `TID12345ABCD`).
 
-#### 3. Reduce competing network requests on the wallet page
-- Identify where the repeated HEAD requests to `deposit_requests?status=eq.pending`, `withdrawal_requests?status=eq.pending`, `money_requests?status=eq.pending` originate (likely polling or multiple re-renders)
-- These fire ~20+ times in the network log snapshot, competing for bandwidth on 2G/3G connections
-- Find the wallet page component and ensure these queries use proper React Query `staleTime` (10min per architecture) so they don't re-fire on every render
+3. **Update `checkTransactionId`** — the duplicate check already uses the first 5 characters. We ensure those 5 characters come from the user-entered portion (after TID), not from the prefix itself. The logic stays the same: take `substring(0, 5)` of the normalized user input and query with `ilike`.
 
-#### Files to modify
-- `src/components/wallet/DepositDialog.tsx` -- remove framer-motion, simplify to plain HTML/Radix
-- Wallet page component (need to identify) -- fix excessive polling of pending counts
+4. **Update submission** — when saving to the database, prepend `TID` to the value: `transaction_id: 'TID' + transactionId.trim().toUpperCase()`.
 
-### Technical Details
-- The framer-motion `AnimatePresence`, `motion.div`, staggered children, and spring transitions add significant JS overhead on low-end devices (Tecno, Itel)
-- The success state can use a simple conditional render instead of `AnimatePresence mode="wait"`
-- The provider cards, quick amounts, and form fields don't need individual animation variants
-- Keeping the transaction ID live-check (debounced 600ms) as-is since it's already efficient
+5. **UI implementation** — use an input group pattern with a non-editable `TID` label on the left side of the input, similar to currency prefix patterns:
+   ```
+   ┌─────┬──────────────────────┐
+   │ TID │ 12345ABCD            │
+   └─────┴──────────────────────┘
+   ```
+
+## Summary of Behavior
+- User sees `TID` as a fixed prefix they cannot edit
+- User enters the transaction ID value after the prefix
+- Duplicate check fires after 5+ characters are entered, comparing only the first 5 digits of the user's input
+- Stored value in DB includes the `TID` prefix
 
