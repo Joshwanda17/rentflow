@@ -83,6 +83,17 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
             <p className="text-[10px] text-muted-foreground truncate">Financial governance</p>
           </div>
         </button>
+        {/* Executive Hub link */}
+        <button
+          onClick={() => navigate('/executive-hub')}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors mt-1 border border-primary/20"
+        >
+          <Award className="h-4 w-4 shrink-0" />
+          <div className="min-w-0">
+            <p className="text-sm truncate font-semibold">Executive Hub</p>
+            <p className="text-[10px] text-muted-foreground truncate">CEO · CTO · CMO · Ops</p>
+          </div>
+        </button>
       </div>
 
       {/* Quick Links */}

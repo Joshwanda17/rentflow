@@ -112,6 +112,13 @@ const menuItems = [
     color: 'bg-cyan-600',
     description: 'CFO Dashboard'
   },
+  { 
+    icon: Award, 
+    label: 'Exec Hub', 
+    path: '/executive-hub',
+    color: 'bg-amber-600',
+    description: 'Executive & Ops'
+  },
 ];
 
 export default function MobileManagerMenu({ onScrollToProductivity, isOpen: externalOpen, onClose }: MobileManagerMenuProps) {
