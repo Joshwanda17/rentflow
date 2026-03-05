@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight } from 'lucide-react';
+import { Copy, Check, Share2, Users, Building2, Clock, CheckCircle2, RefreshCw, ChevronRight, HandCoins } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { hapticSuccess } from '@/lib/haptics';
 import { playSuccessSound } from '@/lib/notificationSound';
@@ -39,6 +39,12 @@ const roleConfig: Record<string, { label: string; icon: React.ElementType; color
     color: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
     emoji: '🏢',
   },
+  supporter: {
+    label: 'Partner',
+    icon: HandCoins,
+    color: 'bg-orange-500/10 text-orange-600 border-orange-500/20',
+    emoji: '💰',
+  },
 };
 
 export function AgentInvitesList() {
@@ -58,7 +64,7 @@ export function AgentInvitesList() {
       .from('supporter_invites')
       .select('*')
       .eq('created_by', user.id)
-      .in('role', ['tenant', 'landlord'])
+      .in('role', ['tenant', 'landlord', 'supporter'])
       .order('created_at', { ascending: false });
 
     if (!error && data) {
