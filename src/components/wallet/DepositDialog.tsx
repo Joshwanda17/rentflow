@@ -89,8 +89,8 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   }, []);
 
   const handleTransactionIdChange = (value: string) => {
-    // Strip "TID" prefix if user pastes it
-    let cleaned = value.toUpperCase().replace(/^TID/i, '');
+    // Strip any non-numeric characters — TID prefix is fixed
+    const cleaned = value.replace(/\D/g, '');
     setTransactionId(cleaned);
     setTxIdStatus('idle');
     if (txIdCheckRef.current) clearTimeout(txIdCheckRef.current);
@@ -375,10 +375,12 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                   <Input
                     id="txId"
                     type="text"
-                    placeholder="e.g. MP123456789"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    placeholder="e.g. 123456789"
                     value={transactionId}
                     onChange={(e) => handleTransactionIdChange(e.target.value)}
-                    className="bg-background/50 font-mono uppercase border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
+                    className="bg-background/50 font-mono border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
                     required
                   />
                 </div>
