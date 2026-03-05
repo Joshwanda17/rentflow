@@ -156,20 +156,37 @@ export default function SupporterDashboard({
     return () => window.removeEventListener('open-deposit', handler);
   }, []);
 
-  // Fetch total contributions from ledger (bounded query)
+  // Fetch total contributions from ledger + investor_portfolios (bounded query)
   const fetchTotalContributed = useCallback(async () => {
     if (!user?.id) return;
     try {
-      const { data, error } = await supabase
-        .from('general_ledger')
-        .select('amount')
-        .eq('user_id', user.id)
-        .eq('category', 'supporter_rent_fund')
-        .limit(500);
-      if (!error && data) {
-        const total = data.reduce((sum, r) => sum + Number(r.amount), 0);
-        setTotalRentContributed(total);
-      }
+      // Fetch from general_ledger (supporter_rent_fund entries)
+      const [ledgerResult, portfolioResult] = await Promise.all([
+        supabase
+          .from('general_ledger')
+          .select('amount')
+          .eq('user_id', user.id)
+          .eq('category', 'supporter_rent_fund')
+          .limit(500),
+        supabase
+          .from('investor_portfolios')
+          .select('investment_amount')
+          .eq('investor_id', user.id)
+          .in('status', ['active', 'pending'])
+          .limit(100),
+      ]);
+
+      const ledgerTotal = !ledgerResult.error && ledgerResult.data
+        ? ledgerResult.data.reduce((sum, r) => sum + Number(r.amount), 0)
+        : 0;
+
+      const portfolioTotal = !portfolioResult.error && portfolioResult.data
+        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount), 0)
+        : 0;
+
+      // Use the higher value — ledger is source of truth, but portfolios cover
+      // cases where ledger entries haven't been migrated yet
+      setTotalRentContributed(Math.max(ledgerTotal, portfolioTotal));
     } catch (err) {
       console.error('[SupporterDashboard] Failed to fetch contributions:', err);
     }

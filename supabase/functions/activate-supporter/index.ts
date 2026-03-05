@@ -246,6 +246,13 @@ Deno.serve(async (req) => {
 
     // Link investor portfolios created for this invite to the new user
     if (invite.id) {
+      // Get portfolios before updating to capture their IDs
+      const { data: linkedPortfolios } = await adminClient
+        .from("investor_portfolios")
+        .select("id, investment_amount, portfolio_code")
+        .eq("invite_id", invite.id)
+        .is("investor_id", null);
+
       const { error: portfolioLinkError } = await adminClient
         .from("investor_portfolios")
         .update({ investor_id: authData.user.id })
@@ -255,6 +262,26 @@ Deno.serve(async (req) => {
         console.error("[activate-supporter] Portfolio link error:", portfolioLinkError);
       } else {
         console.log("[activate-supporter] Linked portfolios for invite:", invite.id);
+        
+        // Also update the general_ledger entries to point to the new user
+        // These were created with the agent's user_id during portfolio creation
+        if (linkedPortfolios && linkedPortfolios.length > 0) {
+          for (const portfolio of linkedPortfolios) {
+            const { error: ledgerUpdateError } = await adminClient
+              .from("general_ledger")
+              .update({ 
+                user_id: authData.user.id,
+                category: 'supporter_rent_fund',
+              })
+              .eq("source_table", "investor_portfolios")
+              .eq("source_id", portfolio.id);
+            if (ledgerUpdateError) {
+              console.error("[activate-supporter] Ledger update error for portfolio:", portfolio.id, ledgerUpdateError);
+            } else {
+              console.log("[activate-supporter] Updated ledger entry for portfolio:", portfolio.portfolio_code);
+            }
+          }
+        }
       }
     }
 
