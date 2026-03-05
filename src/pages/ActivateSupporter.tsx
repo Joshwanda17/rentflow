@@ -77,26 +77,38 @@ export default function ActivateSupporter() {
     }
   };
 
-  // Validate invite in background
+  // Validate invite in background (with race-safety + retry for flaky networks)
   useEffect(() => {
-    if (!token) {
+    const normalizedToken = typeof token === 'string' ? decodeURIComponent(token).trim() : '';
+
+    if (!normalizedToken) {
       setPageState('invalid');
       setIsValidating(false);
       return;
     }
 
-    const fetchInvite = async () => {
+    let cancelled = false;
+    const maxAttempts = 3;
+
+    const fetchInvite = async (attempt = 1) => {
       try {
-        console.log('[ActivateSupporter] Fetching invite for token:', token);
         const { data, error } = await supabase
           .from('supporter_invites')
           .select('full_name, status, role, email, phone, activated_user_id')
-          .eq('activation_token', token)
+          .eq('activation_token', normalizedToken)
+          .limit(1)
           .maybeSingle();
 
-        console.log('[ActivateSupporter] Query result:', { data, error });
+        if (cancelled) return;
 
         if (error || !data) {
+          if (attempt < maxAttempts) {
+            setTimeout(() => {
+              if (!cancelled) fetchInvite(attempt + 1);
+            }, 250 * attempt);
+            return;
+          }
+
           setPageState('invalid');
           setIsValidating(false);
           return;
@@ -112,13 +124,28 @@ export default function ActivateSupporter() {
           setPageState('ready');
         }
       } catch {
+        if (cancelled) return;
+
+        if (attempt < maxAttempts) {
+          setTimeout(() => {
+            if (!cancelled) fetchInvite(attempt + 1);
+          }, 250 * attempt);
+          return;
+        }
+
         setPageState('invalid');
       } finally {
-        setIsValidating(false);
+        if (!cancelled) setIsValidating(false);
       }
     };
 
+    setPageState('loading');
+    setIsValidating(true);
     fetchInvite();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   // Step 1: Verify temp password, then go to profile setup
