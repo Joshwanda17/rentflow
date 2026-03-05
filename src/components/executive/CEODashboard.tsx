@@ -47,6 +47,15 @@ export function CEODashboard() {
     staleTime: 600000,
   });
 
+  const { data: activeAgentCount } = useQuery({
+    queryKey: ['exec-active-agents'],
+    queryFn: async () => {
+      const { count } = await supabase.from('agent_earnings').select('agent_id', { count: 'exact', head: true });
+      return count || 0;
+    },
+    staleTime: 600000,
+  });
+
   const { data: revenue } = useQuery({
     queryKey: ['exec-revenue'],
     queryFn: async () => {
@@ -111,7 +120,7 @@ export function CEODashboard() {
         <KPICard title="Partners/Investors" value={fmt(investorCount || 0)} icon={Shield} loading={loading} color="bg-purple-500/10 text-purple-600" />
         <KPICard title="Platform Revenue" value={`${fmt(revenue || 0)}`} icon={DollarSign} loading={loading} color="bg-emerald-500/10 text-emerald-600" />
         <KPICard title="Rent Repaid" value={`${fmt(rentStats?.totalRepaid || 0)}`} icon={TrendingUp} loading={loading} color="bg-teal-500/10 text-teal-600" />
-        <KPICard title="Active Agents" value={fmt(profiles || 0)} icon={Building2} loading={loading} color="bg-rose-500/10 text-rose-600" />
+        <KPICard title="Active Agents" value={fmt(activeAgentCount || 0)} icon={Building2} loading={loading} color="bg-rose-500/10 text-rose-600" />
       </div>
 
       {/* Charts */}
