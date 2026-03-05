@@ -112,13 +112,14 @@ const menuItems = [
     color: 'bg-cyan-600',
     description: 'CFO Dashboard'
   },
-  { 
-    icon: Award, 
-    label: 'Exec Hub', 
-    path: '/executive-hub',
-    color: 'bg-amber-600',
-    description: 'Executive & Ops'
-  },
+  { icon: Award, label: 'CEO', path: '/executive-hub?tab=ceo', color: 'bg-amber-600', description: 'CEO Dashboard' },
+  { icon: CreditCard, label: 'CTO', path: '/executive-hub?tab=cto', color: 'bg-violet-600', description: 'CTO Dashboard' },
+  { icon: Receipt, label: 'CMO', path: '/executive-hub?tab=cmo', color: 'bg-lime-600', description: 'CMO Dashboard' },
+  { icon: Users, label: 'Agent Ops', path: '/executive-hub?tab=agent-ops', color: 'bg-sky-600', description: 'Agent Operations' },
+  { icon: Banknote, label: 'Tenant Ops', path: '/executive-hub?tab=tenant-ops', color: 'bg-fuchsia-600', description: 'Tenant Operations' },
+  { icon: Wallet, label: 'Landlord Ops', path: '/executive-hub?tab=landlord-ops', color: 'bg-stone-600', description: 'Landlord Operations' },
+  { icon: ShoppingCart, label: 'Partners', path: '/executive-hub?tab=partners-ops', color: 'bg-yellow-600', description: 'Partners Operations' },
+  { icon: ClipboardList, label: 'CRM', path: '/executive-hub?tab=crm', color: 'bg-red-600', description: 'CRM Dashboard' },
 ];
 
 export default function MobileManagerMenu({ onScrollToProductivity, isOpen: externalOpen, onClose }: MobileManagerMenuProps) {
