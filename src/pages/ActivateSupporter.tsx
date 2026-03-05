@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -11,11 +11,18 @@ import WelileLogo from '@/components/WelileLogo';
 
 type PageState = 'loading' | 'invalid' | 'activated-already' | 'ready' | 'profile-setup' | 'success' | 'forgot-password' | 'password-reset';
 
+const extractActivationToken = (value: string | null): string => {
+  if (!value) return '';
+  const decoded = decodeURIComponent(value).trim();
+  const match = decoded.match(/[a-zA-Z0-9-]{10,100}/);
+  return match?.[0] ?? '';
+};
+
 export default function ActivateSupporter() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const token = searchParams.get('token');
+  const token = useMemo(() => extractActivationToken(searchParams.get('token')), [searchParams]);
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
   const [password, setPassword] = useState('');
