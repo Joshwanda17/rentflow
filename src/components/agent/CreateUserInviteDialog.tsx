@@ -326,7 +326,7 @@ Just click the link and enter your password to get started!`;
   };
 
   const handleCopyLink = async () => {
-    const links = [`Activation Link: ${getShareLink()}`, `Password: ${createdInvite?.password}`];
+    const links = [getShareLink()];
     if (createdInvite?.portfolioToken) {
       links.push(`Portfolio Link: ${getPortfolioLink()}`);
       links.push(`Portfolio PIN: ${supporterData.portfolioPin}`);

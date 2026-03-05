@@ -175,12 +175,10 @@ Just click the link and enter your password to get started!`;
   };
 
   const handleCopyLink = async () => {
-    const text = `Activation Link: ${getShareLink()}
-Password: ${createdInvite?.password}`;
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(getShareLink());
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-    toast({ title: 'Link & password copied!' });
+    toast({ title: 'Link copied!' });
   };
 
   const handleClose = () => {

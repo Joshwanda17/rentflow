@@ -170,8 +170,7 @@ export default function AgentRegistrations() {
   };
 
   const handleCopyLink = async (invite: UserInvite) => {
-    const text = `Activation Link: ${getShareLink(invite.activation_token)}\nPassword: ${invite.temp_password}`;
-    await navigator.clipboard.writeText(text);
+    await navigator.clipboard.writeText(getShareLink(invite.activation_token));
     setCopiedId(invite.id);
     setTimeout(() => setCopiedId(null), 2000);
     toast({ title: 'Link & password copied!' });
