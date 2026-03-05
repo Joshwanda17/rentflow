@@ -263,22 +263,27 @@ Deno.serve(async (req) => {
       } else {
         console.log("[activate-supporter] Linked portfolios for invite:", invite.id);
         
-        // Also update the general_ledger entries to point to the new user
-        // These were created with the agent's user_id during portfolio creation
+        // Insert corrective ledger entries for the new investor
+        // The original entries were created under the agent's user_id with category 'supporter_facilitation_capital'
+        // Since ledger is append-only, we insert new entries under the investor's user_id
         if (linkedPortfolios && linkedPortfolios.length > 0) {
           for (const portfolio of linkedPortfolios) {
-            const { error: ledgerUpdateError } = await adminClient
+            const { error: ledgerError } = await adminClient
               .from("general_ledger")
-              .update({ 
-                user_id: authData.user.id,
+              .insert({
+                amount: portfolio.investment_amount,
+                direction: 'cash_in',
                 category: 'supporter_rent_fund',
-              })
-              .eq("source_table", "investor_portfolios")
-              .eq("source_id", portfolio.id);
-            if (ledgerUpdateError) {
-              console.error("[activate-supporter] Ledger update error for portfolio:", portfolio.id, ledgerUpdateError);
+                linked_party: 'supporter',
+                description: `Portfolio ${portfolio.portfolio_code} activated and linked to investor`,
+                source_table: 'investor_portfolios',
+                source_id: portfolio.id,
+                user_id: authData.user.id,
+              });
+            if (ledgerError) {
+              console.error("[activate-supporter] Ledger insert error for portfolio:", portfolio.id, ledgerError);
             } else {
-              console.log("[activate-supporter] Updated ledger entry for portfolio:", portfolio.portfolio_code);
+              console.log("[activate-supporter] Created ledger entry for portfolio:", portfolio.portfolio_code);
             }
           }
         }
