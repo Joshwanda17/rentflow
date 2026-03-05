@@ -89,12 +89,13 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
   }, []);
 
   const handleTransactionIdChange = (value: string) => {
-    const upper = value.toUpperCase();
-    setTransactionId(upper);
+    // Strip "TID" prefix if user pastes it
+    let cleaned = value.toUpperCase().replace(/^TID/i, '');
+    setTransactionId(cleaned);
     setTxIdStatus('idle');
     if (txIdCheckRef.current) clearTimeout(txIdCheckRef.current);
-    if (upper.trim().length >= 5) {
-      txIdCheckRef.current = setTimeout(() => checkTransactionId(upper), 600);
+    if (cleaned.trim().length >= 5) {
+      txIdCheckRef.current = setTimeout(() => checkTransactionId(cleaned), 600);
     }
   };
 
@@ -161,7 +162,7 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
           amount: amountNum,
           status: 'pending' as string,
           provider: provider,
-          transaction_id: transactionId.trim().toUpperCase(),
+          transaction_id: `TID${transactionId.trim().toUpperCase()}`,
           transaction_date: `${transactionDate}T${transactionTime}:00`,
           notes: reason.trim(),
         });
@@ -361,21 +362,26 @@ export function DepositDialog({ open, onOpenChange }: DepositDialogProps) {
                   <Hash className="h-3.5 w-3.5 text-muted-foreground" />
                   Transaction ID (Required)
                 </Label>
-                <Input
-                  id="txId"
-                  type="text"
-                  placeholder="e.g. MP123456789"
-                  value={transactionId}
-                  onChange={(e) => handleTransactionIdChange(e.target.value)}
-                  className={`bg-background/50 font-mono uppercase transition-colors ${
+                <div className={`flex items-center rounded-lg border transition-colors overflow-hidden ${
                     txIdStatus === 'valid' 
-                      ? 'border-success focus:border-success' 
+                      ? 'border-success' 
                       : txIdStatus === 'duplicate' 
-                        ? 'border-destructive focus:border-destructive' 
-                        : 'border-border/50 focus:border-primary/50'
-                  }`}
-                  required
-                />
+                        ? 'border-destructive' 
+                        : 'border-border/50 focus-within:border-primary/50'
+                  }`}>
+                  <span className="px-3 py-2 bg-muted text-muted-foreground font-mono text-sm font-semibold border-r border-border/50 select-none">
+                    TID
+                  </span>
+                  <Input
+                    id="txId"
+                    type="text"
+                    placeholder="e.g. MP123456789"
+                    value={transactionId}
+                    onChange={(e) => handleTransactionIdChange(e.target.value)}
+                    className="bg-background/50 font-mono uppercase border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
+                    required
+                  />
+                </div>
                 {txIdStatus === 'checking' && (
                   <p className="text-xs text-muted-foreground flex items-center gap-1.5">
                     <Loader2 className="h-3 w-3 animate-spin" />

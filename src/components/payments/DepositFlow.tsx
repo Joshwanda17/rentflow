@@ -100,7 +100,7 @@ export default function DepositFlow({
       }
 
       const txDateTime = new Date(`${transactionDate}T${transactionTime}`);
-      const normalizedTxId = transactionId.trim().toUpperCase();
+      const normalizedTxId = `TID${transactionId.trim().toUpperCase()}`;
 
       // Check for duplicate transaction ID using raw query to avoid type issues
       const { data: existingDeposits } = await supabase
@@ -328,14 +328,19 @@ export default function DepositFlow({
                 <Hash className="h-4 w-4" />
                 Transaction ID
               </Label>
-              <Input
-                id="txId"
-                type="text"
-                placeholder="e.g. MP123456789"
-                value={transactionId}
-                onChange={(e) => setTransactionId(e.target.value.toUpperCase())}
-                className="font-mono uppercase"
-              />
+                <div className="flex items-center rounded-lg border border-border overflow-hidden">
+                  <span className="px-3 py-2 bg-muted text-muted-foreground font-mono text-sm font-semibold border-r border-border select-none">
+                    TID
+                  </span>
+                  <Input
+                    id="txId"
+                    type="text"
+                    placeholder="e.g. MP123456789"
+                    value={transactionId}
+                    onChange={(e) => setTransactionId(e.target.value.toUpperCase().replace(/^TID/i, ''))}
+                    className="font-mono uppercase border-0 focus:ring-0 focus:ring-offset-0 rounded-l-none"
+                  />
+                </div>
               <p className="text-xs text-muted-foreground">
                 Find this in your SMS confirmation from {provider.toUpperCase()}
               </p>
