@@ -43,7 +43,6 @@ Deno.serve(async (req) => {
       bulk_ids?: string[];
     };
 
-    // Validate action
     if (!action || !["approve", "reject"].includes(action)) {
       return new Response(
         JSON.stringify({ error: "Invalid action. Must be 'approve' or 'reject'" }),
@@ -51,7 +50,6 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Determine IDs to process — single or bulk
     const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
     let idsToProcess: string[] = [];
@@ -78,7 +76,6 @@ Deno.serve(async (req) => {
 
     const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Verify authorization — manager or assigned agent
     const { data: isManagerRole } = await supabaseAdmin
       .from("user_roles")
       .select("role")
@@ -86,7 +83,6 @@ Deno.serve(async (req) => {
       .eq("role", "manager")
       .maybeSingle();
 
-    // Get processor name once
     const { data: processorProfile } = await supabaseAdmin
       .from("profiles")
       .select("full_name")
@@ -94,7 +90,6 @@ Deno.serve(async (req) => {
       .single();
     const processorName = processorProfile?.full_name || "Manager";
 
-    // Fetch all deposit requests at once
     const { data: depositRequests, error: fetchError } = await supabaseAdmin
       .from("deposit_requests")
       .select("*")
@@ -108,9 +103,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Verify authorization for all requests
     if (!isManagerRole) {
-      // Non-manager can only process deposits assigned to them as agent
       const unauthorized = depositRequests.filter(d => d.agent_id !== user.id);
       if (unauthorized.length > 0) {
         return new Response(
@@ -120,7 +113,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    const results: Array<{ id: string; status: string; amount: number; user_id: string; repayment_applied?: number }> = [];
+    const results: Array<{ id: string; status: string; amount: number; user_id: string; repayment_applied?: number; debt_cleared?: number; days_prepaid?: number }> = [];
 
     for (const depositRequest of depositRequests) {
       try {
@@ -131,7 +124,7 @@ Deno.serve(async (req) => {
             .update({ status: "approved", approved_at: new Date().toISOString(), processed_by: user.id })
             .eq("id", depositRequest.id);
 
-          // Credit wallet with optimistic locking
+          // Credit wallet manually (deposit cash_in ledger has no transaction_group_id, so trigger won't fire)
           await supabaseAdmin
             .from("wallets")
             .upsert({ user_id: depositRequest.user_id, balance: 0, updated_at: new Date().toISOString() }, { onConflict: "user_id", ignoreDuplicates: true });
@@ -151,11 +144,22 @@ Deno.serve(async (req) => {
               .eq("balance", currentWallet.balance);
           }
 
-          // Check and auto-deduct rent repayment
+          // ── Step 1: Auto-deduct rent repayment ──
+          // NOTE: We do NOT manually deduct from wallets for cash_out operations.
+          // The sync_wallet_from_ledger trigger automatically adjusts wallet balance
+          // when a ledger entry with transaction_group_id is inserted.
           let repaymentApplied = 0;
           let rentRequestId: string | null = null;
-          let previousBalance = 0;
           let newOutstanding = 0;
+
+          // Re-read wallet after credit to know available balance
+          const { data: walletAfterCredit } = await supabaseAdmin
+            .from("wallets")
+            .select("balance")
+            .eq("user_id", depositRequest.user_id)
+            .single();
+
+          let availableBalance = walletAfterCredit?.balance || 0;
 
           const { data: activeRentRequest } = await supabaseAdmin
             .from("rent_requests")
@@ -168,65 +172,40 @@ Deno.serve(async (req) => {
 
           if (activeRentRequest) {
             const outstanding = Number(activeRentRequest.total_repayment) - Number(activeRentRequest.amount_repaid);
-            previousBalance = outstanding;
             rentRequestId = activeRentRequest.id;
 
-            if (outstanding > 0) {
-              repaymentApplied = Math.min(depositRequest.amount, outstanding);
+            if (outstanding > 0 && availableBalance > 0) {
+              repaymentApplied = Math.min(availableBalance, outstanding);
               newOutstanding = outstanding - repaymentApplied;
 
-              // 1. Deduct repayment amount from tenant wallet
-              const { data: walletNow } = await supabaseAdmin
-                .from("wallets")
-                .select("balance")
-                .eq("user_id", depositRequest.user_id)
-                .single();
+              // Record repayment via RPC (updates rent_requests.amount_repaid, landlords.rent_balance_due, inserts repayment + ledger)
+              const { error: repaymentError } = await supabaseAdmin.rpc(
+                "record_rent_request_repayment",
+                { p_tenant_id: depositRequest.user_id, p_amount: repaymentApplied }
+              );
 
-              if (walletNow && walletNow.balance >= repaymentApplied) {
-                await supabaseAdmin
-                  .from("wallets")
-                  .update({ balance: walletNow.balance - repaymentApplied, updated_at: new Date().toISOString() })
-                  .eq("user_id", depositRequest.user_id)
-                  .eq("balance", walletNow.balance);
-
-                // 2. Record repayment via RPC (updates rent_requests.amount_repaid, landlords.rent_balance_due, inserts repayment + ledger)
-                const { error: repaymentError } = await supabaseAdmin.rpc(
-                  "record_rent_request_repayment",
-                  { p_tenant_id: depositRequest.user_id, p_amount: repaymentApplied }
-                );
-
-                if (repaymentError) {
-                  console.error(`[approve-deposit] Repayment RPC failed for ${depositRequest.id}:`, repaymentError.message);
-                  // Rollback: restore wallet to pre-deduction balance (walletNow.balance)
-                  // Use optimistic lock to prevent overwriting concurrent changes
-                  const deductedBalance = walletNow.balance - repaymentApplied;
-                  await supabaseAdmin
-                    .from("wallets")
-                    .update({ balance: walletNow.balance, updated_at: new Date().toISOString() })
-                    .eq("user_id", depositRequest.user_id)
-                    .eq("balance", deductedBalance);
-                  repaymentApplied = 0;
-                  newOutstanding = previousBalance;
-                } else {
-                  // 3. Record cash_out ledger entry for the wallet deduction
-                  const txGroupId = crypto.randomUUID();
-                  await supabaseAdmin.from("general_ledger").insert({
-                    user_id: depositRequest.user_id,
-                    amount: repaymentApplied,
-                    direction: "cash_out",
-                    category: "rent_repayment",
-                    source_table: "deposit_requests",
-                    source_id: depositRequest.id,
-                    reference_id: depositRequest.transaction_id || depositRequest.id,
-                    transaction_group_id: txGroupId,
-                    description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
-                    linked_party: rentRequestId,
-                    transaction_date: new Date().toISOString(),
-                  });
-                }
-              } else {
-                console.warn(`[approve-deposit] Wallet balance insufficient for auto-deduction, skipping rent repayment for ${depositRequest.id}`);
+              if (repaymentError) {
+                console.error(`[approve-deposit] Repayment RPC failed for ${depositRequest.id}:`, repaymentError.message);
                 repaymentApplied = 0;
+                newOutstanding = outstanding;
+              } else {
+                // Insert cash_out ledger entry → trigger auto-deducts from wallet
+                const txGroupId = crypto.randomUUID();
+                await supabaseAdmin.from("general_ledger").insert({
+                  user_id: depositRequest.user_id,
+                  amount: repaymentApplied,
+                  direction: "cash_out",
+                  category: "rent_repayment",
+                  source_table: "deposit_requests",
+                  source_id: depositRequest.id,
+                  reference_id: depositRequest.transaction_id || depositRequest.id,
+                  transaction_group_id: txGroupId,
+                  description: `Auto rent deduction from deposit (TXN: ${depositRequest.transaction_id || 'N/A'})`,
+                  linked_party: rentRequestId,
+                  transaction_date: new Date().toISOString(),
+                });
+
+                availableBalance -= repaymentApplied;
               }
             }
           }
@@ -247,11 +226,12 @@ Deno.serve(async (req) => {
             .maybeSingle();
 
           if (activeSub) {
-            const { data: walletAfterRent } = await supabaseAdmin
+            // Re-read wallet to get actual balance (trigger may have updated it)
+            const { data: walletNow } = await supabaseAdmin
               .from("wallets").select("balance")
               .eq("user_id", depositRequest.user_id).single();
 
-            let availableBalance = walletAfterRent?.balance || 0;
+            availableBalance = walletNow?.balance || 0;
             const subTxGroupId = crypto.randomUUID();
 
             // 2a. Clear accumulated debt
@@ -259,47 +239,45 @@ Deno.serve(async (req) => {
             if (debt > 0 && availableBalance > 0) {
               debtCleared = Math.min(debt, availableBalance);
 
-              const { error: debtWalletErr } = await supabaseAdmin
-                .from("wallets")
-                .update({ balance: availableBalance - debtCleared, updated_at: new Date().toISOString() })
-                .eq("user_id", depositRequest.user_id)
-                .eq("balance", availableBalance);
+              // Update subscription debt
+              await supabaseAdmin
+                .from("subscription_charges")
+                .update({ accumulated_debt: debt - debtCleared, updated_at: new Date().toISOString() })
+                .eq("id", activeSub.id);
 
-              if (!debtWalletErr) {
-                availableBalance -= debtCleared;
+              // Insert ledger entry → trigger auto-deducts from wallet
+              await supabaseAdmin.from("general_ledger").insert({
+                user_id: depositRequest.user_id,
+                amount: debtCleared,
+                direction: "cash_out",
+                category: "debt_clearance",
+                source_table: "subscription_charges",
+                source_id: activeSub.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                transaction_group_id: subTxGroupId,
+                description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
+                linked_party: activeSub.rent_request_id,
+                transaction_date: new Date().toISOString(),
+              });
 
-                await supabaseAdmin
-                  .from("subscription_charges")
-                  .update({ accumulated_debt: debt - debtCleared, updated_at: new Date().toISOString() })
-                  .eq("id", activeSub.id);
+              availableBalance -= debtCleared;
 
-                await supabaseAdmin.from("general_ledger").insert({
-                  user_id: depositRequest.user_id,
-                  amount: debtCleared,
-                  direction: "cash_out",
-                  category: "debt_clearance",
-                  source_table: "subscription_charges",
-                  source_id: activeSub.id,
-                  reference_id: depositRequest.transaction_id || depositRequest.id,
-                  transaction_group_id: subTxGroupId,
-                  description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
-                  linked_party: activeSub.rent_request_id,
-                  transaction_date: new Date().toISOString(),
+              // Record as rent repayment if linked to a rent request
+              if (activeSub.rent_request_id) {
+                await supabaseAdmin.rpc("record_rent_request_repayment", {
+                  p_tenant_id: depositRequest.user_id,
+                  p_amount: debtCleared,
                 });
-
-                if (activeSub.rent_request_id) {
-                  await supabaseAdmin.rpc("record_rent_request_repayment", {
-                    p_tenant_id: depositRequest.user_id,
-                    p_amount: debtCleared,
-                  });
-                }
-              } else {
-                console.warn(`[approve-deposit] Optimistic lock failed for debt clearance on ${depositRequest.id}`);
-                debtCleared = 0;
               }
             }
 
             // 2b. Pre-pay future days if surplus remains
+            // Re-read wallet again since trigger may have fired
+            const { data: walletForPrepay } = await supabaseAdmin
+              .from("wallets").select("balance")
+              .eq("user_id", depositRequest.user_id).single();
+            availableBalance = walletForPrepay?.balance || 0;
+
             const chargeAmount = Number(activeSub.charge_amount || 0);
             const chargesRemaining = Number(activeSub.charges_remaining || 0);
             if (chargeAmount > 0 && availableBalance >= chargeAmount && chargesRemaining > 0) {
@@ -309,53 +287,44 @@ Deno.serve(async (req) => {
               );
               prepaidAmount = daysPrepaid * chargeAmount;
 
-              const { error: prepayWalletErr } = await supabaseAdmin
-                .from("wallets")
-                .update({ balance: availableBalance - prepaidAmount, updated_at: new Date().toISOString() })
-                .eq("user_id", depositRequest.user_id)
-                .eq("balance", availableBalance);
+              const currentNext = new Date(activeSub.next_charge_date);
+              currentNext.setDate(currentNext.getDate() + daysPrepaid);
+              newNextChargeDate = currentNext.toISOString();
 
-              if (!prepayWalletErr) {
-                availableBalance -= prepaidAmount;
+              // Update subscription
+              await supabaseAdmin
+                .from("subscription_charges")
+                .update({
+                  charges_completed: Number(activeSub.charges_completed || 0) + daysPrepaid,
+                  charges_remaining: chargesRemaining - daysPrepaid,
+                  next_charge_date: newNextChargeDate,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("id", activeSub.id);
 
-                const currentNext = new Date(activeSub.next_charge_date);
-                currentNext.setDate(currentNext.getDate() + daysPrepaid);
-                newNextChargeDate = currentNext.toISOString();
+              // Insert ledger entry → trigger auto-deducts from wallet
+              await supabaseAdmin.from("general_ledger").insert({
+                user_id: depositRequest.user_id,
+                amount: prepaidAmount,
+                direction: "cash_out",
+                category: "tenant_access_fee",
+                source_table: "subscription_charges",
+                source_id: activeSub.id,
+                reference_id: depositRequest.transaction_id || depositRequest.id,
+                transaction_group_id: subTxGroupId,
+                description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
+                linked_party: activeSub.rent_request_id,
+                transaction_date: new Date().toISOString(),
+              });
 
-                await supabaseAdmin
-                  .from("subscription_charges")
-                  .update({
-                    charges_completed: Number(activeSub.charges_completed || 0) + daysPrepaid,
-                    charges_remaining: chargesRemaining - daysPrepaid,
-                    next_charge_date: newNextChargeDate,
-                    updated_at: new Date().toISOString(),
-                  })
-                  .eq("id", activeSub.id);
+              availableBalance -= prepaidAmount;
 
-                await supabaseAdmin.from("general_ledger").insert({
-                  user_id: depositRequest.user_id,
-                  amount: prepaidAmount,
-                  direction: "cash_out",
-                  category: "tenant_access_fee",
-                  source_table: "subscription_charges",
-                  source_id: activeSub.id,
-                  reference_id: depositRequest.transaction_id || depositRequest.id,
-                  transaction_group_id: subTxGroupId,
-                  description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
-                  linked_party: activeSub.rent_request_id,
-                  transaction_date: new Date().toISOString(),
+              // Record as rent repayment if linked
+              if (activeSub.rent_request_id) {
+                await supabaseAdmin.rpc("record_rent_request_repayment", {
+                  p_tenant_id: depositRequest.user_id,
+                  p_amount: prepaidAmount,
                 });
-
-                if (activeSub.rent_request_id) {
-                  await supabaseAdmin.rpc("record_rent_request_repayment", {
-                    p_tenant_id: depositRequest.user_id,
-                    p_amount: prepaidAmount,
-                  });
-                }
-              } else {
-                console.warn(`[approve-deposit] Optimistic lock failed for pre-payment on ${depositRequest.id}`);
-                daysPrepaid = 0;
-                prepaidAmount = 0;
               }
             }
 
