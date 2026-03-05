@@ -315,7 +315,7 @@ export default function SupporterDashboard({
     <div className="min-h-screen bg-background flex flex-col">
       <DashboardHeader
         currentRole={currentRole}
-        availableRoles={availableRoles}
+        availableRoles={['supporter']}
         onRoleChange={onRoleChange}
         onSignOut={signOut}
         menuItems={menuItems}
