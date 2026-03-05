@@ -555,7 +555,7 @@ Password: ${createdInvite?.password}`;
               value={formData.phone}
               onChange={(e) => setFormData(prev => ({ ...prev, phone: e.target.value }))}
               required
-              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate && selectedType !== 'tenant' ? 'border-destructive focus:ring-destructive' : isPhoneDuplicate ? 'border-warning focus:ring-warning' : ''}`}
+              className={`h-14 text-base rounded-xl touch-manipulation pr-10 ${isPhoneDuplicate && selectedType !== 'tenant' && selectedType !== 'supporter' ? 'border-destructive focus:ring-destructive' : isPhoneDuplicate ? 'border-warning focus:ring-warning' : ''}`}
               autoComplete="off"
               inputMode="tel"
             />
@@ -567,10 +567,12 @@ Password: ${createdInvite?.password}`;
             )}
           </div>
           {isPhoneDuplicate && phoneDuplicateMessage && (
-            <p className={`text-sm flex items-center gap-1.5 animate-in fade-in duration-200 ${selectedType === 'tenant' ? 'text-warning' : 'text-destructive'}`}>
+            <p className={`text-sm flex items-center gap-1.5 animate-in fade-in duration-200 ${(selectedType === 'tenant' || selectedType === 'supporter') ? 'text-warning' : 'text-destructive'}`}>
               <AlertCircle className="h-3.5 w-3.5 flex-shrink-0" />
-              {selectedType === 'tenant' 
+              {(selectedType === 'tenant') 
                 ? `${phoneDuplicateMessage} — will link existing account`
+                : selectedType === 'supporter'
+                ? `${phoneDuplicateMessage} — will create supporter invite`
                 : phoneDuplicateMessage}
             </p>
           )}
@@ -812,22 +814,22 @@ Password: ${createdInvite?.password}`;
             ? 'bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600' 
             : ''
         }`}
-        disabled={isLoading || (isPhoneDuplicate && selectedType !== 'tenant')}
+        disabled={isLoading || (isPhoneDuplicate && selectedType !== 'tenant' && selectedType !== 'supporter')}
       >
         {isLoading ? (
           <>
             <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             Creating...
           </>
-        ) : isPhoneDuplicate && selectedType !== 'tenant' ? (
+        ) : isPhoneDuplicate && selectedType !== 'tenant' && selectedType !== 'supporter' ? (
           <>
             <AlertCircle className="h-5 w-5 mr-2" />
             Phone Number Already Exists
           </>
-        ) : isPhoneDuplicate && selectedType === 'tenant' ? (
+        ) : isPhoneDuplicate && (selectedType === 'tenant' || selectedType === 'supporter') ? (
           <>
             <UserPlus className="h-5 w-5 mr-2" />
-            Link Existing Tenant
+            {selectedType === 'supporter' ? 'Register Supporter' : 'Link Existing Tenant'}
           </>
         ) : (
           <>
