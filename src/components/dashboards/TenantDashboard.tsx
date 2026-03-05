@@ -28,6 +28,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
+import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
 
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
@@ -261,6 +262,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
                 <p className="text-sm text-muted-foreground">Wallet Balance</p>
               </div>
             </motion.button>
+
+            {/* Subscription Status - days ahead / debt indicator */}
+            <SubscriptionStatusCard userId={user.id} />
 
             {/* 2. REQUEST RENT BUTTON */}
             <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
