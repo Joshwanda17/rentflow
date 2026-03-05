@@ -49,26 +49,26 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
           </div>
 
           {/* Stats row */}
-          <div className="grid grid-cols-3 gap-2.5">
-            <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
-              <Home className="h-6 w-6 opacity-90" />
-              <p className="text-2xl font-black leading-none">{housesFunded}</p>
-              <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Houses</p>
+          <div className="grid grid-cols-3 gap-1.5 sm:gap-2.5">
+            <div className="flex flex-col items-center gap-1 sm:gap-1.5 px-2 py-2.5 sm:px-3 sm:py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+              <Home className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
+              <p className="text-xl sm:text-2xl font-black leading-none">{housesFunded}</p>
+              <p className="text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Houses</p>
             </div>
 
-            <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
-              <TrendingUp className="h-6 w-6 opacity-90" />
-              <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.15)}</p>
-              <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
+            <div className="flex flex-col items-center gap-1 sm:gap-1.5 px-2 py-2.5 sm:px-3 sm:py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+              <TrendingUp className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
+              <p className="text-sm sm:text-lg font-black leading-none">{formatAmount(rentSecured * 0.15)}</p>
+              <p className="text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
             </div>
 
-            <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
-              <Shield className="h-6 w-6 opacity-90" />
-              <div className="flex items-center gap-1.5">
-                <span className={`h-2.5 w-2.5 rounded-full ${health.dot} animate-pulse`} />
-                <p className="text-base font-black leading-none">{health.label}</p>
+            <div className="flex flex-col items-center gap-1 sm:gap-1.5 px-2 py-2.5 sm:px-3 sm:py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
+              <Shield className="h-5 w-5 sm:h-6 sm:w-6 opacity-90" />
+              <div className="flex items-center gap-1">
+                <span className={`h-2 w-2 sm:h-2.5 sm:w-2.5 rounded-full ${health.dot} animate-pulse`} />
+                <p className="text-sm sm:text-base font-black leading-none">{health.label}</p>
               </div>
-              <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Health</p>
+              <p className="text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Health</p>
             </div>
           </div>
         </div>
