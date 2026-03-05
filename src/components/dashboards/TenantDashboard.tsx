@@ -28,6 +28,7 @@ import { useWallet } from '@/hooks/useWallet';
 import { hapticTap } from '@/lib/haptics';
 import AiIdButton from '@/components/ai-id/AiIdButton';
 import { CreditAccessCard } from '@/components/CreditAccessCard';
+import { SubscriptionStatusCard } from '@/components/tenant/SubscriptionStatusCard';
 
 import { RentRequestButton } from '@/components/tenant/RentRequestButton';
 import RentRequestForm from '@/components/tenant/RentRequestForm';
