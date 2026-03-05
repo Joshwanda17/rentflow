@@ -1,16 +1,17 @@
 import { LucideIcon } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
-interface KPICardProps {
+export interface KPICardProps {
   title: string;
   value: string | number;
   icon: LucideIcon;
   trend?: { value: number; label: string };
   color?: string;
   loading?: boolean;
+  subtitle?: string;
 }
 
-export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/10 text-primary', loading }: KPICardProps) {
+export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/10 text-primary', loading, subtitle }: KPICardProps) {
   return (
     <div className="rounded-2xl border border-border bg-card p-4 flex items-start gap-3 min-w-0">
       <div className={cn('p-2.5 rounded-xl shrink-0', color)}>
@@ -28,6 +29,7 @@ export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/1
             {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
           </p>
         )}
+        {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
     </div>
   );
