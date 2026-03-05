@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { Loader2, UserPlus, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -6,15 +6,32 @@ import { Button } from '@/components/ui/button';
 import WelileLogo from '@/components/WelileLogo';
 import { CurrencySwitcher } from '@/components/CurrencySwitcher';
 
+type ParsedActivationPayload = {
+  token: string;
+  password: string;
+};
+
+const parseActivationPayload = (raw: string | null): ParsedActivationPayload => {
+  if (!raw) return { token: '', password: '' };
+
+  const decoded = decodeURIComponent(raw).trim();
+  const tokenMatch = decoded.match(/[a-zA-Z0-9-]{10,100}/);
+  const passwordMatch = decoded.match(/password\s*[:=]\s*([^\n\r]+)/i);
+
+  return {
+    token: tokenMatch?.[0] ?? '',
+    password: passwordMatch?.[1]?.trim() ?? '',
+  };
+};
 
 /**
  * Universal Join Page - Handles all invite and referral links
- * 
+ *
  * Short link formats:
  * - /join?t=TOKEN     - User activation (tenant, landlord, agent, supporter)
  * - /join?r=USER_ID   - Referral signup
  * - /join?s=USER_ID   - Supporter referral (become-supporter)
- * 
+ *
  * Uses sessionStorage as backup for URL params to handle mobile browser issues
  */
 export default function Join() {
@@ -23,9 +40,11 @@ export default function Join() {
   const [isRedirecting, setIsRedirecting] = useState(true);
 
   // Get params from URL first, then fallback to sessionStorage for reliability on mobile
-  const token = searchParams.get('t') || sessionStorage.getItem('signup_token');
+  const rawToken = searchParams.get('t') || sessionStorage.getItem('signup_token');
   const referral = searchParams.get('r') || sessionStorage.getItem('signup_ref');
   const supporterRef = searchParams.get('s') || sessionStorage.getItem('signup_supporter_ref');
+
+  const activationPayload = useMemo(() => parseActivationPayload(rawToken), [rawToken]);
 
   useEffect(() => {
     // Store params in sessionStorage for recovery if page reloads (common on mobile)
@@ -35,11 +54,15 @@ export default function Join() {
     if (t) sessionStorage.setItem('signup_token', t);
     if (r) sessionStorage.setItem('signup_ref', r);
     if (s) sessionStorage.setItem('signup_supporter_ref', s);
-    
+
     // Instant redirect - no delay for faster UX
-    if (token) {
+    if (activationPayload.token) {
       sessionStorage.removeItem('signup_token'); // Clean up after use
-      navigate(`/activate-supporter?token=${token}`, { replace: true });
+      const tokenParam = encodeURIComponent(activationPayload.token);
+      const passwordParam = activationPayload.password
+        ? `&password=${encodeURIComponent(activationPayload.password)}`
+        : '';
+      navigate(`/activate-supporter?token=${tokenParam}${passwordParam}`, { replace: true });
     } else if (supporterRef) {
       sessionStorage.removeItem('signup_supporter_ref');
       navigate(`/become-supporter?ref=${supporterRef}`, { replace: true });
@@ -50,10 +73,10 @@ export default function Join() {
       // No valid params, show welcome page immediately
       setIsRedirecting(false);
     }
-  }, [searchParams, navigate, token, referral, supporterRef]);
+  }, [searchParams, navigate, activationPayload, referral, supporterRef]);
 
   // Show loading while redirecting
-  if (isRedirecting && (token || referral || supporterRef)) {
+  if (isRedirecting && (activationPayload.token || referral || supporterRef)) {
     return (
       <div className="min-h-screen flex flex-col items-center justify-center bg-background gap-4">
         <WelileLogo linkToHome={false} />
@@ -78,8 +101,7 @@ export default function Join() {
           <CardDescription>
             Join our platform to access rent support, invest as a supporter, or manage properties.
           </CardDescription>
-          
-          {/* Currency Selector */}
+
           <div className="flex items-center justify-center mt-4">
             <div className="flex items-center gap-2 px-3 py-2 rounded-xl bg-muted/50 border border-border/50">
               <span className="text-xs text-muted-foreground">Currency:</span>
