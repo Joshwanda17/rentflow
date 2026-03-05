@@ -2,7 +2,8 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Home, Wallet, Building2, Shield, Users, FileText, Banknote,
-  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu
+  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu,
+  Crown, Cpu, Megaphone, MessageSquare
 } from 'lucide-react';
 
 type ManagerHub = 'home' | 'wallets' | 'rent-investments' | 'buffer';
@@ -83,17 +84,34 @@ export function DesktopManagerSidebar({ activeHub, onHubChange, onScrollToProduc
             <p className="text-[10px] text-muted-foreground truncate">Financial governance</p>
           </div>
         </button>
-        {/* Executive Hub link */}
-        <button
-          onClick={() => navigate('/executive-hub')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-left text-primary/80 hover:bg-primary/10 hover:text-primary transition-colors mt-1 border border-primary/20"
-        >
-          <Award className="h-4 w-4 shrink-0" />
-          <div className="min-w-0">
-            <p className="text-sm truncate font-semibold">Executive Hub</p>
-            <p className="text-[10px] text-muted-foreground truncate">CEO · CTO · CMO · Ops</p>
-          </div>
-        </button>
+
+        {/* Executive & Ops Dashboards */}
+        <div className="mt-3">
+          <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-2 px-2">
+            Executive & Ops
+          </p>
+          <nav className="space-y-0.5">
+            {[
+              { label: 'CEO Dashboard', tab: 'ceo', icon: Crown },
+              { label: 'CTO Dashboard', tab: 'cto', icon: Cpu },
+              { label: 'CMO Dashboard', tab: 'cmo', icon: Megaphone },
+              { label: 'Agent Ops', tab: 'agent-ops', icon: Users },
+              { label: 'Tenant Ops', tab: 'tenant-ops', icon: Home },
+              { label: 'Landlord Ops', tab: 'landlord-ops', icon: Building2 },
+              { label: 'Partners Ops', tab: 'partners-ops', icon: Shield },
+              { label: 'CRM', tab: 'crm', icon: MessageSquare },
+            ].map((item) => (
+              <button
+                key={item.tab}
+                onClick={() => navigate(`/executive-hub?tab=${item.tab}`)}
+                className="w-full flex items-center gap-3 px-3 py-2 rounded-lg text-sm text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
+              >
+                <item.icon className="h-4 w-4 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </button>
+            ))}
+          </nav>
+        </div>
       </div>
 
       {/* Quick Links */}
