@@ -231,16 +231,171 @@ Deno.serve(async (req) => {
             }
           }
 
-          // Notification
+          // ── Step 2: Clear accumulated debt & pre-pay future days ──
+          let debtCleared = 0;
+          let daysPrepaid = 0;
+          let prepaidAmount = 0;
+          let newNextChargeDate: string | null = null;
+
+          const { data: activeSub } = await supabaseAdmin
+            .from("subscription_charges")
+            .select("id, accumulated_debt, charge_amount, charges_remaining, charges_completed, next_charge_date, tenant_failed_at, rent_request_id")
+            .eq("tenant_id", depositRequest.user_id)
+            .eq("status", "active")
+            .order("created_at", { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (activeSub) {
+            const { data: walletAfterRent } = await supabaseAdmin
+              .from("wallets").select("balance")
+              .eq("user_id", depositRequest.user_id).single();
+
+            let availableBalance = walletAfterRent?.balance || 0;
+            const subTxGroupId = crypto.randomUUID();
+
+            // 2a. Clear accumulated debt
+            const debt = Number(activeSub.accumulated_debt || 0);
+            if (debt > 0 && availableBalance > 0) {
+              debtCleared = Math.min(debt, availableBalance);
+
+              const { error: debtWalletErr } = await supabaseAdmin
+                .from("wallets")
+                .update({ balance: availableBalance - debtCleared, updated_at: new Date().toISOString() })
+                .eq("user_id", depositRequest.user_id)
+                .eq("balance", availableBalance);
+
+              if (!debtWalletErr) {
+                availableBalance -= debtCleared;
+
+                await supabaseAdmin
+                  .from("subscription_charges")
+                  .update({ accumulated_debt: debt - debtCleared, updated_at: new Date().toISOString() })
+                  .eq("id", activeSub.id);
+
+                await supabaseAdmin.from("general_ledger").insert({
+                  user_id: depositRequest.user_id,
+                  amount: debtCleared,
+                  direction: "cash_out",
+                  category: "debt_clearance",
+                  source_table: "subscription_charges",
+                  source_id: activeSub.id,
+                  reference_id: depositRequest.transaction_id || depositRequest.id,
+                  transaction_group_id: subTxGroupId,
+                  description: `Auto debt clearance from deposit (UGX ${debtCleared.toLocaleString()})`,
+                  linked_party: activeSub.rent_request_id,
+                  transaction_date: new Date().toISOString(),
+                });
+
+                if (activeSub.rent_request_id) {
+                  await supabaseAdmin.rpc("record_rent_request_repayment", {
+                    p_tenant_id: depositRequest.user_id,
+                    p_amount: debtCleared,
+                  });
+                }
+              } else {
+                console.warn(`[approve-deposit] Optimistic lock failed for debt clearance on ${depositRequest.id}`);
+                debtCleared = 0;
+              }
+            }
+
+            // 2b. Pre-pay future days if surplus remains
+            const chargeAmount = Number(activeSub.charge_amount || 0);
+            const chargesRemaining = Number(activeSub.charges_remaining || 0);
+            if (chargeAmount > 0 && availableBalance >= chargeAmount && chargesRemaining > 0) {
+              daysPrepaid = Math.min(
+                Math.floor(availableBalance / chargeAmount),
+                chargesRemaining
+              );
+              prepaidAmount = daysPrepaid * chargeAmount;
+
+              const { error: prepayWalletErr } = await supabaseAdmin
+                .from("wallets")
+                .update({ balance: availableBalance - prepaidAmount, updated_at: new Date().toISOString() })
+                .eq("user_id", depositRequest.user_id)
+                .eq("balance", availableBalance);
+
+              if (!prepayWalletErr) {
+                availableBalance -= prepaidAmount;
+
+                const currentNext = new Date(activeSub.next_charge_date);
+                currentNext.setDate(currentNext.getDate() + daysPrepaid);
+                newNextChargeDate = currentNext.toISOString();
+
+                await supabaseAdmin
+                  .from("subscription_charges")
+                  .update({
+                    charges_completed: Number(activeSub.charges_completed || 0) + daysPrepaid,
+                    charges_remaining: chargesRemaining - daysPrepaid,
+                    next_charge_date: newNextChargeDate,
+                    updated_at: new Date().toISOString(),
+                  })
+                  .eq("id", activeSub.id);
+
+                await supabaseAdmin.from("general_ledger").insert({
+                  user_id: depositRequest.user_id,
+                  amount: prepaidAmount,
+                  direction: "cash_out",
+                  category: "tenant_access_fee",
+                  source_table: "subscription_charges",
+                  source_id: activeSub.id,
+                  reference_id: depositRequest.transaction_id || depositRequest.id,
+                  transaction_group_id: subTxGroupId,
+                  description: `Pre-paid ${daysPrepaid} days access fee (UGX ${prepaidAmount.toLocaleString()})`,
+                  linked_party: activeSub.rent_request_id,
+                  transaction_date: new Date().toISOString(),
+                });
+
+                if (activeSub.rent_request_id) {
+                  await supabaseAdmin.rpc("record_rent_request_repayment", {
+                    p_tenant_id: depositRequest.user_id,
+                    p_amount: prepaidAmount,
+                  });
+                }
+              } else {
+                console.warn(`[approve-deposit] Optimistic lock failed for pre-payment on ${depositRequest.id}`);
+                daysPrepaid = 0;
+                prepaidAmount = 0;
+              }
+            }
+
+            // 2c. Clear grace period
+            if (activeSub.tenant_failed_at && (debtCleared > 0 || prepaidAmount > 0)) {
+              await supabaseAdmin
+                .from("subscription_charges")
+                .update({ tenant_failed_at: null, updated_at: new Date().toISOString() })
+                .eq("id", activeSub.id);
+            }
+          }
+
+          // ── Notification ──
           const repaymentNote = repaymentApplied > 0
             ? ` UGX ${repaymentApplied.toLocaleString()} auto-deducted for rent (remaining: UGX ${newOutstanding.toLocaleString()}).`
             : "";
+          const debtNote = debtCleared > 0
+            ? ` Debt of UGX ${debtCleared.toLocaleString()} cleared.`
+            : "";
+          const prepaidNote = daysPrepaid > 0
+            ? ` ${daysPrepaid} future day(s) pre-paid (UGX ${prepaidAmount.toLocaleString()}). Next charge: ${newNextChargeDate ? new Date(newNextChargeDate).toLocaleDateString() : 'N/A'}.`
+            : "";
+
+          let notifTitle = "Deposit Approved! 💰";
+          if (debtCleared > 0 || daysPrepaid > 0) notifTitle = "Deposit Approved & Auto-Applied! 💰";
+          else if (repaymentApplied > 0) notifTitle = "Deposit Approved & Rent Deducted! 💰";
+
           await supabaseAdmin.from("notifications").insert({
             user_id: depositRequest.user_id,
-            title: repaymentApplied > 0 ? "Deposit Approved & Rent Deducted! 💰" : "Deposit Approved! 💰",
-            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}`,
+            title: notifTitle,
+            message: `Your deposit of UGX ${depositRequest.amount.toLocaleString()} approved by ${processorName}.${repaymentNote}${debtNote}${prepaidNote}`,
             type: "success",
-            metadata: { deposit_request_id: depositRequest.id, amount: depositRequest.amount, repayment_applied: repaymentApplied },
+            metadata: {
+              deposit_request_id: depositRequest.id,
+              amount: depositRequest.amount,
+              repayment_applied: repaymentApplied,
+              debt_cleared: debtCleared,
+              days_prepaid: daysPrepaid,
+              prepaid_amount: prepaidAmount,
+            },
           });
 
           // Audit
@@ -251,10 +406,10 @@ Deno.serve(async (req) => {
             performed_by: user.id,
             old_values: { status: "pending" },
             new_values: { status: "approved" },
-            metadata: { amount: depositRequest.amount, repayment_applied: repaymentApplied },
+            metadata: { amount: depositRequest.amount, repayment_applied: repaymentApplied, debt_cleared: debtCleared, days_prepaid: daysPrepaid, prepaid_amount: prepaidAmount },
           });
 
-          results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id, repayment_applied: repaymentApplied });
+          results.push({ id: depositRequest.id, status: "approved", amount: depositRequest.amount, user_id: depositRequest.user_id, repayment_applied: repaymentApplied, debt_cleared: debtCleared, days_prepaid: daysPrepaid });
         } else {
           // Reject
           await supabaseAdmin
