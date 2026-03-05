@@ -86,8 +86,8 @@ export default function PaymentPartnerCard({ partner, onPayNow }: PaymentPartner
   return (
     <Card className={cn('overflow-hidden border-2', data.borderColor)}>
       {/* Header */}
-      <div className={cn('p-4 flex items-center gap-3', data.bgColor)}>
-        <div className="w-12 h-12 rounded-full bg-white flex items-center justify-center p-1 shadow-sm">
+      <div className={cn('p-2.5 sm:p-4 flex items-center gap-2 sm:gap-3', data.bgColor)}>
+        <div className="w-8 h-8 sm:w-12 sm:h-12 rounded-full bg-white flex items-center justify-center p-0.5 sm:p-1 shadow-sm shrink-0">
           <img 
             src={data.logoUrl} 
             alt={data.name}
@@ -97,45 +97,45 @@ export default function PaymentPartnerCard({ partner, onPayNow }: PaymentPartner
             }}
           />
         </div>
-        <div>
-          <h3 className={cn('font-bold text-lg', data.textColor)}>{data.name}</h3>
-          <Badge variant="secondary" className="bg-white/90 text-black font-mono text-xs">
+        <div className="min-w-0">
+          <h3 className={cn('font-bold text-sm sm:text-lg leading-tight truncate', data.textColor)}>{data.name}</h3>
+          <Badge variant="secondary" className="bg-white/90 text-black font-mono text-[10px] sm:text-xs px-1.5 py-0">
             Pay Merchant
           </Badge>
         </div>
       </div>
 
-      <CardContent className="p-4 space-y-4">
+      <CardContent className="p-2.5 sm:p-4 space-y-2.5 sm:space-y-4">
         {/* Merchant ID - Large & Prominent */}
-        <div className="text-center py-3 bg-muted/50 rounded-lg">
-          <p className="text-xs text-muted-foreground mb-1">Merchant ID</p>
-          <p className="text-3xl font-bold font-mono tracking-wider">{data.merchantId}</p>
+        <div className="text-center py-2 sm:py-3 bg-muted/50 rounded-lg">
+          <p className="text-[10px] sm:text-xs text-muted-foreground mb-0.5 sm:mb-1">Merchant ID</p>
+          <p className="text-xl sm:text-3xl font-bold font-mono tracking-wider">{data.merchantId}</p>
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-2 gap-2">
+        <div className="flex flex-col sm:grid sm:grid-cols-2 gap-1.5 sm:gap-2">
           <Button 
             onClick={handlePayNow}
-            className={cn('font-semibold', data.bgColor, data.textColor, 'hover:opacity-90')}
-            size="lg"
+            className={cn('font-semibold text-xs sm:text-sm', data.bgColor, data.textColor, 'hover:opacity-90')}
+            size="sm"
           >
-            <Phone className="w-4 h-4 mr-2" />
+            <Phone className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
             Pay Now
           </Button>
           <Button 
             variant="outline"
             onClick={handleCopyMerchantId}
-            size="lg"
-            className="font-semibold"
+            size="sm"
+            className="font-semibold text-xs sm:text-sm"
           >
             {copied ? (
               <>
-                <CheckCircle2 className="w-4 h-4 mr-2 text-success" />
+                <CheckCircle2 className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2 text-success" />
                 Copied!
               </>
             ) : (
               <>
-                <Copy className="w-4 h-4 mr-2" />
+                <Copy className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1 sm:mr-2" />
                 Copy ID
               </>
             )}
@@ -145,22 +145,22 @@ export default function PaymentPartnerCard({ partner, onPayNow }: PaymentPartner
         {/* Manual Steps Collapsible */}
         <Collapsible open={isStepsOpen} onOpenChange={setIsStepsOpen}>
           <CollapsibleTrigger asChild>
-            <Button variant="ghost" className="w-full justify-between text-muted-foreground">
+            <Button variant="ghost" className="w-full justify-between text-muted-foreground text-xs sm:text-sm h-8 sm:h-10">
               <span>View Manual Steps</span>
-              {isStepsOpen ? <ChevronUp className="w-4 h-4" /> : <ChevronDown className="w-4 h-4" />}
+              {isStepsOpen ? <ChevronUp className="w-3.5 h-3.5 sm:w-4 sm:h-4" /> : <ChevronDown className="w-3.5 h-3.5 sm:w-4 sm:h-4" />}
             </Button>
           </CollapsibleTrigger>
           <CollapsibleContent className="pt-2">
-            <div className="bg-muted/30 rounded-lg p-3 space-y-2">
+            <div className="bg-muted/30 rounded-lg p-2 sm:p-3 space-y-1.5 sm:space-y-2">
               {data.steps.map((step, index) => (
-                <div key={index} className="flex gap-3 items-start">
+                <div key={index} className="flex gap-2 sm:gap-3 items-start">
                   <span className={cn(
-                    'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold',
+                    'flex-shrink-0 w-5 h-5 sm:w-6 sm:h-6 rounded-full flex items-center justify-center text-[10px] sm:text-xs font-bold',
                     data.bgColor, data.textColor
                   )}>
                     {index + 1}
                   </span>
-                  <p className="text-sm pt-0.5">{step}</p>
+                  <p className="text-xs sm:text-sm pt-0.5">{step}</p>
                 </div>
               ))}
             </div>

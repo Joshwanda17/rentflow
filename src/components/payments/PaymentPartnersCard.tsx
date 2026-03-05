@@ -23,7 +23,7 @@ export default function PaymentPartnersCard({ dashboardType, onPaymentSubmitted 
         </CardHeader>
         <CardContent className="space-y-4">
           {/* Partner Cards - Side by side on desktop, stacked on mobile */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-2 gap-2 sm:gap-4">
             <PaymentPartnerCard partner="mtn" />
             <PaymentPartnerCard partner="airtel" />
           </div>
