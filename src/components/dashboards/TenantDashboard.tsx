@@ -263,6 +263,9 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
               </div>
             </motion.button>
 
+            {/* Subscription Status - days ahead / debt indicator */}
+            <SubscriptionStatusCard userId={user.id} />
+
             {/* 2. REQUEST RENT BUTTON */}
             <LockedActionTooltip isLocked={!hasAcceptedTerms && !agreementLoading}>
               <RentRequestButton userId={user.id} onSuccess={fetchData} />
