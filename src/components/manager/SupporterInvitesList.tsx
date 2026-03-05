@@ -86,12 +86,14 @@ export function SupporterInvitesList() {
 
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
-  const getShareLink = (token: string) => {
-    return `${getPublicOrigin()}/join?t=${token}`;
+  const getShareLink = (token: string, password?: string) => {
+    const encodedToken = encodeURIComponent(token);
+    if (!password) return `${getPublicOrigin()}/activate-supporter?token=${encodedToken}`;
+    return `${getPublicOrigin()}/activate-supporter?token=${encodedToken}&password=${encodeURIComponent(password)}`;
   };
 
   const handleCopyLink = async (invite: SupporterInvite) => {
-    const link = getShareLink(invite.activation_token);
+    const link = getShareLink(invite.activation_token, invite.temp_password);
     await navigator.clipboard.writeText(link);
     setCopiedId(invite.id);
     setTimeout(() => setCopiedId(null), 2000);
@@ -99,8 +101,7 @@ export function SupporterInvitesList() {
   };
 
   const handleCopyAll = async (invite: SupporterInvite) => {
-    const text = `Activation Link: ${getShareLink(invite.activation_token)}
-Password: ${invite.temp_password}`;
+    const text = `Activation Link: ${getShareLink(invite.activation_token, invite.temp_password)}\nPassword: ${invite.temp_password}`;
     await navigator.clipboard.writeText(text);
     setCopiedId(`all-${invite.id}`);
     setTimeout(() => setCopiedId(null), 2000);
@@ -117,7 +118,7 @@ You've been invited to join as a ${roleInfo.label}!
 🔐 Your password: ${passwordToUse}
 
 👉 Activate your account here:
-${getShareLink(invite.activation_token)}
+${getShareLink(invite.activation_token, passwordToUse)}
 
 Just click the link and enter your password to get started!`;
     

@@ -18,14 +18,29 @@ const extractActivationToken = (value: string | null): string => {
   return match?.[0] ?? '';
 };
 
+const extractActivationPassword = (rawToken: string | null, passwordParam: string | null): string => {
+  const directPassword = typeof passwordParam === 'string' ? decodeURIComponent(passwordParam).trim() : '';
+  if (directPassword) return directPassword;
+
+  if (!rawToken) return '';
+  const decoded = decodeURIComponent(rawToken);
+  const legacyMatch = decoded.match(/password\s*[:=]\s*([^\n\r]+)/i);
+  return legacyMatch?.[1]?.trim() ?? '';
+};
+
 export default function ActivateSupporter() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const token = useMemo(() => extractActivationToken(searchParams.get('token')), [searchParams]);
+  const rawTokenParam = searchParams.get('token');
+  const token = useMemo(() => extractActivationToken(rawTokenParam), [rawTokenParam]);
+  const passwordFromUrl = useMemo(
+    () => extractActivationPassword(rawTokenParam, searchParams.get('password')),
+    [rawTokenParam, searchParams]
+  );
   const passwordInputRef = useRef<HTMLInputElement>(null);
 
-  const [password, setPassword] = useState('');
+  const [password, setPassword] = useState(passwordFromUrl);
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -52,6 +67,12 @@ export default function ActivateSupporter() {
       setTimeout(() => passwordInputRef.current?.focus(), 100);
     }
   }, [pageState]);
+
+  useEffect(() => {
+    if (passwordFromUrl && !password) {
+      setPassword(passwordFromUrl);
+    }
+  }, [passwordFromUrl, password]);
 
   // Request location when entering profile setup
   useEffect(() => {

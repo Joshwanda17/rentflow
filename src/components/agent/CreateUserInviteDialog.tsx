@@ -274,7 +274,9 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
 
   const getShareLink = () => {
     if (!createdInvite) return '';
-    return `${getPublicOrigin()}/join?t=${createdInvite.token}`;
+    const token = encodeURIComponent(createdInvite.token);
+    const password = encodeURIComponent(createdInvite.password);
+    return `${getPublicOrigin()}/activate-supporter?token=${token}&password=${password}`;
   };
 
   const getPortfolioLink = () => {
