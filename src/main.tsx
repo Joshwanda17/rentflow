@@ -2,7 +2,10 @@ import { createRoot } from 'react-dom/client';
 
 const root = document.getElementById('root')!;
 const host = window.location.hostname;
-const isPreviewHost = host.includes('id-preview--') || host.endsWith('.lovableproject.com');
+const isPreviewHost =
+  host.includes('id-preview--') ||
+  host.includes('preview--') ||
+  host.endsWith('.lovableproject.com');
 
 // Show branded loader immediately — inline SVG spinner, no network requests at all
 root.innerHTML = `<div style="min-height:100vh;min-height:100dvh;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f8fafc;gap:12px">
