@@ -202,7 +202,9 @@ export default function ActivateSupporter() {
         }
         
         toast({ title: '🎉 Welcome to Welile!', description: 'Redirecting to your dashboard...' });
-        navigate('/dashboard');
+        // Navigate with role param so Dashboard switches to the correct role (e.g. supporter)
+        const activatedRole = inviteDetails?.role || 'supporter';
+        navigate(`/dashboard?role=${activatedRole}`);
       }
     } catch (error: any) {
       toast({
