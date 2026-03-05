@@ -45,6 +45,8 @@ interface UserInvite {
   activated_at: string | null;
 }
 
+import { HandCoins } from 'lucide-react';
+
 const roleConfig: Record<string, { label: string; icon: React.ElementType; color: string; bgColor: string; emoji: string }> = {
   tenant: {
     label: 'Tenant',
@@ -60,6 +62,13 @@ const roleConfig: Record<string, { label: string; icon: React.ElementType; color
     bgColor: 'bg-emerald-500/10 border-emerald-500/20',
     emoji: '🏢',
   },
+  supporter: {
+    label: 'Partner',
+    icon: HandCoins,
+    color: 'text-orange-600',
+    bgColor: 'bg-orange-500/10 border-orange-500/20',
+    emoji: '💰',
+  },
 };
 
 export default function AgentRegistrations() {
@@ -72,7 +81,7 @@ export default function AgentRegistrations() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'activated'>('all');
-  const [roleFilter, setRoleFilter] = useState<'all' | 'tenant' | 'landlord'>('all');
+  const [roleFilter, setRoleFilter] = useState<'all' | 'tenant' | 'landlord' | 'supporter'>('all');
   const [registerOpen, setRegisterOpen] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const exportRef = useRef<HTMLDivElement>(null);
@@ -87,7 +96,7 @@ export default function AgentRegistrations() {
       .from('supporter_invites')
       .select('*')
       .eq('created_by', user.id)
-      .in('role', ['tenant', 'landlord'])
+      .in('role', ['tenant', 'landlord', 'supporter'])
       .order('created_at', { ascending: false });
 
     if (roleFilter !== 'all') {
@@ -188,6 +197,7 @@ Just click the link and enter your password to get started!`;
   const activatedCount = invites.filter(i => i.status === 'activated').length;
   const tenantCount = invites.filter(i => i.role === 'tenant').length;
   const landlordCount = invites.filter(i => i.role === 'landlord').length;
+  const supporterCount = invites.filter(i => i.role === 'supporter').length;
 
   const handleExportCSV = () => {
     if (filteredInvites.length === 0) {
@@ -330,6 +340,9 @@ Just click the link and enter your password to get started!`;
                 </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => setRoleFilter('landlord')}>
                   🏢 Landlords ({landlordCount})
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setRoleFilter('supporter')}>
+                  💰 Partners ({supporterCount})
                 </DropdownMenuItem>
               </DropdownMenuContent>
             </DropdownMenu>
