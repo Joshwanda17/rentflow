@@ -38,8 +38,8 @@ export function CRMDashboard() {
         <KPICard title="Unread" value={unread} icon={MailOpen} loading={isLoading} color="bg-destructive/10 text-destructive" />
         <KPICard title="Unique Users" value={uniqueUsers} icon={Users} loading={isLoading} color="bg-blue-500/10 text-blue-600" />
         <KPICard title="Support Tickets" value={supportType} icon={AlertCircle} color="bg-amber-500/10 text-amber-600" />
-        <KPICard title="Avg Response" value="~2h" icon={Clock} color="bg-green-500/10 text-green-600" />
-        <KPICard title="Satisfaction" value="4.2/5" icon={ThumbsUp} color="bg-purple-500/10 text-purple-600" />
+        <KPICard title="Warning Alerts" value={rows.filter(n => n.type === 'warning').length} icon={Clock} color="bg-amber-500/10 text-amber-600" />
+        <KPICard title="Read Rate" value={rows.length > 0 ? `${Math.round(rows.filter(n => n.is_read).length / rows.length * 100)}%` : '0%'} icon={ThumbsUp} color="bg-purple-500/10 text-purple-600" />
       </div>
 
       <ExecutiveDataTable
