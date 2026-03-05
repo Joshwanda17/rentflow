@@ -44,20 +44,20 @@ async function attemptOAuth(provider: 'google' | 'apple', redirectUri: string) {
 }
 
 export async function signInWithGoogle() {
-  // Primary: use canonical public origin (custom domain)
-  const publicOrigin = getPublicOrigin();
-  const primaryUri = publicOrigin;
+  // Use current origin so OAuth callback returns to wherever the user is
+  // (preview domain OR custom domain — both must work)
+  const primaryUri = window.location.origin;
 
-  console.log('[OAuth:Google] domain:', window.location.hostname, '| publicOrigin:', publicOrigin);
+  console.log('[OAuth:Google] domain:', window.location.hostname, '| redirect_uri:', primaryUri);
 
   const result = await attemptOAuth('google', primaryUri);
   if (result.redirected) return { error: null };
 
-  // If provider not supported error, retry with current origin as fallback
+  // If provider not supported error, retry with canonical public origin as fallback
   const errMsg = result.error?.message || '';
   if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
-    console.warn('[OAuth:Google] Primary redirect failed, retrying with current origin...');
-    const fallbackUri = window.location.origin;
+    console.warn('[OAuth:Google] Primary redirect failed, retrying with public origin...');
+    const fallbackUri = getPublicOrigin();
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('google', fallbackUri);
       if (retry.redirected) return { error: null };
@@ -69,18 +69,17 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithApple() {
-  const publicOrigin = getPublicOrigin();
-  const primaryUri = publicOrigin;
+  const primaryUri = window.location.origin;
 
-  console.log('[OAuth:Apple] domain:', window.location.hostname, '| publicOrigin:', publicOrigin);
+  console.log('[OAuth:Apple] domain:', window.location.hostname, '| redirect_uri:', primaryUri);
 
   const result = await attemptOAuth('apple', primaryUri);
   if (result.redirected) return { error: null };
 
   const errMsg = result.error?.message || '';
   if (errMsg.toLowerCase().includes('not supported') || errMsg.toLowerCase().includes('provider')) {
-    console.warn('[OAuth:Apple] Primary redirect failed, retrying with current origin...');
-    const fallbackUri = window.location.origin;
+    console.warn('[OAuth:Apple] Primary redirect failed, retrying with public origin...');
+    const fallbackUri = getPublicOrigin();
     if (fallbackUri !== primaryUri) {
       const retry = await attemptOAuth('apple', fallbackUri);
       if (retry.redirected) return { error: null };
