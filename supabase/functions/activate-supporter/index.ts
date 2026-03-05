@@ -244,6 +244,20 @@ Deno.serve(async (req) => {
       })
       .eq("id", invite.id);
 
+    // Link investor portfolios created for this invite to the new user
+    if (invite.id) {
+      const { error: portfolioLinkError } = await adminClient
+        .from("investor_portfolios")
+        .update({ investor_id: authData.user.id })
+        .eq("invite_id", invite.id)
+        .is("investor_id", null);
+      if (portfolioLinkError) {
+        console.error("[activate-supporter] Portfolio link error:", portfolioLinkError);
+      } else {
+        console.log("[activate-supporter] Linked portfolios for invite:", invite.id);
+      }
+    }
+
     // Supporter referral tracking (not bonus - that's handled by profile trigger → referrals trigger)
     if (userRole === 'supporter') {
       await adminClient.from("supporter_referrals").insert({
