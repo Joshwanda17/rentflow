@@ -335,6 +335,45 @@ Deno.serve(async (req) => {
                 .update({ tenant_failed_at: null, updated_at: new Date().toISOString() })
                 .eq("id", activeSub.id);
             }
+            // ── Notify agent via push when debt is cleared ──
+            if (debtCleared > 0 && depositRequest.agent_id) {
+              const { data: tenantProfile } = await supabaseAdmin
+                .from("profiles").select("full_name").eq("id", depositRequest.user_id).single();
+              const tenantName = tenantProfile?.full_name || "A tenant";
+
+              // In-app notification for the agent
+              await supabaseAdmin.from("notifications").insert({
+                user_id: depositRequest.agent_id,
+                title: "Tenant Debt Cleared! ✅",
+                message: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} has been auto-cleared from their deposit.${daysPrepaid > 0 ? ` ${daysPrepaid} day(s) also pre-paid.` : ''}`,
+                type: "success",
+                metadata: {
+                  tenant_id: depositRequest.user_id,
+                  debt_cleared: debtCleared,
+                  days_prepaid: daysPrepaid,
+                  deposit_request_id: depositRequest.id,
+                },
+              });
+
+              // Push notification to agent
+              try {
+                await fetch(`${supabaseUrl}/functions/v1/send-push-notification`, {
+                  method: "POST",
+                  headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${supabaseServiceKey}`,
+                  },
+                  body: JSON.stringify({
+                    user_id: depositRequest.agent_id,
+                    title: "Tenant Debt Cleared! ✅",
+                    body: `${tenantName}'s debt of UGX ${debtCleared.toLocaleString()} auto-cleared from deposit.`,
+                    url: "/dashboard",
+                  }),
+                });
+              } catch (pushErr) {
+                console.warn("[approve-deposit] Agent push notification failed:", pushErr);
+              }
+            }
           }
 
           // ── Notification ──
