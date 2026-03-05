@@ -262,17 +262,10 @@ export function useAuthForm() {
     const digits = phone.replace(/\D/g, '');
     const last9 = digits.slice(-9);
 
-    // Build prioritized email candidates (most common formats first)
-    const emailCandidates = [
-      `0${last9}@welile.user`,
-      `256${last9}@welile.user`,
-      `${last9}@welile.user`,
-      `0${last9}@welile.agent`,
-      `256${last9}@welile.agent`,
-      `${last9}@welile.agent`,
-    ];
+    // Build email candidates — real emails first, then placeholders as fallback
+    const emailCandidates: string[] = [];
 
-    // Also try RPC lookup in parallel to find any real/other email linked to this phone
+    // RPC lookup first: find real email linked to this phone (Gmail, Outlook, etc.)
     let rpcEmails: string[] = [];
     try {
       const { data } = await Promise.race([
@@ -281,16 +274,24 @@ export function useAuthForm() {
       ]);
       if (data?.length) {
         rpcEmails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
-        // Prepend any @welile.user or @welile.agent emails found via RPC (highest priority)
-        const welileFound = rpcEmails.filter(e => e.includes('@welile.'));
-        const otherFound = rpcEmails.filter(e => !e.includes('@welile.'));
-        emailCandidates.unshift(...welileFound);
-        // Real emails (Gmail etc.) — only try with password if explicitly found
-        emailCandidates.push(...otherFound);
+        // PRIORITY: Real emails first (Gmail, Outlook, etc.) — these are verified accounts
+        const realEmails = rpcEmails.filter(e => !e.includes('@welile.'));
+        const placeholderEmails = rpcEmails.filter(e => e.includes('@welile.'));
+        emailCandidates.push(...realEmails, ...placeholderEmails);
       }
     } catch {
       // RPC lookup failed — proceed with generated candidates
     }
+
+    // Fallback: generated placeholder emails (tried only if RPC found nothing)
+    emailCandidates.push(
+      `0${last9}@welile.user`,
+      `256${last9}@welile.user`,
+      `${last9}@welile.user`,
+      `0${last9}@welile.agent`,
+      `256${last9}@welile.agent`,
+      `${last9}@welile.agent`,
+    );
 
     // Deduplicate while preserving order
     const uniqueCandidates = [...new Set(emailCandidates)];
