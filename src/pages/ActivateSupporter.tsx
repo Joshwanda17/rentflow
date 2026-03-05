@@ -22,7 +22,7 @@ export default function ActivateSupporter() {
   const [showPassword, setShowPassword] = useState(false);
   const [showNewPassword, setShowNewPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-  const [pageState, setPageState] = useState<PageState>('ready');
+  const [pageState, setPageState] = useState<PageState>('loading');
   const [isValidating, setIsValidating] = useState(true);
   const [activatedEmail, setActivatedEmail] = useState('');
   const [inviteDetails, setInviteDetails] = useState<{ full_name: string; role?: string; phone?: string } | null>(null);
@@ -87,11 +87,14 @@ export default function ActivateSupporter() {
 
     const fetchInvite = async () => {
       try {
+        console.log('[ActivateSupporter] Fetching invite for token:', token);
         const { data, error } = await supabase
           .from('supporter_invites')
           .select('full_name, status, role, email, phone, activated_user_id')
           .eq('activation_token', token)
           .maybeSingle();
+
+        console.log('[ActivateSupporter] Query result:', { data, error });
 
         if (error || !data) {
           setPageState('invalid');
@@ -567,6 +570,17 @@ export default function ActivateSupporter() {
             </form>
           </CardContent>
         </Card>
+      </div>
+    );
+  }
+
+  // Loading state - show spinner while validating token
+  if (pageState === 'loading') {
+    return (
+      <div className="min-h-screen bg-gradient-to-b from-primary/5 to-background flex flex-col items-center justify-center p-4 gap-4">
+        <WelileLogo linkToHome={false} />
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+        <p className="text-sm text-muted-foreground">Verifying your invitation...</p>
       </div>
     );
   }
