@@ -58,7 +58,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
 
             <div className="flex flex-col items-center gap-1.5 px-3 py-3 rounded-2xl bg-white/15 backdrop-blur-sm">
               <TrendingUp className="h-6 w-6 opacity-90" />
-              <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.12)}</p>
+              <p className="text-lg font-black leading-none">{formatAmount(rentSecured * 0.15)}</p>
               <p className="text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
             </div>
 
