@@ -29,6 +29,7 @@ export function KPICard({ title, value, icon: Icon, trend, color = 'bg-primary/1
             {trend.value >= 0 ? '↑' : '↓'} {Math.abs(trend.value)}% {trend.label}
           </p>
         )}
+        {subtitle && <p className="text-[10px] text-muted-foreground mt-0.5">{subtitle}</p>}
       </div>
     </div>
   );
