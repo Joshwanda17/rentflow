@@ -43,7 +43,31 @@ async function attemptOAuth(provider: 'google' | 'apple', redirectUri: string) {
   return result;
 }
 
+function isPreviewHost(hostname: string) {
+  return hostname.includes('id-preview--') || hostname.includes('preview--') || hostname.endsWith('.lovableproject.com');
+}
+
+async function preparePreviewOAuthFlow() {
+  if (!isPreviewHost(window.location.hostname)) return;
+
+  try {
+    if ('serviceWorker' in navigator) {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map((r) => r.unregister()));
+    }
+
+    if ('caches' in window) {
+      const keys = await caches.keys();
+      await Promise.all(keys.map((k) => caches.delete(k)));
+    }
+  } catch (error) {
+    console.warn('[OAuth] Failed to clear preview service workers/caches:', error);
+  }
+}
+
 export async function signInWithGoogle() {
+  await preparePreviewOAuthFlow();
+
   // Use current origin so OAuth callback returns to wherever the user is
   // (preview domain OR custom domain — both must work)
   const primaryUri = window.location.origin;
@@ -69,6 +93,8 @@ export async function signInWithGoogle() {
 }
 
 export async function signInWithApple() {
+  await preparePreviewOAuthFlow();
+
   const primaryUri = window.location.origin;
 
   console.log('[OAuth:Apple] domain:', window.location.hostname, '| redirect_uri:', primaryUri);
