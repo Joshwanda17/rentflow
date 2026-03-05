@@ -87,6 +87,18 @@ function DashboardContent() {
     };
   }, []);
 
+  // Handle role switch via URL param (e.g. after supporter activation)
+  useEffect(() => {
+    const requestedRole = searchParams.get('role') as AppRole | null;
+    if (!requestedRole || !user) return;
+    const validRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter', 'manager'];
+    if (validRoles.includes(requestedRole)) {
+      switchRole(requestedRole);
+    }
+    searchParams.delete('role');
+    setSearchParams(searchParams, { replace: true });
+  }, [searchParams, user, switchRole, setSearchParams]);
+
    // Handle investment account activation via link (investment_accounts table removed)
   useEffect(() => {
     const activateAccountId = searchParams.get('activate_account');

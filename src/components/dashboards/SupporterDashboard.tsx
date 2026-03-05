@@ -167,6 +167,7 @@ export default function SupporterDashboard({
           .select('amount')
           .eq('user_id', user.id)
           .eq('category', 'supporter_rent_fund')
+          .eq('direction', 'cash_out')
           .limit(500),
         supabase
           .from('investor_portfolios')
