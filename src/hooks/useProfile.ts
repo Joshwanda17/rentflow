@@ -12,6 +12,7 @@ interface Profile {
   verified: boolean;
   is_frozen?: boolean;
   frozen_reason?: string | null;
+  territory?: string | null;
 }
 // Module-level cache to deduplicate across component instances
 let profileCache: { data: Profile; userId: string; timestamp: number } | null = null;
@@ -56,7 +57,7 @@ export function useProfile() {
       try {
         const { data, error } = await supabase
           .from('profiles')
-          .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason')
+          .select('id, full_name, email, phone, avatar_url, verified, is_frozen, frozen_reason, territory')
           .eq('id', user.id)
           .maybeSingle();
 

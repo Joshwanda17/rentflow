@@ -223,6 +223,106 @@ export type Database = {
           },
         ]
       }
+      agent_collections: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          float_after: number
+          float_before: number
+          id: string
+          payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          tenant_id: string
+          token_id: string
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          float_after?: number
+          float_before?: number
+          id?: string
+          payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          tenant_id: string
+          token_id: string
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          float_after?: number
+          float_before?: number
+          id?: string
+          payment_method?: Database["public"]["Enums"]["collection_payment_method"]
+          tenant_id?: string
+          token_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_collections_token_id_fkey"
+            columns: ["token_id"]
+            isOneToOne: false
+            referencedRelation: "payment_tokens"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       agent_commission_payouts: {
         Row: {
           agent_id: string
@@ -303,6 +403,96 @@ export type Database = {
           source_user_id?: string | null
         }
         Relationships: []
+      }
+      agent_float_limits: {
+        Row: {
+          agent_id: string
+          assigned_by: string | null
+          collected_today: number
+          created_at: string
+          float_limit: number
+          id: string
+          last_reset_date: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          assigned_by?: string | null
+          collected_today?: number
+          created_at?: string
+          float_limit?: number
+          id?: string
+          last_reset_date?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          assigned_by?: string | null
+          collected_today?: number
+          created_at?: string
+          float_limit?: number
+          id?: string
+          last_reset_date?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: true
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_float_limits_assigned_by_fkey"
+            columns: ["assigned_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       agent_goals: {
         Row: {
@@ -428,6 +618,96 @@ export type Database = {
           sub_agent_id?: string
         }
         Relationships: []
+      }
+      agent_visits: {
+        Row: {
+          accuracy: number | null
+          agent_id: string
+          checked_in_at: string
+          created_at: string
+          id: string
+          latitude: number
+          longitude: number
+          tenant_id: string
+        }
+        Insert: {
+          accuracy?: number | null
+          agent_id: string
+          checked_in_at?: string
+          created_at?: string
+          id?: string
+          latitude: number
+          longitude: number
+          tenant_id: string
+        }
+        Update: {
+          accuracy?: number | null
+          agent_id?: string
+          checked_in_at?: string
+          created_at?: string
+          id?: string
+          latitude?: number
+          longitude?: number
+          tenant_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_visits_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       ai_chat_messages: {
         Row: {
@@ -1662,6 +1942,109 @@ export type Database = {
         }
         Relationships: []
       }
+      payment_tokens: {
+        Row: {
+          agent_id: string
+          amount: number
+          created_at: string
+          expires_at: string
+          id: string
+          tenant_id: string
+          token_code: string
+          used: boolean
+          used_at: string | null
+          visit_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          created_at?: string
+          expires_at: string
+          id?: string
+          tenant_id: string
+          token_code: string
+          used?: boolean
+          used_at?: string | null
+          visit_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          created_at?: string
+          expires_at?: string
+          id?: string
+          tenant_id?: string
+          token_code?: string
+          used?: boolean
+          used_at?: string | null
+          visit_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_tenant_id_fkey"
+            columns: ["tenant_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "payment_tokens_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "agent_visits"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       pending_wallet_operations: {
         Row: {
           account: string | null
@@ -1958,6 +2341,7 @@ export type Database = {
           phone: string
           referrer_id: string | null
           rent_discount_active: boolean
+          territory: string | null
           updated_at: string
           verified: boolean
           whatsapp_verified: boolean | null
@@ -1984,6 +2368,7 @@ export type Database = {
           phone: string
           referrer_id?: string | null
           rent_discount_active?: boolean
+          territory?: string | null
           updated_at?: string
           verified?: boolean
           whatsapp_verified?: boolean | null
@@ -2010,6 +2395,7 @@ export type Database = {
           phone?: string
           referrer_id?: string | null
           rent_discount_active?: boolean
+          territory?: string | null
           updated_at?: string
           verified?: boolean
           whatsapp_verified?: boolean | null
@@ -3882,6 +4268,10 @@ export type Database = {
         Returns: undefined
       }
       refresh_financial_summaries: { Args: never; Returns: undefined }
+      reset_agent_float_if_stale: {
+        Args: { p_agent_id: string }
+        Returns: undefined
+      }
       resolve_welile_ai_id: { Args: { ai_id: string }; Returns: string }
       search_agents: {
         Args: { result_limit?: number; search_term?: string }
@@ -3903,6 +4293,14 @@ export type Database = {
       update_user_risk_score: {
         Args: { p_reason?: string; p_score_change: number; p_user_id: string }
         Returns: number
+      }
+      validate_and_record_collection: {
+        Args: {
+          p_agent_id: string
+          p_payment_method: string
+          p_token_code: string
+        }
+        Returns: Json
       }
       void_ledger_entry: {
         Args: { p_ledger_id: string; p_reason: string }
@@ -3928,6 +4326,7 @@ export type Database = {
         | "escalate_to_manager"
         | "apply_late_fee"
         | "restrict_access"
+      collection_payment_method: "mobile_money" | "cash" | "in_app_wallet"
       flag_severity: "low" | "medium" | "high" | "critical"
       system_event_type:
         | "payment_missed"
@@ -4094,6 +4493,7 @@ export const Constants = {
         "apply_late_fee",
         "restrict_access",
       ],
+      collection_payment_method: ["mobile_money", "cash", "in_app_wallet"],
       flag_severity: ["low", "medium", "high", "critical"],
       system_event_type: [
         "payment_missed",
