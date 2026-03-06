@@ -95,19 +95,11 @@ Deno.serve(async (req) => {
       );
     }
 
-    // Optimistic lock: deduct only if balance matches
-    const newBalance = wallet.balance - amount;
-    const { error: deductErr, count: deductCount } = await adminClient
-      .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
-      .eq("user_id", user.id)
-      .eq("balance", wallet.balance)
-      .select('id', { count: 'exact', head: true });
-
-    if (deductErr || !deductCount || deductCount === 0) {
+    // Balance check only — actual deduction happens via ledger trigger
+    if (wallet.balance < amount) {
       return new Response(
-        JSON.stringify({ error: "Balance changed, please retry" }),
-        { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        JSON.stringify({ error: "Insufficient balance" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
 
@@ -145,8 +137,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Record in general_ledger
-    await adminClient.from("general_ledger").insert({
+    // Record in general_ledger — trigger handles wallet deduction via transaction_group_id
+    const txGroupId = crypto.randomUUID();
+    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
       user_id: user.id,
       amount,
       direction: "cash_out",
@@ -156,7 +149,24 @@ Deno.serve(async (req) => {
       description: `Supporter rent funding: UGX ${amount.toLocaleString()} to Rent Management Pool. Payout day: ${payout_day}th. First payout: ${firstPayoutDate}`,
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
+      transaction_group_id: txGroupId,
     });
+
+    if (ledgerErr) {
+      console.error("[fund-rent-pool] Ledger insert failed:", ledgerErr.message);
+      return new Response(
+        JSON.stringify({ error: "Transaction failed. Please try again." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    // Read updated balance after trigger
+    const { data: updatedWallet } = await adminClient
+      .from("wallets")
+      .select("balance")
+      .eq("user_id", user.id)
+      .single();
+    const newBalance = updatedWallet?.balance ?? (wallet.balance - amount);
 
     // Notify user with 15% monthly reward info
     const monthlyReward = Math.round(amount * 0.15);
@@ -175,7 +185,7 @@ Deno.serve(async (req) => {
       },
     });
 
-    console.log(`[fund-rent-pool] User ${user.id} funded ${amount} to rent pool. Payout day: ${payout_day}. Ref: ${referenceId}`);
+    console.log(`[fund-rent-pool] User ${user.id} funded ${amount} to rent pool. Payout day: ${payout_day}. Ref: ${referenceId}. TxGroup: ${txGroupId}`);
 
     return new Response(
       JSON.stringify({
