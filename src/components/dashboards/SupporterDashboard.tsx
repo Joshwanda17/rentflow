@@ -87,7 +87,7 @@ export default function SupporterDashboard({
   const [selectedPackageCategory, setSelectedPackageCategory] = useState<RentCategory | null>(null);
   const [showPackageSheet, setShowPackageSheet] = useState(false);
   const { toast } = useToast();
-  const { wallet } = useWallet();
+  const { wallet, refreshWallet } = useWallet();
   const { fireSuccess, fireFirstFunding } = useConfetti();
   const [hasEverFunded, setHasEverFunded] = useState<boolean | null>(null);
 
@@ -197,10 +197,10 @@ export default function SupporterDashboard({
 
   // Auto-refresh when supporter contributes via Opportunity card or Categories
   useEffect(() => {
-    const handler = () => { fetchTotalContributed(); };
+    const handler = () => { fetchTotalContributed(); refreshWallet(); };
     window.addEventListener('supporter-contribution-changed', handler);
     return () => window.removeEventListener('supporter-contribution-changed', handler);
-  }, [fetchTotalContributed]);
+  }, [fetchTotalContributed, refreshWallet]);
 
   const HOUSES_CACHE_TTL = 10 * 60 * 1000; // 10 minutes
 
