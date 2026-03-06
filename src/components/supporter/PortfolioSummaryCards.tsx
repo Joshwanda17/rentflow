@@ -1,16 +1,17 @@
 import { useState } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
-import { TrendingUp, Home, Shield, Wallet } from 'lucide-react';
+import { TrendingUp, Home, Shield, Wallet, PiggyBank } from 'lucide-react';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { hapticTap } from '@/lib/haptics';
 
 interface PortfolioSummaryCardsProps {
   housesFunded: number;
   rentSecured: number;
+  walletBalance: number;
   portfolioHealth: 'stable' | 'at_risk' | 'growing';
 }
 
-export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHealth }: PortfolioSummaryCardsProps) {
+export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance, portfolioHealth }: PortfolioSummaryCardsProps) {
   const { formatAmount } = useCurrency();
   const [showWallet, setShowWallet] = useState(false);
 
@@ -22,6 +23,9 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
 
   const health = healthConfig[portfolioHealth];
 
+  // Return is 15% of total rent contributed (cumulative across all investments)
+  const totalReturn = rentSecured * 0.15;
+
   return (
     <>
       <div
@@ -32,15 +36,15 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
         <div className="absolute -bottom-6 -left-6 w-20 h-20 bg-white/5 rounded-full save-data:hidden" />
 
         <div className="relative z-10 space-y-3 xs:space-y-4 sm:space-y-5">
-          {/* Main balance with wallet icon */}
+          {/* Main balance — wallet balance */}
           <div>
-            <p className="text-xs xs:text-sm opacity-80 uppercase tracking-widest font-bold mb-1.5">💰 Total Rent Contributed</p>
+            <p className="text-xs xs:text-sm opacity-80 uppercase tracking-widest font-bold mb-1.5">💰 Wallet Balance</p>
             <button
               onClick={() => { hapticTap(); setShowWallet(true); }}
               className="flex items-center gap-2 group cursor-pointer min-h-[44px]"
             >
               <Wallet className="h-6 w-6 xs:h-7 xs:w-7 opacity-70 group-hover:opacity-100 transition-opacity" />
-              <p className="text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight break-all">{formatAmount(rentSecured)}</p>
+              <p className="text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight break-all">{formatAmount(walletBalance)}</p>
             </button>
           </div>
 
@@ -54,17 +58,14 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, portfolioHeal
 
             <div className="flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl bg-white/15">
               <TrendingUp className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 opacity-90" />
-              <p className="text-xs xs:text-sm sm:text-lg font-black leading-none break-all">{formatAmount(rentSecured * 0.15)}</p>
+              <p className="text-xs xs:text-sm sm:text-lg font-black leading-none break-all">{formatAmount(totalReturn)}</p>
               <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
             </div>
 
             <div className="flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl bg-white/15">
-              <Shield className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 opacity-90" />
-              <div className="flex items-center gap-0.5 xs:gap-1">
-                <span className={`h-2 w-2 rounded-full ${health.dot}`} />
-                <p className="text-xs xs:text-sm sm:text-base font-black leading-none">{health.label}</p>
-              </div>
-              <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Health</p>
+              <PiggyBank className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 opacity-90" />
+              <p className="text-xs xs:text-sm sm:text-base font-black leading-none break-all">{formatAmount(rentSecured)}</p>
+              <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Invested</p>
             </div>
           </div>
         </div>
