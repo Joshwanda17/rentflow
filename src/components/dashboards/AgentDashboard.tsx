@@ -11,6 +11,11 @@ import {
   WifiOff,
   RefreshCw,
   BadgeCheck,
+  MapPin,
+  Key,
+  Banknote,
+  ArrowDownCircle,
+  Users,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
@@ -18,7 +23,6 @@ import { ReactNode } from 'react';
 import DashboardHeader from '@/components/DashboardHeader';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import MobileBottomNav from '@/components/MobileBottomNav';
-import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { useProfile } from '@/hooks/useProfile';
 import { UserAvatar } from '@/components/UserAvatar';
 import { AgentDepositDialog } from '@/components/agent/AgentDepositDialog';
@@ -57,6 +61,13 @@ import { CreditAccessCard } from '@/components/CreditAccessCard';
 import { ApprovedRentRequestsWidget } from '@/components/rent/ApprovedRentRequestsWidget';
 import { AgentRentPaymentGuide } from '@/components/agent/AgentRentPaymentGuide';
 import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
+
+// New Phase 1 components
+import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
+import { AgentVisitDialog } from '@/components/agent/AgentVisitDialog';
+import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
+import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
+import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
 
 interface AgentDashboardProps {
   user: User;
@@ -104,8 +115,11 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const [landlordMapOpen, setLandlordMapOpen] = useState(false);
   const [rentalFinderOpen, setRentalFinderOpen] = useState(false);
 
-  // Realtime referrals channel REMOVED — 'referrals' table is not in the
-  // realtime whitelist. Referral data refreshes on pull-to-refresh via snapshot.
+  // Phase 1: Agent Operations dialogs
+  const [visitDialogOpen, setVisitDialogOpen] = useState(false);
+  const [tokenDialogOpen, setTokenDialogOpen] = useState(false);
+  const [recordCollectionOpen, setRecordCollectionOpen] = useState(false);
+  const [depositCashOpen, setDepositCashOpen] = useState(false);
 
   if (loading && isOnline && !hasLoadedOnce) {
     return <AgentDashboardSkeleton />;
@@ -121,9 +135,17 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const handleViewWallet = () => { hapticTap(); setShowWallet(true); };
   const handleOpenMenu = () => { hapticTap(); setMenuOpen(true); };
 
-  // Minimal menu for header
   const menuItems = [
     { icon: UserPlus, label: 'Register User', onClick: handleRegisterUser },
+  ];
+
+  const quickActions = [
+    { icon: MapPin, label: 'Visit Tenant', color: 'text-blue-500', bg: 'bg-blue-500/10', onClick: () => { hapticTap(); setVisitDialogOpen(true); } },
+    { icon: Key, label: 'Generate Token', color: 'text-amber-500', bg: 'bg-amber-500/10', onClick: () => { hapticTap(); setTokenDialogOpen(true); } },
+    { icon: Banknote, label: 'Record Payment', color: 'text-success', bg: 'bg-success/10', onClick: () => { hapticTap(); setRecordCollectionOpen(true); } },
+    { icon: ArrowDownCircle, label: 'Deposit Cash', color: 'text-emerald-500', bg: 'bg-emerald-500/10', onClick: () => { hapticTap(); setDepositCashOpen(true); } },
+    { icon: UserPlus, label: 'Register User', color: 'text-primary', bg: 'bg-primary/10', onClick: handleRegisterUser },
+    { icon: Users, label: 'My Tenants', color: 'text-purple-500', bg: 'bg-purple-500/10', onClick: () => { hapticTap(); setTenantsSheetOpen(true); } },
   ];
 
   return (
@@ -138,9 +160,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         menuItems={menuItems}
       />
 
-      {/* Scrollable content area with bottom padding for fixed footer */}
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-6 space-y-8 animate-fade-in max-w-lg mx-auto">
+        <main className="px-4 py-6 space-y-6 animate-fade-in max-w-lg mx-auto">
         {/* Offline Notice */}
         <AnimatePresence>
           {!isOnline && (
@@ -158,10 +179,9 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
           )}
         </AnimatePresence>
 
-        {/* Agent Agreement Banner */}
         <AgentAgreementBanner />
 
-        {/* Profile Section - Minimal */}
+        {/* Profile Section */}
         <div className="text-center space-y-3">
           <button onClick={() => navigate('/settings')} className="mx-auto block">
             <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
@@ -177,86 +197,67 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
               )}
             </h1>
             <p className="text-sm text-muted-foreground">Welile Agent</p>
-            
           </div>
           <AiIdButton variant="compact" />
-          
-          {/* Quick Stats */}
-          <div className="flex justify-center gap-6 text-center">
-            <div>
-              <p className="font-bold text-lg">{tenantsCount + referralCount}</p>
-              <p className="text-xs text-muted-foreground">Users</p>
-            </div>
-            <div className="w-px bg-border" />
-            <div>
-              <p className="font-bold text-lg">{subAgentCount}</p>
-              <p className="text-xs text-muted-foreground">Sub-Agents</p>
-            </div>
-          </div>
         </div>
 
-        {/* Credit Access Limit */}
+        {/* Daily Operations Summary */}
+        <AgentDailyOpsCard />
+
+        {/* Quick Action Grid — 6 buttons */}
+        <div className="grid grid-cols-3 gap-2">
+          {quickActions.map((action) => (
+            <motion.button
+              key={action.label}
+              whileTap={{ scale: 0.95 }}
+              onClick={action.onClick}
+              className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border hover:border-primary/30 transition-all touch-manipulation"
+            >
+              <div className={`p-2 rounded-lg ${action.bg}`}>
+                <action.icon className={`h-5 w-5 ${action.color}`} />
+              </div>
+              <span className="text-[11px] font-medium text-center leading-tight">{action.label}</span>
+            </motion.button>
+          ))}
+        </div>
+
+        {/* Wallet Button */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={handleViewWallet}
+          className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation overflow-hidden"
+        >
+          <div className="p-3 rounded-xl bg-success/20 shrink-0">
+            <Wallet className="h-7 w-7 text-success" />
+          </div>
+          <div className="flex-1 text-left min-w-0">
+            <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
+            <p className="text-sm text-muted-foreground">Wallet Balance</p>
+            <RecentAutoCharges />
+          </div>
+        </motion.button>
+
+        {/* Menu Button */}
+        <motion.button
+          whileTap={{ scale: 0.98 }}
+          onClick={handleOpenMenu}
+          className="w-full flex items-center gap-4 p-4 rounded-2xl bg-muted/30 border border-border hover:border-primary/30 transition-all touch-manipulation"
+        >
+          <div className="p-2.5 rounded-xl bg-muted">
+            <Menu className="h-6 w-6 text-foreground" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-semibold">All Features & Tools</p>
+            <p className="text-xs text-muted-foreground">Registrations, earnings, shop & more</p>
+          </div>
+        </motion.button>
+
+        {/* Credit Access */}
         <CreditAccessCard userId={user.id} compact />
 
-        {/* ═══════════════════════════════════════════════════════════════════
-            THREE MAIN ACTION BUTTONS
-        ═══════════════════════════════════════════════════════════════════ */}
-        <div className="space-y-3">
-          {/* 1. WALLET BUTTON - Primary */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={handleViewWallet}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-success/10 to-emerald-500/10 border-2 border-success/30 hover:border-success/50 transition-all touch-manipulation overflow-hidden"
-          >
-            <div className="p-3 rounded-xl bg-success/20 shrink-0">
-              <Wallet className="h-7 w-7 text-success" />
-            </div>
-            <div className="flex-1 text-left min-w-0">
-              <p className="font-bold text-xl text-success truncate">{formatUGX(wallet?.balance ?? 0)}</p>
-              <p className="text-sm text-muted-foreground">Wallet Balance</p>
-              <RecentAutoCharges />
-            </div>
-          </motion.button>
-
-          {/* 2. REGISTER USER BUTTON */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={handleRegisterUser}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-primary/10 to-blue-500/10 border-2 border-primary/30 hover:border-primary/50 transition-all touch-manipulation"
-          >
-            <div className="p-3 rounded-xl bg-primary/20">
-              <UserPlus className="h-7 w-7 text-primary" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-lg">Register New User</p>
-              <p className="text-sm text-muted-foreground">Onboard tenants, landlords & more</p>
-            </div>
-          </motion.button>
-
-
-          {/* 4. MENU BUTTON - Just below Record Payment */}
-          <motion.button
-            whileTap={{ scale: 0.98 }}
-            onClick={handleOpenMenu}
-            className="w-full flex items-center gap-4 p-5 rounded-2xl bg-gradient-to-r from-muted/50 to-muted/30 border-2 border-border hover:border-primary/30 transition-all touch-manipulation"
-          >
-            <div className="p-3 rounded-xl bg-muted">
-              <Menu className="h-7 w-7 text-foreground" />
-            </div>
-            <div className="flex-1 text-left">
-              <p className="font-bold text-lg">Menu</p>
-              <p className="text-sm text-muted-foreground">All agent features & tools</p>
-            </div>
-          </motion.button>
-        </div>
-
-        {/* How Rent Payments Work Guide */}
         <AgentRentPaymentGuide />
-
-        {/* Approved Rent Requests posted by this agent */}
         <ApprovedRentRequestsWidget mode="agent" />
 
-        {/* ADD ROLE COMPONENT */}
         <div className="flex justify-center">
           {addRoleComponent}
         </div>
@@ -264,10 +265,8 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         </main>
       </PullToRefresh>
 
-      {/* Full-screen wallet sheet */}
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
       
-      {/* Menu Drawer */}
       <AgentMenuDrawer
         open={menuOpen}
         onOpenChange={setMenuOpen}
@@ -288,7 +287,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onFindRentals={() => { setMenuOpen(false); setRentalFinderOpen(true); }}
       />
 
-      {/* Dialogs */}
+      {/* Existing Dialogs */}
       <AgentDepositDialog open={depositOpen} onOpenChange={setDepositOpen} />
       <UnifiedRegistrationDialog 
         open={registerUserOpen} 
@@ -305,65 +304,27 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         onOpenChange={setRentRequestOpen} 
         onSuccess={() => setRentRequestOpen(false)}
       />
-      <EarningsRankSystemSheet
-        open={earningsRankOpen}
-        onOpenChange={setEarningsRankOpen}
-      />
-      <AgentManagedPropertyDialog
-        open={managedPropertyOpen}
-        onOpenChange={setManagedPropertyOpen}
-        onSuccess={refreshOfflineData}
-      />
-      <AgentManagedPropertiesSheet
-        open={managedPropertiesSheetOpen}
-        onOpenChange={setManagedPropertiesSheetOpen}
-        onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }}
-      />
-      <AgentLandlordPayoutDialog
-        open={payoutDialogOpen}
-        onOpenChange={setPayoutDialogOpen}
-        property={payoutProperty}
-      />
-      
-      {/* Verification opportunities FAB */}
+      <EarningsRankSystemSheet open={earningsRankOpen} onOpenChange={setEarningsRankOpen} />
+      <AgentManagedPropertyDialog open={managedPropertyOpen} onOpenChange={setManagedPropertyOpen} onSuccess={refreshOfflineData} />
+      <AgentManagedPropertiesSheet open={managedPropertiesSheetOpen} onOpenChange={setManagedPropertiesSheetOpen} onRequestPayout={(p) => { setPayoutProperty(p); setPayoutDialogOpen(true); }} />
+      <AgentLandlordPayoutDialog open={payoutDialogOpen} onOpenChange={setPayoutDialogOpen} property={payoutProperty} />
       <VerificationOpportunitiesButton />
       <CreditVerificationButton />
-      
-      {/* Agent's own rent requests */}
       <AgentMyRentRequestsSheet open={myRentRequestsOpen} onOpenChange={setMyRentRequestsOpen} />
-      
-      {/* My Tenants */}
       <AgentTenantsSheet open={tenantsSheetOpen} onOpenChange={setTenantsSheetOpen} />
-      
-      {/* Top Up Tenant Wallet */}
-      <AgentTopUpTenantDialog
-        open={topUpTenantOpen}
-        onOpenChange={setTopUpTenantOpen}
-        onSuccess={refreshOfflineData}
-      />
-      <AgentInvestForPartnerDialog
-        open={investForPartnerOpen}
-        onOpenChange={setInvestForPartnerOpen}
-        onSuccess={() => { refreshOfflineData(); refreshWallet(); }}
-      />
-      <ProxyInvestmentHistorySheet
-        open={proxyHistoryOpen}
-        onOpenChange={setProxyHistoryOpen}
-      />
-      <AgentReceiptDialog
-        open={receiptOpen}
-        onOpenChange={setReceiptOpen}
-      />
-      <AgentLandlordMapSheet
-        open={landlordMapOpen}
-        onOpenChange={setLandlordMapOpen}
-      />
-      <RentalFinderSheet
-        open={rentalFinderOpen}
-        onOpenChange={setRentalFinderOpen}
-      />
-      {/* Fixed footer navigation */}
-      {/* Fixed footer navigation */}
+      <AgentTopUpTenantDialog open={topUpTenantOpen} onOpenChange={setTopUpTenantOpen} onSuccess={refreshOfflineData} />
+      <AgentInvestForPartnerDialog open={investForPartnerOpen} onOpenChange={setInvestForPartnerOpen} onSuccess={() => { refreshOfflineData(); refreshWallet(); }} />
+      <ProxyInvestmentHistorySheet open={proxyHistoryOpen} onOpenChange={setProxyHistoryOpen} />
+      <AgentReceiptDialog open={receiptOpen} onOpenChange={setReceiptOpen} />
+      <AgentLandlordMapSheet open={landlordMapOpen} onOpenChange={setLandlordMapOpen} />
+      <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
+
+      {/* Phase 1: Agent Operations Dialogs */}
+      <AgentVisitDialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen} />
+      <GeneratePaymentTokenDialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen} />
+      <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
+      <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
+
       <MobileBottomNav currentRole={currentRole} />
     </div>
   );
