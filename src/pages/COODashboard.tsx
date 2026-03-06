@@ -125,7 +125,7 @@ export default function COODashboard() {
       // Parallel queries
       const [
         activeUsersRes,
-        activeAgentsRes,
+        earningAgentsRes,
         tenantsWithBalancesRes,
         newRentRequestsRes,
         newRentRequestsWeekRes,
@@ -136,13 +136,13 @@ export default function COODashboard() {
         pipelineLandlordsRes,
         expectedRepaymentsRes,
       ] = await Promise.all([
-        // 1. Active users (last 7 days)
+        // 1. Active users (last 7 days) — exact count is fine here
         supabase.from('profiles').select('id', { count: 'exact', head: true })
           .gte('last_active_at', sevenDaysAgo),
-        // 2. Active earning agents (last 7 days)
-        supabase.from('agent_earnings').select('agent_id', { count: 'exact', head: true })
+        // 2. Active earning agents — need distinct agent_ids
+        supabase.from('agent_earnings').select('agent_id')
           .gte('created_at', sevenDaysAgo),
-        // 3. Active tenants with balances (active rent requests with repayments due)
+        // 3. Active tenants with balances
         supabase.from('rent_requests').select('id', { count: 'exact', head: true })
           .in('status', ['funded', 'approved']),
         // 4. New rent requests today
@@ -157,34 +157,35 @@ export default function COODashboard() {
           .in('status', ['pending', 'approved'])
           .order('created_at', { ascending: false })
           .limit(20),
-        // 5. Active supporters (have funded rent requests)
-        supabase.from('rent_requests').select('supporter_id', { count: 'exact', head: true })
+        // 5. Active supporters — need distinct supporter_ids
+        supabase.from('rent_requests').select('supporter_id')
           .not('supporter_id', 'is', null)
           .in('status', ['funded', 'approved']),
-        // 6. New supporter requests (become-supporter flow - users with supporter role added recently)
+        // 6. New supporter requests this week
         supabase.from('user_roles').select('id', { count: 'exact', head: true })
           .eq('role', 'supporter')
           .gte('created_at', sevenDaysAgo),
-        // 7. Active landlords (received payments recently)
-        supabase.from('rent_requests').select('landlord_id', { count: 'exact', head: true })
+        // 7. Active landlords — need distinct landlord_ids
+        supabase.from('rent_requests').select('landlord_id')
           .in('status', ['funded', 'disbursed'])
           .gte('funded_at', thirtyDaysAgo),
         // 8. Landlords in pipeline
         supabase.from('landlords').select('id', { count: 'exact', head: true })
           .eq('verified', false),
-        // 9. Expected repayments next 30 days
+        // 9. Expected repayments
         supabase.from('rent_requests').select('total_repayment, amount_repaid')
           .in('status', ['funded', 'approved']),
       ]);
 
       const activeUsers = activeUsersRes.count || 0;
-      const activeAgents = activeAgentsRes.count || 0;
+      // Distinct counts for agents, supporters, landlords
+      const activeAgents = new Set((earningAgentsRes.data || []).map(r => r.agent_id)).size;
       const tenantsWithBalances = tenantsWithBalancesRes.count || 0;
       const newRentToday = newRentRequestsRes.count || 0;
       const newRentWeek = newRentRequestsWeekRes.count || 0;
-      const activeSupporters = activeSupportersRes.count || 0;
+      const activeSupporters = new Set((activeSupportersRes.data || []).map(r => r.supporter_id)).size;
       const newSupporterReq = newSupporterReqRes.count || 0;
-      const activeLandlords = activeLandlordsRes.count || 0;
+      const activeLandlords = new Set((activeLandlordsRes.data || []).map(r => r.landlord_id)).size;
       const pipelineLandlords = pipelineLandlordsRes.count || 0;
 
       // Resolve profile names for recent rent requests
