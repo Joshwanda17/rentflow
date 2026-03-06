@@ -1,117 +1,98 @@
 
 
-# Role-Based Executive & Department Dashboard System
+## Plan: Phase 1 — Agent Operations Dashboard (Core)
 
-## Scope Assessment
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-This is a large feature set spanning 8 new dashboards, sidebar navigation, access control, charts, data tables with filtering/sorting/export, and mobile-first responsive design. Given the size, this must be built in phases across multiple messages.
+---
 
-## What Already Exists
-- **Manager Dashboard** at `/dashboard` (manager role) with KPIs, wallets, rent management
-- **COO Dashboard** at `/coo-dashboard` with operations health metrics
-- **CFO Dashboard** at `/cfo-dashboard` with financial statements, reconciliation, ledger
-- **Manager Login** at `/manager-login` using access code `Manager@welile`
-- **Desktop sidebar** in `DesktopManagerSidebar.tsx` with COO/CFO links
-- **Mobile menu** in `MobileManagerMenu.tsx`
-- Existing tables: `profiles`, `user_roles`, `rent_requests`, `general_ledger`, `wallets`, `investor_portfolios`, `landlords`, `agent_earnings`, `agent_commission_payouts`, `deposit_requests`, `referrals`, `system_events`, `notifications`
+### New Database Tables (4 migrations)
 
-## Access Control Approach
-All dashboards will be accessible from the Manager Dashboard sidebar/menu, gated by the existing `Manager@welile` access code (already in `ManagerLogin.tsx`). No new DB roles needed -- these are functional views within the manager area, not separate user roles.
+**1. `agent_float_limits`** — Manager-assigned float capacity per agent
+- `id`, `agent_id` (FK profiles), `float_limit` (numeric, default 0), `collected_today` (numeric, default 0), `last_reset_date` (date), `assigned_by` (FK profiles), `created_at`, `updated_at`
+- A daily reset trigger sets `collected_today = 0` when `last_reset_date < CURRENT_DATE` on any read/update
+- RLS: agent can SELECT own row; managers can INSERT/UPDATE
 
-## Phase 1 -- Navigation & Hub Page (This Implementation)
+**2. `agent_visits`** — GPS visit check-ins
+- `id`, `agent_id`, `tenant_id`, `latitude`, `longitude`, `accuracy`, `checked_in_at` (timestamptz), `created_at`
+- RLS: agent can INSERT/SELECT own rows; managers can SELECT all
 
-### 1. Create Executive Hub Page (`/executive-hub`)
-A single page with sub-navigation (tabs) for all 8 dashboards. Accessible from the manager sidebar. Uses the same manager role check as COO/CFO dashboards.
+**3. `payment_tokens`** — Time-limited 6-digit tokens
+- `id`, `agent_id`, `tenant_id`, `token_code` (text, 6-digit), `amount` (numeric), `expires_at` (timestamptz, +30 min), `used` (boolean, default false), `used_at` (timestamptz null), `visit_id` (FK agent_visits), `created_at`
+- RLS: agent can INSERT/SELECT own tokens
 
-### 2. Update Sidebar & Mobile Menu
-Add "Executive & Ops" section to `DesktopManagerSidebar.tsx` and `MobileManagerMenu.tsx` linking to `/executive-hub`.
+**4. `agent_collections`** — Payments recorded against tokens
+- `id`, `agent_id`, `tenant_id`, `token_id` (FK payment_tokens), `amount`, `payment_method` (enum: mobile_money, cash, in_app_wallet), `float_before`, `float_after`, `created_at`
+- On INSERT trigger: mark token as `used`, increment `agent_float_limits.collected_today`, block if `collected_today + amount > float_limit`
+- RLS: agent can INSERT/SELECT own rows
 
-### 3. Build All 8 Dashboard Views as Tab Content
+---
 
-Each dashboard is a component under `src/components/executive/`:
+### Database Functions
 
-**Executive Dashboards:**
-- `CEODashboard.tsx` -- KPI tiles (Total Tenants, Funded Tenants, Rent Financed, Partners, Landlords, Revenue, Growth Rate, Active Agents) + 3 charts (tenant growth, capital raised, rent repayment)
-- `CTODashboard.tsx` -- System health metrics (uptime placeholder, API performance from system_events, active users from profiles, error counts, fraud alerts placeholder)
-- `CMODashboard.tsx` -- Growth metrics (signups over time from profiles, referral conversions from referrals, agent registration velocity)
+- `reset_agent_float_if_stale(agent_id)` — called before float reads; resets `collected_today` if `last_reset_date < today`
+- `validate_and_record_collection(...)` — atomic function that validates token, checks float capacity, inserts into `agent_collections`, updates float, marks token used. Returns error if token expired/used or float exceeded.
 
-**Department Dashboards:**
-- `AgentOpsDashboard.tsx` -- Total/active agents, tenants onboarded, capital raised, leaderboard, commissions (from agent_earnings, agent_commission_payouts, profiles, rent_requests)
-- `TenantOpsDashboard.tsx` -- Applications, verified, awaiting funding, active, repayment status, defaults (from rent_requests, profiles)
-- `LandlordOpsDashboard.tsx` -- Registered landlords, active properties, rent sent, upcoming payments, agreements (from landlords, rent_requests)
-- `PartnersOpsDashboard.tsx` -- Total partners, capital invested, portfolios, expected returns, payouts (from investor_portfolios, wallets)
-- `CRMDashboard.tsx` -- Support tickets from system_events, inquiry counts, response time estimates
+---
 
-### 4. Shared Data Table Component
-Create `src/components/executive/DataTable.tsx` -- a reusable table with:
-- Column sorting (click header)
-- Text search filter
-- Status/category dropdown filter
-- CSV export button
-- PDF export button (using jsPDF already installed)
-- Default limit: 15 latest records
-- Mobile-responsive: horizontal scroll with sticky first column
+### New UI Components
 
-### 5. Chart Components
-Use recharts (already installed) for:
-- Line charts (growth trends)
-- Bar charts (comparisons)
-- Area charts (cumulative metrics)
+**1. `AgentDailyOpsCard.tsx`** — Summary card at top of dashboard
+- Agent name, territory (from `profiles.territory` — we'll add this column)
+- Tenants assigned count (existing), today's collections sum, today's visits count
+- Float gauge: limit / collected / remaining, with a red warning when capacity is 0
 
-All charts responsive with `ResponsiveContainer`.
+**2. `AgentVisitDialog.tsx`** — GPS check-in flow
+- Select tenant from agent's tenant list
+- Show tenant details (name, phone, address, daily amount, outstanding balance)
+- "Check In at Tenant Location" button → captures GPS via `useGeoLocation` hook (already exists)
+- Saves to `agent_visits`, shows success confirmation
 
-### 6. Route Registration
-Add `/executive-hub` route in `App.tsx`, lazy-loaded.
+**3. `GeneratePaymentTokenDialog.tsx`** — Token generation
+- Only available after a visit is recorded for this tenant today
+- Displays tenant name, amount, generated 6-digit code, expiry time (30 min countdown)
+- Saves to `payment_tokens`
 
-## Data Sources (No New Tables Required)
+**4. `RecordAgentCollectionDialog.tsx`** — Payment recording with token verification
+- Enter token code, select payment method (Mobile Money / Cash / In-App Wallet)
+- System validates: token exists, not expired, not used, agent has float capacity
+- On cash: deducts from float capacity
+- Shows float before/after
 
-All metrics are derived from existing tables:
+**5. `AgentDepositCashDialog.tsx`** — Cash deposit (reuse/extend existing `AgentDepositDialog`)
+- Add deposit method selector (MTN MoMo Merchant, Airtel Money, Bank Reference)
+- On confirmed deposit, reset `collected_today` proportionally or fully
 
-| Metric | Source Table |
-|--------|-------------|
-| Total tenants | `profiles` + `user_roles` where role='tenant' |
-| Funded tenants | `rent_requests` where status='funded'/'disbursed' |
-| Rent financed | `rent_requests` SUM(rent_amount) |
-| Partners | `user_roles` where role='supporter' |
-| Landlords | `landlords` COUNT |
-| Revenue | `general_ledger` where category in revenue categories |
-| Active agents | `profiles` + `user_roles` where role='agent' |
-| Agent earnings | `agent_earnings`, `agent_commission_payouts` |
-| Repayment status | `rent_requests` amount_repaid vs total |
-| System events | `system_events` |
-| Referrals | `referrals` |
-| Investor capital | `investor_portfolios` |
+**6. Updated Quick Actions** — 6 buttons at top of dashboard
+- Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register Tenant, View Tenants
+- Uses existing `QuickNavGrid` component
 
-## File Structure
-```text
-src/
-  pages/
-    ExecutiveHub.tsx            -- main page with tab navigation
-  components/
-    executive/
-      CEODashboard.tsx
-      CTODashboard.tsx
-      CMODashboard.tsx
-      AgentOpsDashboard.tsx
-      TenantOpsDashboard.tsx
-      LandlordOpsDashboard.tsx
-      PartnersOpsDashboard.tsx
-      CRMDashboard.tsx
-      ExecutiveDataTable.tsx    -- shared filterable/sortable/exportable table
-      KPICard.tsx               -- reusable metric tile
-      ExecutiveSidebar.tsx      -- sidebar within the hub page
-```
+---
 
-## Mobile-First Design
-- All dashboards use a stacked card layout on mobile
-- Tab navigation becomes a horizontal scrollable strip on small screens
-- Data tables scroll horizontally with sticky first column
-- Charts use full width with minimum height of 200px
-- Touch-friendly: min 44px tap targets
+### Dashboard Changes (`AgentDashboard.tsx`)
 
-## Estimated Scope
-- ~12 new files
-- ~2 modified files (App.tsx, DesktopManagerSidebar.tsx, MobileManagerMenu.tsx)
-- No database migrations needed
-- No new Edge Functions needed
+- Add `AgentDailyOpsCard` below the profile section (replaces simple stats row)
+- Add quick action grid with 6 operational buttons
+- Wire new dialogs into state management
+- Add menu drawer entries for new features
+
+---
+
+### What's NOT in Phase 1
+
+- Automatic SMS confirmation to tenant (Phase 2)
+- Agent Performance Metrics section (Phase 2)
+- Fraud Prevention monitoring & manager alerts (Phase 2)
+- Tenant navigation (call/WhatsApp/GPS) — partially exists already
+
+---
+
+### Migration Order
+
+1. Add `territory` column to `profiles` table
+2. Create `agent_float_limits` table + RLS
+3. Create `agent_visits` table + RLS
+4. Create `payment_tokens` table + RLS
+5. Create `agent_collections` table + trigger + RLS
+6. Create `validate_and_record_collection` RPC function
 
