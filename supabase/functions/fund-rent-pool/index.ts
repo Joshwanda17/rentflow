@@ -35,6 +35,23 @@ Deno.serve(async (req) => {
       );
     }
 
+    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Enforce supporter role — agents, tenants, landlords cannot fund
+    const { data: userRoles } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .or("enabled.is.null,enabled.eq.true");
+
+    const roles = (userRoles || []).map((r: any) => r.role);
+    if (!roles.includes("supporter")) {
+      return new Response(
+        JSON.stringify({ error: "Only supporter accounts can fund rent requests. Please use a dedicated supporter account." }),
+        { status: 403, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
     const { amount, summary_id, payout_day } = await req.json() as {
       amount: number;
       summary_id: string;
@@ -55,7 +72,7 @@ Deno.serve(async (req) => {
       );
     }
 
-    const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+    // adminClient already created above for role check
 
     // Check wallet balance with optimistic locking
     const { data: wallet, error: walletErr } = await adminClient
