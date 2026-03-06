@@ -6,8 +6,8 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles } from 'lucide-react';
-import { format } from 'date-fns';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, Clock, CircleDollarSign, CalendarCheck, Target } from 'lucide-react';
+import { format, formatDistanceToNow, differenceInDays, isPast } from 'date-fns';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
@@ -64,46 +64,56 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
   const totalEarned = accounts.reduce((s, a) => s + Number(a.total_roi_earned), 0);
   const expectedMonthly = accounts.reduce((s, a) => s + Number(a.investment_amount) * (Number(a.roi_percentage) / 100), 0);
 
-  const statusColor = (status: string) => {
+  const statusConfig = (status: string) => {
     switch (status) {
-      case 'active': return 'bg-success/15 text-success border-success/30';
-      case 'pending': case 'pending_activation': return 'bg-warning/15 text-warning border-warning/30';
-      case 'matured': return 'bg-primary/15 text-primary border-primary/30';
-      default: return 'bg-muted text-muted-foreground';
+      case 'active': return { label: 'Active', class: 'bg-success/15 text-success border-success/30', dot: 'bg-success' };
+      case 'pending': case 'pending_activation': return { label: 'Pending', class: 'bg-warning/15 text-warning border-warning/30', dot: 'bg-warning' };
+      case 'matured': return { label: 'Matured', class: 'bg-primary/15 text-primary border-primary/30', dot: 'bg-primary' };
+      default: return { label: status, class: 'bg-muted text-muted-foreground', dot: 'bg-muted-foreground' };
     }
   };
 
+  const accentColors = ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#0891b2', '#8b5cf6', '#ea580c', '#0d9488', '#6d28d9', '#be185d', '#4f46e5'];
+
   return (
     <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0">
-        <SheetHeader className="px-5 pt-5 pb-3">
+      <SheetContent side="bottom" className="h-[90vh] rounded-t-3xl p-0">
+        <SheetHeader className="px-5 pt-5 pb-2">
           <SheetTitle className="text-lg font-black flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-primary" />
-            Investment Accounts
+            My Investments
+            {!loading && accounts.length > 0 && (
+              <span className="text-xs font-bold text-muted-foreground ml-auto">{accounts.length} account{accounts.length !== 1 ? 's' : ''}</span>
+            )}
           </SheetTitle>
         </SheetHeader>
 
-        {/* Summary strip */}
-        <div className="mx-5 mb-4 grid grid-cols-3 gap-2">
-          <div className="rounded-2xl bg-primary/10 p-3 text-center">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Invested</p>
-            <p className="text-sm font-black text-foreground mt-0.5">{formatAmount(totalInvested)}</p>
-          </div>
-          <div className="rounded-2xl bg-success/10 p-3 text-center">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Earned</p>
-            <p className="text-sm font-black text-success mt-0.5">{formatAmount(totalEarned)}</p>
-          </div>
-          <div className="rounded-2xl bg-accent p-3 text-center">
-            <p className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">Monthly</p>
-            <p className="text-sm font-black text-foreground mt-0.5">{formatAmount(expectedMonthly)}</p>
+        {/* Aggregate summary */}
+        <div className="mx-5 mb-3 rounded-2xl bg-gradient-to-br from-primary/10 via-primary/5 to-transparent border border-primary/15 p-4">
+          <div className="grid grid-cols-3 gap-3 text-center">
+            <div>
+              <CircleDollarSign className="h-4 w-4 text-primary mx-auto mb-1" />
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Total Capital</p>
+              <p className="text-sm font-black text-foreground mt-0.5 break-all">{formatAmount(totalInvested)}</p>
+            </div>
+            <div>
+              <ArrowUpRight className="h-4 w-4 text-success mx-auto mb-1" />
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Total Earned</p>
+              <p className="text-sm font-black text-success mt-0.5 break-all">{formatAmount(totalEarned)}</p>
+            </div>
+            <div>
+              <Target className="h-4 w-4 text-primary mx-auto mb-1" />
+              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Expected/mo</p>
+              <p className="text-sm font-black text-foreground mt-0.5 break-all">{formatAmount(expectedMonthly)}</p>
+            </div>
           </div>
         </div>
 
-        <ScrollArea className="h-[calc(85vh-180px)] px-5 pb-6">
+        <ScrollArea className="h-[calc(90vh-200px)] px-5 pb-8">
           {loading ? (
             <div className="space-y-3">
               {[1, 2, 3].map(i => (
-                <Skeleton key={i} className="h-28 w-full rounded-2xl" />
+                <Skeleton key={i} className="h-44 w-full rounded-2xl" />
               ))}
             </div>
           ) : accounts.length === 0 ? (
@@ -113,112 +123,144 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
               <p className="text-xs text-muted-foreground/70 mt-1">Support a tenant to create your first account</p>
             </div>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-4">
               {accounts.map((account, idx) => {
                 const monthlyReturn = Number(account.investment_amount) * (Number(account.roi_percentage) / 100);
                 const isCompounding = account.roi_mode === 'compound';
+                const color = accentColors[idx % accentColors.length];
+                const sc = statusConfig(account.status);
+                const nextPayout = account.next_roi_date ? new Date(account.next_roi_date) : null;
+                const maturity = account.maturity_date ? new Date(account.maturity_date) : null;
+                const daysToNext = nextPayout ? differenceInDays(nextPayout, new Date()) : null;
+                const investedDate = new Date(account.created_at);
 
                 return (
                   <div
                     key={account.id}
-                    className="rounded-2xl border bg-card p-4 space-y-3 shadow-sm"
+                    className="rounded-2xl border bg-card overflow-hidden shadow-sm"
                   >
-                    {/* Header */}
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-2.5">
-                        <div
-                          className="h-9 w-9 rounded-xl flex items-center justify-center text-primary-foreground font-black text-sm"
-                          style={{ backgroundColor: ['#7c3aed', '#2563eb', '#059669', '#d97706', '#dc2626', '#8b5cf6'][idx % 6] }}
-                        >
-                          {(idx + 1).toString().padStart(2, '0')}
-                        </div>
-                        <div>
-                          <p className="text-sm font-bold text-foreground leading-tight">{account.portfolio_code}</p>
-                          <p className="text-[11px] text-muted-foreground">
-                            {format(new Date(account.created_at), 'dd MMM yyyy')}
-                          </p>
-                        </div>
+                    {/* Color accent bar + header */}
+                    <div className="flex items-center gap-3 p-4 pb-3" style={{ borderLeft: `4px solid ${color}` }}>
+                      <div
+                        className="h-10 w-10 rounded-xl flex items-center justify-center text-white font-black text-sm shrink-0"
+                        style={{ backgroundColor: color }}
+                      >
+                        {(idx + 1).toString().padStart(2, '0')}
                       </div>
-                      <Badge variant="outline" className={`text-[10px] font-bold ${statusColor(account.status)}`}>
-                        {account.status === 'active' ? 'Active' : account.status === 'pending_activation' ? 'Pending' : account.status}
-                      </Badge>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <p className="text-sm font-black text-foreground">{account.portfolio_code}</p>
+                          <Badge variant="outline" className={`text-[9px] font-bold ${sc.class}`}>
+                            <span className={`h-1.5 w-1.5 rounded-full ${sc.dot} mr-1`} />
+                            {sc.label}
+                          </Badge>
+                        </div>
+                        <p className="text-[11px] text-muted-foreground mt-0.5">
+                          Invested {formatDistanceToNow(investedDate, { addSuffix: true })}
+                        </p>
+                      </div>
                     </div>
 
-                    {/* Amount & ROI */}
-                    <div className="grid grid-cols-2 gap-3">
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Capital</p>
-                        <p className="text-base font-black text-foreground">{formatAmount(account.investment_amount)}</p>
+                    {/* Capital & Expected return */}
+                    <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+                      <div className="rounded-xl bg-muted/50 p-3">
+                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Capital</p>
+                        <p className="text-lg font-black text-foreground break-all">{formatAmount(account.investment_amount)}</p>
                       </div>
-                      <div>
-                        <p className="text-[10px] text-muted-foreground uppercase tracking-wider font-semibold">Monthly Return</p>
-                        <p className="text-base font-black text-success flex items-center gap-1">
-                          <ArrowUpRight className="h-3.5 w-3.5" />
+                      <div className="rounded-xl bg-success/5 border border-success/10 p-3">
+                        <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Expected / month</p>
+                        <p className="text-lg font-black text-success break-all flex items-center gap-1">
+                          <ArrowUpRight className="h-4 w-4 shrink-0" />
                           {formatAmount(monthlyReturn)}
                         </p>
                       </div>
                     </div>
 
-                    {/* Tags row */}
-                    <div className="flex flex-wrap gap-1.5">
+                    {/* Next payout highlight */}
+                    {nextPayout && (
+                      <div className="mx-4 mb-3 rounded-xl bg-primary/8 border border-primary/15 p-3 flex items-center gap-3">
+                        <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                          <CalendarCheck className="h-4 w-4 text-primary" />
+                        </div>
+                        <div className="flex-1">
+                          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Next Payout</p>
+                          <p className="text-sm font-black text-foreground">
+                            {format(nextPayout, 'dd MMM yyyy')}
+                          </p>
+                        </div>
+                        {daysToNext !== null && daysToNext >= 0 && (
+                          <div className="text-right">
+                            <p className="text-lg font-black text-primary">{daysToNext}</p>
+                            <p className="text-[9px] text-muted-foreground font-bold uppercase">days</p>
+                          </div>
+                        )}
+                        {daysToNext !== null && daysToNext < 0 && (
+                          <Badge className="bg-warning/15 text-warning border-warning/30 text-[9px] font-bold">
+                            Overdue
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Tags */}
+                    <div className="px-4 pb-3 flex flex-wrap gap-1.5">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                         <TrendingUp className="h-3 w-3" />
                         {account.roi_percentage}% ROI
                       </span>
-                      {isCompounding && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-500/10 text-[10px] font-bold text-amber-600">
-                          <Repeat className="h-3 w-3" />
-                          Compounding
-                        </span>
-                      )}
-                      {!isCompounding && (
-                        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
-                          <Sparkles className="h-3 w-3" />
-                          Simple
-                        </span>
-                      )}
+                      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
+                        {isCompounding ? <Repeat className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
+                        {isCompounding ? 'Compounding' : 'Simple'}
+                      </span>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        {account.duration_months}mo
+                        {account.duration_months} months
                       </span>
                     </div>
 
-                    {/* Timeline */}
-                    <div className="pt-2 border-t space-y-1.5">
-                      <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Earned:</span>
-                          <span className="text-xs font-black text-success">{formatAmount(account.total_roi_earned)}</span>
+                    {/* Timeline footer */}
+                    <div className="bg-muted/30 border-t px-4 py-3 space-y-2">
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className="h-2 w-2 rounded-full bg-primary" />
+                          <div className="w-0.5 h-5 bg-border" />
                         </div>
-                        {account.next_roi_date && (
-                          <div className="flex items-center gap-1.5">
-                            <span className="text-[10px] text-muted-foreground font-semibold">Next payout:</span>
-                            <span className="text-xs font-bold text-foreground">
-                              {format(new Date(account.next_roi_date), 'dd MMM')}
-                            </span>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Investment timeline */}
-                      <div className="rounded-xl bg-muted/50 p-2.5 space-y-1">
-                        <div className="flex items-center gap-2">
-                          <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                        <div className="flex-1 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground font-semibold">Invested on</span>
-                          <span className="text-[11px] font-bold text-foreground ml-auto">
-                            {format(new Date(account.created_at), 'dd MMM yyyy · hh:mm a')}
+                          <span className="text-[11px] font-bold text-foreground">
+                            {format(investedDate, 'dd MMM yyyy · hh:mm a')}
                           </span>
                         </div>
-                        {account.maturity_date && (
-                          <div className="flex items-center gap-2">
-                            <div className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
-                            <span className="text-[10px] text-muted-foreground font-semibold">Matures on</span>
-                            <span className="text-[11px] font-bold text-foreground ml-auto">
-                              {format(new Date(account.maturity_date), 'dd MMM yyyy')}
+                      </div>
+                      
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
+                          <div className="h-2 w-2 rounded-full bg-success" />
+                          <div className="w-0.5 h-5 bg-border" />
+                        </div>
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground font-semibold">Total earned so far</span>
+                          <span className="text-[11px] font-black text-success">
+                            {formatAmount(account.total_roi_earned)}
+                          </span>
+                        </div>
+                      </div>
+
+                      {maturity && (
+                        <div className="flex items-center gap-3">
+                          <div className="flex flex-col items-center">
+                            <div className={`h-2 w-2 rounded-full ${isPast(maturity) ? 'bg-warning' : 'bg-muted-foreground/40'}`} />
+                          </div>
+                          <div className="flex-1 flex items-center justify-between">
+                            <span className="text-[10px] text-muted-foreground font-semibold">
+                              {isPast(maturity) ? 'Matured on' : 'Matures on'}
+                            </span>
+                            <span className="text-[11px] font-bold text-foreground">
+                              {format(maturity, 'dd MMM yyyy')}
                             </span>
                           </div>
-                        )}
-                      </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                 );
