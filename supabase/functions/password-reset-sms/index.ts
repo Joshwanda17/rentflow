@@ -140,6 +140,36 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Admin-only: delete an orphaned auth user (no profile)
+    if (action === "admin_delete_user") {
+      const userId = (body.user_id as string || "").trim();
+      const authHeader = req.headers.get("authorization") || "";
+
+      if (!userId) {
+        return new Response(JSON.stringify({ error: "user_id required" }), {
+          status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      if (!authHeader) {
+        return new Response(JSON.stringify({ error: "Unauthorized" }), {
+          status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      const { error: deleteError } = await adminClient.auth.admin.deleteUser(userId);
+      if (deleteError) {
+        console.error("[password-reset-sms] Admin delete error:", deleteError);
+        return new Response(JSON.stringify({ error: "Failed to delete user" }), {
+          status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+
+      console.log(`[password-reset-sms] Admin deleted auth user ${userId}`);
+      return new Response(JSON.stringify({ success: true, message: "User deleted" }), {
+        status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
     if (action === "send") {
       if (!checkRateLimit(phoneKey)) {
         return new Response(JSON.stringify({ error: "Too many reset requests. Please try again later." }), {
