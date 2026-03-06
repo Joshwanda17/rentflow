@@ -157,10 +157,13 @@ function DashboardContent() {
     }
   }, [user, loading, roles, cachedRoles, navigate]);
 
-  // Use cached role for instant display while loading - AGENT is always the default
+  // Use cached role for instant display while loading
   const getDefaultRole = (availableRoles: AppRole[]): AppRole | null => {
     if (availableRoles.length === 0) return null;
-    // Agent dashboard is the default for all users
+    // Supporter-only accounts default to supporter, not agent
+    const isSupporterOnly = availableRoles.length === 1 && availableRoles[0] === 'supporter';
+    if (isSupporterOnly) return 'supporter';
+    // Agent dashboard is the default for all multi-role users
     return availableRoles.includes('agent') ? 'agent' : availableRoles[0];
   };
   
