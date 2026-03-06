@@ -1,6 +1,6 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { TrendingUp, PiggyBank } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 
 interface InterestPaymentHistoryProps {
   userId: string;
@@ -8,12 +8,8 @@ interface InterestPaymentHistoryProps {
 
 export function InterestPaymentHistory({ userId }: InterestPaymentHistoryProps) {
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
-    >
-      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/5 via-background to-emerald-500/5 backdrop-blur-xl shadow-xl">
+    <div className="animate-fade-in">
+      <Card className="relative overflow-hidden border-0 bg-gradient-to-br from-success/5 via-background to-emerald-500/5 shadow-xl">
         <CardHeader className="relative pb-2 sm:pb-3">
           <div className="flex items-center gap-3">
             <div className="p-2.5 rounded-xl bg-gradient-to-br from-success via-emerald-500 to-green-500 shadow-lg shadow-success/30">
@@ -37,6 +33,6 @@ export function InterestPaymentHistory({ userId }: InterestPaymentHistoryProps) 
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

@@ -2,7 +2,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { MapPin, Clock, Shield } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
-import { motion } from 'framer-motion';
+
 import { formatDistanceToNow } from 'date-fns';
 
 export interface VirtualHouse {
@@ -35,11 +35,7 @@ export function VirtualHouseCard({ house, onTap, index = 0 }: VirtualHouseCardPr
   const health = healthConfig[house.paymentHealth];
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.25 }}
-    >
+    <div className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
       <Card
         className="border-2 border-border/60 bg-card cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
         onClick={() => onTap?.(house.id)}
@@ -83,6 +79,6 @@ export function VirtualHouseCard({ house, onTap, index = 0 }: VirtualHouseCardPr
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }

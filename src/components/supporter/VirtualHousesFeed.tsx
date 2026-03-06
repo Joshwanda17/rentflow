@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react';
 import { VirtualHouseCard, VirtualHouse } from './VirtualHouseCard';
 import { Badge } from '@/components/ui/badge';
 import { Home } from 'lucide-react';
-import { motion } from 'framer-motion';
+
 
 interface VirtualHousesFeedProps {
   houses: VirtualHouse[];
@@ -69,11 +69,7 @@ export function VirtualHousesFeed({ houses, loading, onHouseTap }: VirtualHouses
 
       {/* Houses list */}
       {filtered.length === 0 ? (
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          className="text-center py-12 space-y-3"
-        >
+        <div className="text-center py-12 space-y-3 animate-fade-in">
           <div className="p-4 rounded-full bg-muted/50 w-fit mx-auto">
             <Home className="h-8 w-8 text-muted-foreground/50" />
           </div>
@@ -85,7 +81,7 @@ export function VirtualHousesFeed({ houses, loading, onHouseTap }: VirtualHouses
                 : 'Fund a rent opportunity to add your first virtual house.'}
             </p>
           </div>
-        </motion.div>
+        </div>
       ) : (
         <div className="space-y-3">
           {filtered.map((house, i) => (
