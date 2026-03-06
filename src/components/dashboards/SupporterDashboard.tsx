@@ -372,6 +372,7 @@ export default function SupporterDashboard({
           <PortfolioSummaryCards
             housesFunded={virtualHouses.length}
             rentSecured={totalRentContributed}
+            walletBalance={wallet?.balance ?? 0}
             portfolioHealth={portfolioHealth}
           />
 
