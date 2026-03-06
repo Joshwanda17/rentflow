@@ -10,6 +10,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
+import { extractEdgeFunctionError } from '@/lib/extractEdgeFunctionError';
 import type { OpportunitySummary } from '@/hooks/useOpportunitySummary';
 
 interface FundRentDialogProps {
@@ -46,12 +47,16 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
 
     setSubmitting(true);
     try {
-      const { data, error } = await supabase.functions.invoke('fund-rent-pool', {
+      const response = await supabase.functions.invoke('fund-rent-pool', {
         body: { amount: amountNum, summary_id: summary.id, payout_day: payoutDayNum },
       });
 
-      if (error) throw error;
-      if (data?.error) throw new Error(data.error);
+      if (response.error || response.data?.error) {
+        const msg = await extractEdgeFunctionError(response);
+        throw new Error(msg);
+      }
+
+      const data = response.data;
 
       setSuccessInfo({
         monthlyReward: data.monthly_reward,
