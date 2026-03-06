@@ -160,6 +160,42 @@ Deno.serve(async (req) => {
       );
     }
 
+    // Create a new investor_portfolios record for this funding
+    const portfolioCode = `WPF-${String(Math.floor(1000 + Math.random() * 9000))}`;
+    const maturityDate = new Date(now.getFullYear() + 1, now.getMonth(), now.getDate());
+    const maturityStr = `${maturityDate.getFullYear()}-${String(maturityDate.getMonth() + 1).padStart(2, "0")}-${String(maturityDate.getDate()).padStart(2, "0")}`;
+
+    // Find the agent_id from existing portfolio or use a system default
+    const { data: existingPortfolio } = await adminClient
+      .from("investor_portfolios")
+      .select("agent_id")
+      .eq("investor_id", user.id)
+      .limit(1)
+      .maybeSingle();
+
+    const agentId = existingPortfolio?.agent_id ?? user.id;
+
+    const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
+      investor_id: user.id,
+      agent_id: agentId,
+      investment_amount: amount,
+      portfolio_code: portfolioCode,
+      portfolio_pin: String(Math.floor(1000 + Math.random() * 9000)),
+      activation_token: crypto.randomUUID(),
+      roi_percentage: 15,
+      roi_mode: "monthly_payout",
+      duration_months: 12,
+      status: "active",
+      next_roi_date: firstPayoutDate,
+      maturity_date: maturityStr,
+      total_roi_earned: 0,
+    });
+
+    if (portfolioErr) {
+      console.error("[fund-rent-pool] Portfolio creation failed:", portfolioErr.message);
+      // Non-blocking — ledger is the source of truth, portfolio is for display
+    }
+
     // Read updated balance after trigger
     const { data: updatedWallet } = await adminClient
       .from("wallets")
