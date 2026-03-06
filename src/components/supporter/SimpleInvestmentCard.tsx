@@ -3,7 +3,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, Plus, ArrowRight, Sparkles } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
-import { motion } from 'framer-motion';
+
 
 interface SimpleInvestmentCardProps {
   totalInvested: number;
@@ -21,11 +21,7 @@ export function SimpleInvestmentCard({
   const monthlyReturn = totalInvested * 0.15;
 
   return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
-    >
+    <div className="animate-fade-in">
       <Card className="relative overflow-hidden border-0 bg-gradient-to-r from-primary/10 via-background to-success/5">
         <CardContent className="relative p-3">
           {/* Compact single-row layout */}
@@ -72,6 +68,6 @@ export function SimpleInvestmentCard({
           </div>
         </CardContent>
       </Card>
-    </motion.div>
+    </div>
   );
 }
