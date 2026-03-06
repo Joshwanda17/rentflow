@@ -121,13 +121,14 @@ Deno.serve(async (req) => {
 
     // Optimistic lock: deduct from AGENT's wallet
     const newAgentBalance = agentWallet.balance - amount;
-    const { error: deductErr, count } = await adminClient
+    const { error: deductErr, count: deductCount } = await adminClient
       .from("wallets")
       .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
       .eq("user_id", agent.id)
-      .eq("balance", agentWallet.balance);
+      .eq("balance", agentWallet.balance)
+      .select('id', { count: 'exact', head: true });
 
-    if (deductErr || count === 0) {
+    if (deductErr || !deductCount || deductCount === 0) {
       return new Response(
         JSON.stringify({ error: "Balance changed, please retry" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }
@@ -219,12 +220,13 @@ Deno.serve(async (req) => {
     let finalAgentBalance = newAgentBalance;
     if (freshAgentWallet) {
       const balanceAfterCommission = freshAgentWallet.balance + commission;
-      const { error: commErr } = await adminClient
+      const { error: commErr, count: commCount } = await adminClient
         .from("wallets")
         .update({ balance: balanceAfterCommission, updated_at: new Date().toISOString() })
         .eq("user_id", agent.id)
-        .eq("balance", freshAgentWallet.balance);
-      if (!commErr) {
+        .eq("balance", freshAgentWallet.balance)
+        .select('id', { count: 'exact', head: true });
+      if (!commErr && commCount && commCount > 0) {
         finalAgentBalance = balanceAfterCommission;
       }
     }

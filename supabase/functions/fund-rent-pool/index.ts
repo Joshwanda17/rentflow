@@ -97,13 +97,14 @@ Deno.serve(async (req) => {
 
     // Optimistic lock: deduct only if balance matches
     const newBalance = wallet.balance - amount;
-    const { error: deductErr, count } = await adminClient
+    const { error: deductErr, count: deductCount } = await adminClient
       .from("wallets")
       .update({ balance: newBalance, updated_at: new Date().toISOString() })
       .eq("user_id", user.id)
-      .eq("balance", wallet.balance);
+      .eq("balance", wallet.balance)
+      .select('id', { count: 'exact', head: true });
 
-    if (deductErr || count === 0) {
+    if (deductErr || !deductCount || deductCount === 0) {
       return new Response(
         JSON.stringify({ error: "Balance changed, please retry" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } }

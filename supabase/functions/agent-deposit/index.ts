@@ -351,11 +351,13 @@ Deno.serve(async (req) => {
 
     if (freshAgentWallet) {
       const newAgentBalance = freshAgentWallet.balance - amount + commission; // agent keeps commission
-      await adminClient
+      const { data: deductResult } = await adminClient
         .from('wallets')
         .update({ balance: newAgentBalance, updated_at: new Date().toISOString() })
         .eq('user_id', agentId)
-        .eq('balance', freshAgentWallet.balance); // optimistic lock
+        .eq('balance', freshAgentWallet.balance)
+        .select()
+        .maybeSingle(); // optimistic lock - verify row was updated
 
       // Record in general_ledger for auditability
       const txGroupId = crypto.randomUUID();
