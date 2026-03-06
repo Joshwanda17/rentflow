@@ -10,7 +10,7 @@ import {
 } from 'lucide-react';
 import { Collapsible, CollapsibleTrigger, CollapsibleContent } from '@/components/ui/collapsible';
 import { Badge } from '@/components/ui/badge';
-import { formatUGX } from '@/lib/rentCalculations';
+import { formatUGX as _formatUGX } from '@/lib/rentCalculations';
 import { useToast } from '@/hooks/use-toast';
 import { AppRole } from '@/hooks/useAuth';
 import { ReactNode } from 'react';
@@ -22,7 +22,7 @@ import { SupporterDashboardSkeleton } from '@/components/skeletons/DashboardSkel
 import { PullToRefresh } from '@/components/PullToRefresh';
 import { useWallet } from '@/hooks/useWallet';
 // FloatingShareButton moved to global FloatingToolbar
-import { FloatingWalletButton } from '@/components/wallet/FloatingWalletButton';
+// FloatingWalletButton removed — wallet accessed via PortfolioSummaryCards
 import PaymentPartnersDialog from '@/components/payments/PaymentPartnersDialog';
 import { InvestmentCalculator } from '@/components/supporter/InvestmentCalculator';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -40,7 +40,7 @@ import { SupporterAgreementViewModal } from '@/components/supporter/agreement/Su
 import { SupporterMenuDrawer } from '@/components/supporter/SupporterMenuDrawer';
 import { MerchantCodePills } from '@/components/supporter/MerchantCodePills';
 import { hapticTap } from '@/lib/haptics';
-import { motion } from 'framer-motion';
+// motion removed — static rendering for low-end devices
 
 // Virtual Houses components
 import { PortfolioSummaryCards } from '@/components/supporter/PortfolioSummaryCards';
@@ -50,7 +50,7 @@ import { VirtualHouseDetailsSheet } from '@/components/supporter/VirtualHouseDet
 import { RentCategoryFeed, RentCategory } from '@/components/supporter/RentCategoryFeed';
 import { CreditRequestsFeed } from '@/components/supporter/CreditRequestsFeed';
 import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackageSheet';
-import { FundingPoolCard } from '@/components/supporter/FundingPoolCard';
+// FundingPoolCard removed from direct import
 import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
@@ -322,16 +322,16 @@ export default function SupporterDashboard({
         menuItems={menuItems}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4">
-        <main className="px-4 py-5 space-y-5 animate-fade-in max-w-lg mx-auto">
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4 overscroll-contain">
+        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-4 xs:space-y-5 max-w-lg mx-auto">
           
           {/* ═══ GREETING + QUICK ACTIONS ═══ */}
           <div className="flex flex-col items-center text-center">
-            <button onClick={() => navigate('/settings')} className="shrink-0 mb-2">
+            <button onClick={() => navigate('/settings')} className="shrink-0 mb-2 min-h-[44px] min-w-[44px]">
               <UserAvatar avatarUrl={profile?.avatar_url} fullName={profile?.full_name} size="lg" />
             </button>
-            <p className="text-sm text-muted-foreground font-medium">Welcome back 👋</p>
-            <h1 className="font-black text-xl leading-tight flex items-center justify-center gap-1">
+            <p className="text-xs xs:text-sm text-muted-foreground font-medium">Welcome back 👋</p>
+            <h1 className="font-black text-lg xs:text-xl leading-tight flex items-center justify-center gap-1">
               {profile?.full_name?.split(' ')[0] || 'Supporter'}
               {profile?.verified ? (
                 <span className="flex items-center gap-0.5">
@@ -360,7 +360,7 @@ export default function SupporterDashboard({
                 variant="outline"
                 size="default"
                 onClick={() => setShowAgreementModal(true)}
-                className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold"
+                className="text-sm border-2 border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-1.5 rounded-xl h-10 px-3 font-bold min-h-[44px]"
               >
                 <FileText className="h-4 w-4" />
                 Accept Terms
@@ -376,43 +376,34 @@ export default function SupporterDashboard({
           />
 
           {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
-          <div className="grid grid-cols-3 gap-3">
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.1 }}
+          <div className="grid grid-cols-3 gap-2 xs:gap-3">
+            <button
               onClick={() => {
                 hapticTap();
                 if (!effectiveHasAccepted) { setShowAgreementModal(true); return; }
                 setShowPaymentPartners(true);
               }}
-              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
+              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-primary text-primary-foreground shadow-lg shadow-primary/20 active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
             >
-              <CreditCard className="h-8 w-8" />
-              <span className="text-sm font-black">Add Funds</span>
-            </motion.button>
+              <CreditCard className="h-6 w-6 xs:h-8 xs:w-8" />
+              <span className="text-xs xs:text-sm font-black">Add Funds</span>
+            </button>
 
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.15 }}
+            <button
               onClick={() => { hapticTap(); setShowCalculator(true); }}
-              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
+              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
             >
-              <Calculator className="h-8 w-8 text-primary" />
-              <span className="text-sm font-black">Calculator</span>
-            </motion.button>
+              <Calculator className="h-6 w-6 xs:h-8 xs:w-8 text-primary" />
+              <span className="text-xs xs:text-sm font-black">Calculator</span>
+            </button>
 
-            <motion.button
-              initial={{ opacity: 0, y: 8 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
+            <button
               onClick={handleOpenMenu}
-              className="flex flex-col items-center gap-2 p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[90px]"
+              className="flex flex-col items-center gap-1.5 xs:gap-2 p-3.5 xs:p-5 rounded-2xl bg-card border-2 border-border/60 text-foreground shadow-sm active:scale-[0.95] transition-transform touch-manipulation min-h-[80px] xs:min-h-[90px]"
             >
-              <Menu className="h-8 w-8 text-muted-foreground" />
-              <span className="text-sm font-black">More</span>
-            </motion.button>
+              <Menu className="h-6 w-6 xs:h-8 xs:w-8 text-muted-foreground" />
+              <span className="text-xs xs:text-sm font-black">More</span>
+            </button>
           </div>
 
           {/* Credit Access moved to menu drawer */}
