@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { useCurrency } from '@/hooks/useCurrency';
-import { TrendingUp, Home, Shield, Wallet, PiggyBank } from 'lucide-react';
+import { TrendingUp, Home, Wallet, PiggyBank } from 'lucide-react';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
+import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
 import { hapticTap } from '@/lib/haptics';
 
 interface PortfolioSummaryCardsProps {
@@ -14,14 +15,7 @@ interface PortfolioSummaryCardsProps {
 export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance, portfolioHealth }: PortfolioSummaryCardsProps) {
   const { formatAmount } = useCurrency();
   const [showWallet, setShowWallet] = useState(false);
-
-  const healthConfig = {
-    stable: { label: 'Stable', color: 'text-success', dot: 'bg-success', bg: 'bg-success/10' },
-    growing: { label: 'Growing', color: 'text-primary', dot: 'bg-primary', bg: 'bg-primary/10' },
-    at_risk: { label: 'At Risk', color: 'text-destructive', dot: 'bg-destructive', bg: 'bg-destructive/10' },
-  };
-
-  const health = healthConfig[portfolioHealth];
+  const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Return is 15% of total rent contributed (cumulative across all investments)
   const totalReturn = rentSecured * 0.15;
@@ -62,16 +56,21 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Return</p>
             </div>
 
-            <div className="flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl bg-white/15">
+            {/* Invested card — tappable to see account breakdown */}
+            <button
+              onClick={() => { hapticTap(); setShowBreakdown(true); }}
+              className="flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl bg-white/15 hover:bg-white/25 active:scale-95 transition-all cursor-pointer"
+            >
               <PiggyBank className="h-4 w-4 xs:h-5 xs:w-5 sm:h-6 sm:w-6 opacity-90" />
               <p className="text-xs xs:text-sm sm:text-base font-black leading-none break-all">{formatAmount(rentSecured)}</p>
-              <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Invested</p>
-            </div>
+              <p className="text-[8px] xs:text-[9px] sm:text-[11px] opacity-70 uppercase tracking-wider font-semibold">Invested ›</p>
+            </button>
           </div>
         </div>
       </div>
 
       <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />
+      <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />
     </>
   );
 }
