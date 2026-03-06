@@ -24,9 +24,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const cachedSession = getPreloadedSession();
   const cachedRoles = getPreloadedRoles() as AppRole[] | null;
 
+  const isCachedSupporterOnly = cachedRoles?.length === 1 && cachedRoles[0] === 'supporter';
   const initialRoles: AppRole[] =
     cachedRoles && cachedRoles.length > 0
-      ? cachedRoles.includes('agent') ? cachedRoles : ['agent', ...cachedRoles] as AppRole[]
+      ? (isCachedSupporterOnly || cachedRoles.includes('agent')) ? cachedRoles : ['agent', ...cachedRoles] as AppRole[]
       : DEFAULT_ROLES;
 
   const [user, setUser] = useState<User | null>(null);
