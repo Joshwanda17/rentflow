@@ -274,13 +274,36 @@ export function useAuthForm() {
       ]);
       if (data?.length) {
         rpcEmails = (data as { email: string }[]).map(r => r.email).filter(Boolean);
-        // PRIORITY: Real emails first (Gmail, Outlook, etc.) — these are verified accounts
-        const realEmails = rpcEmails.filter(e => !e.includes('@welile.'));
-        const placeholderEmails = rpcEmails.filter(e => e.includes('@welile.'));
-        emailCandidates.push(...realEmails, ...placeholderEmails);
       }
     } catch {
-      // RPC lookup failed — proceed with generated candidates
+      // RPC lookup failed — continue to direct profile lookup fallback
+    }
+
+    // Fallback: direct profile lookup by phone so phone->email login still works if RPC is slow/unavailable
+    if (!rpcEmails.length) {
+      try {
+        const { data: profileMatches } = await supabase
+          .from('profiles')
+          .select('email')
+          .in('phone', [`0${last9}`, `256${last9}`, last9])
+          .not('email', 'is', null)
+          .limit(10);
+
+        if (profileMatches?.length) {
+          rpcEmails = profileMatches
+            .map((row) => row.email)
+            .filter((value): value is string => Boolean(value));
+        }
+      } catch {
+        // Ignore and continue with generated placeholder candidates
+      }
+    }
+
+    if (rpcEmails.length) {
+      // PRIORITY: Real emails first (Gmail, Outlook, etc.) — these are verified accounts
+      const realEmails = rpcEmails.filter(e => !e.includes('@welile.'));
+      const placeholderEmails = rpcEmails.filter(e => e.includes('@welile.'));
+      emailCandidates.push(...realEmails, ...placeholderEmails);
     }
 
     // Fallback: generated placeholder emails (tried only if RPC found nothing)
