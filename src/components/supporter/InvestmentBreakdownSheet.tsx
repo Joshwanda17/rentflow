@@ -6,53 +6,123 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, Clock, CircleDollarSign, CalendarCheck, Target } from 'lucide-react';
-import { format, formatDistanceToNow, differenceInDays, isPast } from 'date-fns';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target } from 'lucide-react';
+import { format, formatDistanceToNow, differenceInDays, isPast, addMonths } from 'date-fns';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
 }
 
-interface PortfolioAccount {
+interface InvestmentEntry {
   id: string;
-  portfolio_code: string;
-  investment_amount: number;
+  code: string;
+  amount: number;
   roi_percentage: number;
   roi_mode: string;
-  total_roi_earned: number;
+  total_earned: number;
   status: string;
-  created_at: string;
+  invested_at: string;
   duration_months: number;
   next_roi_date: string | null;
   maturity_date: string | null;
+  source: 'portfolio' | 'ledger';
 }
 
 export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreakdownSheetProps) {
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
-  const [accounts, setAccounts] = useState<PortfolioAccount[]>([]);
+  const [entries, setEntries] = useState<InvestmentEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     if (open && user) {
-      fetchAccounts();
+      fetchAll();
     }
   }, [open, user]);
 
-  const fetchAccounts = async () => {
+  const fetchAll = async () => {
     if (!user) return;
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('investor_portfolios')
-        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
-        .eq('investor_id', user.id)
-        .order('created_at', { ascending: false });
+      // Fetch both sources in parallel
+      const [portfolioRes, ledgerRes] = await Promise.all([
+        supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
+          .eq('investor_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('general_ledger')
+          .select('id, amount, description, transaction_date')
+          .eq('user_id', user.id)
+          .eq('category', 'supporter_rent_fund')
+          .eq('direction', 'cash_out')
+          .order('transaction_date', { ascending: false }),
+      ]);
 
-      if (!error && data) {
-        setAccounts(data);
+      const portfolios = portfolioRes.data || [];
+      const ledgerEntries = ledgerRes.data || [];
+
+      // Build a set of portfolio amounts+dates to match against ledger
+      // Use portfolio records as primary, fill gaps from ledger
+      const portfolioMap = new Map<string, boolean>();
+      const merged: InvestmentEntry[] = [];
+
+      // Add all portfolio records
+      for (const p of portfolios) {
+        merged.push({
+          id: p.id,
+          code: p.portfolio_code,
+          amount: Number(p.investment_amount),
+          roi_percentage: Number(p.roi_percentage),
+          roi_mode: p.roi_mode,
+          total_earned: Number(p.total_roi_earned),
+          status: p.status,
+          invested_at: p.created_at,
+          duration_months: p.duration_months,
+          next_roi_date: p.next_roi_date,
+          maturity_date: p.maturity_date,
+          source: 'portfolio',
+        });
+        // Track by amount + approximate time to avoid duplicates
+        portfolioMap.set(`${p.investment_amount}_${new Date(p.created_at).toISOString().slice(0, 13)}`, true);
       }
+
+      // Add ledger entries that don't have matching portfolio records
+      for (const le of ledgerEntries) {
+        const key = `${le.amount}_${new Date(le.transaction_date).toISOString().slice(0, 13)}`;
+        if (portfolioMap.has(key)) continue;
+
+        // Parse payout day from description
+        const payoutMatch = le.description?.match(/Payout day: (\d+)/);
+        const payoutDay = payoutMatch ? parseInt(payoutMatch[1]) : 5;
+        const firstPayoutMatch = le.description?.match(/First payout: ([\d-]+)/);
+        const firstPayoutDate = firstPayoutMatch ? firstPayoutMatch[1] : null;
+
+        const investedDate = new Date(le.transaction_date);
+        const maturityDate = addMonths(investedDate, 12);
+
+        merged.push({
+          id: le.id,
+          code: `FND-${le.id.slice(0, 4).toUpperCase()}`,
+          amount: Number(le.amount),
+          roi_percentage: 15,
+          roi_mode: 'monthly_payout',
+          total_earned: 0,
+          status: 'active',
+          invested_at: le.transaction_date,
+          duration_months: 12,
+          next_roi_date: firstPayoutDate,
+          maturity_date: maturityDate.toISOString(),
+          source: 'ledger',
+        });
+      }
+
+      // Sort by invested date descending
+      merged.sort((a, b) => new Date(b.invested_at).getTime() - new Date(a.invested_at).getTime());
+
+      setEntries(merged);
     } catch (e) {
       console.error('[InvestmentBreakdown] fetch error:', e);
     } finally {
@@ -60,9 +130,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     }
   };
 
-  const totalInvested = accounts.reduce((s, a) => s + Number(a.investment_amount), 0);
-  const totalEarned = accounts.reduce((s, a) => s + Number(a.total_roi_earned), 0);
-  const expectedMonthly = accounts.reduce((s, a) => s + Number(a.investment_amount) * (Number(a.roi_percentage) / 100), 0);
+  const totalInvested = entries.reduce((s, a) => s + a.amount, 0);
+  const totalEarned = entries.reduce((s, a) => s + a.total_earned, 0);
+  const expectedMonthly = entries.reduce((s, a) => s + a.amount * (a.roi_percentage / 100), 0);
 
   const statusConfig = (status: string) => {
     switch (status) {
@@ -82,8 +152,8 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           <SheetTitle className="text-lg font-black flex items-center gap-2">
             <PiggyBank className="h-5 w-5 text-primary" />
             My Investments
-            {!loading && accounts.length > 0 && (
-              <span className="text-xs font-bold text-muted-foreground ml-auto">{accounts.length} account{accounts.length !== 1 ? 's' : ''}</span>
+            {!loading && entries.length > 0 && (
+              <span className="text-xs font-bold text-muted-foreground ml-auto">{entries.length} account{entries.length !== 1 ? 's' : ''}</span>
             )}
           </SheetTitle>
         </SheetHeader>
@@ -116,7 +186,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 <Skeleton key={i} className="h-44 w-full rounded-2xl" />
               ))}
             </div>
-          ) : accounts.length === 0 ? (
+          ) : entries.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-16 text-center">
               <PiggyBank className="h-12 w-12 text-muted-foreground/40 mb-3" />
               <p className="text-sm font-semibold text-muted-foreground">No investment accounts yet</p>
@@ -124,19 +194,19 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
             </div>
           ) : (
             <div className="space-y-4">
-              {accounts.map((account, idx) => {
-                const monthlyReturn = Number(account.investment_amount) * (Number(account.roi_percentage) / 100);
-                const isCompounding = account.roi_mode === 'compound';
+              {entries.map((entry, idx) => {
+                const monthlyReturn = entry.amount * (entry.roi_percentage / 100);
+                const isCompounding = entry.roi_mode === 'compound';
                 const color = accentColors[idx % accentColors.length];
-                const sc = statusConfig(account.status);
-                const nextPayout = account.next_roi_date ? new Date(account.next_roi_date) : null;
-                const maturity = account.maturity_date ? new Date(account.maturity_date) : null;
+                const sc = statusConfig(entry.status);
+                const nextPayout = entry.next_roi_date ? new Date(entry.next_roi_date) : null;
+                const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
                 const daysToNext = nextPayout ? differenceInDays(nextPayout, new Date()) : null;
-                const investedDate = new Date(account.created_at);
+                const investedDate = new Date(entry.invested_at);
 
                 return (
                   <div
-                    key={account.id}
+                    key={entry.id}
                     className="rounded-2xl border bg-card overflow-hidden shadow-sm"
                   >
                     {/* Color accent bar + header */}
@@ -149,7 +219,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2">
-                          <p className="text-sm font-black text-foreground">{account.portfolio_code}</p>
+                          <p className="text-sm font-black text-foreground">{entry.code}</p>
                           <Badge variant="outline" className={`text-[9px] font-bold ${sc.class}`}>
                             <span className={`h-1.5 w-1.5 rounded-full ${sc.dot} mr-1`} />
                             {sc.label}
@@ -165,7 +235,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                     <div className="px-4 pb-3 grid grid-cols-2 gap-3">
                       <div className="rounded-xl bg-muted/50 p-3">
                         <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Capital</p>
-                        <p className="text-lg font-black text-foreground break-all">{formatAmount(account.investment_amount)}</p>
+                        <p className="text-lg font-black text-foreground break-all">{formatAmount(entry.amount)}</p>
                       </div>
                       <div className="rounded-xl bg-success/5 border border-success/10 p-3">
                         <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Expected / month</p>
@@ -206,7 +276,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                     <div className="px-4 pb-3 flex flex-wrap gap-1.5">
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-primary/10 text-[10px] font-bold text-primary">
                         <TrendingUp className="h-3 w-3" />
-                        {account.roi_percentage}% ROI
+                        {entry.roi_percentage}% ROI
                       </span>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
                         {isCompounding ? <Repeat className="h-3 w-3" /> : <Sparkles className="h-3 w-3" />}
@@ -214,7 +284,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </span>
                       <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-muted text-[10px] font-bold text-muted-foreground">
                         <Calendar className="h-3 w-3" />
-                        {account.duration_months} months
+                        {entry.duration_months} months
                       </span>
                     </div>
 
@@ -241,7 +311,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         <div className="flex-1 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground font-semibold">Total earned so far</span>
                           <span className="text-[11px] font-black text-success">
-                            {formatAmount(account.total_roi_earned)}
+                            {formatAmount(entry.total_earned)}
                           </span>
                         </div>
                       </div>
