@@ -299,6 +299,29 @@ Deno.serve(async (req) => {
               console.error("[activate-supporter] Ledger insert error for portfolio:", portfolio.id, ledgerError);
             } else {
               console.log("[activate-supporter] Created ledger entry for portfolio:", portfolio.portfolio_code);
+              
+              // Credit the supporter's wallet with the portfolio amount
+              const { data: existingWallet } = await adminClient
+                .from("wallets")
+                .select("id, balance")
+                .eq("user_id", authData.user.id)
+                .maybeSingle();
+              
+              if (existingWallet) {
+                const { error: walletError } = await adminClient
+                  .from("wallets")
+                  .update({ 
+                    balance: existingWallet.balance + portfolio.investment_amount, 
+                    updated_at: new Date().toISOString() 
+                  })
+                  .eq("user_id", authData.user.id)
+                  .eq("balance", existingWallet.balance);
+                if (walletError) {
+                  console.error("[activate-supporter] Wallet credit error:", walletError);
+                } else {
+                  console.log("[activate-supporter] Credited wallet with", portfolio.investment_amount);
+                }
+              }
             }
           }
         }
