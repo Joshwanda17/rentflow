@@ -183,20 +183,42 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </span>
                     </div>
 
-                    {/* Earned & Next payout */}
-                    <div className="flex items-center justify-between pt-1 border-t">
-                      <div className="flex items-center gap-1.5">
-                        <span className="text-[10px] text-muted-foreground font-semibold">Earned:</span>
-                        <span className="text-xs font-black text-success">{formatAmount(account.total_roi_earned)}</span>
-                      </div>
-                      {account.next_roi_date && (
+                    {/* Timeline */}
+                    <div className="pt-2 border-t space-y-1.5">
+                      <div className="flex items-center justify-between">
                         <div className="flex items-center gap-1.5">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Next payout:</span>
-                          <span className="text-xs font-bold text-foreground">
-                            {format(new Date(account.next_roi_date), 'dd MMM')}
+                          <span className="text-[10px] text-muted-foreground font-semibold">Earned:</span>
+                          <span className="text-xs font-black text-success">{formatAmount(account.total_roi_earned)}</span>
+                        </div>
+                        {account.next_roi_date && (
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-[10px] text-muted-foreground font-semibold">Next payout:</span>
+                            <span className="text-xs font-bold text-foreground">
+                              {format(new Date(account.next_roi_date), 'dd MMM')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Investment timeline */}
+                      <div className="rounded-xl bg-muted/50 p-2.5 space-y-1">
+                        <div className="flex items-center gap-2">
+                          <div className="h-1.5 w-1.5 rounded-full bg-primary shrink-0" />
+                          <span className="text-[10px] text-muted-foreground font-semibold">Invested on</span>
+                          <span className="text-[11px] font-bold text-foreground ml-auto">
+                            {format(new Date(account.created_at), 'dd MMM yyyy · hh:mm a')}
                           </span>
                         </div>
-                      )}
+                        {account.maturity_date && (
+                          <div className="flex items-center gap-2">
+                            <div className="h-1.5 w-1.5 rounded-full bg-warning shrink-0" />
+                            <span className="text-[10px] text-muted-foreground font-semibold">Matures on</span>
+                            <span className="text-[11px] font-bold text-foreground ml-auto">
+                              {format(new Date(account.maturity_date), 'dd MMM yyyy')}
+                            </span>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
                 );
