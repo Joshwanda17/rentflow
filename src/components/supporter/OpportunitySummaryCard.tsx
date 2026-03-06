@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { motion } from 'framer-motion';
 import { TrendingUp, Shield, Clock, Wallet, ChevronRight, Zap, Users, Home, CheckCircle2 } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { useOpportunitySummary } from '@/hooks/useOpportunitySummary';
@@ -33,10 +32,7 @@ export function OpportunitySummaryCard() {
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 10 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.35 }}
+      <div
         className="rounded-2xl border border-border/80 bg-card overflow-hidden shadow-sm"
       >
         {/* Header bar */}
@@ -140,7 +136,7 @@ export function OpportunitySummaryCard() {
             <p className="text-[10px] text-muted-foreground italic">📝 {summary.notes}</p>
           </div>
         )}
-      </motion.div>
+      </div>
 
       <FundRentDialog
         open={showFundDialog}

@@ -172,11 +172,8 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
                 requests.map((req, i) => {
                   const statusBadge = getStatusBadge(req.status);
                   return (
-                    <motion.button
+                    <button
                       key={req.id}
-                      initial={{ opacity: 0, y: 6 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: i * 0.03, duration: 0.15 }}
                       onClick={() => {
                         if (isLocked) { onLockedClick?.(); return; }
                         onFundRequest?.(req);
@@ -206,7 +203,7 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
                           +{formatAmount(req.total_repayment - req.amount)}
                         </p>
                       </div>
-                    </motion.button>
+                    </button>
                   );
                 })
               )}
