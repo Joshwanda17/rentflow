@@ -31,19 +31,31 @@ export async function fetchUserRoles(
     }
 
     if (data && data.length > 0) {
-      let userRoles = data.map(r => r.role as AppRole);
-      if (!userRoles.includes('agent')) {
-        userRoles = ['agent', ...userRoles];
+      const userRoles = data.map(r => r.role as AppRole);
+      // Supporter-only accounts: do NOT inject 'agent' role
+      const isSupporterOnly = userRoles.length === 1 && userRoles[0] === 'supporter';
+      if (!isSupporterOnly && !userRoles.includes('agent')) {
+        userRoles.unshift('agent');
       }
       setRoles(userRoles);
       setCachedRoles(userRoles);
+      const defaultForUser = isSupporterOnly ? 'supporter' : 'agent';
       if (!currentRole || !userRoles.includes(currentRole)) {
-        setRole('agent');
+        setRole(defaultForUser as AppRole);
       }
     } else {
-      // No roles found — auto-create standard roles for this user
-      console.log('[RoleManager] No roles found, auto-creating for user:', userId);
-      const inserts = STANDARD_ROLES.map(role => ({
+      // No roles found — check if this is a supporter account before auto-creating
+      console.log('[RoleManager] No roles found, checking user metadata for:', userId);
+      
+      // Check if the user was registered as a supporter (via metadata)
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+      const intendedRole = authUser?.user_metadata?.intended_role;
+      
+      const rolesToCreate: AppRole[] = intendedRole === 'supporter' 
+        ? ['supporter'] 
+        : STANDARD_ROLES;
+      
+      const inserts = rolesToCreate.map(role => ({
         user_id: userId,
         role,
         enabled: true,
@@ -53,10 +65,11 @@ export async function fetchUserRoles(
         .insert(inserts);
 
       if (!insertError) {
-        setRoles(STANDARD_ROLES);
-        setCachedRoles(STANDARD_ROLES);
-        if (!currentRole || !STANDARD_ROLES.includes(currentRole)) {
-          setRole('agent');
+        setRoles(rolesToCreate);
+        setCachedRoles(rolesToCreate);
+        const defaultRole = intendedRole === 'supporter' ? 'supporter' : 'agent';
+        if (!currentRole || !rolesToCreate.includes(currentRole as AppRole)) {
+          setRole(defaultRole as AppRole);
         }
       } else {
         console.warn('[RoleManager] Failed to auto-create roles:', insertError.message);
