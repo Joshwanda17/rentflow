@@ -313,7 +313,7 @@ export default function SupporterDashboard({
   ];
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
+    <div className="h-dvh bg-background flex flex-col overflow-hidden">
       <DashboardHeader
         currentRole={currentRole}
         availableRoles={['supporter']}
@@ -322,8 +322,8 @@ export default function SupporterDashboard({
         menuItems={menuItems}
       />
 
-      <PullToRefresh onRefresh={handleRefresh} className="flex-1 overflow-y-auto pb-28 md:pb-4 overscroll-contain">
-        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-4 xs:space-y-5 max-w-lg mx-auto">
+      <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain -webkit-overflow-scrolling-touch">
+        <main className="px-3 xs:px-4 py-4 xs:py-5 space-y-4 xs:space-y-5 max-w-lg mx-auto pb-8">
           
           {/* ═══ GREETING + QUICK ACTIONS ═══ */}
           <div className="flex flex-col items-center text-center">
