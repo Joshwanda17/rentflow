@@ -206,6 +206,21 @@ Deno.serve(async (req) => {
       .upsert({ user_id: authData.user.id, role: userRole }, { onConflict: 'user_id,role' });
     if (roleError) console.error("[activate-supporter] Role error:", roleError);
 
+    // For supporter-only accounts: remove any auto-assigned extra roles
+    // Supporters registered by agents should ONLY have the supporter role
+    if (userRole === 'supporter') {
+      const { error: cleanupError } = await adminClient
+        .from("user_roles")
+        .delete()
+        .eq("user_id", authData.user.id)
+        .neq("role", "supporter");
+      if (cleanupError) {
+        console.error("[activate-supporter] Role cleanup error:", cleanupError);
+      } else {
+        console.log("[activate-supporter] Cleaned up extra roles — supporter-only account");
+      }
+    }
+
     // If landlord, create landlord record
     if (userRole === 'landlord') {
       const { error: landlordError } = await adminClient
