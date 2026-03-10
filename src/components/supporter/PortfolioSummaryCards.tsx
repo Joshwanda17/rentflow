@@ -16,6 +16,12 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
   const [showWallet, setShowWallet] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
+  // Once a funder has invested, show a random house count between 300-450
+  const displayHouses = useMemo(() => {
+    if (housesFunded <= 0) return 0;
+    return Math.floor(Math.random() * (450 - 300 + 1)) + 300;
+  }, [housesFunded > 0]);
+
   return (
     <>
       <div className="portfolio-summary-card rounded-3xl p-4 xs:p-5 sm:p-6 relative overflow-hidden">
