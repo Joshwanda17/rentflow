@@ -47,12 +47,22 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     if (!user) return;
     setLoading(true);
     try {
-      // Use investor_portfolios as single source of truth
-      const { data: portfolios, error } = await supabase
-        .from('investor_portfolios')
-        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
-        .eq('investor_id', user.id)
-        .order('created_at', { ascending: false });
+      // Check both investor_id and agent_id to catch self-invested portfolios
+      const [{ data: byInvestor, error: e1 }, { data: byAgent, error: e2 }] = await Promise.all([
+        supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .eq('investor_id', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('investor_portfolios')
+          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
+          .eq('agent_id', user.id)
+          .order('created_at', { ascending: false }),
+      ]);
+
+      const error = e1 || e2;
+      const portfolios = [...(byInvestor || []), ...(byAgent || [])];
 
       if (error) {
         console.error('[InvestmentBreakdown] fetch error:', error);
