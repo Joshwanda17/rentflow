@@ -29,12 +29,16 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
   const formattedPhone = formatPhoneInternational(phone);
 
   try {
-    const body = new URLSearchParams({
+    const params: Record<string, string> = {
       username,
       to: formattedPhone,
       message,
-      from: isSandbox ? "" : "WELILE",
-    });
+    };
+    // Only include 'from' in production with a registered sender ID
+    if (!isSandbox) {
+      params.from = "WELILE";
+    }
+    const body = new URLSearchParams(params);
 
     const res = await fetch(baseUrl, {
       method: "POST",
