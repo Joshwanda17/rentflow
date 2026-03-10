@@ -45,33 +45,26 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
     if (!user) return;
     setLoading(true);
     try {
-      // Fetch both sources in parallel
-      const [portfolioRes, ledgerRes] = await Promise.all([
-        supabase
-          .from('investor_portfolios')
-          .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
-          .eq('investor_id', user.id)
-          .order('created_at', { ascending: false }),
-        supabase
-          .from('general_ledger')
-          .select('id, amount, description, transaction_date')
-          .eq('user_id', user.id)
-          .eq('category', 'supporter_rent_fund')
-          .eq('direction', 'cash_out')
-          .order('transaction_date', { ascending: false }),
-      ]);
+      // Use investor_portfolios as single source of truth
+      const { data: portfolios, error } = await supabase
+        .from('investor_portfolios')
+        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
+        .eq('investor_id', user.id)
+        .order('created_at', { ascending: false });
 
-      const portfolios = portfolioRes.data || [];
-      const ledgerEntries = ledgerRes.data || [];
+      if (error) {
+        console.error('[InvestmentBreakdown] fetch error:', error);
+        setEntries([]);
+        return;
+      }
 
-      // Build a set of portfolio amounts+dates to match against ledger
-      // Use portfolio records as primary, fill gaps from ledger
-      const portfolioMap = new Map<string, boolean>();
-      const merged: InvestmentEntry[] = [];
-
-      // Add all portfolio records
-      for (const p of portfolios) {
-        merged.push({
+      // Deduplicate by id (defensive)
+      const seen = new Set<string>();
+      const entries: InvestmentEntry[] = [];
+      for (const p of (portfolios || [])) {
+        if (seen.has(p.id)) continue;
+        seen.add(p.id);
+        entries.push({
           id: p.id,
           code: p.portfolio_code,
           amount: Number(p.investment_amount),
@@ -85,44 +78,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           maturity_date: p.maturity_date,
           source: 'portfolio',
         });
-        // Track by amount + approximate time to avoid duplicates
-        portfolioMap.set(`${p.investment_amount}_${new Date(p.created_at).toISOString().slice(0, 13)}`, true);
       }
 
-      // Add ledger entries that don't have matching portfolio records
-      for (const le of ledgerEntries) {
-        const key = `${le.amount}_${new Date(le.transaction_date).toISOString().slice(0, 13)}`;
-        if (portfolioMap.has(key)) continue;
-
-        // Parse payout day from description
-        const payoutMatch = le.description?.match(/Payout day: (\d+)/);
-        const payoutDay = payoutMatch ? parseInt(payoutMatch[1]) : 5;
-        const firstPayoutMatch = le.description?.match(/First payout: ([\d-]+)/);
-        const firstPayoutDate = firstPayoutMatch ? firstPayoutMatch[1] : null;
-
-        const investedDate = new Date(le.transaction_date);
-        const maturityDate = addMonths(investedDate, 12);
-
-        merged.push({
-          id: le.id,
-          code: `FND-${le.id.slice(0, 4).toUpperCase()}`,
-          amount: Number(le.amount),
-          roi_percentage: 15,
-          roi_mode: 'monthly_payout',
-          total_earned: 0,
-          status: 'active',
-          invested_at: le.transaction_date,
-          duration_months: 12,
-          next_roi_date: firstPayoutDate,
-          maturity_date: maturityDate.toISOString(),
-          source: 'ledger',
-        });
-      }
-
-      // Sort by invested date descending
-      merged.sort((a, b) => new Date(b.invested_at).getTime() - new Date(a.invested_at).getTime());
-
-      setEntries(merged);
+      setEntries(entries);
     } catch (e) {
       console.error('[InvestmentBreakdown] fetch error:', e);
     } finally {
