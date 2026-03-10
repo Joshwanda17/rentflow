@@ -736,7 +736,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
 
             })}
-            </AnimatePresence>
+            
           </div>
 
           {hasMore &&
