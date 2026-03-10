@@ -101,3 +101,6 @@ verify_jwt = false
 
 [functions.create-investor-portfolio]
 verify_jwt = false
+
+[functions.coo-invest-for-partner]
+verify_jwt = false
