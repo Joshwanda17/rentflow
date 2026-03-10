@@ -56,6 +56,7 @@ export default function ActivePartnersDetail() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editRoi, setEditRoi] = useState('');
+  const [editPayoutDay, setEditPayoutDay] = useState('15');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
