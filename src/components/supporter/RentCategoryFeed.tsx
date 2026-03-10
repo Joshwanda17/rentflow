@@ -424,7 +424,7 @@ function EmptyState({ onAdd }: {onAdd: () => void;}) {
         <PlusCircle className="h-4 w-4" />
         Add Category
       </Button>
-    </motion.div>);
+    </div>);
 
 }
 
