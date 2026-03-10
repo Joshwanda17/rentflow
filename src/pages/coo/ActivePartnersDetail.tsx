@@ -219,21 +219,22 @@ export default function ActivePartnersDetail() {
 
       const newRoi = Number(editRoi);
       if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
-        const { data: latestPortfolio } = await supabase
+        // Update ALL active portfolios for this partner (by investor_id or agent_id)
+        const { error: roiErr1 } = await supabase
           .from('investor_portfolios')
-          .select('id')
+          .update({ roi_percentage: newRoi })
           .eq('investor_id', editPartner.id)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
+          .in('status', ['active', 'pending']);
+        if (roiErr1) throw roiErr1;
 
-        if (latestPortfolio) {
-          const { error: roiErr } = await supabase
-            .from('investor_portfolios')
-            .update({ roi_percentage: newRoi })
-            .eq('id', latestPortfolio.id);
-          if (roiErr) throw roiErr;
-        }
+        // Also update portfolios where agent_id matches but investor_id is null
+        const { error: roiErr2 } = await supabase
+          .from('investor_portfolios')
+          .update({ roi_percentage: newRoi })
+          .eq('agent_id', editPartner.id)
+          .is('investor_id', null)
+          .in('status', ['active', 'pending']);
+        if (roiErr2) throw roiErr2;
       }
 
       toast.success(`Updated ${editName.trim()}`);
