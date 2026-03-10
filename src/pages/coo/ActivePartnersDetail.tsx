@@ -30,6 +30,7 @@ interface PartnerRow {
   avgDeal: number;
   walletBalance: number;
   roiPercentage: number;
+  payoutDay: number;
 }
 
 const MIN_INVEST = 50000;
@@ -55,6 +56,7 @@ export default function ActivePartnersDetail() {
   const [editName, setEditName] = useState('');
   const [editPhone, setEditPhone] = useState('');
   const [editRoi, setEditRoi] = useState('');
+  const [editPayoutDay, setEditPayoutDay] = useState('15');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -82,7 +84,7 @@ export default function ActivePartnersDetail() {
         supabase.from('profiles').select('id, full_name, phone').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
-          .select('investor_id, agent_id, roi_percentage, created_at')
+          .select('investor_id, agent_id, roi_percentage, payout_day, created_at')
           .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
           .order('created_at', { ascending: false }),
       ]);
@@ -93,10 +95,12 @@ export default function ActivePartnersDetail() {
 
       // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
+      const payoutDayMap = new Map<string, number>();
       (portfoliosRes.data || []).forEach(p => {
         const userId = p.investor_id || p.agent_id;
         if (userId && !roiMap.has(userId)) {
           roiMap.set(userId, p.roi_percentage ?? 15);
+          payoutDayMap.set(userId, p.payout_day ?? 15);
         }
       });
 
@@ -125,6 +129,7 @@ export default function ActivePartnersDetail() {
           avgDeal: agg.deals > 0 ? Math.round(agg.poolFunded / agg.deals) : 0,
           walletBalance: walletMap.get(id) || 0,
           roiPercentage: roiMap.get(id) ?? 15,
+          payoutDay: payoutDayMap.get(id) ?? 15,
         };
       }).sort((a, b) => b.funded - a.funded);
 
@@ -206,6 +211,7 @@ export default function ActivePartnersDetail() {
     setEditName(r.name);
     setEditPhone(r.phone);
     setEditRoi(String(r.roiPercentage));
+    setEditPayoutDay(String(r.payoutDay));
   }
 
   async function handleSaveEdit() {
@@ -219,25 +225,30 @@ export default function ActivePartnersDetail() {
       if (profileErr) throw profileErr;
 
       const newRoi = Number(editRoi);
-      if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) {
+      const newPayoutDay = Number(editPayoutDay);
+      const payoutDayValid = !isNaN(newPayoutDay) && newPayoutDay >= 1 && newPayoutDay <= 28;
+      const updateFields: Record<string, any> = {};
+      if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) updateFields.roi_percentage = newRoi;
+      if (payoutDayValid) updateFields.payout_day = newPayoutDay;
+
+      if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
-        const { data: updated1, error: roiErr1 } = await supabase
+        const { data: updated1, error: err1 } = await supabase
           .from('investor_portfolios')
-          .update({ roi_percentage: newRoi })
+          .update(updateFields)
           .eq('investor_id', editPartner.id)
           .in('status', ['active', 'pending'])
           .select('id');
-        if (roiErr1) throw roiErr1;
+        if (err1) throw err1;
 
-        // Also update portfolios where agent_id matches but investor_id is null
-        const { data: updated2, error: roiErr2 } = await supabase
+        const { data: updated2, error: err2 } = await supabase
           .from('investor_portfolios')
-          .update({ roi_percentage: newRoi })
+          .update(updateFields)
           .eq('agent_id', editPartner.id)
           .is('investor_id', null)
           .in('status', ['active', 'pending'])
           .select('id');
-        if (roiErr2) throw roiErr2;
+        if (err2) throw err2;
 
         const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
 
@@ -273,7 +284,8 @@ export default function ActivePartnersDetail() {
                 investor_id: editPartner.id,
                 agent_id: editPartner.id,
                 investment_amount: ledgerEntry.amount,
-                roi_percentage: newRoi,
+                roi_percentage: updateFields.roi_percentage || newRoi,
+                payout_day: updateFields.payout_day || payoutDay,
                 roi_mode: 'monthly_payout',
                 duration_months: 12,
                 portfolio_code: portfolioCode,
@@ -294,7 +306,10 @@ export default function ActivePartnersDetail() {
             toast.warning(`Profile updated but no investment records found for ${editName.trim()}`);
           }
         } else {
-          toast.success(`Updated ${editName.trim()} — ROI set to ${newRoi}%`);
+          const changes = [];
+          if (updateFields.roi_percentage) changes.push(`ROI ${updateFields.roi_percentage}%`);
+          if (updateFields.payout_day) changes.push(`Payout day ${updateFields.payout_day}`);
+          toast.success(`Updated ${editName.trim()} — ${changes.join(', ')}`);
         }
       } else {
         toast.success(`Updated ${editName.trim()}`);
@@ -320,6 +335,9 @@ export default function ActivePartnersDetail() {
     { key: 'avgDeal', label: 'Avg Deal', align: 'right', render: (r) => formatUGX(r.avgDeal) },
     { key: 'roiPercentage', label: 'ROI %', align: 'right', render: (r) => (
       <span className="font-semibold text-primary">{r.roiPercentage}%</span>
+    )},
+    { key: 'payoutDay', label: 'Payout Day', align: 'right', render: (r) => (
+      <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
     )},
     {
       key: 'actions',
@@ -491,8 +509,20 @@ export default function ActivePartnersDetail() {
                     {v}%
                   </Button>
                 ))}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-payout-day">Monthly Payout Day (1-28)</Label>
+              <Input id="edit-payout-day" type="number" min={1} max={28} value={editPayoutDay} onChange={(e) => setEditPayoutDay(e.target.value)} />
+              <div className="flex gap-2">
+                {[1, 5, 10, 15].map(v => (
+                  <Button key={v} variant={editPayoutDay === String(v) ? 'default' : 'outline'} size="sm" className="text-xs h-7"
+                    onClick={() => setEditPayoutDay(String(v))}>
+                    {v}{getOrdinalSuffix(v)}
+                  </Button>
+                ))}
               </div>
             </div>
+          </div>
           </div>
 
           <DialogFooter>
