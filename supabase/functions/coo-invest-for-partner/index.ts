@@ -124,12 +124,8 @@ Deno.serve(async (req) => {
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
 
     // Get names
-    const [partnerProfileRes, cooProfileRes] = await Promise.all([
-      adminClient.from("profiles").select("full_name").eq("id", partner_id).single(),
-      adminClient.from("profiles").select("full_name").eq("id", caller.id).single(),
-    ]);
+    const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
-    const cooName = cooProfileRes.data?.full_name || "COO";
 
     // Record DEBIT in general_ledger (partner cash_out → pool)
     const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
