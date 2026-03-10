@@ -82,8 +82,8 @@ export default function ActivePartnersDetail() {
         supabase.from('profiles').select('id, full_name, phone').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
-          .select('investor_id, roi_percentage, created_at')
-          .in('investor_id', ids)
+          .select('investor_id, agent_id, roi_percentage, created_at')
+          .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
           .order('created_at', { ascending: false }),
       ]);
 
@@ -91,11 +91,12 @@ export default function ActivePartnersDetail() {
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, { name: p.full_name, phone: p.phone }]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
 
-      // ROI: use the most recent portfolio per investor
+      // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
       (portfoliosRes.data || []).forEach(p => {
-        if (p.investor_id && !roiMap.has(p.investor_id)) {
-          roiMap.set(p.investor_id, p.roi_percentage ?? 15);
+        const userId = p.investor_id || p.agent_id;
+        if (userId && !roiMap.has(userId)) {
+          roiMap.set(userId, p.roi_percentage ?? 15);
         }
       });
 
@@ -218,26 +219,38 @@ export default function ActivePartnersDetail() {
       if (profileErr) throw profileErr;
 
       const newRoi = Number(editRoi);
+      let roiUpdated = true;
       if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
-        const { error: roiErr1 } = await supabase
+        const { data: updated1, error: roiErr1 } = await supabase
           .from('investor_portfolios')
           .update({ roi_percentage: newRoi })
           .eq('investor_id', editPartner.id)
-          .in('status', ['active', 'pending']);
+          .in('status', ['active', 'pending'])
+          .select('id');
         if (roiErr1) throw roiErr1;
 
         // Also update portfolios where agent_id matches but investor_id is null
-        const { error: roiErr2 } = await supabase
+        const { data: updated2, error: roiErr2 } = await supabase
           .from('investor_portfolios')
           .update({ roi_percentage: newRoi })
           .eq('agent_id', editPartner.id)
           .is('investor_id', null)
-          .in('status', ['active', 'pending']);
+          .in('status', ['active', 'pending'])
+          .select('id');
         if (roiErr2) throw roiErr2;
+
+        const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
+        if (totalUpdated === 0) {
+          roiUpdated = false;
+        }
       }
 
-      toast.success(`Updated ${editName.trim()}`);
+      if (roiUpdated) {
+        toast.success(`Updated ${editName.trim()}`);
+      } else {
+        toast.warning(`Profile updated but no active portfolios found for ${editName.trim()} — ROI not changed`);
+      }
       setEditPartner(null);
       fetchData();
     } catch (e: any) {
