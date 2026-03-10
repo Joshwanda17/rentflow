@@ -114,7 +114,7 @@ const DashboardHeader = memo(function DashboardHeader({
                       <button className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition-all touch-manipulation min-h-[32px]">
                         <span className="text-sm">{getRoleConfig(currentRole).emoji}</span>
                         <span className="text-xs font-semibold text-white">
-                          {roleConfig[currentRole].label}
+                          {getRoleConfig(currentRole).label}
                         </span>
                         <ChevronDown className="h-3 w-3 text-white/60" />
                       </button>
