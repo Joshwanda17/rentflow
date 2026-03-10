@@ -30,6 +30,7 @@ interface PartnerRow {
   avgDeal: number;
   walletBalance: number;
   roiPercentage: number;
+  payoutDay: number;
 }
 
 const MIN_INVEST = 50000;
