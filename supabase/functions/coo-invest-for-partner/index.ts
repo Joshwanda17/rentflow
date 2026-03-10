@@ -124,12 +124,8 @@ Deno.serve(async (req) => {
     const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
 
     // Get names
-    const [partnerProfileRes, cooProfileRes] = await Promise.all([
-      adminClient.from("profiles").select("full_name").eq("id", partner_id).single(),
-      adminClient.from("profiles").select("full_name").eq("id", caller.id).single(),
-    ]);
+    const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
-    const cooName = cooProfileRes.data?.full_name || "COO";
 
     // Record DEBIT in general_ledger (partner cash_out → pool)
     const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
@@ -139,7 +135,7 @@ Deno.serve(async (req) => {
       category: "coo_proxy_investment",
       source_table: "wallets",
       transaction_group_id: txGroupId,
-      description: `COO ${cooName} invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
+      description: `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
     });
@@ -162,7 +158,7 @@ Deno.serve(async (req) => {
       category: "pool_capital_received",
       source_table: "wallets",
       transaction_group_id: txGroupId,
-      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (COO proxy investment by ${cooName})`,
+      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (facilitated by Welile Operations)`,
       reference_id: referenceId,
       linked_party: partnerName,
     });

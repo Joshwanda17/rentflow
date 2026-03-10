@@ -1,29 +1,42 @@
 
 
-## Plan: Remove COO Identity from Partner-Facing Notifications
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-### Problem
-When the COO invests on behalf of a partner, the notification and ledger descriptions expose the COO's name (e.g., "COO SSENKAALI PIUS invested..."). This is unnecessary and potentially confusing for supporters.
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-### Changes
+---
 
-**File: `supabase/functions/coo-invest-for-partner/index.ts`**
+### Database Tables Created
 
-1. **Notification message (line 176)**: Replace "by our operations team" wording — it's already neutral. The `metadata` field still contains `initiated_by: caller.id` which is fine for internal tracking but not shown to user.
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-2. **Ledger DEBIT description (line 142)**: Change from `COO ${cooName} invested UGX...` to a neutral description like `Welile Operations invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool...` — removes the COO name.
+### Database Functions Created
 
-3. **Ledger CREDIT description (line 165)**: Change from `...COO proxy investment by ${cooName}` to `...facilitated by Welile Operations`.
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-4. **Remove COO profile fetch** (line 129): The `cooProfileRes` and `cooName` variable are no longer needed for user-facing text. Keep `caller.id` in metadata for audit trail only.
+### UI Components Created
 
-### Summary of Text Changes
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
-| Location | Before | After |
-|---|---|---|
-| Ledger debit | `COO ${cooName} invested UGX...` | `Welile Operations invested UGX...` |
-| Ledger credit | `(COO proxy investment by ${cooName})` | `(facilitated by Welile Operations)` |
-| Notification | Already neutral | No change needed |
+### Dashboard Updated
 
-The COO's identity remains in `metadata.initiated_by` and server logs for audit purposes, but is hidden from supporter-facing notifications and descriptions.
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
 
+---
+
+### Phase 2 (Not Yet Implemented)
+
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)
