@@ -1,4 +1,4 @@
-/*
+/**
  * TEMPORARY: Disables ALL Supabase realtime subscriptions globally
  * by monkey-patching supabase.channel() to return a no-op channel.
  * 
