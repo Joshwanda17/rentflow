@@ -16,13 +16,13 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
   const [showWallet, setShowWallet] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  // Show a random house count between 300-460 for all funders
+  // Show a random house count based on investment tier
   const displayHouses = useMemo(() => {
-    if (rentSecured < 100000) {
-      return Math.floor(Math.random() * (300 - 200 + 1)) + 200;
+    if (rentSecured < 300000) {
+      return Math.floor(Math.random() * 50) + 1; // 1-50
     }
-    return Math.floor(Math.random() * (460 - 300 + 1)) + 300;
-  }, [rentSecured < 100000]);
+    return Math.floor(Math.random() * (460 - 300 + 1)) + 300; // 300-460
+  }, [rentSecured < 300000]);
 
   return (
     <>
