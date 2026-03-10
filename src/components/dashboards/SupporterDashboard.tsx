@@ -54,6 +54,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
+import { SupporterNotificationsFeed } from '@/components/supporter/SupporterNotificationsFeed';
 
 
 interface SupporterDashboardProps {
@@ -119,6 +120,13 @@ export default function SupporterDashboard({
         title: '🎉 Welcome to Welile Supporters!',
         description: 'Terms accepted. You can now start investing and helping tenants.',
       });
+      // Send welcome notification
+      supabase.from('notifications').insert({
+        user_id: user.id,
+        title: '🎉 Welcome to Welile Supporters!',
+        message: "You have accepted the Supporter Agreement. You can now invest in rent opportunities and earn 15% monthly returns.\n\n\u{1F4B0} Add funds via Mobile Money\n\u{1F4CA} Track your portfolio\n\u{1F3E0} Fund virtual houses\n\nYour journey to financial growth starts now!",
+        type: 'welcome',
+      }).then(() => {});
       setTimeout(() => setJustAccepted(false), 5000);
     }
     return success;
@@ -375,6 +383,9 @@ export default function SupporterDashboard({
             walletBalance={wallet?.balance ?? 0}
             portfolioHealth={portfolioHealth}
           />
+
+          {/* ═══ NOTIFICATIONS ═══ */}
+          <SupporterNotificationsFeed userId={user.id} />
 
           {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
           <div className="grid grid-cols-3 gap-2 xs:gap-3">
