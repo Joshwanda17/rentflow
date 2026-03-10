@@ -352,6 +352,7 @@ export default function SupporterDashboard({
         onRoleChange={onRoleChange}
         onSignOut={signOut}
         menuItems={menuItems}
+        headerActions={<NotificationBell userId={user.id} />}
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain -webkit-overflow-scrolling-touch">
