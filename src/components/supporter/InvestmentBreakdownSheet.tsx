@@ -7,7 +7,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target } from 'lucide-react';
-import { format, formatDistanceToNow, differenceInDays, isPast, addMonths } from 'date-fns';
+import { format, formatDistanceToNow, differenceInDays, isPast } from 'date-fns';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
