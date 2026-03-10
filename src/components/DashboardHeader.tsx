@@ -59,6 +59,7 @@ const DashboardHeader = memo(function DashboardHeader({
   menuItems = [],
   opportunityCount,
   onOpportunityBadgeClick,
+  headerActions,
 }: DashboardHeaderProps) {
   const navigate = useNavigate();
   const { isIOS, isInstalled, isInstallable, promptInstall } = usePWAInstall();
