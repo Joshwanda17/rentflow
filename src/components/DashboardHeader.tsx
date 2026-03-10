@@ -37,6 +37,7 @@ interface DashboardHeaderProps {
   menuItems?: MenuItemConfig[];
   opportunityCount?: number;
   onOpportunityBadgeClick?: () => void;
+  headerActions?: React.ReactNode;
 }
 
 const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.ReactNode }> = {
