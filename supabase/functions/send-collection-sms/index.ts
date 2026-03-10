@@ -16,6 +16,7 @@ function formatPhoneInternational(phone: string): string {
 async function sendSMS(phone: string, message: string): Promise<boolean> {
   const apiKey = Deno.env.get("AFRICASTALKING_API_KEY");
   const username = Deno.env.get("AFRICASTALKING_USERNAME");
+  console.log(`[send-collection-sms] Credentials check - username: ${username ? username : "MISSING"}, apiKey: ${apiKey ? "present (" + apiKey.substring(0, 6) + "...)" : "MISSING"}`);
   if (!apiKey || !username) {
     console.error("[send-collection-sms] Missing AT credentials");
     return false;
