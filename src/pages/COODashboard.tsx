@@ -183,7 +183,7 @@ export default function COODashboard() {
       const tenantsWithBalances = tenantsWithBalancesRes.count || 0;
       const newRentToday = newRentRequestsRes.count || 0;
       const newRentWeek = newRentRequestsWeekRes.count || 0;
-      const activeSupporters = new Set((activeSupportersRes.data || []).map(r => r.supporter_id)).size;
+      const activeSupporters = (activeSupportersRes.data || []).length;
       const newSupporterReq = newSupporterReqRes.count || 0;
       const activeLandlords = new Set((activeLandlordsRes.data || []).map(r => r.landlord_id)).size;
       const pipelineLandlords = pipelineLandlordsRes.count || 0;
