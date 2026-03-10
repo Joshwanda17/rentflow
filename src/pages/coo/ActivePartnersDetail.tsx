@@ -233,23 +233,22 @@ export default function ActivePartnersDetail() {
 
       if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
-        const { data: updated1, error: roiErr1 } = await supabase
+        const { data: updated1, error: err1 } = await supabase
           .from('investor_portfolios')
-          .update({ roi_percentage: newRoi })
+          .update(updateFields)
           .eq('investor_id', editPartner.id)
           .in('status', ['active', 'pending'])
           .select('id');
-        if (roiErr1) throw roiErr1;
+        if (err1) throw err1;
 
-        // Also update portfolios where agent_id matches but investor_id is null
-        const { data: updated2, error: roiErr2 } = await supabase
+        const { data: updated2, error: err2 } = await supabase
           .from('investor_portfolios')
-          .update({ roi_percentage: newRoi })
+          .update(updateFields)
           .eq('agent_id', editPartner.id)
           .is('investor_id', null)
           .in('status', ['active', 'pending'])
           .select('id');
-        if (roiErr2) throw roiErr2;
+        if (err2) throw err2;
 
         const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
 
