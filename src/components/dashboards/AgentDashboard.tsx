@@ -12,10 +12,6 @@ import {
   RefreshCw,
   BadgeCheck,
   MapPin,
-  Key,
-  Banknote,
-  ArrowDownCircle,
-  Users,
 } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import { AppRole } from '@/hooks/useAuth';
