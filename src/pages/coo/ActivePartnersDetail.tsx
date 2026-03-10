@@ -211,6 +211,7 @@ export default function ActivePartnersDetail() {
     setEditName(r.name);
     setEditPhone(r.phone);
     setEditRoi(String(r.roiPercentage));
+    setEditPayoutDay(String(r.payoutDay));
   }
 
   async function handleSaveEdit() {
