@@ -124,7 +124,7 @@ export default function SupporterDashboard({
       supabase.from('notifications').insert({
         user_id: user.id,
         title: '🎉 Welcome to Welile Supporters!',
-        message: 'You've accepted the Supporter Agreement. You can now invest in rent opportunities and earn 15% monthly returns.\n\n💰 Add funds via Mobile Money\n📊 Track your portfolio\n🏠 Fund virtual houses\n\nYour journey to financial growth starts now!',
+        message: "You have accepted the Supporter Agreement. You can now invest in rent opportunities and earn 15% monthly returns.\n\n\u{1F4B0} Add funds via Mobile Money\n\u{1F4CA} Track your portfolio\n\u{1F3E0} Fund virtual houses\n\nYour journey to financial growth starts now!",
         type: 'welcome',
       }).then(() => {});
       setTimeout(() => setJustAccepted(false), 5000);
