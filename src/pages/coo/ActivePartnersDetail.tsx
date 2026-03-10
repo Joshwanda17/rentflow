@@ -347,6 +347,11 @@ export default function ActivePartnersDetail() {
     { key: 'payoutDay', label: 'Payout Day', align: 'right', render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
     )},
+    { key: 'roiMode', label: 'ROI Mode', render: (r) => (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.roiMode === 'monthly_compounding' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+        {r.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}
+      </span>
+    )},
     {
       key: 'actions',
       label: 'Action',
