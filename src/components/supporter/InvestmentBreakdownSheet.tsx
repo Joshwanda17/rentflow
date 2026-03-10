@@ -49,7 +49,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
       // Use investor_portfolios as single source of truth
       const { data: portfolios, error } = await supabase
         .from('investor_portfolios')
-        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
+        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
         .eq('investor_id', user.id)
         .order('created_at', { ascending: false });
 
