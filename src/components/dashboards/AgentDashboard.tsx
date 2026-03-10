@@ -64,7 +64,7 @@ import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
-import { AgentVisitDialog } from '@/components/agent/AgentVisitDialog';
+import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWizard';
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
