@@ -740,9 +740,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
           </div>
 
           {hasMore &&
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        <div
           className="flex justify-center pt-1">
           
               <Button
