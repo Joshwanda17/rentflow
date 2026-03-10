@@ -457,11 +457,7 @@ function CategoryCard({
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ delay: index * 0.05, duration: 0.3 }}
+      <div
         className="group relative rounded-2xl border overflow-hidden transition-all duration-300 border-blue-200/40 dark:border-blue-900/30 bg-gradient-to-br from-white via-blue-50/20 to-blue-100/10 dark:from-card dark:via-blue-950/10 dark:to-blue-900/5 shadow-sm hover:shadow-md hover:shadow-blue-500/8 hover:border-blue-300/60 dark:hover:border-blue-700/50">
         
         {/* Card header */}
