@@ -13,7 +13,7 @@ Deno.serve(async (req) => {
 
   try {
     const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
+    if (!authHeader?.startsWith("Bearer ")) {
       return new Response(JSON.stringify({ error: "Unauthorized" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
@@ -24,25 +24,28 @@ Deno.serve(async (req) => {
     const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Use anon client with user's auth header to verify token
+    // Use anon client with user's auth header to verify token via getClaims
     const userClient = createClient(supabaseUrl, supabaseAnonKey, {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
 
-    if (userError || !user) {
-      console.error("[user-snapshot] Token verification failed:", userError?.message);
+    if (claimsError || !claimsData?.claims?.sub) {
+      console.error("[user-snapshot] Token verification failed:", claimsError?.message);
       return new Response(JSON.stringify({ error: "Invalid token" }), {
         status: 401,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
+    const userId = claimsData.claims.sub as string;
+
     // Service-role client for data queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const userId = user.id;
+    // userId already set from getClaims above
 
     // Fetch user roles first to determine what data to fetch
     const { data: roles } = await supabase
