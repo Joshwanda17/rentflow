@@ -219,6 +219,7 @@ export default function ActivePartnersDetail() {
       if (profileErr) throw profileErr;
 
       const newRoi = Number(editRoi);
+      let roiUpdated = true;
       if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
         const { data: updated1, error: roiErr1 } = await supabase
@@ -241,11 +242,15 @@ export default function ActivePartnersDetail() {
 
         const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
         if (totalUpdated === 0) {
-          toast.warning(`No active investment portfolios found for ${editName.trim()} — ROI not changed`);
+          roiUpdated = false;
         }
       }
 
-      toast.success(`Updated ${editName.trim()}`);
+      if (roiUpdated) {
+        toast.success(`Updated ${editName.trim()}`);
+      } else {
+        toast.warning(`Profile updated but no active portfolios found for ${editName.trim()} — ROI not changed`);
+      }
       setEditPartner(null);
       fetchData();
     } catch (e: any) {
