@@ -129,6 +129,7 @@ export default function ActivePartnersDetail() {
           avgDeal: agg.deals > 0 ? Math.round(agg.poolFunded / agg.deals) : 0,
           walletBalance: walletMap.get(id) || 0,
           roiPercentage: roiMap.get(id) ?? 15,
+          payoutDay: payoutDayMap.get(id) ?? 15,
         };
       }).sort((a, b) => b.funded - a.funded);
 
