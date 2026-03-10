@@ -26,6 +26,7 @@ interface InvestmentEntry {
   duration_months: number;
   next_roi_date: string | null;
   maturity_date: string | null;
+  payout_day: number | null;
   source: 'portfolio' | 'ledger';
 }
 
