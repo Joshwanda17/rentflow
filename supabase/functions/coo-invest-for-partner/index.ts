@@ -158,7 +158,7 @@ Deno.serve(async (req) => {
       category: "pool_capital_received",
       source_table: "wallets",
       transaction_group_id: txGroupId,
-      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (COO proxy investment by ${cooName})`,
+      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (facilitated by Welile Operations)`,
       reference_id: referenceId,
       linked_party: partnerName,
     });
