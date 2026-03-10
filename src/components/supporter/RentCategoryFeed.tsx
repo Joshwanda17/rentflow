@@ -517,11 +517,9 @@ function CategoryCard({
               <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">{utilization.toFixed(0)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-purple-100/60 dark:bg-purple-900/30 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${utilization}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut', delay: index * 0.05 + 0.2 }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500" />
+              <div
+                style={{ width: `${utilization}%` }}
+                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-500" />
               
             </div>
           </div>
