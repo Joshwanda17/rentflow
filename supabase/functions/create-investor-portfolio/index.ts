@@ -63,6 +63,7 @@ Deno.serve(async (req) => {
     const portfolioPin = typeof body.portfolio_pin === 'string' && /^\d{4}$/.test(body.portfolio_pin) ? body.portfolio_pin : null;
     const inviteId = typeof body.invite_id === 'string' && body.invite_id.length > 0 ? body.invite_id : null;
     const investorId = typeof body.investor_id === 'string' && body.investor_id.length > 0 ? body.investor_id : null;
+    const payoutDay = typeof body.payout_day === 'number' && body.payout_day >= 1 && body.payout_day <= 31 ? body.payout_day : 15;
 
     // Payment method fields
     const paymentMethod = typeof body.payment_method === 'string' && ['mobile_money', 'bank'].includes(body.payment_method) ? body.payment_method : null;
