@@ -132,8 +132,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       return;
     }
     const day = Number(payoutDay);
-    if (day < 1 || day > 28) {
-      toast.error('Payout day must be between 1 and 28');
+    if (day < 1 || day > 31) {
+      toast.error('Payout day must be between 1 and 31');
       return;
     }
     if (parsedAmount > agentBalance) {
@@ -423,16 +423,20 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           <div className="space-y-2">
             <Label className="flex items-center gap-1.5">
               <CalendarDays className="h-4 w-4" />
-              Monthly Payout Day (1–28)
+              Monthly Payout Day
             </Label>
-            <Input
-              type="number"
-              placeholder="e.g. 15"
+            <select
               value={payoutDay}
               onChange={(e) => setPayoutDay(e.target.value)}
-              min={1}
-              max={28}
-            />
+              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            >
+              <option value="">Select payout day...</option>
+              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
+                <option key={day} value={day}>
+                  {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of every month
+                </option>
+              ))}
+            </select>
           </div>
 
           {/* Reward Preview */}

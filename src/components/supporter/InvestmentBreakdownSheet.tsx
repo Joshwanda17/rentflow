@@ -26,6 +26,7 @@ interface InvestmentEntry {
   duration_months: number;
   next_roi_date: string | null;
   maturity_date: string | null;
+  payout_day: number | null;
   source: 'portfolio' | 'ledger';
 }
 
@@ -48,7 +49,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
       // Use investor_portfolios as single source of truth
       const { data: portfolios, error } = await supabase
         .from('investor_portfolios')
-        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date')
+        .select('id, portfolio_code, investment_amount, roi_percentage, roi_mode, total_roi_earned, status, created_at, duration_months, next_roi_date, maturity_date, payout_day')
         .eq('investor_id', user.id)
         .order('created_at', { ascending: false });
 
@@ -76,6 +77,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           duration_months: p.duration_months,
           next_roi_date: p.next_roi_date,
           maturity_date: p.maturity_date,
+          payout_day: (p as any).payout_day ?? null,
           source: 'portfolio',
         });
       }
@@ -269,9 +271,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                         <div className="flex-1 flex items-center justify-between">
                           <span className="text-[10px] text-muted-foreground font-semibold">Monthly Payout Date</span>
                           <span className="text-[11px] font-bold text-foreground">
-                            {nextPayout
-                              ? `${format(nextPayout, 'do')} of every month`
-                              : `${format(investedDate, 'do')} of every month`}
+                            {(() => {
+                              const day = entry.payout_day || (nextPayout ? nextPayout.getDate() : investedDate.getDate());
+                              const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
+                              return `${day}${suffix} of every month`;
+                            })()}
                           </span>
                         </div>
                       </div>
