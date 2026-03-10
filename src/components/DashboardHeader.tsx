@@ -39,13 +39,16 @@ interface DashboardHeaderProps {
   onOpportunityBadgeClick?: () => void;
 }
 
-const roleConfig: Record<AppRole, { label: string; emoji: string; icon: React.ReactNode }> = {
+const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.ReactNode }> = {
   tenant: { label: 'Tenant', emoji: '🏠', icon: <Home className="h-4 w-4" /> },
   agent: { label: 'Agent', emoji: '👥', icon: <Users className="h-4 w-4" /> },
   supporter: { label: 'Funder', emoji: '💰', icon: <Wallet className="h-4 w-4" /> },
   landlord: { label: 'Owner', emoji: '🏢', icon: <Building2 className="h-4 w-4" /> },
   manager: { label: 'Admin', emoji: '🛡️', icon: <Shield className="h-4 w-4" /> },
 };
+
+const defaultRoleConfig = { label: 'User', emoji: '👤', icon: <Users className="h-4 w-4" /> };
+const getRoleConfig = (role: string) => roleConfigMap[role] || defaultRoleConfig;
 
 const DashboardHeader = memo(function DashboardHeader({
   currentRole,
@@ -109,9 +112,9 @@ const DashboardHeader = memo(function DashboardHeader({
                   <Popover open={rolePickerOpen} onOpenChange={setRolePickerOpen}>
                     <PopoverTrigger asChild>
                       <button className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 hover:bg-white/20 active:scale-95 transition-all touch-manipulation min-h-[32px]">
-                        <span className="text-sm">{roleConfig[currentRole].emoji}</span>
+                        <span className="text-sm">{getRoleConfig(currentRole).emoji}</span>
                         <span className="text-xs font-semibold text-white">
-                          {roleConfig[currentRole].label}
+                          {getRoleConfig(currentRole).label}
                         </span>
                         <ChevronDown className="h-3 w-3 text-white/60" />
                       </button>
@@ -125,7 +128,7 @@ const DashboardHeader = memo(function DashboardHeader({
                         Switch Role
                       </p>
                       {availableRoles.map((role) => {
-                        const config = roleConfig[role];
+                        const config = getRoleConfig(role);
                         const isActive = role === currentRole;
                         return (
                           <button
@@ -153,9 +156,9 @@ const DashboardHeader = memo(function DashboardHeader({
                 <>
                   <div className="h-3.5 w-px bg-white/20" />
                   <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 min-h-[32px]">
-                    <span className="text-sm">{roleConfig[currentRole].emoji}</span>
+                    <span className="text-sm">{getRoleConfig(currentRole).emoji}</span>
                     <span className="text-xs font-semibold text-white">
-                      {roleConfig[currentRole].label}
+                      {getRoleConfig(currentRole).label}
                     </span>
                   </div>
                 </>
