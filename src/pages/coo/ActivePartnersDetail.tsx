@@ -217,6 +217,7 @@ export default function ActivePartnersDetail() {
     setEditPhone(r.phone);
     setEditRoi(String(r.roiPercentage));
     setEditPayoutDay(String(r.payoutDay));
+    setEditRoiMode(r.roiMode || 'monthly_payout');
   }
 
   async function handleSaveEdit() {
