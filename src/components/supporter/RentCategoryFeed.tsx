@@ -562,7 +562,7 @@ function CategoryCard({
             </Button>
           }
         </div>
-      </motion.div>
+      </div>
 
       {/* Dialogs */}
       <DepositInstructionsDialog
