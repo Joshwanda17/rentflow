@@ -208,8 +208,8 @@ Deno.serve(async (req) => {
     const monthlyReward = Math.round(amount * 0.15);
     await adminClient.from("notifications").insert({
       user_id: user.id,
-      title: "🎉 Rent Pool Funded Successfully!",
-      message: `UGX ${amount.toLocaleString()} transferred to the Rent Management Pool.\n\n⏳ Your funds will work for at least 30 days before the first payout.\n\n💰 You will receive 15% (UGX ${monthlyReward.toLocaleString()}) monthly on the ${payout_day}${getOrdinalSuffix(payout_day)} of every month for 12 months, starting ${firstPayoutDate}.\n\nRef: ${referenceId}\n\n📋 To withdraw your investment, submit a 90-day notice request from your dashboard.`,
+      title: "🎉 Thank You for Your Support!",
+      message: `We truly appreciate your contribution of UGX ${amount.toLocaleString()} — it makes a real difference for tenants in need.\n\n⏳ Your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly on the ${payout_day}${getOrdinalSuffix(payout_day)} of every month for 12 months, starting ${firstPayoutDate}.\n\nRef: ${referenceId}\n\n📋 To withdraw your investment, submit a 90-day notice request from your dashboard.`,
       type: "success",
       metadata: {
         amount,
