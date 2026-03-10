@@ -157,7 +157,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
             <div className="space-y-4">
               {entries.map((entry, idx) => {
                 const monthlyReturn = entry.amount * (entry.roi_percentage / 100);
-                const isCompounding = entry.roi_mode === 'compound';
+                const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
                 const color = accentColors[idx % accentColors.length];
                 const sc = statusConfig(entry.status);
                 const nextPayout = entry.next_roi_date ? new Date(entry.next_roi_date) : null;
