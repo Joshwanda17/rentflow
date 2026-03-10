@@ -1460,6 +1460,7 @@ export type Database = {
           mobile_network: string | null
           next_roi_date: string | null
           payment_method: string | null
+          payout_day: number | null
           portfolio_code: string
           portfolio_pin: string
           roi_mode: string
@@ -1484,6 +1485,7 @@ export type Database = {
           mobile_network?: string | null
           next_roi_date?: string | null
           payment_method?: string | null
+          payout_day?: number | null
           portfolio_code: string
           portfolio_pin: string
           roi_mode?: string
@@ -1508,6 +1510,7 @@ export type Database = {
           mobile_network?: string | null
           next_roi_date?: string | null
           payment_method?: string | null
+          payout_day?: number | null
           portfolio_code?: string
           portfolio_pin?: string
           roi_mode?: string
