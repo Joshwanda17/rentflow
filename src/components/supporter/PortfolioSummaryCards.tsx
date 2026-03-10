@@ -9,13 +9,12 @@ interface PortfolioSummaryCardsProps {
   rentSecured: number;
   walletBalance: number;
   portfolioHealth: 'stable' | 'at_risk' | 'growing';
+  totalReturn?: number;
 }
 
-export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance }: PortfolioSummaryCardsProps) {
+export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showWallet, setShowWallet] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
-
-  const totalReturn = rentSecured * 0.15;
 
   return (
     <>

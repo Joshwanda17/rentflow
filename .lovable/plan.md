@@ -1,47 +1,42 @@
 
 
-## Problem
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-The "Return" stat in the Funder Dashboard card shows **mock data** (`rentSecured * 0.15`), not the actual earned ROI from the database. The Investment Breakdown sheet already fetches real data but the summary card ignores it.
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-## Plan
+---
 
-### 1. Fetch actual ROI earned in SupporterDashboard
+### Database Tables Created
 
-In `src/components/dashboards/SupporterDashboard.tsx`, add a query to `investor_portfolios` to sum `total_roi_earned` for the user. Store it in a new state variable `totalRoiEarned`.
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-Add to the existing `fetchTotalContributed` function:
-- Query `investor_portfolios` for `total_roi_earned` (already partially queried, just need to also select `total_roi_earned`)
-- Sum the values and store in state
+### Database Functions Created
 
-### 2. Update PortfolioSummaryCards props
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-In `src/components/supporter/PortfolioSummaryCards.tsx`:
-- Add `totalReturn: number` to props interface
-- Remove the hardcoded `const totalReturn = rentSecured * 0.15`
-- Use the prop value directly for the "Return" display
+### UI Components Created
 
-### 3. Pass real data from SupporterDashboard to PortfolioSummaryCards
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
-Pass the fetched `totalRoiEarned` as the `totalReturn` prop.
+### Dashboard Updated
 
-### 4. Ensure InvestmentBreakdownSheet shows accurate dates
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
 
-The sheet already shows invested date and maturity date. Minor improvements:
-- Make the "Invested on" date more prominent with actual date formatting
-- Ensure the "Supported date" label is clear
-- Keep lightweight -- no new heavy components
+---
 
-### Files Changed
+### Phase 2 (Not Yet Implemented)
 
-| File | Change |
-|------|--------|
-| `src/components/dashboards/SupporterDashboard.tsx` | Fetch `total_roi_earned` from `investor_portfolios`, pass as prop |
-| `src/components/supporter/PortfolioSummaryCards.tsx` | Accept `totalReturn` prop, remove mock calculation |
-
-### Technical Notes
-
-- Single additional column in existing query (no new DB call)
-- No new dependencies or heavy components
-- CSS-only, no animation libraries
-
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)

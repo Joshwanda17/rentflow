@@ -95,6 +95,7 @@ export default function SupporterDashboard({
   // Virtual houses data (from funded rent_requests)
   const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
   const [totalRentContributed, setTotalRentContributed] = useState(0);
+  const [totalRoiEarned, setTotalRoiEarned] = useState(0);
 
   // Agreement
   const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
@@ -179,7 +180,7 @@ export default function SupporterDashboard({
           .limit(500),
         supabase
           .from('investor_portfolios')
-          .select('investment_amount')
+          .select('investment_amount, total_roi_earned')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending'])
           .limit(100),
@@ -192,6 +193,11 @@ export default function SupporterDashboard({
       const portfolioTotal = !portfolioResult.error && portfolioResult.data
         ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount), 0)
         : 0;
+
+      const roiTotal = !portfolioResult.error && portfolioResult.data
+        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.total_roi_earned || 0), 0)
+        : 0;
+      setTotalRoiEarned(roiTotal);
 
       // Use the higher value — ledger is source of truth, but portfolios cover
       // cases where ledger entries haven't been migrated yet
@@ -382,6 +388,7 @@ export default function SupporterDashboard({
             rentSecured={totalRentContributed}
             walletBalance={wallet?.balance ?? 0}
             portfolioHealth={portfolioHealth}
+            totalReturn={totalRoiEarned}
           />
 
           {/* ═══ NOTIFICATIONS ═══ */}
