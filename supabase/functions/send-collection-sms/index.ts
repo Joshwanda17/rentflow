@@ -35,10 +35,8 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
       to: formattedPhone,
       message,
     };
-    // Only include 'from' in production with a registered sender ID
-    if (!isSandbox) {
-      params.from = "WELILE";
-    }
+    // NOTE: 'from' / sender ID removed — "WELILE" is not yet approved on Africa's Talking.
+    // Re-enable once the sender ID is approved on the AT dashboard.
     const body = new URLSearchParams(params);
 
     const res = await fetch(baseUrl, {
