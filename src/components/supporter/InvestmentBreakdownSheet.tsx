@@ -6,9 +6,9 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
-import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target, ChevronDown } from 'lucide-react';
+import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { format, formatDistanceToNow, differenceInDays, isPast } from 'date-fns';
+import { format, formatDistanceToNow, differenceInDays, isPast, addMonths } from 'date-fns';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
