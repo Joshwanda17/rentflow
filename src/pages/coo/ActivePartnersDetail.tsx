@@ -95,10 +95,12 @@ export default function ActivePartnersDetail() {
 
       // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
+      const payoutDayMap = new Map<string, number>();
       (portfoliosRes.data || []).forEach(p => {
         const userId = p.investor_id || p.agent_id;
         if (userId && !roiMap.has(userId)) {
           roiMap.set(userId, p.roi_percentage ?? 15);
+          payoutDayMap.set(userId, p.payout_day ?? 15);
         }
       });
 
