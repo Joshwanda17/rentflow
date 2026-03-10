@@ -231,9 +231,19 @@ export type Database = {
           float_after: number
           float_before: number
           id: string
+          location_name: string | null
+          momo_payer_name: string | null
+          momo_phone: string | null
+          momo_provider: string | null
+          momo_transaction_id: string | null
+          notes: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          sms_sent_agent: boolean | null
+          sms_sent_tenant: boolean | null
           tenant_id: string
-          token_id: string
+          token_id: string | null
+          tracking_id: string | null
+          visit_id: string | null
         }
         Insert: {
           agent_id: string
@@ -242,9 +252,19 @@ export type Database = {
           float_after?: number
           float_before?: number
           id?: string
+          location_name?: string | null
+          momo_payer_name?: string | null
+          momo_phone?: string | null
+          momo_provider?: string | null
+          momo_transaction_id?: string | null
+          notes?: string | null
           payment_method: Database["public"]["Enums"]["collection_payment_method"]
+          sms_sent_agent?: boolean | null
+          sms_sent_tenant?: boolean | null
           tenant_id: string
-          token_id: string
+          token_id?: string | null
+          tracking_id?: string | null
+          visit_id?: string | null
         }
         Update: {
           agent_id?: string
@@ -253,9 +273,19 @@ export type Database = {
           float_after?: number
           float_before?: number
           id?: string
+          location_name?: string | null
+          momo_payer_name?: string | null
+          momo_phone?: string | null
+          momo_provider?: string | null
+          momo_transaction_id?: string | null
+          notes?: string | null
           payment_method?: Database["public"]["Enums"]["collection_payment_method"]
+          sms_sent_agent?: boolean | null
+          sms_sent_tenant?: boolean | null
           tenant_id?: string
-          token_id?: string
+          token_id?: string | null
+          tracking_id?: string | null
+          visit_id?: string | null
         }
         Relationships: [
           {
@@ -319,6 +349,13 @@ export type Database = {
             columns: ["token_id"]
             isOneToOne: false
             referencedRelation: "payment_tokens"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_collections_visit_id_fkey"
+            columns: ["visit_id"]
+            isOneToOne: false
+            referencedRelation: "agent_visits"
             referencedColumns: ["id"]
           },
         ]
@@ -408,31 +445,46 @@ export type Database = {
         Row: {
           agent_id: string
           assigned_by: string | null
+          cash_on_hand: number | null
           collected_today: number
           created_at: string
+          critical_threshold_pct: number | null
+          daily_txn_limit: number | null
           float_limit: number
           id: string
+          is_paused: boolean | null
           last_reset_date: string
+          low_threshold_pct: number | null
           updated_at: string
         }
         Insert: {
           agent_id: string
           assigned_by?: string | null
+          cash_on_hand?: number | null
           collected_today?: number
           created_at?: string
+          critical_threshold_pct?: number | null
+          daily_txn_limit?: number | null
           float_limit?: number
           id?: string
+          is_paused?: boolean | null
           last_reset_date?: string
+          low_threshold_pct?: number | null
           updated_at?: string
         }
         Update: {
           agent_id?: string
           assigned_by?: string | null
+          cash_on_hand?: number | null
           collected_today?: number
           created_at?: string
+          critical_threshold_pct?: number | null
+          daily_txn_limit?: number | null
           float_limit?: number
           id?: string
+          is_paused?: boolean | null
           last_reset_date?: string
+          low_threshold_pct?: number | null
           updated_at?: string
         }
         Relationships: [
@@ -526,6 +578,96 @@ export type Database = {
           updated_at?: string
         }
         Relationships: []
+      }
+      agent_rebalance_records: {
+        Row: {
+          agent_id: string
+          amount: number
+          approved_by: string | null
+          created_at: string
+          direction: string
+          id: string
+          method: string | null
+          reference_id: string | null
+        }
+        Insert: {
+          agent_id: string
+          amount: number
+          approved_by?: string | null
+          created_at?: string
+          direction: string
+          id?: string
+          method?: string | null
+          reference_id?: string | null
+        }
+        Update: {
+          agent_id?: string
+          amount?: number
+          approved_by?: string | null
+          created_at?: string
+          direction?: string
+          id?: string
+          method?: string | null
+          reference_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "agent_rebalance_records_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
       }
       agent_receipts: {
         Row: {
@@ -627,6 +769,7 @@ export type Database = {
           created_at: string
           id: string
           latitude: number
+          location_name: string | null
           longitude: number
           tenant_id: string
         }
@@ -637,6 +780,7 @@ export type Database = {
           created_at?: string
           id?: string
           latitude: number
+          location_name?: string | null
           longitude: number
           tenant_id: string
         }
@@ -647,6 +791,7 @@ export type Database = {
           created_at?: string
           id?: string
           latitude?: number
+          location_name?: string | null
           longitude?: number
           tenant_id?: string
         }
@@ -730,6 +875,36 @@ export type Database = {
           id?: string
           role?: string
           user_id?: string
+        }
+        Relationships: []
+      }
+      audit_logs: {
+        Row: {
+          action_type: string
+          created_at: string | null
+          id: string
+          metadata: Json | null
+          record_id: string | null
+          table_name: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action_type: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action_type?: string
+          created_at?: string | null
+          id?: string
+          metadata?: Json | null
+          record_id?: string | null
+          table_name?: string | null
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -1069,6 +1244,102 @@ export type Database = {
         }
         Relationships: []
       }
+      float_requests: {
+        Row: {
+          agent_id: string
+          approved_at: string | null
+          approved_by: string | null
+          created_at: string
+          id: string
+          reason: string | null
+          rejection_reason: string | null
+          requested_amount: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          agent_id: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_amount: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          agent_id?: string
+          approved_at?: string | null
+          approved_by?: string | null
+          created_at?: string
+          id?: string
+          reason?: string | null
+          rejection_reason?: string | null
+          requested_amount?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "float_requests_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       general_ledger: {
         Row: {
           account: string | null
@@ -1309,6 +1580,45 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      landlord_ambassador_referrals: {
+        Row: {
+          commission_earned: number
+          created_at: string
+          id: string
+          referred_landlord_id: string
+          referred_landlord_name: string
+          referred_landlord_phone: string
+          referrer_landlord_id: string
+          rent_processed: number
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          commission_earned?: number
+          created_at?: string
+          id?: string
+          referred_landlord_id: string
+          referred_landlord_name: string
+          referred_landlord_phone: string
+          referrer_landlord_id: string
+          rent_processed?: number
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          commission_earned?: number
+          created_at?: string
+          id?: string
+          referred_landlord_id?: string
+          referred_landlord_name?: string
+          referred_landlord_phone?: string
+          referrer_landlord_id?: string
+          rent_processed?: number
+          status?: string
+          updated_at?: string
+        }
+        Relationships: []
       }
       landlords: {
         Row: {
@@ -1656,6 +1966,99 @@ export type Database = {
         }
         Relationships: []
       }
+      liquidity_alerts: {
+        Row: {
+          agent_id: string
+          alert_type: string
+          created_at: string
+          id: string
+          message: string
+          resolved: boolean | null
+          resolved_at: string | null
+          resolved_by: string | null
+          severity: string
+        }
+        Insert: {
+          agent_id: string
+          alert_type: string
+          created_at?: string
+          id?: string
+          message: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Update: {
+          agent_id?: string
+          alert_type?: string
+          created_at?: string
+          id?: string
+          message?: string
+          resolved?: boolean | null
+          resolved_at?: string | null
+          resolved_by?: string | null
+          severity?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_agent_id_fkey"
+            columns: ["agent_id"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "manager_profiles"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "referral_leaderboard"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "liquidity_alerts_resolved_by_fkey"
+            columns: ["resolved_by"]
+            isOneToOne: false
+            referencedRelation: "user_financial_summaries"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
       loan_applications: {
         Row: {
           amount: number
@@ -1870,6 +2273,30 @@ export type Database = {
         }
         Relationships: []
       }
+      operations_departments: {
+        Row: {
+          assigned_by: string | null
+          created_at: string
+          department: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          assigned_by?: string | null
+          created_at?: string
+          department: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          assigned_by?: string | null
+          created_at?: string
+          department?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       opportunity_summaries: {
         Row: {
           created_at: string
@@ -2065,7 +2492,7 @@ export type Database = {
           status: string
           transaction_group_id: string | null
           updated_at: string
-          user_id: string
+          user_id: string | null
         }
         Insert: {
           account?: string | null
@@ -2086,7 +2513,7 @@ export type Database = {
           status?: string
           transaction_group_id?: string | null
           updated_at?: string
-          user_id: string
+          user_id?: string | null
         }
         Update: {
           account?: string | null
@@ -2107,7 +2534,7 @@ export type Database = {
           status?: string
           transaction_group_id?: string | null
           updated_at?: string
-          user_id?: string
+          user_id?: string | null
         }
         Relationships: []
       }
@@ -2549,6 +2976,60 @@ export type Database = {
         }
         Relationships: []
       }
+      rent_history_records: {
+        Row: {
+          created_at: string
+          end_date: string | null
+          id: string
+          landlord_name: string
+          landlord_phone: string
+          months_paid: number
+          property_location: string
+          rejection_reason: string | null
+          rent_amount: number
+          start_date: string | null
+          status: string
+          tenant_id: string
+          updated_at: string
+          verified_at: string | null
+          verified_by: string | null
+        }
+        Insert: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          landlord_name: string
+          landlord_phone: string
+          months_paid?: number
+          property_location: string
+          rejection_reason?: string | null
+          rent_amount?: number
+          start_date?: string | null
+          status?: string
+          tenant_id: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Update: {
+          created_at?: string
+          end_date?: string | null
+          id?: string
+          landlord_name?: string
+          landlord_phone?: string
+          months_paid?: number
+          property_location?: string
+          rejection_reason?: string | null
+          rent_amount?: number
+          start_date?: string | null
+          status?: string
+          tenant_id?: string
+          updated_at?: string
+          verified_at?: string | null
+          verified_by?: string | null
+        }
+        Relationships: []
+      }
       rent_requests: {
         Row: {
           access_fee: number
@@ -2894,6 +3375,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      staff_profiles: {
+        Row: {
+          created_at: string | null
+          created_by: string | null
+          department: string
+          employee_id: string
+          id: string
+          must_change_password: boolean | null
+          position: string
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          created_by?: string | null
+          department?: string
+          employee_id: string
+          id?: string
+          must_change_password?: boolean | null
+          position?: string
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string | null
+          department?: string
+          employee_id?: string
+          id?: string
+          must_change_password?: boolean | null
+          position?: string
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
       subscription_charge_logs: {
         Row: {
@@ -3372,6 +3889,42 @@ export type Database = {
           rating?: number
           tenant_id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      tenant_replacements: {
+        Row: {
+          created_at: string
+          id: string
+          landlord_id: string
+          new_tenant_id: string
+          old_tenant_id: string
+          outstanding_balance: number
+          reason: string
+          rent_request_id: string
+          replaced_by: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          landlord_id: string
+          new_tenant_id: string
+          old_tenant_id: string
+          outstanding_balance?: number
+          reason?: string
+          rent_request_id: string
+          replaced_by: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          landlord_id?: string
+          new_tenant_id?: string
+          old_tenant_id?: string
+          outstanding_balance?: number
+          reason?: string
+          rent_request_id?: string
+          replaced_by?: string
         }
         Relationships: []
       }
@@ -4148,10 +4701,25 @@ export type Database = {
         Args: { p_amount: number; p_summary_id: string }
         Returns: undefined
       }
+      generate_employee_id: { Args: { _full_name: string }; Returns: string }
       generate_portfolio_code: { Args: never; Returns: string }
       generate_welile_ai_id: { Args: { user_uuid: string }; Returns: string }
       get_buffer_metrics: { Args: never; Returns: Json }
       get_buffer_trend_data: { Args: never; Returns: Json }
+      get_deposits_paginated: {
+        Args: {
+          p_agent_id?: string
+          p_end_date?: string
+          p_max_amount?: number
+          p_min_amount?: number
+          p_page?: number
+          p_page_size?: number
+          p_search?: string
+          p_start_date?: string
+          p_status?: string
+        }
+        Returns: Json
+      }
       get_email_by_phone: {
         Args: { phone_variants: string[] }
         Returns: {
@@ -4199,6 +4767,10 @@ export type Database = {
         }[]
       }
       get_my_ai_id_summary: { Args: never; Returns: Json }
+      get_pending_wallet_ops: {
+        Args: { p_page?: number; p_page_size?: number }
+        Returns: Json
+      }
       get_rent_requests_summary: { Args: never; Returns: Json }
       get_supporter_pool_stats: { Args: never; Returns: Json }
       get_user_role: {
@@ -4206,6 +4778,10 @@ export type Database = {
         Returns: Database["public"]["Enums"]["app_role"]
       }
       get_wallet_ops_stats: { Args: { p_period?: string }; Returns: Json }
+      has_dashboard_access: {
+        Args: { _dashboard: string; _user_id: string }
+        Returns: boolean
+      }
       has_role: {
         Args: {
           _role: Database["public"]["Enums"]["app_role"]
@@ -4315,7 +4891,21 @@ export type Database = {
         | "rejected"
         | "auto_executed"
         | "expired"
-      app_role: "tenant" | "agent" | "landlord" | "supporter" | "manager"
+      app_role:
+        | "tenant"
+        | "agent"
+        | "landlord"
+        | "supporter"
+        | "manager"
+        | "ceo"
+        | "coo"
+        | "cfo"
+        | "cto"
+        | "cmo"
+        | "crm"
+        | "employee"
+        | "operations"
+        | "super_admin"
       automation_action_type:
         | "send_notification"
         | "send_push"
@@ -4481,7 +5071,22 @@ export const Constants = {
         "auto_executed",
         "expired",
       ],
-      app_role: ["tenant", "agent", "landlord", "supporter", "manager"],
+      app_role: [
+        "tenant",
+        "agent",
+        "landlord",
+        "supporter",
+        "manager",
+        "ceo",
+        "coo",
+        "cfo",
+        "cto",
+        "cmo",
+        "crm",
+        "employee",
+        "operations",
+        "super_admin",
+      ],
       automation_action_type: [
         "send_notification",
         "send_push",
