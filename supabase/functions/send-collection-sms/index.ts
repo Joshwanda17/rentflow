@@ -29,12 +29,14 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
   const formattedPhone = formatPhoneInternational(phone);
 
   try {
-    const body = new URLSearchParams({
+    const params: Record<string, string> = {
       username,
       to: formattedPhone,
       message,
-      from: isSandbox ? "" : "WELILE",
-    });
+    };
+    // NOTE: 'from' / sender ID removed — "WELILE" is not yet approved on Africa's Talking.
+    // Re-enable once the sender ID is approved on the AT dashboard.
+    const body = new URLSearchParams(params);
 
     const res = await fetch(baseUrl, {
       method: "POST",
@@ -47,9 +49,10 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     });
 
     const data = await res.json();
+    console.log(`[send-collection-sms] AT response for ${formattedPhone}:`, JSON.stringify(data));
     const recipients = data?.SMSMessageData?.Recipients || [];
-    const success = recipients.some((r: any) => r.statusCode === 101);
-    console.log(`[send-collection-sms] SMS to ${formattedPhone}: ${success ? "sent" : "failed"}`);
+    const success = recipients.some((r: any) => r.statusCode === 101 || r.statusCode === 100);
+    console.log(`[send-collection-sms] SMS to ${formattedPhone}: ${success ? "sent" : "failed"} (status: ${res.status}, recipients: ${JSON.stringify(recipients)})`);
     return success;
   } catch (err) {
     console.error("[send-collection-sms] Error:", err);
