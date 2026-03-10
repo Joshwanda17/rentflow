@@ -207,10 +207,17 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
                       if (isCompounding) {
                         let bal = entry.amount;
-                        const startDate = new Date(entry.invested_at);
+                        // Use payout_day to build actual monthly payout dates
+                        const payoutDay = entry.payout_day || 1;
+                        const now = new Date();
+                        // First payout month: start from current/next occurrence of payout_day
+                        let firstPayout = new Date(now.getFullYear(), now.getMonth(), payoutDay);
+                        if (firstPayout <= new Date(entry.invested_at)) {
+                          firstPayout = addMonths(firstPayout, 1);
+                        }
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = addMonths(startDate, m);
+                          const payoutDate = addMonths(firstPayout, m - 1);
                           projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
