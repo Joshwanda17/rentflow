@@ -66,37 +66,44 @@ export default function ActivePartnersDetail() {
         return;
       }
 
-      // Fetch rent requests, profiles, wallets in parallel
-      const [activeRes, profilesRes, walletsRes] = await Promise.all([
-        supabase.from('rent_requests').select('supporter_id, rent_amount, status')
-          .not('supporter_id', 'is', null).in('status', ['funded', 'approved']),
+      // Fetch ledger contributions, profiles, wallets in parallel
+      const [ledgerRes, profilesRes, walletsRes] = await Promise.all([
+        supabase.from('general_ledger')
+          .select('user_id, amount, direction, category')
+          .in('user_id', supporterIds.slice(0, 200))
+          .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
         supabase.from('profiles').select('id, full_name').in('id', supporterIds.slice(0, 200)),
         supabase.from('wallets').select('user_id, balance').in('user_id', supporterIds.slice(0, 200)),
       ]);
 
-      const activeData = activeRes.data || [];
+      const ledgerData = ledgerRes.data || [];
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.full_name]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
 
-      // Aggregate deals per partner
-      const partnerMap = new Map<string, { funded: number; deals: number }>();
-      activeData.forEach(r => {
-        if (!r.supporter_id) return;
-        const existing = partnerMap.get(r.supporter_id) || { funded: 0, deals: 0 };
-        existing.funded += (r.rent_amount || 0);
-        existing.deals += 1;
-        partnerMap.set(r.supporter_id, existing);
+      // Aggregate from ledger: cash_in = capital received, cash_out = pool contributions (funded)
+      const partnerMap = new Map<string, { capitalIn: number; poolFunded: number; deals: number }>();
+      ledgerData.forEach(entry => {
+        if (!entry.user_id) return;
+        const existing = partnerMap.get(entry.user_id) || { capitalIn: 0, poolFunded: 0, deals: 0 };
+        if (entry.direction === 'cash_in') {
+          existing.capitalIn += (entry.amount || 0);
+        } else if (entry.direction === 'cash_out') {
+          existing.poolFunded += (entry.amount || 0);
+          existing.deals += 1;
+        }
+        partnerMap.set(entry.user_id, existing);
       });
 
-      // Build rows for ALL supporters (not just those with deals)
+      // Build rows for ALL supporters
       const tableRows: PartnerRow[] = supporterIds.slice(0, 200).map(id => {
-        const agg = partnerMap.get(id) || { funded: 0, deals: 0 };
+        const agg = partnerMap.get(id) || { capitalIn: 0, poolFunded: 0, deals: 0 };
+        const funded = agg.poolFunded; // actual pool contributions
         return {
           id,
           name: profileMap.get(id) || id.slice(0, 8),
-          funded: agg.funded,
+          funded,
           activeDeals: agg.deals,
-          avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
+          avgDeal: agg.deals > 0 ? Math.round(funded / agg.deals) : 0,
           walletBalance: walletMap.get(id) || 0,
           status: '',
         };
