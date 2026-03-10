@@ -755,7 +755,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <>View All {categories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
             }
               </Button>
-            </motion.div>
+            </div>
         }
         </>
       }
