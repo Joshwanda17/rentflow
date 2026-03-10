@@ -293,7 +293,7 @@ export default function ActivePartnersDetail() {
                 investment_amount: ledgerEntry.amount,
                 roi_percentage: updateFields.roi_percentage || newRoi,
                 payout_day: updateFields.payout_day || payoutDay,
-                roi_mode: 'monthly_payout',
+                roi_mode: editRoiMode || 'monthly_payout',
                 duration_months: 12,
                 portfolio_code: portfolioCode,
                 portfolio_pin: Math.floor(1000 + Math.random() * 9000).toString(),
