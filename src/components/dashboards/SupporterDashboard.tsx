@@ -181,13 +181,13 @@ export default function SupporterDashboard({
           .limit(500),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned')
+          .select('id, investment_amount, total_roi_earned, roi_percentage')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending'])
           .limit(100),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned')
+          .select('id, investment_amount, total_roi_earned, roi_percentage')
           .eq('agent_id', user.id)
           .is('investor_id', null)
           .in('status', ['active', 'pending'])
@@ -211,10 +211,11 @@ export default function SupporterDashboard({
         ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount), 0)
         : 0;
 
-      const roiTotal = !portfolioResult.error && portfolioResult.data
-        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.total_roi_earned || 0), 0)
+      // Calculate expected monthly return from ROI% × capital
+      const expectedMonthly = portfolioResult.data
+        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount) * (Number(r.roi_percentage || 15) / 100), 0)
         : 0;
-      setTotalRoiEarned(roiTotal);
+      setTotalRoiEarned(expectedMonthly);
 
       // Use the higher value — ledger is source of truth, but portfolios cover
       // cases where ledger entries haven't been migrated yet
