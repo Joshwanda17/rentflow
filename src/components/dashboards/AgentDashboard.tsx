@@ -64,7 +64,7 @@ import { RecentAutoCharges } from '@/components/wallet/RecentAutoCharges';
 
 // New Phase 1 components
 import { AgentDailyOpsCard } from '@/components/agent/AgentDailyOpsCard';
-import { AgentVisitDialog } from '@/components/agent/AgentVisitDialog';
+import { AgentVisitPaymentWizard } from '@/components/agent/AgentVisitPaymentWizard';
 import { GeneratePaymentTokenDialog } from '@/components/agent/GeneratePaymentTokenDialog';
 import { RecordAgentCollectionDialog } from '@/components/agent/RecordAgentCollectionDialog';
 import { AgentDepositCashDialog } from '@/components/agent/AgentDepositCashDialog';
@@ -142,7 +142,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const quickActions = [
     { icon: MapPin, label: 'Visit Tenant', color: 'text-blue-500', bg: 'bg-blue-500/10', onClick: () => { hapticTap(); setVisitDialogOpen(true); } },
     { icon: Key, label: 'Generate Token', color: 'text-amber-500', bg: 'bg-amber-500/10', onClick: () => { hapticTap(); setTokenDialogOpen(true); } },
-    { icon: Banknote, label: 'Record Payment', color: 'text-success', bg: 'bg-success/10', onClick: () => { hapticTap(); setRecordCollectionOpen(true); } },
+    { icon: Banknote, label: 'Record Payment', color: 'text-success', bg: 'bg-success/10', onClick: () => { hapticTap(); setVisitDialogOpen(true); } },
     { icon: ArrowDownCircle, label: 'Deposit Cash', color: 'text-emerald-500', bg: 'bg-emerald-500/10', onClick: () => { hapticTap(); setDepositCashOpen(true); } },
     { icon: UserPlus, label: 'Register User', color: 'text-primary', bg: 'bg-primary/10', onClick: handleRegisterUser },
     { icon: Users, label: 'My Tenants', color: 'text-purple-500', bg: 'bg-purple-500/10', onClick: () => { hapticTap(); setTenantsSheetOpen(true); } },
@@ -320,7 +320,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
 
       {/* Phase 1: Agent Operations Dialogs */}
-      <AgentVisitDialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen} />
+      <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />
       <GeneratePaymentTokenDialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen} />
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
