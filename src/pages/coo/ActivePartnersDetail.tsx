@@ -31,6 +31,7 @@ interface PartnerRow {
   walletBalance: number;
   roiPercentage: number;
   payoutDay: number;
+  roiMode: string;
 }
 
 const MIN_INVEST = 50000;
