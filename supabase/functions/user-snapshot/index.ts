@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
     // Service-role client for data queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    const userId = user.id;
+    // userId already set from getClaims above
 
     // Fetch user roles first to determine what data to fetch
     const { data: roles } = await supabase
