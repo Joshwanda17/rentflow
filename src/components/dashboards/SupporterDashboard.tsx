@@ -95,6 +95,7 @@ export default function SupporterDashboard({
   // Virtual houses data (from funded rent_requests)
   const [virtualHouses, setVirtualHouses] = useState<VirtualHouse[]>([]);
   const [totalRentContributed, setTotalRentContributed] = useState(0);
+  const [totalRoiEarned, setTotalRoiEarned] = useState(0);
 
   // Agreement
   const { hasAccepted, acceptance, loading: agreementLoading, acceptAgreement } = useSupporterAgreement();
