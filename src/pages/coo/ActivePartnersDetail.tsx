@@ -306,7 +306,10 @@ export default function ActivePartnersDetail() {
             toast.warning(`Profile updated but no investment records found for ${editName.trim()}`);
           }
         } else {
-          toast.success(`Updated ${editName.trim()} — ROI set to ${newRoi}%`);
+          const changes = [];
+          if (updateFields.roi_percentage) changes.push(`ROI ${updateFields.roi_percentage}%`);
+          if (updateFields.payout_day) changes.push(`Payout day ${updateFields.payout_day}`);
+          toast.success(`Updated ${editName.trim()} — ${changes.join(', ')}`);
         }
       } else {
         toast.success(`Updated ${editName.trim()}`);
