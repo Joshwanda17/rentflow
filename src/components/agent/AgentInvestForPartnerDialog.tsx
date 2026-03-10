@@ -132,8 +132,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       return;
     }
     const day = Number(payoutDay);
-    if (day < 1 || day > 28) {
-      toast.error('Payout day must be between 1 and 28');
+    if (day < 1 || day > 31) {
+      toast.error('Payout day must be between 1 and 31');
       return;
     }
     if (parsedAmount > agentBalance) {
