@@ -54,7 +54,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { SupporterNotificationsFeed } from '@/components/supporter/SupporterNotificationsFeed';
+import { NotificationBell } from '@/components/supporter/NotificationBell';
 
 
 interface SupporterDashboardProps {
