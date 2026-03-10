@@ -130,10 +130,10 @@ export function NotificationBell({ userId }: { userId: string }) {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-start justify-between gap-2">
-                          <p className="text-xs font-semibold leading-tight line-clamp-1">{n.title}</p>
+                        <p className="text-xs font-semibold leading-tight line-clamp-1 text-muted-foreground">{n.title}</p>
                           {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary shrink-0 mt-1" />}
                         </div>
-                        <p className="text-[11px] text-muted-foreground mt-0.5 line-clamp-2">{n.message}</p>
+                        <p className="text-[11px] text-foreground mt-0.5 line-clamp-2">{n.message}</p>
                         {n.created_at && (
                           <p className="text-[10px] text-muted-foreground/60 mt-1">
                             {formatDistanceToNow(new Date(n.created_at), { addSuffix: true })}
