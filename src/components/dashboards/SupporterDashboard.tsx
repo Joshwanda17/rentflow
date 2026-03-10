@@ -388,6 +388,7 @@ export default function SupporterDashboard({
             rentSecured={totalRentContributed}
             walletBalance={wallet?.balance ?? 0}
             portfolioHealth={portfolioHealth}
+            totalReturn={totalRoiEarned}
           />
 
           {/* ═══ NOTIFICATIONS ═══ */}
