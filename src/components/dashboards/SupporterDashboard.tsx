@@ -180,7 +180,7 @@ export default function SupporterDashboard({
           .limit(500),
         supabase
           .from('investor_portfolios')
-          .select('investment_amount')
+          .select('investment_amount, total_roi_earned')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending'])
           .limit(100),
