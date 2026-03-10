@@ -316,6 +316,7 @@ export default function ActivePartnersDetail() {
           const changes = [];
           if (updateFields.roi_percentage) changes.push(`ROI ${updateFields.roi_percentage}%`);
           if (updateFields.payout_day) changes.push(`Payout day ${updateFields.payout_day}`);
+          if (updateFields.roi_mode) changes.push(`Mode: ${updateFields.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Payout'}`);
           toast.success(`Updated ${editName.trim()} — ${changes.join(', ')}`);
         }
       } else {
