@@ -181,13 +181,13 @@ export default function SupporterDashboard({
           .limit(500),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned')
+          .select('id, investment_amount, total_roi_earned, roi_percentage')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending'])
           .limit(100),
         supabase
           .from('investor_portfolios')
-          .select('id, investment_amount, total_roi_earned')
+          .select('id, investment_amount, total_roi_earned, roi_percentage')
           .eq('agent_id', user.id)
           .is('investor_id', null)
           .in('status', ['active', 'pending'])
