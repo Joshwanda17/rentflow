@@ -170,7 +170,8 @@ export default function SupporterDashboard({
     if (!user?.id) return;
     try {
       // Fetch from general_ledger (supporter_rent_fund entries)
-      const [ledgerResult, portfolioResult] = await Promise.all([
+      // Query portfolios by both investor_id and agent_id to cover all cases
+      const [ledgerResult, portfolioByInvestor, portfolioByAgent] = await Promise.all([
         supabase
           .from('general_ledger')
           .select('amount')
@@ -180,11 +181,27 @@ export default function SupporterDashboard({
           .limit(500),
         supabase
           .from('investor_portfolios')
-          .select('investment_amount, total_roi_earned')
+          .select('id, investment_amount, total_roi_earned')
           .eq('investor_id', user.id)
           .in('status', ['active', 'pending'])
           .limit(100),
+        supabase
+          .from('investor_portfolios')
+          .select('id, investment_amount, total_roi_earned')
+          .eq('agent_id', user.id)
+          .is('investor_id', null)
+          .in('status', ['active', 'pending'])
+          .limit(100),
       ]);
+
+      // Merge portfolios (investor_id matches + agent_id with null investor_id)
+      const allPortfolios = [
+        ...(!portfolioByInvestor.error && portfolioByInvestor.data ? portfolioByInvestor.data : []),
+        ...(!portfolioByAgent.error && portfolioByAgent.data ? portfolioByAgent.data : []),
+      ];
+      // Deduplicate by id
+      const seen = new Set<string>();
+      const portfolioResult = { data: allPortfolios.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; }), error: null };
 
       const ledgerTotal = !ledgerResult.error && ledgerResult.data
         ? ledgerResult.data.reduce((sum, r) => sum + Number(r.amount), 0)
