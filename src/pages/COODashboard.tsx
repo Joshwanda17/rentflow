@@ -157,10 +157,10 @@ export default function COODashboard() {
           .in('status', ['pending', 'approved'])
           .order('created_at', { ascending: false })
           .limit(20),
-        // 5. Active supporters — need distinct supporter_ids
-        supabase.from('rent_requests').select('supporter_id')
-          .not('supporter_id', 'is', null)
-          .in('status', ['funded', 'approved']),
+        // 5. All supporters (by role) — total partner count
+        supabase.from('user_roles').select('user_id')
+          .eq('role', 'supporter')
+          .or('enabled.is.null,enabled.eq.true'),
         // 6. New supporter requests this week
         supabase.from('user_roles').select('id', { count: 'exact', head: true })
           .eq('role', 'supporter')
