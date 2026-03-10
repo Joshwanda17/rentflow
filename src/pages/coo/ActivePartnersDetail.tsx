@@ -31,6 +31,7 @@ interface PartnerRow {
   walletBalance: number;
   roiPercentage: number;
   payoutDay: number;
+  roiMode: string;
 }
 
 const MIN_INVEST = 50000;
@@ -57,6 +58,7 @@ export default function ActivePartnersDetail() {
   const [editPhone, setEditPhone] = useState('');
   const [editRoi, setEditRoi] = useState('');
   const [editPayoutDay, setEditPayoutDay] = useState('15');
+  const [editRoiMode, setEditRoiMode] = useState('monthly_payout');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -84,7 +86,7 @@ export default function ActivePartnersDetail() {
         supabase.from('profiles').select('id, full_name, phone').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
-          .select('investor_id, agent_id, roi_percentage, payout_day, created_at')
+          .select('investor_id, agent_id, roi_percentage, payout_day, roi_mode, created_at')
           .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
           .order('created_at', { ascending: false }),
       ]);
@@ -96,11 +98,13 @@ export default function ActivePartnersDetail() {
       // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
       const payoutDayMap = new Map<string, number>();
+      const roiModeMap = new Map<string, string>();
       (portfoliosRes.data || []).forEach(p => {
         const userId = p.investor_id || p.agent_id;
         if (userId && !roiMap.has(userId)) {
           roiMap.set(userId, p.roi_percentage ?? 15);
           payoutDayMap.set(userId, p.payout_day ?? 15);
+          roiModeMap.set(userId, p.roi_mode ?? 'monthly_payout');
         }
       });
 
@@ -130,6 +134,7 @@ export default function ActivePartnersDetail() {
           walletBalance: walletMap.get(id) || 0,
           roiPercentage: roiMap.get(id) ?? 15,
           payoutDay: payoutDayMap.get(id) ?? 15,
+          roiMode: roiModeMap.get(id) ?? 'monthly_payout',
         };
       }).sort((a, b) => b.funded - a.funded);
 
@@ -212,6 +217,7 @@ export default function ActivePartnersDetail() {
     setEditPhone(r.phone);
     setEditRoi(String(r.roiPercentage));
     setEditPayoutDay(String(r.payoutDay));
+    setEditRoiMode(r.roiMode || 'monthly_payout');
   }
 
   async function handleSaveEdit() {
@@ -230,6 +236,7 @@ export default function ActivePartnersDetail() {
       const updateFields: Record<string, any> = {};
       if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) updateFields.roi_percentage = newRoi;
       if (payoutDayValid) updateFields.payout_day = newPayoutDay;
+      if (editRoiMode === 'monthly_payout' || editRoiMode === 'monthly_compounding') updateFields.roi_mode = editRoiMode;
 
       if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
@@ -286,7 +293,7 @@ export default function ActivePartnersDetail() {
                 investment_amount: ledgerEntry.amount,
                 roi_percentage: updateFields.roi_percentage || newRoi,
                 payout_day: updateFields.payout_day || payoutDay,
-                roi_mode: 'monthly_payout',
+                roi_mode: editRoiMode || 'monthly_payout',
                 duration_months: 12,
                 portfolio_code: portfolioCode,
                 portfolio_pin: Math.floor(1000 + Math.random() * 9000).toString(),
@@ -309,6 +316,7 @@ export default function ActivePartnersDetail() {
           const changes = [];
           if (updateFields.roi_percentage) changes.push(`ROI ${updateFields.roi_percentage}%`);
           if (updateFields.payout_day) changes.push(`Payout day ${updateFields.payout_day}`);
+          if (updateFields.roi_mode) changes.push(`Mode: ${updateFields.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Payout'}`);
           toast.success(`Updated ${editName.trim()} — ${changes.join(', ')}`);
         }
       } else {
@@ -338,6 +346,11 @@ export default function ActivePartnersDetail() {
     )},
     { key: 'payoutDay', label: 'Payout Day', align: 'right', render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
+    )},
+    { key: 'roiMode', label: 'ROI Mode', render: (r) => (
+      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${r.roiMode === 'monthly_compounding' ? 'bg-primary/10 text-primary' : 'bg-muted text-muted-foreground'}`}>
+        {r.roiMode === 'monthly_compounding' ? 'Compounding' : 'Payout'}
+      </span>
     )},
     {
       key: 'actions',
@@ -487,7 +500,7 @@ export default function ActivePartnersDetail() {
               <Pencil className="h-5 w-5 text-primary" />
               Edit Partner
             </DialogTitle>
-            <DialogDescription>Update partner information and ROI percentage.</DialogDescription>
+            <DialogDescription>Update partner information, ROI percentage, and payment mode.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
@@ -521,6 +534,32 @@ export default function ActivePartnersDetail() {
                   </Button>
                 ))}
               </div>
+            </div>
+            <div className="space-y-2">
+              <Label>ROI Payment Mode</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={editRoiMode === 'monthly_payout' ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-8 flex-1"
+                  onClick={() => setEditRoiMode('monthly_payout')}
+                >
+                  Monthly Payout
+                </Button>
+                <Button
+                  variant={editRoiMode === 'monthly_compounding' ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-8 flex-1"
+                  onClick={() => setEditRoiMode('monthly_compounding')}
+                >
+                  Compounding
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {editRoiMode === 'monthly_compounding'
+                  ? 'Returns are reinvested monthly, growing the principal.'
+                  : 'Returns are paid out to wallet each month.'}
+              </p>
             </div>
           </div>
           </div>
