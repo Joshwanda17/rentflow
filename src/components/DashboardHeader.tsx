@@ -128,7 +128,7 @@ const DashboardHeader = memo(function DashboardHeader({
                         Switch Role
                       </p>
                       {availableRoles.map((role) => {
-                        const config = roleConfig[role];
+                        const config = getRoleConfig(role);
                         const isActive = role === currentRole;
                         return (
                           <button
