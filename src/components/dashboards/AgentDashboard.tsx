@@ -142,7 +142,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
   const quickActions = [
     { icon: MapPin, label: 'Visit Tenant', color: 'text-blue-500', bg: 'bg-blue-500/10', onClick: () => { hapticTap(); setVisitDialogOpen(true); } },
     { icon: Key, label: 'Generate Token', color: 'text-amber-500', bg: 'bg-amber-500/10', onClick: () => { hapticTap(); setTokenDialogOpen(true); } },
-    { icon: Banknote, label: 'Record Payment', color: 'text-success', bg: 'bg-success/10', onClick: () => { hapticTap(); setRecordCollectionOpen(true); } },
+    { icon: Banknote, label: 'Record Payment', color: 'text-success', bg: 'bg-success/10', onClick: () => { hapticTap(); setVisitDialogOpen(true); } },
     { icon: ArrowDownCircle, label: 'Deposit Cash', color: 'text-emerald-500', bg: 'bg-emerald-500/10', onClick: () => { hapticTap(); setDepositCashOpen(true); } },
     { icon: UserPlus, label: 'Register User', color: 'text-primary', bg: 'bg-primary/10', onClick: handleRegisterUser },
     { icon: Users, label: 'My Tenants', color: 'text-purple-500', bg: 'bg-purple-500/10', onClick: () => { hapticTap(); setTenantsSheetOpen(true); } },
