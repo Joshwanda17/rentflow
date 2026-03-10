@@ -211,10 +211,11 @@ export default function SupporterDashboard({
         ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount), 0)
         : 0;
 
-      const roiTotal = !portfolioResult.error && portfolioResult.data
-        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.total_roi_earned || 0), 0)
+      // Calculate expected monthly return from ROI% × capital
+      const expectedMonthly = portfolioResult.data
+        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount) * (Number(r.roi_percentage || 15) / 100), 0)
         : 0;
-      setTotalRoiEarned(roiTotal);
+      setTotalRoiEarned(expectedMonthly);
 
       // Use the higher value — ledger is source of truth, but portfolios cover
       // cases where ledger entries haven't been migrated yet
