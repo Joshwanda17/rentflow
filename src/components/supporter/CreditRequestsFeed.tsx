@@ -3,7 +3,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Badge } from '@/components/ui/badge';
 import { Sparkles, Clock, CheckCircle2, XCircle, ChevronDown } from 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { formatDistanceToNow } from 'date-fns';
 
 interface CreditRequest {
