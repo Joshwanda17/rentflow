@@ -204,12 +204,14 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
 
                     {/* Capital & Expected return + Compound Projection */}
                     {(() => {
-                      const projectionRows: { month: number; opening: number; earned: number; closing: number }[] = [];
+                      const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
                       if (isCompounding) {
                         let bal = entry.amount;
+                        const startDate = new Date(entry.invested_at);
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          projectionRows.push({ month: m, opening: bal, earned, closing: bal + earned });
+                          const payoutDate = addMonths(startDate, m);
+                          projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
                       }
@@ -303,29 +305,46 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                         </div>
                                       </div>
 
-                                      <div className="rounded-lg border bg-background/80 overflow-hidden">
-                                        <div className="grid grid-cols-4 gap-0 text-[9px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50 px-2 py-1.5 border-b">
-                                          <span>Mth</span>
-                                          <span className="text-right">Opening</span>
-                                          <span className="text-right">ROI ({entry.roi_percentage}%)</span>
-                                          <span className="text-right">Closing</span>
-                                        </div>
-                                        <div className="max-h-[240px] overflow-y-auto">
-                                          {projectionRows.map((row) => {
-                                            const isLast = row.month === projectionRows.length;
-                                            return (
-                                              <div
-                                                key={row.month}
-                                                className={`grid grid-cols-4 gap-0 px-2 py-1.5 text-[11px] border-b last:border-b-0 ${isLast ? 'bg-success/10 font-black' : 'font-medium'}`}
-                                              >
-                                                <span className="text-muted-foreground">{row.month}</span>
-                                                <span className="text-right text-foreground">{formatAmount(row.opening)}</span>
-                                                <span className={`text-right ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</span>
-                                                <span className="text-right text-foreground">{formatAmount(row.closing)}</span>
+                                      {/* Responsive month-by-month breakdown */}
+                                      <div className="space-y-1.5">
+                                        {projectionRows.map((row) => {
+                                          const isLast = row.month === projectionRows.length;
+                                          const isPastMonth = isPast(row.date);
+                                          return (
+                                            <div
+                                              key={row.month}
+                                              className={`rounded-lg border p-2.5 ${isLast ? 'bg-success/10 border-success/20' : 'bg-background/80'}`}
+                                            >
+                                              <div className="flex items-center justify-between mb-1.5">
+                                                <div className="flex items-center gap-2">
+                                                  <span className={`text-[10px] font-black ${isLast ? 'text-success' : 'text-muted-foreground'}`}>
+                                                    Month {row.month}
+                                                  </span>
+                                                  {isPastMonth && (
+                                                    <span className="text-[8px] font-bold px-1.5 py-0.5 rounded-full bg-primary/10 text-primary">PAID</span>
+                                                  )}
+                                                </div>
+                                                <span className="text-[10px] font-semibold text-muted-foreground">
+                                                  {format(row.date, 'dd MMM yyyy')}
+                                                </span>
                                               </div>
-                                            );
-                                          })}
-                                        </div>
+                                              <div className="grid grid-cols-3 gap-2">
+                                                <div>
+                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">Opening</p>
+                                                  <p className={`text-[11px] font-bold text-foreground`}>{formatAmount(row.opening)}</p>
+                                                </div>
+                                                <div>
+                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">ROI ({entry.roi_percentage}%)</p>
+                                                  <p className={`text-[11px] font-bold ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</p>
+                                                </div>
+                                                <div className="text-right">
+                                                  <p className="text-[8px] text-muted-foreground font-semibold uppercase">Closing</p>
+                                                  <p className={`text-[11px] font-black text-foreground`}>{formatAmount(row.closing)}</p>
+                                                </div>
+                                              </div>
+                                            </div>
+                                          );
+                                        })}
                                       </div>
                                     </div>
                                   </AccordionContent>
