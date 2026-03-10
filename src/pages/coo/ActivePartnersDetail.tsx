@@ -236,6 +236,7 @@ export default function ActivePartnersDetail() {
       const updateFields: Record<string, any> = {};
       if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) updateFields.roi_percentage = newRoi;
       if (payoutDayValid) updateFields.payout_day = newPayoutDay;
+      if (editRoiMode === 'monthly_payout' || editRoiMode === 'monthly_compounding') updateFields.roi_mode = editRoiMode;
 
       if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
