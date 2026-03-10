@@ -26,7 +26,7 @@ export function OtpVerificationStep({
 }: OtpVerificationStepProps) {
   const [otp, setOtp] = useState('');
   const [resendCooldown, setResendCooldown] = useState(0);
-  const cooldownRef = useRef<NodeJS.Timeout>();
+  const cooldownRef = useRef<ReturnType<typeof setTimeout>>();
 
   useEffect(() => {
     if (resendCooldown > 0) {
