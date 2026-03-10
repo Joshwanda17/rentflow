@@ -714,7 +714,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
       <>
           <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
+            
               {[...visibleCategories].sort((a, b) => {
                 const aComingSoon = a.category !== 'Welile Double Room';
                 const bComingSoon = b.category !== 'Welile Double Room';
