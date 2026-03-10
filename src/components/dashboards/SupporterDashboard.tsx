@@ -54,7 +54,7 @@ import { InvestmentPackageSheet } from '@/components/supporter/InvestmentPackage
 import { OpportunitySummaryCard } from '@/components/supporter/OpportunitySummaryCard';
 
 import AiIdButton from '@/components/ai-id/AiIdButton';
-import { SupporterNotificationsFeed } from '@/components/supporter/SupporterNotificationsFeed';
+import { NotificationBell } from '@/components/supporter/NotificationBell';
 
 
 interface SupporterDashboardProps {
@@ -352,6 +352,7 @@ export default function SupporterDashboard({
         onRoleChange={onRoleChange}
         onSignOut={signOut}
         menuItems={menuItems}
+        headerActions={<NotificationBell userId={user.id} />}
       />
 
       <PullToRefresh onRefresh={handleRefresh} className="flex-1 min-h-0 overflow-y-auto pb-28 md:pb-4 overscroll-contain -webkit-overflow-scrolling-touch">
@@ -409,8 +410,6 @@ export default function SupporterDashboard({
             totalReturn={totalRoiEarned}
           />
 
-          {/* ═══ NOTIFICATIONS ═══ */}
-          <SupporterNotificationsFeed userId={user.id} />
 
           {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
           <div className="grid grid-cols-3 gap-2 xs:gap-3">
