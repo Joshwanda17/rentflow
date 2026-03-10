@@ -179,7 +179,7 @@ const DashboardHeader = memo(function DashboardHeader({
 
             {/* Right: Notification + Menu */}
             <div className="flex items-center gap-0.5">
-              
+              {headerActions}
 
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
