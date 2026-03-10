@@ -1,4 +1,4 @@
-// Realtime subscriptions: currently enabled (disableRealtime removed)
+// Realtime: enabled
 
 import { lazy, Suspense, memo, useEffect, useState, Component, type ReactNode } from "react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
