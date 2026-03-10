@@ -96,7 +96,7 @@ export function NotificationBell({ userId }: { userId: string }) {
         <PopoverContent
           align="end"
           sideOffset={8}
-          className="w-80 p-0 rounded-2xl shadow-2xl border bg-background/98 backdrop-blur-xl"
+          className="w-80 p-0 rounded-2xl shadow-2xl border bg-background"
         >
           <div className="flex items-center justify-between px-4 pt-3 pb-2">
             <h3 className="text-sm font-bold text-foreground">Notifications</h3>
