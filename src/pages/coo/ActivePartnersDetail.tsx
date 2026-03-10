@@ -500,7 +500,7 @@ export default function ActivePartnersDetail() {
               <Pencil className="h-5 w-5 text-primary" />
               Edit Partner
             </DialogTitle>
-            <DialogDescription>Update partner information and ROI percentage.</DialogDescription>
+            <DialogDescription>Update partner information, ROI percentage, and payment mode.</DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
