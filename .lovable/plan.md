@@ -1,42 +1,51 @@
 
 
-## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
+## Plan: Add Compound ROI Breakdown to My Investments
 
-This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
+### What changes
 
----
+For investments with `roi_mode === 'compound'`, add a **month-by-month compound growth table** inside each investment card in `InvestmentBreakdownSheet.tsx`. This replaces the static "Expected / month" display with a detailed projection showing how the principal grows over time.
 
-### Database Tables Created
+### UI Design
 
-1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
-2. `agent_visits` — GPS visit check-ins
-3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
-4. `agent_collections` — Payments recorded against tokens
-5. Added `territory` column to `profiles` table
+For compound investments, after the Capital & Expected return cards, insert a collapsible section titled **"Compound Growth Projection"** showing:
 
-### Database Functions Created
+1. **Summary row**: Starting capital → Final value after N months (with total growth %)
+2. **Month-by-month table** (collapsible via Accordion):
+   - Columns: **Month** | **Opening Balance** | **ROI Earned** | **Closing Balance**
+   - Each row shows how ROI is added back to principal
+   - Final row highlighted with total earnings
 
-- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
-- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
+For simple ROI investments, no changes — they keep the current display.
 
-### UI Components Created
+### Example for UGX 10,000,000 at 15% compound over 12 months:
 
-1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
-2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
-3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
-4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
-5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
+```text
+Month | Opening Balance | ROI (15%)   | Closing Balance
+  1   | 10,000,000      | 1,500,000   | 11,500,000
+  2   | 11,500,000      | 1,725,000   | 13,225,000
+  3   | 13,225,000      | 1,983,750   | 15,208,750
+ ...
+ 12   | ...              | ...         | ...
+```
 
-### Dashboard Updated
+### Technical Changes
 
-- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
-- Daily Ops Card positioned prominently below profile
+**File: `src/components/supporter/InvestmentBreakdownSheet.tsx`**
 
----
+1. Import `Accordion`, `AccordionContent`, `AccordionItem`, `AccordionTrigger` from UI components
+2. For compound entries, compute a month-by-month projection array:
+   - Loop from month 1 to `duration_months`
+   - `opening = previous closing` (start with `entry.amount`)
+   - `earned = opening × (roi_percentage / 100)`
+   - `closing = opening + earned`
+3. Update the "Expected / month" card for compound entries to show "Month 1 Return" (first month's earnings) with a note that it grows each month
+4. Add the collapsible projection table below the next payout section
+5. Add a summary line showing **Total Projected Earnings** and **Final Portfolio Value**
 
-### Phase 2 (Not Yet Implemented)
+### Visual Treatment
+- Use a green gradient background for the projection section
+- Bold the final month row
+- Show a small "Compounding" badge with the Repeat icon on the section header
+- Keep the table compact with `text-[11px]` sizing to fit mobile
 
-- Automatic SMS confirmation to tenant
-- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
-- Fraud Prevention monitoring & manager alerts
-- Tenant navigation (call/WhatsApp/GPS directions)
