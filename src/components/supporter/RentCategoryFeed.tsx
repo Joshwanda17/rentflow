@@ -11,7 +11,7 @@ import {
 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { calculateSupporterReward } from '@/lib/rentCalculations';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { hapticTap } from '@/lib/haptics';
 import {
   DropdownMenu,
