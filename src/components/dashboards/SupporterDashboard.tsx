@@ -377,6 +377,9 @@ export default function SupporterDashboard({
             portfolioHealth={portfolioHealth}
           />
 
+          {/* ═══ NOTIFICATIONS ═══ */}
+          <SupporterNotificationsFeed userId={user.id} />
+
           {/* ═══ QUICK ACTION BUTTONS - BIG & BOLD ═══ */}
           <div className="grid grid-cols-3 gap-2 xs:gap-3">
             <button
