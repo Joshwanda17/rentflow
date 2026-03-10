@@ -1,8 +1,4 @@
-import { Card, CardContent } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { MapPin, Clock, Shield } from 'lucide-react';
-import { useCurrency } from '@/hooks/useCurrency';
-
+import { formatUGX } from '@/lib/rentCalculations';
 import { formatDistanceToNow } from 'date-fns';
 
 export interface VirtualHouse {
@@ -25,60 +21,48 @@ interface VirtualHouseCardProps {
 }
 
 const healthConfig = {
-  green: { label: '✅ Good', dot: 'bg-success', text: 'text-success', bg: 'bg-success/15 border-success/30' },
-  amber: { label: '⏳ Pending', dot: 'bg-amber-500', text: 'text-amber-600', bg: 'bg-amber-500/15 border-amber-500/30' },
-  red: { label: '⚠️ At Risk', dot: 'bg-destructive', text: 'text-destructive', bg: 'bg-destructive/15 border-destructive/30' },
+  green: { label: '✅ Good', dotClass: 'house-health-dot-green', badgeClass: 'house-health-badge-green' },
+  amber: { label: '⏳ Pending', dotClass: 'house-health-dot-amber', badgeClass: 'house-health-badge-amber' },
+  red: { label: '⚠️ At Risk', dotClass: 'house-health-dot-red', badgeClass: 'house-health-badge-red' },
 };
 
-export function VirtualHouseCard({ house, onTap, index = 0 }: VirtualHouseCardProps) {
-  const { formatAmount } = useCurrency();
+export function VirtualHouseCard({ house, onTap }: VirtualHouseCardProps) {
   const health = healthConfig[house.paymentHealth];
 
   return (
-    <div className="animate-fade-in" style={{ animationDelay: `${index * 50}ms` }}>
-      <Card
-        className="border-2 border-border/60 bg-card cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
-        onClick={() => onTap?.(house.id)}
-      >
-        <CardContent className="p-5 space-y-3">
-          {/* Top row: House ID + Health badge - BIGGER */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2.5">
-              <span className="text-2xl">🏠</span>
-              <span className="font-black text-base text-foreground">House #{house.shortId}</span>
-            </div>
-            <Badge variant="outline" className={`text-xs px-3 py-1 font-bold ${health.bg} ${health.text} border-2`}>
-              {health.label}
-            </Badge>
-          </div>
+    <div
+      className="house-card rounded-2xl border-2 border-border/60 bg-card p-4 xs:p-5 cursor-pointer active:scale-[0.97] transition-transform touch-manipulation"
+      onClick={() => onTap?.(house.id)}
+    >
+      {/* Top row */}
+      <div className="flex items-center justify-between mb-2">
+        <div className="flex items-center gap-2">
+          <span className="text-xl">🏠</span>
+          <span className="font-black text-sm text-foreground">House #{house.shortId}</span>
+        </div>
+        <span className={`text-[11px] px-2.5 py-1 rounded-full font-bold border ${health.badgeClass}`}>
+          {health.label}
+        </span>
+      </div>
 
-          {/* Location - BIGGER */}
-          <div className="flex items-center gap-2 text-sm text-muted-foreground">
-            <MapPin className="h-4 w-4" />
-            <span className="font-medium">{house.area}, {house.city}</span>
-          </div>
+      {/* Location */}
+      <p className="text-xs text-muted-foreground font-medium mb-2">
+        📍 {house.area}, {house.city}
+      </p>
 
-          {/* Rent + Meta - BIGGER */}
-          <div className="flex items-center justify-between pt-1">
-            <div>
-              <p className="text-xs text-muted-foreground uppercase tracking-wide font-semibold">Rent Amount</p>
-              <p className="text-xl font-black text-foreground">{formatAmount(house.rentAmount)}</p>
-            </div>
-            <div className="flex flex-col items-end gap-1.5 text-xs text-muted-foreground">
-              {house.agentManaged && (
-                <span className="flex items-center gap-1.5 font-medium">
-                  <Shield className="h-4 w-4 text-primary" />
-                  Agent Managed
-                </span>
-              )}
-              <span className="flex items-center gap-1.5">
-                <Clock className="h-3.5 w-3.5" />
-                {formatDistanceToNow(new Date(house.updatedAt), { addSuffix: true })}
-              </span>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
+      {/* Rent + Meta */}
+      <div className="flex items-end justify-between">
+        <div>
+          <p className="text-[10px] text-muted-foreground uppercase tracking-wide font-semibold">Rent</p>
+          <p className="text-lg font-black text-foreground">{formatUGX(house.rentAmount)}</p>
+        </div>
+        <div className="flex flex-col items-end gap-1 text-[11px] text-muted-foreground">
+          {house.agentManaged && (
+            <span className="font-medium">🛡️ Agent Managed</span>
+          )}
+          <span>🕐 {formatDistanceToNow(new Date(house.updatedAt), { addSuffix: true })}</span>
+        </div>
+      </div>
     </div>
   );
 }
