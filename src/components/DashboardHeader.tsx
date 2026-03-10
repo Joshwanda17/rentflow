@@ -156,7 +156,7 @@ const DashboardHeader = memo(function DashboardHeader({
                 <>
                   <div className="h-3.5 w-px bg-white/20" />
                   <div className="flex items-center gap-1 px-2 py-1 rounded-lg bg-white/10 min-h-[32px]">
-                    <span className="text-sm">{roleConfig[currentRole].emoji}</span>
+                    <span className="text-sm">{getRoleConfig(currentRole).emoji}</span>
                     <span className="text-xs font-semibold text-white">
                       {roleConfig[currentRole].label}
                     </span>
