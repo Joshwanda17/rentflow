@@ -201,9 +201,8 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
                 })
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 }
