@@ -77,6 +77,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
           duration_months: p.duration_months,
           next_roi_date: p.next_roi_date,
           maturity_date: p.maturity_date,
+          payout_day: (p as any).payout_day ?? null,
           source: 'portfolio',
         });
       }
