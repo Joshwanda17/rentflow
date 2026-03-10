@@ -153,16 +153,9 @@ export function CreditRequestsFeed({ onFundRequest, isLocked, onLockedClick }: C
         </div>
       </button>
 
-      {/* Collapsible Content */}
-      <AnimatePresence initial={false}>
-        {isOpen && (
-          <motion.div
-            initial={{ height: 0, opacity: 0 }}
-            animate={{ height: 'auto', opacity: 1 }}
-            exit={{ height: 0, opacity: 0 }}
-            transition={{ duration: 0.2 }}
-            className="overflow-hidden"
-          >
+
+      {isOpen && (
+          <div className="overflow-hidden">
             <div className="px-4 pb-4 space-y-3">
               {requests.length === 0 ? (
                 <div className="text-center py-6 text-sm text-muted-foreground rounded-xl border-2 border-dashed border-border/60 font-medium">
