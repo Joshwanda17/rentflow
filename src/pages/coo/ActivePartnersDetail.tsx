@@ -535,6 +535,32 @@ export default function ActivePartnersDetail() {
                 ))}
               </div>
             </div>
+            <div className="space-y-2">
+              <Label>ROI Payment Mode</Label>
+              <div className="flex gap-2">
+                <Button
+                  variant={editRoiMode === 'monthly_payout' ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-8 flex-1"
+                  onClick={() => setEditRoiMode('monthly_payout')}
+                >
+                  Monthly Payout
+                </Button>
+                <Button
+                  variant={editRoiMode === 'monthly_compounding' ? 'default' : 'outline'}
+                  size="sm"
+                  className="text-xs h-8 flex-1"
+                  onClick={() => setEditRoiMode('monthly_compounding')}
+                >
+                  Compounding
+                </Button>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                {editRoiMode === 'monthly_compounding'
+                  ? 'Returns are reinvested monthly, growing the principal.'
+                  : 'Returns are paid out to wallet each month.'}
+              </p>
+            </div>
           </div>
           </div>
 
