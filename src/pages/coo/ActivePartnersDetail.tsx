@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/hooks/useAuth';
 import { supabase } from '@/integrations/supabase/client';
-import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet } from 'lucide-react';
+import { Loader2, MoreHorizontal, TrendingUp, Trash2, Wallet, Pencil } from 'lucide-react';
 import COODetailLayout, { KPICard, SectionTitle } from '@/components/coo/COODetailLayout';
 import COODataTable, { COOColumn } from '@/components/coo/COODataTable';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -24,11 +24,12 @@ import { toast } from 'sonner';
 interface PartnerRow {
   id: string;
   name: string;
+  phone: string;
   funded: number;
   activeDeals: number;
   avgDeal: number;
   walletBalance: number;
-  status: string;
+  roiPercentage: number;
 }
 
 const MIN_INVEST = 50000;
@@ -49,6 +50,13 @@ export default function ActivePartnersDetail() {
   const [deletePartner, setDeletePartner] = useState<PartnerRow | null>(null);
   const [deleting, setDeleting] = useState(false);
 
+  // Edit dialog state
+  const [editPartner, setEditPartner] = useState<PartnerRow | null>(null);
+  const [editName, setEditName] = useState('');
+  const [editPhone, setEditPhone] = useState('');
+  const [editRoi, setEditRoi] = useState('');
+  const [saving, setSaving] = useState(false);
+
   useEffect(() => {
     if (!loading && (!user || !roles.includes('manager'))) { navigate('/dashboard'); return; }
     if (user && roles.includes('manager')) fetchData();
@@ -57,7 +65,6 @@ export default function ActivePartnersDetail() {
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     try {
-      // Get all supporters
       const { data: supporterRoles } = await supabase
         .from('user_roles').select('user_id').eq('role', 'supporter');
       const supporterIds = (supporterRoles || []).map(r => r.user_id);
@@ -66,21 +73,32 @@ export default function ActivePartnersDetail() {
         return;
       }
 
-      // Fetch ledger contributions, profiles, wallets in parallel
-      const [ledgerRes, profilesRes, walletsRes] = await Promise.all([
+      const ids = supporterIds.slice(0, 200);
+      const [ledgerRes, profilesRes, walletsRes, portfoliosRes] = await Promise.all([
         supabase.from('general_ledger')
           .select('user_id, amount, direction, category')
-          .in('user_id', supporterIds.slice(0, 200))
+          .in('user_id', ids)
           .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
-        supabase.from('profiles').select('id, full_name').in('id', supporterIds.slice(0, 200)),
-        supabase.from('wallets').select('user_id, balance').in('user_id', supporterIds.slice(0, 200)),
+        supabase.from('profiles').select('id, full_name, phone').in('id', ids),
+        supabase.from('wallets').select('user_id, balance').in('user_id', ids),
+        supabase.from('investor_portfolios')
+          .select('investor_id, roi_percentage, created_at')
+          .in('investor_id', ids)
+          .order('created_at', { ascending: false }),
       ]);
 
       const ledgerData = ledgerRes.data || [];
-      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p.full_name]));
+      const profileMap = new Map((profilesRes.data || []).map(p => [p.id, { name: p.full_name, phone: p.phone }]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
 
-      // Aggregate from ledger: cash_in = capital received, cash_out = pool contributions (funded)
+      // ROI: use the most recent portfolio per investor
+      const roiMap = new Map<string, number>();
+      (portfoliosRes.data || []).forEach(p => {
+        if (p.investor_id && !roiMap.has(p.investor_id)) {
+          roiMap.set(p.investor_id, p.roi_percentage ?? 15);
+        }
+      });
+
       const partnerMap = new Map<string, { capitalIn: number; poolFunded: number; deals: number }>();
       ledgerData.forEach(entry => {
         if (!entry.user_id) return;
@@ -94,18 +112,18 @@ export default function ActivePartnersDetail() {
         partnerMap.set(entry.user_id, existing);
       });
 
-      // Build rows for ALL supporters
-      const tableRows: PartnerRow[] = supporterIds.slice(0, 200).map(id => {
+      const tableRows: PartnerRow[] = ids.map(id => {
         const agg = partnerMap.get(id) || { capitalIn: 0, poolFunded: 0, deals: 0 };
-        const funded = agg.poolFunded; // actual pool contributions
+        const profile = profileMap.get(id);
         return {
           id,
-          name: profileMap.get(id) || id.slice(0, 8),
-          funded,
+          name: profile?.name || id.slice(0, 8),
+          phone: profile?.phone || '',
+          funded: agg.poolFunded,
           activeDeals: agg.deals,
-          avgDeal: agg.deals > 0 ? Math.round(funded / agg.deals) : 0,
+          avgDeal: agg.deals > 0 ? Math.round(agg.poolFunded / agg.deals) : 0,
           walletBalance: walletMap.get(id) || 0,
-          status: '',
+          roiPercentage: roiMap.get(id) ?? 15,
         };
       }).sort((a, b) => b.funded - a.funded);
 
@@ -132,7 +150,7 @@ export default function ActivePartnersDetail() {
     }
     const day = Number(payoutDay);
     if (isNaN(day) || day < 1 || day > 28) {
-      toast.error('Payout day must be 1–28');
+      toast.error('Payout day must be 1-28');
       return;
     }
 
@@ -142,18 +160,17 @@ export default function ActivePartnersDetail() {
         body: { partner_id: investPartner.id, amount: amt, payout_day: day },
       });
       if (error) {
-        // Try to extract the actual error message from the response
         const errMsg = typeof result === 'object' && result?.error ? result.error : error.message;
         throw new Error(errMsg);
       }
       if (result?.error) throw new Error(result.error);
 
       toast.success(`Invested ${formatUGX(amt)} for ${investPartner.name}`, {
-        description: `Ref: ${result.reference_id} • First payout: ${result.first_payout_date}`,
+        description: `Ref: ${result.reference_id} - First payout: ${result.first_payout_date}`,
       });
       setInvestPartner(null);
       setInvestAmount('');
-      fetchData(); // refresh
+      fetchData();
     } catch (e: any) {
       toast.error(e.message || 'Investment failed');
     } finally {
@@ -182,6 +199,53 @@ export default function ActivePartnersDetail() {
     }
   }
 
+  // --- Edit handler ---
+  function openEditDialog(r: PartnerRow) {
+    setEditPartner(r);
+    setEditName(r.name);
+    setEditPhone(r.phone);
+    setEditRoi(String(r.roiPercentage));
+  }
+
+  async function handleSaveEdit() {
+    if (!editPartner) return;
+    setSaving(true);
+    try {
+      const { error: profileErr } = await supabase
+        .from('profiles')
+        .update({ full_name: editName.trim(), phone: editPhone.trim() })
+        .eq('id', editPartner.id);
+      if (profileErr) throw profileErr;
+
+      const newRoi = Number(editRoi);
+      if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
+        const { data: latestPortfolio } = await supabase
+          .from('investor_portfolios')
+          .select('id')
+          .eq('investor_id', editPartner.id)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (latestPortfolio) {
+          const { error: roiErr } = await supabase
+            .from('investor_portfolios')
+            .update({ roi_percentage: newRoi })
+            .eq('id', latestPortfolio.id);
+          if (roiErr) throw roiErr;
+        }
+      }
+
+      toast.success(`Updated ${editName.trim()}`);
+      setEditPartner(null);
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Update failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
   const columns: COOColumn<PartnerRow>[] = [
     { key: 'name', label: 'Partner' },
     { key: 'walletBalance', label: 'Wallet', align: 'right', render: (r) => (
@@ -192,10 +256,8 @@ export default function ActivePartnersDetail() {
     { key: 'funded', label: 'Total Funded', align: 'right', render: (r) => formatUGX(r.funded) },
     { key: 'activeDeals', label: 'Deals', align: 'right' },
     { key: 'avgDeal', label: 'Avg Deal', align: 'right', render: (r) => formatUGX(r.avgDeal) },
-    { key: 'status', label: 'Status', render: (r) => (
-      <span className={r.activeDeals > 2 ? 'text-emerald-600 font-semibold' : r.activeDeals > 0 ? 'text-amber-600 font-semibold' : 'text-muted-foreground'}>
-        {r.activeDeals > 2 ? 'Active' : r.activeDeals > 0 ? 'Low' : 'Inactive'}
-      </span>
+    { key: 'roiPercentage', label: 'ROI %', align: 'right', render: (r) => (
+      <span className="font-semibold text-primary">{r.roiPercentage}%</span>
     )},
     {
       key: 'actions',
@@ -216,6 +278,13 @@ export default function ActivePartnersDetail() {
             >
               <TrendingUp className="h-3.5 w-3.5" />
               <span>Invest ({r.walletBalance >= MIN_INVEST ? 'Ready' : 'Low bal'})</span>
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={(e) => { e.stopPropagation(); openEditDialog(r); }}
+              className="gap-2"
+            >
+              <Pencil className="h-3.5 w-3.5" />
+              <span>Edit Partner</span>
             </DropdownMenuItem>
             <DropdownMenuItem
               onClick={(e) => { e.stopPropagation(); setDeletePartner(r); }}
@@ -284,7 +353,6 @@ export default function ActivePartnersDetail() {
                   onChange={(e) => setInvestAmount(e.target.value)}
                   placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
                 />
-                {/* Quick-select amounts */}
                 <div className="flex gap-2 flex-wrap">
                   {[50000, 100000, 200000, 500000].filter(a => a <= investPartner.walletBalance).map(a => (
                     <Button key={a} variant="outline" size="sm" className="text-xs h-7"
@@ -300,7 +368,7 @@ export default function ActivePartnersDetail() {
               </div>
 
               <div className="space-y-2">
-                <Label htmlFor="payout-day">Monthly Payout Day (1–28)</Label>
+                <Label htmlFor="payout-day">Monthly Payout Day (1-28)</Label>
                 <Input
                   id="payout-day"
                   type="number"
@@ -313,9 +381,9 @@ export default function ActivePartnersDetail() {
 
               {investAmount && Number(investAmount) >= MIN_INVEST && (
                 <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 space-y-1">
-                  <p>💰 Monthly reward (15%): <strong>{formatUGX(Math.round(Number(investAmount) * 0.15))}</strong></p>
-                  <p>📅 Payout every <strong>{payoutDay}{getOrdinalSuffix(Number(payoutDay))}</strong> for 12 months</p>
-                  <p>🏦 Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
+                  <p>Monthly reward ({investPartner.roiPercentage}%): <strong>{formatUGX(Math.round(Number(investAmount) * (investPartner.roiPercentage / 100)))}</strong></p>
+                  <p>Payout every <strong>{payoutDay}{getOrdinalSuffix(Number(payoutDay))}</strong> for 12 months</p>
+                  <p>Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
                 </div>
               )}
             </div>
@@ -326,6 +394,50 @@ export default function ActivePartnersDetail() {
             <Button onClick={handleInvest} disabled={investing || !investAmount || Number(investAmount) < MIN_INVEST}>
               {investing ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
               Confirm Investment
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit Partner Dialog */}
+      <Dialog open={!!editPartner} onOpenChange={(open) => { if (!open) setEditPartner(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Pencil className="h-5 w-5 text-primary" />
+              Edit Partner
+            </DialogTitle>
+            <DialogDescription>Update partner information and ROI percentage.</DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="edit-name">Full Name</Label>
+              <Input id="edit-name" value={editName} onChange={(e) => setEditName(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-phone">Phone Number</Label>
+              <Input id="edit-phone" value={editPhone} onChange={(e) => setEditPhone(e.target.value)} />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-roi">ROI Percentage (%)</Label>
+              <Input id="edit-roi" type="number" min={1} max={100} value={editRoi} onChange={(e) => setEditRoi(e.target.value)} />
+              <div className="flex gap-2">
+                {[10, 15, 20, 25].map(v => (
+                  <Button key={v} variant={editRoi === String(v) ? 'default' : 'outline'} size="sm" className="text-xs h-7"
+                    onClick={() => setEditRoi(String(v))}>
+                    {v}%
+                  </Button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPartner(null)}>Cancel</Button>
+            <Button onClick={handleSaveEdit} disabled={saving || !editName.trim()}>
+              {saving ? <Loader2 className="h-4 w-4 animate-spin mr-2" /> : null}
+              Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
