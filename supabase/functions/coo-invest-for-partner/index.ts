@@ -89,12 +89,12 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Deduct from PARTNER's wallet using RPC or conditional update
+    // Deduct from PARTNER's wallet using optimistic locking
     const { data: updatedWallet, error: deductErr } = await adminClient
       .from("wallets")
       .update({ balance: partnerWallet.balance - amount, updated_at: new Date().toISOString() })
       .eq("user_id", partner_id)
-      .gte("balance", amount)
+      .eq("balance", partnerWallet.balance)  // optimistic lock: ensure balance hasn't changed
       .select('id, balance')
       .maybeSingle();
 
@@ -113,6 +113,9 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WCI${yy}${mm}${dd}${seq}`;
 
+    // Generate transaction_group_id for double-entry ledger integrity
+    const txGroupId = crypto.randomUUID();
+
     // Calculate first payout date (min 30 days)
     let candidate = new Date(now.getFullYear(), now.getMonth(), payout_day);
     if (candidate <= now) candidate = new Date(now.getFullYear(), now.getMonth() + 1, payout_day);
@@ -128,16 +131,40 @@ Deno.serve(async (req) => {
     const partnerName = partnerProfileRes.data?.full_name || "Partner";
     const cooName = cooProfileRes.data?.full_name || "COO";
 
-    // Record in general_ledger
-    await adminClient.from("general_ledger").insert({
+    // Record DEBIT in general_ledger (partner cash_out → pool)
+    const { error: ledgerErr } = await adminClient.from("general_ledger").insert({
       user_id: partner_id,
       amount,
       direction: "cash_out",
       category: "coo_proxy_investment",
       source_table: "wallets",
+      transaction_group_id: txGroupId,
       description: `COO ${cooName} invested UGX ${amount.toLocaleString()} from ${partnerName}'s wallet into Rent Management Pool. Payout day: ${payout_day}${getOrdinalSuffix(payout_day)}. First payout: ${firstPayoutDate}`,
       reference_id: referenceId,
       linked_party: "Rent Management Pool",
+    });
+
+    if (ledgerErr) {
+      // ROLLBACK: restore partner wallet balance
+      console.error("[coo-invest-for-partner] Ledger insert failed, rolling back wallet:", ledgerErr.message);
+      await adminClient.from("wallets")
+        .update({ balance: partnerWallet.balance, updated_at: new Date().toISOString() })
+        .eq("user_id", partner_id);
+      return new Response(JSON.stringify({ error: "Failed to record transaction, wallet restored. Please retry." }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } });
+    }
+
+    // Record CREDIT in general_ledger (pool receives capital)
+    await adminClient.from("general_ledger").insert({
+      user_id: null,
+      amount,
+      direction: "cash_in",
+      category: "pool_capital_received",
+      source_table: "wallets",
+      transaction_group_id: txGroupId,
+      description: `Rent Management Pool received UGX ${amount.toLocaleString()} from ${partnerName} (COO proxy investment by ${cooName})`,
+      reference_id: referenceId,
+      linked_party: partnerName,
     });
 
     const monthlyReward = Math.round(amount * 0.15);
@@ -151,7 +178,7 @@ Deno.serve(async (req) => {
       metadata: { amount, reference_id: referenceId, payout_day, monthly_reward: monthlyReward, first_payout_date: firstPayoutDate, initiated_by: caller.id },
     });
 
-    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Ref: ${referenceId}`);
+    console.log(`[coo-invest-for-partner] COO ${caller.id} invested ${amount} from partner ${partner_id}'s wallet. Balance: ${partnerWallet.balance} → ${newBalance}. Ref: ${referenceId}, TxGroup: ${txGroupId}`);
 
     return new Response(
       JSON.stringify({
