@@ -506,8 +506,20 @@ export default function ActivePartnersDetail() {
                     {v}%
                   </Button>
                 ))}
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="edit-payout-day">Monthly Payout Day (1-28)</Label>
+              <Input id="edit-payout-day" type="number" min={1} max={28} value={editPayoutDay} onChange={(e) => setEditPayoutDay(e.target.value)} />
+              <div className="flex gap-2">
+                {[1, 5, 10, 15].map(v => (
+                  <Button key={v} variant={editPayoutDay === String(v) ? 'default' : 'outline'} size="sm" className="text-xs h-7"
+                    onClick={() => setEditPayoutDay(String(v))}>
+                    {v}{getOrdinalSuffix(v)}
+                  </Button>
+                ))}
               </div>
             </div>
+          </div>
           </div>
 
           <DialogFooter>
