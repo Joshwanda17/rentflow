@@ -263,6 +263,21 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       
                       <div className="flex items-center gap-3">
                         <div className="flex flex-col items-center">
+                          <div className="h-2 w-2 rounded-full bg-primary/60" />
+                          <div className="w-0.5 h-5 bg-border" />
+                        </div>
+                        <div className="flex-1 flex items-center justify-between">
+                          <span className="text-[10px] text-muted-foreground font-semibold">Monthly Payout Date</span>
+                          <span className="text-[11px] font-bold text-foreground">
+                            {nextPayout
+                              ? `${format(nextPayout, 'do')} of every month`
+                              : `${format(investedDate, 'do')} of every month`}
+                          </span>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-3">
+                        <div className="flex flex-col items-center">
                           <div className="h-2 w-2 rounded-full bg-success" />
                           <div className="w-0.5 h-5 bg-border" />
                         </div>
