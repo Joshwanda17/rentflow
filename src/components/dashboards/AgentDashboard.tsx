@@ -320,7 +320,7 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
       <RentalFinderSheet open={rentalFinderOpen} onOpenChange={setRentalFinderOpen} />
 
       {/* Phase 1: Agent Operations Dialogs */}
-      <AgentVisitDialog open={visitDialogOpen} onOpenChange={setVisitDialogOpen} />
+      <AgentVisitPaymentWizard open={visitDialogOpen} onOpenChange={setVisitDialogOpen} onSuccess={refreshOfflineData} />
       <GeneratePaymentTokenDialog open={tokenDialogOpen} onOpenChange={setTokenDialogOpen} />
       <RecordAgentCollectionDialog open={recordCollectionOpen} onOpenChange={setRecordCollectionOpen} />
       <AgentDepositCashDialog open={depositCashOpen} onOpenChange={setDepositCashOpen} />
