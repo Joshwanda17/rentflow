@@ -405,10 +405,7 @@ function ShareDialog({
 // ─── Empty State ───
 function EmptyState({ onAdd }: {onAdd: () => void;}) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
+    <div
       className="flex flex-col items-center justify-center py-14 px-6 rounded-2xl border border-blue-200/30 dark:border-blue-900/30 bg-gradient-to-br from-blue-50/40 via-white to-blue-100/20 dark:from-blue-950/20 dark:via-card dark:to-blue-900/10 shadow-sm">
       
       <div className="p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 mb-5">
