@@ -123,6 +123,7 @@ Deno.serve(async (req) => {
         account_name: accountName,
         account_number: accountNumber,
         portfolio_pin: portfolioPin,
+        payout_day: payoutDay,
         maturity_date: maturityDate.toISOString().split('T')[0],
         next_roi_date: nextRoiDate.toISOString().split('T')[0],
       })
