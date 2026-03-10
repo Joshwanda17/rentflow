@@ -219,8 +219,7 @@ export default function ActivePartnersDetail() {
       if (profileErr) throw profileErr;
 
       const newRoi = Number(editRoi);
-      let roiUpdated = true;
-      if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
+      if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
         const { data: updated1, error: roiErr1 } = await supabase
           .from('investor_portfolios')
@@ -241,15 +240,64 @@ export default function ActivePartnersDetail() {
         if (roiErr2) throw roiErr2;
 
         const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
-        if (totalUpdated === 0) {
-          roiUpdated = false;
-        }
-      }
 
-      if (roiUpdated) {
-        toast.success(`Updated ${editName.trim()}`);
+        // If no portfolio exists, create one from ledger data (orphan repair)
+        if (totalUpdated === 0) {
+          const { data: ledgerEntry } = await supabase
+            .from('general_ledger')
+            .select('amount, description, transaction_date')
+            .eq('user_id', editPartner.id)
+            .eq('category', 'supporter_rent_fund')
+            .eq('direction', 'cash_out')
+            .order('created_at', { ascending: false })
+            .limit(1)
+            .maybeSingle();
+
+          if (ledgerEntry) {
+            // Parse payout info from description
+            const payoutMatch = ledgerEntry.description?.match(/Payout day: (\d+)/);
+            const payoutDay = payoutMatch ? parseInt(payoutMatch[1]) : 15;
+            const codeMatch = ledgerEntry.description?.match(/Portfolio: ([\w-]+)/);
+            const portfolioCode = codeMatch ? codeMatch[1] : `WPF-${editPartner.id.slice(0, 4).toUpperCase()}`;
+
+            const investedDate = new Date(ledgerEntry.transaction_date);
+            const nextRoiDate = new Date(investedDate);
+            nextRoiDate.setMonth(nextRoiDate.getMonth() + 1);
+            nextRoiDate.setDate(payoutDay);
+            const maturityDate = new Date(investedDate);
+            maturityDate.setMonth(maturityDate.getMonth() + 12);
+
+            const { error: createErr } = await supabase
+              .from('investor_portfolios')
+              .insert({
+                investor_id: editPartner.id,
+                agent_id: editPartner.id,
+                investment_amount: ledgerEntry.amount,
+                roi_percentage: newRoi,
+                roi_mode: 'monthly_payout',
+                duration_months: 12,
+                portfolio_code: portfolioCode,
+                portfolio_pin: Math.floor(1000 + Math.random() * 9000).toString(),
+                activation_token: crypto.randomUUID(),
+                status: 'active',
+                next_roi_date: nextRoiDate.toISOString().slice(0, 10),
+                maturity_date: maturityDate.toISOString().slice(0, 10),
+              });
+
+            if (createErr) {
+              console.error('[ActivePartners] Portfolio creation error:', createErr);
+              toast.warning(`Profile updated. ROI set to ${newRoi}% but portfolio creation failed: ${createErr.message}`);
+            } else {
+              toast.success(`Updated ${editName.trim()} — created missing portfolio with ${newRoi}% ROI`);
+            }
+          } else {
+            toast.warning(`Profile updated but no investment records found for ${editName.trim()}`);
+          }
+        } else {
+          toast.success(`Updated ${editName.trim()} — ROI set to ${newRoi}%`);
+        }
       } else {
-        toast.warning(`Profile updated but no active portfolios found for ${editName.trim()} — ROI not changed`);
+        toast.success(`Updated ${editName.trim()}`);
       }
       setEditPartner(null);
       fetchData();
