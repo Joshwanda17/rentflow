@@ -192,46 +192,140 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       </div>
                     </div>
 
-                    {/* Capital & Expected return */}
-                    <div className="px-4 pb-3 grid grid-cols-2 gap-3">
-                      <div className="rounded-xl bg-muted/50 p-3">
-                        <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Capital</p>
-                        <p className="text-lg font-black text-foreground break-all">{formatAmount(entry.amount)}</p>
-                      </div>
-                      <div className="rounded-xl bg-success/5 border border-success/10 p-3">
-                        <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Expected / month</p>
-                        <p className="text-lg font-black text-success break-all flex items-center gap-1">
-                          <ArrowUpRight className="h-4 w-4 shrink-0" />
-                          {formatAmount(monthlyReturn)}
-                        </p>
-                      </div>
-                    </div>
+                    {/* Capital & Expected return + Compound Projection */}
+                    {(() => {
+                      const projectionRows: { month: number; opening: number; earned: number; closing: number }[] = [];
+                      if (isCompounding) {
+                        let bal = entry.amount;
+                        for (let m = 1; m <= entry.duration_months; m++) {
+                          const earned = bal * (entry.roi_percentage / 100);
+                          projectionRows.push({ month: m, opening: bal, earned, closing: bal + earned });
+                          bal = bal + earned;
+                        }
+                      }
+                      const finalValue = projectionRows.length > 0 ? projectionRows[projectionRows.length - 1].closing : 0;
+                      const totalCompoundEarned = finalValue - entry.amount;
+                      const growthPct = entry.amount > 0 ? ((finalValue - entry.amount) / entry.amount * 100) : 0;
 
-                    {/* Next payout highlight */}
-                    {nextPayout && (
-                      <div className="mx-4 mb-3 rounded-xl bg-primary/8 border border-primary/15 p-3 flex items-center gap-3">
-                        <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
-                          <CalendarCheck className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Next Payout</p>
-                          <p className="text-sm font-black text-foreground">
-                            {format(nextPayout, 'dd MMM yyyy')}
-                          </p>
-                        </div>
-                        {daysToNext !== null && daysToNext >= 0 && (
-                          <div className="text-right">
-                            <p className="text-lg font-black text-primary">{daysToNext}</p>
-                            <p className="text-[9px] text-muted-foreground font-bold uppercase">days</p>
+                      return (
+                        <>
+                          <div className="px-4 pb-3 grid grid-cols-2 gap-3">
+                            <div className="rounded-xl bg-muted/50 p-3">
+                              <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider mb-0.5">Capital</p>
+                              <p className="text-lg font-black text-foreground break-all">{formatAmount(entry.amount)}</p>
+                            </div>
+                            <div className="rounded-xl bg-success/5 border border-success/10 p-3">
+                              {isCompounding ? (
+                                <>
+                                  <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Month 1 Return</p>
+                                  <p className="text-lg font-black text-success break-all flex items-center gap-1">
+                                    <ArrowUpRight className="h-4 w-4 shrink-0" />
+                                    {formatAmount(monthlyReturn)}
+                                  </p>
+                                  <p className="text-[9px] text-muted-foreground mt-0.5">Grows each month ↑</p>
+                                </>
+                              ) : (
+                                <>
+                                  <p className="text-[10px] text-success font-semibold uppercase tracking-wider mb-0.5">Expected / month</p>
+                                  <p className="text-lg font-black text-success break-all flex items-center gap-1">
+                                    <ArrowUpRight className="h-4 w-4 shrink-0" />
+                                    {formatAmount(monthlyReturn)}
+                                  </p>
+                                </>
+                              )}
+                            </div>
                           </div>
-                        )}
-                        {daysToNext !== null && daysToNext < 0 && (
-                          <Badge className="bg-warning/15 text-warning border-warning/30 text-[9px] font-bold">
-                            Overdue
-                          </Badge>
-                        )}
-                      </div>
-                    )}
+
+                          {/* Next payout highlight */}
+                          {nextPayout && (
+                            <div className="mx-4 mb-3 rounded-xl bg-primary/8 border border-primary/15 p-3 flex items-center gap-3">
+                              <div className="h-9 w-9 rounded-full bg-primary/15 flex items-center justify-center shrink-0">
+                                <CalendarCheck className="h-4 w-4 text-primary" />
+                              </div>
+                              <div className="flex-1">
+                                <p className="text-[10px] text-muted-foreground font-semibold uppercase tracking-wider">Next Payout</p>
+                                <p className="text-sm font-black text-foreground">
+                                  {format(nextPayout, 'dd MMM yyyy')}
+                                </p>
+                              </div>
+                              {daysToNext !== null && daysToNext >= 0 && (
+                                <div className="text-right">
+                                  <p className="text-lg font-black text-primary">{daysToNext}</p>
+                                  <p className="text-[9px] text-muted-foreground font-bold uppercase">days</p>
+                                </div>
+                              )}
+                              {daysToNext !== null && daysToNext < 0 && (
+                                <Badge className="bg-warning/15 text-warning border-warning/30 text-[9px] font-bold">
+                                  Overdue
+                                </Badge>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Compound Growth Projection */}
+                          {isCompounding && projectionRows.length > 0 && (
+                            <div className="mx-4 mb-3">
+                              <Accordion type="single" collapsible>
+                                <AccordionItem value="projection" className="border rounded-xl overflow-hidden bg-success/5 border-success/15">
+                                  <AccordionTrigger className="px-3 py-2.5 hover:no-underline">
+                                    <div className="flex items-center gap-2 flex-1">
+                                      <div className="h-7 w-7 rounded-lg bg-success/15 flex items-center justify-center shrink-0">
+                                        <Repeat className="h-3.5 w-3.5 text-success" />
+                                      </div>
+                                      <div className="text-left">
+                                        <p className="text-[11px] font-black text-foreground">Compound Growth Projection</p>
+                                        <p className="text-[9px] text-muted-foreground font-semibold">
+                                          {formatAmount(entry.amount)} → {formatAmount(finalValue)} · +{growthPct.toFixed(1)}%
+                                        </p>
+                                      </div>
+                                    </div>
+                                  </AccordionTrigger>
+                                  <AccordionContent>
+                                    <div className="px-3 pb-3">
+                                      <div className="grid grid-cols-2 gap-2 mb-3">
+                                        <div className="rounded-lg bg-background/80 border p-2 text-center">
+                                          <p className="text-[9px] text-muted-foreground font-semibold uppercase">Total Earnings</p>
+                                          <p className="text-sm font-black text-success">{formatAmount(totalCompoundEarned)}</p>
+                                        </div>
+                                        <div className="rounded-lg bg-background/80 border p-2 text-center">
+                                          <p className="text-[9px] text-muted-foreground font-semibold uppercase">Final Value</p>
+                                          <p className="text-sm font-black text-foreground">{formatAmount(finalValue)}</p>
+                                        </div>
+                                      </div>
+
+                                      <div className="rounded-lg border bg-background/80 overflow-hidden">
+                                        <div className="grid grid-cols-4 gap-0 text-[9px] font-bold text-muted-foreground uppercase tracking-wider bg-muted/50 px-2 py-1.5 border-b">
+                                          <span>Mth</span>
+                                          <span className="text-right">Opening</span>
+                                          <span className="text-right">ROI ({entry.roi_percentage}%)</span>
+                                          <span className="text-right">Closing</span>
+                                        </div>
+                                        <div className="max-h-[240px] overflow-y-auto">
+                                          {projectionRows.map((row) => {
+                                            const isLast = row.month === projectionRows.length;
+                                            return (
+                                              <div
+                                                key={row.month}
+                                                className={`grid grid-cols-4 gap-0 px-2 py-1.5 text-[11px] border-b last:border-b-0 ${isLast ? 'bg-success/10 font-black' : 'font-medium'}`}
+                                              >
+                                                <span className="text-muted-foreground">{row.month}</span>
+                                                <span className="text-right text-foreground">{formatAmount(row.opening)}</span>
+                                                <span className={`text-right ${isLast ? 'text-success' : 'text-success/80'}`}>+{formatAmount(row.earned)}</span>
+                                                <span className="text-right text-foreground">{formatAmount(row.closing)}</span>
+                                              </div>
+                                            );
+                                          })}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </AccordionContent>
+                                </AccordionItem>
+                              </Accordion>
+                            </div>
+                          )}
+                        </>
+                      );
+                    })()}
 
                     {/* Tags */}
                     <div className="px-4 pb-3 flex flex-wrap gap-1.5">
