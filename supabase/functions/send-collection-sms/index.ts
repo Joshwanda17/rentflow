@@ -47,9 +47,10 @@ async function sendSMS(phone: string, message: string): Promise<boolean> {
     });
 
     const data = await res.json();
+    console.log(`[send-collection-sms] AT response for ${formattedPhone}:`, JSON.stringify(data));
     const recipients = data?.SMSMessageData?.Recipients || [];
     const success = recipients.some((r: any) => r.statusCode === 101);
-    console.log(`[send-collection-sms] SMS to ${formattedPhone}: ${success ? "sent" : "failed"}`);
+    console.log(`[send-collection-sms] SMS to ${formattedPhone}: ${success ? "sent" : "failed"} (status: ${res.status}, recipients: ${JSON.stringify(recipients)})`);
     return success;
   } catch (err) {
     console.error("[send-collection-sms] Error:", err);
