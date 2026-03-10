@@ -194,6 +194,11 @@ export default function SupporterDashboard({
         ? portfolioResult.data.reduce((sum, r) => sum + Number(r.investment_amount), 0)
         : 0;
 
+      const roiTotal = !portfolioResult.error && portfolioResult.data
+        ? portfolioResult.data.reduce((sum, r) => sum + Number(r.total_roi_earned || 0), 0)
+        : 0;
+      setTotalRoiEarned(roiTotal);
+
       // Use the higher value — ledger is source of truth, but portfolios cover
       // cases where ledger entries haven't been migrated yet
       setTotalRentContributed(Math.max(ledgerTotal, portfolioTotal));
