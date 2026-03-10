@@ -91,11 +91,12 @@ export default function ActivePartnersDetail() {
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, { name: p.full_name, phone: p.phone }]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
 
-      // ROI: use the most recent portfolio per investor
+      // ROI: use the most recent portfolio per investor (check both investor_id and agent_id)
       const roiMap = new Map<string, number>();
       (portfoliosRes.data || []).forEach(p => {
-        if (p.investor_id && !roiMap.has(p.investor_id)) {
-          roiMap.set(p.investor_id, p.roi_percentage ?? 15);
+        const userId = p.investor_id || p.agent_id;
+        if (userId && !roiMap.has(userId)) {
+          roiMap.set(userId, p.roi_percentage ?? 15);
         }
       });
 
