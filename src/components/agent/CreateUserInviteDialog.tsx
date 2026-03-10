@@ -99,6 +99,7 @@ const defaultSupporterData: SupporterFormData = {
   accountName: '',
   accountNumber: '',
   portfolioPin: '',
+  payoutDay: '15',
 };
 
 export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultRole, lockRole }: CreateUserInviteDialogProps) {
