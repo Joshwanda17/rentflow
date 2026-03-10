@@ -157,10 +157,10 @@ export default function COODashboard() {
           .in('status', ['pending', 'approved'])
           .order('created_at', { ascending: false })
           .limit(20),
-        // 5. Active supporters — need distinct supporter_ids
-        supabase.from('rent_requests').select('supporter_id')
-          .not('supporter_id', 'is', null)
-          .in('status', ['funded', 'approved']),
+        // 5. All supporters (by role) — total partner count
+        supabase.from('user_roles').select('user_id')
+          .eq('role', 'supporter')
+          .or('enabled.is.null,enabled.eq.true'),
         // 6. New supporter requests this week
         supabase.from('user_roles').select('id', { count: 'exact', head: true })
           .eq('role', 'supporter')
@@ -183,7 +183,7 @@ export default function COODashboard() {
       const tenantsWithBalances = tenantsWithBalancesRes.count || 0;
       const newRentToday = newRentRequestsRes.count || 0;
       const newRentWeek = newRentRequestsWeekRes.count || 0;
-      const activeSupporters = new Set((activeSupportersRes.data || []).map(r => r.supporter_id)).size;
+      const activeSupporters = (activeSupportersRes.data || []).length;
       const newSupporterReq = newSupporterReqRes.count || 0;
       const activeLandlords = new Set((activeLandlordsRes.data || []).map(r => r.landlord_id)).size;
       const pipelineLandlords = pipelineLandlordsRes.count || 0;
