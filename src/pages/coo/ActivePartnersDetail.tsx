@@ -141,7 +141,11 @@ export default function ActivePartnersDetail() {
       const { data: result, error } = await supabase.functions.invoke('coo-invest-for-partner', {
         body: { partner_id: investPartner.id, amount: amt, payout_day: day },
       });
-      if (error) throw new Error(error.message);
+      if (error) {
+        // Try to extract the actual error message from the response
+        const errMsg = typeof result === 'object' && result?.error ? result.error : error.message;
+        throw new Error(errMsg);
+      }
       if (result?.error) throw new Error(result.error);
 
       toast.success(`Invested ${formatUGX(amt)} for ${investPartner.name}`, {

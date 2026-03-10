@@ -89,19 +89,21 @@ Deno.serve(async (req) => {
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
 
-    // Optimistic lock: deduct from PARTNER's wallet
-    const newBalance = partnerWallet.balance - amount;
-    const { error: deductErr, count: deductCount } = await adminClient
+    // Deduct from PARTNER's wallet using RPC or conditional update
+    const { data: updatedWallet, error: deductErr } = await adminClient
       .from("wallets")
-      .update({ balance: newBalance, updated_at: new Date().toISOString() })
+      .update({ balance: partnerWallet.balance - amount, updated_at: new Date().toISOString() })
       .eq("user_id", partner_id)
-      .eq("balance", partnerWallet.balance)
-      .select('id', { count: 'exact', head: true });
+      .gte("balance", amount)
+      .select('id, balance')
+      .maybeSingle();
 
-    if (deductErr || !deductCount || deductCount === 0) {
-      return new Response(JSON.stringify({ error: "Balance changed concurrently, please retry" }),
+    if (deductErr || !updatedWallet) {
+      return new Response(JSON.stringify({ error: "Insufficient balance or concurrent update, please retry" }),
         { status: 409, headers: { ...corsHeaders, "Content-Type": "application/json" } });
     }
+
+    const newBalance = updatedWallet.balance;
 
     // Generate reference
     const now = new Date();
