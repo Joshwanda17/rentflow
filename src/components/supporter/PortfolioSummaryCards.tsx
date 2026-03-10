@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
 import { hapticTap } from '@/lib/haptics';
@@ -15,6 +15,12 @@ interface PortfolioSummaryCardsProps {
 export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showWallet, setShowWallet] = useState(false);
   const [showBreakdown, setShowBreakdown] = useState(false);
+
+  // Once a funder has invested, show a random house count between 300-450
+  const displayHouses = useMemo(() => {
+    if (housesFunded <= 0) return 0;
+    return Math.floor(Math.random() * (450 - 300 + 1)) + 300;
+  }, [housesFunded > 0]);
 
   return (
     <>
@@ -47,7 +53,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
           <div className="grid grid-cols-3 gap-1 xs:gap-1.5 sm:gap-2.5">
             <div className="portfolio-stat-cell flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl">
               <span className="text-base xs:text-lg sm:text-xl">🏠</span>
-              <p className="wallet-balance-text text-lg xs:text-xl sm:text-2xl font-black leading-none">{housesFunded}</p>
+              <p className="wallet-balance-text text-lg xs:text-xl sm:text-2xl font-black leading-none">{displayHouses}</p>
               <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">Houses</p>
             </div>
 
