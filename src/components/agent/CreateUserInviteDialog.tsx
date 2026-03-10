@@ -233,6 +233,7 @@ export function CreateUserInviteDialog({ open, onOpenChange, onSuccess, defaultR
             bank_name: supporterData.bankName || null,
             account_name: supporterData.accountName || null,
             account_number: supporterData.accountNumber || null,
+            payout_day: Number(supporterData.payoutDay) || 15,
           },
         });
 
