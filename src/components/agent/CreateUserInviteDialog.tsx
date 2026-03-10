@@ -77,6 +77,7 @@ interface SupporterFormData {
   accountName: string;
   accountNumber: string;
   portfolioPin: string;
+  payoutDay: string;
 }
 
 const defaultSupporterData: SupporterFormData = {
