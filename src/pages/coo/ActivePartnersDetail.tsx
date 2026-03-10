@@ -82,8 +82,8 @@ export default function ActivePartnersDetail() {
         supabase.from('profiles').select('id, full_name, phone').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
-          .select('investor_id, roi_percentage, created_at')
-          .in('investor_id', ids)
+          .select('investor_id, agent_id, roi_percentage, created_at')
+          .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
           .order('created_at', { ascending: false }),
       ]);
 
