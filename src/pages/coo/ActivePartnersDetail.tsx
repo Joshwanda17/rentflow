@@ -220,21 +220,28 @@ export default function ActivePartnersDetail() {
       const newRoi = Number(editRoi);
       if (!isNaN(newRoi) && newRoi !== editPartner.roiPercentage && newRoi > 0 && newRoi <= 100) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
-        const { error: roiErr1 } = await supabase
+        const { data: updated1, error: roiErr1 } = await supabase
           .from('investor_portfolios')
           .update({ roi_percentage: newRoi })
           .eq('investor_id', editPartner.id)
-          .in('status', ['active', 'pending']);
+          .in('status', ['active', 'pending'])
+          .select('id');
         if (roiErr1) throw roiErr1;
 
         // Also update portfolios where agent_id matches but investor_id is null
-        const { error: roiErr2 } = await supabase
+        const { data: updated2, error: roiErr2 } = await supabase
           .from('investor_portfolios')
           .update({ roi_percentage: newRoi })
           .eq('agent_id', editPartner.id)
           .is('investor_id', null)
-          .in('status', ['active', 'pending']);
+          .in('status', ['active', 'pending'])
+          .select('id');
         if (roiErr2) throw roiErr2;
+
+        const totalUpdated = (updated1?.length || 0) + (updated2?.length || 0);
+        if (totalUpdated === 0) {
+          toast.warning(`No active investment portfolios found for ${editName.trim()} — ROI not changed`);
+        }
       }
 
       toast.success(`Updated ${editName.trim()}`);
