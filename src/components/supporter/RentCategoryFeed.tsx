@@ -11,7 +11,7 @@ import {
 'lucide-react';
 import { useCurrency } from '@/hooks/useCurrency';
 import { calculateSupporterReward } from '@/lib/rentCalculations';
-import { motion, AnimatePresence } from 'framer-motion';
+
 import { hapticTap } from '@/lib/haptics';
 import {
   DropdownMenu,
@@ -405,10 +405,7 @@ function ShareDialog({
 // ─── Empty State ───
 function EmptyState({ onAdd }: {onAdd: () => void;}) {
   return (
-    <motion.div
-      initial={{ opacity: 0, scale: 0.97 }}
-      animate={{ opacity: 1, scale: 1 }}
-      transition={{ duration: 0.4 }}
+    <div
       className="flex flex-col items-center justify-center py-14 px-6 rounded-2xl border border-blue-200/30 dark:border-blue-900/30 bg-gradient-to-br from-blue-50/40 via-white to-blue-100/20 dark:from-blue-950/20 dark:via-card dark:to-blue-900/10 shadow-sm">
       
       <div className="p-4 rounded-2xl bg-blue-500/10 dark:bg-blue-500/15 mb-5">
@@ -427,7 +424,7 @@ function EmptyState({ onAdd }: {onAdd: () => void;}) {
         <PlusCircle className="h-4 w-4" />
         Add Category
       </Button>
-    </motion.div>);
+    </div>);
 
 }
 
@@ -460,11 +457,7 @@ function CategoryCard({
 
   return (
     <>
-      <motion.div
-        initial={{ opacity: 0, y: 12 }}
-        animate={{ opacity: 1, y: 0 }}
-        exit={{ opacity: 0, y: -8 }}
-        transition={{ delay: index * 0.05, duration: 0.3 }}
+      <div
         className="group relative rounded-2xl border overflow-hidden transition-all duration-300 border-blue-200/40 dark:border-blue-900/30 bg-gradient-to-br from-white via-blue-50/20 to-blue-100/10 dark:from-card dark:via-blue-950/10 dark:to-blue-900/5 shadow-sm hover:shadow-md hover:shadow-blue-500/8 hover:border-blue-300/60 dark:hover:border-blue-700/50">
         
         {/* Card header */}
@@ -524,11 +517,9 @@ function CategoryCard({
               <span className="text-[10px] font-bold text-purple-600 dark:text-purple-400">{utilization.toFixed(0)}%</span>
             </div>
             <div className="h-1.5 rounded-full bg-purple-100/60 dark:bg-purple-900/30 overflow-hidden">
-              <motion.div
-                initial={{ width: 0 }}
-                animate={{ width: `${utilization}%` }}
-                transition={{ duration: 0.8, ease: 'easeOut', delay: index * 0.05 + 0.2 }}
-                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500" />
+              <div
+                style={{ width: `${utilization}%` }}
+                className="h-full rounded-full bg-gradient-to-r from-purple-400 to-purple-500 transition-all duration-500" />
               
             </div>
           </div>
@@ -571,7 +562,7 @@ function CategoryCard({
             </Button>
           }
         </div>
-      </motion.div>
+      </div>
 
       {/* Dialogs */}
       <DepositInstructionsDialog
@@ -723,7 +714,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
       <>
           <div className="space-y-3">
-            <AnimatePresence mode="popLayout">
+            
               {[...visibleCategories].sort((a, b) => {
                 const aComingSoon = a.category !== 'Welile Double Room';
                 const bComingSoon = b.category !== 'Welile Double Room';
@@ -745,13 +736,11 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
 
 
             })}
-            </AnimatePresence>
+            
           </div>
 
           {hasMore &&
-        <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+        <div
           className="flex justify-center pt-1">
           
               <Button
@@ -766,7 +755,7 @@ export function RentCategoryFeed({ onFundCategory, isLocked, onLockedClick, onRe
             <>View All {categories.length} Categories <ChevronDown className="h-3.5 w-3.5" /></>
             }
               </Button>
-            </motion.div>
+            </div>
         }
         </>
       }
