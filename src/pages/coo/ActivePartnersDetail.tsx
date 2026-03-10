@@ -225,7 +225,13 @@ export default function ActivePartnersDetail() {
       if (profileErr) throw profileErr;
 
       const newRoi = Number(editRoi);
-      if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) {
+      const newPayoutDay = Number(editPayoutDay);
+      const payoutDayValid = !isNaN(newPayoutDay) && newPayoutDay >= 1 && newPayoutDay <= 28;
+      const updateFields: Record<string, any> = {};
+      if (!isNaN(newRoi) && newRoi > 0 && newRoi <= 100) updateFields.roi_percentage = newRoi;
+      if (payoutDayValid) updateFields.payout_day = newPayoutDay;
+
+      if (Object.keys(updateFields).length > 0) {
         // Update ALL active portfolios for this partner (by investor_id or agent_id)
         const { data: updated1, error: roiErr1 } = await supabase
           .from('investor_portfolios')
