@@ -197,22 +197,21 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         {/* Daily Operations Summary */}
         <AgentDailyOpsCard />
 
-        {/* Quick Action Grid — 6 buttons */}
-        <div className="grid grid-cols-3 gap-2">
-          {quickActions.map((action) => (
-            <motion.button
-              key={action.label}
-              whileTap={{ scale: 0.95 }}
-              onClick={action.onClick}
-              className="flex flex-col items-center gap-1.5 p-3 rounded-xl border border-border hover:border-primary/30 transition-all touch-manipulation"
-            >
-              <div className={`p-2 rounded-lg ${action.bg}`}>
-                <action.icon className={`h-5 w-5 ${action.color}`} />
-              </div>
-              <span className="text-[11px] font-medium text-center leading-tight">{action.label}</span>
-            </motion.button>
-          ))}
-        </div>
+        {/* Visit Tenant Card */}
+        <motion.button
+          whileTap={{ scale: 0.97 }}
+          onClick={() => { hapticTap(); setVisitDialogOpen(true); }}
+          className="w-full flex items-center gap-4 p-5 rounded-2xl border border-primary/20 bg-primary/5 hover:bg-primary/10 transition-all touch-manipulation"
+          style={{ boxShadow: '0 1px 3px 0 hsl(var(--primary) / 0.08)' }}
+        >
+          <div className="p-3 rounded-xl bg-primary/10 shrink-0">
+            <MapPin className="h-7 w-7 text-primary" />
+          </div>
+          <div className="flex-1 text-left">
+            <p className="font-bold text-lg text-foreground">Visit Tenant</p>
+            <p className="text-xs text-muted-foreground">Check in, collect payment & send SMS receipt</p>
+          </div>
+        </motion.button>
 
         {/* Wallet Button */}
         <motion.button
