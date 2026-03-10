@@ -96,7 +96,12 @@ export function AgentDepositDialog({ open, onOpenChange, onSuccess }: AgentDepos
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const errMsg = error?.context ?
+          await error.context.json().then((r: any) => r.error).catch(() => error.message)
+          : error.message;
+        throw new Error(errMsg || 'Deposit failed');
+      }
 
       setResult({ success: true, details: data.details });
       toast({ title: 'Deposit successful!' });

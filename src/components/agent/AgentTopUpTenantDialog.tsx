@@ -120,7 +120,12 @@ export function AgentTopUpTenantDialog({ open, onOpenChange, onSuccess }: AgentT
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const errMsg = error?.context ?
+          await error.context.json().then((r: any) => r.error).catch(() => error.message)
+          : error.message;
+        throw new Error(errMsg || 'Top-up failed');
+      }
 
       setSuccess(true);
       toast({ title: `${formatUGX(amountNum)} deposited to ${tenantInfo.full_name}'s wallet` });
