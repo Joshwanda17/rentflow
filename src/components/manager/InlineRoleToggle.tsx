@@ -38,6 +38,15 @@ const roles: { value: AppRole; emoji: string; label: string }[] = [
   { value: 'landlord', emoji: '🏢', label: 'Landlord' },
   { value: 'supporter', emoji: '💰', label: 'Supporter' },
   { value: 'manager', emoji: '👑', label: 'Manager' },
+  { value: 'ceo', emoji: '👔', label: 'CEO' },
+  { value: 'coo', emoji: '⚙️', label: 'COO' },
+  { value: 'cfo', emoji: '💵', label: 'CFO' },
+  { value: 'cto', emoji: '🖥️', label: 'CTO' },
+  { value: 'cmo', emoji: '📣', label: 'CMO' },
+  { value: 'crm', emoji: '🤝', label: 'CRM' },
+  { value: 'employee', emoji: '🧑‍💼', label: 'Employee' },
+  { value: 'operations', emoji: '🔧', label: 'Operations' },
+  { value: 'super_admin', emoji: '🔑', label: 'Super Admin' },
 ];
 
 const roleColors: Record<string, string> = {
