@@ -33,6 +33,7 @@ interface SuccessData {
   amount: number;
   activation_token: string | null;
   agent_name: string;
+  portfolio_code: string | null;
 }
 
 export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: AgentInvestForPartnerDialogProps) {
