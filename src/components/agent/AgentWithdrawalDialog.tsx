@@ -149,7 +149,11 @@ export function AgentWithdrawalDialog({ open, onOpenChange, onSuccess }: AgentWi
         body: { user_phone: phone.trim(), amount: amountNum },
       });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Withdrawal failed');
+        throw new Error(msg);
+      }
 
       setResult({ success: true, details: data.details });
       toast({ title: 'Withdrawal submitted!', description: 'Please wait for manager approval before funds are released.' });

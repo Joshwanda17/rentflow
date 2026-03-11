@@ -155,7 +155,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Investment failed');
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       setSuccess({

@@ -133,7 +133,11 @@ export function PendingDepositsSection() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
+        throw new Error(msg);
+      }
 
       toast.success('Deposit request rejected');
       setRejectDialogOpen(false);

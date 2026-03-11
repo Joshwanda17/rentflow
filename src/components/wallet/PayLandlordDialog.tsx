@@ -217,7 +217,9 @@ export function PayLandlordDialog({ open, onOpenChange }: PayLandlordDialogProps
       });
 
       if (error) {
-        toast.error(error.message || 'Payment failed');
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Payment failed');
+        toast.error(msg);
         setLoading(false);
         return;
       }
