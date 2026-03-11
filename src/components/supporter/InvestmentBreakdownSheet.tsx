@@ -170,14 +170,13 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
                 const color = accentColors[idx % accentColors.length];
                 const sc = statusConfig(entry.status);
-                // Derive next payout using strict 30-day cycle from investment date
+                // Derive next payout using payout_day from DB
                 const nowCalc = new Date();
-                const investedMs = new Date(entry.invested_at).getTime();
-                const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-                // Find the next 30-day anniversary that is in the future
-                const daysSinceInvest = Math.floor((nowCalc.getTime() - investedMs) / THIRTY_DAYS);
-                const nextCycleNumber = daysSinceInvest + 1;
-                const nextPayout = new Date(investedMs + nextCycleNumber * THIRTY_DAYS);
+                const payoutDay = entry.payout_day || 15;
+                let nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth(), payoutDay);
+                if (nextPayout <= nowCalc) {
+                  nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth() + 1, payoutDay);
+                }
                 const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
                 const daysToNext = differenceInDays(nextPayout, nowCalc);
                 const investedDate = new Date(entry.invested_at);
