@@ -462,7 +462,7 @@ export default function ActivePartnersDetail() {
               {investAmount && Number(investAmount) >= MIN_INVEST && (
                 <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 space-y-1">
                   <p>Monthly reward ({investPartner.roiPercentage}%): <strong>{formatUGX(Math.round(Number(investAmount) * (investPartner.roiPercentage / 100)))}</strong></p>
-                  <p>Payout every <strong>{payoutDay}{getOrdinalSuffix(Number(payoutDay))}</strong> for 12 months</p>
+                  <p>Payout cycle: <strong>Every 30 days</strong></p>
                   <p>Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
                 </div>
               )}

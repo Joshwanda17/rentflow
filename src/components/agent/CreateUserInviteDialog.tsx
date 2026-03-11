@@ -474,17 +474,9 @@ Just click the link and enter your password to get started!`;
               </SelectContent>
             </Select>
           </div>
-          <div className="space-y-1.5">
-            <Label className="text-xs font-medium">Monthly Payout Day *</Label>
-            <Select value={supporterData.payoutDay} onValueChange={(v) => setSupporterData(prev => ({ ...prev, payoutDay: v }))}>
-              <SelectTrigger className="h-12 text-base rounded-xl"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                {Array.from({ length: 31 }, (_, i) => i + 1).map(day => {
-                  const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
-                  return <SelectItem key={day} value={String(day)}>{day}{suffix} of every month</SelectItem>;
-                })}
-              </SelectContent>
-            </Select>
+          {/* Payout cycle info - auto-calculated */}
+          <div className="p-3 rounded-xl bg-muted/30 border border-border/50">
+            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date (automatic)</p>
           </div>
           {Number(supporterData.investmentAmount) >= 50000 && (
             <div className="p-3 rounded-xl bg-success/10 border border-success/20 space-y-1">
