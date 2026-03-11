@@ -52,11 +52,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { rent_request_id } = await req.json() as { rent_request_id: string };
+    const payload = await req.json() as { rent_request_id?: string; transaction_id?: string };
+    const rent_request_id = payload.rent_request_id?.trim();
+    const txDigits = (payload.transaction_id || "").replace(/\D/g, "");
+    const transactionId = txDigits ? `TID${txDigits}` : "";
 
-    if (!rent_request_id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!rent_request_id || !uuidRegex.test(rent_request_id)) {
       return new Response(
-        JSON.stringify({ error: "rent_request_id is required" }),
+        JSON.stringify({ error: "Valid rent_request_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!transactionId || txDigits.length < 5 || txDigits.length > 20) {
+      return new Response(
+        JSON.stringify({ error: "Valid transaction_id is required (TID + 5-20 digits)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
@@ -199,9 +211,9 @@ Deno.serve(async (req) => {
       source_table: "rent_requests",
       source_id: rr.id,
       transaction_group_id: txGroupId,
-      description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} for tenant rent`,
+      description: `Pool deployment: UGX ${fundAmount.toLocaleString()} to landlord ${landlordRecord?.name || "Unknown"} for tenant rent (Transaction ID: ${transactionId})`,
       linked_party: landlordUserId || landlordRecord?.name || "Unknown Landlord",
-      reference_id: referenceId,
+      reference_id: transactionId,
     });
 
     // Record rent obligation for tenant
@@ -312,12 +324,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[fund-tenant-from-pool] Manager ${user.id} funded tenant ${rr.tenant_id} with ${fundAmount} from pool. Ref: ${referenceId}`);
+    console.log(`[fund-tenant-from-pool] Manager ${user.id} funded tenant ${rr.tenant_id} with ${fundAmount} from pool. TxID: ${transactionId}. Ref: ${referenceId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         reference_id: referenceId,
+        transaction_id: transactionId,
         amount: fundAmount,
         landlord_name: landlordRecord?.name || "Unknown",
         pool_remaining: availablePool - fundAmount,
