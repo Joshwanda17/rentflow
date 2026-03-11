@@ -506,10 +506,6 @@ export default function SupporterDashboard({
             </Collapsible>
           )}
 
-          {/* ADD ROLE */}
-          <div className="flex justify-center">
-            {addRoleComponent}
-          </div>
 
         </main>
       </PullToRefresh>

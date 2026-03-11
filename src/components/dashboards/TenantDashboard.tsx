@@ -300,10 +300,6 @@ export default function TenantDashboard({ user, signOut, currentRole, availableR
             />
           )}
 
-          {/* ADD ROLE COMPONENT */}
-          <div className="flex justify-center">
-            {addRoleComponent}
-          </div>
 
           {/* Rent Calculator - Only when triggered from menu */}
           {showCalculator && (
