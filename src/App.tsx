@@ -90,6 +90,7 @@ const CRMDashboardPage = lazy(() => import('./pages/crm/Dashboard'));
 const CFODashboardPage = lazy(() => import('./pages/cfo/Dashboard'));
 const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
 const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
+const AdminUsersPage = lazy(() => import('./pages/admin/Users'));
 const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
