@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Home, Users, Wallet, Building2, Shield } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
 interface RoleSwitcherProps {
   currentRole: AppRole;
