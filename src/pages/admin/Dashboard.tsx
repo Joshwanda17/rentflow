@@ -23,6 +23,7 @@ const executiveDashboards: DashboardCard[] = [
 ];
 
 const operationsDashboards: DashboardCard[] = [
+  { label: 'Company Staff', description: 'Manage employees & staff accounts', icon: Shield, route: '/admin/users', color: 'bg-red-500/10 text-red-700 border-red-500/30' },
   { label: 'Agent Ops', description: 'Agent performance & activity', icon: Users, route: '/dashboard?role=agent', color: 'bg-indigo-500/10 text-indigo-700 border-indigo-500/30' },
   { label: 'Tenant Ops', description: 'Tenant metrics & rentals', icon: Home, route: '/dashboard?role=tenant', color: 'bg-teal-500/10 text-teal-700 border-teal-500/30' },
   { label: 'Landlord Ops', description: 'Property management', icon: Building2, route: '/dashboard?role=landlord', color: 'bg-sky-500/10 text-sky-700 border-sky-500/30' },
