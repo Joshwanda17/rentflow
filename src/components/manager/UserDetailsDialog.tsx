@@ -243,6 +243,46 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     }
   };
 
+  const fetchOperationsDepartments = async () => {
+    if (!user) return;
+    try {
+      const { data } = await supabase
+        .from('operations_departments')
+        .select('department')
+        .eq('user_id', user.id);
+      setOperationsDepartments((data || []).map(d => d.department));
+    } catch (e) {
+      console.error('Error fetching ops departments:', e);
+    }
+  };
+
+  const handleToggleOperationsDept = async (dept: string) => {
+    if (!user) return;
+    setTogglingDept(dept);
+    try {
+      if (operationsDepartments.includes(dept)) {
+        await supabase
+          .from('operations_departments')
+          .delete()
+          .eq('user_id', user.id)
+          .eq('department', dept);
+        setOperationsDepartments(prev => prev.filter(d => d !== dept));
+        toast.success(`Removed ${dept} department`);
+      } else {
+        await supabase
+          .from('operations_departments')
+          .insert({ user_id: user.id, department: dept });
+        setOperationsDepartments(prev => [...prev, dept]);
+        toast.success(`Added ${dept} department`);
+      }
+    } catch (e) {
+      console.error('Error toggling dept:', e);
+      toast.error('Failed to update department');
+    } finally {
+      setTogglingDept(null);
+    }
+  };
+
   useEffect(() => {
     if (open && user) {
       fetchUserDetails();
@@ -250,6 +290,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
       fetchVerificationStatus();
       fetchFrozenStatus();
       fetchReferrerInfo(user.id);
+      fetchOperationsDepartments();
       // Fetch subagents if user is an agent
       if (user.roles.includes('agent')) {
         fetchSubAgents();
