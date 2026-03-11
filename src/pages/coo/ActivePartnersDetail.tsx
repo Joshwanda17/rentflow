@@ -338,7 +338,7 @@ export default function ActivePartnersDetail() {
     { key: 'roiPercentage', label: 'ROI %', align: 'right', render: (r) => (
       <span className="font-semibold text-primary">{r.roiPercentage}%</span>
     )},
-    { key: 'payoutDay', label: 'Payout Day', align: 'right', render: (r) => (
+    { key: 'payoutDay', label: 'Payout Cycle', align: 'right', render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
     )},
     { key: 'roiMode', label: 'ROI Mode', render: (r) => (
