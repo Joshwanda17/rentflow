@@ -1,9 +1,15 @@
 import { memo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Users, Wallet, Building2, Shield } from 'lucide-react';
+import { Home, Users, Wallet, Building2, Shield, ChevronDown } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+} from '@/components/ui/dropdown-menu';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
@@ -44,7 +50,6 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
         return;
       }
       onRoleChange(role);
-      // Navigate to isolated dashboard if role has one
       const route = roleDashboardRoutes[role];
       if (route) {
         navigate(route);
@@ -53,6 +58,8 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
       }
     }
   };
+
+  const currentConfig = roleConfig[currentRole];
 
   // Prominent variant — full-width horizontal pills in dashboard body
   if (variant === 'prominent') {
@@ -83,29 +90,36 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     );
   }
 
-  // Header variant — compact scrollable pills
+  // Header variant — dropdown
   return (
-    <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-      {availableRoles.map((role) => {
-        const config = roleConfig[role];
-        const isActive = role === currentRole;
-        return (
-          <button
-            key={role}
-            onClick={() => handleSwitch(role)}
-            className={cn(
-              "flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 touch-manipulation min-h-[32px]",
-              isActive
-                ? "bg-white text-primary shadow-sm"
-                : "text-white/70 hover:text-white hover:bg-white/10 active:scale-95"
-            )}
-          >
-            <span className="text-sm">{config.emoji}</span>
-            <span className="hidden xs:inline">{config.shortLabel}</span>
-          </button>
-        );
-      })}
-    </div>
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <button className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold whitespace-nowrap transition-all duration-150 touch-manipulation min-h-[32px] bg-white/15 text-white hover:bg-white/25">
+          <span className="text-sm">{currentConfig.emoji}</span>
+          <span>{currentConfig.shortLabel}</span>
+          <ChevronDown className="h-3 w-3 opacity-70" />
+        </button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="center" className="min-w-[160px]">
+        {availableRoles.map((role) => {
+          const config = roleConfig[role];
+          const isActive = role === currentRole;
+          return (
+            <DropdownMenuItem
+              key={role}
+              onClick={() => handleSwitch(role)}
+              className={cn(
+                "flex items-center gap-2 cursor-pointer",
+                isActive && "bg-primary/10 text-primary font-semibold"
+              )}
+            >
+              <span className="text-sm">{config.emoji}</span>
+              <span>{config.label}</span>
+            </DropdownMenuItem>
+          );
+        })}
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 });
 
