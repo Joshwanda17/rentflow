@@ -126,13 +126,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const selectedPartnerName = selectedPartner?.full_name || '';
 
   const handleConfirmOpen = () => {
-    if (!selectedPartnerId || parsedAmount < 50000 || !payoutDay) {
+    if (!selectedPartnerId || parsedAmount < 50000) {
       toast.error('Please fill all fields correctly');
-      return;
-    }
-    const day = Number(payoutDay);
-    if (day < 1 || day > 31) {
-      toast.error('Payout day must be between 1 and 31');
       return;
     }
     if (parsedAmount > agentBalance) {
