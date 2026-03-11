@@ -55,6 +55,15 @@ const roleColors: Record<string, string> = {
   supporter: 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400 border-emerald-500/30',
   landlord: 'bg-purple-500/15 text-purple-600 dark:text-purple-400 border-purple-500/30',
   manager: 'bg-rose-500/15 text-rose-600 dark:text-rose-400 border-rose-500/30',
+  ceo: 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400 border-indigo-500/30',
+  coo: 'bg-teal-500/15 text-teal-600 dark:text-teal-400 border-teal-500/30',
+  cfo: 'bg-yellow-500/15 text-yellow-600 dark:text-yellow-400 border-yellow-500/30',
+  cto: 'bg-cyan-500/15 text-cyan-600 dark:text-cyan-400 border-cyan-500/30',
+  cmo: 'bg-pink-500/15 text-pink-600 dark:text-pink-400 border-pink-500/30',
+  crm: 'bg-orange-500/15 text-orange-600 dark:text-orange-400 border-orange-500/30',
+  employee: 'bg-slate-500/15 text-slate-600 dark:text-slate-400 border-slate-500/30',
+  operations: 'bg-lime-500/15 text-lime-600 dark:text-lime-400 border-lime-500/30',
+  super_admin: 'bg-red-500/15 text-red-600 dark:text-red-400 border-red-500/30',
 };
 
 const LONG_PRESS_DURATION = 600; // ms

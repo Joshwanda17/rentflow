@@ -27,6 +27,15 @@ const allRoles: { value: AppRole; label: string; description: string; icon: Reac
   { value: 'landlord', label: 'Landlord', description: 'Receive rent payments', icon: <Building2 className="h-4 w-4" />, requiresCode: false },
   { value: 'supporter', label: 'Supporter', description: 'Fund rent requests', icon: <Wallet className="h-4 w-4" />, requiresCode: false },
   { value: 'manager', label: 'Manager', description: 'Manage platform operations', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'ceo', label: 'CEO', description: 'Chief Executive Officer', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'coo', label: 'COO', description: 'Chief Operating Officer', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'cfo', label: 'CFO', description: 'Chief Financial Officer', icon: <Wallet className="h-4 w-4" />, requiresCode: true },
+  { value: 'cto', label: 'CTO', description: 'Chief Technology Officer', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'cmo', label: 'CMO', description: 'Chief Marketing Officer', icon: <Users className="h-4 w-4" />, requiresCode: true },
+  { value: 'crm', label: 'CRM', description: 'Customer Relationship Manager', icon: <Users className="h-4 w-4" />, requiresCode: true },
+  { value: 'employee', label: 'Employee', description: 'Internal staff member', icon: <Users className="h-4 w-4" />, requiresCode: true },
+  { value: 'operations', label: 'Operations', description: 'Operations management', icon: <Shield className="h-4 w-4" />, requiresCode: true },
+  { value: 'super_admin', label: 'Super Admin', description: 'Full system access', icon: <Shield className="h-4 w-4" />, requiresCode: true },
 ];
 
 export default function AddRoleDialog({ availableRoles, onAddRole }: AddRoleDialogProps) {

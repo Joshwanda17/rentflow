@@ -53,7 +53,16 @@ export default function BulkAssignRoleDialog({
     agent: '💼 Agent', 
     landlord: '🏢 Landlord',
     supporter: '💰 Supporter',
-    manager: '👑 Manager'
+    manager: '👑 Manager',
+    ceo: '👔 CEO',
+    coo: '⚙️ COO',
+    cfo: '💵 CFO',
+    cto: '🖥️ CTO',
+    cmo: '📣 CMO',
+    crm: '🤝 CRM',
+    employee: '🧑‍💼 Employee',
+    operations: '🔧 Operations',
+    super_admin: '🔑 Super Admin',
   };
 
   const logRoleChange = async (userId: string, role: string, userName?: string) => {
