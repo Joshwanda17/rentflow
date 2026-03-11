@@ -11,7 +11,7 @@ interface PortfolioSummaryCardsProps {
   totalReturn?: number;
 }
 
-export function PortfolioSummaryCards({ housesFunded, rentSecured, totalReturn = 0 }: PortfolioSummaryCardsProps) {
+export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance = 0, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Show a random house count based on investment tier
@@ -30,10 +30,10 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, totalReturn =
         <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-white/[0.05] pointer-events-none" />
 
         <div className="relative z-10 space-y-3 xs:space-y-4 sm:space-y-5">
-          {/* Main hero — Total Invested */}
+          {/* Main hero — Wallet Balance */}
           <div>
             <p className="wallet-label-text text-xs xs:text-sm uppercase tracking-widest font-bold mb-1.5">
-              📊 Total Invested
+              💰 Wallet Balance
             </p>
             <button
               onClick={() => { hapticTap(); setShowBreakdown(true); }}
@@ -43,7 +43,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, totalReturn =
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
               <p className="wallet-balance-text text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight break-all">
-                {formatUGX(rentSecured)}
+                {formatUGX(walletBalance)}
               </p>
             </button>
           </div>
