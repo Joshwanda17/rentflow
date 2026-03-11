@@ -403,10 +403,8 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <span className="text-[10px] text-muted-foreground font-semibold">Monthly Payout Date</span>
                           <span className="text-[11px] font-bold text-foreground">
                             {(() => {
-                              // Use next_roi_date's day as the authoritative payout schedule,
-                              // fall back to explicit payout_day, then invested date
-                              const day = nextPayout ? nextPayout.getDate() : (entry.payout_day || investedDate.getDate());
-                              const suffix = (day >= 11 && day <= 13) ? 'th' : day % 10 === 1 ? 'st' : day % 10 === 2 ? 'nd' : day % 10 === 3 ? 'rd' : 'th';
+                              const day = entry.payout_day || (nextPayout ? nextPayout.getDate() : investedDate.getDate());
+                              const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
                               return `${day}${suffix} of every month`;
                             })()}
                           </span>
