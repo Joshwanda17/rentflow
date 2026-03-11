@@ -2003,7 +2003,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                 <UserActivityTimeline userId={user.id} userName={user.full_name} />
               </div>
             </TabsContent>
-          </ScrollArea>
+          </div>
         </Tabs>
       </DialogContent>
 
