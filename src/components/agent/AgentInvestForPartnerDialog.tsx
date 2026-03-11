@@ -150,7 +150,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           partner_id: selectedPartnerId,
           amount: parsedAmount,
           summary_id: summaryId,
-          payout_day: Number(payoutDay),
         },
       });
 
