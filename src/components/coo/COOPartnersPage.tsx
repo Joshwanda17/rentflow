@@ -769,23 +769,18 @@ function SummaryCard({ icon, label, value, sub, accent }: {
   icon: React.ReactNode; label: string; value: string | number; sub: string;
   accent: 'primary' | 'emerald' | 'amber' | 'violet';
 }) {
-  const colors = {
-    primary: 'border-primary/30 bg-primary/5',
-    emerald: 'border-emerald-500/30 bg-emerald-500/5',
-    amber: 'border-amber-500/30 bg-amber-500/5',
-    violet: 'border-violet-500/30 bg-violet-500/5',
+  const styles = {
+    primary: { card: 'border-primary/30 bg-primary/5', icon: 'text-primary bg-primary/10' },
+    emerald: { card: 'border-primary/20 bg-primary/[0.03]', icon: 'text-primary bg-primary/10' },
+    amber: { card: 'border-accent/30 bg-accent/5', icon: 'text-accent-foreground bg-accent/20' },
+    violet: { card: 'border-secondary/30 bg-secondary/10', icon: 'text-secondary-foreground bg-secondary/30' },
   };
-  const iconColors = {
-    primary: 'text-primary bg-primary/10',
-    emerald: 'text-emerald-600 bg-emerald-500/10',
-    amber: 'text-amber-600 bg-amber-500/10',
-    violet: 'text-violet-600 bg-violet-500/10',
-  };
+  const s = styles[accent];
   return (
-    <div className={cn('rounded-xl border-2 p-3 sm:p-4 space-y-2', colors[accent])}>
+    <div className={cn('rounded-xl border-2 p-3 sm:p-4 space-y-2', s.card)}>
       <div className="flex items-center justify-between">
         <p className="text-[10px] sm:text-xs font-bold text-muted-foreground uppercase tracking-widest">{label}</p>
-        <div className={cn('p-1.5 rounded-lg', iconColors[accent])}>{icon}</div>
+        <div className={cn('p-1.5 rounded-lg', s.icon)}>{icon}</div>
       </div>
       <p className="text-lg sm:text-2xl font-black tracking-tight tabular-nums truncate">{value}</p>
       <p className="text-[10px] sm:text-xs text-muted-foreground">{sub}</p>
