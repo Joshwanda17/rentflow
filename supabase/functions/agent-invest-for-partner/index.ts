@@ -191,6 +191,7 @@ Deno.serve(async (req) => {
         payout_day: null, // null = strict 30-day cycle (default); COO can override
         maturity_date: maturityDate.toISOString().split("T")[0],
         next_roi_date: firstPayoutDate,
+        status: "pending_approval", // Portfolio stays inactive until COO/admin approves
       })
       .select("id")
       .single();
