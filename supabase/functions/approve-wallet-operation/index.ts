@@ -154,6 +154,20 @@ Deno.serve(async (req) => {
           }
         }
 
+        // If this is a supporter_facilitation_capital approval, activate the linked portfolio
+        if (op.category === 'supporter_facilitation_capital' && op.source_table === 'investor_portfolios' && op.source_id) {
+          const { error: portfolioActivateErr } = await adminClient
+            .from("investor_portfolios")
+            .update({ status: "active" })
+            .eq("id", op.source_id)
+            .eq("status", "pending_approval");
+          if (portfolioActivateErr) {
+            console.error(`[approve-wallet-op] Failed to activate portfolio ${op.source_id}:`, portfolioActivateErr);
+          } else {
+            console.log(`[approve-wallet-op] Activated portfolio ${op.source_id} for user ${op.user_id}`);
+          }
+        }
+
         // Mark as approved
         await adminClient
           .from("pending_wallet_operations")
