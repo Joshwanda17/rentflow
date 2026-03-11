@@ -291,7 +291,7 @@ export function WithdrawRequestDialog({
     setAmount(value[0]);
   };
 
-  const MIN_BALANCE_FOR_WITHDRAWAL = 50000;
+  const MIN_BALANCE_FOR_WITHDRAWAL = 5000;
   const meetsMinimumBalance = walletBalance >= MIN_BALANCE_FOR_WITHDRAWAL;
   const isFormValid = meetsMinimumBalance && !hasWithdrawnToday && amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
 
