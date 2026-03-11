@@ -243,10 +243,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <h3 className="font-bold text-lg">Investment Successful!</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
+              {success.portfolio_code && (
+                <p>Portfolio: <strong className="font-mono text-foreground">{success.portfolio_code}</strong></p>
+              )}
               <p>Monthly reward: <strong className="text-success">{formatUGX(success.monthly_reward)}</strong></p>
               <p>First payout: <strong className="text-foreground">{success.first_payout_date}</strong></p>
               <p>Your new balance: <strong className="text-foreground">{formatUGX(success.new_balance)}</strong></p>
               <p className="font-mono text-xs">Ref: {success.reference_id}</p>
+              <p className="text-xs text-amber-600">💡 Partner credit &amp; your commission are pending manager approval</p>
             </div>
 
             {/* Share Section */}
