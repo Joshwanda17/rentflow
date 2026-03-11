@@ -44,7 +44,12 @@ interface MenuItem {
 }
 
 // Role-specific menu configurations
-const menuConfigs: Record<AppRole, MenuItem[]> = {
+const defaultMenu: MenuItem[] = [
+  { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
+  { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
+];
+
+const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
   manager: [
     { icon: Users, label: 'Users', path: '/users', color: 'bg-blue-500', description: 'Manage all users' },
     { icon: FileText, label: 'Rent', path: '/manager-access', color: 'bg-green-500', description: 'Rent requests' },
