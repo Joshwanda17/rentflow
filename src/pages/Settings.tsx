@@ -215,6 +215,15 @@ export default function Settings() {
     supporter: { label: 'Supporter', icon: <Wallet className="h-4 w-4" />, color: 'bg-success/20 text-success border-success/30' },
     landlord: { label: 'Landlord', icon: <Building2 className="h-4 w-4" />, color: 'bg-accent/20 text-accent border-accent/30' },
     manager: { label: 'Manager', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive border-destructive/30' },
+    ceo: { label: 'CEO', icon: <Shield className="h-4 w-4" />, color: 'bg-primary/20 text-primary border-primary/30' },
+    coo: { label: 'COO', icon: <Shield className="h-4 w-4" />, color: 'bg-primary/20 text-primary border-primary/30' },
+    cfo: { label: 'CFO', icon: <Wallet className="h-4 w-4" />, color: 'bg-warning/20 text-warning border-warning/30' },
+    cto: { label: 'CTO', icon: <Shield className="h-4 w-4" />, color: 'bg-accent/20 text-accent border-accent/30' },
+    cmo: { label: 'CMO', icon: <Users className="h-4 w-4" />, color: 'bg-success/20 text-success border-success/30' },
+    crm: { label: 'CRM', icon: <Users className="h-4 w-4" />, color: 'bg-warning/20 text-warning border-warning/30' },
+    employee: { label: 'Employee', icon: <Users className="h-4 w-4" />, color: 'bg-muted text-muted-foreground border-border' },
+    operations: { label: 'Operations', icon: <Shield className="h-4 w-4" />, color: 'bg-accent/20 text-accent border-accent/30' },
+    super_admin: { label: 'Super Admin', icon: <Shield className="h-4 w-4" />, color: 'bg-destructive/20 text-destructive border-destructive/30' },
   };
 
   if (authLoading || loading) {

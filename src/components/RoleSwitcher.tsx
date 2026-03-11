@@ -4,7 +4,7 @@ import { cn } from '@/lib/utils';
 import { Home, Users, Wallet, Building2, Shield } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
 interface RoleSwitcherProps {
   currentRole: AppRole;
@@ -14,36 +14,20 @@ interface RoleSwitcherProps {
 }
 
 const roleConfig: Record<AppRole, { label: string; shortLabel: string; icon: React.ReactNode; emoji: string }> = {
-  tenant: { 
-    label: 'Tenant', 
-    shortLabel: 'Tenant',
-    icon: <Home className="h-3.5 w-3.5" />,
-    emoji: '🏠'
-  },
-  agent: { 
-    label: 'Agent', 
-    shortLabel: 'Agent',
-    icon: <Users className="h-3.5 w-3.5" />,
-    emoji: '👥'
-  },
-  supporter: { 
-    label: 'Supporter', 
-    shortLabel: 'Funder',
-    icon: <Wallet className="h-3.5 w-3.5" />,
-    emoji: '💰'
-  },
-  landlord: { 
-    label: 'Landlord', 
-    shortLabel: 'Owner',
-    icon: <Building2 className="h-3.5 w-3.5" />,
-    emoji: '🏢'
-  },
-  manager: { 
-    label: 'Manager', 
-    shortLabel: 'Admin',
-    icon: <Shield className="h-3.5 w-3.5" />,
-    emoji: '🛡️'
-  },
+  tenant: { label: 'Tenant', shortLabel: 'Tenant', icon: <Home className="h-3.5 w-3.5" />, emoji: '🏠' },
+  agent: { label: 'Agent', shortLabel: 'Agent', icon: <Users className="h-3.5 w-3.5" />, emoji: '👥' },
+  supporter: { label: 'Supporter', shortLabel: 'Funder', icon: <Wallet className="h-3.5 w-3.5" />, emoji: '💰' },
+  landlord: { label: 'Landlord', shortLabel: 'Owner', icon: <Building2 className="h-3.5 w-3.5" />, emoji: '🏢' },
+  manager: { label: 'Manager', shortLabel: 'Admin', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🛡️' },
+  ceo: { label: 'CEO', shortLabel: 'CEO', icon: <Shield className="h-3.5 w-3.5" />, emoji: '👔' },
+  coo: { label: 'COO', shortLabel: 'COO', icon: <Shield className="h-3.5 w-3.5" />, emoji: '⚙️' },
+  cfo: { label: 'CFO', shortLabel: 'CFO', icon: <Wallet className="h-3.5 w-3.5" />, emoji: '💵' },
+  cto: { label: 'CTO', shortLabel: 'CTO', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🖥️' },
+  cmo: { label: 'CMO', shortLabel: 'CMO', icon: <Users className="h-3.5 w-3.5" />, emoji: '📣' },
+  crm: { label: 'CRM', shortLabel: 'CRM', icon: <Users className="h-3.5 w-3.5" />, emoji: '🤝' },
+  employee: { label: 'Employee', shortLabel: 'Staff', icon: <Users className="h-3.5 w-3.5" />, emoji: '🧑‍💼' },
+  operations: { label: 'Operations', shortLabel: 'Ops', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🔧' },
+  super_admin: { label: 'Super Admin', shortLabel: 'S.Admin', icon: <Shield className="h-3.5 w-3.5" />, emoji: '🔑' },
 };
 
 const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, onRoleChange, variant = 'header' }: RoleSwitcherProps) {

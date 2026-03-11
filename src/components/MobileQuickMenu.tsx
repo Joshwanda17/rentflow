@@ -44,7 +44,12 @@ interface MenuItem {
 }
 
 // Role-specific menu configurations
-const menuConfigs: Record<AppRole, MenuItem[]> = {
+const defaultMenu: MenuItem[] = [
+  { icon: Home, label: 'Home', path: '/dashboard', color: 'bg-blue-500', description: 'Dashboard' },
+  { icon: Settings, label: 'Settings', path: '/settings', color: 'bg-slate-500', description: 'Account settings' },
+];
+
+const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
   manager: [
     { icon: Users, label: 'Users', path: '/users', color: 'bg-blue-500', description: 'Manage all users' },
     { icon: FileText, label: 'Rent', path: '/manager-access', color: 'bg-green-500', description: 'Rent requests' },
@@ -97,7 +102,7 @@ const menuConfigs: Record<AppRole, MenuItem[]> = {
   ],
 };
 
-const roleLabels: Record<AppRole, string> = {
+const roleLabels: Partial<Record<AppRole, string>> = {
   manager: 'Manager Quick Actions',
   tenant: 'Quick Actions',
   agent: 'Agent Quick Actions',
@@ -109,7 +114,7 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
-  const menuItems = menuConfigs[currentRole] || menuConfigs.tenant;
+  const menuItems = menuConfigs[currentRole] || defaultMenu;
   const roleLabel = roleLabels[currentRole] || 'Quick Actions';
 
   const handleOpen = () => {

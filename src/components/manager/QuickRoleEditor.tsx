@@ -105,7 +105,12 @@ export function QuickRoleEditor({ userId, userName, userAvatar, onRoleChange }: 
     }
   };
 
-  const roleLabel = userRole?.role === 'manager' ? 'Manager' : userRole?.role === 'agent' ? 'Agent' : 'Supporter';
+  const roleLabelMap: Record<string, string> = {
+    tenant: 'Tenant', agent: 'Agent', landlord: 'Landlord', supporter: 'Supporter', manager: 'Manager',
+    ceo: 'CEO', coo: 'COO', cfo: 'CFO', cto: 'CTO', cmo: 'CMO', crm: 'CRM',
+    employee: 'Employee', operations: 'Operations', super_admin: 'Super Admin',
+  };
+  const roleLabel = roleLabelMap[userRole?.role] || userRole?.role || 'Unknown';
   const enabled = userRole?.enabled === true;
 
   return (

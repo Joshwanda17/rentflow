@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { Progress } from '@/components/ui/progress';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
 interface BulkAssignRoleDialogProps {
   open: boolean;
@@ -25,6 +25,15 @@ const roles: { value: AppRole; label: string; description: string }[] = [
   { value: 'landlord', label: 'Landlord', description: 'Can receive rent payments and rate tenants' },
   { value: 'supporter', label: 'Supporter', description: 'Can invest and fund rent requests' },
   { value: 'manager', label: 'Manager', description: 'Full administrative access' },
+  { value: 'ceo', label: 'CEO', description: 'Chief Executive Officer' },
+  { value: 'coo', label: 'COO', description: 'Chief Operating Officer' },
+  { value: 'cfo', label: 'CFO', description: 'Chief Financial Officer' },
+  { value: 'cto', label: 'CTO', description: 'Chief Technology Officer' },
+  { value: 'cmo', label: 'CMO', description: 'Chief Marketing Officer' },
+  { value: 'crm', label: 'CRM', description: 'Customer Relationship Manager' },
+  { value: 'employee', label: 'Employee', description: 'Internal staff member' },
+  { value: 'operations', label: 'Operations', description: 'Operations management' },
+  { value: 'super_admin', label: 'Super Admin', description: 'Full system access' },
 ];
 
 export default function BulkAssignRoleDialog({
@@ -44,7 +53,16 @@ export default function BulkAssignRoleDialog({
     agent: '💼 Agent', 
     landlord: '🏢 Landlord',
     supporter: '💰 Supporter',
-    manager: '👑 Manager'
+    manager: '👑 Manager',
+    ceo: '👔 CEO',
+    coo: '⚙️ COO',
+    cfo: '💵 CFO',
+    cto: '🖥️ CTO',
+    cmo: '📣 CMO',
+    crm: '🤝 CRM',
+    employee: '🧑‍💼 Employee',
+    operations: '🔧 Operations',
+    super_admin: '🔑 Super Admin',
   };
 
   const logRoleChange = async (userId: string, role: string, userName?: string) => {
