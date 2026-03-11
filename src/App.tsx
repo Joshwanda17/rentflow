@@ -82,9 +82,15 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
-const COODashboard = lazy(() => import('./pages/COODashboard'));
-const CFODashboard = lazy(() => import('./pages/CFODashboard'));
-const ExecutiveHub = lazy(() => import('./pages/ExecutiveHub'));
+// Executive role-isolated dashboards
+const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
+const CEODashboardPage = lazy(() => import('./pages/ceo/Dashboard'));
+const CMODashboardPage = lazy(() => import('./pages/cmo/Dashboard'));
+const CRMDashboardPage = lazy(() => import('./pages/crm/Dashboard'));
+const CFODashboardPage = lazy(() => import('./pages/cfo/Dashboard'));
+const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
+const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
+const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
