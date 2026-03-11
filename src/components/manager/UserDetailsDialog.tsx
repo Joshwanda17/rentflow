@@ -1646,7 +1646,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-y-auto">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
         <DialogHeader className="p-6 pb-0 shrink-0">
           <DialogTitle>
             <UserHeader />
@@ -1663,7 +1663,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
             <TabsNavigation />
           </div>
 
-          <ScrollArea className="flex-1 min-h-0" style={{ maxHeight: 'calc(90vh - 200px)' }}>
+          <div className="flex-1 overflow-y-auto min-h-0" style={{ WebkitOverflowScrolling: 'touch' }}>
             <TabsContent value="overview" className="mt-0">
               <div className="p-6 pt-4 space-y-6">
                 {/* Contact Info */}
