@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Loader2, PieChart } from 'lucide-react';
+import { Loader2, PieChart as PieChartIcon } from 'lucide-react';
+import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip, Legend } from 'recharts';
 import { formatUGX } from '@/lib/rentCalculations';
-import { cn } from '@/lib/utils';
 
 const COLORS = ['hsl(var(--primary))', '#f59e0b', '#10b981', '#6366f1', '#ec4899'];
 
@@ -42,7 +42,7 @@ export default function PaymentModeAnalytics() {
     <Card>
       <CardHeader className="pb-3">
         <CardTitle className="text-lg flex items-center gap-2">
-          <PieChart className="h-4 w-4 text-primary" /> Payment Mode Distribution
+          <PieChartIcon className="h-4 w-4 text-primary" /> Payment Mode Distribution
         </CardTitle>
       </CardHeader>
       <CardContent>
@@ -51,31 +51,36 @@ export default function PaymentModeAnalytics() {
         ) : !data || data.length === 0 ? (
           <p className="text-center py-8 text-muted-foreground text-sm">No payment data available</p>
         ) : (
-          <div className="space-y-3">
-            {data.map((item, i) => (
-              <div key={item.name} className="space-y-1.5">
-                <div className="flex items-center justify-between text-sm">
-                  <div className="flex items-center gap-2">
-                    <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                    <span className="font-medium">{item.name}</span>
-                  </div>
-                  <div className="flex items-center gap-2">
-                    <span className="text-muted-foreground text-xs">{formatUGX(item.value)}</span>
-                    <span className="font-semibold text-xs min-w-[36px] text-right">{item.percentage}%</span>
-                  </div>
-                </div>
-                <div className="h-2 rounded-full bg-muted overflow-hidden">
-                  <div
-                    className="h-full rounded-full transition-all duration-500"
-                    style={{
-                      width: `${item.percentage}%`,
-                      backgroundColor: COLORS[i % COLORS.length],
-                    }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={data}
+                dataKey="value"
+                nameKey="name"
+                cx="50%"
+                cy="50%"
+                outerRadius={90}
+                innerRadius={45}
+                paddingAngle={3}
+                label={({ name, percentage }) => `${name} ${percentage}%`}
+                labelLine={{ strokeWidth: 1 }}
+              >
+                {data.map((_: any, i: number) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip
+                formatter={(value: number) => formatUGX(value)}
+                contentStyle={{ borderRadius: '12px', border: '1px solid hsl(var(--border))', background: 'hsl(var(--card))' }}
+              />
+              <Legend
+                verticalAlign="bottom"
+                iconType="circle"
+                iconSize={10}
+                formatter={(value: string) => <span className="text-xs text-foreground">{value}</span>}
+              />
+            </PieChart>
+          </ResponsiveContainer>
         )}
       </CardContent>
     </Card>
