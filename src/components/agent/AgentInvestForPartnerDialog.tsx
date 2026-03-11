@@ -483,8 +483,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                     <span className="font-medium text-success">{formatUGX(monthlyReward)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payout day</span>
-                    <span className="font-medium text-foreground">{payoutDay}th of each month</span>
+                    <span className="text-muted-foreground">Payout cycle</span>
+                    <span className="font-medium text-foreground">Every 30 days</span>
                   </div>
                   <hr className="border-border" />
                   <div className="flex justify-between">
