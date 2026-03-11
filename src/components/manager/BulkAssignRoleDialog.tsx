@@ -9,7 +9,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/hooks/useAuth';
 import { Progress } from '@/components/ui/progress';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
 interface BulkAssignRoleDialogProps {
   open: boolean;
