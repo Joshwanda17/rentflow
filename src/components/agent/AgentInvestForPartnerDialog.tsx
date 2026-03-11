@@ -41,7 +41,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [selectedPartner, setSelectedPartner] = useState<PartnerOption | null>(null);
   const [amount, setAmount] = useState('');
-  const [payoutDay, setPayoutDay] = useState('');
+  
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
