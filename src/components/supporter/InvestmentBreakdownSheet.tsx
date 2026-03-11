@@ -214,12 +214,12 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
                       if (isCompounding) {
                         let bal = entry.amount;
-                        // Use payout_day to build actual monthly payout dates
                         const payoutDay = entry.payout_day || 1;
-                        const now = new Date();
-                        // First payout month: start from current/next occurrence of payout_day
-                        let firstPayout = new Date(now.getFullYear(), now.getMonth(), payoutDay);
-                        if (firstPayout <= new Date(entry.invested_at)) {
+                        const invested = new Date(entry.invested_at);
+                        // First payout: the first occurrence of payout_day that is at least 30 days after invested_at
+                        let firstPayout = new Date(invested.getFullYear(), invested.getMonth(), payoutDay);
+                        // Move forward until at least 30 days after investment
+                        while (differenceInDays(firstPayout, invested) < 30) {
                           firstPayout = addMonths(firstPayout, 1);
                         }
                         for (let m = 1; m <= entry.duration_months; m++) {
