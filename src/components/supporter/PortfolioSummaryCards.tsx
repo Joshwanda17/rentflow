@@ -68,7 +68,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               
               <span className="text-base xs:text-lg sm:text-xl">🏦</span>
               <p className="wallet-balance-text text-xs xs:text-sm sm:text-base font-black leading-none break-all">{formatUGX(rentSecured)}</p>
-              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">SUP ›</p>
+              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">Supported ›</p>
             </button>
           </div>
         </div>
