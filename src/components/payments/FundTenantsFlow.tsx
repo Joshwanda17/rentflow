@@ -143,6 +143,7 @@ export default function FundTenantsFlow({
     setSelectedIds([]);
     setCoverageType('full');
     setFundingDays(30);
+    setTransactionId('');
     setConfirmed(false);
     setIsProcessing(false);
     setIsComplete(false);
