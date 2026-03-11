@@ -2,8 +2,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
   Home, Wallet, Building2, Shield, Users, FileText, Banknote,
-  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu,
-  Crown, Cpu, Megaphone, MessageSquare
+  ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu
 } from 'lucide-react';
 
 type ManagerHub = 'home' | 'wallets' | 'rent-investments' | 'buffer';
