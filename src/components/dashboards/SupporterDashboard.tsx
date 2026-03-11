@@ -217,9 +217,9 @@ export default function SupporterDashboard({
         : 0;
       setTotalRoiEarned(expectedMonthly);
 
-      // Use the higher value — ledger is source of truth, but portfolios cover
-      // cases where ledger entries haven't been migrated yet
-      setTotalRentContributed(Math.max(ledgerTotal, portfolioTotal));
+      // Use portfolio total as source of truth — only actual investments
+      // Ledger may include initial registration deposits which aren't investments
+      setTotalRentContributed(portfolioTotal);
     } catch (err) {
       console.error('[SupporterDashboard] Failed to fetch contributions:', err);
     }
