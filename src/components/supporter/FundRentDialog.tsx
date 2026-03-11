@@ -20,7 +20,7 @@ interface FundRentDialogProps {
 }
 
 export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogProps) {
-  const { wallet } = useWallet();
+  const { wallet, refreshWallet } = useWallet();
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
   const { toast } = useToast();
@@ -64,6 +64,9 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
         payoutDay: data.payout_day,
         referenceId: data.reference_id,
       });
+
+      // Refresh wallet balance immediately so UI reflects deduction
+      refreshWallet();
 
       // Notify dashboard to refresh contribution totals
       window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
