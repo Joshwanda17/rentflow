@@ -176,6 +176,7 @@ export default function FundTenantsFlow({
             rent_request_ids: selectedIds,
             coverage_type: coverageType,
             funding_days: coverageType === 'daily' ? fundingDays : 30,
+            transaction_id: `TID${transactionId.replace(/\D/g, '')}`,
           },
         });
 
