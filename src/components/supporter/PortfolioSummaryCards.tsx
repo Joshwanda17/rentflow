@@ -36,9 +36,9 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
               💰 Wallet Balance
             </p>
             <button
-              onClick={() => { hapticTap(); setShowBreakdown(true); }}
-              className="flex items-center gap-2 group cursor-pointer min-h-[44px]"
-            >
+              onClick={() => {hapticTap();setShowBreakdown(true);}}
+              className="flex items-center gap-2 group cursor-pointer min-h-[44px]">
+              
               <svg className="h-6 w-6 xs:h-7 xs:w-7 wallet-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
@@ -63,18 +63,18 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
             </div>
 
             <button
-              onClick={() => { hapticTap(); setShowBreakdown(true); }}
-              className="portfolio-stat-cell flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl hover:bg-white/25 active:scale-95 transition-all cursor-pointer"
-            >
+              onClick={() => {hapticTap();setShowBreakdown(true);}}
+              className="portfolio-stat-cell flex flex-col items-center gap-0.5 xs:gap-1 px-1.5 py-2 xs:px-2 xs:py-2.5 sm:px-3 sm:py-3 rounded-xl xs:rounded-2xl hover:bg-white/25 active:scale-95 transition-all cursor-pointer">
+              
               <span className="text-base xs:text-lg sm:text-xl">🏦</span>
               <p className="wallet-balance-text text-xs xs:text-sm sm:text-base font-black leading-none break-all">{formatUGX(rentSecured)}</p>
-              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">Invested ›</p>
+              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">SUP ›</p>
             </button>
           </div>
         </div>
       </div>
 
       {showBreakdown && <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />}
-    </>
-  );
+    </>);
+
 }
