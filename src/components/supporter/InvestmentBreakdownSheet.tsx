@@ -214,17 +214,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
                       if (isCompounding) {
                         let bal = entry.amount;
-                        const payoutDay = entry.payout_day || 1;
                         const invested = new Date(entry.invested_at);
-                        // First payout: the first occurrence of payout_day that is at least 30 days after invested_at
-                        let firstPayout = new Date(invested.getFullYear(), invested.getMonth(), payoutDay);
-                        // Move forward until at least 30 days after investment
-                        while (differenceInDays(firstPayout, invested) < 30) {
-                          firstPayout = addMonths(firstPayout, 1);
-                        }
+                        // Strict 30-day cycle: Month 1 = invested + 30 days, Month 2 = invested + 60 days, etc.
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = addMonths(firstPayout, m - 1);
+                          const payoutDate = addDays(invested, m * 30);
                           projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
