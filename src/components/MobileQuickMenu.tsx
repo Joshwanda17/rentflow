@@ -102,7 +102,7 @@ const menuConfigs: Partial<Record<AppRole, MenuItem[]>> = {
   ],
 };
 
-const roleLabels: Record<AppRole, string> = {
+const roleLabels: Partial<Record<AppRole, string>> = {
   manager: 'Manager Quick Actions',
   tenant: 'Quick Actions',
   agent: 'Agent Quick Actions',
