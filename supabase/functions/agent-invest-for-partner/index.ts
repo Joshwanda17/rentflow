@@ -287,7 +287,7 @@ Deno.serve(async (req) => {
       adminClient.from("notifications").insert({
         user_id: agent.id,
         title: "✅ Partner Investment Completed",
-        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName} into the Rent Management Pool.\n\n💰 Your 2% commission (UGX ${commission.toLocaleString()}) is pending approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName}. Both the partner credit and your 2% commission (UGX ${commission.toLocaleString()}) are pending COO/admin approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "info",
         metadata: {
           amount,
