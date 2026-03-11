@@ -158,7 +158,17 @@ Deno.serve(async (req) => {
         }
 
         // If this is a supporter_facilitation_capital approval, activate the linked portfolio
+        let portfolioInvestorId: string | null = null;
         if (op.category === 'supporter_facilitation_capital' && op.source_table === 'investor_portfolios' && op.source_id) {
+          // Fetch the portfolio to get the actual investor_id (funder)
+          const { data: portfolioData } = await adminClient
+            .from("investor_portfolios")
+            .select("investor_id, agent_id, portfolio_code")
+            .eq("id", op.source_id)
+            .single();
+
+          portfolioInvestorId = portfolioData?.investor_id || null;
+
           const { error: portfolioActivateErr } = await adminClient
             .from("investor_portfolios")
             .update({ status: "active" })
@@ -167,19 +177,22 @@ Deno.serve(async (req) => {
           if (portfolioActivateErr) {
             console.error(`[approve-wallet-op] Failed to activate portfolio ${op.source_id}:`, portfolioActivateErr);
           } else {
-            console.log(`[approve-wallet-op] Activated portfolio ${op.source_id} for user ${op.user_id}`);
+            console.log(`[approve-wallet-op] Activated portfolio ${op.source_id} for investor ${portfolioInvestorId}`);
           }
+
+          // Determine the correct user for ledger entries (the funder, not the agent)
+          const funderId = portfolioInvestorId || op.user_id;
 
           // Immediately debit wallet → investment (net zero wallet impact)
           const investTxGroupId = crypto.randomUUID();
           const { error: investDebitErr } = await adminClient
             .from("general_ledger")
             .insert({
-              user_id: op.user_id,
+              user_id: funderId,
               amount: op.amount,
               direction: "cash_out",
               category: "wallet_to_investment",
-              description: `Capital invested into portfolio. Ref: ${op.reference_id}`,
+              description: `Capital invested into portfolio ${portfolioData?.portfolio_code || ''}. Ref: ${op.reference_id}`,
               source_table: "investor_portfolios",
               source_id: op.source_id,
               transaction_group_id: investTxGroupId,
@@ -189,7 +202,7 @@ Deno.serve(async (req) => {
           if (investDebitErr) {
             console.error(`[approve-wallet-op] Failed to debit wallet for investment ${op.id}:`, investDebitErr);
           } else {
-            console.log(`[approve-wallet-op] Debited wallet → investment for user ${op.user_id}, amount: ${op.amount}`);
+            console.log(`[approve-wallet-op] Debited wallet → investment for funder ${funderId}, amount: ${op.amount}`);
           }
         }
 
@@ -204,17 +217,38 @@ Deno.serve(async (req) => {
           })
           .eq("id", op.id);
 
-        // Notify user
-        const notifTitle = op.category === 'supporter_facilitation_capital'
-          ? "Investment Activated ✅"
-          : (op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅");
-        await adminClient.from("notifications").insert({
-          user_id: op.user_id,
-          title: notifTitle,
-          message: `UGX ${op.amount.toLocaleString()} - ${op.description || op.category}. Approved by admin.`,
-          type: "success",
-          metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },
-        });
+        // Notify the correct user(s)
+        if (op.category === 'supporter_facilitation_capital' && portfolioInvestorId) {
+          // Notify the FUNDER (investor)
+          await adminClient.from("notifications").insert({
+            user_id: portfolioInvestorId,
+            title: "Investment Activated ✅",
+            message: `Your UGX ${op.amount.toLocaleString()} investment has been approved and is now active. Monthly rewards will begin within 30 days.`,
+            type: "success",
+            metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },
+          });
+
+          // Also notify the AGENT who facilitated it
+          if (op.user_id !== portfolioInvestorId) {
+            await adminClient.from("notifications").insert({
+              user_id: op.user_id,
+              title: "Partner Investment Approved ✅",
+              message: `UGX ${op.amount.toLocaleString()} investment you facilitated has been approved and activated.`,
+              type: "success",
+              metadata: { operation_id: op.id, amount: op.amount },
+            });
+          }
+        } else {
+          // Standard notification for non-investment operations
+          const notifTitle = op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅";
+          await adminClient.from("notifications").insert({
+            user_id: op.user_id,
+            title: notifTitle,
+            message: `UGX ${op.amount.toLocaleString()} - ${op.description || op.category}. Approved by admin.`,
+            type: "success",
+            metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },
+          });
+        }
 
         results.push({ id: op.id, status: "approved", user_id: op.user_id, amount: op.amount });
       } else {
