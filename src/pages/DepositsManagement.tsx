@@ -246,7 +246,11 @@ export default function DepositsManagement() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to approve deposit');
+        throw new Error(msg);
+      }
       toast.success(`Approved ${formatUGX(deposit.amount)}`);
       fetchDeposits();
     } catch (error: any) {
@@ -284,7 +288,11 @@ export default function DepositsManagement() {
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Failed to reject deposit');
+        throw new Error(msg);
+      }
       toast.success('Deposit rejected');
       setRejectionReason('');
       fetchDeposits();

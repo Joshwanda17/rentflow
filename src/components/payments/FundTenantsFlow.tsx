@@ -177,7 +177,11 @@ export default function FundTenantsFlow({
           },
         });
 
-        if (error) throw error;
+        if (error) {
+          const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+          const msg = await extractFromErrorObject(error, 'Funding failed');
+          throw new Error(msg);
+        }
         if (data?.error) throw new Error(data.error);
 
         setFundResult(data.details);

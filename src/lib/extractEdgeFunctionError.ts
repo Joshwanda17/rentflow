@@ -12,36 +12,50 @@ export async function extractEdgeFunctionError(
 ): Promise<string> {
   // 1. SDK-level error (non-2xx)
   if (response.error) {
-    try {
-      // FunctionsHttpError stores the Response in `.context`
-      const ctx = (response.error as any)?.context;
-
-      // ctx is a Response – read JSON body
-      if (ctx && typeof ctx.json === 'function') {
-        const body = await ctx.json();
-        if (body?.error) return body.error;
-      }
-
-      // Some SDK versions expose `.context.body` as a string
-      if (ctx?.body) {
-        const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
-        if (body?.error) return body.error;
-      }
-    } catch {
-      // parsing failed – fall through
-    }
-
-    // Last resort: use the error message itself
-    if (response.error.message && response.error.message !== 'Edge Function returned a non-2xx status code') {
-      return response.error.message;
-    }
-
-    return fallback;
+    return extractFromErrorObject(response.error, fallback);
   }
 
   // 2. 2xx but the body itself contains an error field
   if (response.data?.error) {
     return response.data.error;
+  }
+
+  return fallback;
+}
+
+/**
+ * Extract a human-readable error from a raw FunctionsHttpError object.
+ * Use this when code does `if (error) throw error` — catch the thrown error
+ * and pass it here to get the actual backend message.
+ */
+export async function extractFromErrorObject(
+  error: any,
+  fallback = 'Something went wrong. Please try again.',
+): Promise<string> {
+  if (!error) return fallback;
+
+  try {
+    // FunctionsHttpError stores the Response in `.context`
+    const ctx = error?.context;
+
+    // ctx is a Response – read JSON body
+    if (ctx && typeof ctx.json === 'function') {
+      const body = await ctx.json();
+      if (body?.error) return body.error;
+    }
+
+    // Some SDK versions expose `.context.body` as a string
+    if (ctx?.body) {
+      const body = typeof ctx.body === 'string' ? JSON.parse(ctx.body) : ctx.body;
+      if (body?.error) return body.error;
+    }
+  } catch {
+    // parsing failed – fall through
+  }
+
+  // Last resort: use the error message itself
+  if (error.message && error.message !== 'Edge Function returned a non-2xx status code') {
+    return error.message;
   }
 
   return fallback;

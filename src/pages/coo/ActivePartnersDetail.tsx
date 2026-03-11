@@ -165,7 +165,8 @@ export default function ActivePartnersDetail() {
         body: { partner_id: investPartner.id, amount: amt },
       });
       if (error) {
-        const errMsg = typeof result === 'object' && result?.error ? result.error : error.message;
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const errMsg = await extractFromErrorObject(error, 'Investment failed');
         throw new Error(errMsg);
       }
       if (result?.error) throw new Error(result.error);

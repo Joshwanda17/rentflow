@@ -6,6 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { extractFromErrorObject } from '@/lib/extractEdgeFunctionError';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
 import { Loader2, HandCoins, Search, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
@@ -154,7 +155,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        const msg = await extractFromErrorObject(error, 'Investment failed');
+        throw new Error(msg);
+      }
       if (data?.error) throw new Error(data.error);
 
       setSuccess({

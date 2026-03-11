@@ -116,7 +116,11 @@ export function AgentFloatManager() {
         }
       });
 
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Float transfer failed');
+        throw new Error(msg);
+      }
 
       toast({ 
         title: 'Float Transferred', 
