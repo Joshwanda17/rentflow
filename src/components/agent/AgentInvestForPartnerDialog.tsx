@@ -165,6 +165,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         amount: parsedAmount,
         activation_token: data.activation_token || null,
         agent_name: data.agent_name || 'Agent',
+        portfolio_code: data.portfolio_code || null,
       });
       setAgentBalance(data.new_balance);
       toast.success('Investment completed successfully!');
