@@ -185,6 +185,10 @@ export function ApprovedRequestsFundingWidget() {
     );
   }
 
+  const txDigits = transactionIdInput.replace(/\D/g, '');
+  const normalizedTransactionId = txDigits ? `TID${txDigits}` : '';
+  const canConfirmFunding = !!pendingRequest && confirmed && txDigits.length >= 5 && !fundingId;
+
   return (
     <CollapsibleAgentSection
       icon={CheckCircle}
