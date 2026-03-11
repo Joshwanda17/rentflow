@@ -181,9 +181,6 @@ export default function LandlordDashboard({ user, signOut, currentRole, availabl
             </motion.button>
           </div>
 
-          <div className="flex justify-center">
-            {addRoleComponent}
-          </div>
         </main>
       </PullToRefresh>
 

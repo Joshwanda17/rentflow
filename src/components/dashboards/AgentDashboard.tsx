@@ -246,9 +246,6 @@ export default function AgentDashboard({ user, signOut, currentRole, availableRo
         <AgentRentPaymentGuide />
         <ApprovedRentRequestsWidget mode="agent" />
 
-        <div className="flex justify-center">
-          {addRoleComponent}
-        </div>
 
         </main>
       </PullToRefresh>

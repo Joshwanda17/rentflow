@@ -46,9 +46,18 @@ const roleConfigMap: Record<string, { label: string; emoji: string; icon: React.
   supporter: { label: 'Funder', emoji: '💰', icon: <Wallet className="h-4 w-4" /> },
   landlord: { label: 'Owner', emoji: '🏢', icon: <Building2 className="h-4 w-4" /> },
   manager: { label: 'Admin', emoji: '🛡️', icon: <Shield className="h-4 w-4" /> },
+  ceo: { label: 'CEO', emoji: '👔', icon: <Shield className="h-4 w-4" /> },
+  coo: { label: 'COO', emoji: '⚙️', icon: <Shield className="h-4 w-4" /> },
+  cfo: { label: 'CFO', emoji: '💵', icon: <Wallet className="h-4 w-4" /> },
+  cto: { label: 'CTO', emoji: '🖥️', icon: <Shield className="h-4 w-4" /> },
+  cmo: { label: 'CMO', emoji: '📣', icon: <Users className="h-4 w-4" /> },
+  crm: { label: 'CRM', emoji: '🤝', icon: <Users className="h-4 w-4" /> },
+  employee: { label: 'Employee', emoji: '🧑‍💼', icon: <Users className="h-4 w-4" /> },
+  operations: { label: 'Operations', emoji: '🔧', icon: <Shield className="h-4 w-4" /> },
+  super_admin: { label: 'Super Admin', emoji: '🔑', icon: <Shield className="h-4 w-4" /> },
 };
 
-const defaultRoleConfig = { label: 'User', emoji: '👤', icon: <Users className="h-4 w-4" /> };
+const defaultRoleConfig = { label: 'Unknown', emoji: '👤', icon: <Users className="h-4 w-4" /> };
 const getRoleConfig = (role: string) => roleConfigMap[role] || defaultRoleConfig;
 
 const DashboardHeader = memo(function DashboardHeader({
