@@ -354,14 +354,14 @@ export default function COOPartnersPage() {
     { key: 'status', label: 'Status', render: (r) => (
       <span className={cn(
         'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider',
-        r.status === 'active' ? 'bg-emerald-500/15 text-emerald-600' : 'bg-destructive/15 text-destructive'
+        r.status === 'active' ? 'bg-primary/10 text-primary' : 'bg-destructive/15 text-destructive'
       )}>
-        <span className={cn('w-1.5 h-1.5 rounded-full', r.status === 'active' ? 'bg-emerald-500' : 'bg-destructive')} />
+        <span className={cn('w-1.5 h-1.5 rounded-full', r.status === 'active' ? 'bg-primary' : 'bg-destructive')} />
         {r.status}
       </span>
     )},
     { key: 'walletBalance', label: 'Wallet', align: 'right', render: (r) => (
-      <span className={cn('font-semibold tabular-nums', r.walletBalance >= MIN_INVEST ? 'text-emerald-600' : 'text-muted-foreground')}>
+      <span className={cn('font-semibold tabular-nums', r.walletBalance >= MIN_INVEST ? 'text-primary' : 'text-muted-foreground')}>
         {formatUGX(r.walletBalance)}
       </span>
     )},
