@@ -224,11 +224,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       if (isCompounding) {
                         let bal = entry.amount;
                         const invested = new Date(entry.invested_at);
-                        // Use payout_day for projection dates
-                        const projPayoutDay = entry.payout_day || 15;
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = new Date(invested.getFullYear(), invested.getMonth() + m, projPayoutDay);
+                          const payoutDate = entry.payout_day
+                            ? new Date(invested.getFullYear(), invested.getMonth() + m, entry.payout_day)
+                            : addDays(invested, m * 30);
                           projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
