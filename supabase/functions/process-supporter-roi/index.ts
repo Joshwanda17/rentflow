@@ -60,11 +60,8 @@ Deno.serve(async (req) => {
         }
 
         const fundedDate = new Date(rr.funded_at);
-        const fundedDayOfMonth = fundedDate.getDate();
 
-        // ROI is due on the same day-of-month as funded_at
-        // First payment: same day of the next month after funding
-        // Check if today matches the supporter's unique anniversary day
+        // Strict 30-day cycle: check if payout is due
         if (rr.next_roi_due_date) {
           const dueDate = new Date(rr.next_roi_due_date);
           if (dueDate > now) {
@@ -72,13 +69,8 @@ Deno.serve(async (req) => {
             continue;
           }
         } else {
-          // First ROI: check if at least one full month has passed
-          const firstDue = new Date(fundedDate);
-          firstDue.setMonth(firstDue.getMonth() + 1);
-          // Handle day overflow (e.g. funded Jan 31 -> Feb 28)
-          if (firstDue.getDate() !== fundedDayOfMonth) {
-            firstDue.setDate(0); // last day of previous month
-          }
+          // First ROI: check if at least 30 days have passed since funding
+          const firstDue = new Date(fundedDate.getTime() + 30 * 24 * 60 * 60 * 1000);
           if (firstDue > now) {
             results.skipped++;
             continue;
