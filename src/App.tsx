@@ -230,7 +230,7 @@ function AppRoutes() {
           <Route path="/sub-agents" element={<SubAgentAnalytics />} />
           <Route path="/join" element={<Join />} />
           <Route path="/calculator" element={<Calculator />} />
-          <Route path="/users" element={<UserManagement />} />
+          <Route path="/users" element={<RoleGuard allowedRoles={['super_admin', 'manager', 'cto']}><AdminUsersPage /></RoleGuard>} />
           <Route path="/supporter-earnings" element={<SupporterEarnings />} />
           <Route path="/investment-portfolio" element={<InvestmentPortfolio />} />
           <Route path="/my-watchlist" element={<MyWatchlist />} />
