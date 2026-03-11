@@ -711,11 +711,11 @@ export default function ManagerAccess() {
                 <Button
                   variant="ghost"
                   size="sm"
-                  onClick={() => handleTabChange('locations')}
+                  onClick={() => navigate('/users')}
                   className="text-white/90 hover:text-white hover:bg-white/10 gap-2"
                 >
-                  <MapPin className="h-4 w-4" />
-                  <span className="hidden xs:inline">Locations</span>
+                  <Users className="h-4 w-4" />
+                  <span className="hidden xs:inline">Staff</span>
                 </Button>
               </div>
               {/* User counts summary + load full table on demand */}
