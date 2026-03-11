@@ -329,7 +329,7 @@ export default function COOPartnersPage() {
         )
         .eq('id', suspendPartner.id);
       if (error) throw error;
-      toast.success(`${suspendPartner.name} is now ${newStatus}`);
+      toast.success(`${suspendPartner.name} is now ${shouldFreeze ? 'suspended' : 'active'}`);
       setSuspendPartner(null);
       fetchData();
     } catch (e: any) { toast.error(e.message || 'Failed'); }
