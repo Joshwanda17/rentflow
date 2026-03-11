@@ -186,7 +186,7 @@ export default function COOPartnersPage() {
           roiPercentage: roiMap.get(id) ?? 15,
           payoutDay: payoutDayMap.get(id) ?? 15,
           roiMode: roiModeMap.get(id) ?? 'monthly_payout',
-          status: isSuspended ? 'suspended' : 'active',
+          status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
           joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
           lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
         };
