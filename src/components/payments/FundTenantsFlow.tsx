@@ -160,7 +160,7 @@ export default function FundTenantsFlow({
       case 0: return fundingMode !== 'auto';
       case 1: return selectedIds.length > 0;
       case 2: return fundingAmount > 0 && fundingAmount <= walletBalance;
-      case 3: return confirmed;
+      case 3: return confirmed && transactionId.replace(/\D/g, '').length >= 5;
       default: return false;
     }
   };
