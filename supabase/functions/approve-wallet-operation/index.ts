@@ -205,9 +205,12 @@ Deno.serve(async (req) => {
           .eq("id", op.id);
 
         // Notify user
+        const notifTitle = op.category === 'supporter_facilitation_capital'
+          ? "Investment Activated ✅"
+          : (op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅");
         await adminClient.from("notifications").insert({
           user_id: op.user_id,
-          title: op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅",
+          title: notifTitle,
           message: `UGX ${op.amount.toLocaleString()} - ${op.description || op.category}. Approved by admin.`,
           type: "success",
           metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },
