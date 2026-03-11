@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { Home, Users, Wallet, Building2, Shield } from 'lucide-react';
 import { hapticTap } from '@/lib/haptics';
+import { roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 
 type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
@@ -39,11 +40,17 @@ const RoleSwitcher = memo(function RoleSwitcher({ currentRole, availableRoles, o
     if (role !== currentRole) {
       hapticTap();
       if (role === 'manager') {
-        // Manager requires extra security — go through PIN flow
         navigate('/manager-login');
         return;
       }
       onRoleChange(role);
+      // Navigate to isolated dashboard if role has one
+      const route = roleDashboardRoutes[role];
+      if (route) {
+        navigate(route);
+      } else {
+        navigate('/dashboard');
+      }
     }
   };
 

@@ -82,9 +82,15 @@ const TVDashboard = lazy(() => import('./pages/TVDashboard'));
 const ShopEntry = lazy(() => import('./pages/ShopEntry'));
 const ManagerLogin = lazy(() => import('./pages/ManagerLogin'));
 const FinancialStatement = lazy(() => import('./pages/FinancialStatement'));
-const COODashboard = lazy(() => import('./pages/COODashboard'));
-const CFODashboard = lazy(() => import('./pages/CFODashboard'));
-const ExecutiveHub = lazy(() => import('./pages/ExecutiveHub'));
+// Executive role-isolated dashboards
+const CTODashboardPage = lazy(() => import('./pages/cto/Dashboard'));
+const CEODashboardPage = lazy(() => import('./pages/ceo/Dashboard'));
+const CMODashboardPage = lazy(() => import('./pages/cmo/Dashboard'));
+const CRMDashboardPage = lazy(() => import('./pages/crm/Dashboard'));
+const CFODashboardPage = lazy(() => import('./pages/cfo/Dashboard'));
+const COODashboardPage = lazy(() => import('./pages/coo/Dashboard'));
+const AdminDashboardPage = lazy(() => import('./pages/admin/Dashboard'));
+const RoleGuard = lazy(() => import('./components/auth/RoleGuard'));
 const AgentAdvances = lazy(() => import('./pages/AgentAdvances'));
 const AgentAdvanceDetail = lazy(() => import('./pages/AgentAdvanceDetail'));
 const ActiveUsersDetail = lazy(() => import('./pages/coo/ActiveUsersDetail'));
@@ -238,9 +244,18 @@ function AppRoutes() {
           <Route path="/tv-dashboard" element={<TVDashboard />} />
           <Route path="/shop" element={<ShopEntry />} />
           <Route path="/manager-login" element={<ManagerLogin />} />
-          <Route path="/coo-dashboard" element={<COODashboard />} />
-          <Route path="/cfo-dashboard" element={<CFODashboard />} />
-          <Route path="/executive-hub" element={<ExecutiveHub />} />
+          {/* Role-isolated executive dashboards */}
+          <Route path="/cto/dashboard" element={<RoleGuard allowedRoles={['cto', 'super_admin', 'manager']}><CTODashboardPage /></RoleGuard>} />
+          <Route path="/ceo/dashboard" element={<RoleGuard allowedRoles={['ceo', 'super_admin', 'manager']}><CEODashboardPage /></RoleGuard>} />
+          <Route path="/cfo/dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
+          <Route path="/coo/dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'manager']}><COODashboardPage /></RoleGuard>} />
+          <Route path="/cmo/dashboard" element={<RoleGuard allowedRoles={['cmo', 'super_admin', 'manager']}><CMODashboardPage /></RoleGuard>} />
+          <Route path="/crm/dashboard" element={<RoleGuard allowedRoles={['crm', 'super_admin', 'manager']}><CRMDashboardPage /></RoleGuard>} />
+          <Route path="/admin/dashboard" element={<RoleGuard allowedRoles={['super_admin', 'manager']}><AdminDashboardPage /></RoleGuard>} />
+          {/* Legacy redirects */}
+          <Route path="/coo-dashboard" element={<RoleGuard allowedRoles={['coo', 'super_admin', 'manager']}><COODashboardPage /></RoleGuard>} />
+          <Route path="/cfo-dashboard" element={<RoleGuard allowedRoles={['cfo', 'super_admin', 'manager']}><CFODashboardPage /></RoleGuard>} />
+          <Route path="/executive-hub" element={<RoleGuard allowedRoles={['ceo', 'cto', 'cmo', 'crm', 'super_admin', 'manager']}><AdminDashboardPage /></RoleGuard>} />
           <Route path="/agent-advances" element={<AgentAdvances />} />
           <Route path="/agent-advances/:id" element={<AgentAdvanceDetail />} />
           <Route path="/coo/active-users" element={<ActiveUsersDetail />} />

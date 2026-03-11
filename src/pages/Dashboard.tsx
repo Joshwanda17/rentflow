@@ -5,6 +5,7 @@ import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
 // FloatingChatButton removed — chat accessible only via nav
 
+import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 
 import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
@@ -98,6 +99,17 @@ function DashboardContent() {
     searchParams.delete('role');
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, user, switchRole, setSearchParams]);
+
+  // Redirect executive/internal roles to their isolated dashboards
+  useEffect(() => {
+    if (!user || loading || !role) return;
+    if (ISOLATED_ROLES.includes(role)) {
+      const route = roleDashboardRoutes[role];
+      if (route) {
+        navigate(route, { replace: true });
+      }
+    }
+  }, [user, loading, role, navigate]);
 
    // Handle investment account activation via link (investment_accounts table removed)
   useEffect(() => {
