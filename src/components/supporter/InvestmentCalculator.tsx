@@ -8,7 +8,7 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Badge } from '@/components/ui/badge';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight, Save, Trash2, Layers, X, Wifi, WifiOff, DollarSign, Loader2 } from 'lucide-react';
+import { TrendingUp, Target, Coins, Sparkles, Zap, Download, Share2, RefreshCw, BarChart3, GitCompare, ChevronDown, Shield, Clock, ArrowRight, Save, Trash2, Layers, X, Wifi, WifiOff, DollarSign, Loader2, Mail } from 'lucide-react';
 import welileLogo from '@/assets/welile-logo.png';
 import { formatUGX } from '@/lib/rentCalculations';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -454,6 +454,38 @@ export function InvestmentCalculator() {
     }
   };
 
+  const handleShareEmail = () => {
+    let body = `WELILE INVESTMENT PROJECTION\n\n`;
+    body += `Initial Investment: ${formatUGX(calculations.requiredInvestment)}\n`;
+    body += `Monthly ROI: 15%\n`;
+    body += `Duration: ${duration} months\n`;
+    body += `Compounding: ${isCompounding ? 'Yes' : 'No'}\n\n`;
+    body += `MONTHLY BREAKDOWN\n`;
+    body += `${'—'.repeat(30)}\n\n`;
+
+    projections.forEach((row) => {
+      body += `Month ${row.month}\n`;
+      body += `  Principal: ${formatUGX(row.principal)}\n`;
+      body += `  Earnings: +${formatUGX(row.earnings)}\n`;
+      body += `  Total Earned: ${formatUGX(row.totalEarnings)}\n`;
+      body += `  Balance: ${formatUGX(row.balance)}\n\n`;
+    });
+
+    body += `${'—'.repeat(30)}\n`;
+    body += `FINAL RESULTS\n`;
+    body += `Total Earnings: ${formatUGX(projections[projections.length - 1]?.totalEarnings || 0)}\n`;
+    body += `Final Balance: ${formatUGX(projections[projections.length - 1]?.balance || 0)}\n\n`;
+    body += `Start earning 15% monthly returns with Welile today!`;
+
+    const subject = `Welile Investment Projection – ${formatUGX(calculations.requiredInvestment)} over ${duration} months`;
+    window.open(`mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`, '_self');
+
+    toast({
+      title: "Opening Email",
+      description: "Monthly breakdown ready to send!",
+    });
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -740,7 +772,15 @@ export function InvestmentCalculator() {
                 <Share2 className="h-4 w-4" />
                 📊 Share Monthly Breakdown on WhatsApp
               </Button>
-              
+              <Button
+                onClick={handleShareEmail}
+                variant="outline"
+                className="w-full gap-2 border-primary/50 text-primary hover:bg-primary/10"
+              >
+                <Mail className="h-4 w-4" />
+                📧 Share Monthly Breakdown via Email
+              </Button>
+
               {/* Save Scenario Section */}
               <div className="flex flex-col sm:flex-row gap-2 mt-2">
                 <Input
