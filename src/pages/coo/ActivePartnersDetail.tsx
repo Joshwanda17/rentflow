@@ -45,7 +45,6 @@ export default function ActivePartnersDetail() {
   // Invest dialog state
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
   const [investAmount, setInvestAmount] = useState('');
-  const [payoutDay, setPayoutDay] = useState('15');
   const [investing, setInvesting] = useState(false);
 
   // Delete dialog state
@@ -159,16 +158,11 @@ export default function ActivePartnersDetail() {
       toast.error(`Partner only has ${formatUGX(investPartner.walletBalance)} in wallet`);
       return;
     }
-    const day = Number(payoutDay);
-    if (isNaN(day) || day < 1 || day > 28) {
-      toast.error('Payout day must be 1-28');
-      return;
-    }
 
     setInvesting(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('coo-invest-for-partner', {
-        body: { partner_id: investPartner.id, amount: amt, payout_day: day },
+        body: { partner_id: investPartner.id, amount: amt },
       });
       if (error) {
         const errMsg = typeof result === 'object' && result?.error ? result.error : error.message;
@@ -344,7 +338,7 @@ export default function ActivePartnersDetail() {
     { key: 'roiPercentage', label: 'ROI %', align: 'right', render: (r) => (
       <span className="font-semibold text-primary">{r.roiPercentage}%</span>
     )},
-    { key: 'payoutDay', label: 'Payout Day', align: 'right', render: (r) => (
+    { key: 'payoutDay', label: 'Payout Cycle', align: 'right', render: (r) => (
       <span className="text-muted-foreground">{r.payoutDay}{getOrdinalSuffix(r.payoutDay)}</span>
     )},
     { key: 'roiMode', label: 'ROI Mode', render: (r) => (
@@ -460,22 +454,15 @@ export default function ActivePartnersDetail() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payout-day">Monthly Payout Day (1-28)</Label>
-                <Input
-                  id="payout-day"
-                  type="number"
-                  min={1}
-                  max={28}
-                  value={payoutDay}
-                  onChange={(e) => setPayoutDay(e.target.value)}
-                />
+              {/* Payout cycle info */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date (automatic)</p>
               </div>
 
               {investAmount && Number(investAmount) >= MIN_INVEST && (
                 <div className="text-xs text-muted-foreground bg-muted/30 rounded-lg p-3 space-y-1">
                   <p>Monthly reward ({investPartner.roiPercentage}%): <strong>{formatUGX(Math.round(Number(investAmount) * (investPartner.roiPercentage / 100)))}</strong></p>
-                  <p>Payout every <strong>{payoutDay}{getOrdinalSuffix(Number(payoutDay))}</strong> for 12 months</p>
+                  <p>Payout cycle: <strong>Every 30 days</strong></p>
                   <p>Remaining wallet: <strong>{formatUGX(investPartner.walletBalance - Number(investAmount))}</strong></p>
                 </div>
               )}

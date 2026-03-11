@@ -8,7 +8,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { formatUGX } from '@/lib/rentCalculations';
 import { getPublicOrigin } from '@/lib/getPublicOrigin';
-import { Loader2, HandCoins, Search, Wallet, CalendarDays, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
+import { Loader2, HandCoins, Search, Wallet, TrendingUp, CheckCircle2, Copy, Share2, MessageCircle, Link, Smartphone, UserPlus, Info } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { CreateUserInviteDialog } from './CreateUserInviteDialog';
 
@@ -30,7 +30,6 @@ interface SuccessData {
   monthly_reward: number;
   first_payout_date: string;
   new_balance: number;
-  payout_day: number;
   amount: number;
   activation_token: string | null;
   agent_name: string;
@@ -42,7 +41,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const [selectedPartnerId, setSelectedPartnerId] = useState('');
   const [selectedPartner, setSelectedPartner] = useState<PartnerOption | null>(null);
   const [amount, setAmount] = useState('');
-  const [payoutDay, setPayoutDay] = useState('');
+  
   const [submitting, setSubmitting] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showConfirm, setShowConfirm] = useState(false);
@@ -91,7 +90,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setSelectedPartnerId('');
       setSelectedPartner(null);
       setAmount('');
-      setPayoutDay('');
+      
       setSuccess(null);
       setSearchQuery('');
       setShowConfirm(false);
@@ -127,13 +126,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   const selectedPartnerName = selectedPartner?.full_name || '';
 
   const handleConfirmOpen = () => {
-    if (!selectedPartnerId || parsedAmount < 50000 || !payoutDay) {
+    if (!selectedPartnerId || parsedAmount < 50000) {
       toast.error('Please fill all fields correctly');
-      return;
-    }
-    const day = Number(payoutDay);
-    if (day < 1 || day > 31) {
-      toast.error('Payout day must be between 1 and 31');
       return;
     }
     if (parsedAmount > agentBalance) {
@@ -156,7 +150,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
           partner_id: selectedPartnerId,
           amount: parsedAmount,
           summary_id: summaryId,
-          payout_day: Number(payoutDay),
         },
       });
 
@@ -169,7 +162,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         monthly_reward: data.monthly_reward,
         first_payout_date: data.first_payout_date,
         new_balance: data.new_balance,
-        payout_day: data.payout_day,
         amount: parsedAmount,
         activation_token: data.activation_token || null,
         agent_name: data.agent_name || 'Agent',
@@ -189,7 +181,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       ? `${getPublicOrigin()}/join?t=${s.activation_token}`
       : null;
 
-    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Day: ${s.payout_day}${getOrdinal(s.payout_day)} of each month\n🗓️ First Payout: ${s.first_payout_date}`;
+    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
 
     if (activationLink) {
       msg += `\n\n👉 Activate your account to start receiving rewards:\n${activationLink}`;
@@ -419,24 +411,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             )}
           </div>
 
-          {/* Payout Day */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4" />
-              Monthly Payout Day
-            </Label>
-            <select
-              value={payoutDay}
-              onChange={(e) => setPayoutDay(e.target.value)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">Select payout day...</option>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                <option key={day} value={day}>
-                  {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of every month
-                </option>
-              ))}
-            </select>
+          {/* Payout Cycle Info */}
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
+            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
           </div>
 
           {/* Reward Preview */}
@@ -454,7 +431,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
           <Button
             onClick={handleConfirmOpen}
-            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || !payoutDay || parsedAmount > agentBalance}
+            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || parsedAmount > agentBalance}
             className="w-full"
           >
             {submitting ? (
@@ -506,8 +483,8 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
                     <span className="font-medium text-success">{formatUGX(monthlyReward)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Payout day</span>
-                    <span className="font-medium text-foreground">{payoutDay}th of each month</span>
+                    <span className="text-muted-foreground">Payout cycle</span>
+                    <span className="font-medium text-foreground">Every 30 days</span>
                   </div>
                   <hr className="border-border" />
                   <div className="flex justify-between">

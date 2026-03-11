@@ -53,12 +53,14 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { partner_id, amount, summary_id, payout_day } = await req.json() as {
+    const { partner_id, amount, summary_id } = await req.json() as {
       partner_id: string;
       amount: number;
       summary_id: string;
-      payout_day: number;
     };
+
+    // Payout is auto-calculated (30-day cycle from investment date)
+    const payout_day = new Date().getDate();
 
     // Validate UUID format
     const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -72,13 +74,6 @@ Deno.serve(async (req) => {
     if (!amount || amount <= 0 || amount < 50000) {
       return new Response(
         JSON.stringify({ error: "Minimum investment is UGX 50,000" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    if (!payout_day || payout_day < 1 || payout_day > 28) {
-      return new Response(
-        JSON.stringify({ error: "Payout day must be between 1 and 28" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
