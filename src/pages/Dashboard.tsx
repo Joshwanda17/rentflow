@@ -100,6 +100,17 @@ function DashboardContent() {
     setSearchParams(searchParams, { replace: true });
   }, [searchParams, user, switchRole, setSearchParams]);
 
+  // Redirect executive/internal roles to their isolated dashboards
+  useEffect(() => {
+    if (!user || loading || !role) return;
+    if (ISOLATED_ROLES.includes(role)) {
+      const route = roleDashboardRoutes[role];
+      if (route) {
+        navigate(route, { replace: true });
+      }
+    }
+  }, [user, loading, role, navigate]);
+
    // Handle investment account activation via link (investment_accounts table removed)
   useEffect(() => {
     const activateAccountId = searchParams.get('activate_account');
