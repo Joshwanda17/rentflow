@@ -1,5 +1,4 @@
 import { useState, useMemo } from 'react';
-import { FullScreenWalletSheet } from '@/components/wallet/FullScreenWalletSheet';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -7,13 +6,12 @@ import { formatUGX } from '@/lib/rentCalculations';
 interface PortfolioSummaryCardsProps {
   housesFunded: number;
   rentSecured: number;
-  walletBalance: number;
+  walletBalance?: number;
   portfolioHealth: 'stable' | 'at_risk' | 'growing';
   totalReturn?: number;
 }
 
-export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance, totalReturn = 0 }: PortfolioSummaryCardsProps) {
-  const [showWallet, setShowWallet] = useState(false);
+export function PortfolioSummaryCards({ housesFunded, rentSecured, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
   // Show a random house count based on investment tier
@@ -32,21 +30,20 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
         <div className="absolute -bottom-6 -left-6 w-20 h-20 rounded-full bg-white/[0.05] pointer-events-none" />
 
         <div className="relative z-10 space-y-3 xs:space-y-4 sm:space-y-5">
-          {/* Main balance */}
+          {/* Main hero — Total Invested */}
           <div>
             <p className="wallet-label-text text-xs xs:text-sm uppercase tracking-widest font-bold mb-1.5">
-              💰 Wallet Balance
+              📊 Total Invested
             </p>
             <button
-              onClick={() => { hapticTap(); setShowWallet(true); }}
+              onClick={() => { hapticTap(); setShowBreakdown(true); }}
               className="flex items-center gap-2 group cursor-pointer min-h-[44px]"
             >
               <svg className="h-6 w-6 xs:h-7 xs:w-7 wallet-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M19 7V4a1 1 0 0 0-1-1H5a2 2 0 0 0 0 4h15a1 1 0 0 1 1 1v4h-3a2 2 0 0 0 0 4h3a1 1 0 0 0 1-1v-2a1 1 0 0 0-1-1" />
-                <path d="M3 5v14a2 2 0 0 0 2 2h15a1 1 0 0 0 1-1v-4" />
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
               </svg>
               <p className="wallet-balance-text text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight break-all">
-                {formatUGX(walletBalance)}
+                {formatUGX(rentSecured)}
               </p>
             </button>
           </div>
@@ -71,13 +68,12 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
             >
               <span className="text-base xs:text-lg sm:text-xl">🏦</span>
               <p className="wallet-balance-text text-xs xs:text-sm sm:text-base font-black leading-none break-all">{formatUGX(rentSecured)}</p>
-              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold"><p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">Contributed ›</p></p>
+              <p className="wallet-label-text text-[8px] xs:text-[9px] sm:text-[11px] uppercase tracking-wider font-semibold">Invested ›</p>
             </button>
           </div>
         </div>
       </div>
 
-      {showWallet && <FullScreenWalletSheet open={showWallet} onOpenChange={setShowWallet} />}
       {showBreakdown && <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />}
     </>
   );
