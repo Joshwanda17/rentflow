@@ -324,12 +324,13 @@ Deno.serve(async (req) => {
       });
     }
 
-    console.log(`[fund-tenant-from-pool] Manager ${user.id} funded tenant ${rr.tenant_id} with ${fundAmount} from pool. Ref: ${referenceId}`);
+    console.log(`[fund-tenant-from-pool] Manager ${user.id} funded tenant ${rr.tenant_id} with ${fundAmount} from pool. TxID: ${transactionId}. Ref: ${referenceId}`);
 
     return new Response(
       JSON.stringify({
         success: true,
         reference_id: referenceId,
+        transaction_id: transactionId,
         amount: fundAmount,
         landlord_name: landlordRecord?.name || "Unknown",
         pool_remaining: availablePool - fundAmount,
