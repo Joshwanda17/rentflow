@@ -773,6 +773,28 @@ export default function COOPartnersPage() {
                                   <span className="text-muted-foreground">Total Earned</span>
                                   <p className="font-bold text-primary">{formatUGX(p.total_roi_earned)}</p>
                                 </div>
+                                <div>
+                                  <span className="text-muted-foreground">Invested On</span>
+                                  <p className="font-semibold">{formatDate(p.created_at)}</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Duration</span>
+                                  <p className="font-semibold">{p.duration_months} months</p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Maturity Date</span>
+                                  <p className={cn('font-semibold', p.maturity_date && new Date(p.maturity_date) <= new Date() ? 'text-amber-600' : '')}>
+                                    {p.maturity_date ? formatDate(p.maturity_date) : '—'}
+                                  </p>
+                                </div>
+                                <div>
+                                  <span className="text-muted-foreground">Maturity Status</span>
+                                  <p className="font-semibold">
+                                    {!p.maturity_date ? '—' : new Date(p.maturity_date) <= new Date()
+                                      ? <span className="text-amber-600">⏰ Matured</span>
+                                      : <span className="text-primary">🟢 Active</span>}
+                                  </p>
+                                </div>
                               </div>
 
                               {/* Payout Day Row */}
