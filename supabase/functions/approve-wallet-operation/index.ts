@@ -265,7 +265,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[approve-wallet-op] Manager ${user.id} ${action}d ${results.length} operations`);
+    console.log(`[approve-wallet-op] Manager ${userId} ${action}d ${results.length} operations`);
 
     return new Response(
       JSON.stringify({
