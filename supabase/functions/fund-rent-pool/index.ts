@@ -52,10 +52,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { amount, summary_id, payout_day } = await req.json() as {
+    const { amount, summary_id } = await req.json() as {
       amount: number;
       summary_id: string;
-      payout_day: number;
     };
 
     if (!amount || amount <= 0) {
@@ -65,12 +64,8 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (!payout_day || payout_day < 1 || payout_day > 28) {
-      return new Response(
-        JSON.stringify({ error: "Payout day must be between 1 and 28" }),
-        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    // Payout day is auto-calculated (30-day cycle from investment date)
+    const payout_day = new Date().getDate();
 
     // adminClient already created above for role check
 

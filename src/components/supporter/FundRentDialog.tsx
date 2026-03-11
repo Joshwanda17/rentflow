@@ -1,12 +1,11 @@
 import { useState } from 'react';
-import { HandCoins, CalendarDays } from 'lucide-react';
+import { HandCoins } from 'lucide-react';
 import { useWallet } from '@/hooks/useWallet';
 import { useAuth } from '@/hooks/useAuth';
 import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -26,21 +25,18 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
   const { toast } = useToast();
 
   const [amount, setAmount] = useState('');
-  const [payoutDay, setPayoutDay] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [successInfo, setSuccessInfo] = useState<{
     monthlyReward: number;
     firstPayoutDate: string;
-    payoutDay: number;
     referenceId: string;
   } | null>(null);
 
   const walletBalance = wallet?.balance ?? 0;
   const amountNum = Number(amount) || 0;
-  const payoutDayNum = Number(payoutDay) || 0;
   const exceedsBalance = amountNum > walletBalance;
   const exceedsRequested = amountNum > summary.total_rent_requested;
-  const isValid = amountNum > 0 && !exceedsBalance && !exceedsRequested && payoutDayNum >= 1 && payoutDayNum <= 28;
+  const isValid = amountNum > 0 && !exceedsBalance && !exceedsRequested;
 
   const handleFundSubmit = async () => {
     if (!user || !isValid) return;
@@ -48,7 +44,7 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
     setSubmitting(true);
     try {
       const response = await supabase.functions.invoke('fund-rent-pool', {
-        body: { amount: amountNum, summary_id: summary.id, payout_day: payoutDayNum },
+        body: { amount: amountNum, summary_id: summary.id },
       });
 
       if (response.error || response.data?.error) {
@@ -61,7 +57,6 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
       setSuccessInfo({
         monthlyReward: data.monthly_reward,
         firstPayoutDate: data.first_payout_date,
-        payoutDay: data.payout_day,
         referenceId: data.reference_id,
       });
 
@@ -87,24 +82,10 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
   const handleClose = (val: boolean) => {
     if (!val) {
       setAmount('');
-      setPayoutDay('');
       setSuccessInfo(null);
     }
     onOpenChange(val);
   };
-
-  const getOrdinal = (n: number) => {
-    if (n >= 11 && n <= 13) return `${n}th`;
-    switch (n % 10) {
-      case 1: return `${n}st`;
-      case 2: return `${n}nd`;
-      case 3: return `${n}rd`;
-      default: return `${n}th`;
-    }
-  };
-
-  // Generate day options 1-28
-  const dayOptions = Array.from({ length: 28 }, (_, i) => i + 1);
 
   return (
     <Dialog open={open} onOpenChange={handleClose}>
@@ -122,7 +103,7 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
               <p className="text-sm font-bold text-green-700 dark:text-green-400">✅ Investment Confirmed!</p>
               <p className="text-xs text-muted-foreground">
                 You will receive <span className="font-black text-foreground">15% monthly</span> ({formatUGX(successInfo.monthlyReward)}) 
-                on the <span className="font-bold">{getOrdinal(successInfo.payoutDay)}</span> of every month for <span className="font-bold">12 months</span>.
+                every <span className="font-bold">30 days</span> for <span className="font-bold">12 months</span>.
               </p>
               <p className="text-xs text-muted-foreground">
                 📅 First payout: <span className="font-bold text-foreground">{successInfo.firstPayoutDate}</span>
@@ -173,39 +154,16 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
               )}
             </div>
 
-            {/* Payout day picker */}
-            <div className="space-y-1.5">
-              <label className="text-sm font-bold text-foreground flex items-center gap-1.5">
-                <CalendarDays className="h-4 w-4 text-primary" />
-                Monthly Payout Date (1st – 28th)
-              </label>
-              <Select value={payoutDay} onValueChange={setPayoutDay}>
-                <SelectTrigger className="h-12 text-base font-bold">
-                  <SelectValue placeholder="Choose payout day" />
-                </SelectTrigger>
-                <SelectContent className="max-h-60">
-                  {dayOptions.map(day => (
-                    <SelectItem key={day} value={String(day)}>
-                      {getOrdinal(day)} of every month
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {!payoutDay && amount && (
-                <p className="text-xs text-amber-600 font-semibold">Please select your preferred payout date</p>
-              )}
-            </div>
-
             {/* 15% monthly reward info */}
-            {amountNum > 0 && payoutDayNum > 0 && (
+            {amountNum > 0 && (
               <div className="px-4 py-3 rounded-xl bg-primary/10 border border-primary/20 space-y-1">
                 <p className="text-xs font-bold text-primary">💰 15% Monthly Reward</p>
                 <p className="text-xs text-muted-foreground">
                   ⏳ Funds work for at least <span className="font-bold">30 days</span> before the first payout.
                 </p>
                 <p className="text-xs text-muted-foreground">
-                  You'll receive <span className="font-black text-foreground">{formatUGX(Math.round(amountNum * 0.15))}</span> on the{' '}
-                  <span className="font-bold">{getOrdinal(payoutDayNum)}</span> of every month for 12 months.
+                  You'll receive <span className="font-black text-foreground">{formatUGX(Math.round(amountNum * 0.15))}</span> every{' '}
+                  <span className="font-bold">30 days</span> for 12 months.
                 </p>
                 <p className="text-xs text-muted-foreground">
                   Total earnings: <span className="font-black text-foreground">{formatUGX(Math.round(amountNum * 0.15 * 12))}</span>
