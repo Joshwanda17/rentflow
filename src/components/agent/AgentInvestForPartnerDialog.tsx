@@ -431,7 +431,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
 
           <Button
             onClick={handleConfirmOpen}
-            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || !payoutDay || parsedAmount > agentBalance}
+            disabled={submitting || !selectedPartnerId || parsedAmount < 50000 || parsedAmount > agentBalance}
             className="w-full"
           >
             {submitting ? (
