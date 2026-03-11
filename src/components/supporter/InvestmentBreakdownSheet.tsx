@@ -274,7 +274,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                                   {format(nextPayout, 'dd MMM yyyy')}
                                 </p>
                               </div>
-                              {daysToNext !== null && daysToNext >= 0 && (
+                              {daysToNext >= 0 && (
                                 <div className="text-right">
                                   <p className="text-lg font-black text-primary">{daysToNext}</p>
                                   <p className="text-[9px] text-muted-foreground font-bold uppercase">days</p>
