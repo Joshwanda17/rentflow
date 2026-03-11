@@ -190,84 +190,140 @@ export function ApprovedRequestsFundingWidget() {
   const canConfirmFunding = !!pendingRequest && confirmed && txDigits.length >= 5 && !fundingId;
 
   return (
-    <CollapsibleAgentSection
-      icon={CheckCircle}
-      label={`Approved — Ready to Fund${requests.length > 0 ? ` (${requests.length})` : ''}`}
-      iconColor="text-emerald-600"
-      isOpen={true}
-    >
-      {requests.length === 0 ? (
-        <div className="text-center py-6 text-sm text-muted-foreground">
-          No approved requests awaiting funding
-        </div>
-      ) : (
-        <div className="space-y-2">
-          {requests.map((req, i) => (
-            <motion.div
-              key={req.id}
-              initial={{ opacity: 0, y: 6 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: i * 0.03 }}
-              className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2"
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div className="min-w-0">
-                  <p className="font-bold text-sm truncate">{req.tenant_name}</p>
-                  <div className="flex items-center gap-2 flex-wrap mt-0.5">
-                    {req.house_category && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
-                        <Home className="h-2.5 w-2.5" />
-                        {CATEGORY_LABELS[req.house_category] || req.house_category}
-                      </Badge>
-                    )}
-                    {req.request_city && (
-                      <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
-                        <MapPin className="h-2.5 w-2.5" />
-                        {req.request_city}
-                      </span>
-                    )}
+    <>
+      <CollapsibleAgentSection
+        icon={CheckCircle}
+        label={`Approved — Ready to Fund${requests.length > 0 ? ` (${requests.length})` : ''}`}
+        iconColor="text-emerald-600"
+        isOpen={true}
+      >
+        {requests.length === 0 ? (
+          <div className="text-center py-6 text-sm text-muted-foreground">
+            No approved requests awaiting funding
+          </div>
+        ) : (
+          <div className="space-y-2">
+            {requests.map((req, i) => (
+              <motion.div
+                key={req.id}
+                initial={{ opacity: 0, y: 6 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: i * 0.03 }}
+                className="rounded-xl border border-emerald-500/30 bg-emerald-500/5 p-3 space-y-2"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="font-bold text-sm truncate">{req.tenant_name}</p>
+                    <div className="flex items-center gap-2 flex-wrap mt-0.5">
+                      {req.house_category && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0 gap-0.5">
+                          <Home className="h-2.5 w-2.5" />
+                          {CATEGORY_LABELS[req.house_category] || req.house_category}
+                        </Badge>
+                      )}
+                      {req.request_city && (
+                        <span className="text-[10px] text-muted-foreground flex items-center gap-0.5">
+                          <MapPin className="h-2.5 w-2.5" />
+                          {req.request_city}
+                        </span>
+                      )}
+                    </div>
                   </div>
+                  <p className="font-black text-sm text-emerald-600 dark:text-emerald-400 shrink-0">
+                    {formatUGX(req.rent_amount)}
+                  </p>
                 </div>
-                <p className="font-black text-sm text-emerald-600 dark:text-emerald-400 shrink-0">
-                  {formatUGX(req.rent_amount)}
-                </p>
-              </div>
 
-              <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
-                <Clock className="h-2.5 w-2.5" />
-                Approved {req.approved_at ? formatDistanceToNow(new Date(req.approved_at), { addSuffix: true }) : '—'}
-                {req.agent_name && (
-                  <>
-                    <span>•</span>
-                    <span>by {req.agent_name}</span>
-                  </>
-                )}
-                <span>•</span>
-                <span>{req.duration_days}d</span>
-              </div>
-
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-[10px] text-muted-foreground">
-                  → Landlord: <span className="font-semibold text-foreground">{req.landlord_name}</span>
-                </p>
-                <Button
-                  size="sm"
-                  onClick={() => openFundConfirm(req)}
-                  disabled={!!fundingId}
-                  className="h-9 px-4 rounded-xl font-bold text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white touch-manipulation"
-                >
-                  {fundingId === req.id ? (
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                  ) : (
-                    <HandCoins className="h-3.5 w-3.5" />
+                <div className="flex items-center gap-2 text-[10px] text-muted-foreground">
+                  <Clock className="h-2.5 w-2.5" />
+                  Approved {req.approved_at ? formatDistanceToNow(new Date(req.approved_at), { addSuffix: true }) : '—'}
+                  {req.agent_name && (
+                    <>
+                      <span>•</span>
+                      <span>by {req.agent_name}</span>
+                    </>
                   )}
-                  Fund this Tenant
-                </Button>
-              </div>
-            </motion.div>
-          ))}
-        </div>
-      )}
-    </CollapsibleAgentSection>
+                  <span>•</span>
+                  <span>{req.duration_days}d</span>
+                </div>
+
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[10px] text-muted-foreground">
+                    → Landlord: <span className="font-semibold text-foreground">{req.landlord_name}</span>
+                  </p>
+                  <Button
+                    size="sm"
+                    onClick={() => openFundConfirm(req)}
+                    disabled={!!fundingId}
+                    className="h-9 px-4 rounded-xl font-bold text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white touch-manipulation"
+                  >
+                    {fundingId === req.id ? (
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                    ) : (
+                      <HandCoins className="h-3.5 w-3.5" />
+                    )}
+                    Fund this Tenant
+                  </Button>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </CollapsibleAgentSection>
+
+      <AlertDialog
+        open={confirmOpen}
+        onOpenChange={(open) => {
+          setConfirmOpen(open);
+          if (!open) {
+            setPendingRequest(null);
+            setTransactionIdInput('');
+            setConfirmed(false);
+          }
+        }}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Confirm Tenant Funding</AlertDialogTitle>
+            <AlertDialogDescription>
+              Enter the payment Transaction ID and confirm before funds are deployed.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+
+          <div className="space-y-3">
+            <div className="space-y-1">
+              <Label htmlFor="fund-tenant-transaction-id">Transaction ID</Label>
+              <Input
+                id="fund-tenant-transaction-id"
+                value={transactionIdInput}
+                onChange={(e) => setTransactionIdInput(e.target.value.replace(/\D/g, ''))}
+                placeholder="e.g. 1234567890"
+                inputMode="numeric"
+                maxLength={20}
+                className="font-mono"
+              />
+              <p className="text-xs text-muted-foreground">
+                Saved as: <span className="font-semibold">{normalizedTransactionId || 'TID'}</span>
+              </p>
+              {transactionIdInput.length > 0 && txDigits.length < 5 && (
+                <p className="text-xs text-destructive">Transaction ID must have at least 5 digits.</p>
+              )}
+            </div>
+
+            <label className="flex items-start gap-2 text-sm text-muted-foreground">
+              <Checkbox checked={confirmed} onCheckedChange={(v) => setConfirmed(v === true)} className="mt-0.5" />
+              I confirm this funding is verified and should proceed.
+            </label>
+          </div>
+
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={!!fundingId}>Cancel</AlertDialogCancel>
+            <Button onClick={handleFundTenant} disabled={!canConfirmFunding}>
+              {fundingId ? <Loader2 className="h-4 w-4 animate-spin" /> : 'Confirm & Fund'}
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 }
