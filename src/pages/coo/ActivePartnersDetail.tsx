@@ -45,7 +45,6 @@ export default function ActivePartnersDetail() {
   // Invest dialog state
   const [investPartner, setInvestPartner] = useState<PartnerRow | null>(null);
   const [investAmount, setInvestAmount] = useState('');
-  const [payoutDay, setPayoutDay] = useState('15');
   const [investing, setInvesting] = useState(false);
 
   // Delete dialog state
