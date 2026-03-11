@@ -783,16 +783,22 @@ export default function COOPartnersPage() {
                                 </div>
                                 <div>
                                   <span className="text-muted-foreground">Payout Date</span>
-                                  <p className={cn('font-semibold', p.maturity_date && new Date(p.maturity_date) <= new Date() ? 'text-amber-600' : '')}>
-                                    {p.maturity_date ? formatDate(p.maturity_date) : '—'}
+                                  <p className="font-semibold">
+                                    {(() => {
+                                      const now = new Date();
+                                      const day = p.payout_day || 15;
+                                      let target = new Date(now.getFullYear(), now.getMonth(), day);
+                                      if (target <= now) target = new Date(now.getFullYear(), now.getMonth() + 1, day);
+                                      return target.toLocaleDateString('en-UG', { month: 'long', day: 'numeric', year: 'numeric' });
+                                    })()}
                                   </p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Maturity Status</span>
+                                  <span className="text-muted-foreground">Payout Status</span>
                                   <p className="font-semibold">
-                                    {!p.maturity_date ? '—' : new Date(p.maturity_date) <= new Date()
-                                      ? <span className="text-amber-600">⏰ Matured</span>
-                                      : <span className="text-primary">🟢 Active</span>}
+                                    {p.status === 'active'
+                                      ? <span className="text-primary">🟢 Active</span>
+                                      : <span className="text-amber-600">⏸ {p.status}</span>}
                                   </p>
                                 </div>
                               </div>
