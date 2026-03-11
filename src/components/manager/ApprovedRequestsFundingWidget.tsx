@@ -248,7 +248,7 @@ export function ApprovedRequestsFundingWidget() {
                 </p>
                 <Button
                   size="sm"
-                  onClick={() => handleFundTenant(req.id)}
+                  onClick={() => openFundConfirm(req)}
                   disabled={!!fundingId}
                   className="h-9 px-4 rounded-xl font-bold text-xs gap-1.5 bg-emerald-600 hover:bg-emerald-700 text-white touch-manipulation"
                 >
