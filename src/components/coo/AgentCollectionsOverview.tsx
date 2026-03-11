@@ -24,22 +24,34 @@ export default function AgentCollectionsOverview() {
   const { data, isLoading } = useQuery({
     queryKey: ['coo-agent-collections-overview'],
     queryFn: async () => {
-      const [collectionsRes, visitsRes, profilesRes] = await Promise.all([
+      const [collectionsRes, visitsRes] = await Promise.all([
         supabase.from('agent_collections').select('agent_id, amount, created_at'),
         supabase.from('agent_visits').select('agent_id, id'),
-        supabase.from('profiles').select('id, full_name'),
       ]);
 
       const collections = collectionsRes.data || [];
       const visits = visitsRes.data || [];
-      const profiles = new Map((profilesRes.data || []).map(p => [p.id, p.full_name || 'Unknown']));
+
+      // Get unique agent IDs first, then fetch only those profiles
+      const agentIds = [...new Set(collections.map(c => c.agent_id))];
+      
+      const profileMap = new Map<string, string>();
+      if (agentIds.length > 0) {
+        const { data: profiles } = await supabase
+          .from('profiles')
+          .select('id, full_name')
+          .in('id', agentIds);
+        for (const p of profiles || []) {
+          profileMap.set(p.id, p.full_name || 'Unnamed Agent');
+        }
+      }
 
       const agentMap = new Map<string, AgentSummary>();
 
       for (const c of collections) {
         const existing = agentMap.get(c.agent_id) || {
           agentId: c.agent_id,
-          agentName: profiles.get(c.agent_id) || 'Unknown',
+          agentName: profileMap.get(c.agent_id) || 'Unnamed Agent',
           todayAmount: 0, weekAmount: 0, monthAmount: 0, visitCount: 0, paymentCount: 0,
         };
         const d = c.created_at;
@@ -77,10 +89,10 @@ export default function AgentCollectionsOverview() {
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead>Agent</TableHead>
-                  <TableHead className="text-right">Today</TableHead>
-                  <TableHead className="text-right">This Week</TableHead>
-                  <TableHead className="text-right">This Month</TableHead>
+                  <TableHead className="min-w-[120px]">Agent</TableHead>
+                  <TableHead className="text-right min-w-[90px]">Today</TableHead>
+                  <TableHead className="text-right min-w-[100px]">This Week</TableHead>
+                  <TableHead className="text-right min-w-[100px]">This Month</TableHead>
                   <TableHead className="text-right">Visits</TableHead>
                   <TableHead className="text-right">Payments</TableHead>
                 </TableRow>
@@ -89,9 +101,9 @@ export default function AgentCollectionsOverview() {
                 {data.map(a => (
                   <TableRow key={a.agentId}>
                     <TableCell className="font-medium text-sm">{a.agentName}</TableCell>
-                    <TableCell className="text-right text-sm">{formatUGX(a.todayAmount)}</TableCell>
-                    <TableCell className="text-right text-sm">{formatUGX(a.weekAmount)}</TableCell>
-                    <TableCell className="text-right text-sm font-semibold">{formatUGX(a.monthAmount)}</TableCell>
+                    <TableCell className="text-right text-sm whitespace-nowrap">{formatUGX(a.todayAmount)}</TableCell>
+                    <TableCell className="text-right text-sm whitespace-nowrap">{formatUGX(a.weekAmount)}</TableCell>
+                    <TableCell className="text-right text-sm font-semibold whitespace-nowrap">{formatUGX(a.monthAmount)}</TableCell>
                     <TableCell className="text-right text-sm">{a.visitCount}</TableCell>
                     <TableCell className="text-right text-sm">{a.paymentCount}</TableCell>
                   </TableRow>

@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { formatUGX } from '@/lib/rentCalculations';
-import { Loader2, Banknote, TrendingUp, Wallet, AlertTriangle, CheckCircle, Clock, Users } from 'lucide-react';
+import { Loader2, Banknote, TrendingUp, Wallet, AlertTriangle, Clock, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { startOfDay, startOfMonth } from 'date-fns';
 
@@ -32,32 +32,31 @@ export default function FinancialMetricsCards() {
         ledgerMonth,
         collectionsRes,
         walletsRes,
-        pendingRes,
-        failedRes,
+        pendingWithdrawals,
+        failedWithdrawals,
       ] = await Promise.all([
-        supabase.from('general_ledger').select('amount, direction, category').eq('category', 'rent_repayment').eq('direction', 'cash_in'),
+        supabase.from('general_ledger').select('amount').eq('category', 'rent_repayment').eq('direction', 'cash_in'),
         supabase.from('general_ledger').select('amount, direction').gte('transaction_date', todayISO),
         supabase.from('general_ledger').select('amount, direction').gte('transaction_date', monthISO),
-        supabase.from('agent_collections').select('amount', { count: 'exact' }),
+        supabase.from('agent_collections').select('amount'),
+        // Use count head request to avoid 1000-row limit, then sum via a separate approach
         supabase.from('wallets').select('balance'),
-        supabase.from('withdrawal_requests').select('id', { count: 'exact' }).eq('status', 'pending'),
-        supabase.from('withdrawal_requests').select('id', { count: 'exact' }).eq('status', 'failed'),
+        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).in('status', ['pending', 'manager_approved', 'cfo_approved']),
+        supabase.from('withdrawal_requests').select('id', { count: 'exact', head: true }).eq('status', 'failed'),
       ]);
 
       const totalRentCollected = (ledgerAll.data || []).reduce((s, r) => s + (r.amount || 0), 0);
 
-      const todayIn = (ledgerToday.data || []).filter(r => r.direction === 'cash_in').reduce((s, r) => s + r.amount, 0);
-      const todayOut = (ledgerToday.data || []).filter(r => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
-      const totalPaymentsToday = todayIn + todayOut;
+      const todayEntries = ledgerToday.data || [];
+      const totalPaymentsToday = todayEntries.reduce((s, r) => s + (r.amount || 0), 0);
 
-      const monthIn = (ledgerMonth.data || []).filter(r => r.direction === 'cash_in').reduce((s, r) => s + r.amount, 0);
-      const monthOut = (ledgerMonth.data || []).filter(r => r.direction === 'cash_out').reduce((s, r) => s + r.amount, 0);
-      const totalPaymentsMonth = monthIn + monthOut;
+      const monthEntries = ledgerMonth.data || [];
+      const totalPaymentsMonth = monthEntries.reduce((s, r) => s + (r.amount || 0), 0);
 
       const agentCollections = (collectionsRes.data || []).reduce((s, r) => s + (r.amount || 0), 0);
       const systemWalletBalance = (walletsRes.data || []).reduce((s, r) => s + (r.balance || 0), 0);
-      const pendingTx = pendingRes.count || 0;
-      const failedTx = failedRes.count || 0;
+      const pendingTx = pendingWithdrawals.count || 0;
+      const failedTx = failedWithdrawals.count || 0;
 
       return { totalRentCollected, totalPaymentsToday, totalPaymentsMonth, agentCollections, systemWalletBalance, pendingTx, failedTx };
     },
@@ -78,19 +77,19 @@ export default function FinancialMetricsCards() {
     { label: 'Payments This Month', value: formatUGX(data?.totalPaymentsMonth || 0), icon: TrendingUp, status: 'green' as HealthStatus },
     { label: 'Agent Collections', value: formatUGX(data?.agentCollections || 0), icon: Users, status: 'green' as HealthStatus },
     { label: 'System Wallet Balance', value: formatUGX(data?.systemWalletBalance || 0), icon: Wallet, status: (data?.systemWalletBalance || 0) > 0 ? 'green' : 'red' as HealthStatus },
-    { label: 'Pending Transactions', value: data?.pendingTx || 0, icon: Clock, status: (data?.pendingTx || 0) > 5 ? 'yellow' : 'green' as HealthStatus },
+    { label: 'Pending Approvals', value: data?.pendingTx || 0, icon: Clock, status: (data?.pendingTx || 0) > 5 ? 'yellow' : 'green' as HealthStatus },
     { label: 'Failed Transactions', value: data?.failedTx || 0, icon: AlertTriangle, status: (data?.failedTx || 0) > 0 ? 'red' : 'green' as HealthStatus },
   ];
 
   return (
-    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3">
+    <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
       {tiles.map((t) => (
         <div
           key={t.label}
-          className={cn('p-3 rounded-xl border-2 transition-all', statusClasses(t.status))}
+          className={cn('p-3 rounded-xl border-2 transition-all min-w-0', statusClasses(t.status))}
         >
-          <t.icon className={cn('h-4 w-4 mb-1.5', iconColor(t.status))} />
-          <p className="text-lg font-bold leading-tight">{t.value}</p>
+          <t.icon className={cn('h-4 w-4 mb-1.5 shrink-0', iconColor(t.status))} />
+          <p className="text-sm sm:text-lg font-bold leading-tight truncate">{t.value}</p>
           <p className="text-[10px] text-muted-foreground mt-0.5 leading-tight">{t.label}</p>
         </div>
       ))}
