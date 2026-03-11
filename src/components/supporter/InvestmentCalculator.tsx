@@ -772,7 +772,15 @@ export function InvestmentCalculator() {
                 <Share2 className="h-4 w-4" />
                 📊 Share Monthly Breakdown on WhatsApp
               </Button>
-              
+              <Button
+                onClick={handleShareEmail}
+                variant="outline"
+                className="w-full gap-2 border-primary/50 text-primary hover:bg-primary/10"
+              >
+                <Mail className="h-4 w-4" />
+                📧 Share Monthly Breakdown via Email
+              </Button>
+
               {/* Save Scenario Section */}
               <div className="flex flex-col sm:flex-row gap-2 mt-2">
                 <Input
