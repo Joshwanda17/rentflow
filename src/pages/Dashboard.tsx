@@ -5,6 +5,7 @@ import { useProfile } from '@/hooks/useProfile';
 import AddRoleDialog from '@/components/AddRoleDialog';
 // FloatingChatButton removed — chat accessible only via nav
 
+import { ISOLATED_ROLES, roleDashboardRoutes } from '@/components/layout/executiveSidebarConfig';
 
 import { Loader2, WifiOff, RefreshCw, ShieldAlert } from 'lucide-react';
 
