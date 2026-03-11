@@ -50,6 +50,7 @@ export default function FundTenantsFlow({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [coverageType, setCoverageType] = useState<'full' | 'partial' | 'daily'>('full');
   const [fundingDays, setFundingDays] = useState(30);
+  const [transactionId, setTransactionId] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
