@@ -269,7 +269,7 @@ Deno.serve(async (req) => {
       adminClient.from("notifications").insert({
         user_id: partner_id,
         title: "🎉 Thank You — A Contribution Was Made for You!",
-        message: `Your agent ${agentName} invested UGX ${amount.toLocaleString()} on your behalf to help tenants access housing — thank you for your partnership!\n\n⏳ Your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months, starting ${firstPayoutDate}.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        message: `Your agent ${agentName} facilitated UGX ${amount.toLocaleString()} on your behalf. This is pending approval by management.\n\n⏳ Once approved, your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "success",
         metadata: {
           amount,
