@@ -782,7 +782,7 @@ export default function COOPartnersPage() {
                                   <p className="font-semibold">{p.duration_months} months</p>
                                 </div>
                                 <div>
-                                  <span className="text-muted-foreground">Maturity Date</span>
+                                  <span className="text-muted-foreground">Payout Date</span>
                                   <p className={cn('font-semibold', p.maturity_date && new Date(p.maturity_date) <= new Date() ? 'text-amber-600' : '')}>
                                     {p.maturity_date ? formatDate(p.maturity_date) : '—'}
                                   </p>
