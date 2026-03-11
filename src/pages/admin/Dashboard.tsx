@@ -1,12 +1,9 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import ExecutiveDashboardLayout from '@/components/layout/ExecutiveDashboardLayout';
-import { 
-  Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2, 
-  Shield, Activity, BarChart3, Wallet, Handshake, LayoutDashboard
-} from 'lucide-react';
 import { cn } from '@/lib/utils';
-import type { AppRole } from '@/hooks/auth/types';
+import {
+  Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
+  Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft
+} from 'lucide-react';
 
 interface DashboardCard {
   label: string;
@@ -33,85 +30,75 @@ const operationsDashboards: DashboardCard[] = [
 ];
 
 export default function AdminDashboardPage() {
-  const [activeTab, setActiveTab] = useState('access-panel');
   const navigate = useNavigate();
 
-  const renderAccessPanel = () => (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-lg font-bold mb-1">Dashboard Access Panel</h2>
-        <p className="text-sm text-muted-foreground mb-4">Open any dashboard environment</p>
-      </div>
+  return (
+    <div className="min-h-screen bg-background">
+      <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
+        {/* Back to dashboard */}
+        <button
+          onClick={() => navigate('/dashboard')}
+          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+        >
+          <ArrowLeft className="h-4 w-4" />
+          Back to Admin Dashboard
+        </button>
 
-      <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Executive Dashboards</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {executiveDashboards.map((d) => (
-            <button
-              key={d.label}
-              onClick={() => navigate(d.route)}
-              className={cn(
-                'flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
-                d.color
-              )}
-            >
-              <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
-                <d.icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm">{d.label} Dashboard</p>
-                <p className="text-xs text-muted-foreground truncate">{d.description}</p>
-              </div>
-            </button>
-          ))}
+        <div>
+          <h1 className="text-2xl font-black text-foreground">Dashboard Access Panel</h1>
+          <p className="text-sm text-muted-foreground mt-1">Open any executive or operations dashboard environment</p>
         </div>
-      </div>
 
-      <div>
-        <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Operations Dashboards</p>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {operationsDashboards.map((d) => (
-            <button
-              key={d.label}
-              onClick={() => navigate(d.route)}
-              className={cn(
-                'flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
-                d.color
-              )}
-            >
-              <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
-                <d.icon className="h-5 w-5" />
-              </div>
-              <div className="min-w-0">
-                <p className="font-semibold text-sm">{d.label}</p>
-                <p className="text-xs text-muted-foreground truncate">{d.description}</p>
-              </div>
-            </button>
-          ))}
+        {/* Executive Dashboards */}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Executive Dashboards</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {executiveDashboards.map((d) => (
+              <button
+                key={d.label}
+                onClick={() => navigate(d.route)}
+                className={cn(
+                  'flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
+                  d.color
+                )}
+              >
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
+                  <d.icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm">{d.label} Dashboard</p>
+                  <p className="text-xs text-muted-foreground truncate">{d.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
+        </div>
+
+        {/* Operations Dashboards */}
+        <div>
+          <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-3">Operations Dashboards</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {operationsDashboards.map((d) => (
+              <button
+                key={d.label}
+                onClick={() => navigate(d.route)}
+                className={cn(
+                  'flex items-center gap-4 p-4 rounded-xl border-2 text-left transition-all hover:shadow-md hover:scale-[1.01] active:scale-[0.99]',
+                  d.color
+                )}
+              >
+                <div className="h-10 w-10 rounded-lg flex items-center justify-center bg-background/60">
+                  <d.icon className="h-5 w-5" />
+                </div>
+                <div className="min-w-0">
+                  <p className="font-semibold text-sm">{d.label}</p>
+                  <p className="text-xs text-muted-foreground truncate">{d.description}</p>
+                </div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     </div>
-  );
-
-  const renderContent = () => {
-    switch (activeTab) {
-      case 'users':
-        navigate('/users');
-        return null;
-      case 'audit':
-        navigate('/audit-log');
-        return null;
-      case 'deposits':
-        navigate('/deposits-management');
-        return null;
-      default:
-        return renderAccessPanel();
-    }
-  };
-
-  return (
-    <ExecutiveDashboardLayout role="super_admin" activeTab={activeTab} onTabChange={setActiveTab}>
-      {renderContent()}
-    </ExecutiveDashboardLayout>
   );
 }
