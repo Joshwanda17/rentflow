@@ -115,6 +115,7 @@ export default function InvestmentPortfolio() {
         .from('investor_portfolios')
         .select('*')
         .or(`investor_id.eq.${user.id},agent_id.eq.${user.id}`)
+        .in('status', ['active', 'pending_approval'])
         .order('created_at', { ascending: false });
 
       if (error) {
