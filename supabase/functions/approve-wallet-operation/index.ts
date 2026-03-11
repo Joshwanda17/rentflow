@@ -2,7 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
 };
 
 Deno.serve(async (req) => {
@@ -27,13 +27,16 @@ Deno.serve(async (req) => {
       global: { headers: { Authorization: authHeader } },
     });
 
-    const { data: { user }, error: userError } = await userClient.auth.getUser();
-    if (userError || !user) {
+    const token = authHeader.replace("Bearer ", "");
+    const { data: claimsData, error: claimsError } = await userClient.auth.getClaims(token);
+    if (claimsError || !claimsData?.claims) {
       return new Response(
         JSON.stringify({ error: "Unauthorized" }),
         { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
+
+    const userId = claimsData.claims.sub as string;
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
 
@@ -41,7 +44,7 @@ Deno.serve(async (req) => {
     const { data: managerRole } = await adminClient
       .from("user_roles")
       .select("role")
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .eq("role", "manager")
       .maybeSingle();
 
@@ -173,7 +176,7 @@ Deno.serve(async (req) => {
           .from("pending_wallet_operations")
           .update({
             status: "approved",
-            reviewed_by: user.id,
+            reviewed_by: userId,
             reviewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
@@ -195,7 +198,7 @@ Deno.serve(async (req) => {
           .from("pending_wallet_operations")
           .update({
             status: "rejected",
-            reviewed_by: user.id,
+            reviewed_by: userId,
             reviewed_at: new Date().toISOString(),
             rejection_reason: rejection_reason,
             updated_at: new Date().toISOString(),
@@ -262,7 +265,7 @@ Deno.serve(async (req) => {
       }
     }
 
-    console.log(`[approve-wallet-op] Manager ${user.id} ${action}d ${results.length} operations`);
+    console.log(`[approve-wallet-op] Manager ${userId} ${action}d ${results.length} operations`);
 
     return new Response(
       JSON.stringify({
