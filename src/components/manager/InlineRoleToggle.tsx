@@ -22,7 +22,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm' | 'employee' | 'operations' | 'super_admin';
 
 interface InlineRoleToggleProps {
   userId: string;
