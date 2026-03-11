@@ -50,6 +50,10 @@ export function ApprovedRequestsFundingWidget() {
   const [requests, setRequests] = useState<ApprovedRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [fundingId, setFundingId] = useState<string | null>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pendingRequest, setPendingRequest] = useState<ApprovedRequest | null>(null);
+  const [transactionIdInput, setTransactionIdInput] = useState('');
+  const [confirmed, setConfirmed] = useState(false);
   const { toast } = useToast();
 
   const fetchApproved = async () => {
