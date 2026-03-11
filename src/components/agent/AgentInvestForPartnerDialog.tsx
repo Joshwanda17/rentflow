@@ -162,7 +162,6 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         monthly_reward: data.monthly_reward,
         first_payout_date: data.first_payout_date,
         new_balance: data.new_balance,
-        payout_day: data.payout_day,
         amount: parsedAmount,
         activation_token: data.activation_token || null,
         agent_name: data.agent_name || 'Agent',
