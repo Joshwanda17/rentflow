@@ -191,6 +191,7 @@ Deno.serve(async (req) => {
         payout_day: null, // null = strict 30-day cycle (default); COO can override
         maturity_date: maturityDate.toISOString().split("T")[0],
         next_roi_date: firstPayoutDate,
+        status: "pending_approval", // Portfolio stays inactive until COO/admin approves
       })
       .select("id")
       .single();
@@ -268,7 +269,7 @@ Deno.serve(async (req) => {
       adminClient.from("notifications").insert({
         user_id: partner_id,
         title: "🎉 Thank You — A Contribution Was Made for You!",
-        message: `Your agent ${agentName} invested UGX ${amount.toLocaleString()} on your behalf to help tenants access housing — thank you for your partnership!\n\n⏳ Your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months, starting ${firstPayoutDate}.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        message: `Your agent ${agentName} facilitated UGX ${amount.toLocaleString()} on your behalf. This is pending approval by management.\n\n⏳ Once approved, your investment will begin working for at least 30 days before your first reward.\n\n💰 You'll earn 15% (UGX ${monthlyReward.toLocaleString()}) monthly for 12 months.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "success",
         metadata: {
           amount,
@@ -286,7 +287,7 @@ Deno.serve(async (req) => {
       adminClient.from("notifications").insert({
         user_id: agent.id,
         title: "✅ Partner Investment Completed",
-        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName} into the Rent Management Pool.\n\n💰 Your 2% commission (UGX ${commission.toLocaleString()}) is pending approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
+        message: `You invested UGX ${amount.toLocaleString()} from your wallet on behalf of ${partnerName}. Both the partner credit and your 2% commission (UGX ${commission.toLocaleString()}) are pending COO/admin approval.\n\nPortfolio: ${portfolioCode}\nRef: ${referenceId}`,
         type: "info",
         metadata: {
           amount,
