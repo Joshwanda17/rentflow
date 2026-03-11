@@ -170,9 +170,16 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
                 const color = accentColors[idx % accentColors.length];
                 const sc = statusConfig(entry.status);
-                const nextPayout = entry.next_roi_date ? new Date(entry.next_roi_date) : null;
+                // Derive next payout from payout_day to stay consistent with "Monthly Payout Date"
+                const payoutDayForCalc = entry.payout_day || (entry.next_roi_date ? new Date(entry.next_roi_date).getDate() : new Date(entry.invested_at).getDate());
+                const nowCalc = new Date();
+                let nextPayoutDerived = new Date(nowCalc.getFullYear(), nowCalc.getMonth(), payoutDayForCalc);
+                if (nextPayoutDerived <= nowCalc) {
+                  nextPayoutDerived = addMonths(nextPayoutDerived, 1);
+                }
+                const nextPayout = nextPayoutDerived;
                 const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
-                const daysToNext = nextPayout ? differenceInDays(nextPayout, new Date()) : null;
+                const daysToNext = differenceInDays(nextPayout, nowCalc);
                 const investedDate = new Date(entry.invested_at);
 
                 return (
