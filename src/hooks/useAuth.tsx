@@ -44,8 +44,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       (event, session) => {
         if (!isMounted) return;
 
-        setSession(session);
-        setUser(session?.user ?? null);
+        // Only update session state if we actually have a session,
+        // or if this is an explicit sign-out. This prevents transient
+        // null sessions (e.g., during INITIAL_SESSION before token refresh)
+        // from logging users out on page refresh.
+        if (session) {
+          setSession(session);
+          setUser(session.user);
+        } else if (event === 'SIGNED_OUT') {
+          setSession(null);
+          setUser(null);
+        }
+        // For other events with null session (INITIAL_SESSION, TOKEN_REFRESHED failure),
+        // preserve existing state and let initializeAuth handle it.
 
         if (session?.user) {
           setCachedSession(session.user.id, session.user.email || '', session.expires_at || 0);
