@@ -169,6 +169,28 @@ Deno.serve(async (req) => {
           } else {
             console.log(`[approve-wallet-op] Activated portfolio ${op.source_id} for user ${op.user_id}`);
           }
+
+          // Immediately debit wallet → investment (net zero wallet impact)
+          const investTxGroupId = crypto.randomUUID();
+          const { error: investDebitErr } = await adminClient
+            .from("general_ledger")
+            .insert({
+              user_id: op.user_id,
+              amount: op.amount,
+              direction: "cash_out",
+              category: "wallet_to_investment",
+              description: `Capital invested into portfolio. Ref: ${op.reference_id}`,
+              source_table: "investor_portfolios",
+              source_id: op.source_id,
+              transaction_group_id: investTxGroupId,
+              linked_party: "Rent Management Pool",
+              reference_id: op.reference_id,
+            });
+          if (investDebitErr) {
+            console.error(`[approve-wallet-op] Failed to debit wallet for investment ${op.id}:`, investDebitErr);
+          } else {
+            console.log(`[approve-wallet-op] Debited wallet → investment for user ${op.user_id}, amount: ${op.amount}`);
+          }
         }
 
         // Mark as approved
@@ -183,9 +205,12 @@ Deno.serve(async (req) => {
           .eq("id", op.id);
 
         // Notify user
+        const notifTitle = op.category === 'supporter_facilitation_capital'
+          ? "Investment Activated ✅"
+          : (op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅");
         await adminClient.from("notifications").insert({
           user_id: op.user_id,
-          title: op.direction === "cash_in" ? "Wallet Credited ✅" : "Wallet Debited ✅",
+          title: notifTitle,
           message: `UGX ${op.amount.toLocaleString()} - ${op.description || op.category}. Approved by admin.`,
           type: "success",
           metadata: { operation_id: op.id, amount: op.amount, direction: op.direction },

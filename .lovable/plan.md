@@ -1,52 +1,42 @@
 
 
-# Fix: Funder Wallet Should Be Zero After Investment Approval
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-## Problem
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-When a manager approves a `supporter_facilitation_capital` operation, the `sync_wallet_from_ledger` trigger credits the funder's wallet with the invested amount. But this money is **invested in a portfolio**, not liquid cash. The funder's wallet should remain at **0** because the agent paid directly into the portfolio on their behalf.
+---
 
-Example: Agent invests UGX 50,000 for Test Man → approval credits Test Man's wallet with 50,000 → but it should be 0 since all 50,000 is in the portfolio.
+### Database Tables Created
 
-## Solution
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-In `approve-wallet-operation/index.ts`, after inserting the initial `cash_in` ledger entry (which credits the wallet via trigger), immediately insert a **corresponding `cash_out` ledger entry** to move the funds from the wallet into the investment portfolio. This keeps the ledger fully auditable (money came in, then was invested) while leaving the wallet balance at **0**.
+### Database Functions Created
 
-## Changes
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-### 1. `supabase/functions/approve-wallet-operation/index.ts`
+### UI Components Created
 
-After the existing portfolio activation block (lines 160-172), add a second ledger entry:
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
-```typescript
-// After activating portfolio for supporter_facilitation_capital...
-// Immediately debit wallet → investment (net zero wallet impact)
-const investTxGroupId = crypto.randomUUID();
-await adminClient.from("general_ledger").insert({
-  user_id: op.user_id,
-  amount: op.amount,
-  direction: "cash_out",
-  category: "wallet_to_investment",
-  description: `Capital invested into portfolio. Ref: ${op.reference_id}`,
-  source_table: "investor_portfolios",
-  source_id: op.source_id,
-  transaction_group_id: investTxGroupId,
-  linked_party: "Rent Management Pool",
-  reference_id: op.reference_id,
-});
-```
+### Dashboard Updated
 
-This creates a clean audit trail:
-- `cash_in` (supporter_facilitation_capital) → wallet credited
-- `cash_out` (wallet_to_investment) → wallet debited back to 0
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
 
-Both entries have `transaction_group_id` so the `sync_wallet_from_ledger` trigger processes both, netting to zero.
+---
 
-### 2. Update notification message
+### Phase 2 (Not Yet Implemented)
 
-Change the approval notification from "Wallet Credited ✅" to "Investment Activated ✅" for `supporter_facilitation_capital` operations, since money isn't staying in the wallet.
-
-### 3. No dashboard changes needed
-
-The `PortfolioSummaryCards` already shows `portfolioTotal` (from `investor_portfolios`) as "Total Invested" and doesn't display wallet balance. With the wallet correctly at 0, everything aligns.
-
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)
