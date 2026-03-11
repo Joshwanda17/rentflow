@@ -200,8 +200,8 @@ export function WithdrawRequestDialog({
       return;
     }
 
-    if (walletBalance < 50000) {
-      toast.error('Your wallet balance must be at least UGX 50,000 to withdraw');
+    if (walletBalance < 5000) {
+      toast.error('Your wallet balance must be at least UGX 5,000 to withdraw');
       return;
     }
 
@@ -291,7 +291,7 @@ export function WithdrawRequestDialog({
     setAmount(value[0]);
   };
 
-  const MIN_BALANCE_FOR_WITHDRAWAL = 50000;
+  const MIN_BALANCE_FOR_WITHDRAWAL = 5000;
   const meetsMinimumBalance = walletBalance >= MIN_BALANCE_FOR_WITHDRAWAL;
   const isFormValid = meetsMinimumBalance && !hasWithdrawnToday && amount >= 500 && amount <= walletBalance && validatePhoneNumber(mobileNumber) && workingHoursStatus.isOpen;
 
@@ -376,7 +376,7 @@ export function WithdrawRequestDialog({
               <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-destructive font-medium">
-                  🚫 Policy: Withdrawals are only allowed when your wallet balance is <strong>UGX 50,000 or more</strong>. Requests below this threshold will be automatically rejected.
+                  🚫 Policy: Withdrawals are only allowed when your wallet balance is <strong>UGX 5,000 or more</strong>. Requests below this threshold will be automatically rejected.
                 </p>
               </div>
 
