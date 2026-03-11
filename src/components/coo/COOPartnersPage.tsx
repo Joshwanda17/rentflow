@@ -837,13 +837,6 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Maturity info */}
-                              {p.maturity_date && (
-                                <div className="flex items-center gap-1.5 mt-2 text-[10px] text-muted-foreground">
-                                  <CheckCircle2 className="h-3 w-3" />
-                                  Matures: {formatDate(p.maturity_date)}
-                                </div>
-                              )}
                             </div>
                           </Card>
                         );
