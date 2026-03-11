@@ -536,7 +536,11 @@ Thank you for being part of Welile! 🏠`;
       const { data, error } = await supabase.functions.invoke('manual-collect-rent', {
         body: { rent_request_id: collectDialog.request.id },
       });
-      if (error) throw error;
+      if (error) {
+        const { extractFromErrorObject } = await import('@/lib/extractEdgeFunctionError');
+        const msg = await extractFromErrorObject(error, 'Collection failed');
+        throw new Error(msg);
+      }
       if (data?.error) {
         toast({ title: 'Collection Failed', description: data.error, variant: 'destructive' });
       } else {
