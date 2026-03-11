@@ -411,7 +411,7 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <div className="w-0.5 h-5 bg-border" />
                         </div>
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Day</span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Cycle</span>
                           <span className="text-[11px] font-bold text-foreground">
                             {entry.payout_day ? `${entry.payout_day}${entry.payout_day === 1 ? 'st' : entry.payout_day === 2 ? 'nd' : entry.payout_day === 3 ? 'rd' : 'th'} of every month` : 'Every 30 days'}
                           </span>
