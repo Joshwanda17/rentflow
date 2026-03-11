@@ -174,7 +174,7 @@ export default function COOPartnersPage() {
       const tableRows: PartnerRow[] = ids.map(id => {
         const agg = partnerAgg.get(id) || { funded: 0, deals: 0, lastActivity: '' };
         const profile = profileMap.get(id);
-        const isSuspended = profile?.account_status === 'suspended';
+        const isSuspended = !!profile?.frozen_at;
         return {
           id,
           name: profile?.full_name || id.slice(0, 8),
