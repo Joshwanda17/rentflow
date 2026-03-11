@@ -181,7 +181,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       ? `${getPublicOrigin()}/join?t=${s.activation_token}`
       : null;
 
-    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Day: ${s.payout_day}${getOrdinal(s.payout_day)} of each month\n🗓️ First Payout: ${s.first_payout_date}`;
+    let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
 
     if (activationLink) {
       msg += `\n\n👉 Activate your account to start receiving rewards:\n${activationLink}`;
