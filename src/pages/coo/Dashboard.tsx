@@ -8,6 +8,7 @@ import WalletMonitoringPanel from '@/components/coo/WalletMonitoringPanel';
 import PaymentModeAnalytics from '@/components/coo/PaymentModeAnalytics';
 import FinancialReportsPanel from '@/components/coo/FinancialReportsPanel';
 import FinancialAlertsPanel from '@/components/coo/FinancialAlertsPanel';
+import COOPartnersPage from '@/components/coo/COOPartnersPage';
 
 export default function COODashboardPage() {
   const [activeTab, setActiveTab] = useState('overview');
@@ -59,12 +60,7 @@ export default function COODashboardPage() {
       case 'withdrawals':
         return <COOWithdrawalApprovals />;
       case 'partners':
-        return (
-          <div className="space-y-4">
-            <h1 className="text-xl font-bold">Partner Management</h1>
-            <p className="text-sm text-muted-foreground">Navigate to Active Partners for detailed management.</p>
-          </div>
-        );
+        return <COOPartnersPage />;
       default:
         return (
           <div className="space-y-6">
