@@ -405,7 +405,7 @@ export default function COOPartnersPage() {
             <DropdownMenuSeparator />
             <DropdownMenuItem
               onClick={e => { e.stopPropagation(); setSuspendPartner(r); }}
-              className={cn('gap-2', r.status === 'active' ? 'text-destructive focus:text-destructive' : 'text-emerald-600 focus:text-emerald-600')}
+              className={cn('gap-2', r.status === 'active' ? 'text-destructive focus:text-destructive' : 'text-primary focus:text-primary')}
             >
               {r.status === 'active' ? <Ban className="h-3.5 w-3.5" /> : <PlayCircle className="h-3.5 w-3.5" />}
               {r.status === 'active' ? 'Suspend' : 'Reactivate'}
