@@ -126,6 +126,7 @@ Deno.serve(async (req) => {
         payout_day: payoutDay,
         maturity_date: maturityDate.toISOString().split('T')[0],
         next_roi_date: nextRoiDate.toISOString().split('T')[0],
+        status: 'pending_approval', // Requires manager/COO approval before activation
       })
       .select()
       .single();
@@ -137,20 +138,41 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Record in general_ledger for audit
-    await adminClient.from("general_ledger").insert({
-      amount: investmentAmount,
-      direction: 'cash_in',
-      category: 'supporter_facilitation_capital',
-      linked_party: 'supporter',
-      reference_id: codeData,
-      description: `Investor portfolio ${codeData} created by agent`,
-      source_table: 'investor_portfolios',
-      source_id: portfolio.id,
+    // Queue in pending_wallet_operations for manager/COO approval — NOT directly in ledger
+    const txGroupId = crypto.randomUUID();
+    const agentProfile = await adminClient.from("profiles").select("full_name").eq("id", user.id).single();
+    const agentName = agentProfile.data?.full_name || "Agent";
+
+    const { error: pendingErr } = await adminClient.from("pending_wallet_operations").insert({
       user_id: investorId || user.id,
+      amount: investmentAmount,
+      direction: "cash_in",
+      category: "supporter_facilitation_capital",
+      source_table: "investor_portfolios",
+      source_id: portfolio.id,
+      transaction_group_id: txGroupId,
+      description: `Portfolio ${codeData} created by ${agentName}. UGX ${investmentAmount.toLocaleString()} investment pending approval.`,
+      reference_id: codeData,
+      linked_party: agentName,
+      metadata: {
+        agent_id: user.id,
+        agent_name: agentName,
+        portfolio_code: codeData,
+        roi_percentage: roiPercentage,
+        duration_months: durationMonths,
+      },
     });
 
-    console.log(`Portfolio ${codeData} created: ${investmentAmount} UGX, ${durationMonths}mo, ${roiMode}`);
+    if (pendingErr) {
+      console.error("Pending wallet op insert failed:", pendingErr);
+      // Cleanup portfolio
+      await adminClient.from("investor_portfolios").delete().eq("id", portfolio.id);
+      return new Response(JSON.stringify({ error: "Failed to queue for approval, portfolio rolled back." }), {
+        status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    console.log(`Portfolio ${codeData} created (pending_approval): ${investmentAmount} UGX, ${durationMonths}mo, ${roiMode}. Queued for manager approval.`);
 
     return new Response(JSON.stringify({
       success: true,
