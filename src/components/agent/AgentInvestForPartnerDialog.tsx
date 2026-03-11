@@ -90,7 +90,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       setSelectedPartnerId('');
       setSelectedPartner(null);
       setAmount('');
-      setPayoutDay('');
+      
       setSuccess(null);
       setSearchQuery('');
       setShowConfirm(false);
