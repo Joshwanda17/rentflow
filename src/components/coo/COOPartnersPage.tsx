@@ -319,11 +319,14 @@ export default function COOPartnersPage() {
   async function handleToggleSuspend() {
     if (!suspendPartner) return;
     setSuspending(true);
-    const newStatus = suspendPartner.status === 'suspended' ? 'active' : 'suspended';
+    const shouldFreeze = suspendPartner.status === 'active';
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ account_status: newStatus })
+        .update(shouldFreeze
+          ? { frozen_at: new Date().toISOString(), frozen_reason: 'Suspended by COO' }
+          : { frozen_at: null, frozen_reason: null }
+        )
         .eq('id', suspendPartner.id);
       if (error) throw error;
       toast.success(`${suspendPartner.name} is now ${newStatus}`);
