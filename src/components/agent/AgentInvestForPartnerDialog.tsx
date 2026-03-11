@@ -33,6 +33,7 @@ interface SuccessData {
   amount: number;
   activation_token: string | null;
   agent_name: string;
+  portfolio_code: string | null;
 }
 
 export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: AgentInvestForPartnerDialogProps) {
@@ -165,6 +166,7 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
         amount: parsedAmount,
         activation_token: data.activation_token || null,
         agent_name: data.agent_name || 'Agent',
+        portfolio_code: data.portfolio_code || null,
       });
       setAgentBalance(data.new_balance);
       toast.success('Investment completed successfully!');
@@ -182,6 +184,10 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
       : null;
 
     let msg = `🎉 Your Welile Investment is Ready!\n\nHi ${s.partner_name}, ${s.agent_name} has invested ${formatUGX(s.amount)} on your behalf into the Rent Management Pool.\n\n💰 Monthly Reward: ${formatUGX(s.monthly_reward)} (15%)\n📅 Payout Cycle: Every 30 days\n🗓️ First Payout: ${s.first_payout_date}`;
+
+    if (s.portfolio_code) {
+      msg += `\n📋 Portfolio: ${s.portfolio_code}`;
+    }
 
     if (activationLink) {
       msg += `\n\n👉 Activate your account to start receiving rewards:\n${activationLink}`;
@@ -241,10 +247,14 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             <h3 className="font-bold text-lg">Investment Successful!</h3>
             <div className="space-y-2 text-sm text-muted-foreground">
               <p>Invested on behalf of <strong className="text-foreground">{success.partner_name}</strong></p>
+              {success.portfolio_code && (
+                <p>Portfolio: <strong className="font-mono text-foreground">{success.portfolio_code}</strong></p>
+              )}
               <p>Monthly reward: <strong className="text-success">{formatUGX(success.monthly_reward)}</strong></p>
               <p>First payout: <strong className="text-foreground">{success.first_payout_date}</strong></p>
               <p>Your new balance: <strong className="text-foreground">{formatUGX(success.new_balance)}</strong></p>
               <p className="font-mono text-xs">Ref: {success.reference_id}</p>
+              <p className="text-xs text-amber-600">💡 Partner credit &amp; your commission are pending manager approval</p>
             </div>
 
             {/* Share Section */}
@@ -520,12 +530,4 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
   );
 }
 
-function getOrdinal(day: number): string {
-  if (day >= 11 && day <= 13) return 'th';
-  switch (day % 10) {
-    case 1: return 'st';
-    case 2: return 'nd';
-    case 3: return 'rd';
-    default: return 'th';
-  }
-}
+// Dead code removed: getOrdinal was unused
