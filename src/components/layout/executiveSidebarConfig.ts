@@ -46,20 +46,22 @@ export const executiveSidebarConfig: Record<string, SidebarSection[]> = {
   ],
   coo: [
     {
-      title: 'Operations',
+      title: 'Financial Operations',
       items: [
         { label: 'Overview', icon: Activity, id: 'overview' },
-        { label: 'Agent Performance', icon: Users, id: 'agents' },
-        { label: 'Tenant Metrics', icon: Home, id: 'tenants' },
-        { label: 'Property Ops', icon: Building2, id: 'properties' },
-        { label: 'Partners', icon: Handshake, id: 'partners' },
+        { label: 'Transactions', icon: ClipboardList, id: 'transactions' },
+        { label: 'Agent Collections', icon: Users, id: 'collections' },
+        { label: 'Wallets', icon: Wallet, id: 'wallets' },
+        { label: 'Payment Analytics', icon: BarChart3, id: 'analytics' },
       ],
     },
     {
-      title: 'Financial Oversight',
+      title: 'Governance',
       items: [
-        { label: 'Revenue', icon: TrendingUp, id: 'revenue' },
+        { label: 'Reports', icon: FileText, id: 'reports' },
+        { label: 'Alerts', icon: AlertTriangle, id: 'alerts' },
         { label: 'Withdrawal Approvals', icon: Banknote, id: 'withdrawals' },
+        { label: 'Partners', icon: Handshake, id: 'partners' },
       ],
     },
   ],
