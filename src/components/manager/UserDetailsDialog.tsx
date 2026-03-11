@@ -1646,7 +1646,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-hidden">
+      <DialogContent className="max-w-2xl max-h-[90vh] p-0 flex flex-col overflow-y-auto">
         <DialogHeader className="p-6 pb-0 shrink-0">
           <DialogTitle>
             <UserHeader />
