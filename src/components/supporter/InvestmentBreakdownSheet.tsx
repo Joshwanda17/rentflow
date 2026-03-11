@@ -8,7 +8,7 @@ import { useCurrency } from '@/hooks/useCurrency';
 import { supabase } from '@/integrations/supabase/client';
 import { PiggyBank, TrendingUp, Calendar, Repeat, ArrowUpRight, Sparkles, CalendarCheck, CircleDollarSign, Target } from 'lucide-react';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
-import { format, formatDistanceToNow, differenceInDays, isPast, addMonths } from 'date-fns';
+import { format, formatDistanceToNow, differenceInDays, isPast, addDays } from 'date-fns';
 
 interface InvestmentBreakdownSheetProps {
   open: boolean;
@@ -170,14 +170,14 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
                 const color = accentColors[idx % accentColors.length];
                 const sc = statusConfig(entry.status);
-                // Derive next payout from payout_day to stay consistent with "Monthly Payout Date"
-                const payoutDayForCalc = entry.payout_day || (entry.next_roi_date ? new Date(entry.next_roi_date).getDate() : new Date(entry.invested_at).getDate());
+                // Derive next payout using strict 30-day cycle from investment date
                 const nowCalc = new Date();
-                let nextPayoutDerived = new Date(nowCalc.getFullYear(), nowCalc.getMonth(), payoutDayForCalc);
-                if (nextPayoutDerived <= nowCalc) {
-                  nextPayoutDerived = addMonths(nextPayoutDerived, 1);
-                }
-                const nextPayout = nextPayoutDerived;
+                const investedMs = new Date(entry.invested_at).getTime();
+                const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+                // Find the next 30-day anniversary that is in the future
+                const daysSinceInvest = Math.floor((nowCalc.getTime() - investedMs) / THIRTY_DAYS);
+                const nextCycleNumber = daysSinceInvest + 1;
+                const nextPayout = new Date(investedMs + nextCycleNumber * THIRTY_DAYS);
                 const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
                 const daysToNext = differenceInDays(nextPayout, nowCalc);
                 const investedDate = new Date(entry.invested_at);
@@ -214,17 +214,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       const projectionRows: { month: number; date: Date; opening: number; earned: number; closing: number }[] = [];
                       if (isCompounding) {
                         let bal = entry.amount;
-                        const payoutDay = entry.payout_day || 1;
                         const invested = new Date(entry.invested_at);
-                        // First payout: the first occurrence of payout_day that is at least 30 days after invested_at
-                        let firstPayout = new Date(invested.getFullYear(), invested.getMonth(), payoutDay);
-                        // Move forward until at least 30 days after investment
-                        while (differenceInDays(firstPayout, invested) < 30) {
-                          firstPayout = addMonths(firstPayout, 1);
-                        }
+                        // Strict 30-day cycle: Month 1 = invested + 30 days, Month 2 = invested + 60 days, etc.
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = addMonths(firstPayout, m - 1);
+                          const payoutDate = addDays(invested, m * 30);
                           projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
@@ -407,13 +401,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <div className="w-0.5 h-5 bg-border" />
                         </div>
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Monthly Payout Date</span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Cycle</span>
                           <span className="text-[11px] font-bold text-foreground">
-                            {(() => {
-                              const day = entry.payout_day || (nextPayout ? nextPayout.getDate() : investedDate.getDate());
-                              const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
-                              return `${day}${suffix} of every month`;
-                            })()}
+                            Every 30 days
                           </span>
                         </div>
                       </div>

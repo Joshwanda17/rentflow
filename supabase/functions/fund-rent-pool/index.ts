@@ -111,19 +111,10 @@ Deno.serve(async (req) => {
     const seq = String(Math.floor(1000 + Math.random() * 9000));
     const referenceId = `WRF${yy}${mm}${dd}${seq}`;
 
-    // Calculate first payout date: funds must work for at least 30 days
-    // Find the next occurrence of payout_day that is at least 30 days from now
-    let candidate = new Date(now.getFullYear(), now.getMonth(), payout_day);
-    // Move to next month if candidate is in the past or today
-    if (candidate <= now) {
-      candidate = new Date(now.getFullYear(), now.getMonth() + 1, payout_day);
-    }
-    // Keep advancing month-by-month until at least 30 days from now
-    const minPayoutDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    while (candidate < minPayoutDate) {
-      candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, payout_day);
-    }
-    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
+    // Calculate first payout date: strict 30-day cycle from investment date
+    const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
+    const candidate = new Date(firstPayoutMs);
+    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
 
     // Reduce the opportunity summary so "RENT NEEDED NOW" decreases
     if (summary_id) {

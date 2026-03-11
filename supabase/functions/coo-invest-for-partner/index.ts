@@ -116,12 +116,10 @@ Deno.serve(async (req) => {
     // Generate transaction_group_id for double-entry ledger integrity
     const txGroupId = crypto.randomUUID();
 
-    // Calculate first payout date (min 30 days)
-    let candidate = new Date(now.getFullYear(), now.getMonth(), payout_day);
-    if (candidate <= now) candidate = new Date(now.getFullYear(), now.getMonth() + 1, payout_day);
-    const minPayout = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-    while (candidate < minPayout) candidate = new Date(candidate.getFullYear(), candidate.getMonth() + 1, payout_day);
-    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(payout_day).padStart(2, "0")}`;
+    // Calculate first payout date: strict 30-day cycle from investment date
+    const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
+    const candidate = new Date(firstPayoutMs);
+    const firstPayoutDate = `${candidate.getFullYear()}-${String(candidate.getMonth() + 1).padStart(2, "0")}-${String(candidate.getDate()).padStart(2, "0")}`;
 
     // Get names
     const partnerProfileRes = await adminClient.from("profiles").select("full_name").eq("id", partner_id).single();
