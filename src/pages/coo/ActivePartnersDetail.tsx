@@ -158,16 +158,11 @@ export default function ActivePartnersDetail() {
       toast.error(`Partner only has ${formatUGX(investPartner.walletBalance)} in wallet`);
       return;
     }
-    const day = Number(payoutDay);
-    if (isNaN(day) || day < 1 || day > 28) {
-      toast.error('Payout day must be 1-28');
-      return;
-    }
 
     setInvesting(true);
     try {
       const { data: result, error } = await supabase.functions.invoke('coo-invest-for-partner', {
-        body: { partner_id: investPartner.id, amount: amt, payout_day: day },
+        body: { partner_id: investPartner.id, amount: amt },
       });
       if (error) {
         const errMsg = typeof result === 'object' && result?.error ? result.error : error.message;
