@@ -170,14 +170,13 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                 const isCompounding = entry.roi_mode === 'compound' || entry.roi_mode === 'monthly_compounding';
                 const color = accentColors[idx % accentColors.length];
                 const sc = statusConfig(entry.status);
-                // Derive next payout using strict 30-day cycle from investment date
+                // Derive next payout using payout_day from DB
                 const nowCalc = new Date();
-                const investedMs = new Date(entry.invested_at).getTime();
-                const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
-                // Find the next 30-day anniversary that is in the future
-                const daysSinceInvest = Math.floor((nowCalc.getTime() - investedMs) / THIRTY_DAYS);
-                const nextCycleNumber = daysSinceInvest + 1;
-                const nextPayout = new Date(investedMs + nextCycleNumber * THIRTY_DAYS);
+                const payoutDay = entry.payout_day || 15;
+                let nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth(), payoutDay);
+                if (nextPayout <= nowCalc) {
+                  nextPayout = new Date(nowCalc.getFullYear(), nowCalc.getMonth() + 1, payoutDay);
+                }
                 const maturity = entry.maturity_date ? new Date(entry.maturity_date) : null;
                 const daysToNext = differenceInDays(nextPayout, nowCalc);
                 const investedDate = new Date(entry.invested_at);
@@ -215,10 +214,11 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                       if (isCompounding) {
                         let bal = entry.amount;
                         const invested = new Date(entry.invested_at);
-                        // Strict 30-day cycle: Month 1 = invested + 30 days, Month 2 = invested + 60 days, etc.
+                        // Use payout_day for projection dates
+                        const projPayoutDay = entry.payout_day || 15;
                         for (let m = 1; m <= entry.duration_months; m++) {
                           const earned = bal * (entry.roi_percentage / 100);
-                          const payoutDate = addDays(invested, m * 30);
+                          const payoutDate = new Date(invested.getFullYear(), invested.getMonth() + m, projPayoutDay);
                           projectionRows.push({ month: m, date: payoutDate, opening: bal, earned, closing: bal + earned });
                           bal = bal + earned;
                         }
@@ -401,9 +401,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <div className="w-0.5 h-5 bg-border" />
                         </div>
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Cycle</span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Day</span>
                           <span className="text-[11px] font-bold text-foreground">
-                            Every 30 days
+                            {entry.payout_day ? `${entry.payout_day}${entry.payout_day === 1 ? 'st' : entry.payout_day === 2 ? 'nd' : entry.payout_day === 3 ? 'rd' : 'th'} of every month` : 'Every 30 days'}
                           </span>
                         </div>
                       </div>
