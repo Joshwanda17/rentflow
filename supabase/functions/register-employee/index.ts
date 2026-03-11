@@ -1,0 +1,153 @@
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
+
+const corsHeaders = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version",
+};
+
+Deno.serve(async (req) => {
+  if (req.method === "OPTIONS") {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    const authHeader = req.headers.get("Authorization");
+    if (!authHeader) {
+      return new Response(JSON.stringify({ error: "Missing auth" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
+
+    // Verify caller is staff
+    const anonClient = createClient(supabaseUrl, anonKey);
+    const { data: { user: caller } } = await anonClient.auth.getUser(authHeader.replace("Bearer ", ""));
+    if (!caller) {
+      return new Response(JSON.stringify({ error: "Unauthorized" }), {
+        status: 401,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const adminClient = createClient(supabaseUrl, serviceRoleKey);
+
+    // Check caller has admin role
+    const { data: callerRoles } = await adminClient
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", caller.id)
+      .in("role", ["super_admin", "manager", "cto"]);
+
+    if (!callerRoles || callerRoles.length === 0) {
+      return new Response(JSON.stringify({ error: "Insufficient permissions" }), {
+        status: 403,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const body = await req.json();
+    const {
+      email,
+      password,
+      full_name,
+      phone,
+      department,
+      position,
+      role,
+      employee_id,
+      created_by,
+    } = body;
+
+    // Validate
+    if (!email || !password || !full_name || !phone || !employee_id) {
+      return new Response(JSON.stringify({ error: "Missing required fields" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (password.length < 6) {
+      return new Response(JSON.stringify({ error: "Password must be at least 6 characters" }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Check employee_id uniqueness
+    const { data: existingEmp } = await adminClient
+      .from("staff_profiles")
+      .select("employee_id")
+      .eq("employee_id", employee_id)
+      .maybeSingle();
+
+    if (existingEmp) {
+      return new Response(JSON.stringify({ error: "Employee ID already exists" }), {
+        status: 409,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Create auth user
+    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+      user_metadata: { full_name, phone },
+    });
+
+    if (authError) {
+      return new Response(JSON.stringify({ error: authError.message }), {
+        status: 400,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    const userId = authData.user.id;
+
+    // Create profile (upsert in case trigger already created it)
+    await adminClient.from("profiles").upsert({
+      id: userId,
+      full_name,
+      email,
+      phone,
+      verified: true,
+    }, { onConflict: "id" });
+
+    // Assign role
+    const staffRole = role || "employee";
+    await adminClient.from("user_roles").insert({
+      user_id: userId,
+      role: staffRole,
+      enabled: true,
+    });
+
+    // Create staff profile
+    await adminClient.from("staff_profiles").insert({
+      user_id: userId,
+      employee_id,
+      department: department || "General",
+      position: position || "Staff",
+      must_change_password: true,
+      created_by: created_by || caller.id,
+    });
+
+    return new Response(
+      JSON.stringify({ success: true, user_id: userId, employee_id }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      }
+    );
+  } catch (err) {
+    console.error("register-employee error:", err);
+    return new Response(JSON.stringify({ error: err.message || "Internal error" }), {
+      status: 500,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  }
+});
