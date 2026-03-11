@@ -16,6 +16,16 @@ export async function fetchUserRoles(
   setRole: (r: AppRole) => void,
 ) {
   try {
+    // First verify the user still exists (prevents re-provisioning deleted accounts)
+    const { data: { user: authUser }, error: authError } = await supabase.auth.getUser();
+    if (authError || !authUser) {
+      console.warn('[RoleManager] User no longer exists or session invalid, skipping role provisioning');
+      setRoles([]);
+      setRole(null as unknown as AppRole);
+      setCachedRoles([]);
+      return;
+    }
+
     const { data, error } = await supabase
       .from('user_roles')
       .select('role, enabled')
@@ -44,11 +54,24 @@ export async function fetchUserRoles(
         setRole(defaultForUser as AppRole);
       }
     } else {
-      // No roles found — check if this is a supporter account before auto-creating
+      // No roles found — verify profile exists before auto-creating
+      // If profile doesn't exist, the user is being deleted — do NOT re-provision
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (!profile) {
+        console.warn('[RoleManager] No profile found for user, account likely deleted. Skipping auto-provisioning.');
+        setRoles([]);
+        setRole(null as unknown as AppRole);
+        setCachedRoles([]);
+        return;
+      }
+
       console.log('[RoleManager] No roles found, checking user metadata for:', userId);
       
-      // Check if the user was registered as a supporter (via metadata)
-      const { data: { user: authUser } } = await supabase.auth.getUser();
       const intendedRole = authUser?.user_metadata?.intended_role;
       
       const rolesToCreate: AppRole[] = intendedRole === 'supporter' 

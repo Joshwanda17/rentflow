@@ -48,22 +48,39 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ error: 'Cannot delete your own account' }), { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    // Delete related data in order
-    await supabaseAdmin.from('user_roles').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('wallets').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('referrals').delete().or(`referrer_id.eq.${user_id},referred_id.eq.${user_id}`);
-    await supabaseAdmin.from('notifications').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('general_ledger').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('ai_chat_messages').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('push_subscriptions').delete().eq('user_id', user_id);
-    await supabaseAdmin.from('profiles').delete().eq('id', user_id);
-
-    // Delete the auth user
+    // STEP 1: Kill the auth user FIRST to invalidate all sessions immediately.
+    // This prevents the roleManager from re-provisioning roles during cleanup.
     const { error: deleteError } = await supabaseAdmin.auth.admin.deleteUser(user_id);
     if (deleteError) {
       console.error('Error deleting auth user:', deleteError);
       return new Response(JSON.stringify({ error: 'Failed to delete auth user: ' + deleteError.message }), { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
+
+    // STEP 2: Now safely clean up all related data (user can no longer authenticate)
+    await Promise.all([
+      supabaseAdmin.from('user_roles').delete().eq('user_id', user_id),
+      supabaseAdmin.from('wallets').delete().eq('user_id', user_id),
+      supabaseAdmin.from('referrals').delete().or(`referrer_id.eq.${user_id},referred_id.eq.${user_id}`),
+      supabaseAdmin.from('notifications').delete().eq('user_id', user_id),
+      supabaseAdmin.from('ai_chat_messages').delete().eq('user_id', user_id),
+      supabaseAdmin.from('push_subscriptions').delete().eq('user_id', user_id),
+      supabaseAdmin.from('supporter_referrals').delete().or(`referrer_id.eq.${user_id},referred_id.eq.${user_id}`),
+      supabaseAdmin.from('investment_withdrawal_requests').delete().eq('user_id', user_id),
+      supabaseAdmin.from('credit_access_limits').delete().eq('user_id', user_id),
+      supabaseAdmin.from('agent_earnings').delete().eq('agent_id', user_id),
+      supabaseAdmin.from('earning_baselines').delete().eq('user_id', user_id),
+      supabaseAdmin.from('earning_predictions').delete().eq('user_id', user_id),
+      supabaseAdmin.from('deposit_requests').delete().eq('user_id', user_id),
+      supabaseAdmin.from('cart_items').delete().eq('user_id', user_id),
+    ]);
+
+    // Unlink investor portfolios (preserve records for audit)
+    await supabaseAdmin.from('investor_portfolios').update({ investor_id: null, status: 'cancelled' }).eq('investor_id', user_id);
+    // Cancel supporter invites
+    await supabaseAdmin.from('supporter_invites').update({ status: 'cancelled' }).eq('supporter_id', user_id);
+
+    // Delete profile last (other FKs reference it)
+    await supabaseAdmin.from('profiles').delete().eq('id', user_id);
 
     return new Response(JSON.stringify({ success: true, message: 'User deleted successfully' }), { status: 200, headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
   } catch (error) {
