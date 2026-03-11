@@ -172,6 +172,8 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
   const [isFrozen, setIsFrozen] = useState(false);
   const [freezingUser, setFreezingUser] = useState(false);
   const [freezeConfirmOpen, setFreezeConfirmOpen] = useState(false);
+  const [operationsDepartments, setOperationsDepartments] = useState<string[]>([]);
+  const [togglingDept, setTogglingDept] = useState<string | null>(null);
 
   const fetchReferrerInfo = async (userId: string) => {
     setReferrerLoading(true);
