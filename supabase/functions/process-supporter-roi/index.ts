@@ -120,14 +120,8 @@ Deno.serve(async (req) => {
           status: 'pending',
         });
 
-        // Update rent request ROI tracking - next due is same day next month
-        const fundedDay = new Date(rr.funded_at).getDate();
-        const nextDueDate = new Date(now);
-        nextDueDate.setMonth(nextDueDate.getMonth() + 1);
-        // Handle day overflow (e.g. day 31 in a 30-day month)
-        if (nextDueDate.getDate() !== fundedDay) {
-          nextDueDate.setDate(0); // last day of that month
-        }
+        // Update rent request ROI tracking - next due is exactly 30 days from now
+        const nextDueDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
 
         await supabase
           .from('rent_requests')

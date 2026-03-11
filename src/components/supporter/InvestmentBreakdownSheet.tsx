@@ -401,13 +401,9 @@ export function InvestmentBreakdownSheet({ open, onOpenChange }: InvestmentBreak
                           <div className="w-0.5 h-5 bg-border" />
                         </div>
                         <div className="flex-1 flex items-center justify-between">
-                          <span className="text-[10px] text-muted-foreground font-semibold">Monthly Payout Date</span>
+                          <span className="text-[10px] text-muted-foreground font-semibold">Payout Cycle</span>
                           <span className="text-[11px] font-bold text-foreground">
-                            {(() => {
-                              const day = entry.payout_day || (nextPayout ? nextPayout.getDate() : investedDate.getDate());
-                              const suffix = day === 1 || day === 21 || day === 31 ? 'st' : day === 2 || day === 22 ? 'nd' : day === 3 || day === 23 ? 'rd' : 'th';
-                              return `${day}${suffix} of every month`;
-                            })()}
+                            Every 30 days
                           </span>
                         </div>
                       </div>
