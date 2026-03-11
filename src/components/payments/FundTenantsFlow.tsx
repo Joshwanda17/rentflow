@@ -50,6 +50,7 @@ export default function FundTenantsFlow({
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [coverageType, setCoverageType] = useState<'full' | 'partial' | 'daily'>('full');
   const [fundingDays, setFundingDays] = useState(30);
+  const [transactionId, setTransactionId] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
@@ -142,6 +143,7 @@ export default function FundTenantsFlow({
     setSelectedIds([]);
     setCoverageType('full');
     setFundingDays(30);
+    setTransactionId('');
     setConfirmed(false);
     setIsProcessing(false);
     setIsComplete(false);
@@ -158,7 +160,7 @@ export default function FundTenantsFlow({
       case 0: return fundingMode !== 'auto';
       case 1: return selectedIds.length > 0;
       case 2: return fundingAmount > 0 && fundingAmount <= walletBalance;
-      case 3: return confirmed;
+      case 3: return confirmed && transactionId.replace(/\D/g, '').length >= 5;
       default: return false;
     }
   };
@@ -174,6 +176,7 @@ export default function FundTenantsFlow({
             rent_request_ids: selectedIds,
             coverage_type: coverageType,
             funding_days: coverageType === 'daily' ? fundingDays : 30,
+            transaction_id: `TID${transactionId.replace(/\D/g, '')}`,
           },
         });
 
@@ -433,6 +436,34 @@ export default function FundTenantsFlow({
                 </div>
               </CardContent>
             </Card>
+
+            {/* Transaction ID — required */}
+            <div className="space-y-2">
+              <Label htmlFor="fund-tid" className="text-sm font-semibold flex items-center gap-1">
+                Transaction ID <span className="text-destructive">*</span>
+              </Label>
+              <div className="p-3 rounded-lg bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 flex items-start gap-2 mb-1">
+                <AlertCircle className="h-4 w-4 text-amber-600 mt-0.5 shrink-0" />
+                <p className="text-xs text-amber-700 dark:text-amber-400">
+                  Enter the mobile money Transaction ID from your payment SMS. This is required for verification.
+                </p>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-sm font-bold text-muted-foreground">TID</span>
+                <Input
+                  id="fund-tid"
+                  placeholder="e.g. 1234567890"
+                  value={transactionId}
+                  onChange={(e) => setTransactionId(e.target.value.replace(/\D/g, ''))}
+                  className="pl-12 font-mono"
+                  inputMode="numeric"
+                  maxLength={15}
+                />
+              </div>
+              {transactionId.length > 0 && transactionId.length < 5 && (
+                <p className="text-xs text-destructive">Transaction ID must be at least 5 digits</p>
+              )}
+            </div>
 
             <div className="space-y-3">
               <h4 className="text-sm font-medium">Selected Tenants:</h4>
