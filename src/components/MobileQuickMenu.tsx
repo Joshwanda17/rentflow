@@ -114,7 +114,7 @@ export default function MobileQuickMenu({ currentRole, onScrollToProductivity }:
   const [isOpen, setIsOpen] = useState(false);
   const navigate = useNavigate();
 
-  const menuItems = menuConfigs[currentRole] || menuConfigs.tenant;
+  const menuItems = menuConfigs[currentRole] || defaultMenu;
   const roleLabel = roleLabels[currentRole] || 'Quick Actions';
 
   const handleOpen = () => {
