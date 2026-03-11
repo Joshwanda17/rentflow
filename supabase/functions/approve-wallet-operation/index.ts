@@ -202,6 +202,53 @@ Deno.serve(async (req) => {
           })
           .eq("id", op.id);
 
+        // If rejecting a supporter_facilitation_capital, cancel portfolio and restore agent wallet
+        if (op.category === 'supporter_facilitation_capital' && op.source_table === 'investor_portfolios' && op.source_id) {
+          // Cancel the portfolio
+          await adminClient
+            .from("investor_portfolios")
+            .update({ status: "cancelled" })
+            .eq("id", op.source_id)
+            .eq("status", "pending_approval");
+
+          // Find the agent who funded this and restore their wallet
+          const { data: portfolio } = await adminClient
+            .from("investor_portfolios")
+            .select("agent_id, investment_amount")
+            .eq("id", op.source_id)
+            .single();
+
+          if (portfolio) {
+            // Restore agent wallet balance
+            const { data: agentWallet } = await adminClient
+              .from("wallets")
+              .select("balance")
+              .eq("user_id", portfolio.agent_id)
+              .single();
+
+            if (agentWallet) {
+              await adminClient
+                .from("wallets")
+                .update({
+                  balance: agentWallet.balance + portfolio.investment_amount,
+                  updated_at: new Date().toISOString(),
+                })
+                .eq("user_id", portfolio.agent_id);
+
+              console.log(`[approve-wallet-op] Restored UGX ${portfolio.investment_amount} to agent ${portfolio.agent_id}`);
+
+              // Notify agent of refund
+              await adminClient.from("notifications").insert({
+                user_id: portfolio.agent_id,
+                title: "💰 Investment Refunded",
+                message: `Your proxy investment of UGX ${portfolio.investment_amount.toLocaleString()} was rejected. Funds have been restored to your wallet. Reason: ${rejection_reason}`,
+                type: "warning",
+                metadata: { operation_id: op.id, amount: portfolio.investment_amount, reason: rejection_reason },
+              });
+            }
+          }
+        }
+
         // Notify user
         await adminClient.from("notifications").insert({
           user_id: op.user_id,
