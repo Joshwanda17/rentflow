@@ -278,51 +278,26 @@ Deno.serve(async (req) => {
       } else {
         console.log("[activate-supporter] Linked portfolios for invite:", invite.id);
         
-        // Insert corrective ledger entries for the new investor
-        // The original entries were created under the agent's user_id with category 'supporter_facilitation_capital'
-        // Since ledger is append-only, we insert new entries under the investor's user_id
+        // Link pending_wallet_operations to the new user_id so credits go through approval
+        // DO NOT credit wallet directly — all supporter credits must be approved by manager/COO
         if (linkedPortfolios && linkedPortfolios.length > 0) {
+          // Update any pending_wallet_operations that were created with null user_id for this invite
+          const portfolioIds = linkedPortfolios.map(p => p.id);
+          const { error: pendingLinkError } = await adminClient
+            .from("pending_wallet_operations")
+            .update({ user_id: authData.user.id })
+            .in("source_id", portfolioIds)
+            .is("user_id", null)
+            .eq("status", "pending");
+          if (pendingLinkError) {
+            console.error("[activate-supporter] Failed to link pending ops:", pendingLinkError);
+          }
+
+          // Also check for pending ops already assigned to this user (agent pre-set partner_id)
+          // No action needed — they already have the correct user_id
+
           for (const portfolio of linkedPortfolios) {
-            const { error: ledgerError } = await adminClient
-              .from("general_ledger")
-              .insert({
-                amount: portfolio.investment_amount,
-                direction: 'cash_in',
-                category: 'supporter_rent_fund',
-                linked_party: 'supporter',
-                description: `Portfolio ${portfolio.portfolio_code} activated and linked to investor`,
-                source_table: 'investor_portfolios',
-                source_id: portfolio.id,
-                user_id: authData.user.id,
-              });
-            if (ledgerError) {
-              console.error("[activate-supporter] Ledger insert error for portfolio:", portfolio.id, ledgerError);
-            } else {
-              console.log("[activate-supporter] Created ledger entry for portfolio:", portfolio.portfolio_code);
-              
-              // Credit the supporter's wallet with the portfolio amount
-              const { data: existingWallet } = await adminClient
-                .from("wallets")
-                .select("id, balance")
-                .eq("user_id", authData.user.id)
-                .maybeSingle();
-              
-              if (existingWallet) {
-                const { error: walletError } = await adminClient
-                  .from("wallets")
-                  .update({ 
-                    balance: existingWallet.balance + portfolio.investment_amount, 
-                    updated_at: new Date().toISOString() 
-                  })
-                  .eq("user_id", authData.user.id)
-                  .eq("balance", existingWallet.balance);
-                if (walletError) {
-                  console.error("[activate-supporter] Wallet credit error:", walletError);
-                } else {
-                  console.log("[activate-supporter] Credited wallet with", portfolio.investment_amount);
-                }
-              }
-            }
+            console.log("[activate-supporter] Portfolio", portfolio.portfolio_code, "linked. Credit pending manager/COO approval.");
           }
         }
       }
