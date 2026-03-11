@@ -398,7 +398,7 @@ export function WithdrawRequestDialog({
                   <AlertCircle className="h-5 w-5 flex-shrink-0" />
                   <div>
                     <p className="font-semibold text-sm">Insufficient balance to withdraw</p>
-                    <p className="text-xs mt-0.5">You need at least <strong>UGX 50,000</strong> in your wallet. Your current balance is <strong>{formatCurrency(walletBalance)}</strong>.</p>
+                    <p className="text-xs mt-0.5">You need at least <strong>UGX 5,000</strong> in your wallet. Your current balance is <strong>{formatCurrency(walletBalance)}</strong>.</p>
                   </div>
                 </div>
               ) : workingHoursStatus.isOpen ? (
