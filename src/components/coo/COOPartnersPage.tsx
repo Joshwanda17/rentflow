@@ -133,7 +133,7 @@ export default function COOPartnersPage() {
           .select('user_id, amount, direction, category, created_at')
           .in('user_id', ids)
           .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
-        supabase.from('profiles').select('id, full_name, phone, created_at, account_status').in('id', ids),
+        supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
           .select('investor_id, agent_id, roi_percentage, payout_day, roi_mode, created_at')
