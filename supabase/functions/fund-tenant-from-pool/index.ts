@@ -52,11 +52,23 @@ Deno.serve(async (req) => {
       );
     }
 
-    const { rent_request_id } = await req.json() as { rent_request_id: string };
+    const payload = await req.json() as { rent_request_id?: string; transaction_id?: string };
+    const rent_request_id = payload.rent_request_id?.trim();
+    const txDigits = (payload.transaction_id || "").replace(/\D/g, "");
+    const transactionId = txDigits ? `TID${txDigits}` : "";
 
-    if (!rent_request_id) {
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+    if (!rent_request_id || !uuidRegex.test(rent_request_id)) {
       return new Response(
-        JSON.stringify({ error: "rent_request_id is required" }),
+        JSON.stringify({ error: "Valid rent_request_id is required" }),
+        { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+
+    if (!transactionId || txDigits.length < 5 || txDigits.length > 20) {
+      return new Response(
+        JSON.stringify({ error: "Valid transaction_id is required (TID + 5-20 digits)" }),
         { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
