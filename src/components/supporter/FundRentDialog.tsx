@@ -65,6 +65,9 @@ export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogPr
         referenceId: data.reference_id,
       });
 
+      // Refresh wallet balance immediately so UI reflects deduction
+      refreshWallet();
+
       // Notify dashboard to refresh contribution totals
       window.dispatchEvent(new CustomEvent('supporter-contribution-changed'));
 

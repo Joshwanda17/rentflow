@@ -189,6 +189,7 @@ Deno.serve(async (req) => {
       next_roi_date: firstPayoutDate,
       maturity_date: maturityStr,
       total_roi_earned: 0,
+      payout_day: payout_day,
     });
 
     if (portfolioErr) {
