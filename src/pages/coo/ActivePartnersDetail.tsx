@@ -454,16 +454,9 @@ export default function ActivePartnersDetail() {
                 </div>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="payout-day">Monthly Payout Day (1-28)</Label>
-                <Input
-                  id="payout-day"
-                  type="number"
-                  min={1}
-                  max={28}
-                  value={payoutDay}
-                  onChange={(e) => setPayoutDay(e.target.value)}
-                />
+              {/* Payout cycle info */}
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50">
+                <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date (automatic)</p>
               </div>
 
               {investAmount && Number(investAmount) >= MIN_INVEST && (
