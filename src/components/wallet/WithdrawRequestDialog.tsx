@@ -376,7 +376,7 @@ export function WithdrawRequestDialog({
               <div className="flex items-start gap-2 p-3 bg-destructive/10 border border-destructive/20 rounded-xl">
                 <AlertCircle className="h-4 w-4 text-destructive flex-shrink-0 mt-0.5" />
                 <p className="text-xs text-destructive font-medium">
-                  🚫 Policy: Withdrawals are only allowed when your wallet balance is <strong>UGX 50,000 or more</strong>. Requests below this threshold will be automatically rejected.
+                  🚫 Policy: Withdrawals are only allowed when your wallet balance is <strong>UGX 5,000 or more</strong>. Requests below this threshold will be automatically rejected.
                 </p>
               </div>
 
