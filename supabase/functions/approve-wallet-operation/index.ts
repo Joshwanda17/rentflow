@@ -176,7 +176,7 @@ Deno.serve(async (req) => {
           .from("pending_wallet_operations")
           .update({
             status: "approved",
-            reviewed_by: user.id,
+            reviewed_by: userId,
             reviewed_at: new Date().toISOString(),
             updated_at: new Date().toISOString(),
           })
