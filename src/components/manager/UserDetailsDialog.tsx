@@ -1514,124 +1514,124 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
 
               <TabsContent value="roles" className="mt-0">
                 <div className="p-4 space-y-5">
-                  {/* Dashboard Access Control */}
-                  <Card className="border-primary/20">
-                    <CardHeader className="py-3">
-                      <CardTitle className="text-sm flex items-center gap-2">
-                        <Shield className="h-4 w-4 text-primary" />
-                        Dashboard Access
-                      </CardTitle>
-                    </CardHeader>
-                    <CardContent className="pt-0">
-                      <p className="text-xs text-muted-foreground mb-4">
-                        Toggle which dashboards this user can access.
-                      </p>
-                      {userRoles.length === 0 ? (
-                        <p className="text-sm text-muted-foreground">No roles assigned</p>
-                      ) : (
-                        <div className="space-y-3">
-                          {userRoles.map((role) => {
-                            const roleInfo = allRoles.find(r => r.value === role);
-                            const isEnabled = roleEnabledStatus[role] ?? true;
-                            const enabledCount = Object.values(roleEnabledStatus).filter(Boolean).length;
-                            const canDisable = enabledCount > 1 || !isEnabled;
-                            
-                            return (
-                              <div 
-                                key={role}
-                                className={`flex items-center justify-between p-4 rounded-2xl border-2 transition-all ${
-                                  isEnabled ? 'bg-card border-primary/30' : 'bg-muted/30 border-muted opacity-60'
-                                }`}
-                              >
-                                <div className="flex items-center gap-3 flex-1 min-w-0">
-                                  <span className="text-2xl">{roleInfo?.label === 'Tenant' ? '🏠' : roleInfo?.label === 'Agent' ? '💼' : roleInfo?.label === 'Landlord' ? '🏢' : roleInfo?.label === 'Supporter' ? '💰' : '👑'}</span>
-                                  <div>
-                                    <p className="font-bold text-base">{roleInfo?.label || role}</p>
-                                    <span className={`text-sm font-medium ${isEnabled ? 'text-success' : 'text-destructive'}`}>
-                                      {isEnabled ? '✓ Active' : '✗ Disabled'}
-                                    </span>
+                  {/* All Roles - Unified List */}
+                  {(['standard', 'internal', 'executive'] as const).map(category => {
+                    const categoryRoles = allRoles.filter(r => r.category === category);
+                    const categoryLabel = category === 'standard' ? 'Standard Roles' : category === 'internal' ? 'Internal Roles' : 'Executive Roles';
+                    return (
+                      <Card key={category}>
+                        <CardHeader className="py-3">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Shield className="h-4 w-4 text-primary" />
+                            {categoryLabel}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="pt-0">
+                          <div className="space-y-2">
+                            {categoryRoles.map((role) => {
+                              const isAssigned = userRoles.includes(role.value);
+                              const isEnabled = roleEnabledStatus[role.value] ?? true;
+                              const enabledCount = Object.values(roleEnabledStatus).filter(Boolean).length;
+                              const canDisable = enabledCount > 1 || !isEnabled;
+                              
+                              return (
+                                <div key={role.value}>
+                                  <div className={`flex items-center justify-between p-3 rounded-xl border-2 transition-all ${
+                                    isAssigned 
+                                      ? (isEnabled ? 'bg-card border-primary/30' : 'bg-muted/30 border-muted opacity-70')
+                                      : 'bg-muted/20 border-dashed border-muted-foreground/20'
+                                  }`}>
+                                    <div className="flex items-center gap-3 flex-1 min-w-0">
+                                      <span className="text-xl">{role.emoji}</span>
+                                      <div>
+                                        <div className="flex items-center gap-2">
+                                          <p className="font-bold text-sm">{role.label}</p>
+                                          {isAssigned ? (
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 bg-success/10 text-success border-success/30">Assigned</Badge>
+                                          ) : (
+                                            <Badge variant="outline" className="text-[10px] px-1.5 py-0 text-muted-foreground">Not assigned</Badge>
+                                          )}
+                                        </div>
+                                        <p className="text-xs text-muted-foreground">{role.description}</p>
+                                      </div>
+                                    </div>
+                                    <div className="flex items-center gap-2 shrink-0">
+                                      {isAssigned ? (
+                                        <>
+                                          <Button
+                                            variant={isEnabled ? "default" : "outline"}
+                                            size="sm"
+                                            onClick={() => handleToggleRoleEnabled(role.value)}
+                                            disabled={togglingRole === role.value || (!canDisable && isEnabled)}
+                                            className={`h-9 w-9 p-0 rounded-lg ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
+                                          >
+                                            {togglingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : isEnabled ? <ToggleRight className="h-5 w-5" /> : <ToggleLeft className="h-5 w-5" />}
+                                          </Button>
+                                          <Button
+                                            variant="destructive"
+                                            size="sm"
+                                            onClick={() => handleRemoveRole(role.value)}
+                                            disabled={removingRole === role.value || userRoles.length <= 1}
+                                            className="h-9 w-9 p-0 rounded-lg"
+                                          >
+                                            {removingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                                          </Button>
+                                        </>
+                                      ) : (
+                                        <Button
+                                          variant="outline"
+                                          size="sm"
+                                          onClick={() => handleAddRole(role.value)}
+                                          disabled={addingRole === role.value}
+                                          className="h-9 px-3 rounded-lg border-success/40 text-success hover:bg-success/10"
+                                        >
+                                          {addingRole === role.value ? <Loader2 className="h-4 w-4 animate-spin" /> : <><Plus className="h-4 w-4 mr-1" /> Add</>}
+                                        </Button>
+                                      )}
+                                    </div>
                                   </div>
+                                  {/* Operations Sub-Departments */}
+                                  {role.value === 'operations' && isAssigned && (
+                                    <div className="ml-8 mt-2 p-3 rounded-xl bg-muted/30 border border-dashed space-y-2">
+                                      <p className="text-xs font-semibold text-muted-foreground mb-2">Operations Departments</p>
+                                      {OPERATIONS_DEPARTMENTS.map(dept => {
+                                        const isActive = operationsDepartments.includes(dept);
+                                        return (
+                                          <div key={dept} className={`flex items-center justify-between p-2 rounded-lg border ${isActive ? 'bg-card border-primary/20' : 'bg-muted/20 border-transparent'}`}>
+                                            <div className="flex items-center gap-2">
+                                              <span className="text-sm">{dept === 'Agent' ? '💼' : dept === 'Tenant' ? '🏠' : dept === 'Landlord' ? '🏢' : '💰'}</span>
+                                              <span className="text-sm font-medium">{dept}</span>
+                                              {isActive && <Badge variant="outline" className="text-[10px] px-1 py-0 bg-success/10 text-success border-success/30">Active</Badge>}
+                                            </div>
+                                            <Button
+                                              variant={isActive ? "default" : "outline"}
+                                              size="sm"
+                                              onClick={() => handleToggleOperationsDept(dept)}
+                                              disabled={togglingDept === dept}
+                                              className={`h-7 w-7 p-0 rounded-md ${isActive ? 'bg-success hover:bg-success/90' : 'border-muted'}`}
+                                            >
+                                              {togglingDept === dept ? <Loader2 className="h-3 w-3 animate-spin" /> : isActive ? <ToggleRight className="h-4 w-4" /> : <ToggleLeft className="h-4 w-4" />}
+                                            </Button>
+                                          </div>
+                                        );
+                                      })}
+                                    </div>
+                                  )}
                                 </div>
-                                <div className="flex items-center gap-3 shrink-0">
-                                  {/* Toggle Enable/Disable - Large button */}
-                                  <Button
-                                    variant={isEnabled ? "default" : "outline"}
-                                    size="lg"
-                                    onClick={() => handleToggleRoleEnabled(role as AppRole)}
-                                    disabled={togglingRole === role || (!canDisable && isEnabled)}
-                                    className={`h-12 w-12 p-0 rounded-xl ${isEnabled ? 'bg-success hover:bg-success/90' : ''}`}
-                                  >
-                                    {togglingRole === role ? (
-                                      <Loader2 className="h-5 w-5 animate-spin" />
-                                    ) : isEnabled ? (
-                                      <ToggleRight className="h-6 w-6" />
-                                    ) : (
-                                      <ToggleLeft className="h-6 w-6" />
-                                    )}
-                                  </Button>
-                                  {/* Remove Role - Large button */}
-                                  <Button
-                                    variant="destructive"
-                                    size="lg"
-                                    onClick={() => handleRemoveRole(role as AppRole)}
-                                    disabled={removingRole === role || userRoles.length <= 1}
-                                    className="h-12 w-12 p-0 rounded-xl"
-                                  >
-                                    {removingRole === role ? <Loader2 className="h-5 w-5 animate-spin" /> : <Trash2 className="h-5 w-5" />}
-                                  </Button>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      )}
-                    </CardContent>
-                  </Card>
-
-                  {/* Add New Role */}
-                  {availableRolesToAdd.length > 0 && (
-                    <Card>
-                      <CardHeader className="py-3">
-                        <CardTitle className="text-sm flex items-center gap-2">
-                          <Plus className="h-4 w-4 text-success" />
-                          Add Role
-                        </CardTitle>
-                      </CardHeader>
-                      <CardContent className="pt-0">
-                        <div className="grid grid-cols-1 gap-3">
-                          {availableRolesToAdd.map((role) => (
-                            <Button
-                              key={role.value}
-                              variant="outline"
-                              onClick={() => handleAddRole(role.value)}
-                              disabled={addingRole === role.value}
-                              className="h-16 justify-between px-4 rounded-2xl border-2 border-dashed border-success/40 hover:border-success hover:bg-success/5"
-                            >
-                              <div className="flex items-center gap-3">
-                                <span className="text-2xl">{role.value === 'tenant' ? '🏠' : role.value === 'agent' ? '💼' : role.value === 'landlord' ? '🏢' : role.value === 'supporter' ? '💰' : '👑'}</span>
-                                <div className="text-left">
-                                  <p className="font-bold">{role.label}</p>
-                                  <p className="text-xs text-muted-foreground">{role.description}</p>
-                                </div>
-                              </div>
-                              {addingRole === role.value ? (
-                                <Loader2 className="h-6 w-6 animate-spin text-success" />
-                              ) : (
-                                <Plus className="h-6 w-6 text-success" />
-                              )}
-                            </Button>
-                          ))}
-                        </div>
-                      </CardContent>
-                    </Card>
-                  )}
+                              );
+                            })}
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })}
 
                   {/* Sub-Agents Section - Only for agents */}
                   {userRoles.includes('agent') && (
-                    <Card className="border-orange-500/30">
+                    <Card className="border-warning/30">
                       <CardHeader className="py-3">
                         <CardTitle className="text-sm flex items-center gap-2">
-                          <UsersRound className="h-4 w-4 text-orange-500" />
+                          <UsersRound className="h-4 w-4 text-warning" />
                           Sub-Agents ({subAgents.length})
                         </CardTitle>
                       </CardHeader>
@@ -1648,14 +1648,11 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                         ) : (
                           <div className="space-y-2">
                             {subAgents.map((subAgent) => (
-                              <div 
-                                key={subAgent.id}
-                                className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border"
-                              >
+                              <div key={subAgent.id} className="flex items-center justify-between p-3 rounded-xl bg-muted/50 border">
                                 <div className="flex items-center gap-3">
                                   <Avatar className="h-10 w-10 border">
                                     <AvatarImage src={subAgent.profile?.avatar_url || undefined} />
-                                    <AvatarFallback className="bg-orange-500/20 text-orange-600 text-sm font-bold">
+                                    <AvatarFallback className="bg-warning/20 text-warning text-sm font-bold">
                                       {subAgent.profile?.full_name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?'}
                                     </AvatarFallback>
                                   </Avatar>
@@ -1664,7 +1661,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
                                     <p className="text-xs text-muted-foreground">{subAgent.profile?.phone}</p>
                                   </div>
                                 </div>
-                                <Badge variant="outline" className="bg-orange-500/10 text-orange-600 border-orange-500/30">
+                                <Badge variant="outline" className="bg-warning/10 text-warning border-warning/30">
                                   {subAgent.tenants_count} tenant{subAgent.tenants_count !== 1 ? 's' : ''}
                                 </Badge>
                               </div>
