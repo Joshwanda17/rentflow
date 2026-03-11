@@ -119,11 +119,35 @@ export function ApprovedRequestsFundingWidget() {
     };
   }, []);
 
-  const handleFundTenant = async (requestId: string) => {
-    setFundingId(requestId);
+  const openFundConfirm = (request: ApprovedRequest) => {
+    setPendingRequest(request);
+    setTransactionIdInput('');
+    setConfirmed(false);
+    setConfirmOpen(true);
+  };
+
+  const handleFundTenant = async () => {
+    if (!pendingRequest) return;
+
+    const txDigits = transactionIdInput.replace(/\D/g, '');
+    if (txDigits.length < 5) {
+      toast({
+        title: 'Transaction ID required',
+        description: 'Enter at least 5 digits from the payment Transaction ID.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    const transactionId = `TID${txDigits}`;
+    setFundingId(pendingRequest.id);
+
     try {
       const { data, error } = await supabase.functions.invoke('fund-tenant-from-pool', {
-        body: { rent_request_id: requestId },
+        body: {
+          rent_request_id: pendingRequest.id,
+          transaction_id: transactionId,
+        },
       });
 
       if (error) throw error;
@@ -134,9 +158,11 @@ export function ApprovedRequestsFundingWidget() {
         description: `${formatUGX(data.amount)} sent to landlord ${data.landlord_name}. Pool remaining: ${formatUGX(data.pool_remaining)}`,
       });
 
-      // Remove from list
-      setRequests(prev => prev.filter(r => r.id !== requestId));
-      // Dispatch event so pool balance card refreshes
+      setRequests(prev => prev.filter(r => r.id !== pendingRequest.id));
+      setConfirmOpen(false);
+      setPendingRequest(null);
+      setTransactionIdInput('');
+      setConfirmed(false);
       window.dispatchEvent(new CustomEvent('pool-funded'));
     } catch (err: any) {
       toast({
