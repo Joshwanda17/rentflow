@@ -30,7 +30,6 @@ interface SuccessData {
   monthly_reward: number;
   first_payout_date: string;
   new_balance: number;
-  payout_day: number;
   amount: number;
   activation_token: string | null;
   agent_name: string;
