@@ -200,8 +200,8 @@ export function WithdrawRequestDialog({
       return;
     }
 
-    if (walletBalance < 50000) {
-      toast.error('Your wallet balance must be at least UGX 50,000 to withdraw');
+    if (walletBalance < 5000) {
+      toast.error('Your wallet balance must be at least UGX 5,000 to withdraw');
       return;
     }
 
