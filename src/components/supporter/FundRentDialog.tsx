@@ -20,7 +20,7 @@ interface FundRentDialogProps {
 }
 
 export function FundRentDialog({ open, onOpenChange, summary }: FundRentDialogProps) {
-  const { wallet } = useWallet();
+  const { wallet, refreshWallet } = useWallet();
   const { user } = useAuth();
   const { formatAmount } = useCurrency();
   const { toast } = useToast();
