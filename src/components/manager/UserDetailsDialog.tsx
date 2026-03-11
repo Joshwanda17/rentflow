@@ -58,14 +58,25 @@ import UserActivityTimeline from './user-details/UserActivityTimeline';
 import UserEcosystemSection from './user-details/UserEcosystemSection';
 import AddBalanceDialog from './AddBalanceDialog';
 
-type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager';
+type AppRole = 'tenant' | 'agent' | 'landlord' | 'supporter' | 'manager' | 'super_admin' | 'employee' | 'operations' | 'ceo' | 'coo' | 'cfo' | 'cto' | 'cmo' | 'crm';
 
-const allRoles: { value: AppRole; label: string; description: string; color: string }[] = [
-  { value: 'tenant', label: 'Tenant', description: 'Can request rent assistance', color: 'bg-primary/20 text-primary' },
-  { value: 'agent', label: 'Agent', description: 'Manages deposits & loans', color: 'bg-warning/20 text-warning' },
-  { value: 'landlord', label: 'Landlord', description: 'Receives rent payments', color: 'bg-chart-5/20 text-chart-5' },
-  { value: 'supporter', label: 'Supporter', description: 'Can invest & fund requests', color: 'bg-success/20 text-success' },
-  { value: 'manager', label: 'Manager', description: 'Full admin access', color: 'bg-destructive/20 text-destructive' },
+const OPERATIONS_DEPARTMENTS = ['Agent', 'Tenant', 'Landlord', 'Partner'] as const;
+
+const allRoles: { value: AppRole; label: string; description: string; color: string; emoji: string; category: 'standard' | 'internal' | 'executive' }[] = [
+  { value: 'tenant', label: 'Tenant', description: 'Can request rent assistance', color: 'bg-primary/20 text-primary', emoji: '🏠', category: 'standard' },
+  { value: 'agent', label: 'Agent', description: 'Manages deposits & collections', color: 'bg-warning/20 text-warning', emoji: '💼', category: 'standard' },
+  { value: 'landlord', label: 'Landlord', description: 'Receives rent payments', color: 'bg-chart-5/20 text-chart-5', emoji: '🏢', category: 'standard' },
+  { value: 'supporter', label: 'Supporter', description: 'Can invest & fund requests', color: 'bg-success/20 text-success', emoji: '💰', category: 'standard' },
+  { value: 'manager', label: 'Manager', description: 'Full platform management', color: 'bg-destructive/20 text-destructive', emoji: '👑', category: 'internal' },
+  { value: 'super_admin', label: 'Super Admin', description: 'Highest system access', color: 'bg-destructive/20 text-destructive', emoji: '🛡️', category: 'internal' },
+  { value: 'employee', label: 'Employee', description: 'Internal staff member', color: 'bg-blue-500/20 text-blue-600', emoji: '🧑‍💼', category: 'internal' },
+  { value: 'operations', label: 'Operations', description: 'Operational department access', color: 'bg-orange-500/20 text-orange-600', emoji: '⚙️', category: 'internal' },
+  { value: 'ceo', label: 'CEO', description: 'Chief Executive Officer', color: 'bg-amber-500/20 text-amber-600', emoji: '🎯', category: 'executive' },
+  { value: 'coo', label: 'COO', description: 'Chief Operating Officer', color: 'bg-teal-500/20 text-teal-600', emoji: '📊', category: 'executive' },
+  { value: 'cfo', label: 'CFO', description: 'Chief Financial Officer', color: 'bg-emerald-500/20 text-emerald-600', emoji: '💵', category: 'executive' },
+  { value: 'cto', label: 'CTO', description: 'Chief Technology Officer', color: 'bg-violet-500/20 text-violet-600', emoji: '🔧', category: 'executive' },
+  { value: 'cmo', label: 'CMO', description: 'Chief Marketing Officer', color: 'bg-pink-500/20 text-pink-600', emoji: '📢', category: 'executive' },
+  { value: 'crm', label: 'CRM', description: 'Customer Relationship Manager', color: 'bg-cyan-500/20 text-cyan-600', emoji: '🤝', category: 'executive' },
 ];
 
 interface InvestmentAccount {
