@@ -69,7 +69,7 @@ export default function AdminUsersPage() {
       const { data: roleRows } = await supabase
         .from('user_roles')
         .select('user_id, role, enabled')
-        .in('role', STAFF_ROLES);
+        .in('role', STAFF_ROLES as any);
 
       if (!roleRows || roleRows.length === 0) {
         setStaff([]);
