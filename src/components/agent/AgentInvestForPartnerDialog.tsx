@@ -411,24 +411,9 @@ export function AgentInvestForPartnerDialog({ open, onOpenChange, onSuccess }: A
             )}
           </div>
 
-          {/* Payout Day */}
-          <div className="space-y-2">
-            <Label className="flex items-center gap-1.5">
-              <CalendarDays className="h-4 w-4" />
-              Monthly Payout Day
-            </Label>
-            <select
-              value={payoutDay}
-              onChange={(e) => setPayoutDay(e.target.value)}
-              className="w-full h-10 rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              <option value="">Select payout day...</option>
-              {Array.from({ length: 31 }, (_, i) => i + 1).map(day => (
-                <option key={day} value={day}>
-                  {day}{day === 1 ? 'st' : day === 2 ? 'nd' : day === 3 ? 'rd' : 'th'} of every month
-                </option>
-              ))}
-            </select>
+          {/* Payout Cycle Info */}
+          <div className="p-3 rounded-lg bg-muted/50 border border-border/60">
+            <p className="text-xs text-muted-foreground">📅 Payout Cycle: <strong className="text-foreground">Every 30 days</strong> from investment date</p>
           </div>
 
           {/* Reward Preview */}
