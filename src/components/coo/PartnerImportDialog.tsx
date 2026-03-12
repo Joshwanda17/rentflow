@@ -284,9 +284,9 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
             </div>
 
             <div className="flex items-center justify-center">
-              <a href={TEMPLATE_URL} download className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
+              <button onClick={downloadTemplate} className="inline-flex items-center gap-1.5 text-xs text-primary hover:underline font-medium">
                 <Download className="h-3.5 w-3.5" /> Download Template
-              </a>
+              </button>
             </div>
           </div>
         )}
