@@ -62,8 +62,8 @@ export async function fetchUserRoles(
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
-    } else {
-      // No roles found — verify profile exists before auto-creating
+    } else if (!hasAnyRolesInDb) {
+      // Only auto-provision if user has NO roles at all in DB (not even disabled ones)
       // If profile doesn't exist, the user is being deleted — do NOT re-provision
       const { data: profile } = await supabase
         .from('profiles')

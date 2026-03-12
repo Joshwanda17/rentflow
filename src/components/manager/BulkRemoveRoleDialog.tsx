@@ -105,10 +105,11 @@ export default function BulkRemoveRoleDialog({
         if (!existingRole) {
           skipCount++;
         } else {
-          // Remove the role
+          // Disable the role (set enabled=false) instead of deleting
+          // This prevents auto-provisioning from re-creating it on next login
           const { error } = await supabase
             .from('user_roles')
-            .delete()
+            .update({ enabled: false })
             .eq('user_id', userId)
             .eq('role', selectedRole);
 
