@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale, Lock, Eye, EyeOff } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
 import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
@@ -84,6 +84,13 @@ export default function Settings() {
   const [showAgentAgreementModal, setShowAgentAgreementModal] = useState(false);
   const [showSupporterAgreementModal, setShowSupporterAgreementModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
@@ -383,6 +390,129 @@ export default function Settings() {
                 <p className="text-xs text-muted-foreground">
                   Email cannot be changed
                 </p>
+              </div>
+
+              {/* Change Password Section */}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label>Password</Label>
+                  <Button
+                    variant="link"
+                    size="sm"
+                    className="h-auto p-0 text-xs text-primary"
+                    onClick={() => setShowPasswordForm(!showPasswordForm)}
+                  >
+                    {showPasswordForm ? 'Cancel' : 'Change Password'}
+                  </Button>
+                </div>
+                {!showPasswordForm ? (
+                  <div className="relative">
+                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input
+                      value="••••••••"
+                      disabled
+                      className="pl-10 bg-muted/50 border-border/50"
+                    />
+                  </div>
+                ) : (
+                  <div className="space-y-3 p-3 rounded-lg bg-muted/30 border border-border/50">
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type={showCurrentPassword ? 'text' : 'password'}
+                        value={currentPassword}
+                        onChange={(e) => setCurrentPassword(e.target.value)}
+                        placeholder="Current password"
+                        className="pl-10 pr-10 bg-background/50 border-border/50"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                        onClick={() => setShowCurrentPassword(!showCurrentPassword)}
+                      >
+                        {showCurrentPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type={showNewPassword ? 'text' : 'password'}
+                        value={newPassword}
+                        onChange={(e) => setNewPassword(e.target.value)}
+                        placeholder="New password (min 6 characters)"
+                        className="pl-10 pr-10 bg-background/50 border-border/50"
+                      />
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        className="absolute right-1 top-1/2 -translate-y-1/2 h-8 w-8"
+                        onClick={() => setShowNewPassword(!showNewPassword)}
+                      >
+                        {showNewPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                      </Button>
+                    </div>
+                    <div className="relative">
+                      <Lock className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                      <Input
+                        type="password"
+                        value={confirmNewPassword}
+                        onChange={(e) => setConfirmNewPassword(e.target.value)}
+                        placeholder="Confirm new password"
+                        className="pl-10 bg-background/50 border-border/50"
+                      />
+                    </div>
+                    <Button
+                      size="sm"
+                      className="w-full gap-2"
+                      disabled={changingPassword || !currentPassword || !newPassword || !confirmNewPassword}
+                      onClick={async () => {
+                        if (newPassword.length < 6) {
+                          toast.error('New password must be at least 6 characters');
+                          return;
+                        }
+                        if (newPassword !== confirmNewPassword) {
+                          toast.error("New passwords don't match");
+                          return;
+                        }
+                        setChangingPassword(true);
+                        try {
+                          // Verify current password by re-signing in
+                          const { error: signInError } = await supabase.auth.signInWithPassword({
+                            email: profile?.email || '',
+                            password: currentPassword,
+                          });
+                          if (signInError) {
+                            toast.error('Current password is incorrect');
+                            setChangingPassword(false);
+                            return;
+                          }
+                          // Update to new password
+                          const { error: updateError } = await supabase.auth.updateUser({
+                            password: newPassword,
+                          });
+                          if (updateError) {
+                            toast.error('Failed to update password: ' + updateError.message);
+                          } else {
+                            toast.success('Password updated successfully!');
+                            setCurrentPassword('');
+                            setNewPassword('');
+                            setConfirmNewPassword('');
+                            setShowPasswordForm(false);
+                          }
+                        } catch (err) {
+                          toast.error('An error occurred while changing password');
+                        }
+                        setChangingPassword(false);
+                      }}
+                    >
+                      {changingPassword ? <Loader2 className="h-4 w-4 animate-spin" /> : <Lock className="h-4 w-4" />}
+                      Update Password
+                    </Button>
+                  </div>
+                )}
               </div>
 
               <div className="space-y-2">
