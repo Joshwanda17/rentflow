@@ -135,9 +135,27 @@ export async function addRoleForUser(
 ) {
   if (currentRoles.includes(newRole)) return { error: null };
 
-  const { error } = await supabase
+  // Try to re-enable an existing disabled role first
+  const { data: existing } = await supabase
     .from('user_roles')
-    .insert({ user_id: userId, role: newRole, enabled: true });
+    .select('id, enabled')
+    .eq('user_id', userId)
+    .eq('role', newRole)
+    .maybeSingle();
+
+  let error;
+  if (existing) {
+    // Role exists but is disabled — re-enable it
+    ({ error } = await supabase
+      .from('user_roles')
+      .update({ enabled: true })
+      .eq('id', existing.id));
+  } else {
+    // Brand new role
+    ({ error } = await supabase
+      .from('user_roles')
+      .insert({ user_id: userId, role: newRole, enabled: true }));
+  }
 
   if (!error) {
     const updated = [...currentRoles, newRole];
