@@ -146,11 +146,26 @@ Deno.serve(async (req) => {
           partnersCreated++;
         }
 
-        // Create portfolios
+        // Create portfolios (with duplicate detection)
         for (const pf of partner.portfolios) {
           try {
             if (pf.amount < 50000 || pf.roiPercentage < 1 || pf.durationMonths < 1) {
               errors.push({ partner: partner.partner_name, error: `Invalid portfolio data: ${pf.amount}` });
+              continue;
+            }
+
+            // Check for existing portfolio with same amount, ROI, and duration for this user
+            const { data: existingPortfolio } = await adminClient
+              .from("investor_portfolios")
+              .select("id")
+              .eq("investor_id", userId)
+              .eq("investment_amount", pf.amount)
+              .eq("roi_percentage", pf.roiPercentage)
+              .eq("duration_months", pf.durationMonths)
+              .maybeSingle();
+
+            if (existingPortfolio) {
+              skippedDuplicates++;
               continue;
             }
 
