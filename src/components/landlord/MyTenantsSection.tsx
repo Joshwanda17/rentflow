@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare } from 'lucide-react';
+import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare, RefreshCw } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import StarRatingDisplay from '@/components/reviews/StarRatingDisplay';
 import LandlordAddTenantDialog from './LandlordAddTenantDialog';
@@ -144,16 +144,21 @@ export default function MyTenantsSection() {
         <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-accent/5 pointer-events-none" />
         
         <CardHeader className="relative">
-          <CardTitle className="flex items-center gap-2">
-            <motion.div
-              className="p-2 rounded-lg bg-primary/10"
-              whileHover={{ scale: 1.1, rotate: -5 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 17 }}
-            >
-              <Users className="h-5 w-5 text-primary" />
-            </motion.div>
-            My Tenants
-          </CardTitle>
+          <div className="flex items-center justify-between">
+            <CardTitle className="flex items-center gap-2">
+              <motion.div
+                className="p-2 rounded-lg bg-primary/10"
+                whileHover={{ scale: 1.1, rotate: -5 }}
+                transition={{ type: 'spring', stiffness: 400, damping: 17 }}
+              >
+                <Users className="h-5 w-5 text-primary" />
+              </motion.div>
+              My Tenants
+            </CardTitle>
+            <Button variant="ghost" size="icon" onClick={fetchTenants} className="h-8 w-8">
+              <RefreshCw className="h-4 w-4" />
+            </Button>
+          </div>
           <CardDescription>
             View and rate your tenants
           </CardDescription>
