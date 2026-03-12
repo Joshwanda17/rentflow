@@ -420,8 +420,7 @@ export default function InvestmentPortfolio() {
                                     variant="outline" 
                                     className={`text-[10px] shrink-0 ${getStatusColor(account.status)}`}
                                   >
-                                    {account.status === 'approved' ? 'Active' : 
-                                     account.status === 'pending_activation' ? 'Pending' : account.status}
+                                    {getStatusLabel(account.status)}
                                   </Badge>
                                 </div>
                                 <p className="text-2xl font-black text-foreground tracking-tight">
