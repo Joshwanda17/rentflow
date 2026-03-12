@@ -1,38 +1,42 @@
 
 
-# Funder Wallet Section Enhancement
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-## What Changes
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-### 1. Wallet Balance Label — Replace emoji with Lucide icon
-In `PortfolioSummaryCards.tsx`:
-- Replace `💰` emoji with `<Wallet />` from lucide-react
-- The `$` symbol comes from the SVG icon next to the balance (a dollar-sign path). Replace it with a `<Wallet />` Lucide icon instead.
+---
 
-### 2. Wallet Balance Click → New Wallet Details Sheet (not Investment Breakdown)
-Currently clicking wallet balance opens `InvestmentBreakdownSheet` (shows portfolios). Change it to open a **new `WalletDetailsSheet`** that shows:
+### Database Tables Created
 
-- **Wallet balance** prominently at the top
-- **Wallet transaction history** below — fetched from `wallet_transactions` table, enriched with sender/recipient names from `profiles`
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-The existing `InvestmentBreakdownSheet` remains accessible from the "Supported" stat button.
+### Database Functions Created
 
-### 3. New Component: `WalletDetailsSheet.tsx`
-A bottom sheet showing:
-- **Header**: Wallet icon + "My Wallet" title
-- **Balance card**: Current wallet balance (formatted in UGX, no `$`)
-- **Transaction list**: Scrollable list of `wallet_transactions` ordered by `created_at desc`, showing:
-  - Direction indicator (sent vs received based on `sender_id` match)
-  - Amount with +/- prefix and color coding
-  - Description (if any)
-  - Counterparty name (from profiles lookup)
-  - Timestamp (relative + absolute)
-  - Running context (e.g., "From: John" or "To: Mary")
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-### Files to Change
+### UI Components Created
 
-| File | Change |
-|---|---|
-| `src/components/supporter/PortfolioSummaryCards.tsx` | Replace `💰` with `<Wallet />` icon, replace `$` SVG with `<Wallet />`, wire balance click to new `WalletDetailsSheet` instead of `InvestmentBreakdownSheet` |
-| `src/components/supporter/WalletDetailsSheet.tsx` | **New** — Bottom sheet with wallet balance + detailed transaction history |
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
+### Dashboard Updated
+
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
+
+---
+
+### Phase 2 (Not Yet Implemented)
+
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)

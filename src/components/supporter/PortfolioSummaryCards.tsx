@@ -1,7 +1,9 @@
 import { useState } from 'react';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
+import { WalletDetailsSheet } from '@/components/supporter/WalletDetailsSheet';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
+import { Wallet } from 'lucide-react';
 
 interface PortfolioSummaryCardsProps {
   housesFunded: number;
@@ -13,6 +15,7 @@ interface PortfolioSummaryCardsProps {
 
 export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance = 0, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
+  const [showWallet, setShowWallet] = useState(false);
 
   // Use actual houses funded, minimum 1 if any rent has been secured
   const displayHouses = rentSecured > 0 ? Math.max(housesFunded, 1) : housesFunded;
@@ -27,16 +30,14 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
         <div className="relative z-10 space-y-3 xs:space-y-4 sm:space-y-5">
           {/* Main hero — Wallet Balance */}
           <div>
-            <p className="wallet-label-text text-xs xs:text-sm uppercase tracking-widest font-bold mb-1.5">
-              💰 Wallet Balance
+            <p className="wallet-label-text text-xs xs:text-sm uppercase tracking-widest font-bold mb-1.5 flex items-center gap-1.5">
+              <Wallet className="h-3.5 w-3.5" /> Wallet Balance
             </p>
             <button
-              onClick={() => {hapticTap();setShowBreakdown(true);}}
+              onClick={() => {hapticTap();setShowWallet(true);}}
               className="flex items-center gap-2 group cursor-pointer min-h-[44px]">
               
-              <svg className="h-6 w-6 xs:h-7 xs:w-7 wallet-icon-svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6" />
-              </svg>
+              <Wallet className="h-6 w-6 xs:h-7 xs:w-7 wallet-icon-svg" />
               <p className="wallet-balance-text text-2xl xs:text-3xl sm:text-4xl font-black tracking-tight break-all">
                 {formatUGX(walletBalance)}
               </p>
@@ -70,6 +71,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
       </div>
 
       {showBreakdown && <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />}
+      {showWallet && <WalletDetailsSheet open={showWallet} onOpenChange={setShowWallet} walletBalance={walletBalance} />}
     </>);
 
 }
