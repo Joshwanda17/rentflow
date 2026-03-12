@@ -25,6 +25,7 @@ interface ParsedRow {
   roiPercentage: number;
   durationMonths: number;
   roiMode: string;
+  contributionDate: string | null;
   errors: string[];
 }
 
@@ -37,6 +38,7 @@ interface ImportGroup {
     roiPercentage: number;
     durationMonths: number;
     roiMode: string;
+    contributionDate: string | null;
   }[];
   isDuplicate: boolean;
   errors: string[];
@@ -51,18 +53,47 @@ interface ImportResult {
 
 type Step = 'upload' | 'preview' | 'confirm' | 'processing' | 'results';
 
+/* ─── Header Aliases ─── */
+const HEADER_ALIASES: Record<string, string[]> = {
+  'Partner Name': ['Partner Name', 'Supporter Name', 'Name', 'Full Name', 'SUPPORTER NAME'],
+  'Phone': ['Phone', 'PHONE', 'Phone Number', 'Mobile', 'Tel'],
+  'Email': ['Email', 'EMAIL', 'Email Address', 'E-mail'],
+  'Investment Amount': ['Investment Amount', 'Principal (UGX)', 'Principal', 'Amount', 'Amount (UGX)', 'PRINCIPAL (UGX)'],
+  'ROI %': ['ROI %', 'Rate', 'RATE', 'ROI', 'Interest Rate', 'ROI Percentage', 'Interest'],
+  'Duration (Months)': ['Duration (Months)', 'Duration', 'Months', 'Term', 'Period'],
+  'ROI Mode': ['ROI Mode', 'Mode', 'Payout Mode', 'ROI Type'],
+  'Contribution Date': ['Contribution Date', 'Date', 'Investment Date', 'Start Date', 'CONTRIBUTION DATE'],
+};
+
+function normalizeHeaders(row: any): any {
+  const normalized: any = {};
+  const rowKeys = Object.keys(row);
+
+  for (const [canonical, aliases] of Object.entries(HEADER_ALIASES)) {
+    for (const alias of aliases) {
+      const match = rowKeys.find(k => k.trim().toLowerCase() === alias.toLowerCase());
+      if (match) {
+        normalized[canonical] = row[match];
+        break;
+      }
+    }
+  }
+  return normalized;
+}
+
 /* ─── Constants ─── */
 const VALID_ROI_MODES = ['monthly_payout', 'monthly_compounding'];
+
 function downloadTemplate() {
-  const headers = ['Partner Name', 'Phone', 'Email', 'Investment Amount', 'ROI %', 'Duration (Months)', 'ROI Mode'];
+  const headers = ['Partner Name', 'Phone', 'Email', 'Investment Amount', 'Contribution Date', 'ROI %', 'Duration (Months)', 'ROI Mode'];
   const samples = [
-    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 500000, 15, 12, 'monthly_compounding'],
-    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 300000, 15, 12, 'monthly_payout'],
-    ['Namukisha Esther', '0754155112', 'esther@example.com', 1000000, 15, 12, 'monthly_compounding'],
-    ['John Doe', '0771234567', '', 200000, 15, 6, 'monthly_payout'],
+    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 500000, '2025-03-09', 15, 12, 'monthly_compounding'],
+    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 300000, '2025-01-15', 15, 12, 'monthly_payout'],
+    ['Namukisha Esther', '0754155112', 'esther@example.com', 1000000, '2024-11-20', 15, 12, 'monthly_compounding'],
+    ['John Doe', '0771234567', '', 200000, '', 15, 6, 'monthly_payout'],
   ];
   const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
-  ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 8 }, { wch: 18 }, { wch: 22 }];
+  ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 16 }, { wch: 8 }, { wch: 18 }, { wch: 22 }];
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Partners');
   XLSX.writeFile(wb, 'partner-import-template.xlsx');
@@ -76,15 +107,72 @@ function normalizePhone(raw: string): string {
   return cleaned;
 }
 
+function parseContributionDate(raw: any): string | null {
+  if (!raw && raw !== 0) return null;
+
+  // Handle Excel serial date numbers
+  if (typeof raw === 'number') {
+    const excelEpoch = new Date(1899, 11, 30);
+    const date = new Date(excelEpoch.getTime() + raw * 86400000);
+    if (!isNaN(date.getTime())) {
+      return date.toISOString().split('T')[0];
+    }
+    return null;
+  }
+
+  const str = String(raw).trim();
+  if (!str) return null;
+
+  // Try ISO format (YYYY-MM-DD)
+  const isoMatch = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if (isoMatch) {
+    const d = new Date(`${isoMatch[1]}-${isoMatch[2].padStart(2, '0')}-${isoMatch[3].padStart(2, '0')}`);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+
+  // Try M/D/YYYY or MM/DD/YYYY
+  const usMatch = str.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})/);
+  if (usMatch) {
+    const d = new Date(`${usMatch[3]}-${usMatch[1].padStart(2, '0')}-${usMatch[2].padStart(2, '0')}`);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+
+  // Try DD-MM-YYYY
+  const euMatch = str.match(/^(\d{1,2})-(\d{1,2})-(\d{4})/);
+  if (euMatch) {
+    const d = new Date(`${euMatch[3]}-${euMatch[2].padStart(2, '0')}-${euMatch[1].padStart(2, '0')}`);
+    if (!isNaN(d.getTime())) return d.toISOString().split('T')[0];
+  }
+
+  // Fallback: let JS parse it
+  const fallback = new Date(str);
+  if (!isNaN(fallback.getTime())) return fallback.toISOString().split('T')[0];
+
+  return null;
+}
+
+function parseAmount(raw: any): number {
+  if (typeof raw === 'number') return raw;
+  // Strip "UGX", commas, spaces
+  const cleaned = String(raw || '').replace(/[UGX,\s]/gi, '');
+  return Number(cleaned);
+}
+
 function validateRow(row: any, rowNum: number): ParsedRow {
+  const mapped = normalizeHeaders(row);
   const errors: string[] = [];
-  const name = String(row['Partner Name'] || '').trim();
-  const phone = normalizePhone(row['Phone'] || '');
-  const email = String(row['Email'] || '').trim();
-  const amount = Number(row['Investment Amount']);
-  const roi = Number(row['ROI %']);
-  const duration = Number(row['Duration (Months)']);
-  const roiMode = String(row['ROI Mode'] || 'monthly_payout').trim().toLowerCase().replace(/\s+/g, '_');
+  const name = String(mapped['Partner Name'] || '').trim();
+  const phone = normalizePhone(mapped['Phone'] || '');
+  const email = String(mapped['Email'] || '').trim();
+  const amount = parseAmount(mapped['Investment Amount']);
+  const roi = Number(mapped['ROI %']);
+  const rawDuration = mapped['Duration (Months)'];
+  const duration = rawDuration != null && String(rawDuration).trim() !== '' ? Number(rawDuration) : 12;
+  const rawRoiMode = mapped['ROI Mode'];
+  const roiMode = rawRoiMode && String(rawRoiMode).trim() !== ''
+    ? String(rawRoiMode).trim().toLowerCase().replace(/\s+/g, '_')
+    : 'monthly_payout';
+  const contributionDate = parseContributionDate(mapped['Contribution Date']);
 
   if (!name) errors.push('Missing partner name');
   if (!phone || phone.length < 10) errors.push('Invalid phone');
@@ -93,7 +181,7 @@ function validateRow(row: any, rowNum: number): ParsedRow {
   if (isNaN(duration) || duration < 1 || duration > 36) errors.push('Duration must be 1-36 months');
   if (!VALID_ROI_MODES.includes(roiMode)) errors.push(`ROI mode must be: ${VALID_ROI_MODES.join(' or ')}`);
 
-  return { rowNum, partnerName: name, phone, email, investmentAmount: amount, roiPercentage: roi, durationMonths: duration, roiMode, errors };
+  return { rowNum, partnerName: name, phone, email, investmentAmount: amount, roiPercentage: roi, durationMonths: duration, roiMode, contributionDate, errors };
 }
 
 function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
@@ -117,6 +205,7 @@ function groupByPartner(rows: ParsedRow[]): ImportGroup[] {
         roiPercentage: row.roiPercentage,
         durationMonths: row.durationMonths,
         roiMode: row.roiMode,
+        contributionDate: row.contributionDate,
       });
     }
     // Collect portfolio-level errors
@@ -157,7 +246,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
     setLoading(true);
     try {
       const buffer = await file.arrayBuffer();
-      const wb = XLSX.read(buffer, { type: 'array' });
+      const wb = XLSX.read(buffer, { type: 'array', cellDates: true });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const jsonRows = XLSX.utils.sheet_to_json(ws);
 
@@ -213,7 +302,13 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
         partner_name: g.partnerName,
         phone: g.phone,
         email: g.email || null,
-        portfolios: g.portfolios,
+        portfolios: g.portfolios.map(p => ({
+          amount: p.amount,
+          roiPercentage: p.roiPercentage,
+          durationMonths: p.durationMonths,
+          roiMode: p.roiMode,
+          contributionDate: p.contributionDate,
+        })),
       }));
 
       const { data, error } = await supabase.functions.invoke('import-partners', {
@@ -272,6 +367,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   <Upload className="h-10 w-10 text-muted-foreground/50 mx-auto mb-3" />
                   <p className="font-semibold text-sm">Drop Excel file here or click to browse</p>
                   <p className="text-xs text-muted-foreground mt-1">Supports .xlsx files, max 500 rows</p>
+                  <p className="text-xs text-muted-foreground mt-0.5">Accepts flexible headers: "Supporter Name", "Principal (UGX)", "Rate", "Contribution Date", etc.</p>
                 </>
               )}
               <input
@@ -332,6 +428,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                           <span>{p.roiPercentage}% ROI</span>
                           <span>{p.durationMonths}mo</span>
                           <span className="capitalize">{p.roiMode.replace('_', ' ')}</span>
+                          {p.contributionDate && <span className="text-xs text-muted-foreground/70">📅 {p.contributionDate}</span>}
                         </div>
                       ))}
                     </div>
@@ -381,6 +478,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 <p>• Portfolios start with <strong>pending_approval</strong> status</p>
                 <p>• No wallet deductions — portfolios are record-only until activated</p>
                 <p>• Each partner gets a unique activation token</p>
+                <p>• If a contribution date is provided, it will be used as the portfolio start date</p>
               </div>
             </div>
 

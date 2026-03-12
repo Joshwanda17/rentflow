@@ -46,6 +46,7 @@ Deno.serve(async (req) => {
           roiPercentage: number;
           durationMonths: number;
           roiMode: string;
+          contributionDate?: string | null;
         }[];
       }[];
     };
@@ -137,18 +138,28 @@ Deno.serve(async (req) => {
               continue;
             }
 
-            const portfolioCode = `WIP${yy}${mm}${dd}${seq()}`;
+            // Use contribution date as the start date if provided, otherwise use now
+            const startDate = pf.contributionDate ? new Date(pf.contributionDate) : now;
+            const isHistorical = pf.contributionDate && !isNaN(startDate.getTime());
+            const effectiveStart = isHistorical ? startDate : now;
+
+            const startYY = String(effectiveStart.getFullYear()).slice(-2);
+            const startMM = String(effectiveStart.getMonth() + 1).padStart(2, "0");
+            const startDD = String(effectiveStart.getDate()).padStart(2, "0");
+
+            const portfolioCode = `WIP${startYY}${startMM}${startDD}${seq()}`;
             const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
             const activationToken = crypto.randomUUID().split('-').slice(0, 2).join('');
-            const maturityDate = new Date(now);
+
+            const maturityDate = new Date(effectiveStart);
             maturityDate.setMonth(maturityDate.getMonth() + pf.durationMonths);
 
-            // First payout: 30 days from now
-            const firstPayoutMs = now.getTime() + 30 * 24 * 60 * 60 * 1000;
+            // First payout: 30 days from start date
+            const firstPayoutMs = effectiveStart.getTime() + 30 * 24 * 60 * 60 * 1000;
             const firstPayout = new Date(firstPayoutMs);
             const nextRoiDate = `${firstPayout.getFullYear()}-${String(firstPayout.getMonth() + 1).padStart(2, "0")}-${String(firstPayout.getDate()).padStart(2, "0")}`;
 
-            const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert({
+            const insertData: Record<string, any> = {
               investor_id: userId,
               agent_id: userId, // Self-linked for imports (no agent)
               portfolio_code: portfolioCode,
@@ -162,7 +173,14 @@ Deno.serve(async (req) => {
               maturity_date: maturityDate.toISOString().split("T")[0],
               next_roi_date: nextRoiDate,
               status: "pending_approval",
-            });
+            };
+
+            // If historical date, set created_at to match
+            if (isHistorical) {
+              insertData.created_at = effectiveStart.toISOString();
+            }
+
+            const { error: portfolioErr } = await adminClient.from("investor_portfolios").insert(insertData);
 
             if (portfolioErr) {
               errors.push({ partner: partner.partner_name, error: `Portfolio: ${portfolioErr.message}` });
