@@ -149,7 +149,7 @@ Deno.serve(async (req) => {
 
             const portfolioCode = `WIP${startYY}${startMM}${startDD}${seq()}`;
             const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
-            const activationToken = crypto.randomUUID().split('-').slice(0, 2).join('');
+            const activationToken = crypto.randomUUID();
 
             const maturityDate = new Date(effectiveStart);
             maturityDate.setMonth(maturityDate.getMonth() + pf.durationMonths);
