@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
@@ -14,16 +14,8 @@ interface PortfolioSummaryCardsProps {
 export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance = 0, totalReturn = 0 }: PortfolioSummaryCardsProps) {
   const [showBreakdown, setShowBreakdown] = useState(false);
 
-  // Show a random house count based on investment tier
-  const displayHouses = useMemo(() => {
-    if (rentSecured < 100000) {
-      return 1;
-    }
-    if (rentSecured < 500000) {
-      return Math.floor(Math.random() * 50) + 2; // 2-51
-    }
-    return Math.floor(Math.random() * (460 - 300 + 1)) + 300; // 300-460
-  }, [rentSecured < 100000, rentSecured < 500000]);
+  // Use actual houses funded, minimum 1 if any rent has been secured
+  const displayHouses = rentSecured > 0 ? Math.max(housesFunded, 1) : housesFunded;
 
   return (
     <>
