@@ -172,6 +172,15 @@ export default function COOPartnersPage() {
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
 
+  // Edit portfolio dialog
+  const [editPortfolio, setEditPortfolio] = useState<PortfolioRow | null>(null);
+  const [editPortfolioAmount, setEditPortfolioAmount] = useState('');
+  const [editPortfolioRoi, setEditPortfolioRoi] = useState('');
+  const [editPortfolioRoiMode, setEditPortfolioRoiMode] = useState('monthly_payout');
+  const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
+  const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
+  const [savingEditPortfolio, setSavingEditPortfolio] = useState(false);
+
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
 
