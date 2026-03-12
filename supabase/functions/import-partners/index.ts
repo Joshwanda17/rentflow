@@ -99,6 +99,11 @@ Deno.serve(async (req) => {
           if (!existingRole) {
             await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
           }
+
+          // Reset password to the predictable format so they can log in
+          const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
+          const tempPwd = `Welile${phoneLast6}!`;
+          await adminClient.auth.admin.updateUserById(userId, { password: tempPwd });
         } else {
           // Create auth user
           const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
