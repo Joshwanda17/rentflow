@@ -109,6 +109,12 @@ export async function fetchUserRoles(
         setRole(DEFAULT_ROLE);
         setCachedRoles(DEFAULT_ROLES);
       }
+    } else {
+      // All roles exist but are disabled — user has been fully restricted
+      console.warn('[RoleManager] All roles disabled for user:', userId);
+      setRoles([]);
+      setRole(null as unknown as AppRole);
+      setCachedRoles([]);
     }
   } catch (err: any) {
     console.warn('[RoleManager] Exception fetching roles:', err?.message);
