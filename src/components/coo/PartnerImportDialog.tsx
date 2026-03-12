@@ -467,8 +467,8 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 <strong>{totalPortfolios} investment portfolios</strong> totaling{' '}
                 <strong>{formatUGX(totalAmount)}</strong>.
               </p>
-              {duplicateCount > 0 && (
-                <p className="text-xs text-amber-700">⚠ {duplicateCount} duplicate(s) will be skipped.</p>
+              {existingCount > 0 && (
+                <p className="text-xs text-amber-700">ℹ {existingCount} existing partner(s) — portfolios will be added to their accounts.</p>
               )}
               {errorGroups.length > 0 && (
                 <p className="text-xs text-destructive">⚠ {errorGroups.length} partner(s) with errors will be skipped.</p>
