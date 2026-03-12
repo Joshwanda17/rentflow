@@ -189,6 +189,11 @@ export default function COOPartnersPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Bulk activate
+  const [activatingAll, setActivatingAll] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -289,7 +294,39 @@ export default function COOPartnersPage() {
     finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Fetch pending_approval count
+  const fetchPendingCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('investor_portfolios')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_approval');
+    setPendingApprovalCount(count || 0);
+  }, []);
+
+  useEffect(() => { fetchData(); fetchPendingCount(); }, [fetchData, fetchPendingCount]);
+
+  // Bulk activate all pending_approval portfolios
+  const handleBulkActivate = async () => {
+    setActivatingAll(true);
+    try {
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({ status: 'active' })
+        .eq('status', 'pending_approval');
+
+      if (error) throw error;
+
+      toast.success(`${pendingApprovalCount} portfolios activated successfully`);
+      setShowActivateConfirm(false);
+      setPendingApprovalCount(0);
+      fetchData();
+    } catch (e: any) {
+      console.error('Bulk activate error:', e);
+      toast.error(e.message || 'Failed to activate portfolios');
+    } finally {
+      setActivatingAll(false);
+    }
+  };
 
   /* ─── Open Partner Detail ─── */
   async function openPartnerDetail(partnerId: string) {
@@ -748,6 +785,16 @@ export default function COOPartnersPage() {
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
+        {pendingApprovalCount > 0 && (
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => setShowActivateConfirm(true)}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Activate All ({pendingApprovalCount})
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
           <Download className="h-3.5 w-3.5" /> Export CSV
         </Button>
@@ -1153,7 +1200,34 @@ export default function COOPartnersPage() {
       </AlertDialog>
 
       {/* Import Dialog */}
-      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+
+      {/* ─── Bulk Activate Confirmation ─── */}
+      <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Activate All Pending Portfolios
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set <strong>{pendingApprovalCount}</strong> portfolios from <strong>Awaiting Approval</strong> to <strong>Active</strong>.
+              These are imported records that don't require wallet operations. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={activatingAll}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkActivate}
+              disabled={activatingAll}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {activatingAll && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Activate {pendingApprovalCount} Portfolios
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ─── Delete Portfolio Confirmation ─── */}
       <Dialog open={!!deletePortfolio} onOpenChange={open => { if (!open) { setDeletePortfolio(null); setDeleteReason(''); } }}>
