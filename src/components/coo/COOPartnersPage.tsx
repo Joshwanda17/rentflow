@@ -188,51 +188,49 @@ export default function COOPartnersPage() {
       }
 
       const ids = supporterIds.slice(0, 200);
-      const [ledgerRes, profilesRes, walletsRes, portfoliosRes] = await Promise.all([
-        supabase.from('general_ledger')
-          .select('user_id, amount, direction, category, created_at')
-          .in('user_id', ids)
-          .in('category', ['supporter_rent_fund', 'supporter_facilitation_capital', 'coo_proxy_investment']),
+      const [profilesRes, walletsRes, portfoliosRes] = await Promise.all([
         supabase.from('profiles').select('id, full_name, phone, created_at, frozen_at').in('id', ids),
         supabase.from('wallets').select('user_id, balance').in('user_id', ids),
         supabase.from('investor_portfolios')
-          .select('investor_id, agent_id, roi_percentage, payout_day, roi_mode, created_at')
+          .select('investor_id, agent_id, investment_amount, roi_percentage, payout_day, roi_mode, status, created_at')
           .or(`investor_id.in.(${ids.join(',')}),agent_id.in.(${ids.join(',')})`)
+          .in('status', ['active', 'pending_approval', 'pending'])
           .order('created_at', { ascending: false }),
       ]);
 
-      const ledgerData = ledgerRes.data || [];
       const profileMap = new Map((profilesRes.data || []).map(p => [p.id, p]));
       const walletMap = new Map((walletsRes.data || []).map(w => [w.user_id, w.balance || 0]));
 
-      const roiMap = new Map<string, number>();
-      const payoutDayMap = new Map<string, number>();
-      const roiModeMap = new Map<string, string>();
-      (portfoliosRes.data || []).forEach(p => {
-        const userId = p.investor_id || p.agent_id;
-        if (userId && !roiMap.has(userId)) {
-          roiMap.set(userId, p.roi_percentage ?? 15);
-          payoutDayMap.set(userId, p.payout_day ?? 15);
-          roiModeMap.set(userId, p.roi_mode ?? 'monthly_payout');
-        }
-      });
+      // Aggregate portfolios per supporter
+      const supporterIdSet = new Set(ids);
+      const partnerAgg = new Map<string, { funded: number; deals: number; roiPercentage: number; payoutDay: number; roiMode: string; lastActivity: string }>();
 
-      const partnerAgg = new Map<string, { funded: number; deals: number; lastActivity: string }>();
-      ledgerData.forEach(entry => {
-        if (!entry.user_id) return;
-        const existing = partnerAgg.get(entry.user_id) || { funded: 0, deals: 0, lastActivity: '' };
-        if (entry.direction === 'cash_out') {
-          existing.funded += (entry.amount || 0);
-          existing.deals += 1;
+      (portfoliosRes.data || []).forEach(p => {
+        // Determine which supporter this portfolio belongs to
+        const ownerId = p.investor_id && supporterIdSet.has(p.investor_id)
+          ? p.investor_id
+          : p.agent_id && supporterIdSet.has(p.agent_id)
+            ? p.agent_id
+            : null;
+        if (!ownerId) return;
+
+        const existing = partnerAgg.get(ownerId) || { funded: 0, deals: 0, roiPercentage: 0, payoutDay: 0, roiMode: 'monthly_payout', lastActivity: '' };
+        existing.funded += (p.investment_amount || 0);
+        existing.deals += 1;
+        // Use the first (most recent) portfolio's ROI info
+        if (existing.deals === 1 || !existing.roiPercentage) {
+          existing.roiPercentage = p.roi_percentage ?? 15;
+          existing.payoutDay = p.payout_day ?? 15;
+          existing.roiMode = p.roi_mode ?? 'monthly_payout';
         }
-        if (!existing.lastActivity || entry.created_at > existing.lastActivity) {
-          existing.lastActivity = entry.created_at;
+        if (!existing.lastActivity || p.created_at > existing.lastActivity) {
+          existing.lastActivity = p.created_at;
         }
-        partnerAgg.set(entry.user_id, existing);
+        partnerAgg.set(ownerId, existing);
       });
 
       const tableRows: PartnerRow[] = ids.map(id => {
-        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, lastActivity: '' };
+        const agg = partnerAgg.get(id) || { funded: 0, deals: 0, roiPercentage: 15, payoutDay: 15, roiMode: 'monthly_payout', lastActivity: '' };
         const profile = profileMap.get(id);
         const isSuspended = !!profile?.frozen_at;
         return {
@@ -243,9 +241,9 @@ export default function COOPartnersPage() {
           activeDeals: agg.deals,
           avgDeal: agg.deals > 0 ? Math.round(agg.funded / agg.deals) : 0,
           walletBalance: walletMap.get(id) || 0,
-          roiPercentage: roiMap.get(id) ?? 15,
-          payoutDay: payoutDayMap.get(id) ?? 15,
-          roiMode: roiModeMap.get(id) ?? 'monthly_payout',
+          roiPercentage: agg.roiPercentage,
+          payoutDay: agg.payoutDay,
+          roiMode: agg.roiMode,
           status: (isSuspended ? 'suspended' : 'active') as 'active' | 'suspended',
           joinedAt: profile?.created_at ? new Date(profile.created_at).toLocaleDateString() : '—',
           lastActivity: agg.lastActivity ? new Date(agg.lastActivity).toLocaleDateString() : '—',
