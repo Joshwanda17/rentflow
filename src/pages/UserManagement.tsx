@@ -535,10 +535,10 @@ export default function UserManagement() {
         )}
       </header>
 
-      {/* User List with Infinite Scroll */}
+      {/* User Table */}
       <div
         ref={listRef}
-        className="flex-1 overflow-y-auto overscroll-contain will-change-scroll"
+        className="flex-1 overflow-auto"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {displayUsers.length === 0 && !loadingMore ? (
@@ -550,55 +550,156 @@ export default function UserManagement() {
             <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="divide-y divide-border">
-            {displayUsers.map((u) => (
-              <div
-                key={u.id}
-                onClick={() => handleUserClick(u)}
-                className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 active:bg-muted transition-colors cursor-pointer touch-manipulation min-h-[72px]",
-                  selectedUserIds.has(u.id) && "bg-primary/5"
-                )}
-                style={{ WebkitTapHighlightColor: 'transparent' }}
-              >
-                <div className="relative shrink-0" onClick={(e) => toggleUserSelection(u.id, e)}>
-                  {selectedUserIds.has(u.id) ? (
-                    <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-primary-foreground" />
-                    </div>
-                  ) : (
-                    <>
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
-                      </Avatar>
-                      {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-success border-2 border-background" />}
-                    </>
-                  )}
+          <>
+            {/* Desktop Table */}
+            <div className="hidden md:block px-4 py-3">
+              <div className="border border-border rounded-xl overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="bg-muted/50 border-b border-border">
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground w-8">
+                          <input
+                            type="checkbox"
+                            checked={selectedUserIds.size === displayUsers.length && displayUsers.length > 0}
+                            onChange={toggleSelectAll}
+                            className="rounded border-border"
+                          />
+                        </th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">User</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Phone</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Roles</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Status</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Rating</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Last Active</th>
+                        <th className="px-3 py-2.5 text-left font-semibold text-muted-foreground">Joined</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {displayUsers.map((u) => (
+                        <tr
+                          key={u.id}
+                          onClick={() => handleUserClick(u)}
+                          className={cn(
+                            "border-b border-border last:border-0 hover:bg-muted/30 transition-colors cursor-pointer",
+                            selectedUserIds.has(u.id) && "bg-primary/5"
+                          )}
+                        >
+                          <td className="px-3 py-2.5" onClick={(e) => { e.stopPropagation(); toggleUserSelection(u.id); }}>
+                            <input
+                              type="checkbox"
+                              checked={selectedUserIds.has(u.id)}
+                              onChange={() => {}}
+                              className="rounded border-border"
+                            />
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex items-center gap-2.5">
+                              <div className="relative shrink-0">
+                                <Avatar className="h-8 w-8">
+                                  <AvatarImage src={u.avatar_url || undefined} />
+                                  <AvatarFallback className="bg-muted text-muted-foreground font-medium text-xs">{getInitials(u.full_name)}</AvatarFallback>
+                                </Avatar>
+                                {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-2.5 w-2.5 rounded-full bg-success border-2 border-background" />}
+                              </div>
+                              <div className="min-w-0">
+                                <p className="font-medium text-foreground truncate max-w-[180px] flex items-center gap-1">
+                                  {u.full_name}
+                                  {u.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20 shrink-0" />}
+                                </p>
+                                <p className="text-xs text-muted-foreground truncate max-w-[180px]">{u.email}</p>
+                              </div>
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground text-xs">{u.phone}</td>
+                          <td className="px-3 py-2.5">
+                            <div className="flex flex-wrap gap-1">
+                              {u.roles.slice(0, 3).map(r => (
+                                <span key={r} className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground capitalize">
+                                  {r}
+                                </span>
+                              ))}
+                              {u.roles.length > 3 && (
+                                <span className="inline-flex px-1.5 py-0.5 rounded text-[10px] font-medium bg-muted text-muted-foreground">
+                                  +{u.roles.length - 3}
+                                </span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-3 py-2.5">
+                            {u.verified ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-success/10 text-success border border-success/20">
+                                <CheckCircle className="h-3 w-3" /> Verified
+                              </span>
+                            ) : (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-warning/10 text-warning border border-warning/20">
+                                Pending
+                              </span>
+                            )}
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground text-xs">
+                            {u.average_rating ? (
+                              <span className="flex items-center gap-0.5">
+                                <Star className="h-3 w-3 fill-warning text-warning" />
+                                {u.average_rating.toFixed(1)}
+                              </span>
+                            ) : '—'}
+                          </td>
+                          <td className="px-3 py-2.5">
+                            <span className={cn("text-xs", isOnline(u.id) ? "text-success font-medium" : "text-muted-foreground")}>
+                              {isOnline(u.id) ? 'Online' : formatLastActive(u.last_active_at)}
+                            </span>
+                          </td>
+                          <td className="px-3 py-2.5 text-muted-foreground text-xs">
+                            {format(new Date(u.created_at), 'dd MMM yyyy')}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
                 </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium text-foreground truncate flex items-center gap-1">
-                      {u.full_name}
-                      {u.verified ? (
-                        <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20" />
-                          <span className="text-[9px] text-primary font-medium">Verified</span>
-                        </span>
-                      ) : (
-                        <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-muted-foreground/40" />
-                          <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
-                        </span>
-                      )}
-                    </h3>
-                    <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-success" : "text-muted-foreground")}>{formatLastActive(u.last_active_at)}</span>
+              </div>
+            </div>
+
+            {/* Mobile Cards */}
+            <div className="md:hidden divide-y divide-border">
+              {displayUsers.map((u) => (
+                <div
+                  key={u.id}
+                  onClick={() => handleUserClick(u)}
+                  className={cn(
+                    "flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 active:bg-muted transition-colors cursor-pointer touch-manipulation min-h-[72px]",
+                    selectedUserIds.has(u.id) && "bg-primary/5"
+                  )}
+                  style={{ WebkitTapHighlightColor: 'transparent' }}
+                >
+                  <div className="relative shrink-0" onClick={(e) => toggleUserSelection(u.id, e)}>
+                    {selectedUserIds.has(u.id) ? (
+                      <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                        <CheckCircle className="h-6 w-6 text-primary-foreground" />
+                      </div>
+                    ) : (
+                      <>
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={u.avatar_url || undefined} />
+                          <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
+                        </Avatar>
+                        {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-success border-2 border-background" />}
+                      </>
+                    )}
                   </div>
-                  <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className="text-sm text-muted-foreground truncate">{getStatusText(u)}</p>
-                    <div className="flex items-center gap-1 shrink-0">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between gap-2">
+                      <h3 className="font-medium text-foreground truncate flex items-center gap-1">
+                        {u.full_name}
+                        {u.verified && <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20 shrink-0" />}
+                      </h3>
+                      <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-success" : "text-muted-foreground")}>{formatLastActive(u.last_active_at)}</span>
+                    </div>
+                    <div className="flex items-center justify-between gap-2 mt-0.5">
+                      <p className="text-sm text-muted-foreground truncate">{getStatusText(u)}</p>
                       {u.average_rating && (
-                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                        <span className="text-xs text-muted-foreground flex items-center gap-0.5 shrink-0">
                           <Star className="h-3 w-3 fill-warning text-warning" />
                           {u.average_rating.toFixed(1)}
                         </span>
@@ -606,9 +707,9 @@ export default function UserManagement() {
                     </div>
                   </div>
                 </div>
-              </div>
-            ))}
-          </div>
+              ))}
+            </div>
+          </>
         )}
 
         {/* Infinite scroll sentinel */}
