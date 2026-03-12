@@ -71,6 +71,7 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
       </div>
 
       {showBreakdown && <InvestmentBreakdownSheet open={showBreakdown} onOpenChange={setShowBreakdown} />}
+      {showWallet && <WalletDetailsSheet open={showWallet} onOpenChange={setShowWallet} walletBalance={walletBalance} />}
     </>);
 
 }
