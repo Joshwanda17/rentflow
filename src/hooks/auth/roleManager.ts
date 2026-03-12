@@ -54,11 +54,8 @@ export async function fetchUserRoles(
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
       const defaultForUser = isSupporterOnly ? 'supporter'
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
-        : userRoles.includes('supporter') ? 'supporter'
         : 'agent';
-      // Always set default role on role fetch (fresh login or reload)
-      // Users can switch roles via the role switcher afterward
-      if (!currentRole || !userRoles.includes(currentRole) || currentRole === 'agent' && userRoles.includes('supporter')) {
+      if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
     } else {

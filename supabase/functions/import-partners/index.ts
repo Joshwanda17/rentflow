@@ -114,7 +114,7 @@ Deno.serve(async (req) => {
             email: emailAddr,
             password: tempPassword,
             email_confirm: true,
-            user_metadata: { full_name: partner.partner_name, phone: partner.phone },
+            user_metadata: { full_name: partner.partner_name, phone: partner.phone, intended_role: 'supporter' },
           });
 
           if (authErr || !authData.user) {
