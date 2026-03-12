@@ -985,6 +985,9 @@ export default function COOPartnersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
     </div>
   );
 }
