@@ -66,7 +66,7 @@ const itemVariants = {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, roles, addRole, loading: authLoading } = useAuth();
+  const { user, roles, loading: authLoading } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
