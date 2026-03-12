@@ -26,19 +26,23 @@ export async function fetchUserRoles(
       return;
     }
 
-    const { data, error } = await supabase
+    // Fetch ALL roles (including disabled) to prevent re-provisioning
+    const { data: allRolesData, error: allError } = await supabase
       .from('user_roles')
       .select('role, enabled')
-      .eq('user_id', userId)
-      .or('enabled.is.null,enabled.eq.true');
+      .eq('user_id', userId);
 
-    if (error) {
-      console.warn('[RoleManager] Error fetching roles:', error.message);
+    if (allError) {
+      console.warn('[RoleManager] Error fetching roles:', allError.message);
       setRoles(DEFAULT_ROLES);
       setRole(DEFAULT_ROLE);
       setCachedRoles(DEFAULT_ROLES);
       return;
     }
+
+    // Filter to only enabled roles for display
+    const data = (allRolesData || []).filter(r => r.enabled === null || r.enabled === true);
+    const hasAnyRolesInDb = (allRolesData || []).length > 0;
 
     if (data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
@@ -58,8 +62,8 @@ export async function fetchUserRoles(
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
       }
-    } else {
-      // No roles found — verify profile exists before auto-creating
+    } else if (!hasAnyRolesInDb) {
+      // Only auto-provision if user has NO roles at all in DB (not even disabled ones)
       // If profile doesn't exist, the user is being deleted — do NOT re-provision
       const { data: profile } = await supabase
         .from('profiles')
@@ -105,6 +109,12 @@ export async function fetchUserRoles(
         setRole(DEFAULT_ROLE);
         setCachedRoles(DEFAULT_ROLES);
       }
+    } else {
+      // All roles exist but are disabled — user has been fully restricted
+      console.warn('[RoleManager] All roles disabled for user:', userId);
+      setRoles([]);
+      setRole(null as unknown as AppRole);
+      setCachedRoles([]);
     }
   } catch (err: any) {
     console.warn('[RoleManager] Exception fetching roles:', err?.message);
@@ -125,9 +135,27 @@ export async function addRoleForUser(
 ) {
   if (currentRoles.includes(newRole)) return { error: null };
 
-  const { error } = await supabase
+  // Try to re-enable an existing disabled role first
+  const { data: existing } = await supabase
     .from('user_roles')
-    .insert({ user_id: userId, role: newRole, enabled: true });
+    .select('id, enabled')
+    .eq('user_id', userId)
+    .eq('role', newRole)
+    .maybeSingle();
+
+  let error;
+  if (existing) {
+    // Role exists but is disabled — re-enable it
+    ({ error } = await supabase
+      .from('user_roles')
+      .update({ enabled: true })
+      .eq('id', existing.id));
+  } else {
+    // Brand new role
+    ({ error } = await supabase
+      .from('user_roles')
+      .insert({ user_id: userId, role: newRole, enabled: true }));
+  }
 
   if (!error) {
     const updated = [...currentRoles, newRole];

@@ -530,7 +530,7 @@ export default function UserDetailsDialog({ open, onOpenChange, user, onRolesUpd
     try {
       const { error } = await supabase
         .from('user_roles')
-        .delete()
+        .update({ enabled: false })
         .eq('user_id', user.id)
         .eq('role', role);
       

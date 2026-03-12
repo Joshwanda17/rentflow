@@ -191,7 +191,7 @@ export default function ActivePartnersDetail() {
     try {
       const { error } = await supabase
         .from('user_roles')
-        .delete()
+        .update({ enabled: false })
         .eq('user_id', deletePartner.id)
         .eq('role', 'supporter');
       if (error) throw error;
