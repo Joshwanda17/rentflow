@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Sparkles, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale } from 'lucide-react';
+import { ArrowLeft, User, Phone, Mail, Save, Loader2, Camera, Shield, Home, Users, Wallet, Building2, Check, Type, Vibrate, RotateCcw, Bell, LogIn, Volume2, RefreshCw, FileText, Scale } from 'lucide-react';
 import DiagnosticsSection from '@/components/settings/DiagnosticsSection';
 import PinSecuritySection from '@/components/settings/PinSecuritySection';
 import BiometricSecuritySection from '@/components/settings/BiometricSecuritySection';
@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import AddRoleDialog from '@/components/AddRoleDialog';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import MyLandlordsSection from '@/components/tenant/MyLandlordsSection';
 import MyTenantsSection from '@/components/landlord/MyTenantsSection';
@@ -66,7 +66,7 @@ const itemVariants = {
 
 export default function Settings() {
   const navigate = useNavigate();
-  const { user, roles, addRole, loading: authLoading } = useAuth();
+  const { user, roles, loading: authLoading } = useAuth();
   const { fontSize, setFontSize } = useFontSize();
   const { intensity: hapticIntensity, setIntensity: setHapticIntensity } = useHapticSettings();
   const { preferences, updatePreference, resetPreferences } = useAppPreferences();
@@ -492,20 +492,6 @@ export default function Settings() {
                 )}
               </div>
               
-              <div className="pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      Add Another Role
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Expand your capabilities on the platform
-                    </p>
-                  </div>
-                  <AddRoleDialog availableRoles={roles} onAddRole={addRole} />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
