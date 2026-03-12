@@ -172,6 +172,15 @@ export default function COOPartnersPage() {
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
 
+  // Edit portfolio dialog
+  const [editPortfolio, setEditPortfolio] = useState<PortfolioRow | null>(null);
+  const [editPortfolioAmount, setEditPortfolioAmount] = useState('');
+  const [editPortfolioRoi, setEditPortfolioRoi] = useState('');
+  const [editPortfolioRoiMode, setEditPortfolioRoiMode] = useState('monthly_payout');
+  const [editPortfolioDuration, setEditPortfolioDuration] = useState('');
+  const [editPortfolioStatus, setEditPortfolioStatus] = useState('');
+  const [savingEditPortfolio, setSavingEditPortfolio] = useState(false);
+
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
 
@@ -399,6 +408,78 @@ export default function COOPartnersPage() {
     } finally {
       setDeleting(false);
     }
+  }
+
+  /* ─── Open Edit Portfolio ─── */
+  function openEditPortfolio(p: PortfolioRow) {
+    setEditPortfolio(p);
+    setEditPortfolioAmount(String(p.investment_amount));
+    setEditPortfolioRoi(String(p.roi_percentage));
+    setEditPortfolioRoiMode(p.roi_mode || 'monthly_payout');
+    setEditPortfolioDuration(String(p.duration_months));
+    setEditPortfolioStatus(p.status);
+  }
+
+  /* ─── Save Edit Portfolio ─── */
+  async function handleSaveEditPortfolio() {
+    if (!editPortfolio || !detailPartner) return;
+    const amount = Number(editPortfolioAmount);
+    const roi = Number(editPortfolioRoi);
+    const duration = Number(editPortfolioDuration);
+    if (isNaN(amount) || amount < MIN_INVEST) { toast.error(`Min investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be 1-100%'); return; }
+    if (isNaN(duration) || duration < 1 || duration > 120) { toast.error('Duration must be 1-120 months'); return; }
+
+    setSavingEditPortfolio(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Audit log the edit
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'edit_investment_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: editPortfolio.id,
+        metadata: {
+          portfolio_code: editPortfolio.portfolio_code,
+          partner_id: detailPartner.profile.id,
+          partner_name: detailPartner.profile.full_name,
+          changes: {
+            investment_amount: { from: editPortfolio.investment_amount, to: amount },
+            roi_percentage: { from: editPortfolio.roi_percentage, to: roi },
+            roi_mode: { from: editPortfolio.roi_mode, to: editPortfolioRoiMode },
+            duration_months: { from: editPortfolio.duration_months, to: duration },
+            status: { from: editPortfolio.status, to: editPortfolioStatus },
+          },
+        },
+      });
+
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({
+          investment_amount: amount,
+          roi_percentage: roi,
+          roi_mode: editPortfolioRoiMode,
+          duration_months: duration,
+          status: editPortfolioStatus,
+        })
+        .eq('id', editPortfolio.id);
+      if (error) throw error;
+
+      toast.success(`Portfolio ${editPortfolio.portfolio_code} updated`);
+
+      // Update local state
+      const updated = detailPartner.portfolios.map(p =>
+        p.id === editPortfolio.id
+          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus }
+          : p
+      );
+      setDetailPartner({ ...detailPartner, portfolios: updated });
+      setEditPortfolio(null);
+      fetchData();
+    } catch (e: any) { toast.error(e.message || 'Failed to update portfolio'); }
+    finally { setSavingEditPortfolio(false); }
   }
 
   /* ─── Filtered / Sorted ─── */
@@ -913,8 +994,16 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Delete Portfolio Button */}
-                              <div className="flex justify-end mt-2 pt-2 border-t border-border/50">
+                              {/* Edit & Delete Portfolio Buttons */}
+                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] text-primary hover:text-primary hover:bg-primary/10 gap-1"
+                                  onClick={() => openEditPortfolio(p)}
+                                >
+                                  <Pencil className="h-3 w-3" /> Edit Investment
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
@@ -1104,6 +1193,86 @@ export default function COOPartnersPage() {
             >
               {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
               Delete Portfolio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      {/* ─── Edit Portfolio Dialog ─── */}
+      <Dialog open={!!editPortfolio} onOpenChange={open => { if (!open) setEditPortfolio(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Portfolio</DialogTitle>
+            <DialogDescription>
+              Update portfolio <strong>{editPortfolio?.portfolio_code}</strong> details. Changes are audit-logged.
+            </DialogDescription>
+          </DialogHeader>
+          {editPortfolio && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Investment Amount (UGX)</Label>
+                <Input type="number" min={MIN_INVEST} value={editPortfolioAmount}
+                  onChange={e => setEditPortfolioAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
+                <div className="flex gap-1.5 flex-wrap">
+                  {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
+                    <Button key={a} variant={editPortfolioAmount === String(a) ? 'default' : 'outline'} size="sm" className="text-[10px] h-6 px-2"
+                      onClick={() => setEditPortfolioAmount(String(a))}>{(a / 1000000).toFixed(a >= 1000000 ? 0 : 1)}M</Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">ROI Percentage (%)</Label>
+                <Input type="number" min={1} max={100} value={editPortfolioRoi} onChange={e => setEditPortfolioRoi(e.target.value)} />
+                <div className="flex gap-1.5">
+                  {[10, 15, 20, 25].map(v => (
+                    <Button key={v} variant={editPortfolioRoi === String(v) ? 'default' : 'outline'} size="sm" className="text-[10px] h-6 px-2 flex-1"
+                      onClick={() => setEditPortfolioRoi(String(v))}>{v}%</Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">ROI Mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={editPortfolioRoiMode === 'monthly_payout' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
+                    onClick={() => setEditPortfolioRoiMode('monthly_payout')}>
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" /> Payout
+                  </Button>
+                  <Button variant={editPortfolioRoiMode === 'monthly_compounding' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
+                    onClick={() => setEditPortfolioRoiMode('monthly_compounding')}>
+                    <TrendingUp className="h-3.5 w-3.5 mr-1.5" /> Compounding
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Duration (months)</Label>
+                  <Input type="number" min={1} max={120} value={editPortfolioDuration} onChange={e => setEditPortfolioDuration(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={editPortfolioStatus} onValueChange={setEditPortfolioStatus}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                      <SelectItem value="matured">Matured</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
+                <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
+                  <p>Monthly ROI ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
+                  <p>Duration: <strong>{editPortfolioDuration} months</strong></p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPortfolio(null)}>Cancel</Button>
+            <Button onClick={handleSaveEditPortfolio} disabled={savingEditPortfolio}>
+              {savingEditPortfolio && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Save Changes
             </Button>
           </DialogFooter>
         </DialogContent>
