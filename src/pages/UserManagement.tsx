@@ -409,22 +409,22 @@ export default function UserManagement() {
 
   // --- RENDER ---
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
-      <div className="min-h-screen bg-[#111b21]">
-        <div className="sticky top-0 z-50 bg-[#202c33] px-4 py-3">
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-50 bg-card border-b border-border px-4 py-3">
           <div className="flex items-center justify-between">
-            <Skeleton className="h-6 w-24 bg-[#2a3942]" />
-            <div className="flex gap-4"><Skeleton className="h-6 w-6 rounded-full bg-[#2a3942]" /></div>
+            <Skeleton className="h-6 w-24" />
+            <div className="flex gap-4"><Skeleton className="h-6 w-6 rounded-full" /></div>
           </div>
         </div>
-        <div className="px-3 py-2 bg-[#111b21]"><Skeleton className="h-9 w-full rounded-lg bg-[#202c33]" /></div>
-        <div className="divide-y divide-[#222d34]">
+        <div className="px-3 py-2"><Skeleton className="h-9 w-full rounded-lg" /></div>
+        <div className="divide-y divide-border">
           {[1,2,3,4,5,6,7,8].map(i => (
             <div key={i} className="flex items-center gap-3 px-4 py-3">
-              <Skeleton className="h-12 w-12 rounded-full bg-[#2a3942]" />
-              <div className="flex-1"><Skeleton className="h-4 w-32 mb-2 bg-[#2a3942]" /><Skeleton className="h-3 w-48 bg-[#2a3942]" /></div>
-              <Skeleton className="h-3 w-12 bg-[#2a3942]" />
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1"><Skeleton className="h-4 w-32 mb-2" /><Skeleton className="h-3 w-48" /></div>
+              <Skeleton className="h-3 w-12" />
             </div>
           ))}
         </div>
