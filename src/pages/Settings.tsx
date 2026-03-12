@@ -84,6 +84,13 @@ export default function Settings() {
   const [showAgentAgreementModal, setShowAgentAgreementModal] = useState(false);
   const [showSupporterAgreementModal, setShowSupporterAgreementModal] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmNewPassword, setConfirmNewPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
+  const [showCurrentPassword, setShowCurrentPassword] = useState(false);
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showPasswordForm, setShowPasswordForm] = useState(false);
 
   useEffect(() => {
     if (!authLoading && !user) {
