@@ -126,10 +126,9 @@ export default function UserManagement() {
     }
   }, [roles, navigate]);
 
-  // Reset pagination when filters/search change
+  // Reset pagination when filters/search change — don't clear users to avoid flash
   useEffect(() => {
     setCurrentPage(0);
-    setUsers([]);
     setHasMore(true);
   }, [debouncedSearch, roleFilter, verificationFilter, sortBy, statFilter]);
 
