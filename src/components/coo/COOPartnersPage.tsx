@@ -913,6 +913,18 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
+                              {/* Delete Portfolio Button */}
+                              <div className="flex justify-end mt-2 pt-2 border-t border-border/50">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                                  onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
+                                >
+                                  <Trash2 className="h-3 w-3" /> Delete Investment
+                                </Button>
+                              </div>
+
                             </div>
                           </Card>
                         );
