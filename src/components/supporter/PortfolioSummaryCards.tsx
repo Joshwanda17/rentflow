@@ -17,8 +17,10 @@ export function PortfolioSummaryCards({ housesFunded, rentSecured, walletBalance
   const [showBreakdown, setShowBreakdown] = useState(false);
   const [showWallet, setShowWallet] = useState(false);
 
-  // Use actual houses funded, minimum 1 if any rent has been secured
-  const displayHouses = rentSecured > 0 ? Math.max(housesFunded, 1) : housesFunded;
+  // Calculate houses from investment amount: 1 house per 300,000 UGX invested
+  // Use actual houses funded if higher, minimum 1 if any investment exists
+  const investmentBasedHouses = rentSecured > 0 ? Math.max(1, Math.floor(rentSecured / 300000)) : 0;
+  const displayHouses = Math.max(housesFunded, investmentBasedHouses);
 
   return (
     <>
