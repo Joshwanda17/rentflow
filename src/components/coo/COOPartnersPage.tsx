@@ -785,6 +785,16 @@ export default function COOPartnersPage() {
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
           <Upload className="h-3.5 w-3.5" /> Import
         </Button>
+        {pendingApprovalCount > 0 && (
+          <Button
+            size="sm"
+            className="h-9 gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white"
+            onClick={() => setShowActivateConfirm(true)}
+          >
+            <CheckCircle2 className="h-3.5 w-3.5" />
+            Activate All ({pendingApprovalCount})
+          </Button>
+        )}
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
           <Download className="h-3.5 w-3.5" /> Export CSV
         </Button>
