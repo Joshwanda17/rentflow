@@ -433,7 +433,7 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111b21] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
       <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
         <div className="px-3 pt-2 pb-1">
