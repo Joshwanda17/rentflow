@@ -26,19 +26,23 @@ export async function fetchUserRoles(
       return;
     }
 
-    const { data, error } = await supabase
+    // Fetch ALL roles (including disabled) to prevent re-provisioning
+    const { data: allRolesData, error: allError } = await supabase
       .from('user_roles')
       .select('role, enabled')
-      .eq('user_id', userId)
-      .or('enabled.is.null,enabled.eq.true');
+      .eq('user_id', userId);
 
-    if (error) {
-      console.warn('[RoleManager] Error fetching roles:', error.message);
+    if (allError) {
+      console.warn('[RoleManager] Error fetching roles:', allError.message);
       setRoles(DEFAULT_ROLES);
       setRole(DEFAULT_ROLE);
       setCachedRoles(DEFAULT_ROLES);
       return;
     }
+
+    // Filter to only enabled roles for display
+    const data = (allRolesData || []).filter(r => r.enabled === null || r.enabled === true);
+    const hasAnyRolesInDb = (allRolesData || []).length > 0;
 
     if (data && data.length > 0) {
       const userRoles = data.map(r => r.role as AppRole);
