@@ -23,6 +23,7 @@ const hubItems: { id: ManagerHub; icon: typeof Home; label: string; description:
 const quickLinks = [
   { icon: Calendar, label: 'Schedules', path: '/users' },
   { icon: Users, label: 'Company Stuff', path: '/users' },
+  { icon: UsersRound, label: 'Platform Users', path: '/platform-users' },
   { icon: FileText, label: 'Rent Requests', path: '/manager-access' },
   { icon: Banknote, label: 'Loans', path: '/manager-access?tab=loans' },
   { icon: ShoppingCart, label: 'Orders', path: '/manager-access?tab=orders' },
