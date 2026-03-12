@@ -435,22 +435,22 @@ export default function UserManagement() {
   return (
     <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
+      <header className="sticky top-0 z-50 bg-card border-b border-border safe-area-top">
         <div className="px-3 pt-2 pb-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search name, phone, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
+              className="w-full pl-9 pr-9 py-2 rounded-xl bg-muted text-foreground placeholder:text-muted-foreground border border-border outline-none text-sm focus:border-primary/50"
               style={{ fontSize: '16px' }}
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                <X className="h-3.5 w-3.5 text-[#8696a0]" />
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             )}
           </div>
@@ -458,39 +458,39 @@ export default function UserManagement() {
 
         <div className="flex items-center justify-between px-3 py-1.5">
           <div className="flex items-center gap-2">
-            <button onClick={() => { hapticTap(); navigate(-1); }} className="p-1 -ml-1 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-              <ArrowLeft className="h-5 w-5 text-[#aebac1]" />
+            <button onClick={() => { hapticTap(); navigate(-1); }} className="p-1 -ml-1 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
+              <ArrowLeft className="h-5 w-5 text-muted-foreground" />
             </button>
-            <h1 className="font-semibold text-lg text-white">
-              All Users
-              <span className="ml-2 text-sm font-normal text-[#8696a0]">({totalUserCount.toLocaleString()})</span>
+            <h1 className="font-semibold text-lg text-foreground">
+              Platform Users
+              <span className="ml-2 text-sm font-normal text-muted-foreground">({totalUserCount.toLocaleString()})</span>
             </h1>
           </div>
 
           <div className="flex items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button onClick={() => hapticTap()} className="p-1.5 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                  <MoreVertical className="h-4 w-4 text-[#aebac1]" />
+                <button onClick={() => hapticTap()} className="p-1.5 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-[#233138] border-[#3b4a54] text-white">
-                <DropdownMenuItem onClick={() => setAddUserOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
-                  <Users className="h-3.5 w-3.5 text-[#00a884]" /> Add User
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setAddUserOpen(true)} className="gap-2">
+                  <Users className="h-3.5 w-3.5 text-primary" /> Add User
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkNotificationOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                <DropdownMenuItem onClick={() => setBulkNotificationOpen(true)} className="gap-2">
                   Notify {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkWhatsAppOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                <DropdownMenuItem onClick={() => setBulkWhatsAppOpen(true)} className="gap-2">
                   WhatsApp {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCSV} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">Export CSV</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">Assign Role</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">Remove Role</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">Reach Inactive</DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleSelectAll} className="hover:bg-[#182229] focus:bg-[#182229]">{selectedUserIds.size === users.length ? 'Deselect All' : 'Select All'}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowFilters(true)} className="hover:bg-[#182229] focus:bg-[#182229]">Filters & Sort</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRefresh} className="hover:bg-[#182229] focus:bg-[#182229]">
+                <DropdownMenuItem onClick={handleExportCSV} className="gap-2">Export CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Assign Role</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Remove Role</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="gap-2">Reach Inactive</DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleSelectAll}>{selectedUserIds.size === users.length ? 'Deselect All' : 'Select All'}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowFilters(true)}>Filters & Sort</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRefresh}>
                   <RefreshCw className={cn("h-3.5 w-3.5 mr-2", refreshing && "animate-spin")} />
                   {refreshing ? 'Refreshing...' : 'Refresh'}
                 </DropdownMenuItem>
@@ -515,7 +515,7 @@ export default function UserManagement() {
               onClick={() => { hapticTap(); setRoleFilter(filter.value); }}
               className={cn(
                 "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[36px]",
-                roleFilter === filter.value ? 'bg-[#00a884] text-white' : 'bg-[#2a3942] text-[#8696a0]'
+                roleFilter === filter.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               )}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -527,9 +527,9 @@ export default function UserManagement() {
 
         {selectedUserIds.size > 0 && (
           <div className="px-2 pb-1">
-            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-md px-2 py-0.5">
-              <span className="text-[9px] font-medium text-[#00a884]">{selectedUserIds.size} selected</span>
-              <button onClick={clearSelection} className="text-[9px] text-[#00a884] font-medium">Clear</button>
+            <div className="flex items-center justify-between bg-primary/10 rounded-md px-2 py-0.5">
+              <span className="text-[9px] font-medium text-primary">{selectedUserIds.size} selected</span>
+              <button onClick={clearSelection} className="text-[9px] text-primary font-medium">Clear</button>
             </div>
           </div>
         )}
