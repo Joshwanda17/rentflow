@@ -195,6 +195,16 @@ export default function COOPartnersPage() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
   const [showActivateConfirm, setShowActivateConfirm] = useState(false);
 
+  // Add portfolio dialog
+  const [addPortfolioOpen, setAddPortfolioOpen] = useState(false);
+  const [addPortfolioAmount, setAddPortfolioAmount] = useState('');
+  const [addPortfolioRoi, setAddPortfolioRoi] = useState('20');
+  const [addPortfolioRoiMode, setAddPortfolioRoiMode] = useState('monthly_payout');
+  const [addPortfolioDuration, setAddPortfolioDuration] = useState('12');
+  const [addPortfolioPayoutDay, setAddPortfolioPayoutDay] = useState('15');
+  const [addPortfolioDate, setAddPortfolioDate] = useState('');
+  const [addingPortfolio, setAddingPortfolio] = useState(false);
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
