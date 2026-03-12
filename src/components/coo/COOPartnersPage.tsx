@@ -994,8 +994,16 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
-                              {/* Delete Portfolio Button */}
-                              <div className="flex justify-end mt-2 pt-2 border-t border-border/50">
+                              {/* Edit & Delete Portfolio Buttons */}
+                              <div className="flex items-center justify-end gap-2 mt-2.5 pt-2.5 border-t border-border/50">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] text-primary hover:text-primary hover:bg-primary/10 gap-1"
+                                  onClick={() => openEditPortfolio(p)}
+                                >
+                                  <Pencil className="h-3 w-3" /> Edit Investment
+                                </Button>
                                 <Button
                                   variant="ghost"
                                   size="sm"
