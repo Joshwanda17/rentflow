@@ -519,6 +519,14 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
               <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Skipped" value={importResult.skippedDuplicates} color="text-amber-600" />
             </div>
 
+            <div className="rounded-lg border border-primary/20 bg-primary/5 p-3 text-xs space-y-1">
+              <p className="font-semibold text-foreground">🔐 Login Credentials</p>
+              <p className="text-muted-foreground">Partners can log in using their <strong>phone number</strong> and the default password:</p>
+              <p className="font-mono font-bold text-primary text-sm">Welile[last 6 digits of phone]!</p>
+              <p className="text-muted-foreground">Example: Phone 0700405936 → Password: <strong className="font-mono">Welile405936!</strong></p>
+              <p className="text-[10px] text-muted-foreground mt-1">Partners should change their password after first login.</p>
+            </div>
+
             {importResult.errors.length > 0 && (
               <div className="rounded-lg border border-destructive/20 bg-destructive/5 p-3 max-h-[150px] overflow-y-auto">
                 <p className="text-xs font-semibold text-destructive mb-1.5">Errors:</p>
