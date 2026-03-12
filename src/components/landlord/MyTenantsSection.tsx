@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare } from 'lucide-react';
+import { Users, MapPin, Banknote, Plus, UserCheck, MessageSquare, RefreshCw } from 'lucide-react';
 import { formatUGX } from '@/lib/rentCalculations';
 import StarRatingDisplay from '@/components/reviews/StarRatingDisplay';
 import LandlordAddTenantDialog from './LandlordAddTenantDialog';
