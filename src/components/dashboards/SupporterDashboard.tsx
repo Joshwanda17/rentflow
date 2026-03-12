@@ -190,7 +190,7 @@ export default function SupporterDashboard({
           .select('id, investment_amount, total_roi_earned, roi_percentage')
           .eq('agent_id', user.id)
           .is('investor_id', null)
-          .in('status', ['active', 'pending'])
+          .in('status', ['active', 'pending', 'pending_approval'])
           .limit(100),
       ]);
 
