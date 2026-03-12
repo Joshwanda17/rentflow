@@ -87,7 +87,7 @@ export default function UserManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('last_active');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [totalUserCount, setTotalUserCount] = useState<number>(0);
   const [roleCounts, setRoleCounts] = useState<Record<string, number>>({});
   const [verifiedUserCount, setVerifiedUserCount] = useState(0);
