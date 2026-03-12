@@ -7,7 +7,7 @@ import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
-  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save
+  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -28,6 +28,7 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import PartnerImportDialog from './PartnerImportDialog';
 
 /* ─── Types ─── */
 interface PartnerRow {
@@ -169,6 +170,9 @@ export default function COOPartnersPage() {
   const [editingPortfolioId, setEditingPortfolioId] = useState<string | null>(null);
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
+
+  // Import dialog
+  const [importOpen, setImportOpen] = useState(false);
 
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
@@ -597,6 +601,9 @@ export default function COOPartnersPage() {
             <SelectItem value="monthly_compounding">Compounding</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
+          <Upload className="h-3.5 w-3.5" /> Import
+        </Button>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
           <Download className="h-3.5 w-3.5" /> Export CSV
         </Button>
@@ -978,6 +985,9 @@ export default function COOPartnersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Import Dialog */}
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
     </div>
   );
 }
