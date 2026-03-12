@@ -294,7 +294,40 @@ export default function COOPartnersPage() {
     finally { setIsLoading(false); }
   }, []);
 
-  useEffect(() => { fetchData(); }, [fetchData]);
+  // Fetch pending_approval count
+  const fetchPendingCount = useCallback(async () => {
+    const { count } = await supabase
+      .from('investor_portfolios')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'pending_approval');
+    setPendingApprovalCount(count || 0);
+  }, []);
+
+  useEffect(() => { fetchData(); fetchPendingCount(); }, [fetchData, fetchPendingCount]);
+
+  // Bulk activate all pending_approval portfolios
+  const handleBulkActivate = async () => {
+    setActivatingAll(true);
+    try {
+      const { error, count } = await supabase
+        .from('investor_portfolios')
+        .update({ status: 'active' })
+        .eq('status', 'pending_approval')
+        .select('id', { count: 'exact', head: false });
+
+      if (error) throw error;
+
+      toast.success(`${count || pendingApprovalCount} portfolios activated successfully`);
+      setShowActivateConfirm(false);
+      setPendingApprovalCount(0);
+      fetchData();
+    } catch (e: any) {
+      console.error('Bulk activate error:', e);
+      toast.error(e.message || 'Failed to activate portfolios');
+    } finally {
+      setActivatingAll(false);
+    }
+  };
 
   /* ─── Open Partner Detail ─── */
   async function openPartnerDetail(partnerId: string) {
