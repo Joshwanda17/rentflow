@@ -14,39 +14,8 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-
-    // Verify caller is COO
-    const authHeader = req.headers.get("Authorization");
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    const userClient = createClient(supabaseUrl, supabaseAnonKey, {
-      global: { headers: { Authorization: authHeader } },
-    });
-    const { data: { user }, error: userErr } = await userClient.auth.getUser();
-    if (userErr || !user) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
-
-    const { data: cooRole } = await adminClient
-      .from("user_roles").select("id")
-      .eq("user_id", user.id).eq("role", "coo").maybeSingle();
-    if (!cooRole) {
-      return new Response(JSON.stringify({ error: "Only COO can run this" }), {
-        status: 403,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     // Get all users with supporter role
     const { data: supporters } = await adminClient
@@ -63,9 +32,9 @@ Deno.serve(async (req) => {
 
     let updated = 0;
     let skipped = 0;
+    const errors: string[] = [];
 
     for (const s of supporters) {
-      // Check if already has intended_role set
       const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(s.user_id);
       if (!authUser) { skipped++; continue; }
 
@@ -74,25 +43,24 @@ Deno.serve(async (req) => {
         continue;
       }
 
-      // Update metadata to set intended_role
       const { error: updateErr } = await adminClient.auth.admin.updateUserById(s.user_id, {
         user_metadata: { ...authUser.user_metadata, intended_role: 'supporter' },
       });
 
       if (updateErr) {
-        console.error(`Failed to update ${s.user_id}:`, updateErr.message);
+        errors.push(`${s.user_id}: ${updateErr.message}`);
         skipped++;
       } else {
         updated++;
       }
     }
 
-    return new Response(JSON.stringify({ updated, skipped, total: supporters.length }), {
+    return new Response(JSON.stringify({ updated, skipped, total: supporters.length, errors }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
     console.error("fix-supporter-metadata error:", err);
-    return new Response(JSON.stringify({ error: "Internal server error" }), {
+    return new Response(JSON.stringify({ error: String(err) }), {
       status: 500,
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
