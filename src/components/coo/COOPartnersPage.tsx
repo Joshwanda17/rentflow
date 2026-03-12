@@ -171,6 +171,9 @@ export default function COOPartnersPage() {
   const [editingPayoutDay, setEditingPayoutDay] = useState('');
   const [savingPortfolio, setSavingPortfolio] = useState(false);
 
+  // Import dialog
+  const [importOpen, setImportOpen] = useState(false);
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
