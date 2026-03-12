@@ -286,9 +286,9 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
   }, []);
 
   /* ── Stats ── */
-  const validGroups = groups.filter(g => !g.isDuplicate && g.errors.length === 0 && g.portfolios.length > 0);
-  const duplicateCount = groups.filter(g => g.isDuplicate).length;
-  const errorGroups = groups.filter(g => !g.isDuplicate && (g.errors.length > 0 || g.portfolios.length === 0));
+  const validGroups = groups.filter(g => g.errors.length === 0 && g.portfolios.length > 0);
+  const existingCount = groups.filter(g => g.isDuplicate).length;
+  const errorGroups = groups.filter(g => g.errors.length > 0 || g.portfolios.length === 0);
   const totalPortfolios = validGroups.reduce((s, g) => s + g.portfolios.length, 0);
   const totalAmount = validGroups.reduce((s, g) => s + g.portfolios.reduce((ps, p) => ps + p.amount, 0), 0);
 
