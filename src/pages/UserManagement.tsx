@@ -539,67 +539,67 @@ export default function UserManagement() {
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto overscroll-contain will-change-scroll"
-        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin', scrollbarColor: '#3b4a54 transparent' }}
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
-            <div className="p-4 rounded-full bg-[#202c33] w-fit mx-auto mb-4">
-              <Users className="h-12 w-12 text-[#8696a0]" />
+            <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
+              <Users className="h-12 w-12 text-muted-foreground" />
             </div>
-            <p className="font-semibold text-lg text-white">No users found</p>
-            <p className="text-sm text-[#8696a0] mt-1">Try adjusting your search or filters</p>
+            <p className="font-semibold text-lg text-foreground">No users found</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#222d34]">
+          <div className="divide-y divide-border">
             {displayUsers.map((u) => (
               <div
                 key={u.id}
                 onClick={() => handleUserClick(u)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 active:bg-[#182229] transition-colors cursor-pointer touch-manipulation min-h-[72px]",
-                  selectedUserIds.has(u.id) && "bg-[#00a884]/10"
+                  "flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 active:bg-muted transition-colors cursor-pointer touch-manipulation min-h-[72px]",
+                  selectedUserIds.has(u.id) && "bg-primary/5"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <div className="relative shrink-0" onClick={(e) => toggleUserSelection(u.id, e)}>
                   {selectedUserIds.has(u.id) ? (
-                    <div className="h-12 w-12 rounded-full bg-[#00a884] flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-white" />
+                    <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-primary-foreground" />
                     </div>
                   ) : (
                     <>
                       <Avatar className="h-12 w-12">
                         <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback className="bg-[#6b7b8a] text-white font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
+                        <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
                       </Avatar>
-                      {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-[#00a884] border-2 border-[#111b21]" />}
+                      {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-success border-2 border-background" />}
                     </>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium text-white truncate flex items-center gap-1">
+                    <h3 className="font-medium text-foreground truncate flex items-center gap-1">
                       {u.full_name}
                       {u.verified ? (
                         <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-purple-500 fill-purple-500/20" />
-                          <span className="text-[9px] text-purple-500 font-medium">Verified</span>
+                          <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20" />
+                          <span className="text-[9px] text-primary font-medium">Verified</span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-[#8696a0]/40" />
-                          <span className="text-[9px] text-[#8696a0] font-medium">Unverified</span>
+                          <BadgeCheck className="h-3.5 w-3.5 text-muted-foreground/40" />
+                          <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
                         </span>
                       )}
                     </h3>
-                    <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-[#00a884]" : "text-[#8696a0]")}>{formatLastActive(u.last_active_at)}</span>
+                    <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-success" : "text-muted-foreground")}>{formatLastActive(u.last_active_at)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className="text-sm text-[#8696a0] truncate">{getStatusText(u)}</p>
+                    <p className="text-sm text-muted-foreground truncate">{getStatusText(u)}</p>
                     <div className="flex items-center gap-1 shrink-0">
                       {u.average_rating && (
-                        <span className="text-xs text-[#8696a0] flex items-center gap-0.5">
-                          <Star className="h-3 w-3 fill-[#ffc107] text-[#ffc107]" />
+                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-warning text-warning" />
                           {u.average_rating.toFixed(1)}
                         </span>
                       )}
@@ -614,13 +614,13 @@ export default function UserManagement() {
         {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} className="py-4 flex justify-center">
           {loadingMore && (
-            <div className="flex items-center gap-2 text-[#8696a0] text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading more...
             </div>
           )}
           {!hasMore && displayUsers.length > 0 && (
-            <p className="text-xs text-[#8696a0]">Showing all {displayUsers.length.toLocaleString()} users</p>
+            <p className="text-xs text-muted-foreground">Showing all {displayUsers.length.toLocaleString()} users</p>
           )}
         </div>
 
