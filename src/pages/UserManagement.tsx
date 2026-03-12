@@ -316,7 +316,7 @@ export default function UserManagement() {
       }
 
       if (page === 0) setUsers(pageUsers);
-      else setUsers(prev => [...prev, ...pageUsers]);
+      else setUsers(prev => [...prev, ...pageUsers.filter(u => !prev.some(p => p.id === u.id))]);
     } catch (err) {
       console.error('Error in fetchUsersPage:', err);
     } finally {
