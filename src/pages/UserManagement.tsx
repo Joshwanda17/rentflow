@@ -87,7 +87,7 @@ export default function UserManagement() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [roleFilter, setRoleFilter] = useState<RoleFilter>('all');
   const [verificationFilter, setVerificationFilter] = useState<VerificationFilter>('all');
-  const [sortBy, setSortBy] = useState<SortOption>('last_active');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [totalUserCount, setTotalUserCount] = useState<number>(0);
   const [roleCounts, setRoleCounts] = useState<Record<string, number>>({});
   const [verifiedUserCount, setVerifiedUserCount] = useState(0);
@@ -126,10 +126,9 @@ export default function UserManagement() {
     }
   }, [roles, navigate]);
 
-  // Reset pagination when filters/search change
+  // Reset pagination when filters/search change — don't clear users to avoid flash
   useEffect(() => {
     setCurrentPage(0);
-    setUsers([]);
     setHasMore(true);
   }, [debouncedSearch, roleFilter, verificationFilter, sortBy, statFilter]);
 
@@ -317,7 +316,7 @@ export default function UserManagement() {
       }
 
       if (page === 0) setUsers(pageUsers);
-      else setUsers(prev => [...prev, ...pageUsers]);
+      else setUsers(prev => [...prev, ...pageUsers.filter(u => !prev.some(p => p.id === u.id))]);
     } catch (err) {
       console.error('Error in fetchUsersPage:', err);
     } finally {
@@ -410,22 +409,22 @@ export default function UserManagement() {
 
   // --- RENDER ---
 
-  if (loading) {
+  if (loading && users.length === 0) {
     return (
-      <div className="min-h-screen bg-[#111b21]">
-        <div className="sticky top-0 z-50 bg-[#202c33] px-4 py-3">
+      <div className="min-h-screen bg-background">
+        <div className="sticky top-0 z-50 bg-card border-b border-border px-4 py-3">
           <div className="flex items-center justify-between">
-            <Skeleton className="h-6 w-24 bg-[#2a3942]" />
-            <div className="flex gap-4"><Skeleton className="h-6 w-6 rounded-full bg-[#2a3942]" /></div>
+            <Skeleton className="h-6 w-24" />
+            <div className="flex gap-4"><Skeleton className="h-6 w-6 rounded-full" /></div>
           </div>
         </div>
-        <div className="px-3 py-2 bg-[#111b21]"><Skeleton className="h-9 w-full rounded-lg bg-[#202c33]" /></div>
-        <div className="divide-y divide-[#222d34]">
+        <div className="px-3 py-2"><Skeleton className="h-9 w-full rounded-lg" /></div>
+        <div className="divide-y divide-border">
           {[1,2,3,4,5,6,7,8].map(i => (
             <div key={i} className="flex items-center gap-3 px-4 py-3">
-              <Skeleton className="h-12 w-12 rounded-full bg-[#2a3942]" />
-              <div className="flex-1"><Skeleton className="h-4 w-32 mb-2 bg-[#2a3942]" /><Skeleton className="h-3 w-48 bg-[#2a3942]" /></div>
-              <Skeleton className="h-3 w-12 bg-[#2a3942]" />
+              <Skeleton className="h-12 w-12 rounded-full" />
+              <div className="flex-1"><Skeleton className="h-4 w-32 mb-2" /><Skeleton className="h-3 w-48" /></div>
+              <Skeleton className="h-3 w-12" />
             </div>
           ))}
         </div>
@@ -434,24 +433,24 @@ export default function UserManagement() {
   }
 
   return (
-    <div className="min-h-screen bg-[#111b21] flex flex-col">
+    <div className="min-h-screen bg-background flex flex-col">
       {/* Header */}
-      <header className="sticky top-0 z-50 bg-[#202c33] safe-area-top">
+      <header className="sticky top-0 z-50 bg-card border-b border-border safe-area-top">
         <div className="px-3 pt-2 pb-1">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#8696a0]" />
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
             <input
               ref={searchInputRef}
               type="text"
               placeholder="Search name, phone, email..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-9 pr-9 py-2 rounded-xl bg-[#111b21] text-white placeholder:text-[#8696a0] border border-[#3b4a54]/50 outline-none text-sm focus:border-[#00a884]/50"
+              className="w-full pl-9 pr-9 py-2 rounded-xl bg-muted text-foreground placeholder:text-muted-foreground border border-border outline-none text-sm focus:border-primary/50"
               style={{ fontSize: '16px' }}
             />
             {searchTerm && (
               <button onClick={() => setSearchTerm('')} className="absolute right-2.5 top-1/2 -translate-y-1/2">
-                <X className="h-3.5 w-3.5 text-[#8696a0]" />
+                <X className="h-3.5 w-3.5 text-muted-foreground" />
               </button>
             )}
           </div>
@@ -459,39 +458,39 @@ export default function UserManagement() {
 
         <div className="flex items-center justify-between px-3 py-1.5">
           <div className="flex items-center gap-2">
-            <button onClick={() => { hapticTap(); navigate(-1); }} className="p-1 -ml-1 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-              <ArrowLeft className="h-5 w-5 text-[#aebac1]" />
+            <button onClick={() => { hapticTap(); navigate(-1); }} className="p-1 -ml-1 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
+              <ArrowLeft className="h-5 w-5 text-muted-foreground" />
             </button>
-            <h1 className="font-semibold text-lg text-white">
-              All Users
-              <span className="ml-2 text-sm font-normal text-[#8696a0]">({totalUserCount.toLocaleString()})</span>
+            <h1 className="font-semibold text-lg text-foreground">
+              Platform Users
+              <span className="ml-2 text-sm font-normal text-muted-foreground">({totalUserCount.toLocaleString()})</span>
             </h1>
           </div>
 
           <div className="flex items-center gap-1.5">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <button onClick={() => hapticTap()} className="p-1.5 rounded-full hover:bg-white/10 active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
-                  <MoreVertical className="h-4 w-4 text-[#aebac1]" />
+                <button onClick={() => hapticTap()} className="p-1.5 rounded-full hover:bg-muted active:scale-95 transition-all touch-manipulation" style={{ WebkitTapHighlightColor: 'transparent' }}>
+                  <MoreVertical className="h-4 w-4 text-muted-foreground" />
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-48 bg-[#233138] border-[#3b4a54] text-white">
-                <DropdownMenuItem onClick={() => setAddUserOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
-                  <Users className="h-3.5 w-3.5 text-[#00a884]" /> Add User
+              <DropdownMenuContent align="end" className="w-48">
+                <DropdownMenuItem onClick={() => setAddUserOpen(true)} className="gap-2">
+                  <Users className="h-3.5 w-3.5 text-primary" /> Add User
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkNotificationOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                <DropdownMenuItem onClick={() => setBulkNotificationOpen(true)} className="gap-2">
                   Notify {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkWhatsAppOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">
+                <DropdownMenuItem onClick={() => setBulkWhatsAppOpen(true)} className="gap-2">
                   WhatsApp {selectedUserIds.size > 0 && `(${selectedUserIds.size})`}
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleExportCSV} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">Export CSV</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">Assign Role</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="hover:bg-[#182229] focus:bg-[#182229] gap-2 disabled:opacity-40">Remove Role</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="hover:bg-[#182229] focus:bg-[#182229] gap-2">Reach Inactive</DropdownMenuItem>
-                <DropdownMenuItem onClick={toggleSelectAll} className="hover:bg-[#182229] focus:bg-[#182229]">{selectedUserIds.size === users.length ? 'Deselect All' : 'Select All'}</DropdownMenuItem>
-                <DropdownMenuItem onClick={() => setShowFilters(true)} className="hover:bg-[#182229] focus:bg-[#182229]">Filters & Sort</DropdownMenuItem>
-                <DropdownMenuItem onClick={handleRefresh} className="hover:bg-[#182229] focus:bg-[#182229]">
+                <DropdownMenuItem onClick={handleExportCSV} className="gap-2">Export CSV</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkAssignRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Assign Role</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setBulkRemoveRoleOpen(true)} disabled={selectedUserIds.size === 0} className="gap-2 disabled:opacity-40">Remove Role</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setReachOutInactiveOpen(true)} className="gap-2">Reach Inactive</DropdownMenuItem>
+                <DropdownMenuItem onClick={toggleSelectAll}>{selectedUserIds.size === users.length ? 'Deselect All' : 'Select All'}</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setShowFilters(true)}>Filters & Sort</DropdownMenuItem>
+                <DropdownMenuItem onClick={handleRefresh}>
                   <RefreshCw className={cn("h-3.5 w-3.5 mr-2", refreshing && "animate-spin")} />
                   {refreshing ? 'Refreshing...' : 'Refresh'}
                 </DropdownMenuItem>
@@ -516,7 +515,7 @@ export default function UserManagement() {
               onClick={() => { hapticTap(); setRoleFilter(filter.value); }}
               className={cn(
                 "shrink-0 px-3 py-1.5 rounded-full text-xs font-medium transition-all active:scale-95 touch-manipulation min-h-[36px]",
-                roleFilter === filter.value ? 'bg-[#00a884] text-white' : 'bg-[#2a3942] text-[#8696a0]'
+                roleFilter === filter.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground'
               )}
               style={{ WebkitTapHighlightColor: 'transparent' }}
             >
@@ -528,9 +527,9 @@ export default function UserManagement() {
 
         {selectedUserIds.size > 0 && (
           <div className="px-2 pb-1">
-            <div className="flex items-center justify-between bg-[#00a884]/20 rounded-md px-2 py-0.5">
-              <span className="text-[9px] font-medium text-[#00a884]">{selectedUserIds.size} selected</span>
-              <button onClick={clearSelection} className="text-[9px] text-[#00a884] font-medium">Clear</button>
+            <div className="flex items-center justify-between bg-primary/10 rounded-md px-2 py-0.5">
+              <span className="text-[9px] font-medium text-primary">{selectedUserIds.size} selected</span>
+              <button onClick={clearSelection} className="text-[9px] text-primary font-medium">Clear</button>
             </div>
           </div>
         )}
@@ -540,67 +539,67 @@ export default function UserManagement() {
       <div
         ref={listRef}
         className="flex-1 overflow-y-auto overscroll-contain will-change-scroll"
-        style={{ WebkitOverflowScrolling: 'touch', scrollbarWidth: 'thin', scrollbarColor: '#3b4a54 transparent' }}
+        style={{ WebkitOverflowScrolling: 'touch' }}
       >
         {displayUsers.length === 0 && !loadingMore ? (
           <div className="text-center py-20 px-4">
-            <div className="p-4 rounded-full bg-[#202c33] w-fit mx-auto mb-4">
-              <Users className="h-12 w-12 text-[#8696a0]" />
+            <div className="p-4 rounded-full bg-muted w-fit mx-auto mb-4">
+              <Users className="h-12 w-12 text-muted-foreground" />
             </div>
-            <p className="font-semibold text-lg text-white">No users found</p>
-            <p className="text-sm text-[#8696a0] mt-1">Try adjusting your search or filters</p>
+            <p className="font-semibold text-lg text-foreground">No users found</p>
+            <p className="text-sm text-muted-foreground mt-1">Try adjusting your search or filters</p>
           </div>
         ) : (
-          <div className="divide-y divide-[#222d34]">
+          <div className="divide-y divide-border">
             {displayUsers.map((u) => (
               <div
                 key={u.id}
                 onClick={() => handleUserClick(u)}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3.5 active:bg-[#182229] transition-colors cursor-pointer touch-manipulation min-h-[72px]",
-                  selectedUserIds.has(u.id) && "bg-[#00a884]/10"
+                  "flex items-center gap-3 px-4 py-3.5 hover:bg-muted/50 active:bg-muted transition-colors cursor-pointer touch-manipulation min-h-[72px]",
+                  selectedUserIds.has(u.id) && "bg-primary/5"
                 )}
                 style={{ WebkitTapHighlightColor: 'transparent' }}
               >
                 <div className="relative shrink-0" onClick={(e) => toggleUserSelection(u.id, e)}>
                   {selectedUserIds.has(u.id) ? (
-                    <div className="h-12 w-12 rounded-full bg-[#00a884] flex items-center justify-center">
-                      <CheckCircle className="h-6 w-6 text-white" />
+                    <div className="h-12 w-12 rounded-full bg-primary flex items-center justify-center">
+                      <CheckCircle className="h-6 w-6 text-primary-foreground" />
                     </div>
                   ) : (
                     <>
                       <Avatar className="h-12 w-12">
                         <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback className="bg-[#6b7b8a] text-white font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
+                        <AvatarFallback className="bg-muted text-muted-foreground font-medium text-sm">{getInitials(u.full_name)}</AvatarFallback>
                       </Avatar>
-                      {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-[#00a884] border-2 border-[#111b21]" />}
+                      {isOnline(u.id) && <span className="absolute bottom-0 right-0 h-3.5 w-3.5 rounded-full bg-success border-2 border-background" />}
                     </>
                   )}
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between gap-2">
-                    <h3 className="font-medium text-white truncate flex items-center gap-1">
+                    <h3 className="font-medium text-foreground truncate flex items-center gap-1">
                       {u.full_name}
                       {u.verified ? (
                         <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-purple-500 fill-purple-500/20" />
-                          <span className="text-[9px] text-purple-500 font-medium">Verified</span>
+                          <BadgeCheck className="h-3.5 w-3.5 text-primary fill-primary/20" />
+                          <span className="text-[9px] text-primary font-medium">Verified</span>
                         </span>
                       ) : (
                         <span className="flex items-center gap-0.5 shrink-0">
-                          <BadgeCheck className="h-3.5 w-3.5 text-[#8696a0]/40" />
-                          <span className="text-[9px] text-[#8696a0] font-medium">Unverified</span>
+                          <BadgeCheck className="h-3.5 w-3.5 text-muted-foreground/40" />
+                          <span className="text-[9px] text-muted-foreground font-medium">Unverified</span>
                         </span>
                       )}
                     </h3>
-                    <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-[#00a884]" : "text-[#8696a0]")}>{formatLastActive(u.last_active_at)}</span>
+                    <span className={cn("text-xs shrink-0", isOnline(u.id) ? "text-success" : "text-muted-foreground")}>{formatLastActive(u.last_active_at)}</span>
                   </div>
                   <div className="flex items-center justify-between gap-2 mt-0.5">
-                    <p className="text-sm text-[#8696a0] truncate">{getStatusText(u)}</p>
+                    <p className="text-sm text-muted-foreground truncate">{getStatusText(u)}</p>
                     <div className="flex items-center gap-1 shrink-0">
                       {u.average_rating && (
-                        <span className="text-xs text-[#8696a0] flex items-center gap-0.5">
-                          <Star className="h-3 w-3 fill-[#ffc107] text-[#ffc107]" />
+                        <span className="text-xs text-muted-foreground flex items-center gap-0.5">
+                          <Star className="h-3 w-3 fill-warning text-warning" />
                           {u.average_rating.toFixed(1)}
                         </span>
                       )}
@@ -615,13 +614,13 @@ export default function UserManagement() {
         {/* Infinite scroll sentinel */}
         <div ref={sentinelRef} className="py-4 flex justify-center">
           {loadingMore && (
-            <div className="flex items-center gap-2 text-[#8696a0] text-sm">
+            <div className="flex items-center gap-2 text-muted-foreground text-sm">
               <Loader2 className="h-4 w-4 animate-spin" />
               Loading more...
             </div>
           )}
           {!hasMore && displayUsers.length > 0 && (
-            <p className="text-xs text-[#8696a0]">Showing all {displayUsers.length.toLocaleString()} users</p>
+            <p className="text-xs text-muted-foreground">Showing all {displayUsers.length.toLocaleString()} users</p>
           )}
         </div>
 
@@ -630,26 +629,26 @@ export default function UserManagement() {
 
       {/* Filter Sheet */}
       <Sheet open={showFilters} onOpenChange={setShowFilters}>
-        <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl bg-[#111b21] border-[#222d34]">
-          <SheetHeader className="pb-4"><SheetTitle className="text-white">Filters & Sort</SheetTitle></SheetHeader>
+        <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl">
+          <SheetHeader className="pb-4"><SheetTitle>Filters & Sort</SheetTitle></SheetHeader>
           <div className="space-y-6">
             <div>
-              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Verification Status</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Verification Status</h4>
               <div className="flex gap-2 flex-wrap">
                 {([{ value: 'all' as VerificationFilter, label: 'All' }, { value: 'verified' as VerificationFilter, label: '✓ Verified' }, { value: 'pending' as VerificationFilter, label: '⏳ Pending' }]).map((f) => (
-                  <button key={f.value} onClick={() => setVerificationFilter(f.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", verificationFilter === f.value ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#8696a0]')}>{f.label}</button>
+                  <button key={f.value} onClick={() => setVerificationFilter(f.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", verificationFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{f.label}</button>
                 ))}
               </div>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Sort By</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Sort By</h4>
               <div className="grid grid-cols-2 gap-2">
                 {sortOptions.map((o) => (
-                  <button key={o.value} onClick={() => setSortBy(o.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", sortBy === o.value ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#8696a0]')}>{o.label}</button>
+                  <button key={o.value} onClick={() => setSortBy(o.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", sortBy === o.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{o.label}</button>
                 ))}
               </div>
             </div>
-            <Button onClick={() => setShowFilters(false)} className="w-full h-14 text-base font-semibold bg-[#00a884] hover:bg-[#00a884]/90 text-white">Apply Filters</Button>
+            <Button onClick={() => setShowFilters(false)} className="w-full h-14 text-base font-semibold">Apply Filters</Button>
           </div>
         </SheetContent>
       </Sheet>
