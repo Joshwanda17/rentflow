@@ -463,6 +463,108 @@ export default function COOPartnersPage() {
     }
   }
 
+  /* ─── Add New Portfolio ─── */
+  async function handleAddPortfolio() {
+    if (!detailPartner) return;
+    const amt = Number(addPortfolioAmount);
+    const roi = Number(addPortfolioRoi);
+    const duration = Number(addPortfolioDuration);
+    const payoutDay = Number(addPortfolioPayoutDay);
+
+    if (isNaN(amt) || amt < MIN_INVEST) { toast.error(`Minimum investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be between 1 and 100'); return; }
+    if (isNaN(duration) || duration < 1 || duration > 60) { toast.error('Duration must be 1-60 months'); return; }
+    if (isNaN(payoutDay) || payoutDay < 1 || payoutDay > 28) { toast.error('Payout day must be 1-28'); return; }
+
+    setAddingPortfolio(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      const partnerId = detailPartner.profile.id;
+      const portfolioCode = `WIP${new Date().toISOString().slice(2, 10).replace(/-/g, '')}${Math.floor(1000 + Math.random() * 9000)}`;
+      const createdAt = addPortfolioDate ? new Date(addPortfolioDate).toISOString() : new Date().toISOString();
+      const maturityDate = new Date(createdAt);
+      maturityDate.setMonth(maturityDate.getMonth() + duration);
+
+      const { data: newPortfolio, error: insertErr } = await supabase
+        .from('investor_portfolios')
+        .insert({
+          investor_id: partnerId,
+          agent_id: partnerId,
+          investment_amount: amt,
+          roi_percentage: roi,
+          roi_mode: addPortfolioRoiMode,
+          duration_months: duration,
+          payout_day: payoutDay,
+          portfolio_code: portfolioCode,
+          portfolio_pin: String(Math.floor(1000 + Math.random() * 9000)),
+          activation_token: crypto.randomUUID(),
+          status: 'active',
+          created_at: createdAt,
+          maturity_date: maturityDate.toISOString().split('T')[0],
+          next_roi_date: (() => {
+            const d = new Date(createdAt);
+            d.setMonth(d.getMonth() + 1);
+            d.setDate(payoutDay);
+            return d.toISOString().split('T')[0];
+          })(),
+        })
+        .select('id')
+        .single();
+
+      if (insertErr) throw insertErr;
+
+      const refId = Math.floor(1000000000000 + Math.random() * 9000000000000).toString();
+      await supabase.from('general_ledger').insert({
+        user_id: partnerId,
+        amount: amt,
+        direction: 'cash_out',
+        category: 'coo_manual_portfolio',
+        source_table: 'investor_portfolios',
+        source_id: newPortfolio.id,
+        reference_id: refId,
+        description: `Manual portfolio created by Welile Operations for ${detailPartner.profile.full_name}`,
+        linked_party: 'Rent Management Pool',
+        transaction_date: createdAt,
+      });
+
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'create_manual_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: newPortfolio.id,
+        metadata: {
+          partner_id: partnerId,
+          partner_name: detailPartner.profile.full_name,
+          investment_amount: amt,
+          roi_percentage: roi,
+          roi_mode: addPortfolioRoiMode,
+          duration_months: duration,
+          portfolio_code: portfolioCode,
+          reference_id: refId,
+        },
+      });
+
+      toast.success(`Portfolio ${portfolioCode} created`, { description: `${formatUGX(amt)} · ${roi}% ROI · ${duration}mo` });
+
+      setAddPortfolioOpen(false);
+      setAddPortfolioAmount('');
+      setAddPortfolioRoi('20');
+      setAddPortfolioRoiMode('monthly_payout');
+      setAddPortfolioDuration('12');
+      setAddPortfolioPayoutDay('15');
+      setAddPortfolioDate('');
+      await openPartnerDetail(partnerId);
+      fetchData();
+    } catch (e: any) {
+      console.error('Add portfolio error:', e);
+      toast.error(e.message || 'Failed to create portfolio');
+    } finally {
+      setAddingPortfolio(false);
+    }
+  }
+
   /* ─── Open Edit Portfolio ─── */
   function openEditPortfolio(p: PortfolioRow) {
     setEditPortfolio(p);
