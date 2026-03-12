@@ -194,9 +194,19 @@ export default function InvestmentPortfolio() {
   const getStatusColor = (status: string) => {
     switch (status) {
       case 'approved': return 'bg-success/10 text-success border-success/30';
-      case 'pending': case 'pending_activation': return 'bg-warning/10 text-warning border-warning/30';
+      case 'pending': case 'pending_activation': case 'pending_approval': return 'bg-warning/10 text-warning border-warning/30';
       case 'rejected': return 'bg-destructive/10 text-destructive border-destructive/30';
       default: return 'bg-muted text-muted-foreground';
+    }
+  };
+
+  const getStatusLabel = (status: string) => {
+    switch (status) {
+      case 'approved': return 'Active';
+      case 'pending_approval': return 'Awaiting Approval';
+      case 'pending_activation': return 'Pending';
+      case 'pending': return 'Pending';
+      default: return status;
     }
   };
 
