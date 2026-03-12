@@ -7,7 +7,8 @@ import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
-  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2
+  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2,
+  Plus
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
