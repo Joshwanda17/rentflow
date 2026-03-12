@@ -54,6 +54,7 @@ export async function fetchUserRoles(
       const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
       const defaultForUser = isSupporterOnly ? 'supporter'
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : userRoles.includes('supporter') ? 'supporter'
         : 'agent';
       if (!currentRole || !userRoles.includes(currentRole)) {
         setRole(defaultForUser);
