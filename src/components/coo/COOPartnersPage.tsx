@@ -949,7 +949,9 @@ export default function COOPartnersPage() {
                                   <p className="font-semibold">
                                     {p.status === 'active'
                                       ? <span className="text-primary">🟢 Active</span>
-                                      : <span className="text-amber-600">⏸ {p.status}</span>}
+                                      : p.status === 'pending_approval'
+                                        ? <span className="text-amber-600">⏸ Awaiting Approval</span>
+                                        : <span className="text-amber-600">⏸ {p.status === 'pending' ? 'Pending' : p.status}</span>}
                                   </p>
                                 </div>
                               </div>
