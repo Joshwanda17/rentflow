@@ -286,9 +286,9 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
   }, []);
 
   /* ── Stats ── */
-  const validGroups = groups.filter(g => !g.isDuplicate && g.errors.length === 0 && g.portfolios.length > 0);
-  const duplicateCount = groups.filter(g => g.isDuplicate).length;
-  const errorGroups = groups.filter(g => !g.isDuplicate && (g.errors.length > 0 || g.portfolios.length === 0));
+  const validGroups = groups.filter(g => g.errors.length === 0 && g.portfolios.length > 0);
+  const existingCount = groups.filter(g => g.isDuplicate).length;
+  const errorGroups = groups.filter(g => g.errors.length > 0 || g.portfolios.length === 0);
   const totalPortfolios = validGroups.reduce((s, g) => s + g.portfolios.length, 0);
   const totalAmount = validGroups.reduce((s, g) => s + g.portfolios.reduce((ps, p) => ps + p.amount, 0), 0);
 
@@ -395,7 +395,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <StatCard icon={<Users className="h-4 w-4" />} label="New Partners" value={validGroups.length} color="text-primary" />
               <StatCard icon={<Briefcase className="h-4 w-4" />} label="Portfolios" value={totalPortfolios} color="text-emerald-600" />
-              <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Duplicates" value={duplicateCount} color="text-amber-600" />
+              <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Existing" value={existingCount} color="text-amber-600" />
               <StatCard icon={<XCircle className="h-4 w-4" />} label="Errors" value={errorGroups.length} color="text-destructive" />
             </div>
 
@@ -418,7 +418,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="outline" className="text-[9px]">{g.portfolios.length} portfolio{g.portfolios.length !== 1 ? 's' : ''}</Badge>
-                      {g.isDuplicate && <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700">Duplicate</Badge>}
+                      {g.isDuplicate && <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700">Existing</Badge>}
                     </div>
                   </div>
                   {g.portfolios.length > 0 && (
@@ -467,8 +467,8 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                 <strong>{totalPortfolios} investment portfolios</strong> totaling{' '}
                 <strong>{formatUGX(totalAmount)}</strong>.
               </p>
-              {duplicateCount > 0 && (
-                <p className="text-xs text-amber-700">⚠ {duplicateCount} duplicate(s) will be skipped.</p>
+              {existingCount > 0 && (
+                <p className="text-xs text-amber-700">ℹ {existingCount} existing partner(s) — portfolios will be added to their accounts.</p>
               )}
               {errorGroups.length > 0 && (
                 <p className="text-xs text-destructive">⚠ {errorGroups.length} partner(s) with errors will be skipped.</p>

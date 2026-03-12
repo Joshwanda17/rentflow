@@ -86,49 +86,59 @@ Deno.serve(async (req) => {
           .from("profiles").select("id")
           .eq("phone", partner.phone).maybeSingle();
 
+        let userId: string;
+
         if (existing) {
-          skippedDuplicates++;
-          continue;
+          // Existing user — add portfolios to their account instead of skipping
+          userId = existing.id;
+
+          // Ensure they have the supporter role
+          const { data: existingRole } = await adminClient
+            .from("user_roles").select("id")
+            .eq("user_id", userId).eq("role", "supporter").maybeSingle();
+          if (!existingRole) {
+            await adminClient.from("user_roles").insert({ user_id: userId, role: "supporter" });
+          }
+        } else {
+          // Create auth user
+          const tempPassword = `Welile${seq()}!${seq()}`;
+          const emailAddr = partner.email || `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
+
+          const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
+            email: emailAddr,
+            password: tempPassword,
+            email_confirm: true,
+            user_metadata: { full_name: partner.partner_name, phone: partner.phone },
+          });
+
+          if (authErr || !authData.user) {
+            errors.push({ partner: partner.partner_name, error: authErr?.message || 'Auth creation failed' });
+            continue;
+          }
+
+          userId = authData.user.id;
+
+          // Create profile with phone
+          await adminClient.from("profiles").upsert({
+            id: userId,
+            full_name: partner.partner_name.trim(),
+            phone: partner.phone,
+          });
+
+          // Assign supporter role
+          await adminClient.from("user_roles").insert({
+            user_id: userId,
+            role: "supporter",
+          });
+
+          // Create wallet
+          await adminClient.from("wallets").upsert({
+            user_id: userId,
+            balance: 0,
+          }, { onConflict: 'user_id' });
+
+          partnersCreated++;
         }
-
-        // Create auth user
-        const tempPassword = `Welile${seq()}!${seq()}`;
-        const emailAddr = partner.email || `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
-
-        const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
-          email: emailAddr,
-          password: tempPassword,
-          email_confirm: true,
-          user_metadata: { full_name: partner.partner_name },
-        });
-
-        if (authErr || !authData.user) {
-          errors.push({ partner: partner.partner_name, error: authErr?.message || 'Auth creation failed' });
-          continue;
-        }
-
-        const userId = authData.user.id;
-
-        // Create profile
-        await adminClient.from("profiles").upsert({
-          id: userId,
-          full_name: partner.partner_name.trim(),
-          phone: partner.phone,
-        });
-
-        // Assign supporter role
-        await adminClient.from("user_roles").insert({
-          user_id: userId,
-          role: "supporter",
-        });
-
-        // Create wallet
-        await adminClient.from("wallets").insert({
-          user_id: userId,
-          balance: 0,
-        });
-
-        partnersCreated++;
 
         // Create portfolios
         for (const pf of partner.portfolios) {
@@ -149,7 +159,7 @@ Deno.serve(async (req) => {
 
             const portfolioCode = `WIP${startYY}${startMM}${startDD}${seq()}`;
             const portfolioPin = String(Math.floor(1000 + Math.random() * 9000));
-            const activationToken = crypto.randomUUID().split('-').slice(0, 2).join('');
+            const activationToken = crypto.randomUUID();
 
             const maturityDate = new Date(effectiveStart);
             maturityDate.setMonth(maturityDate.getMonth() + pf.durationMonths);
