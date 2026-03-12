@@ -1035,7 +1035,16 @@ export default function COOPartnersPage() {
                 <div>
                   <div className="flex items-center justify-between mb-3">
                     <h3 className="text-sm font-black uppercase tracking-widest text-muted-foreground">Investment Portfolios</h3>
-                    <Badge variant="outline" className="text-[10px] tabular-nums">{detailPartner.portfolios.length} total</Badge>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        size="sm"
+                        className="h-7 px-3 text-[10px] gap-1"
+                        onClick={() => setAddPortfolioOpen(true)}
+                      >
+                        <Plus className="h-3 w-3" /> Add Portfolio
+                      </Button>
+                      <Badge variant="outline" className="text-[10px] tabular-nums">{detailPartner.portfolios.length} total</Badge>
+                    </div>
                   </div>
 
                   {detailPartner.portfolios.length === 0 ? (
