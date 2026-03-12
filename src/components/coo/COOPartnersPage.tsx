@@ -309,11 +309,10 @@ export default function COOPartnersPage() {
   const handleBulkActivate = async () => {
     setActivatingAll(true);
     try {
-      const { error, count } = await supabase
+      const { error } = await supabase
         .from('investor_portfolios')
         .update({ status: 'active' })
-        .eq('status', 'pending_approval')
-        .select('id', { count: 'exact', head: false });
+        .eq('status', 'pending_approval');
 
       if (error) throw error;
 
