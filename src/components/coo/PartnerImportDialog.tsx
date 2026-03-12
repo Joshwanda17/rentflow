@@ -418,7 +418,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                     </div>
                     <div className="flex items-center gap-1.5">
                       <Badge variant="outline" className="text-[9px]">{g.portfolios.length} portfolio{g.portfolios.length !== 1 ? 's' : ''}</Badge>
-                      {g.isDuplicate && <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700">Duplicate</Badge>}
+                      {g.isDuplicate && <Badge variant="secondary" className="text-[9px] bg-amber-500/15 text-amber-700">Existing</Badge>}
                     </div>
                   </div>
                   {g.portfolios.length > 0 && (
