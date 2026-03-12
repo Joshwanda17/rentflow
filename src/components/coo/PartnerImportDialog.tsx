@@ -395,7 +395,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               <StatCard icon={<Users className="h-4 w-4" />} label="New Partners" value={validGroups.length} color="text-primary" />
               <StatCard icon={<Briefcase className="h-4 w-4" />} label="Portfolios" value={totalPortfolios} color="text-emerald-600" />
-              <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Duplicates" value={duplicateCount} color="text-amber-600" />
+              <StatCard icon={<AlertTriangle className="h-4 w-4" />} label="Existing" value={existingCount} color="text-amber-600" />
               <StatCard icon={<XCircle className="h-4 w-4" />} label="Errors" value={errorGroups.length} color="text-destructive" />
             </div>
 
