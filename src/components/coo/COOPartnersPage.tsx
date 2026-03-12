@@ -189,6 +189,11 @@ export default function COOPartnersPage() {
   const [deleteReason, setDeleteReason] = useState('');
   const [deleting, setDeleting] = useState(false);
 
+  // Bulk activate
+  const [activatingAll, setActivatingAll] = useState(false);
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0);
+  const [showActivateConfirm, setShowActivateConfirm] = useState(false);
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
