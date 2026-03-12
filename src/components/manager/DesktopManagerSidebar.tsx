@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import {
-  Home, Wallet, Building2, Shield, Users, FileText, Banknote,
+  Home, Wallet, Building2, Shield, Users, UsersRound, FileText, Banknote,
   ShoppingCart, Receipt, ChartBar, Award, Download, ClipboardList, Calendar, Activity, Menu
 } from 'lucide-react';
 
