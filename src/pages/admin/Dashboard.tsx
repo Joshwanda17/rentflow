@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Admin Dashboard
           </button>
-          <DatabaseExportButton />
+          
         </div>
 
         <div>
