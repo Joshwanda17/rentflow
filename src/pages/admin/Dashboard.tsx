@@ -4,7 +4,7 @@ import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
   Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft
 } from 'lucide-react';
-import DatabaseExportButton from '@/components/admin/DatabaseExportButton';
+
 
 interface DashboardCard {
   label: string;
@@ -46,7 +46,7 @@ export default function AdminDashboardPage() {
             <ArrowLeft className="h-4 w-4" />
             Back to Admin Dashboard
           </button>
-          <DatabaseExportButton />
+          
         </div>
 
         <div>
