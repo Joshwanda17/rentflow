@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { InvestmentBreakdownSheet } from '@/components/supporter/InvestmentBreakdownSheet';
 import { hapticTap } from '@/lib/haptics';
 import { formatUGX } from '@/lib/rentCalculations';
