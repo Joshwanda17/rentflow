@@ -492,20 +492,6 @@ export default function Settings() {
                 )}
               </div>
               
-              <div className="pt-4 border-t border-border/50">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="font-medium flex items-center gap-2">
-                      <Sparkles className="h-4 w-4 text-primary" />
-                      Add Another Role
-                    </p>
-                    <p className="text-sm text-muted-foreground">
-                      Expand your capabilities on the platform
-                    </p>
-                  </div>
-                  <AddRoleDialog availableRoles={roles} onAddRole={addRole} />
-                </div>
-              </div>
             </CardContent>
           </Card>
         </motion.div>
