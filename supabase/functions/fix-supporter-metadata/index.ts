@@ -14,8 +14,31 @@ Deno.serve(async (req) => {
   try {
     const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
     const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabaseAnonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
 
+    // Use the anon key from the apikey header (auto-sent by Supabase client)
     const adminClient = createClient(supabaseUrl, supabaseServiceKey);
+
+    // Verify caller has valid session (use anon key + auth header)
+    const authHeader = req.headers.get("Authorization");
+    if (authHeader && authHeader.startsWith("Bearer ")) {
+      const userClient = createClient(supabaseUrl, supabaseAnonKey, {
+        global: { headers: { Authorization: authHeader } },
+      });
+      const { data: { user } } = await userClient.auth.getUser();
+      if (user) {
+        // Verify COO role
+        const { data: cooRole } = await adminClient
+          .from("user_roles").select("id")
+          .eq("user_id", user.id).eq("role", "coo").maybeSingle();
+        if (!cooRole) {
+          return new Response(JSON.stringify({ error: "Only COO can run this" }), {
+            status: 403,
+            headers: { ...corsHeaders, "Content-Type": "application/json" },
+          });
+        }
+      }
+    }
 
     // Get all users with supporter role
     const { data: supporters } = await adminClient
@@ -32,7 +55,6 @@ Deno.serve(async (req) => {
 
     let updated = 0;
     let skipped = 0;
-    const errors: string[] = [];
 
     for (const s of supporters) {
       const { data: { user: authUser } } = await adminClient.auth.admin.getUserById(s.user_id);
@@ -48,14 +70,14 @@ Deno.serve(async (req) => {
       });
 
       if (updateErr) {
-        errors.push(`${s.user_id}: ${updateErr.message}`);
+        console.error(`Failed to update ${s.user_id}:`, updateErr.message);
         skipped++;
       } else {
         updated++;
       }
     }
 
-    return new Response(JSON.stringify({ updated, skipped, total: supporters.length, errors }), {
+    return new Response(JSON.stringify({ updated, skipped, total: supporters.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err) {
