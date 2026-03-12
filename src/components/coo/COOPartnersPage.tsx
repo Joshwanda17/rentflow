@@ -601,6 +601,9 @@ export default function COOPartnersPage() {
             <SelectItem value="monthly_compounding">Compounding</SelectItem>
           </SelectContent>
         </Select>
+        <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs" onClick={() => setImportOpen(true)}>
+          <Upload className="h-3.5 w-3.5" /> Import
+        </Button>
         <Button variant="outline" size="sm" className="h-9 gap-1.5 text-xs ml-auto" onClick={() => exportToCSV(processed)}>
           <Download className="h-3.5 w-3.5" /> Export CSV
         </Button>
