@@ -629,26 +629,26 @@ export default function UserManagement() {
 
       {/* Filter Sheet */}
       <Sheet open={showFilters} onOpenChange={setShowFilters}>
-        <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl bg-[#111b21] border-[#222d34]">
-          <SheetHeader className="pb-4"><SheetTitle className="text-white">Filters & Sort</SheetTitle></SheetHeader>
+        <SheetContent side="bottom" className="h-[70vh] rounded-t-3xl">
+          <SheetHeader className="pb-4"><SheetTitle>Filters & Sort</SheetTitle></SheetHeader>
           <div className="space-y-6">
             <div>
-              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Verification Status</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Verification Status</h4>
               <div className="flex gap-2 flex-wrap">
                 {([{ value: 'all' as VerificationFilter, label: 'All' }, { value: 'verified' as VerificationFilter, label: '✓ Verified' }, { value: 'pending' as VerificationFilter, label: '⏳ Pending' }]).map((f) => (
-                  <button key={f.value} onClick={() => setVerificationFilter(f.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", verificationFilter === f.value ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#8696a0]')}>{f.label}</button>
+                  <button key={f.value} onClick={() => setVerificationFilter(f.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", verificationFilter === f.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{f.label}</button>
                 ))}
               </div>
             </div>
             <div>
-              <h4 className="text-sm font-medium text-[#8696a0] mb-3">Sort By</h4>
+              <h4 className="text-sm font-medium text-muted-foreground mb-3">Sort By</h4>
               <div className="grid grid-cols-2 gap-2">
                 {sortOptions.map((o) => (
-                  <button key={o.value} onClick={() => setSortBy(o.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", sortBy === o.value ? 'bg-[#00a884] text-white' : 'bg-[#202c33] text-[#8696a0]')}>{o.label}</button>
+                  <button key={o.value} onClick={() => setSortBy(o.value)} className={cn("px-4 py-3 rounded-xl text-sm font-medium transition-all", sortBy === o.value ? 'bg-primary text-primary-foreground' : 'bg-muted text-muted-foreground')}>{o.label}</button>
                 ))}
               </div>
             </div>
-            <Button onClick={() => setShowFilters(false)} className="w-full h-14 text-base font-semibold bg-[#00a884] hover:bg-[#00a884]/90 text-white">Apply Filters</Button>
+            <Button onClick={() => setShowFilters(false)} className="w-full h-14 text-base font-semibold">Apply Filters</Button>
           </div>
         </SheetContent>
       </Sheet>
