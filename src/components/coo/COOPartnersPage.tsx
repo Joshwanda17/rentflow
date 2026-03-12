@@ -1197,6 +1197,86 @@ export default function COOPartnersPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {/* ─── Edit Portfolio Dialog ─── */}
+      <Dialog open={!!editPortfolio} onOpenChange={open => { if (!open) setEditPortfolio(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2"><Pencil className="h-5 w-5 text-primary" /> Edit Portfolio</DialogTitle>
+            <DialogDescription>
+              Update portfolio <strong>{editPortfolio?.portfolio_code}</strong> details. Changes are audit-logged.
+            </DialogDescription>
+          </DialogHeader>
+          {editPortfolio && (
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <Label className="text-xs">Investment Amount (UGX)</Label>
+                <Input type="number" min={MIN_INVEST} value={editPortfolioAmount}
+                  onChange={e => setEditPortfolioAmount(e.target.value)} placeholder={`Min ${MIN_INVEST.toLocaleString()}`} />
+                <div className="flex gap-1.5 flex-wrap">
+                  {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
+                    <Button key={a} variant={editPortfolioAmount === String(a) ? 'default' : 'outline'} size="sm" className="text-[10px] h-6 px-2"
+                      onClick={() => setEditPortfolioAmount(String(a))}>{(a / 1000000).toFixed(a >= 1000000 ? 0 : 1)}M</Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">ROI Percentage (%)</Label>
+                <Input type="number" min={1} max={100} value={editPortfolioRoi} onChange={e => setEditPortfolioRoi(e.target.value)} />
+                <div className="flex gap-1.5">
+                  {[10, 15, 20, 25].map(v => (
+                    <Button key={v} variant={editPortfolioRoi === String(v) ? 'default' : 'outline'} size="sm" className="text-[10px] h-6 px-2 flex-1"
+                      onClick={() => setEditPortfolioRoi(String(v))}>{v}%</Button>
+                  ))}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <Label className="text-xs">ROI Mode</Label>
+                <div className="grid grid-cols-2 gap-2">
+                  <Button variant={editPortfolioRoiMode === 'monthly_payout' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
+                    onClick={() => setEditPortfolioRoiMode('monthly_payout')}>
+                    <ArrowUpRight className="h-3.5 w-3.5 mr-1.5" /> Payout
+                  </Button>
+                  <Button variant={editPortfolioRoiMode === 'monthly_compounding' ? 'default' : 'outline'} size="sm" className="text-xs h-9"
+                    onClick={() => setEditPortfolioRoiMode('monthly_compounding')}>
+                    <TrendingUp className="h-3.5 w-3.5 mr-1.5" /> Compounding
+                  </Button>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Duration (months)</Label>
+                  <Input type="number" min={1} max={120} value={editPortfolioDuration} onChange={e => setEditPortfolioDuration(e.target.value)} />
+                </div>
+                <div className="space-y-1.5">
+                  <Label className="text-xs">Status</Label>
+                  <Select value={editPortfolioStatus} onValueChange={setEditPortfolioStatus}>
+                    <SelectTrigger className="h-9 text-xs"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="active">Active</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="pending_approval">Pending Approval</SelectItem>
+                      <SelectItem value="matured">Matured</SelectItem>
+                      <SelectItem value="cancelled">Cancelled</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </div>
+              {editPortfolioAmount && Number(editPortfolioAmount) >= MIN_INVEST && editPortfolioRoi && (
+                <div className="text-xs bg-primary/5 border border-primary/20 rounded-lg p-3 space-y-1">
+                  <p>Monthly ROI ({editPortfolioRoi}%): <strong className="text-primary">{formatUGX(Math.round(Number(editPortfolioAmount) * (Number(editPortfolioRoi) / 100)))}</strong></p>
+                  <p>Duration: <strong>{editPortfolioDuration} months</strong></p>
+                </div>
+              )}
+            </div>
+          )}
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setEditPortfolio(null)}>Cancel</Button>
+            <Button onClick={handleSaveEditPortfolio} disabled={savingEditPortfolio}>
+              {savingEditPortfolio && <Loader2 className="h-4 w-4 animate-spin mr-2" />} Save Changes
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
