@@ -1,55 +1,42 @@
-## Problem
 
-When a tenant activates their account and lands on `/dashboard?role=tenant`, they see the **Agent dashboard** instead of the **Tenant dashboard**. This happens because:
 
-1. **Default role is hardcoded to `agent**` — In `roleManager.ts`, after fetching roles, the system always defaults to `'agent'` (unless supporter-only), ignoring the role the user actually signed up as.
-2. **Race condition** — The Dashboard's `useEffect` that reads `?role=tenant` from the URL and calls `switchRole` races against `fetchUserRoles` which resets the role back to `'agent'`.
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-## Fix
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-### 1. Respect the activation role in `roleManager.ts`
+---
 
-Modify `fetchUserRoles` to accept an optional `preferredRole` parameter. When provided (e.g., from the activation URL), use it as the default instead of `'agent'` — but only if the user actually has that role.
+### Database Tables Created
 
-**File:** `src/hooks/auth/roleManager.ts`
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-- Add optional `preferredRole` parameter to `fetchUserRoles`
-- On line 52-54, if `preferredRole` is provided and exists in `userRoles`, use it as default instead of `'agent'`
+### Database Functions Created
 
-### 2. Pass the URL role param into the auth flow
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-**File:** `src/pages/Dashboard.tsx`
+### UI Components Created
 
-- Read the `?role=` param early and pass it through to the role resolution logic so `fetchUserRoles` knows the intended role before defaulting
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
-### 3. Fix the Dashboard `useEffect` timing
+### Dashboard Updated
 
-**File:** `src/pages/Dashboard.tsx`
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
 
-- Ensure the `?role=` switch effect runs **after** roles are loaded (gate on `roles.length > 0` and `!loading`) to prevent the race condition where `switchRole` fires before `fetchUserRoles` completes
+---
 
-### 4. Activation redirect uses correct role
+### Phase 2 (Not Yet Implemented)
 
-**File:** `src/pages/ActivateSupporter.tsx` (line 264-265)
-
-- Already passes `?role=${activatedRole}` — this is correct. No change needed here.
-
-## Technical Details
-
-The core change is in `roleManager.ts`:
-
-```text
-Current:  defaultForUser = isSupporterOnly ? 'supporter' : 'agent'
-Proposed: defaultForUser = isSupporterOnly ? 'supporter'
-            : (preferredRole && userRoles.includes(preferredRole)) ? preferredRole
-            : 'agent'
-```
-
-The `preferredRole` will be sourced from:
-
-- URL `?role=` param on dashboard load
-- `user_metadata.role` set during activation (already stored by `activate-supporter` Edge Function)
-
-This ensures a tenant who activates as a tenant sees the tenant dashboard first, while preserving the agent-default behavior for users who log in normally with multiple roles.
-
-Ensure this doesn't affect the Funder enforcement
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)

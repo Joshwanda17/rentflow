@@ -88,17 +88,19 @@ function DashboardContent() {
     };
   }, []);
 
-  // Handle role switch via URL param (e.g. after supporter activation)
+  // Handle role switch via URL param (e.g. after tenant/supporter activation)
+  // Gate on !loading && roles.length > 0 to prevent race with fetchUserRoles
   useEffect(() => {
+    if (loading || roles.length === 0 || !user) return;
     const requestedRole = searchParams.get('role') as AppRole | null;
-    if (!requestedRole || !user) return;
+    if (!requestedRole) return;
     const validRoles: AppRole[] = ['tenant', 'agent', 'landlord', 'supporter', 'manager'];
-    if (validRoles.includes(requestedRole)) {
+    if (validRoles.includes(requestedRole) && roles.includes(requestedRole)) {
       switchRole(requestedRole);
     }
     searchParams.delete('role');
     setSearchParams(searchParams, { replace: true });
-  }, [searchParams, user, switchRole, setSearchParams]);
+  }, [searchParams, user, loading, roles, switchRole, setSearchParams]);
 
   // Redirect executive/internal roles to their isolated dashboards
   useEffect(() => {

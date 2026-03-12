@@ -49,9 +49,14 @@ export async function fetchUserRoles(
       }
       setRoles(userRoles);
       setCachedRoles(userRoles);
-      const defaultForUser = isSupporterOnly ? 'supporter' : 'agent';
+      
+      // Respect the role the user activated/signed up as (stored in user_metadata)
+      const intendedRole = authUser?.user_metadata?.intended_role as AppRole | undefined;
+      const defaultForUser = isSupporterOnly ? 'supporter'
+        : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
+        : 'agent';
       if (!currentRole || !userRoles.includes(currentRole)) {
-        setRole(defaultForUser as AppRole);
+        setRole(defaultForUser);
       }
     } else {
       // No roles found — verify profile exists before auto-creating
