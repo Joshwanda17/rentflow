@@ -1063,6 +1063,51 @@ export default function COOPartnersPage() {
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
+
+      {/* ─── Delete Portfolio Confirmation ─── */}
+      <Dialog open={!!deletePortfolio} onOpenChange={open => { if (!open) { setDeletePortfolio(null); setDeleteReason(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Investment Portfolio
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete portfolio <strong>{deletePortfolio?.portfolio_code}</strong> ({formatUGX(deletePortfolio?.investment_amount || 0)}).
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs space-y-1">
+              <p><strong>Portfolio:</strong> {deletePortfolio?.portfolio_code}</p>
+              <p><strong>Amount:</strong> {formatUGX(deletePortfolio?.investment_amount || 0)}</p>
+              <p><strong>ROI:</strong> {deletePortfolio?.roi_percentage}% · {deletePortfolio?.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</p>
+              <p><strong>Status:</strong> {deletePortfolio?.status}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Reason for Deletion <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                placeholder="Provide a detailed reason for deleting this investment (min 10 characters)..."
+                className="min-h-[80px] text-sm"
+                maxLength={500}
+              />
+              <p className="text-[10px] text-muted-foreground">{deleteReason.length}/500 characters</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletePortfolio(null); setDeleteReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePortfolio}
+              disabled={deleting || deleteReason.trim().length < 10}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete Portfolio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
