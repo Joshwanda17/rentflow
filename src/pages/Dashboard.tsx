@@ -177,7 +177,8 @@ function DashboardContent() {
     // Supporter-only accounts default to supporter, not agent
     const isSupporterOnly = availableRoles.length === 1 && availableRoles[0] === 'supporter';
     if (isSupporterOnly) return 'supporter';
-    // Agent dashboard is the default for all multi-role users
+    // Supporter role takes priority over agent for funders with multiple roles
+    if (availableRoles.includes('supporter')) return 'supporter';
     return availableRoles.includes('agent') ? 'agent' : availableRoles[0];
   };
   
