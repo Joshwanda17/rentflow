@@ -1203,6 +1203,101 @@ export default function COOPartnersPage() {
         </DialogContent>
       </Dialog>
 
+      {/* ─── Add Portfolio Dialog ─── */}
+      <Dialog open={addPortfolioOpen} onOpenChange={open => { if (!open) setAddPortfolioOpen(false); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Plus className="h-5 w-5 text-primary" /> Add Investment Portfolio
+            </DialogTitle>
+            <DialogDescription>
+              Create a new portfolio for {detailPartner?.profile.full_name}. No wallet balance required.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Investment Amount (UGX) *</Label>
+              <Input
+                type="number"
+                min={MIN_INVEST}
+                value={addPortfolioAmount}
+                onChange={e => setAddPortfolioAmount(e.target.value)}
+                placeholder={`Min ${MIN_INVEST.toLocaleString()}`}
+              />
+              <div className="flex gap-2 flex-wrap">
+                {[500000, 1000000, 2000000, 5000000, 10000000].map(a => (
+                  <Button key={a} variant="outline" size="sm" className="text-xs h-7"
+                    onClick={() => setAddPortfolioAmount(String(a))}>
+                    {a >= 1000000 ? `${(a / 1000000).toFixed(0)}M` : `${(a / 1000).toFixed(0)}K`}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>ROI Rate (%)</Label>
+                <Input type="number" min={1} max={100} value={addPortfolioRoi}
+                  onChange={e => setAddPortfolioRoi(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Duration (months)</Label>
+                <Input type="number" min={1} max={60} value={addPortfolioDuration}
+                  onChange={e => setAddPortfolioDuration(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label>ROI Mode</Label>
+                <Select value={addPortfolioRoiMode} onValueChange={setAddPortfolioRoiMode}>
+                  <SelectTrigger className="h-9"><SelectValue /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="monthly_payout">💰 Monthly Payout</SelectItem>
+                    <SelectItem value="monthly_compounding">📈 Compounding</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label>Payout Day (1-28)</Label>
+                <Input type="number" min={1} max={28} value={addPortfolioPayoutDay}
+                  onChange={e => setAddPortfolioPayoutDay(e.target.value)} />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label>Contribution Date (optional, for backdating)</Label>
+              <Input type="date" value={addPortfolioDate}
+                onChange={e => setAddPortfolioDate(e.target.value)} />
+              <p className="text-[10px] text-muted-foreground">Leave empty for today's date</p>
+            </div>
+
+            {addPortfolioAmount && Number(addPortfolioAmount) >= MIN_INVEST && (
+              <div className="p-3 rounded-lg bg-muted/30 border border-border/50 text-xs space-y-1">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Amount:</span>
+                  <span className="font-bold">{formatUGX(Number(addPortfolioAmount))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Monthly ROI:</span>
+                  <span className="font-bold text-primary">{formatUGX(Math.round(Number(addPortfolioAmount) * (Number(addPortfolioRoi) / 100)))}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Maturity:</span>
+                  <span className="font-semibold">{addPortfolioDuration} months</span>
+                </div>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setAddPortfolioOpen(false)} disabled={addingPortfolio}>Cancel</Button>
+            <Button onClick={handleAddPortfolio} disabled={addingPortfolio}>
+              {addingPortfolio ? <><Loader2 className="h-4 w-4 mr-2 animate-spin" /> Creating...</> : <><Plus className="h-4 w-4 mr-2" /> Create Portfolio</>}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* ─── Invest Dialog ─── */}
       <Dialog open={!!investPartner} onOpenChange={open => { if (!open) { setInvestPartner(null); setInvestAmount(''); } }}>
         <DialogContent className="sm:max-w-md">
