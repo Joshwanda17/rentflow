@@ -101,7 +101,8 @@ Deno.serve(async (req) => {
           }
         } else {
           // Create auth user
-          const tempPassword = `Welile${seq()}!${seq()}`;
+          const phoneLast6 = partner.phone.replace(/\D/g, '').slice(-6);
+          const tempPassword = `Welile${phoneLast6}!`;
           const emailAddr = partner.email || `${partner.phone.replace(/^0/, '')}@noapp.welile.user`;
 
           const { data: authData, error: authErr } = await adminClient.auth.admin.createUser({
