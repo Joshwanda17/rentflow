@@ -410,6 +410,78 @@ export default function COOPartnersPage() {
     }
   }
 
+  /* ─── Open Edit Portfolio ─── */
+  function openEditPortfolio(p: PortfolioRow) {
+    setEditPortfolio(p);
+    setEditPortfolioAmount(String(p.investment_amount));
+    setEditPortfolioRoi(String(p.roi_percentage));
+    setEditPortfolioRoiMode(p.roi_mode || 'monthly_payout');
+    setEditPortfolioDuration(String(p.duration_months));
+    setEditPortfolioStatus(p.status);
+  }
+
+  /* ─── Save Edit Portfolio ─── */
+  async function handleSaveEditPortfolio() {
+    if (!editPortfolio || !detailPartner) return;
+    const amount = Number(editPortfolioAmount);
+    const roi = Number(editPortfolioRoi);
+    const duration = Number(editPortfolioDuration);
+    if (isNaN(amount) || amount < MIN_INVEST) { toast.error(`Min investment: ${formatUGX(MIN_INVEST)}`); return; }
+    if (isNaN(roi) || roi <= 0 || roi > 100) { toast.error('ROI must be 1-100%'); return; }
+    if (isNaN(duration) || duration < 1 || duration > 120) { toast.error('Duration must be 1-120 months'); return; }
+
+    setSavingEditPortfolio(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Audit log the edit
+      await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'edit_investment_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: editPortfolio.id,
+        metadata: {
+          portfolio_code: editPortfolio.portfolio_code,
+          partner_id: detailPartner.profile.id,
+          partner_name: detailPartner.profile.full_name,
+          changes: {
+            investment_amount: { from: editPortfolio.investment_amount, to: amount },
+            roi_percentage: { from: editPortfolio.roi_percentage, to: roi },
+            roi_mode: { from: editPortfolio.roi_mode, to: editPortfolioRoiMode },
+            duration_months: { from: editPortfolio.duration_months, to: duration },
+            status: { from: editPortfolio.status, to: editPortfolioStatus },
+          },
+        },
+      });
+
+      const { error } = await supabase
+        .from('investor_portfolios')
+        .update({
+          investment_amount: amount,
+          roi_percentage: roi,
+          roi_mode: editPortfolioRoiMode,
+          duration_months: duration,
+          status: editPortfolioStatus,
+        })
+        .eq('id', editPortfolio.id);
+      if (error) throw error;
+
+      toast.success(`Portfolio ${editPortfolio.portfolio_code} updated`);
+
+      // Update local state
+      const updated = detailPartner.portfolios.map(p =>
+        p.id === editPortfolio.id
+          ? { ...p, investment_amount: amount, roi_percentage: roi, roi_mode: editPortfolioRoiMode, duration_months: duration, status: editPortfolioStatus }
+          : p
+      );
+      setDetailPartner({ ...detailPartner, portfolios: updated });
+      setEditPortfolio(null);
+      fetchData();
+    } catch (e: any) { toast.error(e.message || 'Failed to update portfolio'); }
+    finally { setSavingEditPortfolio(false); }
+  }
+
   /* ─── Filtered / Sorted ─── */
   const processed = useMemo(() => {
     let result = [...rows];
