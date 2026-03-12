@@ -175,6 +175,11 @@ export default function COOPartnersPage() {
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
 
+  // Delete portfolio dialog
+  const [deletePortfolio, setDeletePortfolio] = useState<PortfolioRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
+
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
     setIsLoading(true);
