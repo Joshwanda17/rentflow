@@ -342,6 +342,65 @@ export default function COOPartnersPage() {
     finally { setSavingPortfolio(false); }
   }
 
+  /* ─── Delete Portfolio ─── */
+  async function handleDeletePortfolio() {
+    if (!deletePortfolio || !deleteReason.trim()) {
+      toast.error('Please provide a reason for deletion');
+      return;
+    }
+    if (deleteReason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setDeleting(true);
+    try {
+      // Get current user for audit
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Log to audit_logs before deletion
+      const { error: auditErr } = await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'delete_investment_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: deletePortfolio.id,
+        metadata: {
+          portfolio_code: deletePortfolio.portfolio_code,
+          investment_amount: deletePortfolio.investment_amount,
+          roi_percentage: deletePortfolio.roi_percentage,
+          status: deletePortfolio.status,
+          created_at: deletePortfolio.created_at,
+          reason: deleteReason.trim(),
+          partner_id: detailPartner?.profile.id,
+          partner_name: detailPartner?.profile.full_name,
+        },
+      });
+      if (auditErr) throw auditErr;
+
+      // Delete the portfolio
+      const { error: delErr } = await supabase
+        .from('investor_portfolios')
+        .delete()
+        .eq('id', deletePortfolio.id);
+      if (delErr) throw delErr;
+
+      toast.success(`Portfolio ${deletePortfolio.portfolio_code} deleted`, { description: 'Action logged for audit.' });
+
+      // Update local state
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.filter(p => p.id !== deletePortfolio.id);
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+      setDeletePortfolio(null);
+      setDeleteReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete portfolio');
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   /* ─── Filtered / Sorted ─── */
   const processed = useMemo(() => {
     let result = [...rows];
