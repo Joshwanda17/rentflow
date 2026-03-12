@@ -17,7 +17,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { ThemeToggle } from '@/components/ThemeToggle';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import AddRoleDialog from '@/components/AddRoleDialog';
+
 import { Skeleton } from '@/components/ui/skeleton';
 import MyLandlordsSection from '@/components/tenant/MyLandlordsSection';
 import MyTenantsSection from '@/components/landlord/MyTenantsSection';
