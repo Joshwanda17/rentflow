@@ -53,7 +53,20 @@ type Step = 'upload' | 'preview' | 'confirm' | 'processing' | 'results';
 
 /* ─── Constants ─── */
 const VALID_ROI_MODES = ['monthly_payout', 'monthly_compounding'];
-const TEMPLATE_URL = '/partner-import-template.xlsx';
+function downloadTemplate() {
+  const headers = ['Partner Name', 'Phone', 'Email', 'Investment Amount', 'ROI %', 'Duration (Months)', 'ROI Mode'];
+  const samples = [
+    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 500000, 15, 12, 'monthly_compounding'],
+    ['Ssenkaali Pius', '0700123456', 'pius@example.com', 300000, 15, 12, 'monthly_payout'],
+    ['Namukisha Esther', '0754155112', 'esther@example.com', 1000000, 15, 12, 'monthly_compounding'],
+    ['John Doe', '0771234567', '', 200000, 15, 6, 'monthly_payout'],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet([headers, ...samples]);
+  ws['!cols'] = [{ wch: 20 }, { wch: 15 }, { wch: 25 }, { wch: 18 }, { wch: 8 }, { wch: 18 }, { wch: 22 }];
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Partners');
+  XLSX.writeFile(wb, 'partner-import-template.xlsx');
+}
 
 /* ─── Helpers ─── */
 function normalizePhone(raw: string): string {
