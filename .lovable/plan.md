@@ -1,53 +1,42 @@
 
 
-# Post-Approval Notification Enhancement
+## Plan: Phase 1 — Agent Operations Dashboard (Core) ✅ IMPLEMENTED
 
-## Current State
-The `approve-rent-request` edge function already creates **in-app notifications** for:
-- Tenant: "Rent Request Approved!" (line 294-301)
-- Agent: Bonus notification only (line 272-280)
+This phase delivers: **Float Control**, **GPS Visit Check-in**, **Payment Token Generation**, **Payment Recording with Token Verification**, and a **Daily Operations Summary** card on the existing Agent Dashboard.
 
-**Missing:**
-- No SMS notification to tenant or agent on approval
-- No in-app notification to the agent about the approval itself (only bonus)
-- No SMS on rejection either
+---
 
-## What Changes
+### Database Tables Created
 
-### 1. Add SMS notifications to `approve-rent-request/index.ts`
+1. `agent_float_limits` — Manager-assigned float capacity per agent (with daily reset)
+2. `agent_visits` — GPS visit check-ins
+3. `payment_tokens` — Time-limited 6-digit tokens (30 min expiry)
+4. `agent_collections` — Payments recorded against tokens
+5. Added `territory` column to `profiles` table
 
-After approval, send SMS via Africa's Talking (same pattern used in `sms-otp`, `send-collection-sms`, `password-reset-sms`):
+### Database Functions Created
 
-- **Tenant SMS**: "WELILE: Your rent of UGX X has been approved and will be paid to your landlord. Repayment of UGX Y/day starts tomorrow. Ref: {id}"
-- **Agent SMS** (if agent exists): "WELILE: Rent request for {tenant_name} (UGX X) has been approved. You earned UGX 5,000 bonus."
+- `reset_agent_float_if_stale(p_agent_id)` — resets `collected_today` when date changes
+- `validate_and_record_collection(p_token_code, p_payment_method, p_agent_id)` — atomic token validation + collection recording
 
-Phone numbers fetched from `profiles` table. Only sent for Ugandan numbers (+256).
+### UI Components Created
 
-### 2. Add agent in-app notification for approval (not just bonus)
+1. `AgentDailyOpsCard.tsx` — Daily ops summary (visits, collections, float gauge)
+2. `AgentVisitDialog.tsx` — GPS check-in with tenant selection
+3. `GeneratePaymentTokenDialog.tsx` — 6-digit token generation with countdown
+4. `RecordAgentCollectionDialog.tsx` — Token-verified payment recording
+5. `AgentDepositCashDialog.tsx` — Cash deposit to restore float capacity
 
-Currently the agent only gets a bonus notification. Add a separate "Rent Approved" notification so agents without bonus still know the outcome.
+### Dashboard Updated
 
-### 3. Add rejection notifications
+- Quick action grid (6 buttons): Visit Tenant, Generate Token, Record Payment, Deposit Cash, Register User, My Tenants
+- Daily Ops Card positioned prominently below profile
 
-- **Tenant SMS**: "WELILE: Your rent request for UGX X was not approved. Contact your agent for details."
-- **Agent in-app notification**: "{tenant_name}'s rent request was rejected."
+---
 
-### File Changes
+### Phase 2 (Not Yet Implemented)
 
-| File | Change |
-|---|---|
-| `supabase/functions/approve-rent-request/index.ts` | Add `sendSMS()` helper, fetch tenant/agent phone from profiles, send SMS on approve + reject, add agent in-app notification on approval |
-
-### SMS Logic
-- Reuse the Africa's Talking pattern from existing functions (AFRICASTALKING_API_KEY, AFRICASTALKING_USERNAME secrets already configured)
-- Format phone to +256 international format
-- SMS is fire-and-forget (non-blocking, logged but won't fail the approval)
-- Only attempt SMS for valid Ugandan phone numbers
-
-### Notification Summary
-
-| Event | Tenant In-App | Tenant SMS | Agent In-App | Agent SMS |
-|---|---|---|---|---|
-| Approved | Existing | **New** | **New** | **New** |
-| Rejected | Existing | **New** | **New** | No |
-
+- Automatic SMS confirmation to tenant
+- Agent Performance Metrics (daily/weekly totals, repayment rate, digital payment %)
+- Fraud Prevention monitoring & manager alerts
+- Tenant navigation (call/WhatsApp/GPS directions)
