@@ -368,6 +368,7 @@ export default function PartnerImportDialog({ open, onOpenChange, onSuccess }: P
                   <p className="font-semibold text-sm">Drop Excel file here or click to browse</p>
                   <p className="text-xs text-muted-foreground mt-1">Supports .xlsx files, max 500 rows</p>
                   <p className="text-xs text-muted-foreground mt-0.5">Accepts flexible headers: "Supporter Name", "Principal (UGX)", "Rate", "Contribution Date", etc.</p>
+                  <p className="text-[10px] text-muted-foreground/70 mt-2 px-4">💡 Multiple portfolios per partner? Use the <strong>same phone number</strong> on each row — they'll be grouped automatically as one partner with multiple investments.</p>
                 </>
               )}
               <input
