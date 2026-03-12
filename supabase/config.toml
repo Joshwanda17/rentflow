@@ -104,3 +104,6 @@ verify_jwt = false
 
 [functions.coo-invest-for-partner]
 verify_jwt = false
+
+[functions.fix-supporter-metadata]
+verify_jwt = false
