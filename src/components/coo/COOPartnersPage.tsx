@@ -1200,7 +1200,34 @@ export default function COOPartnersPage() {
       </AlertDialog>
 
       {/* Import Dialog */}
-      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
+      <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={() => { fetchData(); fetchPendingCount(); }} />
+
+      {/* ─── Bulk Activate Confirmation ─── */}
+      <AlertDialog open={showActivateConfirm} onOpenChange={setShowActivateConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              <CheckCircle2 className="h-5 w-5 text-emerald-600" />
+              Activate All Pending Portfolios
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              This will set <strong>{pendingApprovalCount}</strong> portfolios from <strong>Awaiting Approval</strong> to <strong>Active</strong>.
+              These are imported records that don't require wallet operations. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={activatingAll}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleBulkActivate}
+              disabled={activatingAll}
+              className="bg-emerald-600 hover:bg-emerald-700"
+            >
+              {activatingAll && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Activate {pendingApprovalCount} Portfolios
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       {/* ─── Delete Portfolio Confirmation ─── */}
       <Dialog open={!!deletePortfolio} onOpenChange={open => { if (!open) { setDeletePortfolio(null); setDeleteReason(''); } }}>
