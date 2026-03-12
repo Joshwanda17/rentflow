@@ -4,6 +4,7 @@ import {
   Crown, Cpu, Megaphone, MessageSquare, Users, Home, Building2,
   Shield, Activity, BarChart3, Wallet, Handshake, ArrowLeft
 } from 'lucide-react';
+import DatabaseExportButton from '@/components/admin/DatabaseExportButton';
 
 interface DashboardCard {
   label: string;
@@ -37,13 +38,16 @@ export default function AdminDashboardPage() {
     <div className="min-h-screen bg-background">
       <div className="max-w-5xl mx-auto px-4 py-8 space-y-8">
         {/* Back to dashboard */}
-        <button
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Back to Admin Dashboard
-        </button>
+        <div className="flex items-center justify-between">
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Admin Dashboard
+          </button>
+          <DatabaseExportButton />
+        </div>
 
         <div>
           <h1 className="text-2xl font-black text-foreground">Dashboard Access Panel</h1>
