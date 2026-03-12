@@ -56,7 +56,9 @@ export async function fetchUserRoles(
         : (intendedRole && userRoles.includes(intendedRole)) ? intendedRole
         : userRoles.includes('supporter') ? 'supporter'
         : 'agent';
-      if (!currentRole || !userRoles.includes(currentRole)) {
+      // Always set default role on role fetch (fresh login or reload)
+      // Users can switch roles via the role switcher afterward
+      if (!currentRole || !userRoles.includes(currentRole) || currentRole === 'agent' && userRoles.includes('supporter')) {
         setRole(defaultForUser);
       }
     } else {
