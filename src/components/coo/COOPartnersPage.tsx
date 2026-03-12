@@ -7,7 +7,7 @@ import {
   Loader2, Search, X, Download, ChevronLeft, ChevronRight, ChevronUp, ChevronDown,
   ChevronsUpDown, MoreHorizontal, TrendingUp, Pencil, Wallet, Ban, PlayCircle,
   Users, Banknote, PiggyBank, ArrowUpRight, Filter, RefreshCw, Phone, Calendar,
-  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload
+  CalendarDays, Shield, Eye, CheckCircle2, Clock, Hash, Briefcase, Save, Upload, Trash2
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,6 +18,7 @@ import {
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter
 } from '@/components/ui/dialog';
+import { Textarea } from '@/components/ui/textarea';
 import {
   AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent,
   AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle,
@@ -173,6 +174,11 @@ export default function COOPartnersPage() {
 
   // Import dialog
   const [importOpen, setImportOpen] = useState(false);
+
+  // Delete portfolio dialog
+  const [deletePortfolio, setDeletePortfolio] = useState<PortfolioRow | null>(null);
+  const [deleteReason, setDeleteReason] = useState('');
+  const [deleting, setDeleting] = useState(false);
 
   /* ─── Fetch ─── */
   const fetchData = useCallback(async () => {
@@ -334,6 +340,65 @@ export default function COOPartnersPage() {
       }
     } catch (e: any) { toast.error(e.message || 'Failed to update'); }
     finally { setSavingPortfolio(false); }
+  }
+
+  /* ─── Delete Portfolio ─── */
+  async function handleDeletePortfolio() {
+    if (!deletePortfolio || !deleteReason.trim()) {
+      toast.error('Please provide a reason for deletion');
+      return;
+    }
+    if (deleteReason.trim().length < 10) {
+      toast.error('Reason must be at least 10 characters');
+      return;
+    }
+    setDeleting(true);
+    try {
+      // Get current user for audit
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Not authenticated');
+
+      // Log to audit_logs before deletion
+      const { error: auditErr } = await supabase.from('audit_logs').insert({
+        user_id: user.id,
+        action_type: 'delete_investment_portfolio',
+        table_name: 'investor_portfolios',
+        record_id: deletePortfolio.id,
+        metadata: {
+          portfolio_code: deletePortfolio.portfolio_code,
+          investment_amount: deletePortfolio.investment_amount,
+          roi_percentage: deletePortfolio.roi_percentage,
+          status: deletePortfolio.status,
+          created_at: deletePortfolio.created_at,
+          reason: deleteReason.trim(),
+          partner_id: detailPartner?.profile.id,
+          partner_name: detailPartner?.profile.full_name,
+        },
+      });
+      if (auditErr) throw auditErr;
+
+      // Delete the portfolio
+      const { error: delErr } = await supabase
+        .from('investor_portfolios')
+        .delete()
+        .eq('id', deletePortfolio.id);
+      if (delErr) throw delErr;
+
+      toast.success(`Portfolio ${deletePortfolio.portfolio_code} deleted`, { description: 'Action logged for audit.' });
+
+      // Update local state
+      if (detailPartner) {
+        const updated = detailPartner.portfolios.filter(p => p.id !== deletePortfolio.id);
+        setDetailPartner({ ...detailPartner, portfolios: updated });
+      }
+      setDeletePortfolio(null);
+      setDeleteReason('');
+      fetchData();
+    } catch (e: any) {
+      toast.error(e.message || 'Failed to delete portfolio');
+    } finally {
+      setDeleting(false);
+    }
   }
 
   /* ─── Filtered / Sorted ─── */
@@ -848,6 +913,18 @@ export default function COOPartnersPage() {
                                 )}
                               </div>
 
+                              {/* Delete Portfolio Button */}
+                              <div className="flex justify-end mt-2 pt-2 border-t border-border/50">
+                                <Button
+                                  variant="ghost"
+                                  size="sm"
+                                  className="h-7 px-2.5 text-[10px] text-destructive hover:text-destructive hover:bg-destructive/10 gap-1"
+                                  onClick={() => { setDeletePortfolio(p); setDeleteReason(''); }}
+                                >
+                                  <Trash2 className="h-3 w-3" /> Delete Investment
+                                </Button>
+                              </div>
+
                             </div>
                           </Card>
                         );
@@ -986,6 +1063,51 @@ export default function COOPartnersPage() {
 
       {/* Import Dialog */}
       <PartnerImportDialog open={importOpen} onOpenChange={setImportOpen} onSuccess={fetchData} />
+
+      {/* ─── Delete Portfolio Confirmation ─── */}
+      <Dialog open={!!deletePortfolio} onOpenChange={open => { if (!open) { setDeletePortfolio(null); setDeleteReason(''); } }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" /> Delete Investment Portfolio
+            </DialogTitle>
+            <DialogDescription>
+              This will permanently delete portfolio <strong>{deletePortfolio?.portfolio_code}</strong> ({formatUGX(deletePortfolio?.investment_amount || 0)}).
+              This action cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="p-3 rounded-lg bg-destructive/10 border border-destructive/20 text-xs space-y-1">
+              <p><strong>Portfolio:</strong> {deletePortfolio?.portfolio_code}</p>
+              <p><strong>Amount:</strong> {formatUGX(deletePortfolio?.investment_amount || 0)}</p>
+              <p><strong>ROI:</strong> {deletePortfolio?.roi_percentage}% · {deletePortfolio?.roi_mode === 'monthly_compounding' ? 'Compounding' : 'Payout'}</p>
+              <p><strong>Status:</strong> {deletePortfolio?.status}</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs font-semibold">Reason for Deletion <span className="text-destructive">*</span></Label>
+              <Textarea
+                value={deleteReason}
+                onChange={e => setDeleteReason(e.target.value)}
+                placeholder="Provide a detailed reason for deleting this investment (min 10 characters)..."
+                className="min-h-[80px] text-sm"
+                maxLength={500}
+              />
+              <p className="text-[10px] text-muted-foreground">{deleteReason.length}/500 characters</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setDeletePortfolio(null); setDeleteReason(''); }}>Cancel</Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeletePortfolio}
+              disabled={deleting || deleteReason.trim().length < 10}
+            >
+              {deleting && <Loader2 className="h-4 w-4 animate-spin mr-2" />}
+              Delete Portfolio
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
