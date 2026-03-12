@@ -316,7 +316,7 @@ export default function COOPartnersPage() {
 
       if (error) throw error;
 
-      toast.success(`${count || pendingApprovalCount} portfolios activated successfully`);
+      toast.success(`${pendingApprovalCount} portfolios activated successfully`);
       setShowActivateConfirm(false);
       setPendingApprovalCount(0);
       fetchData();
