@@ -347,10 +347,15 @@ export default function COOPartnersPage() {
       ]);
 
       const ledgerData = ledgerRes.data || [];
-      const totalFunded = ledgerData.filter(e => e.direction === 'cash_out').reduce((s, e) => s + (e.amount || 0), 0);
-      const totalDeals = ledgerData.filter(e => e.direction === 'cash_out').length;
+      const ledgerFunded = ledgerData.filter(e => e.direction === 'cash_out').reduce((s, e) => s + (e.amount || 0), 0);
+      const ledgerDeals = ledgerData.filter(e => e.direction === 'cash_out').length;
       const portfolios = (portfolioRes.data || []) as PortfolioRow[];
       const totalROIEarned = portfolios.reduce((s, p) => s + (p.total_roi_earned || 0), 0);
+
+      // For imported partners with no ledger entries, derive totals from portfolio records
+      const portfolioFunded = portfolios.reduce((s, p) => s + (p.investment_amount || 0), 0);
+      const totalFunded = ledgerFunded > 0 ? ledgerFunded : portfolioFunded;
+      const totalDeals = ledgerDeals > 0 ? ledgerDeals : portfolios.length;
 
       setDetailPartner({
         profile: profileRes.data as any,
