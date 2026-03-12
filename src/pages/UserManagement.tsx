@@ -289,7 +289,7 @@ export default function UserManagement() {
 
       const pageUsers: UserWithRating[] = (profiles || []).map(p => {
         const userRolesData = rolesData?.filter(r => r.user_id === p.id) || [];
-        const userRoles = userRolesData.map(r => r.role);
+        const userRoles = userRolesData.filter(r => r.enabled !== false).map(r => r.role);
         const roleEnabledStatus: Record<string, boolean> = {};
         userRolesData.forEach(r => { roleEnabledStatus[r.role] = r.enabled; });
         const ratingInfo = ratingsByTenant.get(p.id);
