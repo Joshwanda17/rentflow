@@ -112,7 +112,7 @@ export default function LoanProgressWidget({ userId }: LoanProgressWidgetProps) 
             <div className="p-2 rounded-lg bg-gradient-to-br from-warning/20 to-warning/5">
               <Banknote className="h-4 w-4 text-warning" />
             </div>
-            <CardTitle className="text-lg font-semibold">Loan Repayments</CardTitle>
+            <CardTitle className="text-lg font-semibold">Rent Payback</CardTitle>
           </div>
           <div className="flex items-center gap-2">
             {urgentLoans.length > 0 && (
