@@ -148,7 +148,7 @@ function DepositInstructionsDialog({
           <div className="rounded-xl border border-border/40 bg-muted/20 p-3 flex items-start gap-2.5">
             <Shield className="h-4 w-4 text-muted-foreground mt-0.5 shrink-0" />
             <p className="text-xs text-muted-foreground leading-relaxed">
-              All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your portfolio is activated. You'll be notified once approved.
+              All facilitations are verified by a <strong className="text-foreground">Welile Manager</strong> before your support account is activated. You'll be notified once approved.
             </p>
           </div>
 
