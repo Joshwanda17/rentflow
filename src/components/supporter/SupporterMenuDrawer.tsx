@@ -248,6 +248,21 @@ export function SupporterMenuDrawer({
                     <Separator className="mt-4" />
                   </div>
                 )}
+                {/* Investment Categories */}
+                {onFundCategory && (
+                  <div>
+                    <RentCategoryFeed
+                      onFundCategory={(cat) => {
+                        onOpenChange(false);
+                        onFundCategory(cat);
+                      }}
+                      isLocked={isLocked}
+                      onLockedClick={onLockedClick}
+                      onRefreshRef={onRefreshRef}
+                    />
+                    <Separator className="mt-4" />
+                  </div>
+                )}
                 {menuSections.map((section, sectionIndex) => (
                   <div key={section.title}>
                     <h3 className="text-xs font-semibold text-muted-foreground uppercase tracking-wider mb-3 px-1">
