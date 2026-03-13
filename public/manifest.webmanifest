@@ -1,13 +1,49 @@
 {
-  "name": "Welile.com",
-  "short_name": "Welile.com",
-  "description": "Africa's leading rent facilitation platform",
-  "start_url": "/dashboard",
+  "name": "Welile.com - Rent Facilitation",
+  "short_name": "Welile",
+  "description": "Africa's leading rent facilitation platform. Access rent today, pay back over time.",
+  "start_url": "/dashboard?source=pwa",
+  "scope": "/",
   "display": "standalone",
+  "display_override": ["standalone", "minimal-ui"],
   "background_color": "#f8fafc",
   "theme_color": "#7c3aed",
   "orientation": "portrait-primary",
+  "lang": "en",
+  "dir": "ltr",
+  "categories": ["finance", "business", "utilities"],
+  "prefer_related_applications": false,
   "icons": [
+    {
+      "src": "/welile-logo.png",
+      "sizes": "48x48",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
+      "sizes": "72x72",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
+      "sizes": "96x96",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
+      "sizes": "128x128",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
+      "sizes": "144x144",
+      "type": "image/png",
+      "purpose": "any"
+    },
     {
       "src": "/welile-logo.png",
       "sizes": "192x192",
@@ -16,9 +52,29 @@
     },
     {
       "src": "/welile-logo.png",
+      "sizes": "384x384",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/welile-logo.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "My Wallet",
+      "short_name": "Wallet",
+      "url": "/dashboard?tab=wallet",
+      "icons": [{ "src": "/welile-logo.png", "sizes": "96x96" }]
+    },
+    {
+      "name": "Pay Bills",
+      "short_name": "Bills",
+      "url": "/dashboard?tab=bills",
+      "icons": [{ "src": "/welile-logo.png", "sizes": "96x96" }]
     }
   ]
 }
