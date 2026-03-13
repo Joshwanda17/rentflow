@@ -829,7 +829,7 @@ export default function UserProfilesTable() {
 
             <div className="flex items-center gap-3">
               <span className="text-base text-muted-foreground font-bold">
-                {filteredUsers.length}
+                {totalCount > 0 ? `${currentPage * PAGE_SIZE + 1}-${Math.min((currentPage + 1) * PAGE_SIZE, totalCount)} of ${totalCount}` : '0'}
               </span>
               
               {/* Sort Dropdown */}
