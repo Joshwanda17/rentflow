@@ -345,7 +345,7 @@ export default function MyReceipts() {
                     <div className="flex-1">
                       <CardTitle className="text-xl">Submit Shopping Receipt</CardTitle>
                       <CardDescription className="text-sm mt-1">
-                        Enter your Welile receipt code to grow your loan limit
+                        Enter your Welile receipt code to grow your rent access limit
                       </CardDescription>
                     </div>
                   </div>
