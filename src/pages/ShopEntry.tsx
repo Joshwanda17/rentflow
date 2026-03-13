@@ -52,7 +52,7 @@ export default function ShopEntry() {
           </div>
           <h1 className="text-3xl font-bold">Welile Shop</h1>
           <p className="text-muted-foreground max-w-md mx-auto">
-            Buy, sell, and unlock shopping loans up to <span className="text-primary font-semibold">UGX 30M</span>
+            Buy, sell, and unlock shopping access up to <span className="text-primary font-semibold">UGX 30M</span>
           </p>
         </motion.div>
 
