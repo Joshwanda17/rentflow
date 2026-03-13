@@ -138,7 +138,7 @@ export function InvestmentWithdrawButton() {
         className="w-full gap-2 rounded-xl font-bold h-10 text-sm border-border/60 text-muted-foreground"
       >
         <LogOut className="h-4 w-4" />
-        Request Investment Withdrawal
+        Request Capital Withdrawal
       </Button>
 
       <Dialog open={open} onOpenChange={setOpen}>
