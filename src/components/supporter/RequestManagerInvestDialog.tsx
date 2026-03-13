@@ -57,7 +57,7 @@ export const RequestManagerInvestDialog = forwardRef<HTMLDivElement, RequestMana
         .single();
 
       // manager_investment_requests table removed
-      toast({ title: 'Not Available', description: 'Investment requests feature is currently disabled.', variant: 'destructive' });
+      toast({ title: 'Not Available', description: 'Support requests feature is currently disabled.', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
