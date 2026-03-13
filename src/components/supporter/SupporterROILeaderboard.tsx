@@ -238,7 +238,7 @@ export function SupporterROILeaderboard({ limit = 10, compact = false }: Support
                 <p className="text-lg font-bold">
                   {formatUGX(leaders.reduce((sum, l) => sum + l.total_roi_earned, 0))}
                 </p>
-                <p className="text-[10px] text-muted-foreground">Total ROI Paid</p>
+                <p className="text-[10px] text-muted-foreground">Total Rewards Paid</p>
               </div>
               <div>
                 <Wallet className="h-4 w-4 mx-auto mb-1 text-primary" />
