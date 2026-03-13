@@ -74,6 +74,7 @@ import { PasswordResetGuide } from '@/components/manager/PasswordResetGuide';
 import { AgentEarningsOverview } from '@/components/manager/AgentEarningsOverview';
 import { AgentCollectionsWidget } from '@/components/manager/AgentCollectionsWidget';
 import { DesktopManagerSidebar } from '@/components/manager/DesktopManagerSidebar';
+import { QuickUserLookup } from '@/components/manager/QuickUserLookup';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 interface ManagerDashboardProps {
